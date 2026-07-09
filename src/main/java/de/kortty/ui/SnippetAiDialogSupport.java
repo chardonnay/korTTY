@@ -78,6 +78,30 @@ final class SnippetAiDialogSupport {
         return new Label(I18n.get("snippets.ai.profile"));
     }
 
+    /**
+     * A human-readable name for the profile a result was (or will be) produced with: the named profile for
+     * {@code activeProfileId}, otherwise the configured default profile's name, falling back to the generic
+     * "Default profile" label. Lets a dialog state which profile it is actually using — the combo alone only
+     * shows the literal "Default profile" for the null selection, never the default's real name.
+     */
+    static String resolveProfileDisplayName(String activeProfileId) {
+        GlobalSettings settings = currentSettings();
+        if (settings != null && settings.getAiProfiles() != null) {
+            String targetId = activeProfileId != null && !activeProfileId.isBlank()
+                ? activeProfileId
+                : settings.getDefaultAiProfileId();
+            if (targetId != null && !targetId.isBlank()) {
+                for (AiProfile profile : settings.getAiProfiles()) {
+                    if (profile != null && targetId.equals(profile.getId())
+                        && profile.getName() != null && !profile.getName().isBlank()) {
+                        return profile.getName();
+                    }
+                }
+            }
+        }
+        return I18n.get("snippets.ai.profile.default");
+    }
+
     /** The profile id currently selected in {@code combo}, or {@code null} for the default profile. */
     static String selectedProfileId(ComboBox<ProfileChoice> combo) {
         ProfileChoice choice = combo != null ? combo.getValue() : null;
@@ -178,6 +202,60 @@ final class SnippetAiDialogSupport {
             + "background:rgba(127,127,127,0.09);border-radius:0 6px 6px 0;white-space:pre-wrap;}"
             + ".rec-label{font-weight:700;opacity:.85;margin-right:5px;}"
             + ".empty{opacity:.7;padding:24px;text-align:center;}";
+    }
+
+    // ---- Section icons (analysis categories) -----------------------------------------------------
+
+    /** Accent colour for an analysis section/category (security, optimization, design, dependencies). */
+    static String sectionColor(String category) {
+        return switch (category != null ? category : "") {
+            case "security" -> "#e5484d";
+            case "optimization" -> "#f59e0b";
+            case "dependencies" -> "#14b8a6";
+            default -> "#8b5cf6"; // design / catch-all
+        };
+    }
+
+    /**
+     * A small inline-SVG glyph for an analysis category, coloured via CSS {@code currentColor} (style the
+     * surrounding element). Inline SVG instead of emoji because the WebView's default fonts cannot render
+     * the supplementary-plane emoji — they show up as replacement boxes.
+     */
+    static String sectionIconSvg(String category) {
+        String path = switch (category != null ? category : "") {
+            case "security" -> "M8 1.3 13.5 3.3V7.6C13.5 10.8 11.2 13.4 8 14.4 4.8 13.4 2.5 10.8 2.5 7.6V3.3Z";
+            case "optimization" -> "M9 1 4 8.5H7L6.5 15 12 6.5H8.5L9 1Z";
+            case "dependencies" -> "M8 1.4 13.6 4.2V9.8L8 12.6 2.4 9.8V4.2Z";
+            default -> "M8 1.5C11 5 13 7.5 13 10A5 5 0 0 1 3 10C3 7.5 5 5 8 1.5Z"; // design / catch-all
+        };
+        return "<svg class=\"sec-ic\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\""
+            + path + "\"/></svg>";
+    }
+
+    /**
+     * Maps a finding/change id onto its analysis category by its letter prefix — {@code SEC-1}/{@code S1}
+     * &rarr; security, {@code OPT-1} &rarr; optimization, {@code DES-4} &rarr; design, {@code D1} &rarr;
+     * dependencies. Returns {@code null} when the id carries no recognizable prefix.
+     */
+    static String categoryForFindingId(String findingId) {
+        if (findingId == null) {
+            return null;
+        }
+        StringBuilder letters = new StringBuilder();
+        for (int i = 0; i < findingId.length(); i++) {
+            char c = findingId.charAt(i);
+            if (!Character.isLetter(c)) {
+                break;
+            }
+            letters.append(Character.toUpperCase(c));
+        }
+        return switch (letters.toString()) {
+            case "SEC", "S" -> "security";
+            case "OPT", "O" -> "optimization";
+            case "DES" -> "design";
+            case "D", "DEP" -> "dependencies";
+            default -> null;
+        };
     }
 
     static String escapeHtml(String value) {

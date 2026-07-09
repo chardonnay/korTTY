@@ -270,6 +270,36 @@ function firstAnchorLine(text) {
   return line.trim();
 }
 
+function normalizeLine(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+// Best-effort anchor location on the modified side. The AI's anchor line is often NOT verbatim in the
+// final code (re-indented, re-quoted, case-shifted), so a strict findMatches alone silently drops the
+// hover for that change. Escalate: exact match -> case-insensitive match -> whitespace-normalized
+// case-insensitive line scan (containment either way, with length guards against trivial matches).
+function locateAnchorLine(anchorText) {
+  const anchor = firstAnchorLine(anchorText);
+  if (!anchor || !modifiedModel) return null;
+  let matches = modifiedModel.findMatches(anchor, false, false, true, null, false, 1);
+  if (matches.length === 0) {
+    matches = modifiedModel.findMatches(anchor, false, false, false, null, false, 1);
+  }
+  if (matches.length > 0) return matches[0].range.startLineNumber;
+
+  const needle = normalizeLine(anchor).toLowerCase();
+  if (needle.length < 4) return null;
+  const lineCount = modifiedModel.getLineCount();
+  for (let ln = 1; ln <= lineCount; ln++) {
+    const hay = normalizeLine(modifiedModel.getLineContent(ln)).toLowerCase();
+    if (hay.length < 4) continue;
+    if (hay === needle || hay.includes(needle) || (hay.length >= 8 && needle.includes(hay))) {
+      return ln;
+    }
+  }
+  return null;
+}
+
 function applyReasonDecorations() {
   if (!diffEditor || !modifiedModel) return;
   const modifiedEditor = diffEditor.getModifiedEditor();
@@ -279,15 +309,17 @@ function applyReasonDecorations() {
 
   // Locate each reason's anchor line on the modified side (best-effort; may stay null).
   const located = [];
-  for (const change of reasons) {
+  for (let r = 0; r < reasons.length; r++) {
+    const change = reasons[r];
     if (!change || !change.reason) continue;
-    const anchor = firstAnchorLine(change.anchor);
-    let line = null;
-    if (anchor) {
-      const matches = modifiedModel.findMatches(anchor, false, false, true, null, false, 4);
-      if (matches.length > 0) line = matches[0].range.startLineNumber;
-    }
-    located.push({ finding: String(change.finding || "").trim(), reason: change.reason, line: line });
+    located.push({
+      idx: typeof change.idx === "number" ? change.idx : r,
+      finding: String(change.finding || "").trim(),
+      reason: change.reason,
+      line: locateAnchorLine(change.anchor),
+      start: null,
+      end: null
+    });
   }
   if (located.length === 0) return;
 
@@ -296,31 +328,65 @@ function applyReasonDecorations() {
     (typeof diffEditor.getLineChanges === "function" ? diffEditor.getLineChanges() : null) || [];
   const blocks = lineChanges
     .filter((c) => c.modifiedEndLineNumber > 0 && c.modifiedEndLineNumber >= c.modifiedStartLineNumber)
-    .map((c) => ({ start: c.modifiedStartLineNumber, end: c.modifiedEndLineNumber }));
+    .map((c) => ({ start: c.modifiedStartLineNumber, end: c.modifiedEndLineNumber, groups: [] }));
 
-  const decorations = [];
   const assigned = new Set();
   for (const block of blocks) {
-    const group = [];
     for (let i = 0; i < located.length; i++) {
       const item = located[i];
       if (item.line != null && item.line >= block.start && item.line <= block.end) {
-        group.push(item);
+        block.groups.push(item);
         assigned.add(i);
       }
     }
-    if (group.length > 0) {
-      decorations.push(reasonDecoration(block.start, block.end, group));
+  }
+  // Reasons whose anchor could not be located at all: pair them with the not-yet-annotated changed
+  // blocks in document order (the model reports its changes in code order), so every reason still gets
+  // a hover home instead of silently disappearing from the diff.
+  const unlocated = [];
+  for (let i = 0; i < located.length; i++) {
+    if (!assigned.has(i) && located[i].line == null) unlocated.push(located[i]);
+  }
+  if (unlocated.length > 0) {
+    const emptyBlocks = blocks.filter((b) => b.groups.length === 0);
+    for (let i = 0; i < unlocated.length; i++) {
+      if (i < emptyBlocks.length) {
+        emptyBlocks[i].groups.push(unlocated[i]);
+      } else if (emptyBlocks.length > 0) {
+        emptyBlocks[emptyBlocks.length - 1].groups.push(unlocated[i]);
+      }
     }
   }
-  // Reasons whose anchor did not fall inside a detected block: fall back to a single-line marker.
+
+  const decorations = [];
+  for (const block of blocks) {
+    if (block.groups.length === 0) continue;
+    for (const item of block.groups) {
+      item.start = block.start;
+      item.end = block.end;
+    }
+    decorations.push(reasonDecoration(block.start, block.end, block.groups));
+  }
+  // Located anchors that sit outside every detected block (context lines): single-line marker.
   for (let i = 0; i < located.length; i++) {
-    if (assigned.has(i)) continue;
     const item = located[i];
-    if (item.line == null) continue;
+    if (item.start != null || item.line == null) continue;
+    item.start = item.line;
+    item.end = item.line;
     decorations.push(reasonDecoration(item.line, item.line, [item]));
   }
   changeDecorations = modifiedEditor.deltaDecorations([], decorations);
+
+  // Report each reason's resolved line range (modified side) so the host can show "Lines 23-40"
+  // next to the explanation cards below the diff.
+  try {
+    const ranges = located
+      .filter((item) => item.start != null)
+      .map((item) => ({ idx: item.idx, start: item.start, end: item.end }));
+    notify("onChangeReasonRanges", JSON.stringify(ranges));
+  } catch (_error) {
+    // Range reporting is cosmetic; never let it break the decorations.
+  }
 }
 
 function reasonDecoration(startLine, endLine, group) {

@@ -317,6 +317,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer codeAnalysisFontSize = 14;
 
+    /** Whether the "Hardening options" panel in the AI code-analysis window is expanded. Default: collapsed. */
+    @XmlElement
+    private Boolean codeAnalysisHardeningExpanded = false;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -1363,6 +1367,14 @@ public class GlobalSettings {
 
     public void setCodeAnalysisFontSize(Integer codeAnalysisFontSize) {
         this.codeAnalysisFontSize = codeAnalysisFontSize;
+    }
+
+    public Boolean getCodeAnalysisHardeningExpanded() {
+        return codeAnalysisHardeningExpanded;
+    }
+
+    public void setCodeAnalysisHardeningExpanded(Boolean codeAnalysisHardeningExpanded) {
+        this.codeAnalysisHardeningExpanded = codeAnalysisHardeningExpanded;
     }
 
     public Integer getWorkflowScriptFontSize() {

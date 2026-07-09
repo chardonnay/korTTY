@@ -2821,11 +2821,21 @@
 </div>
 <h4 id="full-code-analysis">Full code analysis<a class="headerlink" href="#full-code-analysis" title="Permanent link">&para;</a></h4>
 <p><strong>Full code analysis</strong> opens a dedicated window that examines the whole snippet at once and offers concrete improvements you can apply. The window is <strong>non-modal</strong> — you can keep editing the snippet while it stays open — and its title bar shows the script's file name so you can tell several analyses apart. The snippet editor's own title bar likewise shows the name of the file you are editing.</p>
-<p>The window is split into two panes.</p>
+<p>A toolbar runs along the top of the window, the report and flow diagram fill the two panes below it, and a script-header selector plus a collapsible hardening panel sit in the footer.</p>
+<p><strong>Toolbar:</strong></p>
+<ul>
+<li><strong>Profile in use</strong> — The name of the AI profile the analysis ran with is shown on the left (for the default profile its <em>actual</em> name is shown, e.g. <em>Profile: LM Studio</em> — not just "Default profile"), so you can always tell which model produced the report.</li>
+<li><strong>AI skills</strong> — When <a href="../reference/settings/ai-skills.html">AI Skills</a> are configured, a row shows which skills were included and lets you change them; see <strong>AI skills for this analysis</strong> below.</li>
+<li><strong>Re-run</strong> — A transient AI-profile picker plus a <strong>Re-run</strong> button repeat the analysis with the chosen profile <em>and</em> your current AI-skill selection. The picker resets to the default when the window is reopened.</li>
+<li><strong>Select all</strong> — Tick every improvement and dependency at once.</li>
+<li><strong>A− / A+</strong> — Adjust the reading font size (remembered across sessions).</li>
+<li><strong>Copy</strong> — Copy the summary, improvements and dependencies to the clipboard as plain text.</li>
+<li><strong>Export</strong> — Save the whole report (including the diagram) as a file; see <strong>Export the report</strong> below.</li>
+</ul>
 <p><strong>Left — analysis and improvements:</strong></p>
 <ul>
-<li><strong>Summary</strong> — A short, plain-language description of what the script does.</li>
-<li><strong>Improvements</strong> — Suggestions grouped into <strong>Security</strong>, <strong>Optimization</strong> and <strong>Design</strong> categories, each with a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use <strong>Select all</strong> to tick everything at once. Empty categories are hidden.</li>
+<li><strong>Summary</strong> — A short, plain-language description of what the script does. It is a description, not a pickable item, so it is shown as a plain block without a selection accent.</li>
+<li><strong>Improvements</strong> — Suggestions grouped into <strong>Security</strong>, <strong>Optimization</strong> and <strong>Design</strong> sections. Each section title carries a colour-coded icon and a count, and each suggestion has a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use <strong>Select all</strong> to tick everything at once. Empty sections are hidden.</li>
 <li><strong>Dependencies</strong> — External programs, scripts or services the snippet relies on, each with its <em>Purpose</em> and a <em>Reduce/replace</em> suggestion. Tick a dependency to have its suggestion applied too.</li>
 </ul>
 <p><strong>Right — flow diagram:</strong></p>
@@ -2833,8 +2843,26 @@
 <li>An <strong>auto-generated flow diagram</strong> of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom <strong>−</strong> / <strong>Fit</strong> / <strong>+</strong>, <strong>Save SVG</strong> / <strong>Save PNG</strong>, <strong>Copy image</strong> / <strong>Copy PlantUML</strong>, a <strong>Dark mode</strong> control and a <strong>Background</strong> colour picker (both remembered), and <strong>Regenerate</strong>. See <a href="#diagram-appearance">Diagram appearance</a> below.</li>
 <li><strong>Hover code references</strong> — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone <a href="#plantuml-diagrams">Diagram</a> window.</li>
 </ul>
-<p>At the bottom, a collapsible <strong>Hardening options</strong> panel lets you attach production-quality techniques to the fixes that get applied. See <a href="../reference/hardening-options.html">Hardening options</a> for what each option means and how it is applied.</p>
-<p>When you click <strong>Apply selected</strong>, KorTTY sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request and shows the result in an <em>Apply improvements — review changes</em> window: the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below. Apply the change to update the editor.</p>
+<p><strong>AI skills for this analysis:</strong></p>
+<p>When <a href="../reference/settings/ai-skills.html">AI Skills</a> are configured, a row at the top of the window shows exactly <strong>which skills were included</strong> in the analysis, as chips, with an <strong>(auto-selected)</strong> or <strong>(manual)</strong> badge:</p>
+<ul>
+<li><strong>Auto-selected</strong> — korTTY pre-selects the skills relevant to the snippet by matching each skill's tags, name and description against the snippet's language and content, and includes them in the analysis. This is why the badge reads <em>(auto-selected)</em> on the first run.</li>
+<li><strong>Manual</strong> — Click <strong>Select…</strong> to open a <strong>searchable picker</strong>: type in the search field to filter your saved skills by name, description or tags, then tick or untick the skills you want. As soon as you change the set, the badge switches to <em>(manual)</em> and korTTY keeps your choice instead of auto-selecting.</li>
+</ul>
+<p>Changing the skills does <strong>not</strong> re-analyse immediately — the new set is applied on the next <strong>Re-run</strong>, so one deliberate click produces one analysis with exactly the skills you chose (and no surprise flurry of AI calls). Skills you include here are sent regardless of each skill's configured <em>target</em>. The row appears only when at least one AI Skill is enabled.</p>
+<p><strong>Hardening options:</strong></p>
+<p>At the bottom, a collapsible <strong>Hardening options</strong> panel lets you attach production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, <code>--dry-run</code>, <code>--help</code>, and more) to the fixes that get applied. The panel title shows a live <strong>count</strong> of how many options are currently ticked — for example <em>Hardening options (11)</em> — and korTTY <strong>remembers whether you left the panel open or closed</strong> and restores that state the next time the window opens. See <a href="../reference/hardening-options.html">Hardening options</a> for what each option means and how it is applied.</p>
+<p><strong>Script header:</strong></p>
+<p>A <strong>Script header</strong> selector lets you prepend one of your saved <em>Script-Header</em> snippets (from the fixed <a href="#creating-and-editing-snippets">Script-Header category</a>) to the code when you apply the analysis. Pick a header — or leave it on <em>No header</em> (the default) — and its content, with variables substituted, is inserted at the top of the snippet, after an existing shebang / lead line, as part of the same change.</p>
+<p><strong>Apply selected:</strong></p>
+<p>When you click <strong>Apply selected</strong>, korTTY sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request and shows the result in an <em>Apply improvements — review changes</em> window: the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below. Any chosen <strong>Script header</strong> is prepended to the result before it is shown. Apply the change to update the editor. A header on its own — with no improvements, dependencies or hardening ticked — is inserted directly, without an AI round-trip, and still shown as a before/after preview first.</p>
+<p><strong>Export the report:</strong></p>
+<p>The <strong>Export</strong> button saves the full report — summary, categorized improvements, dependencies and the flow diagram — as a self-contained file in an attractive, print-friendly design. The export header records the script name, the AI profile used, the date, and the AI skills that were included:</p>
+<ul>
+<li><strong>PDF</strong> — A paginated document with the diagram embedded as an image.</li>
+<li><strong>HTML</strong> — A single self-contained web page (the diagram is embedded inline) that opens in any browser.</li>
+<li><strong>Markdown</strong> — A <code>.md</code> file, with the diagram saved next to it as a PNG.</li>
+</ul>
 <h4 id="security-check">Security Check<a class="headerlink" href="#security-check" title="Permanent link">&para;</a></h4>
 <p>The <strong>Security Check</strong> report window lists each finding with a colour-coded severity badge (findings are sorted most-severe first). From this window you can:</p>
 <ul>
@@ -2844,7 +2872,7 @@
 <li>Choose a dedicated <strong>Security profile</strong> — the AI profile used for security checks. The choice is remembered permanently and is also available in <strong>Configuration → Global Settings → AI</strong>; leave it on <em>Use default profile</em> to reuse the default. Changing it takes effect immediately.</li>
 <li><strong>Re-run check</strong> to repeat the review with the newly selected profile.</li>
 </ul>
-<p>When you apply fixes, the <strong>Review security fixes</strong> window shows the original and corrected code side by side. Changed lines are highlighted automatically and carry a marker in the margin. Hover anywhere in a changed block to see which finding(s) it addresses — for example <code>S1</code>, or <code>S1 + S2</code> when one block covers two findings — together with the reason for the change. The same explanations are also listed as cards below the diff, so the reasoning stays visible even when a marker cannot be placed. The preview font size can be zoomed and is remembered across sessions.</p>
+<p>When you apply fixes, the <strong>Review security fixes</strong> window shows the original and corrected code side by side. Changed lines are highlighted automatically and carry a marker in the margin. Hover anywhere in a changed block to see which finding(s) it addresses — for example <code>S1</code>, or <code>S1 + S2</code> when one block covers two findings — together with the reason for the change. Hover matching tolerates re-indented or case-shifted lines, and a reason whose anchor line cannot be found at all is attached to the remaining changed blocks in order, so explanations no longer go missing from the diff. The same explanations are also listed as cards below the diff: each card carries the finding's badge and colour-coded category icon (the same icons as the analysis sections) plus the line range it affects on the corrected side (for example <em>Lines 23–40</em>), so the reasoning stays visible even when a marker cannot be placed. The preview font size can be zoomed and is remembered across sessions. The same review window (and its explanation cards) is used when applying <strong>Full code analysis</strong> improvements.</p>
 <h3 id="ai-profile-re-run-and-zoom">AI profile, re-run and zoom<a class="headerlink" href="#ai-profile-re-run-and-zoom" title="Permanent link">&para;</a></h3>
 <p>The AI-code report windows (Full code analysis, Security Check, the technical-description and alternative-solution dialogs, and the change-review diff) share a small toolbar:</p>
 <ul>
@@ -2855,6 +2883,7 @@
 </ul>
 <h3 id="ai-skills">AI skills<a class="headerlink" href="#ai-skills" title="Permanent link">&para;</a></h3>
 <p>When <a href="../reference/settings/ai-skills.html">AI Skills</a> are configured, the snippet editor shows an <strong>AI skills</strong> picker. Skills relevant to the snippet's language are pre-selected automatically, and any skill you tick here is applied to <strong>every</strong> AI-code action (completion, analysis, improvement, security check, diagram) regardless of the skill's configured target. The picker appears only when at least one AI Skill is enabled.</p>
+<p>The <strong>Full code analysis</strong> window surfaces this same selection as a row of chips — labelled <em>(auto-selected)</em> or <em>(manual)</em> — and lets you refine it just for that analysis through a searchable picker. Changes made there apply on the next <strong>Re-run</strong>. See <a href="#full-code-analysis">Full code analysis</a>.</p>
 <h3 id="text-correction-and-translation">Text correction and translation<a class="headerlink" href="#text-correction-and-translation" title="Permanent link">&para;</a></h3>
 <p>For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and user-facing text segments. It does not rewrite logical code structure.</p>
 <h3 id="technical-descriptions">Technical descriptions<a class="headerlink" href="#technical-descriptions" title="Permanent link">&para;</a></h3>

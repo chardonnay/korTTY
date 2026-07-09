@@ -32,6 +32,7 @@ public final class HardeningOptionsSelector extends VBox {
 
     private final Map<HardeningOption, CheckBox> checks = new EnumMap<>(HardeningOption.class);
     private final Button saveButton;
+    private Runnable onSelectionChanged;
 
     public HardeningOptionsSelector() {
         setSpacing(8);
@@ -45,6 +46,7 @@ public final class HardeningOptionsSelector extends VBox {
             HardeningOption option = options[i];
             CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
             check.setSelected(initial.contains(option));
+            check.selectedProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
             checks.put(option, check);
             grid.add(check, i % 2, i / 2);
         }
@@ -71,6 +73,31 @@ public final class HardeningOptionsSelector extends VBox {
             }
         });
         return selected;
+    }
+
+    /** The number of currently ticked options — cheaper than {@link #selectedOptions()} for a live counter. */
+    public int selectedCount() {
+        int count = 0;
+        for (CheckBox check : checks.values()) {
+            if (check.isSelected()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Registers a callback fired whenever the ticked set changes (including via <b>All</b>/<b>Clear</b>),
+     * so a host can show a live "(N)" counter next to the panel title. Runs on the JavaFX thread.
+     */
+    public void setOnSelectionChanged(Runnable callback) {
+        this.onSelectionChanged = callback;
+    }
+
+    private void fireSelectionChanged() {
+        if (onSelectionChanged != null) {
+            onSelectionChanged.run();
+        }
     }
 
     private void setAllSelected(boolean selected) {

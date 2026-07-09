@@ -125,12 +125,26 @@ public final class SnippetAiDialogsSmoke {
         java.util.function.Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader =
             () -> CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
                 "@startuml\nstart\n:Analyze;\nstop\n@enduml", "print 'x';\n", java.util.List.of()));
+        List<de.kortty.model.AiSkill> analysisSkills = List.of(
+            smokeSkill("skill-bash", "Bash hardening", "Adds strict mode, traps and safe expansions"),
+            smokeSkill("skill-posix", "POSIX portability", "Prefers POSIX-compliant constructs"));
+        SnippetCodeAnalysisDialog.SkillContext skillContext = new SnippetCodeAnalysisDialog.SkillContext(
+            analysisSkills,
+            new java.util.LinkedHashSet<>(List.of("skill-bash")),
+            true,
+            ids -> { });
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
-            null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { });
+            null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { }, skillContext);
         if (findNodes(analysisDialog.getDialogPane(), SplitPane.class).isEmpty()) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the split pane");
         }
         assertControls("SnippetCodeAnalysisDialog", analysisDialog.getDialogPane(), rerunText);
+        boolean hasExport = findNodes(analysisDialog.getDialogPane(), javafx.scene.control.MenuButton.class).stream()
+            .anyMatch(node -> I18n.get("snippets.ai.analysis.export")
+                .equals(((javafx.scene.control.MenuButton) node).getText()));
+        if (!hasExport) {
+            throw new AssertionError("SnippetCodeAnalysisDialog is missing the Export button");
+        }
         // Snapshot first: applyCss()/layout() realizes the DialogPane button bar so the Apply button is traversable.
         snapshotPane(analysisDialog.getDialogPane(), "snippet-code-analysis.png", 1160);
         boolean hasApply = findNodes(analysisDialog.getDialogPane(), Button.class).stream()
@@ -155,6 +169,13 @@ public final class SnippetAiDialogsSmoke {
             "cat $path\n", "cat \"$path\"\n", "bash",
             EditorSettingsHelper.loadSnippetSettings(), null);
         diff.setRerunHandler(null, id -> { });
+        // Exercise the "Why these parts changed" cards: category icons per finding-id prefix plus the
+        // reasons JSON handed to the diff host (idx/finding/anchor/reason per change).
+        diff.setChangeExplanations(List.of(
+            new SnippetAiResponseSupport.SecurityChange(
+                "SEC-1", "cat \"$path\"", "Quoted the path expansion to prevent word splitting."),
+            new SnippetAiResponseSupport.SecurityChange(
+                "D1", "cat \"$path\"", "Replaced the external helper with a shell built-in.")));
         assertControls("SnippetAiDiffDialog", diff.getDialogPane(), rerunText);
         snapshotPane(diff.getDialogPane(), "snippet-ai-diff.png", 1040);
 
@@ -193,6 +214,16 @@ public final class SnippetAiDialogsSmoke {
         if (!hasRerun) {
             throw new AssertionError(name + " is missing the re-run button ('" + rerunText + "')");
         }
+    }
+
+    private static de.kortty.model.AiSkill smokeSkill(String id, String name, String description) {
+        de.kortty.model.AiSkill skill = new de.kortty.model.AiSkill();
+        skill.setId(id);
+        skill.setName(name);
+        skill.setDescription(description);
+        skill.setContent("Example skill content.");
+        skill.setEnabled(true);
+        return skill;
     }
 
     private static List<Node> findNodes(Node root, Class<? extends Node> type) {

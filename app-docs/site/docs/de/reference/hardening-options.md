@@ -18,7 +18,7 @@ Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
 | **KI-Schwarm → Multi-Server-Workflow generieren** | Gleiches zusammenklappbares Panel | Sie generieren das Multiserver-Skript |
 | **Snippet-Editor → AI-Code → Robustheit verbessern** | Optionsfeld mit allen angekreuzten Kästchen | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Optionsfeld plus ein Freitext-Anweisungsfeld | Sie bestätigen den Dialog |
-| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Zusammenklappbares Feld *Härtungsoptionen* am unteren Rand des Fensters | Sie klicken auf *Auswahl übernehmen* |
+| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Reduzierbares Bedienfeld „Härtungsoptionen“ am unteren Rand des Fensters mit einer Live-Anzahl **(N)** der aktivierten Optionen im Titel; korTTY merkt sich, ob Sie es offen oder geschlossen gelassen haben | Sie klicken auf *Auswahl übernehmen* |
 
 !!! Hinweis „Wird nicht bei jeder Aktion angezeigt“
     *Lesbarkeit verbessern* und *Leistung verbessern* zeigen absichtlich **keine** Härtungsoptionen an – diese Aktionen sollen nah am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: *Robustheit verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse* und die beiden Workflow-Skriptgeneratoren.

@@ -1891,6 +1891,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-code-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Code Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-browser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File browser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#miscellaneous" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2013,7 +2046,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2041,7 +2074,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_1" class="md-nav__link">
+  <a href="#fixes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2069,7 +2102,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_2" class="md-nav__link">
+  <a href="#fixes_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2097,7 +2130,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_3" class="md-nav__link">
+  <a href="#fixes_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2202,7 +2235,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes_4" class="md-nav__link">
+  <a href="#fixes_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2517,6 +2550,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-code-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Code Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-browser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File browser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#miscellaneous" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2639,7 +2705,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2667,7 +2733,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_1" class="md-nav__link">
+  <a href="#fixes_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2695,7 +2761,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_2" class="md-nav__link">
+  <a href="#fixes_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2723,7 +2789,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixes_3" class="md-nav__link">
+  <a href="#fixes_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -2828,7 +2894,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes_4" class="md-nav__link">
+  <a href="#fixes_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -3027,6 +3093,25 @@
 <li><strong>Degenerate AI replies no longer wipe your code</strong> — applying AI improvements or a security fix to a snippet could, with a weak/local model and an active AI skill, replace the whole snippet with a bare placeholder (literally <code>$code</code>) returned by the model. This is now detected and rejected — you get <em>"AI reply was not a valid snippet — code left unchanged"</em> instead of losing your code — and the AI prompt itself was hardened so a skill's instructions can no longer talk the model into returning a placeholder instead of real source.</li>
 <li><strong>Diagram dark mode covers every colour</strong> — in the AI Code Analysis flow diagram's dark mode, all light node colours are now darkened to a matching dark tint, not just the three most common ones, so the light node text stays readable regardless of which colour a node was given.</li>
 </ul>
+<h3 id="ai-code-analysis">AI Code Analysis<a class="headerlink" href="#ai-code-analysis" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Pick the AI skills for an analysis</strong> — the <strong>Full code analysis</strong> window now shows which AI Skills were included, as chips with an <em>(auto-selected)</em> or <em>(manual)</em> badge, and lets you change them with a <strong>searchable</strong> picker (filter by name, description or tags). Your changes take effect on the next <strong>Re-run</strong>, so one deliberate click runs one analysis with exactly the skills you chose. korTTY also auto-selects the skills relevant to the snippet before the first analysis so the set is meaningful out of the box.</li>
+<li><strong>Hardening options show a count and remember their state</strong> — the <em>Hardening options</em> panel title now shows how many options are ticked (e.g. <em>Hardening options (11)</em>), and the window remembers whether you left the panel open or closed.</li>
+<li><strong>Add a script header on apply</strong> — a <strong>Script header</strong> selector lets you prepend one of your saved <em>Script-Header</em> snippets to the code when you apply the analysis; a header on its own is inserted without an AI round-trip.</li>
+<li><strong>Export the report</strong> — a new <strong>Export</strong> button saves the whole report — summary, categorized improvements, dependencies and the flow diagram — as a <strong>PDF</strong>, a self-contained <strong>HTML</strong> page, or <strong>Markdown</strong>, in an attractive print-friendly design that records the profile and included skills.</li>
+<li><strong>Which profile is in use</strong> — the window now shows the name of the AI profile that produced the analysis (the default profile's real name, not just "Default profile").</li>
+<li><strong>Clearer sections</strong> — each improvement section (Security / Optimization / Design / Dependencies) now carries a colour-coded icon, and the summary block no longer shows a selection accent bar it never needed.</li>
+<li><strong>Clearer change reviews</strong> — in the <em>review changes</em> window, the "Why these parts changed" cards now show each finding's colour-coded category icon and the line range it affects (for example <em>Lines 23–40</em>); the on-hover explanations in the diff are more reliable — matching tolerates re-indented or case-shifted lines, and reasons whose anchor cannot be found are attached to the remaining changed blocks instead of silently disappearing.</li>
+</ul>
+<h3 id="file-browser">File browser<a class="headerlink" href="#file-browser" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Clearer context-menu label</strong> — right-clicking a file in the local <strong>file browser</strong> (View menu) now offers <strong>Open in Snippet Editor</strong> instead of the misleading <em>Load as text file</em> (the action already opened the snippet editor), matching the terminal context menu.</li>
+</ul>
+<h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>No crash when a snippet fails to save</strong> — saving a snippet as a new entry could, if the save failed, crash with a null-pointer error while trying to show the failure message. The error is now reported cleanly.</li>
+<li><strong>"Save as new snippet" no longer shows a false "already exists" error</strong> — after editing a snippet (for example applying analysis improvements) and saving it under a new name with <strong>Save as new snippet</strong>, korTTY wrongly popped up <em>"Snippet name already exists"</em> even though it had just saved the snippet correctly. The dialog now delivers its save exactly once.</li>
+</ul>
 <h3 id="miscellaneous">Miscellaneous<a class="headerlink" href="#miscellaneous" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI Manager remembers its window</strong> — the AI Manager dialog now reopens at the size and position you last left it at, instead of resetting every time.</li>
@@ -3086,7 +3171,7 @@
 <li><strong>Settings → Privacy tab</strong> — a new <strong>Privacy</strong> tab under <strong>Settings</strong> lets you turn anonymous usage statistics on or off at any time and shows exactly what is and is not collected, plus the date your choice was recorded. Turning it off stops collection immediately and discards both the pending queue and any locally cached events.</li>
 <li><strong>Offline event caching</strong> — while you are offline, anonymous events are cached locally under <code>~/.kortty</code> and sent once a connection is available; they survive app restarts, are dropped after three days, and are discarded entirely if you opt out.</li>
 </ul>
-<h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_1">Fixes<a class="headerlink" href="#fixes_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Effects glow correctly when switched on for a live pane</strong> — the MU/TH/UR effect's per-line glow now works when you enable an effect on an already-connected pane, not only when the effect was active before connecting, and it pulses steadily under fast-scrolling output instead of flickering.</li>
 <li><strong>Ctrl+D in a split pane closes only that pane</strong> — exiting the shell (Ctrl+D or <code>exit</code>) in one pane of a split now closes just that pane and leaves the other panes open; the tab closes only when the last remaining pane's session ends.</li>
@@ -3095,17 +3180,17 @@
 <li><strong>Guide window no longer crashes in the background</strong> — leaving the in-app guide (<strong>Help → Manual</strong>, F1) open while switching to another app could crash korTTY natively after a while, as the idle embedded browser churned in the background. korTTY now unloads the guide page after the window has been minimized or unfocused for 20 seconds and restores the same page and scroll position when you return, and the guide's intro video plays through once instead of looping endlessly.</li>
 </ul>
 <h2 id="v233">v2.3.3<a class="headerlink" href="#v233" title="Permanent link">&para;</a></h2>
-<h3 id="fixes_1">Fixes<a class="headerlink" href="#fixes_1" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_2">Fixes<a class="headerlink" href="#fixes_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>macOS: "Quit korTTY" actually quits the app</strong> — on the packaged macOS app, a native quit (Cmd+Q, the app menu's <strong>Quit korTTY</strong>, the Dock's <strong>Quit</strong>, or logout) left korTTY running in the background, so the process had to be killed. The packaged app deliberately keeps running after the last window closes (so the JobScheduler can run background jobs), but JavaFX only translated a native quit into "close the windows", never an actual exit. korTTY now intercepts the native quit and runs its real quit sequence. A shutdown watchdog additionally guarantees the process always terminates, the "waiting for running jobs" dialog gained a <strong>Force quit now</strong> button, and the menu-bar-icon cleanup no longer risks stalling shutdown.</li>
 </ul>
 <h2 id="v232">v2.3.2<a class="headerlink" href="#v232" title="Permanent link">&para;</a></h2>
-<h3 id="fixes_2">Fixes<a class="headerlink" href="#fixes_2" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_3">Fixes<a class="headerlink" href="#fixes_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Snippet-editor diagrams render when Graphviz is installed outside the app's PATH</strong> — generating a <strong>Diagram</strong> in the snippet editor no longer fails with "Graphviz dot is required to render PlantUML diagrams" when <code>dot</code> is installed (e.g. via Homebrew) but not on the minimal PATH a desktop-launched app inherits from launchd. korTTY now locates <code>dot</code> and the Java runtime the same way it finds AI CLIs — searching the PATH plus common install directories (<code>/opt/homebrew/bin</code>, <code>/usr/local/bin</code>, …) — and passes the resolved <code>dot</code> path to the PlantUML renderer via <code>GRAPHVIZ_DOT</code> so it does not have to rediscover it.</li>
 </ul>
 <h2 id="v231">v2.3.1<a class="headerlink" href="#v231" title="Permanent link">&para;</a></h2>
-<h3 id="fixes_3">Fixes<a class="headerlink" href="#fixes_3" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_4">Fixes<a class="headerlink" href="#fixes_4" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>"Load as text file" follows <code>cd</code> in local shells</strong> — in a local-shell tab, loading a selected file with <strong>Load as text file</strong> after changing directory no longer fails to find the file. korTTY now reads the shell's live working directory straight from the operating system (the shell process's current directory) instead of relying only on the prompt text, which does not reveal the full path when the prompt shows just the folder name (the macOS zsh default). On macOS/Linux this resolves the selection against the directory the shell is actually in; on Windows it falls back to the previous prompt-based behavior.</li>
 <li><strong>Snippet-editor AI functions work with reasoning models and chatty responses</strong> — AI actions in the snippet editor (<strong>Diagram</strong>, <strong>Review</strong>, <strong>Improve</strong>, <strong>Assistant</strong>, <strong>Security</strong>, <strong>Alternatives</strong>, <strong>Describe</strong>, <strong>Complete</strong>, <strong>One-liner</strong>) no longer fail — e.g. <em>"PlantUML generation failed"</em> — when the model wraps its JSON answer in prose or a code fence, or when a local reasoning model (LM Studio, Ollama, llama.cpp serving DeepSeek-R1/QwQ/gpt-oss) emits a <code>&lt;think&gt;…&lt;/think&gt;</code> block. The response parser now strips leaked reasoning and extracts the real JSON payload robustly instead of a greedy match that broke on any stray brace.</li>
@@ -3169,7 +3254,7 @@
 <li><strong>Visible progress while a diagram is generated</strong> — generating a PlantUML diagram from a script now shows the working spinner.</li>
 <li><strong>Clearer AI backend errors</strong> — out-of-memory / resource-limit errors from the AI server (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc") show a short, actionable hint instead of the raw stack trace; all other AI errors are collapsed to a single line.</li>
 </ul>
-<h3 id="fixes_4">Fixes<a class="headerlink" href="#fixes_4" title="Permanent link">&para;</a></h3>
+<h3 id="fixes_5">Fixes<a class="headerlink" href="#fixes_5" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Closing a local shell no longer freezes korTTY</strong> — the PTY process is now destroyed before its streams are closed, releasing a terminal reader thread blocked in a pty <code>read()</code> instead of deadlocking the close on the JavaFX thread.</li>
 <li><strong>Correct wording for local shells when closing</strong> — the close-confirmation no longer says "End SSH connection?" for a local shell, and the window-close prompt is now transport-neutral ("Active sessions").</li>

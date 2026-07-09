@@ -3,20 +3,26 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.core.SnippetAnalysisExportService;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
+import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -28,9 +34,12 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
+import java.io.File;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -38,6 +47,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -56,19 +66,44 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private static final int DEFAULT_FONT_SIZE = 14;
     private static final List<String> CATEGORY_ORDER = List.of("security", "optimization", "design");
 
-    /** The mixed selection the user ticked for a combined apply, plus any chosen script-hardening options. */
+    /**
+     * The mixed selection the user ticked for a combined apply: improvements + dependencies + script-hardening
+     * options, plus an optional script header ({@code headerText}) to prepend to the snippet. A chosen header
+     * alone (no ticked findings) is still a non-empty, appliable selection.
+     */
     public record ApplySelection(List<SnippetAiResponseSupport.ScriptImprovement> improvements,
                                  List<SnippetAiResponseSupport.ScriptDependency> dependencies,
-                                 EnumSet<HardeningOption> hardening) {
+                                 EnumSet<HardeningOption> hardening,
+                                 String headerText) {
         public boolean isEmpty() {
-            return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty();
+            return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty() && !hasHeader();
+        }
+
+        /** {@code true} when a script header should be prepended, independent of any AI-applied fixes. */
+        public boolean hasHeader() {
+            return headerText != null && !headerText.isBlank();
         }
     }
 
+    /**
+     * What the dialog needs to show and edit which AI skills the analysis includes: the saved skills to
+     * choose from, the ids currently included, whether that set was auto-detected (vs manually edited), and
+     * a sink that receives the new selection. The host applies the new set on the next re-run.
+     */
+    public record SkillContext(List<AiSkill> availableSkills,
+                               Set<String> includedSkillIds,
+                               boolean autoSelected,
+                               Consumer<Set<String>> onSelectionChanged) {
+    }
+
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
+    private final String scriptName;
+    private final String activeProfileId;
+    private final List<String> includedSkillNames;
     private final Map<String, SnippetAiResponseSupport.ScriptImprovement> improvementsById = new LinkedHashMap<>();
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
     private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
+    private final ScriptHeaderChooser headerChooser = new ScriptHeaderChooser();
 
     private final WebView findingsView = new WebView();
     private final Label fontSizeLabel = new Label();
@@ -83,9 +118,13 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             SnippetAiResponseSupport.ScriptAnalysis analysis,
             Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramPlantUmlSupplier,
             String activeProfileId,
-            Consumer<String> onRerun) {
+            Consumer<String> onRerun,
+            SkillContext skillContext) {
 
         this.analysis = analysis != null ? analysis : new SnippetAiResponseSupport.ScriptAnalysis("", List.of(), List.of());
+        this.scriptName = scriptName;
+        this.activeProfileId = activeProfileId;
+        this.includedSkillNames = skillContext != null ? includedSkillNames(skillContext) : List.of();
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
 
@@ -124,7 +163,18 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         Platform.runLater(() -> splitPane.setDividerPositions(0.52));
 
-        VBox root = new VBox(10, infoLabel, buildToolbar(activeProfileId, onRerun), splitPane, buildHardeningPane());
+        VBox root = new VBox(10);
+        root.getChildren().add(infoLabel);
+        // Show which AI skills the analysis included (auto or manual) and let the user adjust them; the new
+        // set is applied on the next re-run (see SkillContext.onSelectionChanged).
+        if (skillContext != null && !skillContext.availableSkills().isEmpty()) {
+            root.getChildren().add(new AiSkillPickerControl(
+                skillContext.availableSkills(),
+                skillContext.includedSkillIds(),
+                skillContext.autoSelected(),
+                skillContext.onSelectionChanged()));
+        }
+        root.getChildren().addAll(buildToolbar(activeProfileId, onRerun), splitPane, headerChooser, buildHardeningPane());
         root.setPadding(new Insets(14));
 
         ButtonType applyButton = new ButtonType(
@@ -169,6 +219,14 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         Region spacer = new Region();
         HBox toolbar = new HBox(8);
         toolbar.setAlignment(Pos.CENTER_LEFT);
+
+        // Always surface which AI profile the analysis used. The re-run picker below only shows the literal
+        // "Default profile" for the null selection, never the default's actual name — this label fills that gap.
+        Label profileUsing = new Label(I18n.get("snippets.ai.analysis.profile.using",
+            SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId)));
+        profileUsing.setStyle("-fx-opacity: 0.85;");
+        toolbar.getChildren().add(profileUsing);
+
         if (onRerun != null) {
             ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo =
                 SnippetAiDialogSupport.buildProfileCombo(activeProfileId);
@@ -176,9 +234,85 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, this::close);
             toolbar.getChildren().addAll(SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton);
         }
-        toolbar.getChildren().addAll(spacer, selectAll, zoomOutButton, fontSizeLabel, zoomInButton, copyButton);
+        toolbar.getChildren().addAll(spacer, selectAll, zoomOutButton, fontSizeLabel, zoomInButton, copyButton,
+            buildExportButton());
         HBox.setHgrow(spacer, Priority.ALWAYS);
         return toolbar;
+    }
+
+    private MenuButton buildExportButton() {
+        MenuButton button = new MenuButton(I18n.get("snippets.ai.analysis.export"));
+        button.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.export.tooltip")));
+        MenuItem pdfItem = new MenuItem(I18n.get("snippets.ai.analysis.export.pdf"));
+        pdfItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.PDF));
+        MenuItem htmlItem = new MenuItem(I18n.get("snippets.ai.analysis.export.html"));
+        htmlItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.HTML));
+        MenuItem markdownItem = new MenuItem(I18n.get("snippets.ai.analysis.export.markdown"));
+        markdownItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.MARKDOWN));
+        button.getItems().addAll(pdfItem, htmlItem, markdownItem);
+        return button;
+    }
+
+    private static List<String> includedSkillNames(SkillContext context) {
+        List<String> names = new ArrayList<>();
+        for (AiSkill skill : context.availableSkills()) {
+            if (skill.getId() != null && context.includedSkillIds().contains(skill.getId())) {
+                names.add(skill.getName() != null && !skill.getName().isBlank() ? skill.getName() : skill.getId());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Exports the report (summary + findings + dependencies + diagram) to the chosen file. The diagram is
+     * re-rendered from PlantUML during export, so the work runs off the FX thread; the outcome is surfaced
+     * via a lightweight alert owned by this (non-modal) dialog.
+     */
+    private void exportReport(SnippetAnalysisExportService.Format format) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("snippets.ai.analysis.export"));
+        String base = (scriptName != null && !scriptName.isBlank() ? scriptName.trim() : "code-analysis")
+            .replaceAll("[^A-Za-z0-9._-]", "_");
+        chooser.setInitialFileName(base + format.getExtension());
+        chooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter(I18n.get(format.getFilterKey()), "*" + format.getExtension()));
+        Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        File target = chooser.showSaveDialog(owner);
+        if (target == null) {
+            return;
+        }
+        SnippetAnalysisExportService.Context context = new SnippetAnalysisExportService.Context(
+            scriptName,
+            SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId),
+            LocalDateTime.now(),
+            includedSkillNames);
+        String diagramPlantUml = diagramView.currentStyledPlantUml();
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                new SnippetAnalysisExportService().export(target.toPath(), format, analysis, context, diagramPlantUml);
+                return null;
+            }
+        };
+        task.setOnSucceeded(event ->
+            showExportResult(I18n.get("snippets.ai.analysis.export.success", target.getName()), true));
+        task.setOnFailed(event -> {
+            Throwable ex = task.getException();
+            showExportResult(I18n.get("snippets.ai.analysis.export.failed",
+                ex != null && ex.getMessage() != null ? ex.getMessage() : "?"), false);
+        });
+        Thread thread = new Thread(task, "snippet-analysis-export");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void showExportResult(String message, boolean success) {
+        Alert alert = new Alert(success ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
+        alert.setTitle(I18n.get("snippets.ai.analysis.title"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
+        alert.show();
     }
 
     private void indexItems() {
@@ -195,14 +329,15 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private ApplySelection readSelection() {
         List<SnippetAiResponseSupport.ScriptImprovement> improvements = new ArrayList<>();
         List<SnippetAiResponseSupport.ScriptDependency> dependencies = new ArrayList<>();
+        String headerText = headerChooser.resolveHeaderText();
         if (!pageReady) {
-            return new ApplySelection(improvements, dependencies, selectedHardening());
+            return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
         }
         Object result;
         try {
             result = findingsView.getEngine().executeScript("window.korttyAnalysis.getSelected();");
         } catch (RuntimeException ignored) {
-            return new ApplySelection(improvements, dependencies, selectedHardening());
+            return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
         }
         if (result instanceof String value && !value.isBlank()) {
             for (String token : value.split(",")) {
@@ -225,22 +360,50 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 }
             }
         }
-        return new ApplySelection(improvements, dependencies, selectedHardening());
+        return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
     }
 
     private TitledPane buildHardeningPane() {
         // Use a bold Label as the title graphic so the section name is clearly visible next to the
         // expand arrow (the theme's TitledPane title text is otherwise too faint and easy to miss).
-        Label header = new Label(I18n.get("ai.workflow.options.title"));
+        Label header = new Label();
         ThemeCssSupport.ThemeColors colors = SnippetAiDialogSupport.resolveThemeColors();
         String foreground = colors != null ? colors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG;
         header.setStyle("-fx-font-weight: bold; -fx-text-fill: " + foreground + ";");
+        updateHardeningHeader(header);
+        // Keep the "(N)" counter in the title in sync with the ticked hardening options.
+        hardeningSelector.setOnSelectionChanged(() -> updateHardeningHeader(header));
+
         TitledPane pane = new TitledPane();
         pane.setText(null);
         pane.setGraphic(header);
         pane.setContent(hardeningSelector);
-        pane.setExpanded(false);
+        pane.setExpanded(loadHardeningExpanded());
+        // Remember whether the user left the panel open or closed, across dialog re-opens.
+        pane.expandedProperty().addListener((obs, was, isNow) -> persistHardeningExpanded(isNow));
         return pane;
+    }
+
+    /** Titles the hardening panel with a live "(N)" count of the currently ticked options. */
+    private void updateHardeningHeader(Label header) {
+        header.setText(I18n.get("ai.workflow.options.title") + " (" + hardeningSelector.selectedCount() + ")");
+    }
+
+    private boolean loadHardeningExpanded() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return settings != null && Boolean.TRUE.equals(settings.getCodeAnalysisHardeningExpanded());
+    }
+
+    private void persistHardeningExpanded(boolean expanded) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setCodeAnalysisHardeningExpanded(expanded);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private EnumSet<HardeningOption> selectedHardening() {
@@ -333,7 +496,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 if (group.isEmpty()) {
                     continue;
                 }
-                body.append("<div class=\"section-title\">")
+                body.append("<div class=\"section-title sec-").append(category).append("\">")
+                    .append(sectionIcon(category))
                     .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.section." + category)))
                     .append(" <span class=\"cat-count\">(").append(group.size()).append(")</span></div>");
                 for (SnippetAiResponseSupport.ScriptImprovement item : group) {
@@ -349,7 +513,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         if (!analysis.dependencies().isEmpty()) {
             String suggestionLabel = SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.dependency.suggestion"));
             String purposeLabel = SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.dependency.purpose"));
-            body.append("<details class=\"dep-group\"><summary class=\"section-title\">")
+            body.append("<details class=\"dep-group\"><summary class=\"section-title sec-dependencies\">")
+                .append(sectionIcon("dependencies"))
                 .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.section.dependencies")))
                 .append(" <span class=\"cat-count\">(").append(analysis.dependencies().size()).append(")</span></summary>");
             for (SnippetAiResponseSupport.ScriptDependency dependency : analysis.dependencies()) {
@@ -419,12 +584,26 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
 
     private static String extraCss() {
         return ".section-title{font-weight:700;font-size:1.06em;letter-spacing:.02em;margin:18px 0 8px;opacity:.9;}"
-            + ".summary{border-left:3px solid " + SnippetAiDialogSupport.ACCENT + ";background:rgba(127,127,127,0.09);"
-            + "padding:11px 13px;border-radius:0 6px 6px 0;margin-bottom:6px;white-space:pre-wrap;}"
+            // Per-category accent + icon so each section (security / optimization / design / dependencies) is
+            // recognizable at a glance; the icon sits just before the section name and takes the category color.
+            + ".section-title .sec-ic{width:.95em;height:.95em;fill:currentColor;vertical-align:-.13em;margin-right:7px;}"
+            + ".section-title.sec-security{color:#e5484d;opacity:1;}"
+            + ".section-title.sec-optimization{color:#f59e0b;opacity:1;}"
+            + ".section-title.sec-design{color:#8b5cf6;opacity:1;}"
+            + ".section-title.sec-dependencies{color:#14b8a6;opacity:1;}"
+            // The summary describes what the script does; it is not a selectable option, so it carries no
+            // accent bar (that blue left-border reads as a pick indicator like the recommendation blocks).
+            + ".summary{background:rgba(127,127,127,0.09);padding:11px 13px;border-radius:6px;"
+            + "margin-bottom:6px;white-space:pre-wrap;}"
             + ".cat-count{opacity:.5;font-weight:400;font-size:0.8em;}"
             + ".dep-meta{opacity:.72;font-size:0.85em;margin-left:6px;}"
             + "details.dep-group>summary{cursor:pointer;list-style:none;}"
             + "details.dep-group>summary::-webkit-details-marker{display:none;}";
+    }
+
+    /** The section glyph shown before a section title (shared inline SVG; see {@link SnippetAiDialogSupport}). */
+    private static String sectionIcon(String category) {
+        return SnippetAiDialogSupport.sectionIconSvg(category);
     }
 
     private static String buildScript() {

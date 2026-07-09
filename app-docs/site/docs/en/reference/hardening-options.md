@@ -18,7 +18,7 @@ The **Hardening options** panel shows up in these places:
 | **AI Swarm → Generate multi-server workflow** | Same collapsible panel | You generate the multi-server script |
 | **Snippet editor → AI Code → Improve robustness** | Options panel with all boxes ticked | You confirm the dialog |
 | **Snippet editor → AI Code → Custom improvement…** | Options panel plus a free-text instruction field | You confirm the dialog |
-| **Snippet editor → AI Code → Full code analysis** | Collapsible *Hardening options* panel at the bottom of the window | You click *Apply selected* |
+| **Snippet editor → AI Code → Full code analysis** | Collapsible *Hardening options* panel at the bottom of the window, with a live **(N)** count of ticked options in its title; korTTY remembers whether you left it open or closed | You click *Apply selected* |
 
 !!! note "Not shown for every action"
     *Improve readability* and *Improve performance* deliberately do **not** show hardening options — those actions are meant to stay close to the original code. Hardening options appear only where adding robustness is the point: *Improve robustness*, *Custom improvement*, *Full code analysis*, and the two workflow-script generators.
