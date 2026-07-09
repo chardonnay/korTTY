@@ -2822,7 +2822,28 @@ public class MainWindow {
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab != null && currentTab.isClosable()) {
+            disposeTabContent(currentTab);
             tabPane.getTabs().remove(currentTab);
+        }
+    }
+
+    /**
+     * Releases a tab's native and timer resources on the programmatic close paths (Cmd+W,
+     * close-all, dashboard), where JavaFX fires no onClosed event — without it, Monaco/WebView
+     * engines and terminal buffers survive the tab. All dispose methods are idempotent, so a
+     * user-initiated close that already ran the tab's own onClosed handler is unaffected.
+     */
+    private void disposeTabContent(Tab tab) {
+        if (tab instanceof TerminalTab terminalTab) {
+            terminalTab.closeRecordingResources();
+            terminalTab.getTerminalView().cleanup();
+        } else if (tab instanceof FileEditorTab editorTab) {
+            editorTab.dispose();
+        } else if (tab instanceof AiResultTab aiResultTab) {
+            unregisterSavedChatTab(aiResultTab.getSavedChatId());
+            aiResultTab.disposeRenderedContent();
+        } else if (tab instanceof SwarmAgentTab swarmTab) {
+            swarmTab.handleTabClosed();
         }
     }
     
@@ -2854,9 +2875,8 @@ public class MainWindow {
             if (!tab.isClosable()) continue;
             if (tab instanceof TerminalTab terminalTab) {
                 terminalTab.setOnCloseRequest(null);
-                terminalTab.closeRecordingResources();
-                terminalTab.getTerminalView().cleanup();
             }
+            disposeTabContent(tab);
             tabPane.getTabs().remove(tab);
         }
     }
@@ -3733,6 +3753,7 @@ public class MainWindow {
                 
             case CLOSE:
                 // Close the tab
+                disposeTabContent(terminalTab);
                 tabPane.getTabs().remove(terminalTab);
                 updateDashboard();
                 updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));

@@ -773,3 +773,37 @@
     -fx-text-fill: #aaaaaa;
     -fx-font-size: 12px;
 }
+
+/* Titled panes = collapsible sections (e.g. Quick Connect's optional settings).
+   The base dialog theme had no rule, so the title text fell back to the dark JavaFX
+   default and was unreadable on the dark background. App-design stylesheets override
+   these; this is the default-design fallback. */
+.titled-pane > .title {
+    -fx-background-color: #3d3d3d;
+    -fx-background-radius: 4 4 0 0;
+    -fx-border-color: #444444;
+    -fx-border-radius: 4 4 0 0;
+    -fx-padding: 6 10 6 10;
+}
+
+.titled-pane:collapsed > .title {
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+}
+
+.titled-pane > .title > .text {
+    -fx-fill: #ffffff;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+
+.titled-pane > .title > .arrow-button .arrow {
+    -fx-background-color: #cccccc;
+}
+
+.titled-pane > .content {
+    -fx-background-color: transparent;
+    -fx-border-color: #444444;
+    -fx-border-radius: 0 0 4 4;
+    -fx-padding: 8;
+}

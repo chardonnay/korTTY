@@ -63,6 +63,8 @@ public class SnippetAiReviewDialog extends ThemeAwareDialog<Void> {
         if (owner != null) {
             initOwner(owner);
         }
+        // Unload the findings page on close so its WebKit engine releases its native memory.
+        setOnHidden(event -> findingsView.getEngine().loadContent(""));
         this.fontSize = clampFontSize(loadPersistedFontSize());
         this.findings = sortedBySeverity(findings);
 

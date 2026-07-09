@@ -440,9 +440,15 @@ tasks.register("copyBundledNode") {
             ?: throw GradleException("Could not find unpacked Node.js root for $archiveName")
         val target = bundledFormatterDir.get().asFile.resolve("node")
         delete(target)
+        // Only the node binary is executed at runtime (CodeFormatterService.findBundledNode);
+        // npm/corepack/include/share would add ~80 MB, and their bin/ symlinks would dangle
+        // after a partial trim (a codesign/notarization hazard) — hence an include-list.
         copy {
             from(unpackedRoot)
             into(target)
+            include("bin/node")   // Unix archive layout
+            include("node.exe")   // Windows archive layout (node.exe at the root)
+            include("LICENSE")
         }
         val nodeExecutable = if (isWindows) target.resolve("node.exe") else target.resolve("bin/node")
         nodeExecutable.setExecutable(true, false)
@@ -639,6 +645,14 @@ tasks.named<ProcessResources>("processResources") {
     from(chatRenderGeneratedResourceDir) {
         into("")
     }
+    // Jar slimming: sourcemaps and the Thai/Japanese search segmenters are dead weight in the
+    // bundled guide (UI languages are en/de; lunr loads wordcut/tinyseg only for th/ja). The
+    // .icns/.ico are packaging-only inputs that jpackage reads from the source tree, not the jar.
+    exclude("guide/**/*.map")
+    exclude("guide/**/assets/javascripts/lunr/wordcut.js")
+    exclude("guide/**/assets/javascripts/lunr/tinyseg.js")
+    exclude("icon/kortty_icon.icns")
+    exclude("icon/kortty_icon.ico")
 }
 
 // ---- AI-chat diagram/math rendering assets (mermaid + MathJax) ----------------
@@ -870,6 +884,11 @@ tasks.register("copyBundledSqlFormatter") {
         delete(target)
         copy {
             from(tarTree(resources.gzip(archive))) {
+                // The runner script below requires only dist/sql-formatter.min.cjs; the
+                // cjs/esm module trees and sourcemaps in the tarball are dead weight (~4 MB).
+                include("package/dist/sql-formatter.min.cjs")
+                include("package/LICENSE")
+                include("package/package.json")
                 eachFile { stripFirstPathSegment(this) }
                 includeEmptyDirs = false
             }
@@ -1049,9 +1068,32 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // resolves via FindClass to marshal JS->Java. The compile-time jdk-jsobject artifact does NOT
         // bundle it, and jlink drops it by default, so without this every Monaco editor that returns
         // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.unsupported",
+        // jdk.management provides com.sun.management.OperatingSystemMXBean, which the JVM-resource
+        // relaunch (Launcher/JvmRelauncher) uses to size the heap from physical RAM.
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported",
+        // Shrink the jlink runtime image: --jlink-options REPLACES jpackage's defaults
+        // (--strip-native-commands --strip-debug --no-man-pages --no-header-files), so they are
+        // re-stated before the additions. zip-6 roughly halves lib/modules; --include-locales
+        // keeps exactly the app's UI locales (LanguageManager.SUPPORTED_LOCALES) instead of all
+        // of jdk.localedata — other OS locales fall back to English date/number formats.
+        "--jlink-options",
+        "--strip-native-commands --strip-debug --no-man-pages --no-header-files " +
+            "--compress=zip-6 --include-locales=en,de,it,es,pt,fr,hr,nl",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=ALL-UNNAMED",
+        // Conservative memory bounds: the JVM default max heap is 25% of physical RAM (8 GB on
+        // a 32 GB machine). 2 GB is generous for terminal buffers/chats/exports; WebView/WebKit
+        // memory is native and NOT governed by the heap. The periodic-GC (JEP 346) and free-ratio
+        // bounds uncommit idle heap so RSS shrinks back after load. G1 is deliberately NOT selected
+        // explicitly here — it is the JDK default, and baking `-XX:+UseG1GC` would collide
+        // ("Multiple garbage collectors selected") with the opt-in ZGC profile that the JVM-resource
+        // relaunch applies via _JAVA_OPTIONS. The G1-only flags below are inert (not fatal) under ZGC.
+        // Beware: an unrecognized -XX flag aborts JVM startup, i.e. the packaged app would not launch.
+        "--java-options", "-Xms64m",
+        "--java-options", "-Xmx2g",
+        "--java-options", "-XX:G1PeriodicGCInterval=60000",
+        "--java-options", "-XX:MinHeapFreeRatio=10",
+        "--java-options", "-XX:MaxHeapFreeRatio=25",
         // Belt-and-braces for MacGlassQuitHook: the packaged app loads JavaFX from the class path
         // (unnamed module) so this is not strictly required, but it keeps the native-quit hook
         // working if a future packaging change ever puts JavaFX on the module path. With no
@@ -1246,8 +1288,31 @@ if (isMac) {
                 args.addAll(listOf("--mac-signing-keychain", macSigningKeychain))
             }
         }
-        
+
         commandLine(args)
+
+        // jpackage always writes zlib-compressed (UDZO) DMGs; converting to LZMA (ULMO,
+        // mountable on macOS 10.15+) shrinks the download ~15-25%. This runs before the CI
+        // notarization/stapling steps that follow this task, and the conversion preserves the
+        // signed .app inside bit-for-bit — only the container compression changes.
+        doLast {
+            val lzmaFile = File(dmgFile.parentFile, "${dmgFile.nameWithoutExtension}-ulmo.dmg")
+            delete(lzmaFile)
+            val process = ProcessBuilder(
+                "hdiutil", "convert", dmgFile.absolutePath,
+                "-format", "ULMO",
+                "-o", lzmaFile.absolutePath
+            ).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            if (process.waitFor() != 0) {
+                throw GradleException("hdiutil convert to ULMO failed:\n$output")
+            }
+            delete(dmgFile)
+            if (!lzmaFile.renameTo(dmgFile)) {
+                throw GradleException("Could not replace ${dmgFile.name} with the LZMA-converted DMG")
+            }
+            println("DMG converted to ULMO (LZMA): ${dmgFile.length() / (1024 * 1024)} MB")
+        }
     }
 }
 
@@ -1508,6 +1573,22 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     description = "Renders the redesigned AI chat for every color profile and snapshots it to build/smoke/ai-chat-*.png."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiChatRedesignSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("resourcesTabSmoke") {
+    group = "verification"
+    description = "Renders Settings > Resources, asserts the max-heap line for every profile, snapshots to build/smoke/resources-tab.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ResourcesTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("quickConnectScrollSmoke") {
+    group = "verification"
+    description = "Expands Quick Connect's collapsible sections in a short window and asserts the content scroll bar engages; snapshots build/smoke/quick-connect-scroll.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.QuickConnectScrollSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

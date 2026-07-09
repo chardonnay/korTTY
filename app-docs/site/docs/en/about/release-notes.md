@@ -27,6 +27,15 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Adjustable terminal background transparency** — **View → Zoom → Background Transparency** is a new slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. The value is saved across restarts. Only the terminal area turns transparent — the title, menu and status bars stay solid. Because see-through mode uses a borderless window, turning it on or off takes effect after a restart; in that mode a lightweight custom title bar provides move, resize, minimise, maximise and close. Adjusting the level while already transparent applies live.
 - **Quieter tab close** — closing a terminal tab now only asks for confirmation when there is something to lose: the tab has split panes, or a command is still running (detected from the local shell's process tree, or from the SSH shell prompt). An idle single terminal closes immediately. The per-connection *Close without confirmation* option still suppresses the prompt entirely.
 - **Clearer context-menu label** — the terminal right-click action that loads a selected remote file into the snippet editor is now called **Open in Snippet Editor** (previously *Load as text file*).
+- **Scrollback setting now works** — the **Scrollback** value under **Configuration → Global Settings → Terminal** (100–100,000 lines) is now actually applied to the terminal buffer; it was previously ignored and every pane used a fixed 10,000 lines. The value is read when a terminal is created, so it applies to newly opened tabs and split panes.
+
+### Performance & footprint
+
+- **Much lower memory use** — AI chat tabs, file editors and the snippet AI windows now release their embedded browser engines (Monaco/WebView) when they are closed, when chat messages are re-rendered after a font-size change, and when solutions or scripts are regenerated; closing a split pane now also frees its scrollback buffer and timers. Long sessions with many chats, editors and splits no longer accumulate memory.
+- **Bounded memory footprint** — the packaged application now runs with a 2 GB Java heap ceiling and periodically returns unused memory to the operating system when idle.
+- **Opt-in resource profile** — a new **Configuration → Global Settings → Resources** tab lets you trade that low footprint for more of your machine's resources when you need it: **High** raises the heap to about half your RAM, and **Maximum** goes to about three quarters with the low-pause Z garbage collector. The default (**Balanced**) is unchanged. See [Resources](../reference/settings/resources.md).
+- **Smaller downloads and installs** — the bundled formatter runtime and the embedded Java runtime were trimmed and compressed, the macOS disk image now uses stronger (LZMA) compression, and the offline guide no longer ships developer sourcemaps or unused search components. Installations shrink by roughly 150 MB, downloads by 25–40 %.
+- **Date and number formats** — the installed application bundles Java locale data only for the 8 supported interface languages; on operating-system locales outside this list, dates and numbers are formatted using English conventions.
 
 ## v2.4.0
 
@@ -110,6 +119,11 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Git Bash / Cygwin / WSL presets** on Windows — each offered only when actually installed (Git Bash/Cygwin via their usual install locations / `PATH`; WSL only when `wsl.exe` is present and at least one distribution is installed). The command parser is quote-aware, so shell paths containing spaces (like `"C:\Program Files\Git\bin\bash.exe"`) launch correctly.
 - **Shared connector hooks** — terminal recording/logging and the AI input/data hooks were lifted onto a shared `ObservableTtyConnector` interface, so they also work for local shells. SSH-channel-only features stay SSH-only.
 - **AI Agent & Planning in local shells** — the agent's command-execution engine was decoupled from SSH behind an `AgentCommandRunner` abstraction (SSH exec channel and local process backends). The **AI Agent** and **AI Planning** now run in local shells on Windows, macOS and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware, and the existing approval flow applies. Limitations on local shells: no `sudo`/administrator elevation on Windows, and no live working-directory tracking. The JobScheduler's headless AI-agent action stays SSH-only.
+
+### Quick Connect
+
+- **Collapsible option sections** — the optional settings (Connection Timeout, Terminal Appearance, Terminal Effect, AI) are grouped into collapsible sections, so the dialog opens compact. The form scrolls inside the dialog when expanded sections exceed the screen, and the dialog **remembers which sections you left expanded** across restarts.
+- **Connection-skills picker** — pre-select AI skills for the new connection: a glob-aware search (`*` wildcards), All/Clear toggles, and a **Save** button that persists the current selection as the default for every new connection.
 
 ### Terminal usability
 

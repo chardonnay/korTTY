@@ -20,6 +20,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Farben](colors.md) | Farbprofil, Text-/Hintergrund-/Cursor-/Auswahlfarben, Cursor-Blinken, die 16-Farben-ANSI-Palette |
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH-Keep-Alive, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
 | [Fenster](window.md) | Wiederherstellung der Fenstergeometrie, feste Geometrie, Dashboard-Status, Menüleiste |
+| [Ressourcen](resources.md) | Opt-in-JVM-Heap/GC-Profil (Ausbalanciert/Hoch/Maximal) für größere Arbeitslasten |
 | [Logging](logging.md) | Terminalprotokollverzeichnis, Aufbewahrung und Format |
 | [Sicherung](backup.md) | Verschlüsselungstyp (ZIP-Passwort / GPG), maximale Backup-Anzahl |
 | [Updates](updates.md) | Automatische Aktualisierungsprüfung und -intervall |

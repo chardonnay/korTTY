@@ -410,6 +410,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         // Save geometry on close
         setOnCloseRequest(event -> saveGeometry());
         setResultConverter(bt -> { saveGeometry(); return null; });
+        // Release the preview Monaco's native WebKit engine on close.
+        setOnHidden(event -> previewArea.dispose());
     }
     
     private void restoreGeometry() {

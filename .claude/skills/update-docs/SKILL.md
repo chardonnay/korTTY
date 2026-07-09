@@ -71,6 +71,12 @@ Re-capture per the screenshot catalog using the throwaway demo dataset and
 computer-use (Normal design, no secrets). If capture tooling is unavailable,
 **list** the stale screenshots and DO NOT delete the old PNGs.
 
+After capturing, optimize the new PNGs in place (raw captures are ~2x larger
+and ship inside the app jar):
+```bash
+./scripts/optimize-png.sh <new-or-changed>.png ...   # or no args for all roots
+```
+
 ### 8. Sync version + validate (all must pass)
 ```bash
 python3 scripts/sync-version.py

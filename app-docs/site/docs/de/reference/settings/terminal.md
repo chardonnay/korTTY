@@ -26,6 +26,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 ## Notizen
 
+!!! Hinweis „Scrollback“
+    Legt fest, wie viele Ausgabezeilen jeder Terminal-Bereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen; eine Änderung gilt daher für neu geöffnete Tabs und geteilte Bereiche – bereits offene Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
+
 !!! Hinweis „SSH Keep-Alive“
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
 

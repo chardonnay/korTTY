@@ -20,11 +20,14 @@ const workerEntries = {
 
 await fs.rm(outDir, { recursive: true, force: true });
 await fs.mkdir(outDir, { recursive: true });
-await fs.mkdir(path.join(root, "generated"), { recursive: true });
+await fs.mkdir(path.join(root, "generated", "workers"), { recursive: true });
 
 const workerSources = {};
 for (const [name, relativeEntry] of Object.entries(workerEntries)) {
-  const outfile = path.join(outDir, `${name}.worker.js`);
+  // Workers are only read back below and embedded as blob sources into the host bundles;
+  // the standalone files are never fetched at runtime, so they must not land in outDir
+  // (everything there ships inside the app jar).
+  const outfile = path.join(root, "generated", "workers", `${name}.worker.js`);
   await build({
     entryPoints: [path.join(root, relativeEntry)],
     bundle: true,

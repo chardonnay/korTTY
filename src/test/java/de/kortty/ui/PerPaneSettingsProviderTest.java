@@ -143,6 +143,45 @@ public class PerPaneSettingsProviderTest {
         assertThat(fontSize(tracking)).isEqualTo(9f); // tracking pane follows zoom
     }
 
+    private static int bufferMaxLines(Object provider) {
+        return ((SettingsProvider) provider).getBufferMaxLinesCount();
+    }
+
+    @Test
+    void scrollbackSettingIsHonoredByBufferMaxLines() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+        ConnectionSettings settings = baselineSettings();
+        settings.setScrollbackLines(2500);
+
+        assertThat(bufferMaxLines(newProvider(settings, shared))).isEqualTo(2500);
+    }
+
+    @Test
+    void scrollbackFallsBackToModelDefaultForLegacyValues() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+
+        ConnectionSettings legacyZero = baselineSettings();
+        legacyZero.setScrollbackLines(0); // legacy/corrupt persisted XML
+        assertThat(bufferMaxLines(newProvider(legacyZero, shared))).isEqualTo(10000);
+
+        ConnectionSettings negative = baselineSettings();
+        negative.setScrollbackLines(-5);
+        assertThat(bufferMaxLines(newProvider(negative, shared))).isEqualTo(10000);
+    }
+
+    @Test
+    void scrollbackClampsToTheSpinnerRange() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+
+        ConnectionSettings tooSmall = baselineSettings();
+        tooSmall.setScrollbackLines(10);
+        assertThat(bufferMaxLines(newProvider(tooSmall, shared))).isEqualTo(100);
+
+        ConnectionSettings tooBig = baselineSettings();
+        tooBig.setScrollbackLines(5_000_000);
+        assertThat(bufferMaxLines(newProvider(tooBig, shared))).isEqualTo(100_000);
+    }
+
     @Test
     void transparencyPercentMapsToAlpha() {
         // 0 % = fully opaque, 100 % = fully transparent, linear in between.

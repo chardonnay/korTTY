@@ -113,6 +113,7 @@ nav:
           - reference/settings/colors.md
           - reference/settings/terminal.md
           - reference/settings/window.md
+          - reference/settings/resources.md
           - reference/settings/logging.md
           - reference/settings/backup.md
           - reference/settings/updates.md

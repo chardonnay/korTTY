@@ -18,6 +18,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -40,7 +41,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private final int topConnectionsCount;
-    
+
+    // Scroll wrapper around the form; its viewport is fitted to min(content, screen cap) so the
+    // dialog is compact when short and scrolls (rather than clipping or leaving dead space) when the
+    // form + expanded sections exceed the screen.
+    private ScrollPane contentScroll;
+    private double viewportHeightCap;
+
     private boolean ignoreSavedCredentialsEvents;
     
     // Individual connection tab
@@ -132,17 +139,37 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // TabPane for Individual vs Group connection
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        
+
         Tab individualTab = new Tab(I18n.get("quickConnect.individualConnection"));
-        individualTab.setContent(createIndividualConnectionPane());
-        
+        // Scroll the individual-connection FORM only, directly inside its tab: the ScrollPane must be
+        // the immediate parent of the growing VBox. An earlier attempt wrapped the whole dialog
+        // content (header + TabPane + form) in one ScrollPane, but the TabPane's content region
+        // between the ScrollPane and the form swallowed the height growth when a collapsible section
+        // was expanded — the scroll range never grew and the expanded content was clipped. With the
+        // ScrollPane directly around the form, expanding a section grows the VBox's preferred height
+        // and the scroll range follows; header and tab strip stay fixed above.
+        contentScroll = new ScrollPane(createIndividualConnectionPane());
+        contentScroll.setFitToWidth(true);
+        contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        // Blend the viewport into the dialog (no grey frame on the dark theme).
+        contentScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        // Fixed, compact preferred viewport height, bounded well below any screen (the window chrome —
+        // header, tab strip, buttons — adds ~350px on top). The form is taller than this even fully
+        // collapsed, so there is never dead space and the scroll bar engages whenever needed. The
+        // dialog stays resizable; enlarging the window grows the viewport (VGROW below).
+        viewportHeightCap = Math.min(Screen.getPrimary().getVisualBounds().getHeight() * 0.55, 620);
+        contentScroll.setPrefViewportHeight(viewportHeightCap);
+        individualTab.setContent(contentScroll);
+
         Tab groupTab = new Tab(I18n.get("quickConnect.openGroup"));
         groupTab.setContent(createGroupSelectionPane());
-        
+
         tabPane.getTabs().addAll(individualTab, groupTab);
-        
+
         mainContent.getChildren().add(tabPane);
-        
+        VBox.setVgrow(tabPane, Priority.ALWAYS);
+
         getDialogPane().setContent(mainContent);
         getDialogPane().setMinWidth(700);
         getDialogPane().setPrefWidth(750);
@@ -679,7 +706,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("quickConnect.attempts")));
         timeoutGrid.add(retryBox, 1, 1);
         collapsibleSections.getChildren().add(
-            collapsibleSection(I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
+            collapsibleSection("connectionTimeout", I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
 
         // ===== Terminal Appearance =====
         GridPane appearanceGrid = sectionGrid();
@@ -756,7 +783,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         appearanceGrid.add(backgroundColorPicker, 1, arow++);
         appearanceGrid.add(terminalColorsEnabledCheck, 0, arow++, 2, 1);
         collapsibleSections.getChildren().add(
-            collapsibleSection(I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
+            collapsibleSection("terminalAppearance", I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
 
         // ===== Terminal Effect (optional) =====
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
@@ -766,7 +793,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             effectGrid.add(new Label(I18n.get("connection.animationSpeed")), 0, 1);
             effectGrid.add(terminalEffectSpeedControls.root(), 1, 1);
             collapsibleSections.getChildren().add(
-                collapsibleSection(I18n.get("connection.terminalEffect"), effectGrid));
+                collapsibleSection("terminalEffect", I18n.get("connection.terminalEffect"), effectGrid));
         }
 
         // ===== AI (profile + connection skills) =====
@@ -807,7 +834,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 aiContent.getChildren().add(buildConnectionSkillsUi(connectionAiSkills));
             }
             collapsibleSections.getChildren().add(
-                collapsibleSection(I18n.get("connEdit.tab.ai"), aiContent));
+                collapsibleSection("ai", I18n.get("connEdit.tab.ai"), aiContent));
         }
 
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
@@ -847,25 +874,49 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
     /**
      * Wraps a section body in a collapsible {@link javafx.scene.control.TitledPane} whose title is the
-     * section name and whose disclosure arrow toggles visibility. Starts collapsed so the dialog opens
-     * compact; expanding or collapsing resizes the window to fit (see {@link #resizeDialogToScene()}).
+     * section name and whose disclosure arrow toggles visibility. The expanded/collapsed state is
+     * restored from and persisted to {@link de.kortty.model.GlobalSettings#getQuickConnectExpandedSections()}
+     * under the given stable {@code key} (locale-independent), so the dialog reopens the way the user
+     * left it. Expanding simply makes the surrounding scroll pane show more content.
      */
-    private javafx.scene.control.TitledPane collapsibleSection(String title, javafx.scene.Node content) {
+    private javafx.scene.control.TitledPane collapsibleSection(String key, String title, javafx.scene.Node content) {
         javafx.scene.control.TitledPane titled = new javafx.scene.control.TitledPane(title, content);
-        titled.setExpanded(false);
+        titled.setExpanded(isSectionExpandedInSettings(key));
         titled.setAnimated(false);
-        titled.expandedProperty().addListener((obs, was, now) -> resizeDialogToScene());
+        titled.expandedProperty().addListener((obs, was, now) -> persistSectionExpanded(key, now));
         return titled;
     }
 
-    /** Grows/shrinks the dialog window to fit its content after a section is expanded or collapsed. */
-    private void resizeDialogToScene() {
-        javafx.application.Platform.runLater(() -> {
-            javafx.scene.Scene scene = getDialogPane().getScene();
-            if (scene != null && scene.getWindow() != null) {
-                scene.getWindow().sizeToScene();
+    /** Whether the section was left expanded last time; false when no settings are available. */
+    private boolean isSectionExpandedInSettings(String key) {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings != null && settings.getQuickConnectExpandedSections().contains(key);
+        } catch (Exception e) {
+            return false; // headless/test construction without app context
+        }
+    }
+
+    /** Persists a section toggle immediately; silently a no-op without app context. */
+    private void persistSectionExpanded(String key, boolean expanded) {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null) {
+                return;
             }
-        });
+            java.util.List<String> expandedSections = settings.getQuickConnectExpandedSections();
+            boolean changed = expanded ? !expandedSections.contains(key) && expandedSections.add(key)
+                                       : expandedSections.remove(key);
+            if (changed) {
+                gsm.save();
+            }
+        } catch (Exception e) {
+            // No global settings available (e.g. headless smoke); state simply is not remembered.
+        }
     }
 
     /**

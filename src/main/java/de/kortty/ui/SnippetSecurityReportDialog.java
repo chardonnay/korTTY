@@ -73,6 +73,8 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAi
         if (owner != null) {
             initOwner(owner);
         }
+        // Unload the findings page on close so its WebKit engine releases its native memory.
+        setOnHidden(event -> findingsView.getEngine().loadContent(""));
         this.fontSize = clampFontSize(loadPersistedFontSize());
         this.findings = sortedBySeverity(findings);
 

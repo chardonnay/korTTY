@@ -182,6 +182,10 @@ public class GlobalSettings {
     /** Translation API provider for dynamic i18n (Google Translate or DeepL). */
     @XmlElement
     private TranslationApiProvider translationApiProvider;
+
+    /** Opt-in JVM heap/GC profile for the packaged app; applied via relaunch, needs a restart. */
+    @XmlElement
+    private JvmResourceProfile jvmResourceProfile = JvmResourceProfile.BALANCED;
     
     /** Encrypted API key for translation service (decrypted with master password). */
     @XmlElement
@@ -226,6 +230,12 @@ public class GlobalSettings {
     @XmlElementWrapper(name = "defaultConnectionAiSkillIds")
     @XmlElement(name = "skillId")
     private java.util.List<String> defaultConnectionAiSkillIds = new java.util.ArrayList<>();
+
+    /** Stable keys of the Quick-Connect collapsible sections the user last left expanded
+     *  (e.g. "terminalAppearance"); toggling a section persists immediately. Empty = all collapsed. */
+    @XmlElementWrapper(name = "quickConnectExpandedSections")
+    @XmlElement(name = "section")
+    private java.util.List<String> quickConnectExpandedSections = new java.util.ArrayList<>();
 
     /** Preferred AI profile used when no explicit profile is selected by the user. */
     @XmlElement
@@ -1183,6 +1193,20 @@ public class GlobalSettings {
             : new java.util.ArrayList<>();
     }
 
+    /** Quick-Connect collapsible sections last left expanded, by stable key (never null). */
+    public java.util.List<String> getQuickConnectExpandedSections() {
+        if (quickConnectExpandedSections == null) {
+            quickConnectExpandedSections = new java.util.ArrayList<>();
+        }
+        return quickConnectExpandedSections;
+    }
+
+    public void setQuickConnectExpandedSections(java.util.List<String> quickConnectExpandedSections) {
+        this.quickConnectExpandedSections = quickConnectExpandedSections != null
+            ? new java.util.ArrayList<>(quickConnectExpandedSections)
+            : new java.util.ArrayList<>();
+    }
+
     public String getDefaultAiProfileId() {
         return defaultAiProfileId;
     }
@@ -1283,6 +1307,14 @@ public class GlobalSettings {
 
     public void setAiResultFontSize(Integer aiResultFontSize) {
         this.aiResultFontSize = aiResultFontSize;
+    }
+
+    public JvmResourceProfile getJvmResourceProfile() {
+        return jvmResourceProfile != null ? jvmResourceProfile : JvmResourceProfile.BALANCED;
+    }
+
+    public void setJvmResourceProfile(JvmResourceProfile jvmResourceProfile) {
+        this.jvmResourceProfile = jvmResourceProfile != null ? jvmResourceProfile : JvmResourceProfile.BALANCED;
     }
 
     public Integer getSecurityReportFontSize() {

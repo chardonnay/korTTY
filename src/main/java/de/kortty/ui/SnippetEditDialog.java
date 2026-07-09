@@ -1279,6 +1279,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             cancelAiTasks();
             // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
             contentArea.dispose();
+            // Same for the markup preview's WebKit engine.
+            markupPreviewView.getEngine().loadContent("");
         });
         if (aiAssist != null
             && aiAssist.metadataProvider() != null

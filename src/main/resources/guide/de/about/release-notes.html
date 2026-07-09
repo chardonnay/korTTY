@@ -645,6 +645,8 @@
       
         
       
+        
+      
     
     
     
@@ -795,6 +797,34 @@
     
   
     Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ressourcen
   
 
     
@@ -1849,6 +1879,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#leistung-und-speicherbedarf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistung und Speicherbedarf
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2038,6 +2079,17 @@
     <span class="md-ellipsis">
       
         Lokale Shell-Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
       
     </span>
   </a>
@@ -2392,6 +2444,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#leistung-und-speicherbedarf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leistung und Speicherbedarf
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2581,6 +2644,17 @@
     <span class="md-ellipsis">
       
         Lokale Shell-Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
       
     </span>
   </a>
@@ -2835,6 +2909,15 @@
 <li><strong>Anpassbare Terminal-Hintergrundtransparenz</strong> – <strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein neuer Schieberegler (0–100 %), der den Terminal-Hintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Der Wert wird über Neustarts hinweg gespeichert. Nur der Terminalbereich wird transparent – ​​Titel, Menü und Statusleiste bleiben einfarbig. Da der Durchsichtmodus ein randloses Fenster verwendet, wird das Ein- oder Ausschalten erst nach einem Neustart wirksam. In diesem Modus ermöglicht eine schlanke benutzerdefinierte Titelleiste das Verschieben, Ändern der Größe, Minimieren, Maximieren und Schließen. Die Anpassung des Pegels bei bereits transparentem Zustand gilt live.</li>
 <li><strong>Leiseres Schließen eines Tabs</strong> – Beim Schließen eines Terminal-Tabs wird jetzt nur noch nach einer Bestätigung gefragt, wenn etwas verloren geht: Der Tab hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (erkannt aus der Prozessstruktur der lokalen Shell oder aus der SSH-Shell-Eingabeaufforderung). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Option <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung weiterhin vollständig.</li>
 <li><strong>Eindeutigere Beschriftung im Kontextmenü</strong> – die Terminal-Rechtsklick-Aktion, die eine ausgewählte Remote-Datei in den Snippet-Editor lädt, heißt jetzt <strong>Im Snippet-Editor öffnen</strong> (vorher <em>Als Textdatei laden</em>).</li>
+<li><strong>Scrollback-Einstellung funktioniert jetzt</strong> – der Wert <strong>Scrollback</strong> unter <strong>Konfiguration → Globale Einstellungen → Terminal</strong> (100–100.000 Zeilen) wird jetzt tatsächlich auf den Terminal-Puffer angewendet; er wurde zuvor ignoriert, und jeder Bereich nutzte fest 10.000 Zeilen. Der Wert wird beim Erstellen eines Terminals gelesen und gilt daher für neu geöffnete Tabs und geteilte Bereiche.</li>
+</ul>
+<h3 id="leistung-und-speicherbedarf">Leistung und Speicherbedarf<a class="headerlink" href="#leistung-und-speicherbedarf" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Viel geringerer Speicherverbrauch</strong> – KI-Chat-Registerkarten, Dateieditoren und die Snippet-KI-Fenster geben jetzt ihre eingebetteten Browser-Engines (Monaco/WebView) frei, wenn sie geschlossen werden, wenn Chat-Nachrichten nach einer Änderung der Schriftgröße neu gerendert werden und wenn Lösungen oder Skripte neu generiert werden; das Schließen eines geteilten Bereichs gibt jetzt auch dessen Scrollback-Puffer und Timer frei. Lange Sitzungen mit vielen Chats, Editoren und geteilten Bereichen sammeln keinen Speicher mehr an.</li>
+<li><strong>Begrenzter Speicherbedarf</strong> – die paketierte Anwendung läuft jetzt mit einer Java-Heap-Obergrenze von 2 GB und gibt ungenutzten Speicher im Leerlauf regelmäßig an das Betriebssystem zurück.</li>
+<li><strong>Opt-in-Ressourcenprofil</strong> – über einen neuen Reiter <strong>Konfiguration → Globale Einstellungen → Ressourcen</strong> können Sie diesen geringen Speicherbedarf bei Bedarf gegen mehr Ressourcen Ihres Rechners eintauschen: <strong>Hoch</strong> erhöht den Heap auf etwa die Hälfte Ihres RAM, <strong>Maximal</strong> auf etwa drei Viertel mit dem pausenarmen Z-Garbage-Collector. Die Voreinstellung (<strong>Ausbalanciert</strong>) bleibt unverändert. Siehe <a href="../reference/settings/resources.html">Ressourcen</a>.</li>
+<li><strong>Kleinere Downloads und Installationen</strong> – die mitgelieferte Formatter-Laufzeit und die eingebettete Java-Laufzeit wurden verschlankt und komprimiert, das macOS-Disk-Image nutzt jetzt eine stärkere (LZMA-)Kompression, und das Offline-Anleitung enthält keine Entwickler-Sourcemaps und ungenutzten Suchkomponenten mehr. Installationen schrumpfen um rund 150 MB, Downloads um 25–40 %.</li>
+<li><strong>Datums- und Zahlenformate</strong> – die installierte Anwendung bündelt Java-Gebietsschemadaten nur für die 8 unterstützten Oberflächensprachen; bei Betriebssystem-Gebietsschemata außerhalb dieser Liste werden Datums- und Zahlenangaben nach englischen Konventionen formatiert.</li>
 </ul>
 <h2 id="v240">v2.4.0<a class="headerlink" href="#v240" title="Permanent link">&para;</a></h2>
 <h3 id="endgultige-auswirkungen">Endgültige Auswirkungen<a class="headerlink" href="#endgultige-auswirkungen" title="Permanent link">&para;</a></h3>
@@ -2913,6 +2996,11 @@
 <li><strong>Git Bash/Cygwin/WSL-Voreinstellungen</strong> unter Windows – werden jeweils nur angeboten, wenn sie tatsächlich installiert sind (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; WSL nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist). Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt gestartet werden.</li>
 <li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
 <li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> werden jetzt in lokalen Shells unter Windows, macOS und Linux ausgeführt: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</li>
+</ul>
+<h3 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Einklappbare Options-Sektionen</strong> – die optionalen Einstellungen (Verbindungstimeout, Terminal-Darstellung, Terminal-Effekt, KI) sind in einklappbare Sektionen gruppiert, sodass der Dialog kompakt öffnet. Das Formular scrollt innerhalb des Dialogs, wenn aufgeklappte Sektionen über den Bildschirm hinauswachsen, und der Dialog <strong>merkt sich über Neustarts hinweg, welche Sektionen Sie aufgeklappt gelassen haben</strong>.</li>
+<li><strong>Verbindungs-Skills-Auswahl</strong> – KI-Skills für die neue Verbindung vorauswählen: Suche mit <code>*</code>-Platzhaltern, Alle/Leeren-Schalter und eine <strong>Speichern</strong>-Schaltfläche, die die aktuelle Auswahl dauerhaft als Standard für jede neue Verbindung übernimmt.</li>
 </ul>
 <h3 id="terminal-benutzerfreundlichkeit">Terminal-Benutzerfreundlichkeit<a class="headerlink" href="#terminal-benutzerfreundlichkeit" title="Permanent link">&para;</a></h3>
 <ul>

@@ -20,6 +20,7 @@ Each per-tab page lists settings as a table:
 | [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
 | [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
+| [Resources](resources.md) | Opt-in JVM heap/GC profile (Balanced / High / Maximum) for larger workloads |
 | [Logging](logging.md) | Terminal log directory, retention and format |
 | [Backup](backup.md) | Encryption type (ZIP-password / GPG), max backup count |
 | [Updates](updates.md) | Automatic update checking and interval |
