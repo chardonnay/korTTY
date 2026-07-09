@@ -179,7 +179,7 @@ pages:
 
     screenshots:
       - settings/ai-skills.png
-    last_synced_ref: "0395363"
+    last_synced_ref: "5b39065"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections.]
@@ -209,7 +209,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "790e3ef"
+    last_synced_ref: "5b39065"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
@@ -284,7 +284,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "05d74fa"
+    last_synced_ref: "5b39065"
 
   # ---- About: anonymous usage statistics --------------------------------------
   - path: app-docs/site/docs/en/about/anonymous-data.md
