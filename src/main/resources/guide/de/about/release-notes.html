@@ -2086,6 +2086,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2640,6 +2651,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal-benutzerfreundlichkeit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2974,6 +2996,11 @@
 <li><strong>Git Bash/Cygwin/WSL-Voreinstellungen</strong> unter Windows – werden jeweils nur angeboten, wenn sie tatsächlich installiert sind (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; WSL nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist). Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt gestartet werden.</li>
 <li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
 <li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> werden jetzt in lokalen Shells unter Windows, macOS und Linux ausgeführt: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</li>
+</ul>
+<h3 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Einklappbare Options-Sektionen</strong> – die optionalen Einstellungen (Verbindungstimeout, Terminal-Darstellung, Terminal-Effekt, KI) sind in einklappbare Sektionen gruppiert, sodass der Dialog kompakt öffnet. Das Formular scrollt innerhalb des Dialogs, wenn aufgeklappte Sektionen über den Bildschirm hinauswachsen, und der Dialog <strong>merkt sich über Neustarts hinweg, welche Sektionen Sie aufgeklappt gelassen haben</strong>.</li>
+<li><strong>Verbindungs-Skills-Auswahl</strong> – KI-Skills für die neue Verbindung vorauswählen: Suche mit <code>*</code>-Platzhaltern, Alle/Leeren-Schalter und eine <strong>Speichern</strong>-Schaltfläche, die die aktuelle Auswahl dauerhaft als Standard für jede neue Verbindung übernimmt.</li>
 </ul>
 <h3 id="terminal-benutzerfreundlichkeit">Terminal-Benutzerfreundlichkeit<a class="headerlink" href="#terminal-benutzerfreundlichkeit" title="Permanent link">&para;</a></h3>
 <ul>

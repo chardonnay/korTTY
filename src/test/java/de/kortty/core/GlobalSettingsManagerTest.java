@@ -28,6 +28,41 @@ import static com.google.common.truth.Truth.assertThat;
 class GlobalSettingsManagerTest {
 
     @Test
+    void saveAndLoadPreservesQuickConnectExpandedSections() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setQuickConnectExpandedSections(List.of("terminalAppearance", "ai"));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getQuickConnectExpandedSections())
+                .containsExactly("terminalAppearance", "ai");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void quickConnectExpandedSectionsDefaultsToEmptyOnLegacyXml() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            // A pre-existing settings file without the new element must read as "all collapsed".
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getQuickConnectExpandedSections()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesAiProfiles() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

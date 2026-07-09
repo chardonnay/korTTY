@@ -231,6 +231,12 @@ public class GlobalSettings {
     @XmlElement(name = "skillId")
     private java.util.List<String> defaultConnectionAiSkillIds = new java.util.ArrayList<>();
 
+    /** Stable keys of the Quick-Connect collapsible sections the user last left expanded
+     *  (e.g. "terminalAppearance"); toggling a section persists immediately. Empty = all collapsed. */
+    @XmlElementWrapper(name = "quickConnectExpandedSections")
+    @XmlElement(name = "section")
+    private java.util.List<String> quickConnectExpandedSections = new java.util.ArrayList<>();
+
     /** Preferred AI profile used when no explicit profile is selected by the user. */
     @XmlElement
     private String defaultAiProfileId;
@@ -1184,6 +1190,20 @@ public class GlobalSettings {
     public void setDefaultConnectionAiSkillIds(java.util.List<String> defaultConnectionAiSkillIds) {
         this.defaultConnectionAiSkillIds = defaultConnectionAiSkillIds != null
             ? new java.util.ArrayList<>(defaultConnectionAiSkillIds)
+            : new java.util.ArrayList<>();
+    }
+
+    /** Quick-Connect collapsible sections last left expanded, by stable key (never null). */
+    public java.util.List<String> getQuickConnectExpandedSections() {
+        if (quickConnectExpandedSections == null) {
+            quickConnectExpandedSections = new java.util.ArrayList<>();
+        }
+        return quickConnectExpandedSections;
+    }
+
+    public void setQuickConnectExpandedSections(java.util.List<String> quickConnectExpandedSections) {
+        this.quickConnectExpandedSections = quickConnectExpandedSections != null
+            ? new java.util.ArrayList<>(quickConnectExpandedSections)
             : new java.util.ArrayList<>();
     }
 

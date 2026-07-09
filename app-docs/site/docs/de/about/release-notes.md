@@ -120,6 +120,11 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 - **Gemeinsame Connector-Hooks** – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.
 - **AI Agent & Planning in lokalen Shells** – die Befehlsausführungs-Engine des Agenten wurde hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der **AI Agent** und **AI Planning** werden jetzt in lokalen Shells unter Windows, macOS und Linux ausgeführt: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
+### Quick Connect
+
+- **Einklappbare Options-Sektionen** – die optionalen Einstellungen (Verbindungstimeout, Terminal-Darstellung, Terminal-Effekt, KI) sind in einklappbare Sektionen gruppiert, sodass der Dialog kompakt öffnet. Das Formular scrollt innerhalb des Dialogs, wenn aufgeklappte Sektionen über den Bildschirm hinauswachsen, und der Dialog **merkt sich über Neustarts hinweg, welche Sektionen Sie aufgeklappt gelassen haben**.
+- **Verbindungs-Skills-Auswahl** – KI-Skills für die neue Verbindung vorauswählen: Suche mit `*`-Platzhaltern, Alle/Leeren-Schalter und eine **Speichern**-Schaltfläche, die die aktuelle Auswahl dauerhaft als Standard für jede neue Verbindung übernimmt.
+
 ### Terminal-Benutzerfreundlichkeit
 
 - **Strg + Mausrad-Zoom** – Halten Sie **Strg** (oder **Befehl** unter macOS) gedrückt und scrollen Sie mit dem Mausrad über das Terminal, um jetzt die Schriftgröße zu ändern, anstatt durch den Puffer zu scrollen. Dies ergänzt die vorhandenen Tastenkombinationen Alt+Plus / Alt+Minus / Alt+0.

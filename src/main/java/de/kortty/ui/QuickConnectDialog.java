@@ -706,7 +706,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("quickConnect.attempts")));
         timeoutGrid.add(retryBox, 1, 1);
         collapsibleSections.getChildren().add(
-            collapsibleSection(I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
+            collapsibleSection("connectionTimeout", I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
 
         // ===== Terminal Appearance =====
         GridPane appearanceGrid = sectionGrid();
@@ -783,7 +783,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         appearanceGrid.add(backgroundColorPicker, 1, arow++);
         appearanceGrid.add(terminalColorsEnabledCheck, 0, arow++, 2, 1);
         collapsibleSections.getChildren().add(
-            collapsibleSection(I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
+            collapsibleSection("terminalAppearance", I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
 
         // ===== Terminal Effect (optional) =====
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
@@ -793,7 +793,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             effectGrid.add(new Label(I18n.get("connection.animationSpeed")), 0, 1);
             effectGrid.add(terminalEffectSpeedControls.root(), 1, 1);
             collapsibleSections.getChildren().add(
-                collapsibleSection(I18n.get("connection.terminalEffect"), effectGrid));
+                collapsibleSection("terminalEffect", I18n.get("connection.terminalEffect"), effectGrid));
         }
 
         // ===== AI (profile + connection skills) =====
@@ -834,7 +834,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 aiContent.getChildren().add(buildConnectionSkillsUi(connectionAiSkills));
             }
             collapsibleSections.getChildren().add(
-                collapsibleSection(I18n.get("connEdit.tab.ai"), aiContent));
+                collapsibleSection("ai", I18n.get("connEdit.tab.ai"), aiContent));
         }
 
         Button resetButton = new Button(I18n.get("quickConnect.resetToDefaults"));
@@ -874,14 +874,49 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
     /**
      * Wraps a section body in a collapsible {@link javafx.scene.control.TitledPane} whose title is the
-     * section name and whose disclosure arrow toggles visibility. Starts collapsed; expanding it simply
-     * makes the surrounding scroll pane show more content (the viewport height is fixed).
+     * section name and whose disclosure arrow toggles visibility. The expanded/collapsed state is
+     * restored from and persisted to {@link de.kortty.model.GlobalSettings#getQuickConnectExpandedSections()}
+     * under the given stable {@code key} (locale-independent), so the dialog reopens the way the user
+     * left it. Expanding simply makes the surrounding scroll pane show more content.
      */
-    private javafx.scene.control.TitledPane collapsibleSection(String title, javafx.scene.Node content) {
+    private javafx.scene.control.TitledPane collapsibleSection(String key, String title, javafx.scene.Node content) {
         javafx.scene.control.TitledPane titled = new javafx.scene.control.TitledPane(title, content);
-        titled.setExpanded(false);
+        titled.setExpanded(isSectionExpandedInSettings(key));
         titled.setAnimated(false);
+        titled.expandedProperty().addListener((obs, was, now) -> persistSectionExpanded(key, now));
         return titled;
+    }
+
+    /** Whether the section was left expanded last time; false when no settings are available. */
+    private boolean isSectionExpandedInSettings(String key) {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings != null && settings.getQuickConnectExpandedSections().contains(key);
+        } catch (Exception e) {
+            return false; // headless/test construction without app context
+        }
+    }
+
+    /** Persists a section toggle immediately; silently a no-op without app context. */
+    private void persistSectionExpanded(String key, boolean expanded) {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            java.util.List<String> expandedSections = settings.getQuickConnectExpandedSections();
+            boolean changed = expanded ? !expandedSections.contains(key) && expandedSections.add(key)
+                                       : expandedSections.remove(key);
+            if (changed) {
+                gsm.save();
+            }
+        } catch (Exception e) {
+            // No global settings available (e.g. headless smoke); state simply is not remembered.
+        }
     }
 
     /**

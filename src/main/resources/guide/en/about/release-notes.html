@@ -2086,6 +2086,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal-usability" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2640,6 +2651,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#quick-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#terminal-usability" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2974,6 +2996,11 @@
 <li><strong>Git Bash / Cygwin / WSL presets</strong> on Windows — each offered only when actually installed (Git Bash/Cygwin via their usual install locations / <code>PATH</code>; WSL only when <code>wsl.exe</code> is present and at least one distribution is installed). The command parser is quote-aware, so shell paths containing spaces (like <code>"C:\Program Files\Git\bin\bash.exe"</code>) launch correctly.</li>
 <li><strong>Shared connector hooks</strong> — terminal recording/logging and the AI input/data hooks were lifted onto a shared <code>ObservableTtyConnector</code> interface, so they also work for local shells. SSH-channel-only features stay SSH-only.</li>
 <li><strong>AI Agent &amp; Planning in local shells</strong> — the agent's command-execution engine was decoupled from SSH behind an <code>AgentCommandRunner</code> abstraction (SSH exec channel and local process backends). The <strong>AI Agent</strong> and <strong>AI Planning</strong> now run in local shells on Windows, macOS and Linux: commands execute in the connection's shell (PowerShell via <code>-EncodedCommand</code>, <code>cmd.exe</code>, or <code>$SHELL</code>), the environment probe and system prompt are platform-aware, and the existing approval flow applies. Limitations on local shells: no <code>sudo</code>/administrator elevation on Windows, and no live working-directory tracking. The JobScheduler's headless AI-agent action stays SSH-only.</li>
+</ul>
+<h3 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Collapsible option sections</strong> — the optional settings (Connection Timeout, Terminal Appearance, Terminal Effect, AI) are grouped into collapsible sections, so the dialog opens compact. The form scrolls inside the dialog when expanded sections exceed the screen, and the dialog <strong>remembers which sections you left expanded</strong> across restarts.</li>
+<li><strong>Connection-skills picker</strong> — pre-select AI skills for the new connection: a glob-aware search (<code>*</code> wildcards), All/Clear toggles, and a <strong>Save</strong> button that persists the current selection as the default for every new connection.</li>
 </ul>
 <h3 id="terminal-usability">Terminal usability<a class="headerlink" href="#terminal-usability" title="Permanent link">&para;</a></h3>
 <ul>

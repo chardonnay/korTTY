@@ -120,6 +120,11 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Shared connector hooks** — terminal recording/logging and the AI input/data hooks were lifted onto a shared `ObservableTtyConnector` interface, so they also work for local shells. SSH-channel-only features stay SSH-only.
 - **AI Agent & Planning in local shells** — the agent's command-execution engine was decoupled from SSH behind an `AgentCommandRunner` abstraction (SSH exec channel and local process backends). The **AI Agent** and **AI Planning** now run in local shells on Windows, macOS and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware, and the existing approval flow applies. Limitations on local shells: no `sudo`/administrator elevation on Windows, and no live working-directory tracking. The JobScheduler's headless AI-agent action stays SSH-only.
 
+### Quick Connect
+
+- **Collapsible option sections** — the optional settings (Connection Timeout, Terminal Appearance, Terminal Effect, AI) are grouped into collapsible sections, so the dialog opens compact. The form scrolls inside the dialog when expanded sections exceed the screen, and the dialog **remembers which sections you left expanded** across restarts.
+- **Connection-skills picker** — pre-select AI skills for the new connection: a glob-aware search (`*` wildcards), All/Clear toggles, and a **Save** button that persists the current selection as the default for every new connection.
+
 ### Terminal usability
 
 - **Ctrl + mouse-wheel zoom** — holding **Ctrl** (or **Cmd** on macOS) and scrolling the mouse wheel over the terminal now changes the font size instead of scrolling the buffer. This complements the existing Alt+Plus / Alt+Minus / Alt+0 shortcuts.
