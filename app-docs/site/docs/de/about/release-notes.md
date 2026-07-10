@@ -2,6 +2,27 @@
 
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
+## v2.4.3
+
+### AI-Code-Analyse
+
+- **Wählen Sie die KI-Fähigkeiten für eine Analyse aus** – das Fenster **Vollständige Code-Analyse** zeigt jetzt an, welche KI-Fähigkeiten enthalten waren, als Chips mit einem *(automatisch ausgewählten)* oder *(manuell)*-Abzeichen, und ermöglicht Ihnen, sie mit einer **durchsuchbaren** Auswahl zu ändern (nach Name, Beschreibung oder Tags filtern). Ihre Änderungen werden bei der nächsten **Wiederholung** wirksam, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fähigkeiten ausführt. korTTY wählt außerdem vor der ersten Analyse automatisch die für das Snippet relevanten Fähigkeiten aus, sodass der Satz sofort aussagekräftig ist.
+- **Härtungsoptionen zeigen eine Anzahl an und merken sich ihren Status** – der Titel des Panels *Härtungsoptionen* zeigt jetzt an, wie viele Optionen aktiviert sind (z. B. *Härtungsoptionen (11)*), und das Fenster merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben.
+- **Fügen Sie beim Anwenden einen Skript-Header hinzu** – mit einem **Skript-Header**-Selektor können Sie einem Ihrer gespeicherten *Skript-Header*-Snippets dem Code voranstellen, wenn Sie die Analyse anwenden; Es wird ein eigenständiger Header ohne AI-Roundtrip eingefügt.
+- **Bericht exportieren** – eine neue Schaltfläche **Exportieren** speichert den gesamten Bericht – Zusammenfassung, kategorisierte Verbesserungen, Abhängigkeiten und Flussdiagramm – als **PDF**, eine eigenständige **HTML**-Seite oder **Markdown**, in einem attraktiven, druckfreundlichen Design, das das Profil und die enthaltenen Fähigkeiten aufzeichnet.
+- **Welches Profil wird verwendet** – das Fenster zeigt jetzt den Namen des KI-Profils an, das die Analyse erstellt hat (der echte Name des Standardprofils, nicht nur „Standardprofil“).
+- **Klarere Abschnitte** – jeder Verbesserungsabschnitt (Sicherheit / Optimierung / Design / Abhängigkeiten) trägt jetzt ein farbcodiertes Symbol und im Zusammenfassungsblock wird keine Auswahlakzentleiste mehr angezeigt, die nie benötigt wurde.
+- **Eindeutigere Änderungsüberprüfungen** – im Fenster *Änderungen überprüfen* zeigen die Karten „Warum sich diese Teile geändert haben“ jetzt das farbcodierte Kategoriesymbol jedes Ergebnisses und den Zeilenbereich an, auf den es sich auswirkt (z. B. *Zeilen 23–40*); Die On-Hover-Erklärungen im Diff sind zuverlässiger – beim Matching werden neu eingerückte oder zwischen Groß- und Kleinschreibung geänderte Zeilen toleriert, und Gründe, deren Anker nicht gefunden werden kann, werden an die verbleibenden geänderten Blöcke angehängt, anstatt stillschweigend zu verschwinden.
+
+### Dateibrowser
+
+- **Eindeutigere Beschriftung des Kontextmenüs** – Wenn Sie mit der rechten Maustaste auf eine Datei im lokalen **Dateibrowser** (Menü „Ansicht“) klicken, wird jetzt **Im Snippet-Editor öffnen** anstelle des irreführenden *Als Textdatei laden* (die Aktion hat den Snippet-Editor bereits geöffnet) angezeigt, passend zum Terminal-Kontextmenü.
+
+### Korrekturen
+
+- **Kein Absturz, wenn das Speichern eines Snippets fehlschlägt** – Das Speichern eines Snippets als neuer Eintrag könnte, wenn das Speichern fehlschlägt, beim Versuch, die Fehlermeldung anzuzeigen, mit einem Nullzeigerfehler abstürzen. Der Fehler wird nun sauber gemeldet.
+- **Bei „Als neues Snippet speichern“ wird nicht mehr der falsche Fehler „Existiert bereits“ angezeigt** – nachdem ein Snippet bearbeitet (z. B. durch Anwenden von Analyseverbesserungen) und unter einem neuen Namen mit **Als neues Snippet speichern** gespeichert wurde, wurde von korTTY fälschlicherweise *„Snippet-Name existiert bereits“* angezeigt, obwohl das Snippet gerade korrekt gespeichert wurde. Der Dialog übermittelt seinen Speichervorgang nun genau einmal.
+
 ## v2.4.2
 
 ### Branding
@@ -22,25 +43,6 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 
 - **Entartete KI-Antworten löschen Ihren Code nicht mehr** – Das Anwenden von KI-Verbesserungen oder einer Sicherheitskorrektur auf ein Snippet könnte bei einem schwachen/lokalen Modell und einer aktiven KI-Fähigkeit dazu führen, dass das gesamte Snippet durch einen bloßen Platzhalter (wörtlich `$code`) ersetzt wird, der vom Modell zurückgegeben wird. Dies wird jetzt erkannt und abgelehnt – Sie erhalten die Meldung „KI-Antwort war kein gültiges Snippet – Code blieb unverändert“*, anstatt Ihren Code zu verlieren – und die KI-Eingabeaufforderung selbst wurde gehärtet, sodass die Anweisungen eines Skills das Modell nicht mehr dazu überreden können, einen Platzhalter anstelle einer echten Quelle zurückzugeben.
 - **Der dunkle Modus des Diagramms deckt jede Farbe ab** – im dunklen Modus des AI Code Analysis-Flussdiagramms werden jetzt alle hellen Knotenfarben auf einen passenden dunklen Farbton abgedunkelt, nicht nur die drei häufigsten, sodass der helle Knotentext unabhängig von der Farbe, die einem Knoten zugewiesen wurde, lesbar bleibt.
-
-### AI-Code-Analyse
-
-- **Wählen Sie die KI-Fähigkeiten für eine Analyse aus** – das Fenster **Vollständige Code-Analyse** zeigt jetzt an, welche KI-Fähigkeiten enthalten waren, als Chips mit einem *(automatisch ausgewählten)* oder *(manuell)*-Abzeichen, und ermöglicht Ihnen, sie mit einer **durchsuchbaren** Auswahl zu ändern (nach Name, Beschreibung oder Tags filtern). Ihre Änderungen werden bei der nächsten **Wiederholung** wirksam, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fähigkeiten ausführt. korTTY wählt außerdem vor der ersten Analyse automatisch die für das Snippet relevanten Fähigkeiten aus, sodass der Satz sofort aussagekräftig ist.
-- **Härtungsoptionen zeigen eine Anzahl an und merken sich ihren Status** – der Titel des Panels *Härtungsoptionen* zeigt jetzt an, wie viele Optionen aktiviert sind (z. B. *Härtungsoptionen (11)*), und das Fenster merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben.
-- **Fügen Sie beim Anwenden einen Skript-Header hinzu** – mit einem **Skript-Header**-Selektor können Sie einem Ihrer gespeicherten *Skript-Header*-Snippets dem Code voranstellen, wenn Sie die Analyse anwenden; Es wird ein eigenständiger Header ohne AI-Roundtrip eingefügt.
-- **Bericht exportieren** – eine neue Schaltfläche **Exportieren** speichert den gesamten Bericht – Zusammenfassung, kategorisierte Verbesserungen, Abhängigkeiten und Flussdiagramm – als **PDF**, eine eigenständige **HTML**-Seite oder **Markdown**, in einem attraktiven, druckfreundlichen Design, das das Profil und die enthaltenen Fähigkeiten aufzeichnet.
-- **Welches Profil wird verwendet** – das Fenster zeigt jetzt den Namen des KI-Profils an, das die Analyse erstellt hat (der echte Name des Standardprofils, nicht nur „Standardprofil“).
-- **Klarere Abschnitte** – jeder Verbesserungsabschnitt (Sicherheit / Optimierung / Design / Abhängigkeiten) trägt jetzt ein farbcodiertes Symbol und im Zusammenfassungsblock wird keine Auswahlakzentleiste mehr angezeigt, die nie benötigt wurde.
-- **Eindeutigere Änderungsüberprüfungen** – im Fenster *Änderungen überprüfen* zeigen die Karten „Warum sich diese Teile geändert haben“ jetzt das farbcodierte Kategoriesymbol jedes Ergebnisses und den Zeilenbereich an, auf den es sich auswirkt (z. B. *Zeilen 23–40*); Die On-Hover-Erklärungen im Diff sind zuverlässiger – beim Matching werden neu eingerückte oder zwischen Groß- und Kleinschreibung geänderte Zeilen toleriert, und Gründe, deren Anker nicht gefunden werden kann, werden an die verbleibenden geänderten Blöcke angehängt, anstatt stillschweigend zu verschwinden.
-
-### Dateibrowser
-
-- **Eindeutigere Beschriftung des Kontextmenüs** – Wenn Sie mit der rechten Maustaste auf eine Datei im lokalen **Dateibrowser** (Menü „Ansicht“) klicken, wird jetzt **Im Snippet-Editor öffnen** anstelle des irreführenden *Als Textdatei laden* (die Aktion hat den Snippet-Editor bereits geöffnet) angezeigt, passend zum Terminal-Kontextmenü.
-
-### Korrekturen
-
-- **Kein Absturz, wenn das Speichern eines Snippets fehlschlägt** – Das Speichern eines Snippets als neuer Eintrag könnte, wenn das Speichern fehlschlägt, beim Versuch, die Fehlermeldung anzuzeigen, mit einem Nullzeigerfehler abstürzen. Der Fehler wird nun sauber gemeldet.
-- **Bei „Als neues Snippet speichern“ wird nicht mehr der falsche Fehler „Existiert bereits“ angezeigt** – nachdem ein Snippet bearbeitet (z. B. durch Anwenden von Analyseverbesserungen) und unter einem neuen Namen mit **Als neues Snippet speichern** gespeichert wurde, wurde von korTTY fälschlicherweise *„Snippet-Name existiert bereits“* angezeigt, obwohl das Snippet gerade korrekt gespeichert wurde. Der Dialog übermittelt seinen Speichervorgang nun genau einmal.
 
 ### Verschiedenes
 

@@ -20,7 +20,7 @@ korTTY can collect **anonymous usage statistics** to help decide which features 
 | --- | --- |
 | Event names | app start, feature used (e.g. a tool opened, a backup created) |
 | Aggregate counts and flags | number of open terminal tabs, whether AI is enabled |
-| App version | 2.4.2 |
+| App version | 2.4.3 |
 | Operating system and version | macOS 15, Windows 11, Linux |
 | App language | de, en |
 | An anonymous session ID | a random number regenerated on every launch and after one hour of inactivity |
