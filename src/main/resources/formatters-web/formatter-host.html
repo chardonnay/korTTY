@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline'; connect-src 'none'; img-src 'none'; style-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <script src="prettier-standalone.js"></script>
+  <script src="prettier-plugin-babel.js"></script>
+  <script src="prettier-plugin-estree.js"></script>
+  <script src="prettier-plugin-typescript.js"></script>
+  <script src="prettier-plugin-html.js"></script>
+  <script src="prettier-plugin-postcss.js"></script>
+  <script src="sql-formatter.js"></script>
+</head>
+<body>
+<script>
+  (function () {
+    "use strict";
+
+    const prettierPluginList = [
+      prettierPlugins.babel,
+      prettierPlugins.estree,
+      prettierPlugins.typescript,
+      prettierPlugins.html,
+      prettierPlugins.postcss
+    ];
+
+    function failureText(error) {
+      if (error && typeof error.stack === "string" && error.stack) {
+        return error.stack;
+      }
+      return String(error || "Bundled web formatter failed");
+    }
+
+    function bridge() {
+      if (!window.javaBridge) {
+        throw new Error("Java formatter bridge is not installed");
+      }
+      return window.javaBridge;
+    }
+
+    window.korttyFormatter = Object.freeze({
+      format: function (requestId, formatterId, parser, source, lineWidth) {
+        try {
+          // Package-private smoke path: deliberately leave one request unresolved so the Java
+          // timeout/reset behavior is exercised against the real WebEngine.
+          if (formatterId === "__kortty_test_never_complete__") {
+            return;
+          }
+          if (formatterId === "prettier") {
+            const options = {
+              parser: String(parser),
+              plugins: prettierPluginList
+            };
+            if (Number.isFinite(lineWidth)) {
+              options.printWidth = Number(lineWidth);
+            }
+            // Prettier 3's standalone API returns a Promise. Resolve it fully before crossing
+            // back into Java; JavaFX's JS bridge cannot marshal Promise objects themselves.
+            Promise.resolve(prettier.format(String(source), options)).then(
+              function (formatted) {
+                bridge().onSuccess(String(requestId), String(formatted));
+              },
+              function (error) {
+                bridge().onFailure(String(requestId), failureText(error));
+              }
+            );
+            return;
+          }
+          if (formatterId === "sql-formatter") {
+            // sql-formatter's browser API is synchronous.
+            const formatted = sqlFormatter.format(String(source));
+            bridge().onSuccess(String(requestId), String(formatted));
+            return;
+          }
+          throw new Error("Unsupported bundled web formatter: " + String(formatterId));
+        } catch (error) {
+          bridge().onFailure(String(requestId), failureText(error));
+        }
+      }
+    });
+  }());
+</script>
+</body>
+</html>

@@ -219,7 +219,8 @@ KorTTY relies on carefully curated, production-tested dependencies:
 
 ### Dynamic Dependencies
 
-- **mosh4j**: Bundled in release builds; dynamically loaded at runtime if Mosh is needed
+- **mosh4j**: Its five SHA-256-pinned, architecture-specific release JARs and protobuf are bundled in native builds and dynamically loaded only when Mosh is needed. The child loader reuses Bouncy Castle from the application parent instead of shipping a second copy.
+- **PlantUML**: PlantUML 1.2026.2 is downloaded on first use, checked against a fixed SHA-256 and cached outside the installer. A stripped packaged runtime renders in a private native-launcher worker; old JARs and abandoned temporary render directories are cleaned automatically.
 - **rsync / ssh**: External commands used by JobScheduler Rsync jobs
 - **ffmpeg**: Optional; used for terminal recording video export
 
@@ -227,16 +228,17 @@ KorTTY relies on carefully curated, production-tested dependencies:
 
 ### Compilation and Packaging
 
-1. **SithTermFX build**: Cloned and built locally (Maven)
-2. **Formatting tools**: Node.js, Prettier, shfmt, Perl::Tidy, sql-formatter downloaded and bundled
-3. **Monaco Editor**: Built from npm packages bundled as JavaFX WebView resources
-4. **Native packaging**: Gradle jpackage tasks create platform-specific distributions (macOS .app/.dmg, Windows .exe/.msi, Linux .deb/.rpm)
+1. **SithTermFX build**: Cloned and built locally (Maven); its accidentally published JUnit dependency is excluded from the runtime.
+2. **Browser assets**: An isolated, pinned Node.js is used only to build Monaco. Monaco's editor and diff pages share one mode-aware IIFE/CSS pair while retaining all five workers and language services. Prettier Standalone with five selected plugins and the sql-formatter UMD build are copied directly into the application JAR and run without Node at runtime.
+3. **External formatter payload**: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.
+4. **Clean native staging**: `prepareJpackage` uses a final Gradle `Sync`, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.
+5. **Native packaging and gates**: The selected Gradle JDK 25 toolchain supplies `jpackage` for .app/.dmg, .exe/.msi, .deb and .rpm output. `scripts/package-size-report.py` emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.
 
 ### Classpath and Module Path
 
-- **Java 25+**: `jdk.jsobject` supplied externally via the JavaFX artifact (module deprecated for removal on JDK 25)
-- **Java 21** (Windows ARM CI): Built-in `jdk.jsobject` module used; external artifact excluded
-- **Compile-time**: JDK module path includes JavaFX, SithTermFX, and Apache SSHD
+- **Compile-time**: On JDK 25 the JavaFX `jdk-jsobject` artifact is supplied on the upgrade module path so WebView bridges compile consistently; the module is absent from JDK 26.
+- **Packaging-time**: Gradle resolves and invokes the same Temurin JDK 25 toolchain used for compilation, so the trimmed runtime contains `jdk.jsobject` even when the system `java`/`jpackage` is newer.
+- **Module path**: JavaFX, SithTermFX and Apache SSHD are available during compilation; unused `javafx.fxml` and `java.scripting` are not included in the packaged runtime.
 
 ## Data Flow and Integration Points
 
@@ -299,6 +301,8 @@ Menu-bar status displays next runs / live countdown
 - **Job Executor Threads**: Background thread pool for JobScheduler execution
 - **AI Chat Threads**: Background threads for API requests (non-blocking UI)
 - **File I/O Threads**: Async writes for history, journal, and recordings
+- **Web formatter requests**: Background callers are serialized with one total timeout; creation, loading and invocation of the lazy Prettier/SQL WebView remain confined to the JavaFX application thread, and failures discard the engine generation.
+- **PlantUML worker**: Rendering and syntax checks run in a separate cancellable process, using the packaged launcher worker when the jlink runtime has no `bin/java`.
 
 ## Extensibility Points
 

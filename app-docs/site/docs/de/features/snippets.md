@@ -55,7 +55,7 @@ Oberhalb des Inhaltsfelds hält das Spaltenlineal die aktuelle Caret-Spalte link
 
 Die Formatierung der Zeilenbreite funktioniert lokal nur für Formatierer, die konfigurierbare Breite unterstützen:
 
-- Schöner unterstützte Webformate (JavaScript, TypeScript, HTML, CSS, JSON)
+- Prettier-gestützte Webformate (JavaScript, TypeScript, HTML, CSS)
 - Python (Schwarz)
 - Perl (Perl::Tidy)
 
@@ -68,6 +68,8 @@ Bei Sprachen ohne lokale Zeilenbreitenunterstützung fragt KorTTY, ob eine KI-ge
 - **Eingebaute Formatierer:** JSON, XML, YAML/YML, TOML, INI/properties, Groovy
 - **Gebündelte Formatierer:** Java (google-java-format), Bash/Shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)
 - **Fallback:** Optionale PATH-Fallbacks für Entwickler-Setups, wenn ein gebündelter Formatierer fehlt
+
+Prettier läuft als Offline-Standalone-Browser-Build mit nur den Plugins Babel, Estree, TypeScript, HTML und PostCSS; SQL verwendet den gebündelten SQL-Formatter-Browser-Build. Beide werden träge in einem isolierten JavaFX-WebView initialisiert und benötigen keine installierte oder gepackte Node.js-Laufzeit. Anfragen werden serialisiert und behalten das gleiche 15-Sekunden-Timeout, die gleiche Anbieteranzeige und die konfigurierbare Prettier-Linienbreite wie das Prozess-Backend; Eine ausgefallene oder abgelaufene Engine wird vor der nächsten Anfrage verworfen.
 
 Wenn die lokale Formatierung nicht verfügbar ist und das konfigurierte AI-Profil Snippet-AI-Funktionen bietet, fragt KorTTY, ob die AI-Unterstützung verwendet werden soll. Die AI-Formatierung wird erst angewendet, nachdem die Vorher/Nachher-Vorschau akzeptiert wurde.
 
@@ -241,9 +243,10 @@ Klicken Sie mit der rechten Maustaste auf eine ausgewählte Coderegion und wähl
 
 PlantUML-Diagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.
 
-- **Rendering:** Nur lokal – KorTTY verwendet ein prüfsummenverifiziertes PlantUML-JAR und Graphviz `dot`; Es wird kein Remote-Server verwendet.
+- **Rendering:** Nur lokal – KorTTY lädt PlantUML 1.2026.2 bei der ersten Verwendung herunter, überprüft seinen festen SHA-256 und behält das aktuelle JAR im Benutzercache; Es wird kein Remote-Rendering-Server verwendet.
 - **Dialogfunktionen:** Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Kopieren in die Zwischenablage und die gemeinsamen [Diagrammdarstellung](#diagram-appearance)-Steuerelemente.
-- **Abhängigkeitsfehler:** Wenn lokales Rendering nicht verfügbar ist, zeigt KorTTY den Fehler an, damit Java/Graphviz behoben werden kann.
+- **Laufzeit:** Eine gepackte App startet erneut in ihrem eigenen Launcher in einem privaten, stornierbaren Worker-Modus, da die entfernte Laufzeit absichtlich kein `bin/java` hat; Entwicklungsläufe können ihr gebündeltes oder System-Java verwenden. Graphviz `dot` ist für die Aktivitäts-/Sequenzdiagramme von korTTY optional und wird nur von PlantUML-Diagrammtypen benötigt, die von Graphviz abhängen.
+- **Cache-Hygiene:** Veraltete PlantUML-Versionen, ältere SHA-1-Dateien und aufgegebene Renderverzeichnisse, die älter als 24 Stunden sind, werden automatisch entfernt.
 
 ### Diagrammdarstellung
 

@@ -24,7 +24,7 @@ await fs.mkdir(path.join(root, "generated", "workers"), { recursive: true });
 
 const workerSources = {};
 for (const [name, relativeEntry] of Object.entries(workerEntries)) {
-  // Workers are only read back below and embedded as blob sources into the host bundles;
+  // Workers are only read back below and embedded as blob sources into the shared host bundle;
   // the standalone files are never fetched at runtime, so they must not land in outDir
   // (everything there ships inside the app jar).
   const outfile = path.join(root, "generated", "workers", `${name}.worker.js`);
@@ -54,7 +54,7 @@ await fs.writeFile(
 );
 
 await build({
-  entryPoints: [path.join(root, "host.js")],
+  entryPoints: [path.join(root, "monaco-host.js")],
   bundle: true,
   outfile: path.join(outDir, "monaco-host.js"),
   format: "iife",
@@ -63,25 +63,9 @@ await build({
   loader: {
     ".ttf": "dataurl"
   },
-  // Minify: see the worker build above — the unminified host bundle is ~27 MB and exceeds the
-  // WebView boot-ready timeout in the packaged app, leaving the editor dead (no caret/typing).
-  minify: true,
-  legalComments: "none",
-  logLevel: "info"
-});
-
-await build({
-  entryPoints: [path.join(root, "diff-host.js")],
-  bundle: true,
-  outfile: path.join(outDir, "monaco-diff-host.js"),
-  format: "iife",
-  platform: "browser",
-  target: ["safari15"],
-  loader: {
-    ".ttf": "dataurl"
-  },
-  // Minify: see the worker build above — keeps the diff editor's bundle small enough to boot
-  // inside the WebView timeout in the packaged app.
+  // Minify: see the worker build above — the unminified host bundle exceeds the WebView boot-ready
+  // timeout in the packaged app. This one graph contains both page modes while Monaco and its CSS
+  // are emitted only once.
   minify: true,
   legalComments: "none",
   logLevel: "info"

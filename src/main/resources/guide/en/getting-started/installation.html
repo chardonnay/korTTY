@@ -2048,14 +2048,14 @@
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
 <p>korTTY runs on <strong>macOS, Windows and Linux</strong>. The recommended installation is a self-contained package from the <a href="https://github.com/chardonnay/korTTY/releases">GitHub Releases page</a>; these packages include the Java runtime needed by korTTY, so users do not need to install Java separately.</p>
 <h2 id="choose-the-correct-package">Choose the correct package<a class="headerlink" href="#choose-the-correct-package" title="Permanent link">&para;</a></h2>
-<p>Each native asset name includes its processor architecture. Use <code>aarch64</code> or <code>arm64</code> for an ARM system and <code>x86_64</code> for an Intel or AMD system.</p>
+<p>Each native asset name includes its processor architecture. Use <code>aarch64</code> or <code>arm64</code> for a native ARM package where one is listed and <code>x86_64</code> for an Intel or AMD package; Windows is the exception described below.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label><label for="__tabbed_1_2">Windows</label><label for="__tabbed_1_3">Linux</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Use the <code>aarch64</code> assets on Apple Silicon and the <code>x86_64</code> assets on an Intel Mac. The DMG provides the normal installation experience; the ZIP contains the complete portable <code>.app</code> bundle.</p>
 </div>
 <div class="tabbed-block">
-<p>Use the <code>x86_64</code> assets on a standard Intel or AMD PC and the <code>arm64</code> assets on Windows on ARM. The MSI is the installer; the ZIP contains the complete portable application directory, including <code>korTTY.exe</code> and its runtime. The executable inside that directory is not a stand-alone single-file application.</p>
+<p>Use the <code>x86_64</code> assets on Intel/AMD PCs and on Windows on ARM, where Windows runs them through x64 emulation. korTTY does not currently publish a native Windows ARM package because the pinned OpenJFX line has no Windows ARM natives. The MSI is the installer; the ZIP contains the complete portable application directory, including <code>korTTY.exe</code> and its runtime. The executable inside that directory is not a stand-alone single-file application.</p>
 </div>
 <div class="tabbed-block">
 <p>Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, or the ZIP/TAR archive for a portable installation. The archive contains a complete <code>jpackage</code> application-image directory; it is not a Linux <code>.AppImage</code> file.</p>

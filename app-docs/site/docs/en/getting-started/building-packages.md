@@ -21,17 +21,17 @@ Install these tools before building on any operating system:
 
 | Requirement | Why korTTY needs it |
 | --- | --- |
-| Full **JDK 25** matching the target CPU | Compiles korTTY and provides `java`, `javac`, `jlink` and `jpackage`; put its `bin` directory in `PATH` and set `JAVA_HOME` to the same JDK |
+| A full JDK supported by the pinned Gradle wrapper | Starts Gradle; korTTY then resolves a matching Temurin JDK 25 toolchain for compilation, `jlink` and `jpackage` |
 | Git | Clones korTTY and the pinned SithTermFX source dependency |
 | Apache Maven | Builds SithTermFX into the local Maven repository before korTTY compilation |
 | `curl` | Downloads the pinned mosh4j artifacts used by packaged builds |
-| Outbound HTTPS access | The wrapper, Maven/Gradle dependencies, SithTermFX, mosh4j, Node.js, formatters, Monaco and chat-render resources are downloaded during a clean first build |
+| Outbound HTTPS access | The wrapper, Maven/Gradle dependencies, SithTermFX, SHA-256-pinned mosh4j, the Monaco build toolchain, formatter browser bundles and chat-render resources are downloaded during a clean first build |
 | Gradle Wrapper from this repository | `gradlew` and `gradlew.bat` download and run the repository-pinned Gradle version; do not install or substitute a system Gradle |
 
-Node.js and MkDocs are not common prerequisites for an application build: the Gradle tasks download a pinned Node.js runtime for generated assets, and the normal application build uses the committed offline guide resources.
+Node.js and MkDocs are not common prerequisites for an application build: Gradle downloads a pinned Node.js runtime into an isolated build directory only to compile Monaco, never into the application image, and the normal application build uses the committed offline guide resources. Prettier Standalone and sql-formatter are copied as compact browser bundles and execute offline in JavaFX WebView without Node.
 
-!!! warning "Use exactly JDK 25"
-    The packaged runtime explicitly includes `jdk.jsobject`, which JavaFX WebView needs and which was removed in JDK 26. The removal is tracked as OpenJDK issue `JDK-8362628`: <https://bugs.openjdk.org/browse/JDK-8362628>. Gradle can provision its compiler toolchain independently, but the packaging tasks invoke the bare `jpackage` command from `PATH`; a newer or older `jpackage` can therefore fail even when compilation selected JDK 25. Point both `JAVA_HOME` and the first `java`/`javac`/`jpackage` entries in `PATH` to the same JDK 25 installation.
+!!! important "Packaging is pinned to the JDK 25 toolchain"
+    The packaged runtime explicitly includes `jdk.jsobject`, which JavaFX WebView needs and which was removed in JDK 26. The removal is tracked as OpenJDK issue `JDK-8362628`: <https://bugs.openjdk.org/browse/JDK-8362628>. Every packaging task resolves `jpackage` from the same Gradle-selected Temurin JDK 25 toolchain as compilation, so a newer system `java` or `jpackage` cannot silently create an incompatible runtime. The selected toolchain must still match the target CPU because `jpackage` does not cross-compile.
 
 Clone the source once:
 
@@ -40,33 +40,58 @@ git clone https://github.com/chardonnay/korTTY.git
 cd korTTY
 ```
 
-Verify that every command resolves before the first build. `java`, `javac` and `jpackage` must all report major version 25, and Maven must report the same `JAVA_HOME`.
+Verify the host tools and inspect the JDKs Gradle can select before the first build. The system JDK may be newer than 25, but `./gradlew javaToolchains` must list a matching JDK 25 for the target CPU after provisioning; Maven must use a JDK that can build SithTermFX.
 
 === "macOS / Linux"
     ```bash
-    command -v java javac jpackage git mvn curl
+    command -v java git mvn curl
     java -XshowSettings:properties -version 2>&1 | grep -E 'java.specification.version|os.arch'
-    javac --version
-    jpackage --version
     git --version
     mvn --version
     curl --version
     ./gradlew --version
+    ./gradlew -q javaToolchains
     ```
 
 === "Windows PowerShell"
     ```powershell
-    Get-Command java, javac, jpackage, git, mvn, curl
+    Get-Command java, git, mvn, curl
     java -XshowSettings:properties -version 2>&1 | Select-String 'java.specification.version|os.arch'
-    javac --version
-    jpackage --version
     git --version
     mvn --version
     curl --version
     .\gradlew.bat --version
+    .\gradlew.bat -q javaToolchains
     ```
 
 The first wrapper invocation downloads Gradle. A clean application build also clones SithTermFX when necessary, installs it through Maven, downloads the pinned build inputs, compiles korTTY and runs the tests.
+
+### Clean, target-specific package staging
+
+`prepareJpackage` assembles `build/jpackage-input/libs` with one final Gradle `Sync`. It removes stale dependency versions and formatter trees, keeps only the current mosh4j architecture and protobuf, reuses the application's parent-loaded Bouncy Castle, excludes SithTermFX's test dependency, and replaces JNA/pty4j with JARs that retain all Java classes, services, manifests and licences but only the target native path and binary architecture. The verification task deliberately seeds obsolete files before Sync and runs a real JNA/PTY smoke against the slim JARs:
+
+```bash
+./gradlew verifyJpackageStaging slimNativeRuntimeSmoke
+```
+
+### Package-size reports and budgets
+
+The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
+
+```bash
+DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
+python3 scripts/package-size-report.py \
+  --app-image build/jpackage/korTTY.app \
+  --artifact "macos-aarch64-dmg=$DMG" \
+  --baselines package/size-baselines.json \
+  --min-app-bytes 104857600 \
+  --max-app-bytes 188743680 \
+  --fail-on-budget \
+  --output-json build/package-size/local.json \
+  --output-markdown build/package-size/local.md
+```
+
+Before a Windows archive is created, the release workflow also requires an application JAR, `jvm.dll`, at least 100 MiB of plausible content and x86_64 PE headers for both launcher and JVM. Linux RPM size enforcement runs after `rpmsign`, so the measured file is the one that is distributed.
 
 ### Build the Java artifacts
 
@@ -356,6 +381,8 @@ Compress-Archive -Path .\build\jpackage\korTTY -DestinationPath .\build\jpackage
 
 The ZIP is portable because it contains the complete `korTTY` directory. `korTTY.exe` is a launcher within that directory, not a stand-alone binary; extract the entire directory before running it.
 
+The release workflow currently publishes the validated x86_64 Windows package only. OpenJFX does not provide native Windows ARM artifacts for the pinned JavaFX line, so Windows-on-ARM uses this x86_64 package through Windows emulation; the former mislabeled ARM archive is no longer produced or used as a size baseline. Native Windows ARM packaging requires a separate JavaFX/JDK packaging track and native WebView/PTY validation.
+
 ```powershell
 Test-Path .\build\jpackage\korTTY\korTTY.exe
 & .\build\jpackage\korTTY\korTTY.exe
@@ -368,7 +395,7 @@ Test MSI installation, launch, upgrade and removal in a disposable Windows virtu
 ### Windows troubleshooting
 
 - `jpackageMsi` reports that WiX cannot be found: confirm that `Get-Command candle.exe, light.exe` succeeds in the same PowerShell session, then rerun `clean` and `jpackageMsi`.
-- `jpackage` is missing even though `java` works: a JRE or incomplete JDK is first in `PATH`; point `JAVA_HOME` and `PATH` to the full JDK 25 and run `.\gradlew.bat --stop`.
+- Gradle cannot resolve the packaging JDK: run `.\gradlew.bat -q javaToolchains`, allow toolchain downloads or install a native JDK 25, then stop existing daemons with `.\gradlew.bat --stop`.
 - Maven cannot build SithTermFX: confirm that `mvn --version` reports JDK 25 and that `mvn.cmd` is available in `PATH`.
 - The app-image destination already exists: run `.\gradlew.bat clean` before rebuilding.
 

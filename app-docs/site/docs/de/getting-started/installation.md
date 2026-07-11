@@ -4,13 +4,13 @@ korTTY läuft auf **macOS, Windows und Linux**. Die empfohlene Installation ist 
 
 ## Wählen Sie das richtige Paket
 
-Jeder native Asset-Name enthält seine Prozessorarchitektur. Verwenden Sie `aarch64` oder `arm64` für ein ARM-System und `x86_64` für ein Intel- oder AMD-System.
+Jeder native Asset-Name enthält seine Prozessorarchitektur. Verwenden Sie `aarch64` oder `arm64` für ein natives ARM-Paket, wo eines aufgeführt ist, und `x86_64` für ein Intel- oder AMD-Paket. Windows ist die unten beschriebene Ausnahme.
 
 === "macOS"
     Verwenden Sie die `aarch64`-Assets auf Apple Silicon und die `x86_64`-Assets auf einem Intel Mac. Das DMG bietet die normale Installationserfahrung; Die ZIP-Datei enthält das komplette portable `.app`-Bundle.
 
 === "Windows"
-    Verwenden Sie die `x86_64`-Assets auf einem Standard-Intel- oder AMD-PC und die `arm64`-Assets unter Windows auf ARM. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich `korTTY.exe` und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.
+    Verwenden Sie die `x86_64`-Assets auf Intel/AMD-PCs und unter Windows auf ARM, wo Windows sie durch x64-Emulation ausführt. korTTY veröffentlicht derzeit kein natives Windows-ARM-Paket, da die angeheftete OpenJFX-Zeile keine nativen Windows-ARM-Pakete enthält. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich `korTTY.exe` und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.
 
 === "Linux"
     Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges `jpackage`-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-`.AppImage`-Datei.

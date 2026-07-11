@@ -58,9 +58,8 @@ public class Mosh4jReleaseIntegrationTest {
         Path releaseDir = resolveReleaseBaseDir().resolve("release-" + EXPECTED_VERSION + "-" + arch);
         Path depsDir = resolveReleaseBaseDir().resolve("deps");
 
-        // The full runtime classpath the connector builds: the five module jars plus the shared
-        // Bouncy Castle and protobuf dependencies. All are required to faithfully link the classes,
-        // so a missing artifact self-skips rather than failing for the wrong reason.
+        // The full child classpath the connector builds: five module jars plus protobuf. Bouncy
+        // Castle deliberately comes from the application's parent classloader and is not duplicated.
         List<Path> classpath = new ArrayList<>();
         Path protocolJar = null;
         for (String module : MODULES) {
@@ -71,11 +70,8 @@ public class Mosh4jReleaseIntegrationTest {
                 protocolJar = jar;
             }
         }
-        Path bcprovJar = depsDir.resolve("bcprov-jdk18on-" + EXPECTED_BCPROV_VERSION + ".jar");
         Path protobufJar = depsDir.resolve("protobuf-java-" + EXPECTED_PROTOBUF_VERSION + ".jar");
-        requireOrSkip(bcprovJar);
         requireOrSkip(protobufJar);
-        classpath.add(bcprovJar);
         classpath.add(protobufJar);
 
         URL[] urls = new URL[classpath.size()];
@@ -84,6 +80,11 @@ public class Mosh4jReleaseIntegrationTest {
         }
 
         try (URLClassLoader loader = new URLClassLoader(urls, getClass().getClassLoader())) {
+            Class<?> bouncyCastle = loader.loadClass("org.bouncycastle.jce.provider.BouncyCastleProvider");
+            assertThat(bouncyCastle.getClassLoader()).isNotSameInstanceAs(loader);
+            Class<?> protobuf = loader.loadClass("com.google.protobuf.GeneratedMessage");
+            assertThat(protobuf.getClassLoader()).isSameInstanceAs(loader);
+
             Class<?> moshKey = loader.loadClass("org.mosh4j.crypto.MoshKey");
             // Static factory used to decode the Base64 key from the MOSH CONNECT line.
             assertThat(moshKey.getMethod("fromBase64", String.class)).isNotNull();
@@ -127,8 +128,8 @@ public class Mosh4jReleaseIntegrationTest {
     private static void requireOrSkip(Path jar) {
         if (!Files.isRegularFile(jar)) {
             throw new SkipException("Required mosh4j " + EXPECTED_VERSION + " artifact not found: " + jar
-                    + " (run: gh release download " + EXPECTED_RELEASE_TAG + " -R chardonnay/mosh4j, "
-                    + "and ensure bcprov/protobuf are cached). Skipping reflection-contract check.");
+                    + " (run ./gradlew copyMosh4jBundled and ensure protobuf is cached). "
+                    + "Skipping reflection-contract check.");
         }
     }
 
@@ -157,6 +158,10 @@ public class Mosh4jReleaseIntegrationTest {
 
     /** Mirrors the env/default precedence the connector uses (bundled layout is not exercised in tests). */
     private static Path resolveReleaseBaseDir() {
+        String testDir = System.getProperty("kortty.mosh4j.testDir");
+        if (testDir != null && !testDir.isBlank()) {
+            return Path.of(testDir.trim());
+        }
         String customDir = System.getenv("KORTTY_MOSH4J_RELEASE_DIR");
         if (customDir == null || customDir.isBlank()) {
             customDir = System.getenv("KORTTY_MOSH4J_SNAPSHOT_DIR");

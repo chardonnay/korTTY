@@ -431,6 +431,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sauberes-zielspezifisches-paket-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+
+        Sauberes, zielspezifisches Paket-Staging
+
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#berichte-und-budgets-in-paketgroe" class="md-nav__link">
+    <span class="md-ellipsis">
+
+        Berichte und Budgets in Paketgröße
+
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
   <a href="#erstellen-sie-die-java-artefakte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2252,6 +2274,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sauberes-zielspezifisches-paket-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+
+        Sauberes, zielspezifisches Paket-Staging
+
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
+  <a href="#berichte-und-budgets-in-paketgroe" class="md-nav__link">
+    <span class="md-ellipsis">
+
+        Berichte und Budgets in Paketgröße
+
+    </span>
+  </a>
+
+</li>
+
+          <li class="md-nav__item">
   <a href="#erstellen-sie-die-java-artefakte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2571,8 +2615,8 @@
 </thead>
 <tbody>
 <tr>
-<td>Vollständiges <strong>JDK 25</strong> passend zur Ziel-CPU</td>
-<td>Kompiliert korTTY und stellt <code>java</code>, <code>javac</code>, <code>jlink</code> und <code>jpackage</code> bereit; Legen Sie das Verzeichnis <code>bin</code> in <code>PATH</code> ab und setzen Sie <code>JAVA_HOME</code> auf dasselbe JDK</td>
+<td>Ein vollständiges JDK, das vom angehefteten Gradle-Wrapper unterstützt wird.</td>
+<td>Startet Gradle. korTTY löst dann eine passende Temurin JDK 25-Toolchain für die Kompilierung auf, <code>jlink</code> und <code>jpackage</code></td>
 </tr>
 <tr>
 <td>Git</td>
@@ -2588,7 +2632,7 @@
 </tr>
 <tr>
 <td>Ausgehender HTTPS-Zugriff</td>
-<td>Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, mosh4j, Node.js, Formatierer, Monaco und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen</td>
+<td>Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds</td>
 </tr>
 <tr>
 <td>Gradle Wrapper aus diesem Repository</td>
@@ -2596,55 +2640,69 @@
 </tr>
 </tbody>
 </table>
-<p>Node.js und MkDocs sind keine allgemeinen Voraussetzungen für eine Anwendungserstellung: Die Gradle-Aufgaben laden eine angeheftete Node.js-Laufzeitumgebung für generierte Assets herunter, und die normale Anwendungserstellung verwendet die festgeschriebenen Offline-Anleitungressourcen.</p>
-<div class="admonition warning">
-<p class="admonition-title">Verwenden Sie genau JDK 25</p>
-<p>Die gepackte Laufzeit enthält explizit <code>jdk.jsobject</code>, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem <code>JDK-8362628</code>: <a href="https://bugs.openjdk.org/browse/JDK-8362628">https://bugs.openjdk.org/browse/JDK-8362628</a> verfolgt. Gradle kann seine Compiler-Toolchain unabhängig bereitstellen, aber die Paketierungsaufgaben rufen den bloßen Befehl <code>jpackage</code> von <code>PATH</code> auf; ein neueres oder älteres <code>jpackage</code> kann daher auch dann fehlschlagen, wenn bei der Kompilierung JDK 25 ausgewählt wurde. Verweisen Sie sowohl <code>JAVA_HOME</code> als auch die ersten <code>java</code>/<code>javac</code>/<code>jpackage</code>-Einträge in <code>PATH</code> auf dieselbe JDK 25-Installation.</p>
-</div>
+<p>Node.js und MkDocs sind keine allgemeinen Voraussetzungen für einen Anwendungs-Build: Gradle lädt eine angeheftete Node.js-Laufzeit nur zum Kompilieren von Monaco in ein isoliertes Build-Verzeichnis herunter, niemals in das Anwendungs-Image, und der normale Anwendungs-Build verwendet die festgeschriebenen Offline-Guide-Ressourcen. Prettier Standalone und SQL-Formatter werden als kompakte Browser-Bundles kopiert und offline in JavaFX WebView ohne Node ausgeführt.</p>
+<p>!!! important "Packaging ist an die JDK 25-Toolchain" angeheftet
+    Die gepackte Laufzeit enthält explizit <code>jdk.jsobject</code>, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem <code>JDK-8362628</code>: <a href="https://bugs.openjdk.org/browse/JDK-8362628">https://bugs.openjdk.org/browse/JDK-8362628</a> verfolgt. Jede Paketierungsaufgabe löst <code>jpackage</code> aus derselben von Gradle ausgewählten Temurin JDK 25-Toolchain wie bei der Kompilierung auf, sodass ein neueres System <code>java</code> oder <code>jpackage</code> nicht stillschweigend eine inkompatible Laufzeit erstellen kann. Die ausgewählte Toolchain muss weiterhin mit der Ziel-CPU übereinstimmen, da <code>jpackage</code> keine Cross-Compilierung durchführt.</p>
 <p>Klonen Sie die Quelle einmal:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chardonnay/korTTY.git
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>korTTY
 </span></code></pre></div>
-<p>Stellen Sie sicher, dass jeder Befehl vor dem ersten Build aufgelöst wird. <code>java</code>, <code>javac</code> und <code>jpackage</code> müssen alle die Hauptversion 25 melden, und Maven muss dasselbe <code>JAVA_HOME</code> melden.</p>
+<p>Überprüfen Sie die Host-Tools und prüfen Sie die JDKs, die Gradle vor dem ersten Build auswählen kann. Das System-JDK ist möglicherweise neuer als 25, aber <code>./gradlew javaToolchains</code> muss nach der Bereitstellung ein passendes JDK 25 für die Ziel-CPU auflisten; Maven muss ein JDK verwenden, das SithTermFX erstellen kann.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS / Linux</label><label for="__tabbed_1_2">Windows PowerShell</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>java<span class="w"> </span>javac<span class="w"> </span>jpackage<span class="w"> </span>git<span class="w"> </span>mvn<span class="w"> </span>curl
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>java<span class="w"> </span>git<span class="w"> </span>mvn<span class="w"> </span>curl
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;java.specification.version|os.arch&#39;</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>javac<span class="w"> </span>--version
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>jpackage<span class="w"> </span>--version
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>git<span class="w"> </span>--version
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>mvn<span class="w"> </span>--version
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>curl<span class="w"> </span>--version
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>./gradlew<span class="w"> </span>--version
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>--version
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mvn<span class="w"> </span>--version
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>curl<span class="w"> </span>--version
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>./gradlew<span class="w"> </span>--version
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>./gradlew<span class="w"> </span>-q<span class="w"> </span>javaToolchains
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">javac</span><span class="p">,</span> <span class="n">jpackage</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">java</span> <span class="n">-XshowSettings</span><span class="p">:</span><span class="n">properties</span> <span class="n">-version</span> <span class="n">2</span><span class="p">&gt;&amp;</span><span class="n">1</span> <span class="p">|</span> <span class="nb">Select-String</span> <span class="s1">&#39;java.specification.version|os.arch&#39;</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">javac</span> <span class="p">-</span><span class="n">-version</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">jpackage</span> <span class="p">-</span><span class="n">-version</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">git</span> <span class="p">-</span><span class="n">-version</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">mvn</span> <span class="p">-</span><span class="n">-version</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nb">curl </span><span class="p">-</span><span class="n">-version</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">git</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">mvn</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nb">curl </span><span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">-q</span> <span class="n">javaToolchains</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
 <p>Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klont bei Bedarf auch SithTermFX, installiert es über Maven, lädt die angehefteten Build-Eingaben herunter, kompiliert korTTY und führt die Tests aus.</p>
+<h3 id="sauberes-zielspezifisches-paket-staging">Sauberes, zielspezifisches Paket-Staging<a class="headerlink" href="#sauberes-zielspezifisches-paket-staging" title="Permanent link">&para;</a></h3>
+<p><code>prepareJpackage</code> setzt <code>build/jpackage-input/libs</code> mit einem letzten Gradle <code>Sync</code> zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatierungsbäume, behält nur die aktuelle mosh4j-Architektur und Protobuf bei, verwendet das übergeordnet geladene Bouncy Castle der Anwendung wieder, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA/pty4j durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen, aber nur den nativen Zielpfad und die binäre Architektur beibehalten. Die Verifizierungsaufgabe setzt absichtlich veraltete Dateien vor der Synchronisierung und führt einen echten JNA/PTY-Smoke gegen die schlanken JARs durch:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>verifyJpackageStaging<span class="w"> </span>slimNativeRuntimeSmoke
+</span></code></pre></div>
+<h3 id="berichte-und-budgets-in-paketgroe">Berichte und Budgets in Paketgröße<a class="headerlink" href="#berichte-und-budgets-in-paketgroe" title="Permanent link">&para;</a></h3>
+<p>Der plattformunabhängige Größenreporter trennt das App-Image, die Laufzeit, Formatierer-/Mosh-Nutzlasten, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen und schreibt dann JSON und Markdown. CI vergleicht native Installationsprogramme mit der festgeschriebenen Release-Baseline, erfordert eine Reduzierung um mindestens 15 %, wendet die 180-MiB-App-Image- und 145-MiB-DMG-Grenzwerte an und verwendet eine Regressionstoleranz von 2 %, sobald eine neue Plattformgröße überprüft wurde:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">DMG</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/jpackage<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;korTTY-*.dmg&#39;</span><span class="w"> </span>-print<span class="w"> </span>-quit<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python3<span class="w"> </span>scripts/package-size-report.py<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--app-image<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--artifact<span class="w"> </span><span class="s2">&quot;macos-aarch64-dmg=</span><span class="nv">$DMG</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--baselines<span class="w"> </span>package/size-baselines.json<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span>--min-app-bytes<span class="w"> </span><span class="m">104857600</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span>--max-app-bytes<span class="w"> </span><span class="m">188743680</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span>--fail-on-budget<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span>--output-json<span class="w"> </span>build/package-size/local.json<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span>--output-markdown<span class="w"> </span>build/package-size/local.md
+</span></code></pre></div>
+<p>Bevor ein Windows-Archiv erstellt wird, erfordert der Release-Workflow außerdem eine Anwendungs-JAR, <code>jvm.dll</code>, mindestens 100 MiB plausiblen Inhalts und x86_64 PE-Header für Launcher und JVM. Die Linux-RPM-Größendurchsetzung wird nach <code>rpmsign</code> ausgeführt, sodass die gemessene Datei diejenige ist, die verteilt wird.</p>
 <h3 id="erstellen-sie-die-java-artefakte">Erstellen Sie die Java-Artefakte<a class="headerlink" href="#erstellen-sie-die-java-artefakte" title="Permanent link">&para;</a></h3>
 <p>Verwenden Sie den folgenden Plattformbefehl, um das Thin JAR sowie die Java ZIP- und TAR-Distributionen zu kompilieren, zu testen und zu erstellen:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS / Linux</label><label for="__tabbed_2_2">Windows PowerShell</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>build/libs/<span class="w"> </span>build/distributions/
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>build/libs/<span class="w"> </span>build/distributions/
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">libs</span><span class="p">,</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">distributions</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">libs</span><span class="p">,</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">distributions</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -2653,18 +2711,18 @@
 <h2 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h2>
 <h3 id="zusatzliche-software">Zusätzliche Software<a class="headerlink" href="#zusatzliche-software" title="Permanent link">&para;</a></h3>
 <p>Installieren Sie die allgemeinen Voraussetzungen und die Apple-Befehlszeilentools. Der unsignierte <code>.app</code>-Build verwendet die JDK-Tools; Für die DMG-Erstellung werden <code>hdiutil</code> und das konfigurierte benutzerdefinierte Symbol verwendet, während für die Signierung und Beglaubigung zusätzlich <code>codesign</code>, <code>security</code>, <code>notarytool</code> und <code>stapler</code> verwendet werden. Wählen Sie vor einem Release-Build eine aktuelle Xcode-Installation aus.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>xcode-select<span class="w"> </span>-p
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>codesign
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>notarytool
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>stapler
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>hdiutil<span class="w"> </span>ditto
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>xcode-select<span class="w"> </span>-p
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>codesign
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>notarytool
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>stapler
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>hdiutil<span class="w"> </span>ditto
 </span></code></pre></div>
 <p>Führen Sie <code>xcode-select --install</code> aus, wenn die Befehlszeilentools nicht vorhanden sind. Eine für andere Benutzer bestimmte Veröffentlichung erfordert außerdem ein Apple Developer-Konto, ein <strong>Developer ID Application</strong>-Zertifikat und App Store Connect API-Anmeldeinformationen für die Beglaubigung; Bei einem nicht signierten lokalen Build ist dies nicht der Fall.</p>
 <h3 id="erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei">Erstellen Sie ein unsigniertes App-Image, eine tragbare ZIP- und DMG-Datei<a class="headerlink" href="#erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>./gradlew<span class="w"> </span>jpackage
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>./gradlew<span class="w"> </span>jpackageDmg
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>./gradlew<span class="w"> </span>jpackageDmg
 </span></code></pre></div>
 <table>
 <thead>
@@ -2689,22 +2747,22 @@
 </tbody>
 </table>
 <p>Öffnen Sie das App-Image für einen lokalen Rauchtest und überprüfen Sie den DMG-Container:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>open<span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>hdiutil<span class="w"> </span>verify<span class="w"> </span>build/jpackage/korTTY-*.dmg
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>open<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>hdiutil<span class="w"> </span>verify<span class="w"> </span>build/jpackage/korTTY-*.dmg
 </span></code></pre></div>
 <h3 id="build-macos-fur-intel-x86_64">Build macOS für Intel (<code>x86_64</code>)<a class="headerlink" href="#build-macos-fur-intel-x86_64" title="Permanent link">&para;</a></h3>
 <p>Die zuverlässigen Pfade sind ein Intel Mac mit einem x86_64 JDK 25 oder der GitHub Actions-Job des Repositorys auf <code>macos-15-intel</code>. <code>jpackage</code> führt keine Cross-Kompilierung durch, daher erstellt ein ARM-JDK, das nativ auf Apple Silicon ausgeführt wird, eine ARM-App, selbst wenn der gewünschte Dateiname <code>x86_64</code> lautet.</p>
 <p>Validieren Sie auf einem Intel-Mac die Maschine, die Java-Laufzeit und den generierten Launcher, bevor Sie das Ergebnis verteilen:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>/usr/libexec/java_home<span class="w"> </span>-v<span class="w"> </span><span class="m">25</span><span class="w"> </span>-a<span class="w"> </span>x86_64<span class="w"> </span>-F<span class="k">)</span><span class="s2">&quot;</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;x86_64&quot;</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>jpackage<span class="w"> </span>--version<span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d.<span class="w"> </span>-f1<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;25&quot;</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>./gradlew<span class="w"> </span>--stop
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>./gradlew<span class="w"> </span>jpackage
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>./gradlew<span class="w"> </span>jpackageDmg
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>/usr/libexec/java_home<span class="w"> </span>-v<span class="w"> </span><span class="m">25</span><span class="w"> </span>-a<span class="w"> </span>x86_64<span class="w"> </span>-F<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;x86_64&quot;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>jpackage<span class="w"> </span>--version<span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d.<span class="w"> </span>-f1<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;25&quot;</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>./gradlew<span class="w"> </span>--stop
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>./gradlew<span class="w"> </span>jpackageDmg
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
 </span></code></pre></div>
 <p>Der letzte <code>lipo</code>-Befehl darf nur <code>x86_64</code> ausgeben. Führen Sie den gleichen Build auf Apple Silicon mit einem ARM-JDK durch, um die separaten <code>aarch64</code>-Artefakte zu erhalten. Das Projekt erstellt keine universelle Binärdatei.</p>
 <h4 id="intel-build-mit-github-aktionen">Intel-Build mit GitHub-Aktionen<a class="headerlink" href="#intel-build-mit-github-aktionen" title="Permanent link">&para;</a></h4>
@@ -2749,62 +2807,62 @@
 <p class="admonition-title">Rosetta ist ein nicht verifizierter fortgeschrittener Pfad</p>
 <p>Ein Apple Silicon-Host kann versuchsweise ein x86_64 JDK 25 unter Rosetta ausführen, dies ist jedoch nicht der verifizierte Release-Pfad des Repositorys. Installieren Sie Rosetta, wählen Sie ein Intel JDK für <code>JAVA_HOME</code> und <code>PATH</code> aus, stoppen Sie vorhandene Gradle-Daemons, führen Sie den kompletten Build in einer x86_64-Shell aus und bestätigen Sie den Launcher mit <code>lipo</code>. Testen Sie das Ergebnis vor der Verteilung auf echter Intel-Hardware; Verwenden Sie <code>macos-15-intel</code>, wenn ein reproduzierbares Release-Artefakt erforderlich ist.</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>softwareupdate<span class="w"> </span>--install-rosetta<span class="w"> </span>--agree-to-license
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>arch<span class="w"> </span>-x86_64<span class="w"> </span>/bin/zsh
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;/path/to/x86_64-jdk-25/Contents/Home&quot;</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>./gradlew<span class="w"> </span>--stop
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackage
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackageDmg
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>softwareupdate<span class="w"> </span>--install-rosetta<span class="w"> </span>--agree-to-license
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>arch<span class="w"> </span>-x86_64<span class="w"> </span>/bin/zsh
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;/path/to/x86_64-jdk-25/Contents/Home&quot;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>./gradlew<span class="w"> </span>--stop
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackage
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackageDmg
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
 </span></code></pre></div>
 <h3 id="signieren-sie-die-app-und-dmg">Signieren Sie die App und DMG<a class="headerlink" href="#signieren-sie-die-app-und-dmg" title="Permanent link">&para;</a></h3>
 <p>Beim Signieren handelt es sich um ein Opt-In. Die Gradle-Aufgaben verwenden die folgenden Repository-Eigenschaften, um gebündelte native JNA/pty4j-Bibliotheken zu signieren und die Identität an <code>jpackage</code> zu übergeben; Ersetzen Sie diesen Fluss nicht durch eine Ad-hoc-Signatur nur für das äußere App-Bundle.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>security<span class="w"> </span>find-identity<span class="w"> </span>-v<span class="w"> </span>-p<span class="w"> </span>codesigning
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KORTTY_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">&quot;Developer ID Application: Your Name (TEAMID)&quot;</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>./gradlew<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">  </span>jpackage
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>./gradlew<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">  </span>jpackageDmg
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>security<span class="w"> </span>find-identity<span class="w"> </span>-v<span class="w"> </span>-p<span class="w"> </span>codesigning
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KORTTY_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">&quot;Developer ID Application: Your Name (TEAMID)&quot;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>./gradlew<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">  </span>jpackage
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>./gradlew<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">  </span>jpackageDmg
 </span></code></pre></div>
 <p>Wenn die Identität in einem nicht standardmäßigen Schlüsselbund gespeichert ist, fügen Sie <code>-Pkortty.macos.signingKeychain=/absolute/path/to/keychain-db</code> zu beiden Paketierungsbefehlen hinzu. Unterzeichnung und Beglaubigung sind separate Vorgänge: Die Gradle-Eigenschaften unterzeichnen die Artefakte, übermitteln sie jedoch nicht an den Notardienst von Apple.</p>
 <h3 id="notariell-beglaubigen-und-vor-ort-heften">Notariell beglaubigen und vor Ort heften<a class="headerlink" href="#notariell-beglaubigen-und-vor-ort-heften" title="Permanent link">&para;</a></h3>
 <p>Der Release-Workflow ist die kanonische automatisierte Implementierung. Um die Beglaubigungsphase lokal zu spiegeln, speichern Sie die App Store Connect API-Anmeldeinformationen in einem Schlüsselbundprofil, übermitteln Sie eine ZIP-Datei des signierten <code>.app</code>, heften Sie das akzeptierte Ticket zusammen und übermitteln und heften Sie dann das signierte DMG.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_ID</span><span class="o">=</span><span class="s2">&quot;&lt;key-id&gt;&quot;</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_ISSUER_ID</span><span class="o">=</span><span class="s2">&quot;&lt;issuer-id&gt;&quot;</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">&quot;/absolute/path/to/AuthKey_&lt;key-id&gt;.p8&quot;</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>store-credentials<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span>--key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_PATH</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span>--key-id<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span>--issuer<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_ISSUER_ID</span><span class="s2">&quot;</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span>build/jpackage/korTTY-notarization.zip
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span>build/jpackage/korTTY-notarization.zip<span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="nv">DMG</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/jpackage<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;korTTY-*.dmg&#39;</span><span class="w"> </span>-print<span class="w"> </span>-quit<span class="k">)</span><span class="s2">&quot;</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="nb">test</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span><span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
-</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
-</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_ID</span><span class="o">=</span><span class="s2">&quot;&lt;key-id&gt;&quot;</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_ISSUER_ID</span><span class="o">=</span><span class="s2">&quot;&lt;issuer-id&gt;&quot;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">&quot;/absolute/path/to/AuthKey_&lt;key-id&gt;.p8&quot;</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>store-credentials<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span>--key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_PATH</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">  </span>--key-id<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">  </span>--issuer<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_ISSUER_ID</span><span class="s2">&quot;</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span>build/jpackage/korTTY-notarization.zip
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span>build/jpackage/korTTY-notarization.zip<span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="nv">DMG</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/jpackage<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;korTTY-*.dmg&#39;</span><span class="w"> </span>-print<span class="w"> </span>-quit<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="nb">test</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span><span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a>
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
 </span></code></pre></div>
 <p>Überprüfen Sie jede abgelehnte Einreichung mit <code>xcrun notarytool log &lt;submission-id&gt; --keychain-profile "kortty-notary"</code>. Überprüfen Sie vor der Veröffentlichung Gatekeeper, die eingebetteten Signaturen, die gehefteten Tickets und die Launcher-Architektur:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY-*.dmg
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY-*.dmg
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
 </span></code></pre></div>
 <h3 id="macos-fehlerbehebung">macOS-Fehlerbehebung<a class="headerlink" href="#macos-fehlerbehebung" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2827,32 +2885,32 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Debian / Ubuntu</label><label for="__tabbed_3_2">Fedora / RHEL</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>update
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>fakeroot<span class="w"> </span>zip
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>update
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>fakeroot<span class="w"> </span>zip
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>rpm-build<span class="w"> </span>zip
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>rpm-build<span class="w"> </span>zip
 </span></code></pre></div>
 </div>
 </div>
 </div>
 <p>Installieren und wählen Sie das vollständige JDK 25 separat aus, wenn der Verteilungsbefehl nicht genau dieses JDK bereitstellt. Erstellen Sie DEB-Pakete auf Debian/Ubuntu und RPM-Pakete auf einer RPM-basierten Distribution; Das tragbare App-Image ist für beide Familien verfügbar.</p>
 <h3 id="erstellen-sie-das-app-image-tragbare-archive-und-pakete">Erstellen Sie das App-Image, tragbare Archive und Pakete<a class="headerlink" href="#erstellen-sie-das-app-image-tragbare-archive-und-pakete" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>./gradlew<span class="w"> </span>jpackage
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>tar<span class="w"> </span>-C<span class="w"> </span>build/jpackage<span class="w"> </span>-czf<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.tar.gz&quot;</span><span class="w"> </span>korTTY
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="o">(</span><span class="nb">cd</span><span class="w"> </span>build/jpackage<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zip<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span><span class="w"> </span>korTTY<span class="o">)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>tar<span class="w"> </span>-C<span class="w"> </span>build/jpackage<span class="w"> </span>-czf<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.tar.gz&quot;</span><span class="w"> </span>korTTY
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="o">(</span><span class="nb">cd</span><span class="w"> </span>build/jpackage<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zip<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span><span class="w"> </span>korTTY<span class="o">)</span>
 </span></code></pre></div>
 <p>Erstellen Sie dann das native Paket für die aktuelle Distribution:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Debian / Ubuntu</label><label for="__tabbed_4_2">Fedora / RHEL</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>./gradlew<span class="w"> </span>jpackageDeb
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>./gradlew<span class="w"> </span>jpackageDeb
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>./gradlew<span class="w"> </span>jpackageRpm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>./gradlew<span class="w"> </span>jpackageRpm
 </span></code></pre></div>
 </div>
 </div>
@@ -2884,12 +2942,12 @@
 </tbody>
 </table>
 <p>Führen Sie die Ausgaben aus und überprüfen Sie sie, ohne die Pakete zu installieren:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">test</span><span class="w"> </span>-x<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>file<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>./build/jpackage/korTTY/bin/korTTY
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>tar<span class="w"> </span>-tzf<span class="w"> </span>build/jpackage/korTTY-Linux-local-*.tar.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>dpkg-deb<span class="w"> </span>--info<span class="w"> </span>build/jpackage/kortty*.deb
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>rpm<span class="w"> </span>-qpi<span class="w"> </span>build/jpackage/kortty*.rpm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">test</span><span class="w"> </span>-x<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>file<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>./build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>tar<span class="w"> </span>-tzf<span class="w"> </span>build/jpackage/korTTY-Linux-local-*.tar.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>dpkg-deb<span class="w"> </span>--info<span class="w"> </span>build/jpackage/kortty*.deb
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>rpm<span class="w"> </span>-qpi<span class="w"> </span>build/jpackage/kortty*.rpm
 </span></code></pre></div>
 <p>Verwenden Sie nur den Inspektionsbefehl, der für das von Ihnen erstellte Paket verfügbar ist. Testen Sie die Installation und Entfernung des Installationsprogramms in einer verfügbaren virtuellen Maschine oder einem Container, der der Zielverteilung entspricht, bevor Sie es veröffentlichen.</p>
 <h3 id="linux-fehlerbehebung">Linux-Fehlerbehebung<a class="headerlink" href="#linux-fehlerbehebung" title="Permanent link">&para;</a></h3>
@@ -2909,15 +2967,15 @@
 <h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h2>
 <h3 id="zusatzliche-software_2">Zusätzliche Software<a class="headerlink" href="#zusatzliche-software_2" title="Permanent link">&para;</a></h3>
 <p>Verwenden Sie ein PowerShell-Terminal mit den allgemeinen Voraussetzungen. Für die portable App-Image-Aufgabe ist kein externer Installer-Builder erforderlich, für die MSI-Erstellung ist jedoch WiX Toolset 3 oder höher erforderlich, wobei <code>candle.exe</code> und <code>light.exe</code> in <code>PATH</code> verfügbar sind. Der Release-Workflow nutzt die WiX 3-Toolchain für seine Windows-Paketierungsaufgaben.</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">javac</span><span class="p">,</span> <span class="n">jpackage</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nb">Get-Command</span> <span class="n">candle</span><span class="p">.</span><span class="n">exe</span><span class="p">,</span> <span class="n">light</span><span class="p">.</span><span class="n">exe</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">javac</span><span class="p">,</span> <span class="n">jpackage</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">Get-Command</span> <span class="n">candle</span><span class="p">.</span><span class="n">exe</span><span class="p">,</span> <span class="n">light</span><span class="p">.</span><span class="n">exe</span>
 </span></code></pre></div>
 <p>Starten Sie PowerShell neu, nachdem Sie <code>JAVA_HOME</code>, <code>PATH</code> oder die WiX-Installation geändert haben, damit der Wrapper und <code>jpackage</code> die neuen Werte sehen.</p>
 <h3 id="erstellen-sie-das-app-image-portable-zip-und-msi">Erstellen Sie das App-Image, portable ZIP und MSI<a class="headerlink" href="#erstellen-sie-das-app-image-portable-zip-und-msi" title="Permanent link">&para;</a></h3>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackage</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">Compress-Archive</span> <span class="n">-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span> <span class="n">-DestinationPath</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span> <span class="n">-Force</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackageMsi</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackage</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="nb">Compress-Archive</span> <span class="n">-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span> <span class="n">-DestinationPath</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span> <span class="n">-Force</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackageMsi</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2946,16 +3004,17 @@
 </tbody>
 </table>
 <p>Die ZIP-Datei ist portierbar, da sie das vollständige <code>korTTY</code>-Verzeichnis enthält. <code>korTTY.exe</code> ist ein Launcher in diesem Verzeichnis, keine eigenständige Binärdatei; Extrahieren Sie das gesamte Verzeichnis, bevor Sie es ausführen.</p>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">Test-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="p">&amp;</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\*.</span><span class="n">msi</span>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nb">Get-Item</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span>
+<p>Der Release-Workflow veröffentlicht derzeit nur das validierte x86_64-Windows-Paket. OpenJFX stellt keine nativen Windows ARM-Artefakte für die angeheftete JavaFX-Zeile bereit, daher verwendet Windows-on-ARM dieses x86_64-Paket über die Windows-Emulation; Das früher falsch beschriftete ARM-Archiv wird nicht mehr produziert oder als Größenbasis verwendet. Native Windows ARM-Paketierung erfordert einen separaten JavaFX/JDK-Paketierungstrack und eine native WebView/PTY-Validierung.</p>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nb">Test-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="p">&amp;</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\*.</span><span class="n">msi</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="nb">Get-Item</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span>
 </span></code></pre></div>
 <p>Testen Sie die Installation, den Start, das Upgrade und die Entfernung von MSI in einer verfügbaren virtuellen Windows-Maschine, die der Zielarchitektur entspricht, bevor Sie sie veröffentlichen.</p>
 <h3 id="windows-fehlerbehebung">Windows-Fehlerbehebung<a class="headerlink" href="#windows-fehlerbehebung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>jpackageMsi</code> meldet, dass WiX nicht gefunden werden kann: Bestätigen Sie, dass <code>Get-Command candle.exe, light.exe</code> in derselben PowerShell-Sitzung erfolgreich ist, und führen Sie dann <code>clean</code> und <code>jpackageMsi</code> erneut aus.</li>
-<li><code>jpackage</code> fehlt, obwohl <code>java</code> funktioniert: Eine JRE oder ein unvollständiges JDK steht zuerst in <code>PATH</code>; Zeigen Sie <code>JAVA_HOME</code> und <code>PATH</code> auf das vollständige JDK 25 und führen Sie <code>.\gradlew.bat --stop</code> aus.</li>
+<li>Gradle kann das Paket-JDK nicht auflösen: Führen Sie <code>.\gradlew.bat -q javaToolchains</code> aus, erlauben Sie Toolchain-Downloads oder installieren Sie ein natives JDK 25 und stoppen Sie dann vorhandene Daemons mit <code>.\gradlew.bat --stop</code>.</li>
 <li>Maven kann SithTermFX nicht erstellen: Bestätigen Sie, dass <code>mvn --version</code> JDK 25 meldet und dass <code>mvn.cmd</code> in <code>PATH</code> verfügbar ist.</li>
 <li>Das App-Image-Ziel existiert bereits: Führen Sie <code>.\gradlew.bat clean</code> aus, bevor Sie es neu erstellen.</li>
 </ul>

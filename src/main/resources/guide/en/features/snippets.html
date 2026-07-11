@@ -2789,7 +2789,7 @@
 <p>Above the content field, the column ruler keeps the current caret column fixed at the left as <code>Column N</code> and shows a live marker at the matching editor position. Moving the mouse over the live marker shows <code>Position N</code>. Click the ruler to set a maximum line-length marker (columns 20–240). Right-click that marker to format the content to the selected width or remove the marker.</p>
 <p>Line-width formatting works locally only for formatters that support configurable width:</p>
 <ul>
-<li>Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS, JSON)</li>
+<li>Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS)</li>
 <li>Python (Black)</li>
 <li>Perl (Perl::Tidy)</li>
 </ul>
@@ -2801,6 +2801,7 @@
 <li><strong>Bundled formatters:</strong> Java (google-java-format), Bash/shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)</li>
 <li><strong>Fallback:</strong> Optional PATH fallbacks for developer setups when a bundled formatter is missing</li>
 </ul>
+<p>Prettier runs as its offline Standalone browser build with only the Babel, Estree, TypeScript, HTML and PostCSS plugins; SQL uses the bundled sql-formatter browser build. Both are initialized lazily in an isolated JavaFX WebView and need no installed or packaged Node.js runtime. Requests are serialized and retain the same 15-second timeout, provider display and configurable Prettier line width as the process backend; a failed or timed-out engine is discarded before the next request.</p>
 <p>If local formatting is unavailable and the configured AI profile provides snippet AI capability, KorTTY asks whether to use AI assistance. AI formatting is applied only after the before/after preview is accepted.</p>
 <h3 id="editor-profiles">Editor profiles<a class="headerlink" href="#editor-profiles" title="Permanent link">&para;</a></h3>
 <p>Switch between:</p>
@@ -2939,9 +2940,10 @@
 <h3 id="plantuml-diagrams">PlantUML diagrams<a class="headerlink" href="#plantuml-diagrams" title="Permanent link">&para;</a></h3>
 <p>PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.</p>
 <ul>
-<li><strong>Rendering:</strong> Local only — KorTTY uses a checksum-verified PlantUML JAR and Graphviz <code>dot</code>; no remote server is used.</li>
+<li><strong>Rendering:</strong> Local only — KorTTY downloads PlantUML 1.2026.2 on first use, verifies its fixed SHA-256 and keeps the current JAR in the user cache; no remote rendering server is used.</li>
 <li><strong>Dialog features:</strong> Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared <a href="#diagram-appearance">Diagram appearance</a> controls.</li>
-<li><strong>Dependency errors:</strong> If local rendering is unavailable, KorTTY shows the error so Java/Graphviz can be fixed.</li>
+<li><strong>Runtime:</strong> A packaged app re-enters its own launcher in a private, cancellable worker mode because the stripped runtime intentionally has no <code>bin/java</code>; development runs can use their bundled or system Java. Graphviz <code>dot</code> is optional for korTTY's activity/sequence diagrams and is needed only by PlantUML diagram types that depend on Graphviz.</li>
+<li><strong>Cache hygiene:</strong> Obsolete PlantUML versions, legacy SHA-1 files and abandoned render directories older than 24 hours are removed automatically.</li>
 </ul>
 <h3 id="diagram-appearance">Diagram appearance<a class="headerlink" href="#diagram-appearance" title="Permanent link">&para;</a></h3>
 <p>Both diagram windows — the standalone <strong>Diagram</strong> dialog and the <strong>Full code analysis</strong> flow diagram — share two appearance controls, and each remembers its setting across sessions:</p>

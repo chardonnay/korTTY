@@ -53,9 +53,6 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x86_64
-          - os: windows-11-arm
-            platform: windows
-            arch: arm64
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
@@ -143,16 +140,7 @@ jobs:
             cd ../..
           fi
 
-      - name: Set up JDK 21 (Windows ARM runner)
-        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
-        uses: actions/setup-java@v5
-        with:
-          java-version: '21'
-          architecture: 'x64'
-          distribution: 'temurin'
-
       - name: Set up JDK 25
-        if: matrix.platform != 'windows' || matrix.arch != 'arm64'
         uses: actions/setup-java@v5
         with:
           java-version: '25'
@@ -280,16 +268,6 @@ jobs:
             exit 1
           fi
 
-      - name: Install WiX Toolset (Windows ARM runner)
-        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
-        shell: pwsh
-        run: |
-          $wixDir = Join-Path $env:RUNNER_TEMP "wix314"
-          New-Item -ItemType Directory -Path $wixDir -Force | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "$wixDir\\wix314-binaries.zip"
-          Expand-Archive -Path "$wixDir\\wix314-binaries.zip" -DestinationPath $wixDir -Force
-          $wixDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
         shell: bash
@@ -338,12 +316,7 @@ jobs:
       - name: Set Gradle command
         id: gradle
         shell: bash
-        run: |
-          if [ "${{ matrix.platform }}" = "windows" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
-            echo "cmd=./gradlew -Pjavafx.platform=windows-x86_64 -Pkortty.javaVersion=21" >> $GITHUB_OUTPUT
-          else
-            echo "cmd=./gradlew" >> $GITHUB_OUTPUT
-          fi
+        run: echo "cmd=./gradlew" >> $GITHUB_OUTPUT
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
@@ -576,6 +549,27 @@ jobs:
             Write-Error "Complete Windows application image not found at build/jpackage/korTTY."
             exit 1
           }
+          $appJar = Get-ChildItem -Path "korTTY\app" -Filter "korTTY-*.jar" -File -ErrorAction SilentlyContinue
+          $jvm = Get-ChildItem -Path "korTTY\runtime" -Filter "jvm.dll" -File -Recurse -ErrorAction SilentlyContinue
+          $logicalBytes = (Get-ChildItem -Path "korTTY" -File -Recurse | Measure-Object -Property Length -Sum).Sum
+          if (-not $appJar -or -not $jvm -or $logicalBytes -lt 100MB) {
+            Write-Error "Windows app image is incomplete (appJar=$($appJar.Count), jvm=$($jvm.Count), bytes=$logicalBytes)."
+            Get-ChildItem -Path "korTTY" -Recurse | Select-Object -First 100
+            exit 1
+          }
+          function Get-PeMachine([string]$Path) {
+            $bytes = [System.IO.File]::ReadAllBytes($Path)
+            if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { return -1 }
+            $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+            if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) { return -1 }
+            return [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          }
+          $launcherMachine = Get-PeMachine "korTTY\korTTY.exe"
+          $jvmMachine = Get-PeMachine $jvm[0].FullName
+          if ($launcherMachine -ne 0x8664 -or $jvmMachine -ne 0x8664) {
+            Write-Error "Windows x86_64 artifact has the wrong PE machine (launcher=0x$('{0:X4}' -f $launcherMachine), jvm=0x$('{0:X4}' -f $jvmMachine))."
+            exit 1
+          }
           Compress-Archive -Path korTTY -DestinationPath "$artifactBase.zip" -Force
           if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
@@ -623,6 +617,48 @@ jobs:
             } > "$HOME/.rpmmacros"
             rpmsign --addsign "$rpm_file"
           fi
+
+      - name: Report and enforce native package sizes
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLATFORM="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+          REPORT_DIR="build/package-size"
+          mkdir -p "$REPORT_DIR"
+          args=(--baselines package/size-baselines.json --fail-on-budget --min-app-bytes 104857600)
+          case "$PLATFORM:$ARCH" in
+            macos:aarch64)
+              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 188743680)
+              args+=(--artifact "macos-aarch64-dmg=build/jpackage/korTTY-macOS-${VERSION}-${ARCH}.dmg")
+              ;;
+            macos:x86_64)
+              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 188743680)
+              args+=(--artifact "macos-x86_64-dmg=build/jpackage/korTTY-macOS-${VERSION}-${ARCH}.dmg")
+              ;;
+            windows:*)
+              args+=(--app-image build/jpackage/korTTY)
+              args+=(--artifact "windows-${ARCH}-msi=build/jpackage/korTTY-Windows-${VERSION}-${ARCH}.msi")
+              ;;
+            linux:*)
+              if [ -d build/jpackage/korTTY ]; then app_dir=build/jpackage/korTTY; else app_dir=build/jpackage/kortty; fi
+              args+=(--app-image "$app_dir")
+              args+=(--artifact "linux-${ARCH}-deb=build/jpackage/kortty-Linux-${VERSION}-${ARCH}.deb")
+              args+=(--artifact "linux-${ARCH}-rpm=build/jpackage/kortty-Linux-${VERSION}-${ARCH}.rpm")
+              ;;
+          esac
+          python3 scripts/package-size-report.py "${args[@]}" \
+            --output-json "$REPORT_DIR/${PLATFORM}-${ARCH}.json" \
+            --output-markdown "$REPORT_DIR/${PLATFORM}-${ARCH}.md"
+
+      - name: Upload package size report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-size-${{ matrix.platform }}-${{ matrix.arch }}
+          path: build/package-size/*
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Sign Linux artifacts
         if: matrix.platform == 'linux'

@@ -6,13 +6,16 @@ plugins {
 
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.util.zip.ZipFile
 
 group = "de.kortty"
 version = "2.4.3"
 
-// Resolved JDK major for this build. CI pins JDK 21 on the Windows ARM runner
-// (-Pkortty.javaVersion=21); everywhere else this defaults to 25. Hoisted to
+// Resolved JDK major for this build. Native release packaging defaults to 25;
+// the property remains available for explicit compatibility builds. Hoisted to
 // top level so the jdk.jsobject wiring below can branch on it.
 val korttyJavaVersion = (findProperty("kortty.javaVersion") as String?)?.toIntOrNull() ?: 25
 
@@ -38,6 +41,20 @@ val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
+// Packaging must use the same JDK generation as compilation. Calling the bare
+// `jpackage` from PATH is not reproducible and breaks as soon as a newer system
+// JDK removes a module that the selected application toolchain still provides
+// (for example jdk.jsobject in JDK 26).
+val packagingJavaLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(korttyJavaVersion))
+    vendor.set(JvmVendorSpec.ADOPTIUM)
+}
+val jpackageExecutable = packagingJavaLauncher.map { launcher ->
+    launcher.metadata.installationPath
+        .file(if (isWindows) "bin/jpackage.exe" else "bin/jpackage")
+        .asFile.absolutePath
+}
+
 // Pinned to bare "21" (GA 21.0.0). Do NOT bump without solving the macOS signing trap below:
 // JavaFX ships its native dylibs INSIDE the jars. Gluon's adhoc/linker signatures on patches >= 21.0.1
 // are rejected by Apple's notary, so they'd need re-signing with our Developer ID — BUT re-signing
@@ -59,7 +76,7 @@ val javaFxJsObject = configurations.create("javaFxJsObject")
 
 javafx {
     version = javaFxVersion
-    modules = listOf("javafx.controls", "javafx.fxml", "javafx.graphics", "javafx.media", "javafx.swing", "javafx.web")
+    modules = listOf("javafx.controls", "javafx.graphics", "javafx.media", "javafx.swing", "javafx.web")
 }
 
 val motherTerminalEffectPluginJarName = "kortty-terminal-effect-mother.jar"
@@ -139,8 +156,14 @@ dependencies {
     implementation("net.i2p.crypto:eddsa:0.3.0")
     
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.1")
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.1")
+    implementation("com.sithtermfx:sithtermfx-core:1.2.1") {
+        // SithTermFX 1.2.1 accidentally publishes its JUnit API as a runtime dependency.
+        // korTTY supplies its own test dependencies and must not ship test frameworks.
+        exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
+    }
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.1") {
+        exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
+    }
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
@@ -170,7 +193,7 @@ dependencies {
 
     // The JDK's built-in jdk.jsobject module is deprecated for removal on JDK 25,
     // so on JDK 25+ we supply it externally via the JavaFX artifact. On JDK 21
-    // (Windows ARM runner) the module is still built in AND that runner's javac
+    // the module is still built in AND that javac
     // cannot read the 25.x module-info (Java 23 bytecode, class version 67.0) —
     // so we must NOT put the external artifact on the compile path there.
     if (korttyJavaVersion >= 24) {
@@ -215,7 +238,7 @@ application {
 
 tasks.named<JavaExec>("run") {
     dependsOn("copyBundledFormatters")
-    systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("jpackage-input/libs/formatters").get().asFile.absolutePath)
+    systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("bundled-formatters").get().asFile.absolutePath)
 }
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
@@ -301,12 +324,16 @@ val jpackageInput = layout.buildDirectory.dir("jpackage-input")
 // ==================== Gebuendelte Code-Formatter ====================
 
 val formatterDownloadDir = layout.buildDirectory.dir("formatter-downloads")
-val bundledFormatterDir = jpackageInput.map { it.dir("libs/formatters") }
+val bundledFormatterDir = layout.buildDirectory.dir("bundled-formatters")
+val bundledMosh4jDir = layout.buildDirectory.dir("bundled-mosh4j")
+val slimRuntimeJarDir = layout.buildDirectory.dir("slim-runtime-jars")
 val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
 val formatterNodeVersion = "24.15.0"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
+val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
 val formatterSqlFormatterVersion = "15.7.3"
+val formatterSqlFormatterSha256 = "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a9223766f8b4e75d2b29819"
 val formatterPerlTidyVersion = "20260204"
 val monacoEditorVersion = "0.55.1"
 val monacoEditorSha256 = "eec3721fb6b1dc5a0bd1a73e38a5eb5d0c3791af684f7d2571efb90ad8634871"
@@ -377,11 +404,52 @@ fun download(url: String, target: File) {
     }
 }
 
+fun littleEndian16(bytes: ByteArray, offset: Int): Int =
+    (bytes[offset].toInt() and 0xff) or ((bytes[offset + 1].toInt() and 0xff) shl 8)
+
+fun littleEndian32(bytes: ByteArray, offset: Int): Int =
+    littleEndian16(bytes, offset) or (littleEndian16(bytes, offset + 2) shl 16)
+
+fun validateNativeArchitecture(nativeFile: File, targetArch: String) {
+    val bytes = nativeFile.readBytes()
+    val valid = when {
+        isMac -> {
+            bytes.size >= 8 && littleEndian32(bytes, 0) == 0xfeedfacf.toInt() &&
+                littleEndian32(bytes, 4) == if (targetArch == "arm64") 0x0100000c else 0x01000007
+        }
+        isLinux -> {
+            val expectedMachine = if (targetArch == "arm64") 183 else 62
+            bytes.size >= 20 && bytes[0] == 0x7f.toByte() && bytes[1] == 'E'.code.toByte() &&
+                bytes[2] == 'L'.code.toByte() && bytes[3] == 'F'.code.toByte() && bytes[5] == 1.toByte() &&
+                littleEndian16(bytes, 18) == expectedMachine
+        }
+        isWindows -> {
+            if (bytes.size < 64 || bytes[0] != 'M'.code.toByte() || bytes[1] != 'Z'.code.toByte()) {
+                false
+            } else {
+                val peOffset = littleEndian32(bytes, 0x3c)
+                val expectedMachine = if (targetArch == "arm64") 0xaa64 else 0x8664
+                peOffset >= 0 && peOffset + 6 <= bytes.size &&
+                    bytes[peOffset] == 'P'.code.toByte() && bytes[peOffset + 1] == 'E'.code.toByte() &&
+                    littleEndian16(bytes, peOffset + 4) == expectedMachine
+            }
+        }
+        else -> false
+    }
+    if (!valid) {
+        throw GradleException("Native binary has the wrong architecture for $osName/$targetArch: ${nativeFile.name}")
+    }
+}
+
 fun stripFirstPathSegment(details: org.gradle.api.file.FileCopyDetails) {
     val segments = details.relativePath.segments
     if (segments.size > 1) {
         details.relativePath = org.gradle.api.file.RelativePath(true, *segments.drop(1).toTypedArray())
     }
+}
+
+val cleanBundledFormatterDir = tasks.register<Delete>("cleanBundledFormatterDir") {
+    delete(bundledFormatterDir)
 }
 
 tasks.register("copyBundledShfmt") {
@@ -406,58 +474,6 @@ tasks.register("copyBundledShfmt") {
         downloadFile.copyTo(target, overwrite = true)
         target.setExecutable(true, false)
     }
-}
-
-tasks.register("copyBundledNode") {
-    group = "build"
-    description = "Downloads pinned Node.js LTS and copies it into the jpackage formatter directory."
-    doLast {
-        val archiveName = nodeArchiveName()
-        if (archiveName == null) {
-            logger.warn("No bundled Node.js archive configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}; skipping.")
-            return@doLast
-        }
-        val downloadBase = "https://nodejs.org/dist/v$formatterNodeVersion"
-        val shasumsFile = formatterDownloadDir.get().asFile.resolve("node-v$formatterNodeVersion-SHASUMS256.txt")
-        // Trust model: Node's SHASUMS256.txt is accepted only through HTTPS here; it is not
-        // independently signature-verified, so a compromised TLS endpoint could affect expected.
-        download("$downloadBase/SHASUMS256.txt", shasumsFile)
-        val expected = shasumsFile.readLines()
-            .firstOrNull { it.endsWith("  $archiveName") || it.endsWith(" *$archiveName") }
-            ?.substringBefore(" ")
-            ?: throw GradleException("No Node.js checksum found for $archiveName")
-        val archive = formatterDownloadDir.get().asFile.resolve(archiveName)
-        downloadPinned("$downloadBase/$archiveName", archive, expected)
-
-        val unpackDir = layout.buildDirectory.get().asFile.resolve("formatter-node-unpack")
-        delete(unpackDir)
-        unpackDir.mkdirs()
-        copy {
-            from(if (archiveName.endsWith(".zip")) zipTree(archive) else tarTree(resources.gzip(archive)))
-            into(unpackDir)
-        }
-        val unpackedRoot = unpackDir.listFiles()?.singleOrNull { it.isDirectory }
-            ?: throw GradleException("Could not find unpacked Node.js root for $archiveName")
-        val target = bundledFormatterDir.get().asFile.resolve("node")
-        delete(target)
-        // Only the node binary is executed at runtime (CodeFormatterService.findBundledNode);
-        // npm/corepack/include/share would add ~80 MB, and their bin/ symlinks would dangle
-        // after a partial trim (a codesign/notarization hazard) — hence an include-list.
-        copy {
-            from(unpackedRoot)
-            into(target)
-            include("bin/node")   // Unix archive layout
-            include("node.exe")   // Windows archive layout (node.exe at the root)
-            include("LICENSE")
-        }
-        val nodeExecutable = if (isWindows) target.resolve("node.exe") else target.resolve("bin/node")
-        nodeExecutable.setExecutable(true, false)
-    }
-}
-
-fun bundledNodeExecutable(): File {
-    val nodeRoot = bundledFormatterDir.get().asFile.resolve("node")
-    return if (isWindows) nodeRoot.resolve("node.exe") else nodeRoot.resolve("bin/node")
 }
 
 fun monacoNodeExecutable(): File {
@@ -507,6 +523,7 @@ fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
 val monacoWorkspaceDir = layout.buildDirectory.dir("monaco-workspace")
 val monacoGeneratedResourceDir = layout.buildDirectory.dir("generated-monaco-resources")
 val chatRenderGeneratedResourceDir = layout.buildDirectory.dir("generated-chatrender-resources")
+val formatterWebGeneratedResourceDir = layout.buildDirectory.dir("generated-formatter-web-resources")
 
 tasks.register("copyMonacoBuildNode") {
     group = "build"
@@ -636,6 +653,72 @@ tasks.register("bundleMonacoEditor") {
     }
 }
 
+// ---- Node-free browser formatter assets -------------------------------------
+// JavaFX WebView already ships a JavaScript engine for Monaco, the guide and chat rendering.
+// Bundle only Prettier's browser API/plugins and sql-formatter's UMD build instead of a ~114 MiB
+// Node runtime plus complete npm package trees.
+tasks.register("prepareFormatterWebResources") {
+    group = "build"
+    description = "Extracts the pinned Node-free Prettier and SQL formatter browser bundles."
+    inputs.property("prettierVersion", formatterPrettierVersion)
+    inputs.property("prettierSha256", formatterPrettierSha256)
+    inputs.property("sqlFormatterVersion", formatterSqlFormatterVersion)
+    inputs.property("sqlFormatterSha256", formatterSqlFormatterSha256)
+    outputs.dir(formatterWebGeneratedResourceDir)
+    doLast {
+        val outputRoot = formatterWebGeneratedResourceDir.get().asFile
+        val outputDir = outputRoot.resolve("formatters-web")
+        delete(outputRoot)
+        outputDir.mkdirs()
+
+        val prettierArchive = formatterDownloadDir.get().asFile.resolve("prettier-$formatterPrettierVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/prettier/-/prettier-$formatterPrettierVersion.tgz",
+            prettierArchive,
+            formatterPrettierSha256
+        )
+        val prettierFiles = mapOf(
+            "package/standalone.js" to "prettier-standalone.js",
+            "package/plugins/babel.js" to "prettier-plugin-babel.js",
+            "package/plugins/estree.js" to "prettier-plugin-estree.js",
+            "package/plugins/typescript.js" to "prettier-plugin-typescript.js",
+            "package/plugins/html.js" to "prettier-plugin-html.js",
+            "package/plugins/postcss.js" to "prettier-plugin-postcss.js"
+        )
+        copy {
+            from(tarTree(resources.gzip(prettierArchive)))
+            include(prettierFiles.keys)
+            eachFile {
+                val targetName = prettierFiles[path]
+                    ?: throw GradleException("Unexpected Prettier browser resource: $path")
+                relativePath = org.gradle.api.file.RelativePath(true, targetName)
+            }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        val sqlArchive = formatterDownloadDir.get().asFile.resolve("sql-formatter-$formatterSqlFormatterVersion.tgz")
+        downloadPinned(
+            "https://registry.npmjs.org/sql-formatter/-/sql-formatter-$formatterSqlFormatterVersion.tgz",
+            sqlArchive,
+            formatterSqlFormatterSha256
+        )
+        copy {
+            from(tarTree(resources.gzip(sqlArchive)))
+            include("package/dist/sql-formatter.min.cjs")
+            eachFile { relativePath = org.gradle.api.file.RelativePath(true, "sql-formatter.js") }
+            includeEmptyDirs = false
+            into(outputDir)
+        }
+
+        val expectedFiles = prettierFiles.values + "sql-formatter.js"
+        val missing = expectedFiles.filterNot { outputDir.resolve(it).isFile }
+        if (missing.isNotEmpty()) {
+            throw GradleException("Missing browser formatter resources: ${missing.joinToString()}")
+        }
+    }
+}
+
 tasks.named<ProcessResources>("processResources") {
     dependsOn("bundleMonacoEditor")
     from(monacoGeneratedResourceDir) {
@@ -643,6 +726,10 @@ tasks.named<ProcessResources>("processResources") {
     }
     dependsOn("prepareChatRenderResources")
     from(chatRenderGeneratedResourceDir) {
+        into("")
+    }
+    dependsOn("prepareFormatterWebResources")
+    from(formatterWebGeneratedResourceDir) {
         into("")
     }
     // Jar slimming: sourcemaps and the Thai/Japanese search segmenters are dead weight in the
@@ -848,63 +935,6 @@ tasks.register("stageGuideIntoResources") {
     }
 }
 
-tasks.register("copyBundledPrettier") {
-    group = "build"
-    description = "Downloads pinned Prettier and copies it into the jpackage formatter directory."
-    doLast {
-        val archive = formatterDownloadDir.get().asFile.resolve("prettier-$formatterPrettierVersion.tgz")
-        downloadPinned(
-            "https://registry.npmjs.org/prettier/-/prettier-$formatterPrettierVersion.tgz",
-            archive,
-            "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
-        )
-        val target = bundledFormatterDir.get().asFile.resolve("prettier")
-        delete(target)
-        copy {
-            from(tarTree(resources.gzip(archive))) {
-                eachFile { stripFirstPathSegment(this) }
-                includeEmptyDirs = false
-            }
-            into(target)
-        }
-    }
-}
-
-tasks.register("copyBundledSqlFormatter") {
-    group = "build"
-    description = "Downloads pinned sql-formatter and copies it into the jpackage formatter directory."
-    doLast {
-        val archive = formatterDownloadDir.get().asFile.resolve("sql-formatter-$formatterSqlFormatterVersion.tgz")
-        downloadPinned(
-            "https://registry.npmjs.org/sql-formatter/-/sql-formatter-$formatterSqlFormatterVersion.tgz",
-            archive,
-            "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a9223766f8b4e75d2b29819"
-        )
-        val target = bundledFormatterDir.get().asFile.resolve("sql-formatter")
-        delete(target)
-        copy {
-            from(tarTree(resources.gzip(archive))) {
-                // The runner script below requires only dist/sql-formatter.min.cjs; the
-                // cjs/esm module trees and sourcemaps in the tarball are dead weight (~4 MB).
-                include("package/dist/sql-formatter.min.cjs")
-                include("package/LICENSE")
-                include("package/package.json")
-                eachFile { stripFirstPathSegment(this) }
-                includeEmptyDirs = false
-            }
-            into(target)
-        }
-        target.resolve("kortty-sql-formatter.cjs").writeText(
-            """
-            const fs = require("fs");
-            const sqlFormatter = require("./dist/sql-formatter.min.cjs");
-            const input = fs.readFileSync(0, "utf8");
-            process.stdout.write(sqlFormatter.format(input));
-            """.trimIndent() + "\n"
-        )
-    }
-}
-
 tasks.register("copyBundledPerlTidy") {
     group = "build"
     description = "Downloads pinned Perl::Tidy and copies it into the jpackage formatter directory."
@@ -941,8 +971,7 @@ tasks.register("copyBundledFormatterManifest") {
             """
             google-java-format.version=1.35.0
             google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/1.35.0
-            node.version=$formatterNodeVersion
-            node.source=https://nodejs.org/dist/v$formatterNodeVersion/
+            web-formatter.engine=javafx-web
             shfmt.version=$formatterShfmtVersion
             shfmt.source=https://github.com/mvdan/sh/releases/tag/v$formatterShfmtVersion
             prettier.version=$formatterPrettierVersion
@@ -958,31 +987,22 @@ tasks.register("copyBundledFormatterManifest") {
 
 tasks.register("copyBundledFormatters") {
     group = "build"
-    description = "Copies all pinned formatter runtimes and packages into the jpackage input."
+    description = "Builds the small external formatter payload staged into native packages."
     dependsOn(
-        "copyDependencies",
-        "copyJar",
-        "copyMosh4jBundled",
         "copyBundledShfmt",
-        "copyBundledNode",
-        "copyBundledPrettier",
-        "copyBundledSqlFormatter",
         "copyBundledPerlTidy",
         "copyBundledFormatterManifest"
     )
 }
 
-// Task zum Sammeln aller Dependencies in einem Verzeichnis
-tasks.register<Copy>("copyDependencies") {
-    from(configurations.runtimeClasspath)
-    into(jpackageInput.map { it.dir("libs") })
-}
-
-// Task zum Kopieren des eigenen JARs
-tasks.register<Copy>("copyJar") {
-    dependsOn(tasks.jar)
-    from(tasks.jar.map { it.archiveFile })
-    into(jpackageInput.map { it.dir("libs") })
+listOf(
+    "copyBundledShfmt",
+    "copyBundledPerlTidy",
+    "copyBundledFormatterManifest"
+).forEach { formatterTaskName ->
+    tasks.named(formatterTaskName) {
+        dependsOn(cleanBundledFormatterDir)
+    }
 }
 
 // mosh4j release to bundle.
@@ -992,68 +1012,335 @@ val mosh4jVersion = "2.0.2"
 val mosh4jReleaseTag = "v$mosh4jVersion"
 val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$mosh4jReleaseTag"
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
+val mosh4jProtobufJar = "protobuf-java-4.35.1.jar"
+val mosh4jProtobufSha256 = "a4345ba2aa009912ff6f90467fea2d104605256b72c50840d75f13256638a472"
+val mosh4jSha256 = mapOf(
+    "amd64" to mapOf(
+        "core" to "c84e0a370417b9e6aea02506d8328458e4645926791765d87993e0848618f0f8",
+        "crypto" to "bdbddf9725b24703ffa4206e14f7d2f548c0698ca718503a070c4b38ddc1b16d",
+        "protocol" to "e0d4e5fe4d327bbb14d1b86d002a74a85d42a94a3dbdad77a450460c8257cba9",
+        "terminal" to "a6af1e8f04fcd00af39d9c7b82528413cadae96d156a60c825c94ce6551e3287",
+        "transport" to "688c0ea8281085dcf82c408a646b9f0780bf48dad14cae73eed575e5bd3c22fd"
+    ),
+    "arm64" to mapOf(
+        "core" to "d661a615eac679367959594d0a843b8d692a6c24df3af61582b2590ddd91718d",
+        "crypto" to "096e37300bddbeafbda62a19e5b433652ea128d9350ea8d73776bd899fd19478",
+        "protocol" to "4c7a771ff6295afe6a72e608e20efb910dd5cab5dc48f17cc36ab6a5f31b303f",
+        "terminal" to "f4f64398cda87b375327675bdb68d1205217ec2f58529c58eb4b8a7c41483c47",
+        "transport" to "b9ad71cf2efafe49b1f4f46a99c6139210f260b0e909993a9d7715f7b194e691"
+    )
+)
+
+fun mosh4jArch(): String = when (System.getProperty("os.arch", "").lowercase()) {
+    "aarch64", "arm64" -> "arm64"
+    else -> "amd64"
+}
 
 tasks.register("copyMosh4jBundled") {
     group = "build"
-    description = "Download mosh4j release JARs and deps into jpackage libs so the app ships with mosh4j (no user download)."
-    dependsOn("copyDependencies") // ensures jpackage-input/libs exists
+    description = "Downloads the current mosh4j release into an isolated native-package staging directory."
+    inputs.property("version", mosh4jVersion)
+    inputs.property("architecture", mosh4jArch())
+    inputs.property("artifactSha256", mosh4jSha256)
+    inputs.property("protobufSha256", mosh4jProtobufSha256)
+    outputs.dir(bundledMosh4jDir)
     doLast {
-        val arch = when (System.getProperty("os.arch", "").lowercase()) {
-            "aarch64", "arm64" -> "arm64"
-            else -> "amd64"
-        }
-        val libsDir = layout.buildDirectory.get().asFile.resolve("jpackage-input").resolve("libs")
-        val mosh4jBase = libsDir.resolve("mosh4j")
+        val arch = mosh4jArch()
+        val mosh4jBase = bundledMosh4jDir.get().asFile
+        delete(mosh4jBase)
         val releaseDir = mosh4jBase.resolve("release-$mosh4jVersion-$arch")
         val depsDir = mosh4jBase.resolve("deps")
         releaseDir.mkdirs()
         depsDir.mkdirs()
-        val urls = mutableListOf<Pair<String, java.io.File>>()
+        val checksums = mosh4jSha256[arch]
+            ?: throw GradleException("No mosh4j checksum set for architecture $arch")
+        val artifacts = mutableListOf<Triple<String, java.io.File, String>>()
         for (module in mosh4jModules) {
             val jar = "mosh4j-$module-$mosh4jVersion-$arch.jar"
-            urls.add("$mosh4jReleaseUrl/$jar" to releaseDir.resolve(jar))
+            val checksum = checksums[module]
+                ?: throw GradleException("No mosh4j checksum for $module/$arch")
+            artifacts.add(Triple("$mosh4jReleaseUrl/$jar", releaseDir.resolve(jar), checksum))
         }
-        urls.add(
-            "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.84/bcprov-jdk18on-1.84.jar"
-                to depsDir.resolve("bcprov-jdk18on-1.84.jar")
-        )
-        urls.add(
-            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.35.1/protobuf-java-4.35.1.jar"
-                to depsDir.resolve("protobuf-java-4.35.1.jar")
-        )
-        for ((url, file) in urls) {
-            if (file.exists()) continue
-            val proc = ProcessBuilder("curl", "-L", "-o", file.absolutePath, url)
-                .directory(file.parentFile)
-                .inheritIO()
-                .start()
-            if (proc.waitFor() != 0) throw GradleException("curl failed for $url")
+        // bcprov is already a top-level application dependency. Mosh's parent-first classloader
+        // reuses it, avoiding an otherwise byte-identical 8.5 MiB copy in every native package.
+        artifacts.add(Triple(
+            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.35.1/$mosh4jProtobufJar",
+            depsDir.resolve(mosh4jProtobufJar),
+            mosh4jProtobufSha256
+        ))
+        for ((url, file, checksum) in artifacts) {
+            downloadPinned(url, file, checksum)
+            try {
+                if (zipTree(file).matching { include("**/*.class") }.files.isEmpty()) {
+                    throw GradleException("Downloaded JAR contains no classes: ${file.name}")
+                }
+            } catch (failure: Exception) {
+                throw GradleException("Downloaded artifact is not a valid JAR: ${file.name}", failure)
+            }
         }
     }
 }
 
-listOf(
-    "copyBundledShfmt",
-    "copyBundledNode",
-    "copyBundledPrettier",
-    "copyBundledSqlFormatter",
-    "copyBundledPerlTidy",
-    "copyBundledFormatterManifest"
-).forEach { formatterTaskName ->
-    tasks.named(formatterTaskName) {
-        mustRunAfter("copyDependencies", "copyJar", "copyMosh4jBundled")
+tasks.register("prepareSlimRuntimeJars") {
+    group = "build"
+    description = "Repackages JNA and pty4j with only the native binaries for the target OS/architecture."
+    inputs.files(configurations.runtimeClasspath)
+    inputs.property("targetOs", osName)
+    inputs.property("targetArch", formatterArch())
+    outputs.dir(slimRuntimeJarDir)
+    doLast {
+        val outputDir = slimRuntimeJarDir.get().asFile
+        delete(outputDir)
+        outputDir.mkdirs()
+
+        val arch = formatterArch()
+        val jnaPrefix = when {
+            isMac && arch == "arm64" -> "com/sun/jna/darwin-aarch64/"
+            isMac && arch == "x64" -> "com/sun/jna/darwin-x86-64/"
+            isLinux && arch == "arm64" -> "com/sun/jna/linux-aarch64/"
+            isLinux && arch == "x64" -> "com/sun/jna/linux-x86-64/"
+            isWindows && arch == "arm64" -> "com/sun/jna/win32-aarch64/"
+            isWindows && arch == "x64" -> "com/sun/jna/win32-x86-64/"
+            else -> throw GradleException("No JNA native mapping for $osName/$arch")
+        }
+        val ptyPrefix = when {
+            isMac -> "resources/com/pty4j/native/darwin/"
+            isLinux && arch == "arm64" -> "resources/com/pty4j/native/linux/aarch64/"
+            isLinux && arch == "x64" -> "resources/com/pty4j/native/linux/x86-64/"
+            isWindows && arch == "arm64" -> "resources/com/pty4j/native/win/aarch64/"
+            isWindows && arch == "x64" -> "resources/com/pty4j/native/win/x86-64/"
+            else -> throw GradleException("No pty4j native mapping for $osName/$arch")
+        }
+
+        val runtimeJars = configurations.runtimeClasspath.get().files.filter { it.extension == "jar" }
+        val sources = listOf(
+            runtimeJars.singleOrNull { it.name.matches(Regex("jna-[0-9].*\\.jar")) }
+                ?: throw GradleException("Could not resolve the JNA runtime JAR"),
+            runtimeJars.singleOrNull { it.name.matches(Regex("pty4j-[0-9].*\\.jar")) }
+                ?: throw GradleException("Could not resolve the pty4j runtime JAR")
+        )
+
+        sources.forEach { sourceJar ->
+            val unpackDir = layout.buildDirectory.get().asFile.resolve("tmp/slim-runtime-jars/${sourceJar.nameWithoutExtension}")
+            delete(unpackDir)
+            unpackDir.mkdirs()
+            copy {
+                from(zipTree(sourceJar))
+                into(unpackDir)
+                includeEmptyDirs = false
+                eachFile {
+                    val resourcePath = path
+                    val remove = when {
+                        sourceJar.name.startsWith("jna-") -> {
+                            val isNative = resourcePath.matches(
+                                Regex("com/sun/jna/[^/]+/(?:lib)?jnidispatch\\..+")
+                            )
+                            isNative && !resourcePath.startsWith(jnaPrefix)
+                        }
+                        else -> resourcePath.startsWith("resources/com/pty4j/native/") &&
+                            !resourcePath.startsWith(ptyPrefix)
+                    }
+                    if (remove) exclude()
+                }
+            }
+            if (isMac && sourceJar.name.startsWith("pty4j-")) {
+                val universal = unpackDir.resolve("resources/com/pty4j/native/darwin/libpty.dylib")
+                val thinned = universal.resolveSibling("libpty.thin.dylib")
+                val lipoArch = if (arch == "arm64") "arm64" else "x86_64"
+                val lipo = ProcessBuilder(
+                    "lipo", universal.absolutePath, "-thin", lipoArch, "-output", thinned.absolutePath
+                ).directory(project.rootDir).inheritIO().start()
+                if (lipo.waitFor() != 0) {
+                    throw GradleException("Could not thin pty4j libpty.dylib to $lipoArch")
+                }
+                Files.move(
+                    thinned.toPath(),
+                    universal.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING
+                )
+                val adHocSign = ProcessBuilder("codesign", "--force", "--sign", "-", universal.absolutePath)
+                    .directory(project.rootDir).inheritIO().start()
+                if (adHocSign.waitFor() != 0) {
+                    throw GradleException("Could not ad-hoc sign thinned pty4j libpty.dylib")
+                }
+            }
+            val nativeFiles = unpackDir.walkTopDown()
+                .filter { file ->
+                    file.isFile && file.extension.lowercase() in setOf("dll", "exe", "so", "dylib", "jnilib") &&
+                        (file.invariantSeparatorsPath.contains("/com/sun/jna/") ||
+                            file.invariantSeparatorsPath.contains("/resources/com/pty4j/native/"))
+                }
+                .toList()
+            if (nativeFiles.isEmpty()) {
+                throw GradleException("No target native binaries remained in ${sourceJar.name}")
+            }
+            nativeFiles.forEach { validateNativeArchitecture(it, arch) }
+            val targetJar = outputDir.resolve(sourceJar.name)
+            ant.withGroovyBuilder {
+                "zip"("destfile" to targetJar.absolutePath, "basedir" to unpackDir.absolutePath)
+            }
+            delete(unpackDir)
+        }
+
+        val jnaJar = outputDir.listFiles()?.singleOrNull { it.name.startsWith("jna-") }
+            ?: throw GradleException("Slim JNA JAR was not created")
+        val ptyJar = outputDir.listFiles()?.singleOrNull { it.name.startsWith("pty4j-") }
+            ?: throw GradleException("Slim pty4j JAR was not created")
+        if (!zipTree(jnaJar).matching { include("$jnaPrefix*") }.files.any()) {
+            throw GradleException("Slim JNA JAR does not contain $jnaPrefix")
+        }
+        if (!zipTree(ptyJar).matching { include("$ptyPrefix*") }.files.any()) {
+            throw GradleException("Slim pty4j JAR does not contain $ptyPrefix")
+        }
     }
 }
 
-// Task zum Vorbereiten der jpackage Eingabe
-tasks.register("prepareJpackage") {
-    dependsOn("copyBundledFormatters")
+// Deterministically assemble the complete jpackage input in one final Sync operation so stale dependency versions,
+// formatter runtimes and old mosh architectures can never leak into an incremental package.
+tasks.register<Sync>("prepareJpackage") {
+    group = "build"
+    description = "Deterministically assembles a clean, target-specific jpackage input directory."
+    dependsOn(
+        tasks.jar,
+        "copyBundledFormatters",
+        "copyMosh4jBundled",
+        "prepareSlimRuntimeJars"
+    )
+    into(jpackageInput.map { it.dir("libs") })
+    from(configurations.runtimeClasspath) {
+        exclude { details ->
+            details.file.name.matches(Regex("jna-[0-9].*\\.jar")) ||
+                details.file.name.matches(Regex("pty4j-[0-9].*\\.jar"))
+        }
+    }
+    from(tasks.jar.map { it.archiveFile })
+    from(slimRuntimeJarDir)
+    from(bundledFormatterDir) {
+        into("formatters")
+    }
+    from(bundledMosh4jDir) {
+        into("mosh4j")
+        include("release-$mosh4jVersion-${mosh4jArch()}/**")
+        include("deps/$mosh4jProtobufJar")
+    }
+    doLast {
+        val libsDir = jpackageInput.get().asFile.resolve("libs")
+        val forbidden = listOf(
+            libsDir.resolve("formatters/node"),
+            libsDir.resolve("formatters/prettier"),
+            libsDir.resolve("formatters/sql-formatter"),
+            libsDir.resolve("mosh4j/deps/bcprov-jdk18on-1.84.jar")
+        ).filter { it.exists() }
+        if (forbidden.isNotEmpty()) {
+            throw GradleException("Oversized or duplicate package inputs remain: ${forbidden.joinToString()}")
+        }
+    }
+}
+
+val jpackageStagingVerificationNonce = layout.buildDirectory.file("verification/jpackage-staging-seed.txt")
+
+val seedStaleJpackageInput = tasks.register("seedStaleJpackageInput") {
+    group = "verification"
+    description = "Seeds obsolete package-input files for the staging-cleanliness regression test."
+    doLast {
+        val nonce = jpackageStagingVerificationNonce.get().asFile
+        nonce.parentFile.mkdirs()
+        nonce.writeText(System.nanoTime().toString())
+
+        val libs = jpackageInput.get().asFile.resolve("libs")
+        listOf(
+            libs.resolve("obsolete-dependency-0.0.jar"),
+            libs.resolve("formatters/node/bin/node"),
+            libs.resolve("mosh4j/release-0.0.0-amd64/obsolete.jar"),
+            libs.resolve("mosh4j/deps/bcprov-jdk18on-0.0.jar")
+        ).forEach { marker ->
+            marker.parentFile.mkdirs()
+            marker.writeText("stale package input")
+        }
+    }
+}
+
+tasks.named("prepareJpackage") {
+    mustRunAfter(seedStaleJpackageInput)
+    inputs.file(jpackageStagingVerificationNonce)
+        .withPropertyName("stagingVerificationNonce")
+        .optional()
+}
+
+val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
+    group = "verification"
+    description = "Verifies that jpackage staging removes stale files and carries only target natives."
+    dependsOn(seedStaleJpackageInput, "prepareJpackage")
+    doLast {
+        val libs = jpackageInput.get().asFile.resolve("libs")
+        val forbidden = libs.walkTopDown().filter { file ->
+            val relative = file.relativeTo(libs).invariantSeparatorsPath.lowercase()
+            file.isFile && (
+                relative.contains("obsolete") || relative.contains("formatters/node/") ||
+                    relative.contains("formatters/prettier/") || relative.contains("formatters/sql-formatter/") ||
+                    relative.contains("mosh4j/deps/bcprov") || file.name.contains("junit", ignoreCase = true) ||
+                    file.name.contains("javafx-fxml", ignoreCase = true)
+            )
+        }.toList()
+        if (forbidden.isNotEmpty()) {
+            throw GradleException("Stale/forbidden jpackage inputs remain: ${forbidden.joinToString()}")
+        }
+        val moshReleaseDirs = libs.resolve("mosh4j").listFiles()
+            ?.filter { it.isDirectory && it.name.startsWith("release-") }
+            .orEmpty()
+        if (moshReleaseDirs.map { it.name } != listOf("release-$mosh4jVersion-${mosh4jArch()}")) {
+            throw GradleException("jpackage staging contains unexpected mosh4j releases: $moshReleaseDirs")
+        }
+        val slimJars = listOf(
+            libs.listFiles()?.singleOrNull { it.name.matches(Regex("jna-[0-9].*\\.jar")) },
+            libs.listFiles()?.singleOrNull { it.name.matches(Regex("pty4j-[0-9].*\\.jar")) }
+        )
+        if (slimJars.any { it == null }) {
+            throw GradleException("jpackage staging must contain exactly one slim JNA and pty4j JAR")
+        }
+        slimJars.filterNotNull().forEach { jar ->
+            ZipFile(jar).use { archive ->
+                val nativeEntries = archive.entries().asSequence()
+                    .filter { !it.isDirectory }
+                    .map { it.name }
+                    .filter { name ->
+                        if (jar.name.startsWith("jna-")) {
+                            name.matches(Regex("com/sun/jna/[^/]+/(?:lib)?jnidispatch\\..+"))
+                        } else {
+                            name.startsWith("resources/com/pty4j/native/")
+                        }
+                    }
+                    .toList()
+                val expectedPrefix = if (jar.name.startsWith("jna-")) {
+                    when {
+                        isMac && formatterArch() == "arm64" -> "com/sun/jna/darwin-aarch64/"
+                        isMac -> "com/sun/jna/darwin-x86-64/"
+                        isLinux && formatterArch() == "arm64" -> "com/sun/jna/linux-aarch64/"
+                        isLinux -> "com/sun/jna/linux-x86-64/"
+                        isWindows && formatterArch() == "arm64" -> "com/sun/jna/win32-aarch64/"
+                        else -> "com/sun/jna/win32-x86-64/"
+                    }
+                } else {
+                    when {
+                        isMac -> "resources/com/pty4j/native/darwin/"
+                        isLinux && formatterArch() == "arm64" -> "resources/com/pty4j/native/linux/aarch64/"
+                        isLinux -> "resources/com/pty4j/native/linux/x86-64/"
+                        isWindows && formatterArch() == "arm64" -> "resources/com/pty4j/native/win/aarch64/"
+                        else -> "resources/com/pty4j/native/win/x86-64/"
+                    }
+                }
+                if (nativeEntries.isEmpty() || nativeEntries.any { !it.startsWith(expectedPrefix) }) {
+                    throw GradleException("${jar.name} contains foreign native entries: $nativeEntries")
+                }
+            }
+        }
+    }
 }
 
 // Gemeinsame jpackage Parameter
 fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, inputDir: String, outputDir: String): MutableList<String> {
     val args = mutableListOf(
-        "jpackage",
+        jpackageExecutable.get(),
         "--name", appName,
         "--app-version", appVersion,
         "--vendor", "korTTY",
@@ -1070,7 +1357,7 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
         // jdk.management provides com.sun.management.OperatingSystemMXBean, which the JVM-resource
         // relaunch (Launcher/JvmRelauncher) uses to size the heap from physical RAM.
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported",
+        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported",
         // Shrink the jlink runtime image: --jlink-options REPLACES jpackage's defaults
         // (--strip-native-commands --strip-debug --no-man-pages --no-header-files), so they are
         // re-stated before the additions. zip-6 roughly halves lib/modules; --include-locales
@@ -1508,7 +1795,26 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.test {
+    dependsOn("copyMosh4jBundled")
     useTestNG()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("kortty.mosh4j.testDir", bundledMosh4jDir.get().asFile.absolutePath)
+}
+
+tasks.named("check") {
+    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke")
+}
+
+tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
+    group = "verification"
+    description = "Loads JNA and starts a real PTY using only the target-specific repacked native JARs."
+    dependsOn("testClasses", "prepareSlimRuntimeJars")
+    mainClass.set("de.kortty.core.SlimNativeRuntimeSmoke")
+    val withoutOriginalNativeJars = sourceSets.test.get().runtimeClasspath.filter { file ->
+        !file.name.matches(Regex("jna-[0-9].*\\.jar")) &&
+            !file.name.matches(Regex("pty4j-[0-9].*\\.jar"))
+    }
+    classpath = fileTree(slimRuntimeJarDir) { include("*.jar") } + withoutOriginalNativeJars
     jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
@@ -1517,6 +1823,14 @@ tasks.register<JavaExec>("monacoWebViewSmoke") {
     description = "Starts a small JavaFX WebView smoke view and verifies Monaco Blob workers."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.MonacoEditorPaneSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("webFormatterSmoke") {
+    group = "verification"
+    description = "Formats web and SQL samples through the bundled Node-free JavaFX WebView backend."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.WebFormatterBackendSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

@@ -55,7 +55,7 @@ Above the content field, the column ruler keeps the current caret column fixed a
 
 Line-width formatting works locally only for formatters that support configurable width:
 
-- Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS, JSON)
+- Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS)
 - Python (Black)
 - Perl (Perl::Tidy)
 
@@ -68,6 +68,8 @@ For languages without local line-width support, KorTTY asks whether to use AI-as
 - **Built-in formatters:** JSON, XML, YAML/YML, TOML, INI/properties, Groovy
 - **Bundled formatters:** Java (google-java-format), Bash/shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)
 - **Fallback:** Optional PATH fallbacks for developer setups when a bundled formatter is missing
+
+Prettier runs as its offline Standalone browser build with only the Babel, Estree, TypeScript, HTML and PostCSS plugins; SQL uses the bundled sql-formatter browser build. Both are initialized lazily in an isolated JavaFX WebView and need no installed or packaged Node.js runtime. Requests are serialized and retain the same 15-second timeout, provider display and configurable Prettier line width as the process backend; a failed or timed-out engine is discarded before the next request.
 
 If local formatting is unavailable and the configured AI profile provides snippet AI capability, KorTTY asks whether to use AI assistance. AI formatting is applied only after the before/after preview is accepted.
 
@@ -241,9 +243,10 @@ Right-click a selected code region and choose **Alternative solution** to:
 
 PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.
 
-- **Rendering:** Local only — KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote server is used.
+- **Rendering:** Local only — KorTTY downloads PlantUML 1.2026.2 on first use, verifies its fixed SHA-256 and keeps the current JAR in the user cache; no remote rendering server is used.
 - **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared [Diagram appearance](#diagram-appearance) controls.
-- **Dependency errors:** If local rendering is unavailable, KorTTY shows the error so Java/Graphviz can be fixed.
+- **Runtime:** A packaged app re-enters its own launcher in a private, cancellable worker mode because the stripped runtime intentionally has no `bin/java`; development runs can use their bundled or system Java. Graphviz `dot` is optional for korTTY's activity/sequence diagrams and is needed only by PlantUML diagram types that depend on Graphviz.
+- **Cache hygiene:** Obsolete PlantUML versions, legacy SHA-1 files and abandoned render directories older than 24 hours are removed automatically.
 
 ### Diagram appearance
 
