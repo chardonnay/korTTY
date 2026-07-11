@@ -63,7 +63,7 @@ Passwortgeschützte Backups verwenden die Standard-ZIP-Verschlüsselung (`Encryp
 
 GPG-Backups verschlüsseln die Backup-Datei mit dem öffentlichen Schlüssel Ihres ausgewählten GPG-Schlüssels. KorTTY erstellt zunächst eine temporäre ZIP-Datei, verschlüsselt sie dann mit `gpg --encrypt` und speichert die Datei `.gpg`. Die temporäre ZIP-Datei wird nach der Verschlüsselung sicher gelöscht.
 
-!!! Tipp
+!!! tip
     Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie **Verwaltung → GPG-Schlüssel verwalten...**, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.
 
 ## Ein Backup importieren
@@ -77,7 +77,7 @@ GPG-Backups verschlüsseln die Backup-Datei mit dem öffentlichen Schlüssel Ihr
 5. Klicken Sie auf **Importieren**
 6. **Starten Sie die Anwendung neu**, damit alle Änderungen wirksam werden
 
-!!! Warnung
+!!! warning
     Durch das Importieren eines Backups mit aktiviertem **Überschreiben** werden Ihre aktuellen Einstellungen, Verbindungen und Anmeldeinformationen ersetzt. Wenn Sie sich nicht sicher sind, deaktivieren Sie diese Option, um das Backup zusammenzuführen, ohne es zu überschreiben.
 
 ## Inhalt der Sicherungsdatei
@@ -96,7 +96,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `master-password-hash` – Hash Ihres Master-Passworts (zur Überprüfung beim Import)
 * `projects/` – Alle gespeicherten Projektarbeitsbereichsdateien (`.kortty`)
 
-!!! Notiz
+!!! note
     Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.
 
 ## Backup-Aufbewahrung und -Bereinigung

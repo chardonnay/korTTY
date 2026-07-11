@@ -31,17 +31,17 @@ Wenn Sie eine Fertigkeit auswählen oder erstellen, werden im rechten Bereich Fe
 
 ## Notizen
 
-!!! Hinweis „Verhalten der automatischen Erkennung“
+!!! note "Automatisches Erkennungsverhalten"
     Wenn **Nur übereinstimmende Fertigkeiten automatisch senden** aktiviert ist, wertet korTTY die Tags jeder Fertigkeit anhand der aktuellen Anfrage aus und schließt nur diejenigen ein, die übereinstimmen. Wenn diese Option deaktiviert ist, werden alle aktiven Fertigkeiten unabhängig von den Tags gesendet.
 
-!!! Hinweis „Fähigkeitsziele“
+!!! note "Fertigkeitsziele"
     - **KI-Chat/Funktionen**: Fähigkeiten, die in KI-Chat- und Funktionsaufrufkontexten verfügbar sind
     - **KI-Agent**: Vom Terminal-KI-Agenten verwendete Fähigkeiten
     - **Beide**: Verfügbar sowohl für AI Chat- als auch für AI Agent-Kontexte
     - **Verbindung**: Spezielle Fähigkeiten für die Handhabung von SSH-Verbindungen
 
-!!! Hinweis „Skill-Lebenszyklus“
+!!! note "Skill-Lebenszyklus"
     Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie **Importieren**, um Fertigkeiten aus Markdown-Dateien zu laden, und **Exportieren**, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden.
 
-!!! Hinweis „Fähigkeiten je nach Anforderung auswählen“
+!!! note "Auswahl der Fähigkeiten pro Anfrage"
     Auf dieser Registerkarte wird die globale Bibliothek verwaltet. Welche dieser aktivierten Fertigkeiten für eine bestimmte Aktion gelten, wird an anderer Stelle ausgewählt: Die **KI-Fähigkeiten**-Auswahl des Snippet-Editors heftet Ihre Auswahl an jede Snippet-KI-Aktion, und das Fenster **Vollständige Codeanalyse** zeigt die enthaltenen Fertigkeiten als Chips an – mit der Bezeichnung *(automatisch ausgewählt)* oder *(manuell)* – mit einer durchsuchbaren Auswahl, deren Änderungen bei der nächsten Wiederholung wirksam werden. Siehe [Schnipsel → KI-Fähigkeiten](../../features/snippets.md#ai-skills).

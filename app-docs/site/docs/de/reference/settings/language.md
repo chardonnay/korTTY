@@ -12,8 +12,8 @@ Konfigurieren Sie die Sprache der Benutzeroberfläche für korTTY. Unterstützt 
 | --- | --- | --- | --- | --- |
 | Wählen Sie Sprache: | Dropdown | Automatische Erkennung (Systemsprache), Englisch, Deutsch, Italienisch, Spanisch, Portugiesisch, Französisch, Kroatisch, Niederländisch | Automatische Erkennung (Systemsprache) | `language` |
 
-!!! Notiz
+!!! note
     Sprachänderungen werden nach dem Neustart der Anwendung wirksam. Die Einstellung wird beim nächsten Start von korTTY auf die Beschriftungen, Menüs und Dialoge der Benutzeroberfläche angewendet.
 
-!!! Hinweis „Datums- und Zahlenformate“
+!!! note "Datums- und Zahlenformate"
     Die installierte Anwendung bündelt Java-Gebietsschemadaten nur für die 8 unterstützten Oberflächensprachen. Läuft Ihr Betriebssystem in einem Gebietsschema außerhalb dieser Liste, werden Datums- und Zahlenangaben nach englischen Konventionen formatiert.

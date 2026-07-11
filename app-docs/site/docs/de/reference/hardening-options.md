@@ -20,7 +20,7 @@ Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
 | **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Optionsfeld plus ein Freitext-Anweisungsfeld | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Reduzierbares Bedienfeld „Härtungsoptionen“ am unteren Rand des Fensters mit einer Live-Anzahl **(N)** der aktivierten Optionen im Titel; korTTY merkt sich, ob Sie es offen oder geschlossen gelassen haben | Sie klicken auf *Auswahl übernehmen* |
 
-!!! Hinweis „Wird nicht bei jeder Aktion angezeigt“
+!!! note "Wird nicht für jede Aktion angezeigt"
     *Lesbarkeit verbessern* und *Leistung verbessern* zeigen absichtlich **keine** Härtungsoptionen an – diese Aktionen sollen nah am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: *Robustheit verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse* und die beiden Workflow-Skriptgeneratoren.
 
 Jede Option ist **standardmäßig aktiviert**. Deaktivieren Sie diejenigen, die Sie nicht möchten. Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.
@@ -126,5 +126,5 @@ Jede Option unten listet auf, wozu sie dient und welche genaue Regel KorTTY an d
 ## Tipps
 
 - Beginnen Sie mit den Standardeinstellungen (alle aktiviert) für ein wegwerfbares oder persönliches Skript – die verhaltenserhaltende Gruppe kostet Sie nichts und die interaktive Gruppe macht das Skript benutzerfreundlicher.
-– Für eine Umschreibung, bei der Sie den kleinstmöglichen Unterschied wünschen, deaktivieren Sie die vier Verhaltensoptionen und behalten Sie nur die verhaltenserhaltende Gruppe bei.
+- Für eine Umschreibung, bei der Sie den kleinstmöglichen Unterschied wünschen, deaktivieren Sie die vier Verhaltensoptionen und behalten Sie nur die verhaltenserhaltende Gruppe bei.
 - Die Optionen sind unabhängig – Sie können jede beliebige Kombination ankreuzen. KorTTY sendet nur Regeln für die angekreuzten Kästchen.

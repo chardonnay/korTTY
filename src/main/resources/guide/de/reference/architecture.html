@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2955,7 +2985,7 @@
 </tbody>
 </table>
 <h2 id="sithtermfx-terminal-engine">SithTermFX Terminal Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
-<p>KorTTY verwendet <strong>SithTermFX 1.2.0</strong> als primären Terminalemulator, der während des Build-Prozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
+<p>KorTTY verwendet <strong>SithTermFX 1.2.1</strong> als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
 <ul>
 <li><strong>Terminal-Emulation</strong>: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement</li>
 <li><strong>OSC 8-Hyperlinks</strong>: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> beschränkt auf lokalen Host)</li>
@@ -2965,7 +2995,7 @@
 <h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>Der Build-Prozess automatisch:</p>
 <ol>
-<li>Klont SithTermFX am Tag <code>v1.2.0</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
+<li>Klont SithTermFX am Tag <code>v1.2.1</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
 <li>Installiert Artefakte im lokalen Maven-Repo (<code>mavenLocal()</code>)</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
@@ -3007,9 +3037,9 @@
 </ul>
 <p><strong>AES-256-GCM-Verschlüsselung</strong> schützt vertrauliche Felder:</p>
 <ul>
-<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und als <code>master-password-hash</code> gespeichert
-– Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Master-Passwort abgeleitet werden
-– SSH-Schlüsselpassphrasen, Verbindungspasswörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
+<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und als <code>master-password-hash</code> gespeichert</li>
+<li>Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden</li>
+<li>SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
 <li>Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</li>
 </ul>
 <h2 id="kernmodulorganisation">Kernmodulorganisation<a class="headerlink" href="#kernmodulorganisation" title="Permanent link">&para;</a></h2>

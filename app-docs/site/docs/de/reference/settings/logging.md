@@ -13,5 +13,5 @@ Konfigurieren Sie die Protokollierung von Terminalsitzungen, einschließlich des
 | Protokollverzeichnis | Pfad | — | `~/.kortty/logs` | `logDirectoryPath` |
 | Protokolle führen | Nummer | 0–3650 Tage | 7 Tage | `logRetentionDays` |
 
-!!! Notiz
+!!! note
     **Protokollaufbewahrung**: Für unbegrenzte Aufbewahrung auf `0` einstellen; Andernfalls werden Protokollarchive, die älter als die angegebene Anzahl von Tagen sind, automatisch gelöscht. Archive, die älter als 24 Stunden sind, werden automatisch komprimiert.

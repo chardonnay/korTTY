@@ -44,6 +44,9 @@ EN = SITE / "docs" / "en"
 DE = SITE / "docs" / "de"
 CACHE = SITE / ".docs-translate-cache"
 TARGET = "de"
+# Bump whenever masking/format-preservation rules change so cached pages are
+# regenerated with the new rules instead of silently keeping stale Markdown.
+TRANSLATION_FORMAT_VERSION = "5"
 
 # Asset subtrees that are generated/staged elsewhere — never copy or translate.
 SKIP_DIRS = {"diagrams", "screenshots"}
@@ -51,13 +54,22 @@ SKIP_DIRS = {"diagrams", "screenshots"}
 FENCE_RE = re.compile(r"^(\s*)(```|~~~)")
 # Inline things to protect inside a prose line. Order matters (images before links).
 INLINE_PATTERNS = [
+    # Preserve line-level Markdown grammar while still translating its title/text.
+    re.compile(r'^\s*!!!\s+[A-Za-z][\w-]*(?:\s+")?'),  # admonition type + opening quote
+    re.compile(r'^\s*===\s+"'),                          # tab marker + opening quote
+    re.compile(r'^\s*#{1,6}\s+'),                        # heading marker
+    re.compile(r'^\s*(?:[-*+]|\d+[.)])\s+'),             # list marker
+    re.compile(r'^\s*>\s+'),                              # blockquote marker
     re.compile(r"!\[[^\]]*\]\([^)]*\)"),   # ![alt](path) — whole image (alt rarely needs DE)
+    re.compile(r"(?<!!)\[(?=[^\]\n]+\]\([^)]*\))"),  # opening [ of a normal Markdown link
     re.compile(r"\]\([^)]*\)"),            # the ](url) part of a link — keep the URL
     re.compile(r"`[^`]+`"),                # inline code
     re.compile(r"\+\+[^+]+\+\+"),          # ++key++ keyboard
     re.compile(r"<[^>]+>"),                # HTML tags
     re.compile(r"\{[^}]*\}"),              # {: attr } / { .class } attribute lists
     re.compile(r"\$\{[^}]+\}|\{\d+\}"),    # ${var} / {0} placeholders
+    re.compile(r"\|"),                     # table cell boundaries
+    re.compile(r'"$'),                      # closing admonition/tab title quote
 ]
 
 
@@ -77,6 +89,54 @@ def unmask(text: str, store: list[str]) -> str:
     for i, frag in enumerate(store):
         text = text.replace(f"KTPH{i:03d}", frag)
     return text
+
+
+TOKEN_RE = re.compile(r"(KTPH\d{3})")
+
+
+def placeholders_intact(text: str, store: list[str]) -> bool:
+    """Return whether protected tokens survived and Markdown grammar stayed ordered."""
+    tokens = [f"KTPH{i:03d}" for i in range(len(store))]
+    if any(text.count(token) != 1 for token in tokens):
+        return False
+    structural_indices = [
+        i for i, fragment in enumerate(store)
+        if fragment == "|"
+        or fragment == "["
+        or fragment == '"'
+        or fragment.startswith("](")
+        or fragment.startswith("{")
+        or fragment.startswith("<")
+        or re.match(r"^\s*(?:!!!|===|#{1,6}|>|[-*+]|\d+[.)])", fragment)
+    ]
+    positions = [text.index(tokens[i]) for i in structural_indices]
+    return positions == sorted(positions)
+
+
+def translate_preserving_token_order(masked: str, translator) -> str:
+    """Fallback for providers that drop/reorder placeholder tokens.
+
+    Translate only the prose fragments between tokens and then reassemble the
+    original token order. The grammar can be slightly less fluid than a full-line
+    translation, but the generated Markdown stays valid and no content vanishes.
+    """
+    translated_parts: list[str] = []
+    for part in TOKEN_RE.split(masked):
+        if not part or TOKEN_RE.fullmatch(part):
+            translated_parts.append(part)
+            continue
+        leading = part[:len(part) - len(part.lstrip())]
+        trailing = part[len(part.rstrip()):]
+        core = part.strip()
+        if not core or not re.search(r"[A-Za-z]", core):
+            translated_parts.append(part)
+            continue
+        try:
+            translated = translator.translate(core) or core
+        except Exception:  # noqa: BLE001
+            translated = core
+        translated_parts.append(f"{leading}{translated}{trailing}")
+    return "".join(translated_parts)
 
 
 def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[str]]]]:
@@ -192,8 +252,11 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
         out.extend(res)
         if k + B < len(texts):
             time.sleep(0.4)
-    for (_idx, masked, _store), translated in zip(misses, out):
-        memory[masked] = translated or ""
+    for (_idx, masked, store), translated in zip(misses, out):
+        translated = translated or ""
+        if not placeholders_intact(translated, store):
+            translated = translate_preserving_token_order(masked, translator)
+        memory[masked] = translated
     for idx, masked, store in jobs:
         translated = unmask(memory.get(masked, ""), store)
         if lines[idx] == "title: ":
@@ -213,9 +276,22 @@ def remask(text: str, store: list[str]) -> str | None:
     fragments first so a fragment that contains another does not get corrupted.
     Returns None when any fragment is missing (line cannot be safely reused)."""
     for i, frag in sorted(enumerate(store), key=lambda pair: -len(pair[1])):
-        if frag not in text:
-            return None
-        text = text.replace(frag, f"KTPH{i:03d}", 1)
+        token = f"KTPH{i:03d}"
+        if re.match(r"^\s*(?:!!!|===|#{1,6}|>|[-*+]|\d+[.)])", frag):
+            # A list/admonition/tab/heading marker is valid only at the beginning.
+            # Searching globally can mistake prose such as "API- or ..." for the
+            # missing "- " list marker and incorrectly reuse broken Markdown.
+            if not text.startswith(frag):
+                return None
+            text = token + text[len(frag):]
+        elif frag == '"':
+            if not text.endswith(frag):
+                return None
+            text = text[:-1] + token
+        else:
+            if frag not in text:
+                return None
+            text = text.replace(frag, token, 1)
     return text
 
 
@@ -296,7 +372,9 @@ def main() -> int:
             # Assets (CSS, images, video) are staged into docs/de by
             # scripts/build-docs-site.py — don't copy/translate them here.
             continue
-        digest = hashlib.sha256(src.read_bytes()).hexdigest()
+        digest = hashlib.sha256(
+            TRANSLATION_FORMAT_VERSION.encode("ascii") + b"\0" + src.read_bytes()
+        ).hexdigest()
         if not args.force and cache.get(str(rel)) == digest and dst.exists():
             md_skip += 1
             continue

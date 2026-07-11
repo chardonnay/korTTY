@@ -18,7 +18,7 @@
         <link rel="prev" href="../index.html">
       
       
-        <link rel="next" href="first-launch.html">
+        <link rel="next" href="building-packages.html">
       
       
         
@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Guide
@@ -259,6 +259,8 @@
   
     
     
+      
+        
       
         
       
@@ -378,10 +380,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#system-requirements" class="md-nav__link">
+  <a href="#choose-the-correct-package" class="md-nav__link">
     <span class="md-ellipsis">
       
-        System requirements
+        Choose the correct package
       
     </span>
   </a>
@@ -389,10 +391,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pre-built-binaries-recommended" class="md-nav__link">
+  <a href="#optional-system-tools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pre-built binaries (recommended)
+        Optional system tools
       
     </span>
   </a>
@@ -400,30 +402,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-from-source" class="md-nav__link">
+  <a href="#build-your-own-package" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from source
+        Build your own package
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Build from source">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#build-native-packages-locally" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build native packages locally
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -431,6 +416,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1983,10 +1996,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#system-requirements" class="md-nav__link">
+  <a href="#choose-the-correct-package" class="md-nav__link">
     <span class="md-ellipsis">
       
-        System requirements
+        Choose the correct package
       
     </span>
   </a>
@@ -1994,10 +2007,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pre-built-binaries-recommended" class="md-nav__link">
+  <a href="#optional-system-tools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pre-built binaries (recommended)
+        Optional system tools
       
     </span>
   </a>
@@ -2005,30 +2018,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-from-source" class="md-nav__link">
+  <a href="#build-your-own-package" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from source
+        Build your own package
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Build from source">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#build-native-packages-locally" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build native packages locally
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2050,112 +2046,48 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>korTTY runs on <strong>macOS, Windows and Linux</strong>. You can install a pre-built package or build from source.</p>
-<h2 id="system-requirements">System requirements<a class="headerlink" href="#system-requirements" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Requirement</th>
-<th>Minimum</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Java</td>
-<td>25 or higher (CI exception: the Windows ARM64 release runner currently uses Java 21)</td>
-</tr>
-<tr>
-<td>Gradle</td>
-<td>9.x — included via the wrapper (<code>./gradlew</code>)</td>
-</tr>
-<tr>
-<td>OS</td>
-<td>macOS, Windows, Linux</td>
-</tr>
-<tr>
-<td>Optional — JobScheduler Rsync</td>
-<td>local <code>rsync</code> and <code>ssh</code> in <code>PATH</code>, or a configured <code>rsync</code> binary path</td>
-</tr>
-<tr>
-<td>Optional — terminal video export</td>
-<td>local <code>ffmpeg</code> in <code>PATH</code>, or a path configured in <strong>Tools → Video Manager</strong></td>
-</tr>
-</tbody>
-</table>
-<h2 id="pre-built-binaries-recommended">Pre-built binaries (recommended)<a class="headerlink" href="#pre-built-binaries-recommended" title="Permanent link">&para;</a></h2>
-<p>Ready-to-use packages are published on the <a href="https://github.com/chardonnay/korTTY/releases">GitHub Releases page</a>. Each asset name includes the architecture (<code>-x86_64</code> / <code>-aarch64</code> / <code>-arm64</code>). Pick the file matching your system:</p>
+<p>korTTY runs on <strong>macOS, Windows and Linux</strong>. The recommended installation is a self-contained package from the <a href="https://github.com/chardonnay/korTTY/releases">GitHub Releases page</a>; these packages include the Java runtime needed by korTTY, so users do not need to install Java separately.</p>
+<h2 id="choose-the-correct-package">Choose the correct package<a class="headerlink" href="#choose-the-correct-package" title="Permanent link">&para;</a></h2>
+<p>Each native asset name includes its processor architecture. Use <code>aarch64</code> or <code>arm64</code> for an ARM system and <code>x86_64</code> for an Intel or AMD system.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label><label for="__tabbed_1_2">Windows</label><label for="__tabbed_1_3">Linux</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Apple Silicon only — use the <code>-aarch64</code> <code>.dmg</code>.</p>
+<p>Use the <code>aarch64</code> assets on Apple Silicon and the <code>x86_64</code> assets on an Intel Mac. The DMG provides the normal installation experience; the ZIP contains the complete portable <code>.app</code> bundle.</p>
 </div>
 <div class="tabbed-block">
-<p>Use <code>-x86_64</code> for Intel/AMD, or <code>-arm64</code> for Windows on ARM. <code>.exe</code> (portable) or <code>.msi</code> (installer).</p>
+<p>Use the <code>x86_64</code> assets on a standard Intel or AMD PC and the <code>arm64</code> assets on Windows on ARM. The MSI is the installer; the ZIP contains the complete portable application directory, including <code>korTTY.exe</code> and its runtime. The executable inside that directory is not a stand-alone single-file application.</p>
 </div>
 <div class="tabbed-block">
-<p>Use <code>-x86_64</code>, or <code>-aarch64</code> for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages: <code>.deb</code>, <code>.rpm</code>, <code>.tar.gz</code>, <code>.zip</code>.</p>
+<p>Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, or the ZIP/TAR archive for a portable installation. The archive contains a complete <code>jpackage</code> application-image directory; it is not a Linux <code>.AppImage</code> file.</p>
 </div>
 </div>
 </div>
-<h2 id="build-from-source">Build from source<a class="headerlink" href="#build-from-source" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chardonnay/korTTY.git
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>korTTY
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>./gradlew<span class="w"> </span>build
-</span></code></pre></div>
-<p>Run directly:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./gradlew<span class="w"> </span>run
-</span></code></pre></div>
-<h3 id="build-native-packages-locally">Build native packages locally<a class="headerlink" href="#build-native-packages-locally" title="Permanent link">&para;</a></h3>
-<p>korTTY is packaged with <code>jpackage</code>; the output matches the architecture of the build machine.</p>
+<h2 id="optional-system-tools">Optional system tools<a class="headerlink" href="#optional-system-tools" title="Permanent link">&para;</a></h2>
+<p>Some features call external programs only when you use them:</p>
 <table>
 <thead>
 <tr>
-<th>Platform</th>
-<th>Command</th>
-<th>Output</th>
+<th>Feature</th>
+<th>Optional requirement</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>macOS (.app)</td>
-<td><code>./gradlew jpackage</code></td>
-<td><code>build/jpackage/korTTY.app</code></td>
+<td>JobScheduler Rsync</td>
+<td>Local <code>rsync</code> and <code>ssh</code> in <code>PATH</code>, or a configured <code>rsync</code> binary path</td>
 </tr>
 <tr>
-<td>macOS (.dmg)</td>
-<td><code>./gradlew jpackageDmg</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.dmg</code></td>
-</tr>
-<tr>
-<td>Windows (.exe)</td>
-<td><code>gradlew.bat jpackage</code></td>
-<td><code>build\jpackage\korTTY\</code></td>
-</tr>
-<tr>
-<td>Windows (.msi)</td>
-<td><code>gradlew.bat jpackageMsi</code></td>
-<td><code>build\jpackage\korTTY-&lt;version&gt;.msi</code></td>
-</tr>
-<tr>
-<td>Linux (AppImage)</td>
-<td><code>./gradlew jpackage</code></td>
-<td><code>build/jpackage/korTTY/</code></td>
-</tr>
-<tr>
-<td>Linux (.deb)</td>
-<td><code>./gradlew jpackageDeb</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.deb</code></td>
-</tr>
-<tr>
-<td>Linux (.rpm)</td>
-<td><code>./gradlew jpackageRpm</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.rpm</code></td>
+<td>Terminal video export</td>
+<td>Local <code>ffmpeg</code> in <code>PATH</code>, or a path configured in <strong>Tools → Video Manager</strong></td>
 </tr>
 </tbody>
 </table>
+<h2 id="build-your-own-package">Build your own package<a class="headerlink" href="#build-your-own-package" title="Permanent link">&para;</a></h2>
+<p>Building from source requires a complete JDK and platform packaging tools. The dedicated guide covers the thin JAR, Java ZIP/TAR distributions, self-contained portable app images and native installers for every supported operating system, including Intel macOS builds, signing and notarization.</p>
+<p><a class="md-button" href="building-packages.html">Build korTTY packages locally →</a></p>
 <div class="admonition note">
 <p class="admonition-title">macOS Local Network privacy</p>
-<p>When launched via the Gradle daemon, korTTY runs as a child of a background process that has no "Local Network" permission, so connecting to LAN / private-IP hosts may fail. For LAN SSH, launch the packaged <code>.app</code> (which prompts for Local Network access on first launch) or start korTTY as a child of Terminal.</p>
+<p>When launched via the Gradle daemon, korTTY runs as a child of a background process that has no Local Network permission, so connecting to LAN or private-IP hosts may fail. For LAN SSH, launch the packaged <code>.app</code>, which prompts for Local Network access on first launch, or start korTTY as a child of Terminal.</p>
 </div>
 <p><a class="md-button" href="first-launch.html">Next: First launch &amp; master password →</a></p>
 

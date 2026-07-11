@@ -122,23 +122,24 @@ For terminal-effect plugin development, packaging, import/export behavior, and v
 
 == Requirements
 
-* Java 25 or higher
-* *Git* and *Maven* (to build SithTermFX from source; no GitHub token needed)
+* *JDK 25* (the native packaging tasks call the JDK 25 `jpackage` executable from `PATH`; newer JDKs are not currently supported for packaging)
+* *Git*, *Maven*, and *curl* (to build SithTermFX from source and download pinned release dependencies; no GitHub token needed)
+* Internet access for the Gradle wrapper, Maven dependencies, SithTermFX, and pinned bundled tools
 * For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
-* Gradle 9.x (automatically downloaded via wrapper)
+* No separate Gradle installation; the pinned version is downloaded by the wrapper
 * Optional for JobScheduler Rsync jobs: local `rsync` and `ssh` commands available in `PATH`, or a configured `rsync` binary path in *Settings → SFTP*
 * Optional for terminal recording video export: local `ffmpeg` available in `PATH`, or a configured binary path in *Tools → Video Manager*
 
 == Build
 
-SithTermFX is built from source during the build (no GitHub token required). You need *Git* and *Maven* installed.
+SithTermFX is built from source during the build (no GitHub token required). You need *Git*, *Maven*, and *curl* installed and available in `PATH`.
 
 [source,bash]
 ----
 ./gradlew build
 ----
 
-On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.0` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
+On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.1` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
 
 == Run
 
@@ -163,21 +164,21 @@ The packaged `.app` (`./gradlew jpackage`) is unaffected: it has a stable app id
 
 Pre-built packages for *x86_64 (amd64)* and *arm64 (aarch64)* are available on the link:https://github.com/chardonnay/korTTY/releases[GitHub Releases] page:
 
-* *macOS*: Apple Silicon only — `-aarch64` (separate DMG/ZIP files).
+* *macOS*: `-aarch64` for Apple Silicon and `-x86_64` for Intel Macs (separate DMG/ZIP files).
 * *Windows*: `-x86_64` for Intel/AMD and `-arm64` for Windows on ARM (both as separate MSI/ZIP files).
 * *Linux*: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
 * *Arch Linux*: `-x86_64` (pacman `.pkg.tar.zst`; aarch64: use the Linux tarball).
 
 Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
 
-To *manually trigger* a release build (e.g. after moving the tag without creating a new release), go to *Actions → Build Release Binaries → Run workflow*, choose branch `main`, set *Ref* to the tag (e.g. `v2.2.2`) and *Version* to the numeric version (e.g. `2.2.2`).
+To *manually trigger* a release build (e.g. after moving the tag without creating a new release), go to *Actions → Build Release Binaries → Run workflow*, choose branch `main`, set *Ref* to the release tag, and set *Version* to the matching numeric version without the leading `v`.
 
 == SithTermFX Integration
 
-KorTTY uses *SithTermFX 1.2.0*, built from source. No GitHub token required (local or CI).
+KorTTY uses *SithTermFX 1.2.1*, built from source. No GitHub token required (local or CI).
 
-* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.2.0` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
-* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.2.0` into `vendor/sithtermfx`, installs Maven, then Gradle runs the same `installSithtermfxLocal` task. No GitHub token required.
+* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.2.1` into `vendor/sithtermfx`, then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
+* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.2.1` into `vendor/sithtermfx`, installs Maven, and then builds korTTY against the locally installed artifacts. No GitHub token required.
 * *OSC 8 hyperlinks:* Starting with SithTermFX 1.2.0, the terminal supports OSC 8 explicit hyperlinks — clickable links emitted by programs such as `ls --hyperlink` or `eza`. Links open on explicit click and are restricted to a safe URI-scheme allowlist (`http`, `https`, `mailto`, `ftp`, `ftps`, `news`); `file://` links are limited to the local host.
 
 == Terminal Effect Plugins
@@ -239,206 +240,66 @@ SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integr
 
 == Create Native Release
 
-KorTTY can be built with `jpackage` as a native app for macOS, Windows, and Linux. The build tasks automatically detect the operating system and create the appropriate distribution. The resulting binary matches the architecture of the machine on which you run the build (e.g. x86_64 or arm64).
+KorTTY uses the JDK `jpackage` tool to create self-contained application images and native installers for macOS, Windows, and Linux. An application image includes the launcher, application libraries, and a trimmed Java runtime: the macOS `.app` is a bundle, while the Windows and Linux outputs are complete directories. The Windows launcher is not portable by itself, and the Linux task does not create a `.AppImage` file; archive the entire application-image bundle or directory when you need one portable file.
 
-=== Requirements
+The complete OS-by-OS instructions, including prerequisites, archive commands, Intel Mac builds, signing, notarization, verification, troubleshooting, and official references, are in the *link:app-docs/site/docs/en/getting-started/building-packages.md[Building release packages locally]* guide chapter.
 
-* *Java 25 or higher* (with jpackage tool)
-* *Platform-specific:*
-** *macOS*: Xcode Command Line Tools (for code signing, optional)
-** *Windows*: WiX Toolset (for MSI installer, optional)
-** *Linux*: fakeroot, rpmbuild or dpkg (for DEB/RPM packages, optional)
+=== Common packaging requirements
 
-=== macOS
+* Use a full *JDK 25* for the target CPU and ensure both `java` and `jpackage` from that JDK are in `PATH`. The Gradle toolchain can provision a compiler, but the packaging tasks invoke `jpackage` directly from `PATH`.
+* Install *Git*, *Maven*, and *curl* and allow network access for the pinned build dependencies.
+* Use the included Gradle wrapper; no global Gradle installation is required.
+* Build on the target operating system. The package CPU architecture follows the JDK that runs Gradle, so use an x86_64 JDK for Intel packages and an arm64 JDK for ARM packages.
+* For installers, add Xcode Command Line Tools on macOS, WiX 3 on Windows, `fakeroot`/`dpkg` tools for DEB, or `rpmbuild` for RPM.
 
-==== Create App (.app)
-
-Creates a standalone macOS app:
+Verify the active toolchain before packaging:
 
 [source,bash]
 ----
-./gradlew jpackage
+java -version
+jpackage --version
+mvn -version
 ----
 
-The created app is located at:
+`java` and `jpackage` must report major version 25.
 
-[source,text]
-----
-build/jpackage/korTTY.app
-----
+=== Build outputs
 
-*Installation:*
-* Drag & drop into `/Applications`
-* Or run directly from `build/jpackage/`
+[cols="1,2,2,2"]
+|===
+|Platform |Portable self-contained application image |Installer |Output
 
-==== Create DMG Installer
+|macOS
+|`./gradlew jpackage`
+|`./gradlew jpackageDmg`
+|`build/jpackage/korTTY.app` and `build/jpackage/korTTY-VERSION.dmg`
 
-Creates a DMG installer:
+|Windows
+|`gradlew.bat jpackage`
+|`gradlew.bat jpackageMsi`
+|`build\jpackage\korTTY\` and `build\jpackage\korTTY-VERSION.msi`
 
-[source,bash]
-----
-./gradlew jpackageDmg
-----
+|Linux
+|`./gradlew jpackage`
+|`./gradlew jpackageDeb` or `./gradlew jpackageRpm`
+|`build/jpackage/korTTY/` and a `kortty*.deb` or `kortty*.rpm` package
+|===
 
-The DMG file is located at:
+Run `./gradlew clean build` (or `gradlew.bat clean build`) before the packaging task. On Windows and Linux, distribute the whole application-image directory or archive it as ZIP/TAR; copying only `korTTY.exe` or `bin/korTTY` omits required libraries and the bundled runtime.
 
-[source,text]
-----
-build/jpackage/korTTY-2.2.2.dmg
-----
+=== macOS Intel releases
 
-*Icon:* `src/main/resources/icon/kortty_icon.icns`
-
-=== Windows
-
-Both Windows targets produce an MSI installer and a ZIP package:
-* `-x86_64`: ZIP contains the full app-image folder.
-* `-arm64`: ZIP contains the single `korTTY.exe` binary.
-
-==== Create App (.exe)
-
-Creates a standalone Windows app:
-
-[source,bash]
-----
-gradlew.bat jpackage
-----
-
-The app is located at:
-
-[source,text]
-----
-build\jpackage\korTTY\
-----
-
-*Features:*
-* Windows Start menu entry
-* Desktop shortcut
-* Installation directory selection
-
-==== Create MSI Installer
-
-Creates an MSI installer (requires WiX Toolset):
-
-[source,bash]
-----
-gradlew.bat jpackageMsi
-----
-
-The MSI file is located at:
-
-[source,text]
-----
-build\jpackage\korTTY-2.2.2.msi
-----
-
-*Icon:* `src/main/resources/icon/kortty_icon.ico` (if available, otherwise PNG)
-
-=== Linux
-
-==== Create App Image
-
-Creates a standalone app image:
-
-[source,bash]
-----
-./gradlew jpackage
-----
-
-The app image is located at:
-
-[source,text]
-----
-build/jpackage/korTTY/
-----
-
-*Execution:*
-[source,bash]
-----
-./build/jpackage/korTTY/bin/korTTY
-----
-
-==== Create DEB Package
-
-Creates a Debian/Ubuntu package (requires dpkg):
-
-[source,bash]
-----
-./gradlew jpackageDeb
-----
-
-The DEB package is located at:
-
-[source,text]
-----
-build/jpackage/korTTY-2.2.2.deb
-----
-
-*Installation:*
-[source,bash]
-----
-sudo dpkg -i build/jpackage/korTTY-2.2.2.deb
-----
-
-==== Create RPM Package
-
-Creates a Red Hat/Fedora package (requires rpmbuild):
-
-[source,bash]
-----
-./gradlew jpackageRpm
-----
-
-The RPM package is located at:
-
-[source,text]
-----
-build/jpackage/korTTY-2.2.2.rpm
-----
-
-*Installation:*
-[source,bash]
-----
-sudo rpm -i build/jpackage/korTTY-2.2.2.rpm
-----
-
-*Icon:* `src/main/resources/icon/kortty_icon.png`
-
-=== Technical Details
-
-* *Launcher Class*: The app uses `de.kortty.Launcher` as entry point to bypass JavaFX runtime checks
-* *Bundled JVM*: The app contains a complete JVM (approx. 150-200 MB)
-* *Platform Detection*: Build tasks automatically detect the operating system
-* *Dependencies*: All dependencies (JavaFX, Apache SSHD, etc.) are automatically bundled
-* *CI toolchain note*: Release CI uses Java 25 by default, but the GitHub Actions `windows-11-arm` job uses Java 21 to ensure stable Windows ARM64 packaging.
-* *Icon Management*: The KorTTY icon is always used:
-** *macOS*: `kortty_icon.icns` (fallback: `kortty_icon.png`)
-** *Windows*: `kortty_icon.ico` (fallback: `kortty_icon.png`)
-** *Linux*: `kortty_icon.png` (required)
-** *In-app logo*: `kortty_logo.png` is used in the login and About dialogs, with `kortty_icon.png` as runtime fallback.
+For a local Intel release, run the build on an Intel Mac with an x86_64 JDK 25 and confirm `uname -m`, Java's `os.arch`, and `lipo -archs build/jpackage/korTTY.app/Contents/MacOS/korTTY` report `x86_64`. The GitHub release workflow also uses the standard `macos-15-intel` runner to publish separate `-x86_64` ZIP and DMG assets alongside Apple Silicon packages. Distribution outside your own Mac additionally requires a Developer ID Application certificate, code signing, Apple notarization, and stapling as described in the detailed guide.
 
 === Troubleshooting
 
-*macOS - App won't open:*
-* Check system logs: `log show --predicate 'process == "korTTY"' --last 5m`
-* Test app directly: `build/jpackage/korTTY.app/Contents/MacOS/korTTY`
-
-*macOS - Gatekeeper warning:*
-* Unsigned apps show a warning on first launch
-* Right-click → "Open" bypasses the warning
-* For distribution: Sign app with Developer ID (requires Apple Developer account)
-
-*Windows - MSI build failed:*
-* Install WiX Toolset: https://wixtoolset.org/
-* Add WiX bin directory to PATH
-
-*Linux - DEB/RPM build failed:*
-* DEB: `sudo apt-get install fakeroot dpkg-dev`
-* RPM: `sudo yum install rpm-build` or `sudo dnf install rpm-build`
+* *macOS app does not open:* Run `build/jpackage/korTTY.app/Contents/MacOS/korTTY` directly and inspect `log show --predicate 'process == "korTTY"' --last 5m`.
+* *Windows MSI build fails:* Install WiX 3 and ensure `candle.exe` and `light.exe` are in `PATH`.
+* *Linux package build fails:* Install `fakeroot` and `dpkg` tooling for DEB, or `rpm-build`/`rpm` tooling for RPM.
 
 *Translation target language list is short in release binary:*
 * Current release builds include `jdk.localedata` in the packaged runtime.
-* If you use an older binary, rebuild or update to `v2.2.2+` to get the full target language list in *Settings → Translation*.
+* If you use an older binary, rebuild or update to the current release to get the full target language list in *Settings → Translation*.
 
 *JobScheduler job is blocked:*
 * Open *Tools → JobScheduler... → Journal* and inspect the selected entry's detail text.

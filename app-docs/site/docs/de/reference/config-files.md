@@ -47,7 +47,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
 
-!!! Notiz
+!!! note
     Wenn ein Verbindungskennwort verschlüsselt ist, wird es in einem Hash-/verschlüsselten Format gespeichert und kann nicht als Klartext angezeigt werden. Wenn Sie eine gespeicherte Verbindung öffnen, wird das Passwort automatisch mit Ihrem Master-Passwort entschlüsselt.
 
 ### Anmeldeinformationen.xml
@@ -72,7 +72,7 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 
 **Sicherheit:** Schlüsselpassphrasen werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
 
-!!! Tipp
+!!! tip
     SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder zur einfachen Sicherung und Migration über die Aktion *In Benutzerverzeichnis kopieren* in der SSH-Schlüsselverwaltung nach `~/.kortty/ssh-keys/` kopiert werden.
 
 ### gpg-keys.xml
@@ -117,12 +117,12 @@ Alle JobScheduler-Jobs und zugehörige Daten.
 - Einstellungen zur Journalaufbewahrung (Einträge, die älter als 14 Tage sind, werden standardmäßig automatisch gelöscht)
 
 **Sicherheit:**
-– Für die unbeaufsichtigte SSH/SFTP/Rsync-Ausführung ist standardmäßig das Anheften des Hostschlüssels erforderlich
+- Host-Key-Pinning ist standardmäßig für die unbeaufsichtigte SSH/SFTP/Rsync-Ausführung erforderlich
 - Sudo-Passwörter werden mit dem Master-Passwort verschlüsselt
 - Journaleinträge werden mit von KorTTY verwalteten Geheimnissen gespeichert, die vor der Persistenz geschwärzt wurden
 - Archivkennwörter und Anmeldeinformationen für die Backup-Verschlüsselung werden verschlüsselt gespeichert
 
-!!! Warnung
+!!! warning
     Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und ein Journaleintrag mit einer Erläuterung des Problems erstellt.
 
 ### ai-chats.xml
@@ -171,7 +171,7 @@ Binärdatei, die das gehashte Master-Passwort enthält.
 
 **Sicherheit:** Diese Datei enthält nicht das eigentliche Master-Passwort, sondern nur einen kryptografischen Hash, der zur Überprüfung des Passworts verwendet wird, das Sie beim Start eingeben. Wenn diese Datei verloren geht oder beschädigt ist, müssen Sie KorTTY neu starten und ein neues Master-Passwort festlegen (Sie verlieren jedoch den Zugriff auf zuvor gespeicherte verschlüsselte Anmeldeinformationen und SSH-Schlüssel-Passphrasen).
 
-!!! Warnung
+!!! warning
     Wenn Sie Ihr Master-Passwort vergessen, löschen Sie `master-password-hash` und `credentials.xml`, starten Sie KorTTY neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein. Es gibt keinen Wiederherstellungsmechanismus für das verlorene Passwort.
 
 ### terminal-effect-plugins.disabled
@@ -192,7 +192,7 @@ Anwendungsprotokolldatei.
 
 **Rotation:** Die Protokolldatei wächst während der Anwendungssitzung. Alte Protokolle werden nicht automatisch rotiert (die Protokolldatei bleibt bestehen, bis KorTTY beendet wird oder Sie sie manuell löschen).
 
-!!! Tipp
+!!! tip
     Überprüfen Sie diese Datei, wenn Sie Verbindungsprobleme, Probleme beim Laden von Plugins oder unerwartetes Verhalten beheben. Zu den hier protokollierten häufigen Problemen gehören SSH-Fehler, Verschlüsselungsfehler und Import-/Exportprobleme.
 
 ## Verzeichnisse
@@ -208,7 +208,7 @@ Komprimierter Terminalsitzungsverlauf.
 
 **Zugriff:** Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.
 
-!!! Notiz
+!!! note
     In diesem Verzeichnis wird der Verlauf nur gespeichert, wenn Sie beim Erstellen oder Bearbeiten einer Verbindung explizit *Terminalprotokollierung* für eine Verbindung auf der Registerkarte *Terminalprotokollierung* aktivieren.
 
 ### Plugins/
@@ -220,7 +220,7 @@ Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.
 
 **Bereinigung:** Wenn Sie ein Plugin aus diesem Verzeichnis löschen, ist es in KorTTY nicht mehr verfügbar. Deaktivierte Plugins bleiben in diesem Verzeichnis, werden aber in `terminal-effect-plugins.disabled` aufgeführt.
 
-!!! Warnung
+!!! warning
     Plugin-Abhängigkeiten müssen in der Plugin-JAR schattiert werden. Benachbarte Abhängigkeits-JARs werden nicht automatisch geladen. Verpackungsrichtlinien finden Sie unter [Terminal Effect Plugins](../features/terminal-effect-plugins.md)].
 
 ### bundled-plugins/
@@ -260,7 +260,7 @@ Dynamisch generierte Sprachübersetzungsdateien.
 
 **Automatische Aktualisierung:** Wenn Sie KorTTY auf eine neue Version aktualisieren, werden generierte Sprachdateien als veraltet markiert. Verwenden Sie *Einstellungen > Übersetzung > Veraltete neu generieren*, um sie mit allen neuen oder geänderten UI-Schlüsseln zu aktualisieren.
 
-!!! Notiz
+!!! note
     Integrierte Sprachen (Englisch, Deutsch, Italienisch, Spanisch, Portugiesisch, Französisch, Kroatisch, Niederländisch) werden mit der Anwendung geliefert und verwenden dieses Verzeichnis nicht. Dieses Verzeichnis wird nur für dynamisch generierte Übersetzungen verwendet.
 
 ### ssh-keys/
@@ -316,7 +316,7 @@ Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, sind die fo
 
 Das Backup wird verschlüsselt (passwortgeschütztes ZIP oder GPG) und an einem von Ihnen angegebenen Ort gespeichert.
 
-!!! Tipp
+!!! tip
     Backups sind die empfohlene Methode, um KorTTY auf einen neuen Computer zu migrieren oder nach einem Datenverlust wiederherzustellen. Erstellen Sie regelmäßig ein Backup und bewahren Sie es an einem sicheren Ort auf.
 
 ## Zugriff auf Konfigurationsdateien
@@ -328,7 +328,7 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 3. Bearbeiten der XML-Dateien mit einem Texteditor
 4. Starten Sie KorTTY neu, um die Änderungen zu laden
 
-!!! Warnung
+!!! warning
     Das direkte Bearbeiten von XML-Dateien kann Ihre Daten beschädigen, wenn es nicht sorgfältig durchgeführt wird. Erstellen Sie vor der manuellen Bearbeitung immer ein Backup. Verwenden Sie für die meisten Konfigurationsaufgaben stattdessen die KorTTY-Benutzeroberfläche – sie verarbeitet Verschlüsselung, Validierung und Dateiformat korrekt.
 
 ## Fehlerbehebung
@@ -345,7 +345,7 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 
 **Probleme beim Laden des Plugins:**
 - Überprüfen Sie `kortty.log` auf Fehlermeldungen im Zusammenhang mit dem Laden des Plugins (z. B. doppelte IDs, fehlende Dienste, Fehler beim Laden von Klassen).
-– Stellen Sie sicher, dass sich die Plugin-JAR in `~/.kortty/plugins/` befindet und `META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin` enthält.
+- Stellen Sie sicher, dass sich die Plugin-JAR in `~/.kortty/plugins/` befindet und `META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin` enthält.
 - Verwenden Sie *Plugins > Terminaleffekte > Neu laden*, um die Plugin-Liste zu aktualisieren.
 
 **Größe der Protokolldatei:**

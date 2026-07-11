@@ -11,7 +11,7 @@ Der integrierte SFTP-Manager bietet einen grafischen Dateimanager zum Übertrage
 Sie können den SFTP-Manager auf zwei Arten öffnen:
 
 - **Menü:** Extras > SFTP-Manager öffnen
-- **Dashboard:** Klicken Sie mit der rechten Maustaste auf eine Verbindung > „SFTP-Manager öffnen“
+- **Dashboard:** Klicken Sie mit der rechten Maustaste auf eine Verbindung > „SFTP-Manager öffnen“"
 
 Wenn die Verbindung einen temporären SSH-Schlüssel verwendet, der abgelaufen ist, werden Sie aufgefordert, einen neuen Schlüssel einzugeben, bevor die Verbindung fortgesetzt werden kann.
 
@@ -62,7 +62,7 @@ Der SFTP-Manager unterstützt eine ganze Reihe von Dateioperationen:
 | **Umbenennen** | Wählen Sie eine Datei aus und klicken Sie auf Umbenennen |
 | **Kopieren** | Dateien innerhalb desselben Panels kopieren |
 | **Im Snippet-Editor bearbeiten** | Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü *Bearbeiten* oder das Kontextmenü mit der rechten Maustaste |
-| **Verzeichnis erstellen** | Klicken Sie in einem der beiden Bereiche auf „Neuer Ordner“.
+| **Verzeichnis erstellen** | Klicken Sie in einem der beiden Fenster auf „Neuer Ordner“ |
 | **ZIP-Datei erstellen** | Wählen Sie mehrere Dateien/Verzeichnisse aus und klicken Sie auf „ZIP erstellen“ |
 | **Besitzer/Berechtigungen festlegen** | Datei(en) auswählen, Kontextmenü oder Schaltfläche verwenden. Separate Felder für Benutzer-, Gruppen- und Oktalberechtigungen (z. B. 755) |
 
@@ -97,7 +97,7 @@ Beide Panels unterstützen die **Glob-Mustersuche** mit dem Platzhalter `*`. Zum
 
 - `*.log` findet alle Protokolldateien im aktuellen Verzeichnis
 - `*.{py,sh}` findet Python- und Shell-Dateien (wenn Ihre Shell die Klammererweiterung unterstützt)
-- `backup*` findet alle Dateien, die mit „backup“ beginnen
+- `backup*` findet alle Dateien, die mit „backup"“ beginnen
 
 Geben Sie das Muster in das Suchfeld ein, um angezeigte Dateien schnell zu filtern, ohne das aktuelle Verzeichnis zu verlassen.
 

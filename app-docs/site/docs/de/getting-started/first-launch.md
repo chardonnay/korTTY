@@ -9,7 +9,7 @@ Beim ersten Start fordert korTTY Sie auf, ein **Master-Passwort** zu erstellen. 
 
 Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.
 
-!!! Warnung „Die Eingabeaufforderung wird deaktiviert“
+!!! warning "Deaktivieren der Eingabeaufforderung"
     Sie können die Aufforderung zum Entsperren unter **Einstellungen → Sicherheit** deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.
 
 ## Was ist verschlüsselt?

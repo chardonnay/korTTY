@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2293,8 +2323,8 @@
 <h3 id="speicherung-und-persistenz">Speicherung und Persistenz<a class="headerlink" href="#speicherung-und-persistenz" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Erzeugte Sprachdateien werden in <code>~/.kortty/i18n/</code> gespeichert</li>
-<li>Jede Datei ist eine Standard-Java-Eigenschaftendatei (messages_XX.properties).
-– Dateien bleiben bei Anwendungsneustarts und -aktualisierungen bestehen</li>
+<li>Jede Datei ist eine Standard-Java-Eigenschaftendatei (messages_XX.properties).</li>
+<li>Dateien bleiben bei Anwendungsneustarts und -aktualisierungen bestehen</li>
 <li>Sprachdateien sind in verschlüsselten Backups enthalten, die über <strong>Bearbeiten → Backup erstellen</strong> erstellt wurden.</li>
 </ul>
 <h2 id="wie-es-funktioniert">Wie es funktioniert<a class="headerlink" href="#wie-es-funktioniert" title="Permanent link">&para;</a></h2>
@@ -2315,24 +2345,34 @@
 </ul>
 <p>Wenn die Primärsprache Ihres Systems nicht in der integrierten oder generierten Liste enthalten ist, wird automatisch Englisch ausgewählt.</p>
 <h2 id="tipps-fur-die-ubersetzungsqualitat">Tipps für die Übersetzungsqualität<a class="headerlink" href="#tipps-fur-die-ubersetzungsqualitat" title="Permanent link">&para;</a></h2>
-<p>!!! Tipp „Übersetzungsergebnisse optimieren“
-    - <strong>Kürzere Blöcke</strong>: Übersetzungs-APIs funktionieren am besten mit Zeichenfolgen mittlerer Größe. KorTTY stapelt Übersetzungen in Gruppen von 25 Zeichenfolgen
-    - <strong>Platzhaltersicherheit</strong>: Platzhalter (<code>{0}</code>, <code>${var}</code>) werden während der Übersetzung automatisch geschützt und nie geändert
-    - <strong>Test nach der Generierung</strong>: Überprüfen Sie nach dem Generieren einer neuen Sprache die Benutzeroberfläche auf umständliche Formulierungen und erwägen Sie eine Anpassung der API-Anbieter, wenn die Qualität nicht ausreicht</p>
-<p>!!! Hinweis „LibreTranslate Self-Hosting“
-    Wenn Sie eine selbstgehostete LibreTranslate-Instanz ausführen, können Sie KorTTY darauf verweisen, indem Sie die benutzerdefinierte API-URL in den Übersetzungseinstellungen eingeben. Dadurch werden API-Schlüsselabhängigkeiten vermieden und Ihre Daten bleiben lokal.</p>
+<div class="admonition tip">
+<p class="admonition-title">Übersetzungsergebnisse optimieren</p>
+<ul>
+<li><strong>Kürzere Blöcke</strong>: Übersetzungs-APIs funktionieren am besten mit Zeichenfolgen mittlerer Größe. KorTTY stapelt Übersetzungen in Gruppen von 25 Zeichenfolgen</li>
+<li><strong>Platzhaltersicherheit</strong>: Platzhalter (<code>{0}</code>, <code>${var}</code>) werden während der Übersetzung automatisch geschützt und nie geändert</li>
+<li><strong>Test nach der Generierung</strong>: Überprüfen Sie nach dem Generieren einer neuen Sprache die Benutzeroberfläche auf umständliche Formulierungen und erwägen Sie eine Anpassung der API-Anbieter, wenn die Qualität nicht ausreicht</li>
+</ul>
+</div>
+<div class="admonition note">
+<p class="admonition-title">LibreTranslate Self-Hosting</p>
+<p>Wenn Sie eine selbstgehostete LibreTranslate-Instanz ausführen, können Sie KorTTY darauf verweisen, indem Sie die benutzerdefinierte API-URL in den Übersetzungseinstellungen eingeben. Dadurch werden API-Schlüsselabhängigkeiten vermieden und Ihre Daten bleiben lokal.</p>
+</div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
-<p>!!! Warnung „API-Verbindungsprobleme“
-    Wenn <strong>API-Verbindung testen</strong> fehlschlägt, überprüfen Sie Folgendes:
-    - Ihr API-Schlüssel ist korrekt und gültig
-    - Beim Dienst des API-Anbieters kommt es zu keinen Ausfällen
-    - Ihr Netzwerk kann den API-Endpunkt erreichen
-    – Stellen Sie bei benutzerdefinierten URLs sicher, dass der Endpunkt erreichbar ist und ausgeführt wird</p>
-<p>!!! Warnung „Fehlende Sprachen nach dem Upgrade“
-    Wenn eine generierte Sprachdatei nach dem Upgrade von KorTTY verschwindet:
-    - Überprüfen Sie, ob die Datei unter <code>~/.kortty/i18n/messages_XX.properties</code> noch vorhanden ist
-    - Stellen Sie sicher, dass die in der Datei aufgezeichnete App-Version mit der aktuellen App-Version übereinstimmt
-    - Regenerieren Sie die Sprache bei Bedarf über <strong>Einstellungen → Übersetzung → Veraltete Sprache neu generieren</strong></p>
+<div class="admonition warning">
+<p class="admonition-title">API-Verbindungsprobleme</p>
+<p>Wenn <strong>API-Verbindung testen</strong> fehlschlägt, überprüfen Sie Folgendes:
+- Ihr API-Schlüssel ist korrekt und gültig
+- Beim Dienst des API-Anbieters kommt es zu keinen Ausfällen
+- Ihr Netzwerk kann den API-Endpunkt erreichen
+- Stellen Sie bei benutzerdefinierten URLs sicher, dass der Endpunkt erreichbar ist und ausgeführt wird</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Fehlende Sprachen nach dem Upgrade</p>
+<p>Wenn eine generierte Sprachdatei nach dem Upgrade von KorTTY verschwindet:
+- Überprüfen Sie, ob die Datei unter <code>~/.kortty/i18n/messages_XX.properties</code> noch vorhanden ist
+- Stellen Sie sicher, dass die in der Datei aufgezeichnete App-Version mit der aktuellen App-Version übereinstimmt
+- Regenerieren Sie die Sprache bei Bedarf über <strong>Einstellungen → Übersetzung → Veraltete Sprache neu generieren</strong></p>
+</div>
 
 
 

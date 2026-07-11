@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Guide
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
   
 
     
@@ -1847,6 +1877,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#packaging-and-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packaging and documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-code-analysis" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2523,6 +2564,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#packaging-and-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packaging and documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-code-analysis" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3108,6 +3160,12 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is shown in the footer.</p>
 <h2 id="v243">v2.4.3<a class="headerlink" href="#v243" title="Permanent link">&para;</a></h2>
+<h3 id="packaging-and-documentation">Packaging and documentation<a class="headerlink" href="#packaging-and-documentation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>macOS Intel release packages</strong> — the release workflow now builds separate signed and notarized <code>-x86_64</code> ZIP and DMG assets on GitHub's Intel macOS runner alongside the existing Apple Silicon packages, and verifies the JDK, <code>jpackage</code>, runner and launcher architectures before publishing them.</li>
+<li><strong>Complete portable Windows archives</strong> — every Windows ZIP now contains the full self-contained <code>jpackage</code> application image with its launcher, libraries and bundled runtime; the Windows-on-ARM archive no longer publishes an unusable launcher by itself.</li>
+<li><strong>Detailed local release-build guide</strong> — a new guide chapter explains the exact common and platform-specific prerequisites, portable self-contained application images, ZIP/TAR archives, DMG/MSI/DEB/RPM installers, Intel Mac builds, signing, notarization, verification and troubleshooting for macOS, Windows and Linux.</li>
+</ul>
 <h3 id="ai-code-analysis">AI Code Analysis<a class="headerlink" href="#ai-code-analysis" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Pick the AI skills for an analysis</strong> — the <strong>Full code analysis</strong> window now shows which AI Skills were included, as chips with an <em>(auto-selected)</em> or <em>(manual)</em> badge, and lets you change them with a <strong>searchable</strong> picker (filter by name, description or tags). Your changes take effect on the next <strong>Re-run</strong>, so one deliberate click runs one analysis with exactly the skills you chose. korTTY also auto-selects the skills relevant to the snippet before the first analysis so the set is meaningful out of the box.</li>

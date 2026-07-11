@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2087,9 +2117,9 @@
 <ol>
 <li>Öffnen Sie <em>Datei &gt; Projekt speichern</em> oder drücken Sie ++Strg+s++ (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> unter macOS).</li>
 <li>Geben Sie einen <strong>Namen</strong> und optional eine <strong>Beschreibung</strong> für das Projekt ein.</li>
-<li>Konfigurieren Sie <strong>Auto-Reconnect</strong>:
-   – Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
-   – Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.</li>
+<li>Konfigurieren Sie <strong>Auto-Reconnect</strong>:</li>
+<li>Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.</li>
+<li>Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.</li>
 <li>Klicken Sie auf <em>Speichern</em>.</li>
 </ol>
 <p>Projekte werden als <code>.kortty</code>-Dateien in <code>~/.kortty/projects/</code> gespeichert.</p>
@@ -2139,15 +2169,15 @@
 </tr>
 </tbody>
 </table>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>AI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.</p>
 </div>
 <h2 id="automatische-wiederverbindung">Automatische Wiederverbindung<a class="headerlink" href="#automatische-wiederverbindung" title="Permanent link">&para;</a></h2>
 <p>Wenn <strong>Auto-Reconnect</strong> aktiviert ist, führt KorTTY automatisch Folgendes durch:</p>
 <ul>
-<li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.
-– Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
+<li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.</li>
+<li>Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
 <li>Stellt den aktiven Tab- und Dashboard-Status wieder her</li>
 </ul>
 <p>Wenn <strong>Auto-Reconnect</strong> deaktiviert ist, werden Fenster und Registerkarten wiederhergestellt, Sie müssen jedoch jede Registerkarte manuell neu verbinden, indem Sie darauf klicken oder <em>Reconnect</em> aus dem Kontextmenü verwenden.</p>

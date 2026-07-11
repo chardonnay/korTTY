@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2581,8 +2611,8 @@
 - Einstellungen für die Fenstergeometrie
 - Gruppen-/Ordnerorganisation</p>
 <p><strong>Sicherheit:</strong> Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Wenn ein Verbindungskennwort verschlüsselt ist, wird es in einem Hash-/verschlüsselten Format gespeichert und kann nicht als Klartext angezeigt werden. Wenn Sie eine gespeicherte Verbindung öffnen, wird das Passwort automatisch mit Ihrem Master-Passwort entschlüsselt.</p>
 </div>
 <h3 id="anmeldeinformationenxml">Anmeldeinformationen.xml<a class="headerlink" href="#anmeldeinformationenxml" title="Permanent link">&para;</a></h3>
@@ -2601,8 +2631,8 @@
 - Optionale Beschreibung
 - Schlüssel-Fingerabdruck</p>
 <p><strong>Sicherheit:</strong> Schlüsselpassphrasen werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
-<div class="admonition tipp">
-<p class="admonition-title">Tipp</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder zur einfachen Sicherung und Migration über die Aktion <em>In Benutzerverzeichnis kopieren</em> in der SSH-Schlüsselverwaltung nach <code>~/.kortty/ssh-keys/</code> kopiert werden.</p>
 </div>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
@@ -2641,12 +2671,12 @@
 - Journaleinträge mit Zeitstempeln, Exit-Codes und redigierter Ausgabe
 - Einstellungen zur Journalaufbewahrung (Einträge, die älter als 14 Tage sind, werden standardmäßig automatisch gelöscht)</p>
 <p><strong>Sicherheit:</strong>
-– Für die unbeaufsichtigte SSH/SFTP/Rsync-Ausführung ist standardmäßig das Anheften des Hostschlüssels erforderlich
+- Host-Key-Pinning ist standardmäßig für die unbeaufsichtigte SSH/SFTP/Rsync-Ausführung erforderlich
 - Sudo-Passwörter werden mit dem Master-Passwort verschlüsselt
 - Journaleinträge werden mit von KorTTY verwalteten Geheimnissen gespeichert, die vor der Persistenz geschwärzt wurden
 - Archivkennwörter und Anmeldeinformationen für die Backup-Verschlüsselung werden verschlüsselt gespeichert</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und ein Journaleintrag mit einer Erläuterung des Problems erstellt.</p>
 </div>
 <h3 id="ai-chatsxml">ai-chats.xml<a class="headerlink" href="#ai-chatsxml" title="Permanent link">&para;</a></h3>
@@ -2684,8 +2714,8 @@
 <p>Binärdatei, die das gehashte Master-Passwort enthält.</p>
 <p><strong>Format:</strong> PBKDF2-Hash mit 310.000 Iterationen</p>
 <p><strong>Sicherheit:</strong> Diese Datei enthält nicht das eigentliche Master-Passwort, sondern nur einen kryptografischen Hash, der zur Überprüfung des Passworts verwendet wird, das Sie beim Start eingeben. Wenn diese Datei verloren geht oder beschädigt ist, müssen Sie KorTTY neu starten und ein neues Master-Passwort festlegen (Sie verlieren jedoch den Zugriff auf zuvor gespeicherte verschlüsselte Anmeldeinformationen und SSH-Schlüssel-Passphrasen).</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Wenn Sie Ihr Master-Passwort vergessen, löschen Sie <code>master-password-hash</code> und <code>credentials.xml</code>, starten Sie KorTTY neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein. Es gibt keinen Wiederherstellungsmechanismus für das verlorene Passwort.</p>
 </div>
 <h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
@@ -2701,8 +2731,8 @@
 - Fehler und Warnungen
 - Leistungsmetriken (auf Anfrage über JMX)</p>
 <p><strong>Rotation:</strong> Die Protokolldatei wächst während der Anwendungssitzung. Alte Protokolle werden nicht automatisch rotiert (die Protokolldatei bleibt bestehen, bis KorTTY beendet wird oder Sie sie manuell löschen).</p>
-<div class="admonition tipp">
-<p class="admonition-title">Tipp</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>Überprüfen Sie diese Datei, wenn Sie Verbindungsprobleme, Probleme beim Laden von Plugins oder unerwartetes Verhalten beheben. Zu den hier protokollierten häufigen Problemen gehören SSH-Fehler, Verschlüsselungsfehler und Import-/Exportprobleme.</p>
 </div>
 <h2 id="verzeichnisse">Verzeichnisse<a class="headerlink" href="#verzeichnisse" title="Permanent link">&para;</a></h2>
@@ -2712,8 +2742,8 @@
 <p><strong>Benennung:</strong> <code>{session-id}_{timestamp}.history.gz</code> (für den Sitzungsverlauf aus der Terminalprotokollierung)</p>
 <p><strong>Zweck:</strong> Speichert den Verlauf und die Ausgabe von Terminalbefehlen, wenn die Terminalprotokollierung für eine Verbindung aktiviert ist.</p>
 <p><strong>Zugriff:</strong> Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.</p>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>In diesem Verzeichnis wird der Verlauf nur gespeichert, wenn Sie beim Erstellen oder Bearbeiten einer Verbindung explizit <em>Terminalprotokollierung</em> für eine Verbindung auf der Registerkarte <em>Terminalprotokollierung</em> aktivieren.</p>
 </div>
 <h3 id="plugins">Plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
@@ -2721,8 +2751,8 @@
 <p><strong>Zweck:</strong> Externe Terminal-Effekt-Plugins, die Sie über <em>Plugins &gt; Terminal-Effekte &gt; Importieren</em> importieren.</p>
 <p><strong>Sicherheit:</strong> Importierte Plugins sind vertrauenswürdiger Java-Code und werden nicht in einer Sandbox gespeichert. Importieren Sie JARs nur aus Quellen, denen Sie vertrauen.</p>
 <p><strong>Bereinigung:</strong> Wenn Sie ein Plugin aus diesem Verzeichnis löschen, ist es in KorTTY nicht mehr verfügbar. Deaktivierte Plugins bleiben in diesem Verzeichnis, werden aber in <code>terminal-effect-plugins.disabled</code> aufgeführt.</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Plugin-Abhängigkeiten müssen in der Plugin-JAR schattiert werden. Benachbarte Abhängigkeits-JARs werden nicht automatisch geladen. Verpackungsrichtlinien finden Sie unter <a href="../features/terminal-effect-plugins.html">Terminal Effect Plugins</a>].</p>
 </div>
 <h3 id="bundled-plugins">bundled-plugins/<a class="headerlink" href="#bundled-plugins" title="Permanent link">&para;</a></h3>
@@ -2747,8 +2777,8 @@
 <p><strong>Benennung:</strong> <code>messages_{language-code}.properties</code> (z. B. <code>messages_de.properties</code> für Deutsch, <code>messages_fr.properties</code> für Französisch)</p>
 <p><strong>Zweck:</strong> Speichert Übersetzungen, die von Übersetzungs-APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator oder Yandex) generiert wurden, wenn Sie über <em>Einstellungen &gt; Übersetzung</em> die Generierung von Sprachdateien auswählen.</p>
 <p><strong>Automatische Aktualisierung:</strong> Wenn Sie KorTTY auf eine neue Version aktualisieren, werden generierte Sprachdateien als veraltet markiert. Verwenden Sie <em>Einstellungen &gt; Übersetzung &gt; Veraltete neu generieren</em>, um sie mit allen neuen oder geänderten UI-Schlüsseln zu aktualisieren.</p>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Integrierte Sprachen (Englisch, Deutsch, Italienisch, Spanisch, Portugiesisch, Französisch, Kroatisch, Niederländisch) werden mit der Anwendung geliefert und verwenden dieses Verzeichnis nicht. Dieses Verzeichnis wird nur für dynamisch generierte Übersetzungen verwendet.</p>
 </div>
 <h3 id="ssh-keys">ssh-keys/<a class="headerlink" href="#ssh-keys" title="Permanent link">&para;</a></h3>
@@ -2829,8 +2859,8 @@
 <li><code>snippets.xml</code> und zugehörige Snippet-Daten</li>
 </ul>
 <p>Das Backup wird verschlüsselt (passwortgeschütztes ZIP oder GPG) und an einem von Ihnen angegebenen Ort gespeichert.</p>
-<div class="admonition tipp">
-<p class="admonition-title">Tipp</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>Backups sind die empfohlene Methode, um KorTTY auf einen neuen Computer zu migrieren oder nach einem Datenverlust wiederherzustellen. Erstellen Sie regelmäßig ein Backup und bewahren Sie es an einem sicheren Ort auf.</p>
 </div>
 <h2 id="zugriff-auf-konfigurationsdateien">Zugriff auf Konfigurationsdateien<a class="headerlink" href="#zugriff-auf-konfigurationsdateien" title="Permanent link">&para;</a></h2>
@@ -2841,8 +2871,8 @@
 <li>Bearbeiten der XML-Dateien mit einem Texteditor</li>
 <li>Starten Sie KorTTY neu, um die Änderungen zu laden</li>
 </ol>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Das direkte Bearbeiten von XML-Dateien kann Ihre Daten beschädigen, wenn es nicht sorgfältig durchgeführt wird. Erstellen Sie vor der manuellen Bearbeitung immer ein Backup. Verwenden Sie für die meisten Konfigurationsaufgaben stattdessen die KorTTY-Benutzeroberfläche – sie verarbeitet Verschlüsselung, Validierung und Dateiformat korrekt.</p>
 </div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
@@ -2855,7 +2885,7 @@
 - Wenn eine <code>.xml</code>-Datei beschädigt ist, stellen Sie sie aus einer Sicherung wieder her oder löschen Sie die Datei. KorTTY wird es beim nächsten Speichern mit den Standardeinstellungen neu erstellen.</p>
 <p><strong>Probleme beim Laden des Plugins:</strong>
 - Überprüfen Sie <code>kortty.log</code> auf Fehlermeldungen im Zusammenhang mit dem Laden des Plugins (z. B. doppelte IDs, fehlende Dienste, Fehler beim Laden von Klassen).
-– Stellen Sie sicher, dass sich die Plugin-JAR in <code>~/.kortty/plugins/</code> befindet und <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code> enthält.
+- Stellen Sie sicher, dass sich die Plugin-JAR in <code>~/.kortty/plugins/</code> befindet und <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code> enthält.
 - Verwenden Sie <em>Plugins &gt; Terminaleffekte &gt; Neu laden</em>, um die Plugin-Liste zu aktualisieren.</p>
 <p><strong>Größe der Protokolldatei:</strong>
 - <code>kortty.log</code> wächst während der Anwendungssitzung. Es wird nicht automatisch gedreht. Sie können es sicher löschen, während KorTTY geschlossen ist.</p>

@@ -38,7 +38,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 
 ## SithTermFX Terminal Engine
 
-KorTTY verwendet **SithTermFX 1.2.0** als primären Terminalemulator, der während des Build-Prozesses aus dem Quellcode erstellt wird. SithTermFX bietet:
+KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:
 
 - **Terminal-Emulation**: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement
 - **OSC 8-Hyperlinks**: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` beschränkt auf lokalen Host)
@@ -49,7 +49,7 @@ KorTTY verwendet **SithTermFX 1.2.0** als primären Terminalemulator, der währe
 
 Der Build-Prozess automatisch:
 
-1. Klont SithTermFX am Tag `v1.2.0` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
+1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
 2. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
 3. Installiert Artefakte im lokalen Maven-Repo (`mavenLocal()`)
 4. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
@@ -98,8 +98,8 @@ KorTTY speichert alle Konfigurationen, Anmeldeinformationen und den Sitzungsstat
 **AES-256-GCM-Verschlüsselung** schützt vertrauliche Felder:
 
 - Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und als `master-password-hash` gespeichert
-– Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Master-Passwort abgeleitet werden
-– SSH-Schlüsselpassphrasen, Verbindungspasswörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
+- Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden
+- SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
 - Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden
 
 ## Kernmodulorganisation

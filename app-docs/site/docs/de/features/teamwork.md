@@ -66,7 +66,7 @@ Sobald Sie die Teamwork-Einstellungen gespeichert haben:
 2. Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:
    - Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).
    - Lädt die XML-Verbindungen.
-   – Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.
+   - Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.
 3. Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.
 
 ### Manuelle Synchronisierung
@@ -101,7 +101,7 @@ Erstellen Sie eine `kortty-teamwork-connections.xml`-Datei (oder `connections.xm
 </connections>
 ```
 
-!!! Warnung „Keine Inline-Geheimnisse einbeziehen“
+!!! warning "Inline-Geheimnisse nicht einbeziehen"
     Teamwork-Verbindungen dürfen **nicht** `encryptedPassword`, `privateKeyPath` oder `privateKeyPassphrase` enthalten. Stattdessen:
     - Verwenden Sie `credentialId`, um auf gespeicherte Anmeldeinformationen in **Sicherheit → Anmeldeinformationen…** zu verweisen.
     - Verwenden Sie `sshKeyId`, um auf einen gespeicherten SSH-Schlüssel in **Sicherheit → SSH-Schlüssel…** zu verweisen.
@@ -119,9 +119,9 @@ Sobald eine Quelle synchronisiert ist:
 
 ### Lokale Überschreibungen
 
-– Die zusammengeführten Anmeldeinformationen und SSH-Schlüsselreferenzen werden aus Ihrem lokalen Speicher aufgelöst.
+- Die zusammengeführten Anmeldeinformationen und SSH-Schlüsselreferenzen werden aus Ihrem lokalen Speicher aufgelöst.
 - Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.
-– Ihre lokale Kopie einer Teamwork-Verbindung kann die Authentifizierung außer Kraft setzen, indem Sie andere Anmeldeinformationen oder Schlüssel zuweisen.
+- Ihre lokale Kopie einer Teamwork-Verbindung kann die Authentifizierung außer Kraft setzen, indem sie andere Anmeldeinformationen oder Schlüssel zuweist.
 
 ### Quellen unterscheiden
 
@@ -178,16 +178,16 @@ So teilen Sie Verbindungen über eine Datei:
 
 ## Sicherheitsüberlegungen
 
-!!! Warnung „Anmeldeinformationen sind nur lokal“
+!!! warning "Anmeldeinformationen sind nur lokal"
     Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.
 
-!!! Warnung „Git-Repositorys sollten keine Geheimnisse speichern“
+!!! warning "Git-Repositorys sollten keine Geheimnisse speichern"
     Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.
 
-!!! Warnung „Dateiberechtigungen“
+!!! warning "Dateiberechtigungen"
     Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.
 
-!!! Tipp „Audit Trail“
+!!! tip "Prüfpfad"
     Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.
 
 ## Fehlerbehebung

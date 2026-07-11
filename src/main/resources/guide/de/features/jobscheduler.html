@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2306,8 +2336,8 @@
 </tbody>
 </table>
 <p>Zeitplanberechnungen verwenden die Zeitzone des lokalen Systems. Wenn keine feste Zeit und kein Intervall konfiguriert sind, ist der nächste Lauf der Fensterstart an einem erlaubten Datum.</p>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.</p>
 </div>
 <h3 id="hostschlussel-sudo-und-geheimnisse">Hostschlüssel, Sudo und Geheimnisse<a class="headerlink" href="#hostschlussel-sudo-und-geheimnisse" title="Permanent link">&para;</a></h3>
@@ -2317,8 +2347,8 @@
 <ul>
 <li>Zuerst werden serverspezifische Sudo-Passwörter verwendet.</li>
 <li>Gruppen-Sudo-Passwörter werden als Fallback verwendet.</li>
-<li>Gespeicherte Sudo-Passwörter werden mit dem Master-Passwort verschlüsselt.
-– Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und protokolliert.</li>
+<li>Gespeicherte Sudo-Passwörter werden mit dem Master-Passwort verschlüsselt.</li>
+<li>Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und protokolliert.</li>
 </ul>
 <p>Bei Rsync-Jobs bedeutet <strong>Sudo verwenden</strong> passwortloses Remote-Sudo nur über <code>sudo -n rsync</code>. Gespeicherte Sudo-Passwörter werden von der aktuellen Rsync-Integration nicht verwendet.</p>
 <h3 id="registerkarte-aktion-jobtypen-und-konfiguration">Registerkarte „Aktion“: Jobtypen und Konfiguration<a class="headerlink" href="#registerkarte-aktion-jobtypen-und-konfiguration" title="Permanent link">&para;</a></h3>
@@ -2418,8 +2448,8 @@
 </table>
 <p>Die Ergebnisse werden zweimal gespeichert: Das <strong>Journal</strong> zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als <strong>Schwarm-Chat</strong> gespeichert, der über den Abschnitt <em>Schwarm-Chats</em> des AI Managers erneut geöffnet werden kann.</p>
 <p>Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche <strong>Planen…</strong> in der Registerkarte <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Ein geplanter Schwarm mit deaktiviertem <strong>Schwarm-Schreibschutz</strong> und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
 </div>
 <h4 id="sftp-archivjobs">SFTP-Archivjobs<a class="headerlink" href="#sftp-archivjobs" title="Permanent link">&para;</a></h4>
@@ -2431,16 +2461,16 @@
 <li><strong>Hochladen</strong>: Lokale Quellverzeichnisse werden unter dem Remote-Zielstamm synchronisiert.</li>
 <li><strong>Download</strong>: Remote-Quellverzeichnisse werden unter dem lokalen Zielstamm synchronisiert.</li>
 <li><strong>Mehrere Quellen</strong> werden unterstützt.</li>
-<li><strong>Fehlende Dateien löschen</strong> fügt <code>--delete</code> hinzu; es ist standardmäßig deaktiviert.
-– Bei Downloads von mehreren Gruppenzielen schreibt KorTTY jedes Ziel in sein eigenes Unterverzeichnis unterhalb des lokalen Zielstammverzeichnisses, um ein Überschreiben von Dateien von einem anderen Server zu vermeiden.</li>
+<li><strong>Fehlende Dateien löschen</strong> fügt <code>--delete</code> hinzu; es ist standardmäßig deaktiviert.</li>
+<li>Bei Downloads von mehreren Gruppenzielen schreibt KorTTY jedes Ziel in sein eigenes Unterverzeichnis unterhalb des lokalen Zielstammverzeichnisses, um ein Überschreiben von Dateien von einem anderen Server zu vermeiden.</li>
 </ul>
 <p>KorTTY erstellt die Rsync-Ausführung als <code>ProcessBuilder</code>-Argumentliste, anstatt den Befehl per Shell zu verketten. Der Befehl verwendet <code>-a --itemize-changes</code>; <code>--delete</code> wird nur hinzugefügt, wenn das Job-Kontrollkästchen aktiviert ist.</p>
 <h3 id="rsync-voraussetzungen">Rsync-Voraussetzungen<a class="headerlink" href="#rsync-voraussetzungen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>rsync</code> wird von <code>PATH</code> übernommen, es sei denn, unter <strong>Einstellungen &gt; SFTP &gt; JobScheduler Rsync</strong> ist ein expliziter Binärpfad konfiguriert.</li>
-<li><code>ssh</code> muss in <code>PATH</code> verfügbar sein.
-– Das Anheften des Hostschlüssels ist erforderlich, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
-– Für die Authentifizierung mit Passwörtern und privatem Schlüssel wird ein temporärer <code>SSH_ASKPASS</code>-Helfer verwendet, der nur dem Besitzer vorbehalten ist. Secrets, Hilfspfade und temporäre Secret-Dateipfade werden vor dem Journaling geschwärzt.</li>
+<li><code>ssh</code> muss in <code>PATH</code> verfügbar sein.</li>
+<li>Das Fixieren des Hostschlüssels ist erforderlich, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
+Die Authentifizierung mit - Passwörtern und Passphrasen mit privatem Schlüssel verwendet einen temporären <code>SSH_ASKPASS</code>-Helfer, der nur dem Besitzer vorbehalten ist. Secrets, Hilfspfade und temporäre Secret-Dateipfade werden vor dem Journaling geschwärzt.</li>
 </ul>
 <h2 id="registerkarte-journal">Registerkarte „Journal“.<a class="headerlink" href="#registerkarte-journal" title="Permanent link">&para;</a></h2>
 <p>Auf der Registerkarte <strong>Journal</strong> werden Jobausführungen mit lokalen KorTTY-Zeitstempeln, Status, Jobnamen und Zusammenfassung aufgeführt. Die Spalten <strong>Gestartet</strong>, <strong>Status</strong>, <strong>Auftrag</strong> und <strong>Zusammenfassung</strong> sind sortierbar; In der Standardreihenfolge werden die neuesten gestarteten Einträge zuerst angezeigt.</p>
@@ -2466,20 +2496,22 @@
 <li>KorTTY wird automatisch beendet, nachdem der Entleerungsvorgang abgeschlossen ist.</li>
 </ul>
 <h2 id="sicherheit-und-geheimnisse">Sicherheit und Geheimnisse<a class="headerlink" href="#sicherheit-und-geheimnisse" title="Permanent link">&para;</a></h2>
-<p>– Hostschlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.
-- Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.
-- SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.
-– KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
-– Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.</p>
+<ul>
+<li>Host-Schlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.</li>
+<li>Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.</li>
+<li>SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.</li>
+<li>KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.</li>
+<li>Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.</li>
+</ul>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>JobScheduler-Job ist blockiert:</strong> Öffnen Sie <strong>Extras &gt; JobScheduler... &gt; Journal</strong> und überprüfen Sie den Detailtext des ausgewählten Eintrags. Häufige Ursachen sind:
 - Gesperrtes Master-Passwort
 - Fehlender Hostschlüssel-Pin
 - Nicht unterstütztes Mosh-Ziel
 - <code>rsync</code> oder <code>ssh</code> fehlt im PATH
-– Alter Host-Key-Pin ohne OpenSSH-Public-Key-Material für Rsync</p>
+- Alte Hostschlüssel-PIN ohne OpenSSH-Public-Key-Material für Rsync</p>
 <p><strong>JobScheduler Rsync kann nicht gestartet werden:</strong> Überprüfen Sie die lokalen Werte <code>rsync --version</code> und <code>ssh -V</code> oder konfigurieren Sie den Rsync-Binärpfad unter <strong>Einstellungen &gt; SFTP &gt; JobScheduler Rsync</strong>.</p>
 <p><strong>JobScheduler-Remotebrowser kann nicht geöffnet werden:</strong> Wählen Sie genau ein Ziel aus und bestätigen Sie zuerst den Hostschlüssel, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.</p>
 </div>

@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2618,8 +2648,8 @@
 <li>KorTTY startet einen Hintergrundsynchronisierungsthread.</li>
 <li>Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:</li>
 <li>Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).</li>
-<li>Lädt die XML-Verbindungen.
-   – Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.</li>
+<li>Lädt die XML-Verbindungen.</li>
+<li>Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.</li>
 <li>Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.</li>
 </ol>
 <h3 id="manuelle-synchronisierung">Manuelle Synchronisierung<a class="headerlink" href="#manuelle-synchronisierung" title="Permanent link">&para;</a></h3>
@@ -2645,10 +2675,12 @@
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">&lt;/connection&gt;</span>
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="nt">&lt;/connections&gt;</span>
 </span></code></pre></div>
-<p>!!! Warnung „Keine Inline-Geheimnisse einbeziehen“
-    Teamwork-Verbindungen dürfen <strong>nicht</strong> <code>encryptedPassword</code>, <code>privateKeyPath</code> oder <code>privateKeyPassphrase</code> enthalten. Stattdessen:
-    - Verwenden Sie <code>credentialId</code>, um auf gespeicherte Anmeldeinformationen in <strong>Sicherheit → Anmeldeinformationen…</strong> zu verweisen.
-    - Verwenden Sie <code>sshKeyId</code>, um auf einen gespeicherten SSH-Schlüssel in <strong>Sicherheit → SSH-Schlüssel…</strong> zu verweisen.</p>
+<div class="admonition warning">
+<p class="admonition-title">Inline-Geheimnisse nicht einbeziehen</p>
+<p>Teamwork-Verbindungen dürfen <strong>nicht</strong> <code>encryptedPassword</code>, <code>privateKeyPath</code> oder <code>privateKeyPassphrase</code> enthalten. Stattdessen:
+- Verwenden Sie <code>credentialId</code>, um auf gespeicherte Anmeldeinformationen in <strong>Sicherheit → Anmeldeinformationen…</strong> zu verweisen.
+- Verwenden Sie <code>sshKeyId</code>, um auf einen gespeicherten SSH-Schlüssel in <strong>Sicherheit → SSH-Schlüssel…</strong> zu verweisen.</p>
+</div>
 <p>Wenn in der freigegebenen Datei Inline-Geheimnisse gefunden werden, entfernt KorTTY diese automatisch (sie werden nicht geladen).</p>
 <h2 id="teamwork-verbindungen-nutzen">Teamwork-Verbindungen nutzen<a class="headerlink" href="#teamwork-verbindungen-nutzen" title="Permanent link">&para;</a></h2>
 <p>Sobald eine Quelle synchronisiert ist:</p>
@@ -2659,9 +2691,11 @@
 <li><strong>Kann nicht direkt bearbeitet werden</strong> – Teamwork-Verbindungen sind schreibgeschützt, es sei denn, ihre Quelle ist als beschreibbar markiert und Sie besitzen Bearbeitungsrechte (bestimmt durch <code>teamworkRole</code>).</li>
 </ol>
 <h3 id="lokale-uberschreibungen">Lokale Überschreibungen<a class="headerlink" href="#lokale-uberschreibungen" title="Permanent link">&para;</a></h3>
-<p>– Die zusammengeführten Anmeldeinformationen und SSH-Schlüsselreferenzen werden aus Ihrem lokalen Speicher aufgelöst.
-- Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.
-– Ihre lokale Kopie einer Teamwork-Verbindung kann die Authentifizierung außer Kraft setzen, indem Sie andere Anmeldeinformationen oder Schlüssel zuweisen.</p>
+<ul>
+<li>Die zusammengeführten Anmeldeinformationen und SSH-Schlüsselreferenzen werden aus Ihrem lokalen Speicher aufgelöst.</li>
+<li>Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.</li>
+<li>Ihre lokale Kopie einer Teamwork-Verbindung kann die Authentifizierung außer Kraft setzen, indem sie andere Anmeldeinformationen oder Schlüssel zuweist.</li>
+</ul>
 <h3 id="quellen-unterscheiden">Quellen unterscheiden<a class="headerlink" href="#quellen-unterscheiden" title="Permanent link">&para;</a></h3>
 <p>Im Connection Manager werden Teamwork-Verbindungen anhand ihrer Quell-ID gekennzeichnet. Bewegen Sie den Mauszeiger über die Verbindungseigenschaften oder überprüfen Sie sie, um zu sehen, von welcher Teamwork-Quelle sie stammt.</p>
 <h2 id="git-repository-setup">Git-Repository-Setup<a class="headerlink" href="#git-repository-setup" title="Permanent link">&para;</a></h2>
@@ -2720,14 +2754,22 @@
 </tbody>
 </table>
 <h2 id="sicherheitsuberlegungen">Sicherheitsüberlegungen<a class="headerlink" href="#sicherheitsuberlegungen" title="Permanent link">&para;</a></h2>
-<p>!!! Warnung „Anmeldeinformationen sind nur lokal“
-    Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.</p>
-<p>!!! Warnung „Git-Repositorys sollten keine Geheimnisse speichern“
-    Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.</p>
-<p>!!! Warnung „Dateiberechtigungen“
-    Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.</p>
-<p>!!! Tipp „Audit Trail“
-    Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.</p>
+<div class="admonition warning">
+<p class="admonition-title">Anmeldeinformationen sind nur lokal</p>
+<p>Gemeinsame Verbindungen übertragen keine Passwörter oder Schlüsselpassphrasen. Ihr lokaler verschlüsselter Speicher (Master-Passwort geschützt) enthält die tatsächlichen Geheimnisse. Teammitglieder müssen ihre eigenen Anmeldeinformationen lokal eingerichtet haben.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Git-Repositorys sollten keine Geheimnisse speichern</p>
+<p>Übergeben Sie niemals Passwörter, SSH-Schlüsselinhalte oder API-Tokens an das Teamwork-Repository. Verwenden Sie nur Anmeldeinformations-IDs und Schlüsselreferenzen.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Dateiberechtigungen</p>
+<p>Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Prüfpfad</p>
+<p>Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.</p>
+</div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <h3 id="quelle-wird-nicht-synchronisiert">Quelle wird nicht synchronisiert<a class="headerlink" href="#quelle-wird-nicht-synchronisiert" title="Permanent link">&para;</a></h3>
 <ol>

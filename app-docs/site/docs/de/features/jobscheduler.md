@@ -45,7 +45,7 @@ Verwenden Sie die Registerkarte **Job**, um zu definieren, wo und wann ein Job a
 
 Zeitplanberechnungen verwenden die Zeitzone des lokalen Systems. Wenn keine feste Zeit und kein Intervall konfiguriert sind, ist der nächste Lauf der Fensterstart an einem erlaubten Datum.
 
-!!! Notiz
+!!! note
     Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.
 
 ### Hostschlüssel, Sudo und Geheimnisse
@@ -59,7 +59,7 @@ Sudo-Passwörter können für einen Server oder für eine Servergruppe gespeiche
 - Zuerst werden serverspezifische Sudo-Passwörter verwendet.
 - Gruppen-Sudo-Passwörter werden als Fallback verwendet.
 - Gespeicherte Sudo-Passwörter werden mit dem Master-Passwort verschlüsselt.
-– Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und protokolliert.
+- Wenn das Hauptkennwort gesperrt ist und ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert und protokolliert.
 
 Bei Rsync-Jobs bedeutet **Sudo verwenden** passwortloses Remote-Sudo nur über `sudo -n rsync`. Gespeicherte Sudo-Passwörter werden von der aktuellen Rsync-Integration nicht verwendet.
 
@@ -104,7 +104,7 @@ Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Lauferge
 
 Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** in der Registerkarte [AI Swarm](ai-swarm.md#scheduling-swarm-runs-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
 
-!!! Warnung
+!!! warning
     Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
 
 #### SFTP-Archivjobs
@@ -121,7 +121,7 @@ Wenn **Sudo-Staging für SFTP-Pfade verwenden** aktiviert ist, stellt KorTTY Dat
 - **Download**: Remote-Quellverzeichnisse werden unter dem lokalen Zielstamm synchronisiert.
 - **Mehrere Quellen** werden unterstützt.
 - **Fehlende Dateien löschen** fügt `--delete` hinzu; es ist standardmäßig deaktiviert.
-– Bei Downloads von mehreren Gruppenzielen schreibt KorTTY jedes Ziel in sein eigenes Unterverzeichnis unterhalb des lokalen Zielstammverzeichnisses, um ein Überschreiben von Dateien von einem anderen Server zu vermeiden.
+- Bei Downloads von mehreren Gruppenzielen schreibt KorTTY jedes Ziel in sein eigenes Unterverzeichnis unterhalb des lokalen Zielstammverzeichnisses, um ein Überschreiben von Dateien von einem anderen Server zu vermeiden.
 
 KorTTY erstellt die Rsync-Ausführung als `ProcessBuilder`-Argumentliste, anstatt den Befehl per Shell zu verketten. Der Befehl verwendet `-a --itemize-changes`; `--delete` wird nur hinzugefügt, wenn das Job-Kontrollkästchen aktiviert ist.
 
@@ -129,8 +129,8 @@ KorTTY erstellt die Rsync-Ausführung als `ProcessBuilder`-Argumentliste, anstat
 
 - `rsync` wird von `PATH` übernommen, es sei denn, unter **Einstellungen > SFTP > JobScheduler Rsync** ist ein expliziter Binärpfad konfiguriert.
 - `ssh` muss in `PATH` verfügbar sein.
-– Das Anheften des Hostschlüssels ist erforderlich, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
-– Für die Authentifizierung mit Passwörtern und privatem Schlüssel wird ein temporärer `SSH_ASKPASS`-Helfer verwendet, der nur dem Besitzer vorbehalten ist. Secrets, Hilfspfade und temporäre Secret-Dateipfade werden vor dem Journaling geschwärzt.
+- Das Fixieren des Hostschlüssels ist erforderlich, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
+Die Authentifizierung mit - Passwörtern und Passphrasen mit privatem Schlüssel verwendet einen temporären `SSH_ASKPASS`-Helfer, der nur dem Besitzer vorbehalten ist. Secrets, Hilfspfade und temporäre Secret-Dateipfade werden vor dem Journaling geschwärzt.
 
 ## Registerkarte „Journal“.
 
@@ -167,21 +167,21 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
 
 ## Sicherheit und Geheimnisse
 
-– Hostschlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.
+- Host-Schlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.
 - Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.
 - SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.
-– KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
-– Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.
+- KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
+- Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.
 
 ## Fehlerbehebung
 
-!!! Warnung
+!!! warning
     **JobScheduler-Job ist blockiert:** Öffnen Sie **Extras > JobScheduler... > Journal** und überprüfen Sie den Detailtext des ausgewählten Eintrags. Häufige Ursachen sind:
     - Gesperrtes Master-Passwort
     - Fehlender Hostschlüssel-Pin
     - Nicht unterstütztes Mosh-Ziel
     - `rsync` oder `ssh` fehlt im PATH
-    – Alter Host-Key-Pin ohne OpenSSH-Public-Key-Material für Rsync
+    - Alte Hostschlüssel-PIN ohne OpenSSH-Public-Key-Material für Rsync
 
     **JobScheduler Rsync kann nicht gestartet werden:** Überprüfen Sie die lokalen Werte `rsync --version` und `ssh -V` oder konfigurieren Sie den Rsync-Binärpfad unter **Einstellungen > SFTP > JobScheduler Rsync**.
 

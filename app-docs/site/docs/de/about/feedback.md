@@ -18,7 +18,7 @@ korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>.
 3. **Öffnen Sie das Issue** bei <https://github.com/chardonnay/korTTY/issues/new>: Verwenden Sie einen kurzen, spezifischen Titel (z. B. *„SFTP-Tab friert ein, wenn eine Datei unter Windows 11 umbenannt wird“*), fügen Sie die gesammelten Fakten in die Beschreibung ein und senden Sie sie ab.
 4. **Erreichbar bleiben** – Folgefragen zu diesem Thema sind häufig; Aktivieren Sie GitHub-Benachrichtigungen dafür.
 
-!!! Warnung „Datensicherheit“
+!!! warning "Datensicherheit"
     Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
 
 ## Schlagen Sie eine Funktion oder Idee vor

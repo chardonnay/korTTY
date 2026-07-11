@@ -50,7 +50,7 @@ Externe Plugins werden jeweils aus einem JAR geladen, wobei der Anwendungsklasse
 
 ![Terminal effect plugin flow](../assets/diagrams/terminal-effect-plugin-flow.svg)
 
-!!! Warnung
+!!! warning
     Terminal-Effekt-Plugins sind vertrauenswürdiger lokaler Java-Code. KorTTY führt keine Sandbox für importierte JARs durch. Ein Plugin wird innerhalb der KorTTY-JVM mit denselben lokalen Prozessberechtigungen wie KorTTY selbst ausgeführt. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
 
 ## Plugin-Verwaltung in der Benutzeroberfläche
@@ -96,7 +96,7 @@ public interface TerminalEffectPlugin {
 Regeln:
 
 - `id()` muss stabil sein, da die Verbindungseinstellungen und der Status des deaktivierten Plugins bestehen bleiben
-– Gültige IDs stimmen mit dem regulären Ausdruck `[a-z0-9][a-z0-9._-]{0,63}` überein
+- Gültige IDs stimmen mit dem regulären Ausdruck `[a-z0-9][a-z0-9._-]{0,63}` überein
 - `displayName()` darf nicht leer sein
 - `description()` wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein
 - Die Provider-Klasse muss von `ServiceLoader` ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente
@@ -124,7 +124,7 @@ Verantwortlichkeiten:
 
 - Weisen Sie UI-Ressourcen in `start()` zu
 - Dekorieren Sie Anschlüsse in `wrapConnector(...)`, wenn eine Ausgabesteuerung oder -filterung erforderlich ist
-– Entfernen Sie Listener, stoppen Sie Zeitleisten, lösen Sie die Bindung von Eigenschaften und geben Sie Referenzen in `stop()` frei
+- Entfernen Sie Listener, stoppen Sie Zeitleisten, lösen Sie die Bindung von Eigenschaften und veröffentlichen Sie Referenzen in `stop()`
 
 `stop()` muss idempotent sein. Es kann aufgerufen werden, wenn ein Benutzer den Effekt deaktiviert, Effekte wechselt, einen Tab schließt oder Plugins neu lädt.
 
@@ -267,7 +267,7 @@ Dieses Repository definiert derzeit kein separat veröffentlichtes Terminaleffek
 Für die Entwicklung innerhalb dieses Repositorys verwenden Sie das MOTHER-Source-Set-Muster in `build.gradle.kts`:
 
 - Fügen Sie Plugin-Quellen einem separaten Quellsatz hinzu
-– Fügen Sie `sourceSets.main.output.classesDirs` und `configurations.compileClasspath` in den Kompilierungsklassenpfad dieses Quellsatzes ein
+- Fügen Sie `sourceSets.main.output.classesDirs` und `configurations.compileClasspath` in den Kompilierungsklassenpfad dieses Quellsatzes ein
 - Packen Sie nur die Plugin-Quellsatzausgabe in eine Plugin-JAR
 - Fügen Sie den ServiceLoader-Deskriptor in die Plugin-JAR ein
 
@@ -331,7 +331,7 @@ Die Animationsgeschwindigkeit ist eine gemeinsame Benutzereinstellung für Termi
 - Minimum: `1x`
 - Slider-Maximum: `10x`
 - Numerisches Maximum: `99x`
-– Ungültige, nicht endliche oder nicht positive Werte werden auf `1x` normalisiert
+- Ungültige, nicht endliche oder nicht positive Werte werden auf `1x` normalisiert
 
 Verwenden Sie `context.animationSpeed()`, wenn Sie das Effekt-Timing berechnen. Die von MOTHER verwendete Konvention lautet:
 
@@ -351,7 +351,7 @@ Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speiche
 
 **Exporte:**
 
-– Ein Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
+Das - A-Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
 - Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach `~/.kortty/bundled-plugins/terminal-effects` kopiert
 - Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte `kortty-terminal-effect-pack.jar` exportiert, da das JAR die Exporteinheit ist
 - Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden
@@ -360,7 +360,7 @@ Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speiche
 
 - Deaktivierte Plugin-IDs werden in `~/.kortty/terminal-effect-plugins.disabled` gespeichert
 - Gespeicherte Verbindungen und wiederhergestellte Sitzungen speichern die ausgewählte Terminal-Effekt-Plugin-ID und die Animationsgeschwindigkeit
-– Wenn eine gespeicherte Plugin-ID nicht verfügbar oder deaktiviert ist, kann KorTTY sie nicht aktivieren und protokolliert das Problem
+- Wenn eine gespeicherte Plugin-ID nicht verfügbar oder deaktiviert ist, kann KorTTY sie nicht aktivieren und protokolliert das Problem
 
 ## Kompatibilitäts- und Sicherheitscheckliste
 
@@ -368,14 +368,14 @@ Vor dem Versand einer Plugin-JAR:
 
 - Verwenden Sie eine stabile Plugin-ID in Kleinbuchstaben, die zu `[a-z0-9][a-z0-9._-]{0,63}` passt
 - Halten Sie `displayName()` und `description()` nicht leer und für den Benutzer lesbar
-– Fügen Sie für jede Anbieterklasse genau einen ServiceLoader-Deskriptor hinzu
-– Behalten Sie JavaFX-Mutationen im JavaFX-Anwendungsthread bei
+- Fügen Sie für jede Anbieterklasse genau einen ServiceLoader-Deskriptor ein
+- JavaFX-Mutationen im JavaFX-Anwendungsthread beibehalten
 - Sorgen Sie dafür, dass `stop()` mehrmals aufgerufen werden kann
-– Entfernen Sie Listener, Zeitleisten, Bindungen und Overlay-Knoten in `stop()`
+- Entfernen Sie Listener, Zeitleisten, Bindungen und Overlay-Knoten in `stop()`
 - Vermeiden Sie das Blockieren des JavaFX-Anwendungsthreads
-– Vermeiden Sie das Erzeugen nicht verwalteter Threads mit langer Laufzeit
+- Vermeiden Sie das Erzeugen nicht verwalteter Threads mit langer Laufzeit
 - Halten Sie die Connector-Wrapper transparent und implementieren Sie `TerminalEffectConnectorWrapper`
-– Vermeiden Sie die Protokollierung von Geheimnissen oder rohen Terminalausgaben, es sei denn, der Benutzer hat dieses Verhalten ausdrücklich gewählt
+- Vermeiden Sie die Protokollierung von Geheimnissen oder rohen Terminalausgaben, es sei denn, der Benutzer hat dieses Verhalten ausdrücklich gewählt
 - Testen Sie mit schneller Ausgabe, großer Ausgabe, ANSI-Farbausgabe, geteilten Terminals, erneuter Verbindung, Deaktivierung/Aktivierung des Plugins und Herunterfahren der Anwendung
 
 ## Manuelle Validierung

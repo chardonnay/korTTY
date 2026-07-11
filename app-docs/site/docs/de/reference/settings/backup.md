@@ -16,8 +16,8 @@ Konfigurieren Sie die Sicherungsaufbewahrungsrichtlinie und die Verschlüsselung
 | GPG-Verschlüsselung | umschalten | — | Aus | `backupEncryptionType` |
 | GPG-Schlüssel | Dropdown | Verfügbare GPG-Schlüssel | — | `backupGpgKeyId` |
 
-!!! Warnung
+!!! warning
     Backups werden IMMER verschlüsselt. Beide Verschlüsselungsmodi (ZIP mit Passwort und GPG) sind obligatorisch – mindestens einer muss konfiguriert werden, bevor Backups durchgeführt werden können.
 
-!!! Notiz
+!!! note
     **Maximale Backups:** Auf `0` eingestellt, um Backups auf unbestimmte Zeit aufzubewahren; Jeder andere Wert (1–100) löscht automatisch die ältesten Backups, sobald das Limit erreicht ist. Wenn Sie eine passwortbasierte Verschlüsselung verwenden, wählen Sie eine Anmeldeinformation aus dem Verwaltungssystem aus. Wählen Sie bei Verwendung der GPG-Verschlüsselung einen verfügbaren GPG-Schlüssel aus. Der Verschlüsselungstyp wird in den globalen Einstellungen gespeichert und bestimmt, welche Anmeldeinformationen oder Schlüssel-ID für zukünftige Sicherungen verwendet werden.

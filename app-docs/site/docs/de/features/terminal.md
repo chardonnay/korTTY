@@ -74,7 +74,7 @@ Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen
 - **Geteilter Bereich**: Erstellen Sie über das Kontextmenü oder Tastaturkürzel horizontale oder vertikale Teilungen innerhalb einer Registerkarte.
 - **Unabhängige Sitzungen**: In jedem Bereich kann eine andere SSH-Verbindung angezeigt werden.
 - **Anpassbare Fensterbereiche**: Ziehen Sie die Trennlinien, um die Fenstergrößen anzupassen.
-- **Fenster verschieben**: Halten Sie ++Umschalt+alt++ (Windows/Linux) or ++Umschalt+Option++ (macOS) gedrückt und ziehen Sie einen Bereich auf einen anderen, um ihn neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.
+- **Fenster verschieben**: Halten Sie ++Umschalt+Alt++ (Windows/Linux) or ++Umschalt+Option++ (macOS) gedrückt und ziehen Sie einen Bereich auf einen anderen, um ihn neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.
 
 ### Broadcast-Modus
 
@@ -94,12 +94,12 @@ Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation än
 ### Plugin-Verwaltung
 
 - Öffnen Sie **Plugins > Terminaleffekte**, um Plugins zu verwalten.
-– Die Tabelle listet geladene Plugins mit aktivem Status, Namen und Beschreibung auf.
+- Die Tabelle listet geladene Plugins mit aktivem Status, Namen und Beschreibung auf.
 - **Deaktivieren** Sie ein Plugin, damit es installiert bleibt, aber nicht zur Aktivierung verfügbar ist.
 - **Import** externer `.jar`-Plugins. KorTTY kopiert sie in `~/.kortty/plugins`.
 - Plugins **Exportieren**, die über eine Quell-JAR verfügen. Der gebündelte MOTHER-Effekt ist exportierbar.
 
-!!! Warnung
+!!! warning
     Importierte Terminaleffekt-Plugins sind vertrauenswürdiger Java-Code und werden nicht in einer Sandbox gespeichert. Importieren Sie Plugins nur aus Quellen, denen Sie vertrauen.
 
 Eine ausführliche Dokumentation zur Plugin-Entwicklung finden Sie unter [Terminal Effect Plugins](terminal-effect-plugins.md).
@@ -112,7 +112,7 @@ Verhindern Sie, dass Verbindungen aufgrund von Inaktivität unterbrochen werden,
 2. Stellen Sie das Intervall ein (5 bis 600 Sekunden, Standard: 60).
 3. KorTTY sendet `SSH_MSG_IGNORE`-Heartbeat-Nachrichten im konfigurierten Intervall und aktiviert TCP-Socket-Keepalive, während die Option aktiv ist.
 
-!!! Notiz
+!!! note
     Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.
 
 ## Terminalprotokollierung
@@ -158,7 +158,7 @@ Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipie
 4. Klicken Sie auf **Exportieren...**.
 5. In den Exportoptionen:
    - Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie Start-/Endzeiten im Minuten- oder `MM:SS`-Format ein.
-   – Wählen Sie, ob Terminalfarben einbezogen werden sollen (nur verfügbar, wenn die Wiedergabe Farbdaten enthält).
+   - Wählen Sie, ob Terminalfarben einbezogen werden sollen (nur verfügbar, wenn die Wiedergabe Farbdaten enthält).
    - Wählen Sie das Format **WebM/VP9** oder **MKV/FFV1** und dann einen Ausgabepfad.
 6. Während KorTTY Frames rendert und `ffmpeg` ausführt, zeigt der Exportfortschrittsdialog die aktuelle Phase, den Fortschrittsbalken und die geschätzte verbleibende Zeit an. Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, sodass große Terminalbildschirme nicht beschnitten werden.
 

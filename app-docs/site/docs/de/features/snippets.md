@@ -17,7 +17,7 @@ Der Snippet Manager umfasst die folgenden Funktionen:
 ## Öffnen des Snippet-Managers
 
 - **Menü:** Extras → Snippet-Manager
-- **Verknüpfung:** ++Strg+Umschalt+s++ (++cmd+Umschalt+s++ unter macOS)
+- **Verknüpfung:** ++Strg+Umschalt+s++ (++cmd+Umschalt+S++ unter macOS)
 
 ## Snippets erstellen und bearbeiten
 
@@ -126,7 +126,7 @@ Das Editor-Kontextmenü bietet außerdem **AI Assistant…**, der einen Anweisun
 
 Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wählen Sie zuerst eine Coderegion aus** – andernfalls fordert KorTTY Sie dazu auf. Die Umschreibung wird immer als Vorher-/Nachher-Vorschau (das Fenster *AI-Änderung überprüfen*) angezeigt, bevor etwas angewendet wird.
 
-!!! Warnung
+!!! warning
     Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil (oder, für die Sicherheitsprüfung, das dedizierte Sicherheitsprüfungsprofil). Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.
 
 #### Vollständige Code-Analyse
@@ -290,11 +290,11 @@ Der Snippet Manager kann ein ausgewähltes Snippet direkt an das aktive Terminal
 
 - Behält bestehendes Verhalten bei
 - Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet
-– Andere Snippets verwenden den vorhandenen Fallback-Pfad
+- Andere Snippets verwenden den vorhandenen Fallback-Pfad
 
 ### Mit Parametern an Terminal senden
 
-– Öffnet einen Dialog für fehlende `${...}`-Platzhaltervariablen und Skriptargumente
+- Öffnet einen Dialog für fehlende `${...}`-Platzhaltervariablen und Skriptargumente
 - Skriptargumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
 - Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei **An Terminal senden**, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden
 
@@ -303,7 +303,7 @@ Der Snippet Manager kann ein ausgewähltes Snippet direkt an das aktive Terminal
 Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:
 
 - Argumente werden einzeln und in Shell-Anführungszeichen übergeben
-– Nicht als roher Shell-Text angehängt
+- Nicht als roher Shell-Text angehängt
 - Wenn Argumente für nicht unterstützte Sprachen eingegeben werden, zeigt KorTTY eine Informationsmeldung an und sendet nichts
 
 ### Terminalanzeige
@@ -330,9 +330,9 @@ Wählen Sie für skriptspezifische Exporte Folgendes:
 
 #### Nur-Text-Skriptdateien
 
-– Öffnet eine Zielordnerauswahl
+- Öffnet eine Zielordnerauswahl
 - Schreibt eine Datei pro Snippet
-– Der Dateiname stammt aus der Spalte **Name** des Snippets, einschließlich der Erweiterung
+- Filename stammt aus der Spalte **Name** des Snippets, einschließlich der Erweiterung
 - Unsichere Pfadzeichen werden bereinigt
 - Doppelte Namen erhalten ein Suffix wie `script (2).sh`
 
@@ -348,5 +348,5 @@ Wählen Sie für skriptspezifische Exporte Folgendes:
 - **AES passwortgeschützt** – Passwortverschlüsselt mit AES-256
 - **GPG-verschlüsselt** – Erstellt eine `.zip.gpg`-Datei; erfordert den lokalen Befehl `gpg` und einen verwendbaren öffentlichen Schlüssel
 
-!!! Tipp
+!!! tip
     Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte **Name** verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung `.txt` und überprüfen Sie, ob alle ZIP-Einträge `.txt` verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. Für den GPG-Export entschlüsseln Sie `.zip.gpg` mit Ihrem lokalen GPG-Setup und überprüfen Sie die ZIP-Einträge.

@@ -102,7 +102,7 @@ Der Dialog beinhaltet:
 - **In Snippets speichern** – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.
 - **Härtungsoptionen** – dieselben pro Skript [Härtungsoptionen](../reference/hardening-options.md) wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, `--help` und mehr), angewendet auf das generierte Skript. Diese unterscheiden sich von den oben genannten Multiserver-Optionen.
 
-##Tab-Aktivitätsanzeige
+## Tab-Aktivitätsanzeige
 
 Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt von jeder anderen Registerkarte aus verfolgen können:
 
@@ -129,7 +129,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 
 Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des AI Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
 
-!!! Tipp „Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen“
+!!! tip "Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen"
     Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.
 
 Typische Kombinationen von Schwarm + Scheduler:
@@ -138,5 +138,5 @@ Typische Kombinationen von Schwarm + Scheduler:
 - **Erkennung von Konfigurationsdrifts** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
 - **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 
-!!! Warnung „Unbeaufsichtigte Änderungen“
+!!! warning "Unbeaufsichtigte Änderungen"
     Ein geplanter Schwarm mit **Schreibgeschützt aus** und **Auto-Genehmigung ein** ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.

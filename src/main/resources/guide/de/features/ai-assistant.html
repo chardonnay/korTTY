@@ -100,7 +100,7 @@
   <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
     <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -214,7 +214,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
       
-  <img src="../assets/images/kortty-logo.png" alt="logo">
+  <img src="../assets/images/favicon.png" alt="logo">
 
     </a>
     korTTY Anleitung
@@ -257,6 +257,8 @@
   
     
     
+      
+        
       
         
       
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2606,8 +2636,10 @@
 <h1 id="ki-assistent">KI-Assistent<a class="headerlink" href="#ki-assistent" title="Permanent link">&para;</a></h1>
 <p>KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.</p>
 <p><img alt="AI request/integration flow" src="../assets/diagrams/ai-api-integration.svg" /></p>
-<p>!!! Warnung „Datensicherheit“
-    Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
+<div class="admonition warning">
+<p class="admonition-title">Datensicherheit</p>
+<p>Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
+</div>
 <h2 id="aufstellen">Aufstellen<a class="headerlink" href="#aufstellen" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
@@ -2811,12 +2843,16 @@
 <p>Und zeigen Sie die Mathematik im Antworttext als gesetzte Formel an:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$$a^2 + b^2 = c^2$$
 </span></code></pre></div>
-<p>!!! Hinweis „Darstellungsdetails und Anforderungen“
-    * Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
-    * Mermaid läuft mit der Sicherheitsstufe <code>strict</code> aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
-    * Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: <code>java</code> und Graphviz <code>dot</code> müssen sich auf <code>PATH</code> befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
-    * Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
-    * Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.</p>
+<div class="admonition note">
+<p class="admonition-title">Rendering-Details und Anforderungen</p>
+<ul>
+<li>Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.</li>
+<li>Mermaid läuft mit der Sicherheitsstufe <code>strict</code> aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.</li>
+<li>Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: <code>java</code> und Graphviz <code>dot</code> müssen sich auf <code>PATH</code> befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).</li>
+<li>Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.</li>
+<li>Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.</li>
+</ul>
+</div>
 <h2 id="ki-manager">KI-Manager<a class="headerlink" href="#ki-manager" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>Tools &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
 <p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
@@ -2840,12 +2876,16 @@
 <li>Ein konfiguriertes AI-Profil (siehe <a href="#setup">Setup</a>); Es wird das Standardprofil verwendet.</li>
 <li>Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.</li>
 </ul>
-<p>!!! Warnung „Datensicherheit“
-    Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong>. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.</p>
+<div class="admonition warning">
+<p class="admonition-title">Datensicherheit</p>
+<p>Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong>. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.</p>
+</div>
 <h2 id="ki-agent-und-ki-planung">KI-Agent und KI-Planung<a class="headerlink" href="#ki-agent-und-ki-planung" title="Permanent link">&para;</a></h2>
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
-<p>!!! Hinweis „SSH und lokale Shells“
-    Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. <strong>Einschränkungen der lokalen Shell:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+<div class="admonition note">
+<p class="admonition-title">SSH und lokale Shells</p>
+<p>Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. <strong>Einschränkungen der lokalen Shell:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+</div>
 <h3 id="starten-des-agenten">Starten des Agenten<a class="headerlink" href="#starten-des-agenten" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI Agent</strong> – Starten Sie über <strong>Tools &gt; AI Agent...</strong>, über das Kontextmenü des Terminals oder mit dem Terminal-Verknüpfungsbefehl. Der Agent kann je nach <strong>Einstellungen &gt; AI</strong> einen speziellen Chat-Tab öffnen oder auf das aktive Terminalfenster zielen.</li>
@@ -2885,7 +2925,7 @@
 <li>Geben Sie den Befehl plus ein Leerzeichen ein (z. B. <code>agent</code>) und drücken Sie dann ++TAB++, um den aktuellen Verlauf der Agentenaufforderungen anzuzeigen. In jeder Zeile werden die Eingabeaufforderung und das Datum/die Uhrzeit der letzten Ausführung angezeigt, dedupliziert durch den Eingabeaufforderungstext (neuester zuerst).</li>
 <li>In jeder Verlaufszeile wird links die Eingabeaufforderung und rechts das Datum/die Uhrzeit der letzten Ausführung angezeigt. Eingabeaufforderungen mit mehr als 60 Zeichen werden durch Auslassungspunkte gekürzt. Die vollständige Eingabeaufforderung wird weiterhin eingefügt, wenn der Eintrag ausgewählt wird.</li>
 <li>Die Größe des Verlaufs-Popups lässt sich ändern – ziehen Sie den Griff in der unteren rechten Ecke – und merkt sich seine Größe bei jedem Neustart. Wenn der Verlauf länger als das Popup ist, wird eine vertikale Bildlaufleiste angezeigt.</li>
-<li>Entfernen Sie im Verlaufs-Popup eine einzelne Eingabeaufforderung, indem Sie auf die Schaltfläche ✕ der Zeile klicken (oder auf Tastaturen mit Vorwärts-Löschen-Taste ++Del++ drücken), oder entfernen Sie den gesamten Verlauf mit <strong>Alle löschen</strong> (eine zweistufige Bestätigung schützt vor versehentlichem Löschen). Löschungen werden sofort gespeichert.</li>
+<li>Entfernen Sie im Verlaufs-Popup eine einzelne Eingabeaufforderung, indem Sie auf die Schaltfläche ✕ der Zeile klicken (oder ++Del++ auf Tastaturen mit Vorwärts-Löschen-Taste drücken), oder entfernen Sie den gesamten Verlauf mit <strong>Alle löschen</strong> (eine zweistufige Bestätigung schützt vor versehentlichem Löschen). Löschungen werden sofort gespeichert.</li>
 <li>Außerhalb dieses Kontexts ist ++TAB++ eine normale Shell-Vervollständigung.</li>
 </ul>
 <p>Die Verlaufsgröße kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden (Standard 20, Bereich 5–100).</p>
@@ -2995,7 +3035,7 @@
 <li>Befehle, die das System ändern oder Berechtigungen erfordern, können je nach Einstellungen und Modellentscheidung durch Bestätigung weitergeleitet werden.</li>
 <li>Sudo verwendet <code>sudo -n</code> und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine <code>sudo -S</code>, <code>su</code> oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.</li>
 <li>Das aktuelle Remote-Verzeichnis wird anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein nachverfolgtes Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut aus dem SSH-Standardverzeichnis und meldet das Problem.</li>
-<li>Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist normales Tippen weiterhin zulässig; Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.</li>
+<li>Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.</li>
 <li>Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.</li>
 <li>Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>
@@ -3017,8 +3057,10 @@
 <p><strong>Zielsprachen:</strong> Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>-Lead-Zeile, <code>REM</code>-Header-Kommentare, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>-Verarbeitung).</p>
 <p>Jeder Editor für generierte Skripte verfügt über die Schaltflächen <strong>A−</strong> / <strong>A+</strong> und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS), um die Schriftgröße zu ändern; Die gewählte Größe wird sitzungsübergreifend gespeichert.</p>
 <p>Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.</p>
-<p>!!! Tipp „KI-Backend-Fehler deutlicher machen“
-    Wenn der KI-Server nicht mehr über genügend Arbeitsspeicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), zeigt das Dialogfeld einen kurzen, umsetzbaren Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace an; Alle anderen KI-Fehler werden in einer einzigen Zeile zusammengefasst.</p>
+<div class="admonition tip">
+<p class="admonition-title">Fehler im KI-Backend löschen</p>
+<p>Wenn der KI-Server nicht mehr über genügend Arbeitsspeicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), zeigt das Dialogfeld einen kurzen, umsetzbaren Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace an; Alle anderen KI-Fehler werden in einer einzigen Zeile zusammengefasst.</p>
+</div>
 
 
 
