@@ -34,7 +34,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 
 Im Einstellungsdialog werden auch die Registerkarten **SFTP-Manager**, **Editor** und **Snippet-Editor** angezeigt, die die Standardeinstellungen für Dateimanager und Monaco-Editor (Schriftart, Farben, Cursor) für diese Tools festlegen.
 
-!!! Info „Vollständigkeit“
+!!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.
 
 ## Visuelle Referenz

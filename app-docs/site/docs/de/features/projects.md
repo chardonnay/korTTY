@@ -11,8 +11,8 @@ Projekte speichern und stellen Ihren gesamten Arbeitsbereichsstatus wieder her �
 1. Öffnen Sie *Datei > Projekt speichern* oder drücken Sie ++Strg+s++ (++cmd+s++ unter macOS).
 2. Geben Sie einen **Namen** und optional eine **Beschreibung** für das Projekt ein.
 3. Konfigurieren Sie **Auto-Reconnect**:
-   – Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
-   – Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.
+   - Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
+   - Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.
 4. Klicken Sie auf *Speichern*.
 
 Projekte werden als `.kortty`-Dateien in `~/.kortty/projects/` gespeichert.
@@ -40,7 +40,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 | **Aktiver Tab** | Welche Registerkarte war in jedem Fenster aktiv |
 | **Terminalsitzungen** | Sitzungsstatus einschließlich Cursorposition und Scrollback (sofern von der Sitzung unterstützt) |
 
-!!! Notiz
+!!! note
     AI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.
 
 ## Automatische Wiederverbindung
@@ -48,7 +48,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 Wenn **Auto-Reconnect** aktiviert ist, führt KorTTY automatisch Folgendes durch:
 
 - Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.
-– Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen
+- Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen
 - Stellt den aktiven Tab- und Dashboard-Status wieder her
 
 Wenn **Auto-Reconnect** deaktiviert ist, werden Fenster und Registerkarten wiederhergestellt, Sie müssen jedoch jede Registerkarte manuell neu verbinden, indem Sie darauf klicken oder *Reconnect* aus dem Kontextmenü verwenden.

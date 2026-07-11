@@ -99,6 +99,7 @@ nav:
   - Home: index.md
   - Getting started:
       - getting-started/installation.md
+      - getting-started/building-packages.md
       - getting-started/first-launch.md
       - getting-started/main-window.md
   - Reference:

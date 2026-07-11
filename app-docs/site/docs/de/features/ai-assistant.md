@@ -8,7 +8,7 @@ KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt 
 
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
-!!! Warnung „Datensicherheit“
+!!! warning "Datensicherheit"
     Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio** oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen **API-Schlüssel** angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.
 
 ## Aufstellen
@@ -195,7 +195,7 @@ Und zeigen Sie die Mathematik im Antworttext als gesetzte Formel an:
 $$a^2 + b^2 = c^2$$
 ```
 
-!!! Hinweis „Darstellungsdetails und Anforderungen“
+!!! note "Rendering-Details und Anforderungen"
     * Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
     * Mermaid läuft mit der Sicherheitsstufe `strict` aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
     * Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: `java` und Graphviz `dot` müssen sich auf `PATH` befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
@@ -231,14 +231,14 @@ Anforderungen:
 * Ein konfiguriertes AI-Profil (siehe [Setup](#setup)); Es wird das Standardprofil verwendet.
 * Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.
 
-!!! Warnung „Datensicherheit“
+!!! warning "Datensicherheit"
     Der Fragetext und die ausgewählten manuellen Auszüge werden an den konfigurierten KI-Endpunkt übermittelt. Der Inhalt der Anleitungs selbst ist eine öffentliche Dokumentation, aber Ihre Frage ist Freitext – vermeiden Sie das Einfügen von Geheimnissen oder verwenden Sie einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio**. Bei manuellen Fragen sind die Internetzugriffsmodi immer deaktiviert.
 
 ## KI-Agent und KI-Planung
 
 korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
-!!! Hinweis „SSH und lokale Shells“
+!!! note "SSH und lokale Shells"
     Die Befehlsausführungs-Engine des Agenten ist hinter einer `AgentCommandRunner`-Abstraktion mit zwei Backends – **SSH** (Exec-Kanal) und **local** (ein neuer lokaler Prozess) von SSH entkoppelt. Der **AI Agent** und **AI Planning** laufen daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. **Einschränkungen der lokalen Shell:** keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 ### Starten des Agenten
@@ -286,7 +286,7 @@ An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbef
 * Geben Sie den Befehl plus ein Leerzeichen ein (z. B. `agent `) und drücken Sie dann ++TAB++, um den aktuellen Verlauf der Agentenaufforderungen anzuzeigen. In jeder Zeile werden die Eingabeaufforderung und das Datum/die Uhrzeit der letzten Ausführung angezeigt, dedupliziert durch den Eingabeaufforderungstext (neuester zuerst).
 * In jeder Verlaufszeile wird links die Eingabeaufforderung und rechts das Datum/die Uhrzeit der letzten Ausführung angezeigt. Eingabeaufforderungen mit mehr als 60 Zeichen werden durch Auslassungspunkte gekürzt. Die vollständige Eingabeaufforderung wird weiterhin eingefügt, wenn der Eintrag ausgewählt wird.
 * Die Größe des Verlaufs-Popups lässt sich ändern – ziehen Sie den Griff in der unteren rechten Ecke – und merkt sich seine Größe bei jedem Neustart. Wenn der Verlauf länger als das Popup ist, wird eine vertikale Bildlaufleiste angezeigt.
-* Entfernen Sie im Verlaufs-Popup eine einzelne Eingabeaufforderung, indem Sie auf die Schaltfläche ✕ der Zeile klicken (oder auf Tastaturen mit Vorwärts-Löschen-Taste ++Del++ drücken), oder entfernen Sie den gesamten Verlauf mit **Alle löschen** (eine zweistufige Bestätigung schützt vor versehentlichem Löschen). Löschungen werden sofort gespeichert.
+* Entfernen Sie im Verlaufs-Popup eine einzelne Eingabeaufforderung, indem Sie auf die Schaltfläche ✕ der Zeile klicken (oder ++Del++ auf Tastaturen mit Vorwärts-Löschen-Taste drücken), oder entfernen Sie den gesamten Verlauf mit **Alle löschen** (eine zweistufige Bestätigung schützt vor versehentlichem Löschen). Löschungen werden sofort gespeichert.
 * Außerhalb dieses Kontexts ist ++TAB++ eine normale Shell-Vervollständigung.
 
 Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Standard 20, Bereich 5–100).
@@ -361,7 +361,7 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 * Befehle, die das System ändern oder Berechtigungen erfordern, können je nach Einstellungen und Modellentscheidung durch Bestätigung weitergeleitet werden.
 * Sudo verwendet `sudo -n` und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine `sudo -S`, `su` oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.
 * Das aktuelle Remote-Verzeichnis wird anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein nachverfolgtes Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut aus dem SSH-Standardverzeichnis und meldet das Problem.
-* Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist normales Tippen weiterhin zulässig; Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.
+* Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.
 * Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.
 * Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.
 
@@ -390,5 +390,5 @@ Jeder Editor für generierte Skripte verfügt über die Schaltflächen **A−** 
 
 Die Größe des Workflow-Dialogfelds kann geändert werden und seine Größe und Position werden für die zukünftige Verwendung gespeichert.
 
-!!! Tipp „KI-Backend-Fehler deutlicher machen“
+!!! tip "Fehler im KI-Backend löschen"
     Wenn der KI-Server nicht mehr über genügend Arbeitsspeicher verfügt oder ein Ressourcenlimit erreicht (z. B. LM Studio/MLX „Ressourcenlimit überschritten“, „metal::malloc“), zeigt das Dialogfeld einen kurzen, umsetzbaren Hinweis anstelle des rohen mehrzeiligen Backend-Stack-Trace an; Alle anderen KI-Fehler werden in einer einzigen Zeile zusammengefasst.

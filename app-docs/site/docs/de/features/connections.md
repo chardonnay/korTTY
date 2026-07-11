@@ -27,13 +27,13 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 ## Protokolle
 
-=== „SSH“
+=== "SSH"
     Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und Tastatur-interaktive Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks.
 
-=== „Mosh“
+=== "Mosh"
     Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.
 
-=== „Lokale Shell“
+=== "Lokale Shell"
     Öffnet die Shell des **lokalen Rechners** in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe [Lokale Shell](#local-shell) unten].
 
 ## Lokale Shell
@@ -53,7 +53,7 @@ Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert jede ausführbare Dat
 
 Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.
 
-!!! Hinweis „KI-Agent in lokalen Shells“
+!!! note "AI Agent in lokalen Shells"
     Der **AI Agent** und **AI Planning** laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe [AI Assistant](ai-assistant.md#ai-agent-and-ai-planning).
 
 ## Tunnel und Sprungserver
@@ -67,5 +67,5 @@ Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funk
 
 **Verbindungen → Importieren…** liest Verbindungsdateien von **MTPuTTY**, **MobaXterm** und **PuTTY Connection Manager**, mit Gruppenfilterung und Anmeldeinformationsverarbeitung.
 
-!!! Hinweis „Weitere folgen“
+!!! note "Mehr folgt"
     Diese Seite ist Teil des Scaffolded-Anleitungs. Als nächstes wird die vollständige Funktionsbibliothek – SFTP, Snippets, JobScheduler, KI-Assistent und -Tools, Terminalaufzeichnung, Sicherheit und die vollständigen Einstellungstabellen – ausgefüllt.

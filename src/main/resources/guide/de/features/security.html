@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2662,8 +2692,8 @@
 <h3 id="at-rest-verschlusselung">At-Rest-Verschlüsselung<a class="headerlink" href="#at-rest-verschlusselung" title="Permanent link">&para;</a></h3>
 <p>Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und niemals im Klartext gespeichert. Das Salz und der Hash werden in <code>~/.kortty/master-password-hash</code> gespeichert.</p>
 <p>Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Sie können diese Eingabeaufforderung unter <strong>Einstellungen &gt; Sicherheit</strong> deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie <code>master-password-hash</code> und <code>credentials.xml</code>, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.</p>
 </div>
 <h2 id="verschlusselungsmodell">Verschlüsselungsmodell<a class="headerlink" href="#verschlusselungsmodell" title="Permanent link">&para;</a></h2>
@@ -2800,8 +2830,8 @@
 </tbody>
 </table>
 <h2 id="best-practices-fur-die-sicherheit">Best Practices für die Sicherheit<a class="headerlink" href="#best-practices-fur-die-sicherheit" title="Permanent link">&para;</a></h2>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Ausgewählter Terminaltext, der an KI-Endpunkte gesendet wird, kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden.</p>
 </div>
 <h3 id="master-passwort_1">Master-Passwort<a class="headerlink" href="#master-passwort_1" title="Permanent link">&para;</a></h3>

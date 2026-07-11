@@ -4,6 +4,12 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.4.3
 
+### Packaging and documentation
+
+- **macOS Intel release packages** — the release workflow now builds separate signed and notarized `-x86_64` ZIP and DMG assets on GitHub's Intel macOS runner alongside the existing Apple Silicon packages, and verifies the JDK, `jpackage`, runner and launcher architectures before publishing them.
+- **Complete portable Windows archives** — every Windows ZIP now contains the full self-contained `jpackage` application image with its launcher, libraries and bundled runtime; the Windows-on-ARM archive no longer publishes an unusable launcher by itself.
+- **Detailed local release-build guide** — a new guide chapter explains the exact common and platform-specific prerequisites, portable self-contained application images, ZIP/TAR archives, DMG/MSI/DEB/RPM installers, Intel Mac builds, signing, notarization, verification and troubleshooting for macOS, Windows and Linux.
+
 ### AI Code Analysis
 
 - **Pick the AI skills for an analysis** — the **Full code analysis** window now shows which AI Skills were included, as chips with an *(auto-selected)* or *(manual)* badge, and lets you change them with a **searchable** picker (filter by name, description or tags). Your changes take effect on the next **Re-run**, so one deliberate click runs one analysis with exactly the skills you chose. korTTY also auto-selects the skills relevant to the snippet before the first analysis so the set is meaningful out of the box.

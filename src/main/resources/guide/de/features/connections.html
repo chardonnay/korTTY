@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2203,12 +2233,19 @@
 </tbody>
 </table>
 <h2 id="protokolle">Protokolle<a class="headerlink" href="#protokolle" title="Permanent link">&para;</a></h2>
-<p>=== „SSH“
-    Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und Tastatur-interaktive Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks.</p>
-<p>=== „Mosh“
-    Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
-<p>=== „Lokale Shell“
-    Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#local-shell">Lokale Shell</a> unten].</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Lokale Shell</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und Tastatur-interaktive Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks.</p>
+</div>
+<div class="tabbed-block">
+<p>Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
+</div>
+<div class="tabbed-block">
+<p>Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#local-shell">Lokale Shell</a> unten].</p>
+</div>
+</div>
+</div>
 <h2 id="lokale-shell">Lokale Shell<a class="headerlink" href="#lokale-shell" title="Permanent link">&para;</a></h2>
 <p>Eine <strong>Lokale Shell</strong>-Verbindung erzeugt ein lokales Pseudo-Terminal (PTY) auf Ihrem eigenen Computer, anstatt eine Verbindung zu einem Remote-Host herzustellen. Es ist sowohl im <strong>Quick Connect</strong> als auch im <strong>Connection Manager</strong> auswählbar; Für diese Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich (und in den Dialogen deaktiviert), und es wird keine Passwortabfrage angezeigt.</p>
 <h3 id="eine-muschel-auswahlen">Eine Muschel auswählen<a class="headerlink" href="#eine-muschel-auswahlen" title="Permanent link">&para;</a></h3>
@@ -2233,8 +2270,10 @@
 <p>Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, ein Git-Bash-Pfad) und ein optionales <strong>Startverzeichnis</strong> kann festgelegt werden. Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade, die Leerzeichen enthalten – wie <code>"C:\Program Files\Git\bin\bash.exe"</code> – korrekt gestartet werden.</p>
 <h3 id="terminalfunktionen-in-lokalen-shells">Terminalfunktionen in lokalen Shells<a class="headerlink" href="#terminalfunktionen-in-lokalen-shells" title="Permanent link">&para;</a></h3>
 <p>Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
-<p>!!! Hinweis „KI-Agent in lokalen Shells“
-    Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-and-ai-planning">AI Assistant</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">AI Agent in lokalen Shells</p>
+<p>Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-and-ai-planning">AI Assistant</a>.</p>
+</div>
 <h2 id="tunnel-und-sprungserver">Tunnel und Sprungserver<a class="headerlink" href="#tunnel-und-sprungserver" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>SSH-Tunnel</strong> – Ports über die Verbindung weiterleiten: <strong>lokal</strong> (<code>-L</code>), <strong>remote</strong> (<code>-R</code>) oder <strong>dynamisch / SOCKS</strong> (<code>-D</code>).</li>
@@ -2243,8 +2282,10 @@
 <p><img alt="Jump server flow" src="../assets/diagrams/jump-server-flow.svg" /></p>
 <h2 id="von-anderen-clients-importieren">Von anderen Clients importieren<a class="headerlink" href="#von-anderen-clients-importieren" title="Permanent link">&para;</a></h2>
 <p><strong>Verbindungen → Importieren…</strong> liest Verbindungsdateien von <strong>MTPuTTY</strong>, <strong>MobaXterm</strong> und <strong>PuTTY Connection Manager</strong>, mit Gruppenfilterung und Anmeldeinformationsverarbeitung.</p>
-<p>!!! Hinweis „Weitere folgen“
-    Diese Seite ist Teil des Scaffolded-Anleitungs. Als nächstes wird die vollständige Funktionsbibliothek – SFTP, Snippets, JobScheduler, KI-Assistent und -Tools, Terminalaufzeichnung, Sicherheit und die vollständigen Einstellungstabellen – ausgefüllt.</p>
+<div class="admonition note">
+<p class="admonition-title">Mehr folgt</p>
+<p>Diese Seite ist Teil des Scaffolded-Anleitungs. Als nächstes wird die vollständige Funktionsbibliothek – SFTP, Snippets, JobScheduler, KI-Assistent und -Tools, Terminalaufzeichnung, Sicherheit und die vollständigen Einstellungstabellen – ausgefüllt.</p>
+</div>
 
 
 

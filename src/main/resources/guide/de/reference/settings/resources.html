@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2050,12 +2080,18 @@
 </table>
 <p>Der Ressourcen-Reiter zeigt den erkannten Speicher Ihres Rechners und das ungefähre Heap-Limit an, das jedes Profil darauf anwenden würde.</p>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
-<p>!!! Hinweis „Gilt nur für die paketierte Anwendung“
-    Diese Einstellung wird von der paketierten App (dem <code>.dmg</code>/<code>.msi</code>/AppImage-Build) angewendet, die sich beim Start einmal kurz selbst neu startet, um Heap-Größe und Garbage Collector umzustellen – die Java-Laufzeit kann diese im laufenden Betrieb nicht ändern, und ein Bearbeiten des signierten Anwendungspakets würde dessen Signatur beschädigen. Wird korTTY aus der einfachen <code>.jar</code> gestartet, setzen Sie die JVM-Optionen stattdessen selbst (zum Beispiel <code>-Xmx8g</code>).</p>
-<p>!!! Hinweis „Wird nach einem Neustart wirksam“
-    Eine Profiländerung wird beim nächsten Start von korTTY wirksam. Die Voreinstellung Ausbalanciert startet nie neu; Hoch und Maximal starten einmal pro Start neu, ihr Kaltstart ist dadurch geringfügig langsamer.</p>
-<p>!!! warning „Reserve für den Rest des Systems lassen“
-    Höhere Profile lassen korTTY deutlich mehr Speicher reservieren. Terminal- und Editor-Darstellung (die eingebetteten Browser-Engines) belegen auch Speicher <em>außerhalb</em> des Java-Heaps – deshalb begrenzt das Profil Maximal den Heap bewusst auf etwa drei Viertel des RAM, statt das Limit ganz aufzuheben: ein wirklich unbegrenzter Heap könnte das Betriebssystem aushungern.</p>
+<div class="admonition note">
+<p class="admonition-title">Gilt nur für die Paketanwendung</p>
+<p>Diese Einstellung wird von der paketierten App (dem <code>.dmg</code>/<code>.msi</code>/AppImage-Build) angewendet, die sich beim Start einmal kurz selbst neu startet, um Heap-Größe und Garbage Collector umzustellen – die Java-Laufzeit kann diese im laufenden Betrieb nicht ändern, und ein Bearbeiten des signierten Anwendungspakets würde dessen Signatur beschädigen. Wird korTTY aus der einfachen <code>.jar</code> gestartet, setzen Sie die JVM-Optionen stattdessen selbst (zum Beispiel <code>-Xmx8g</code>).</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Wird nach einem Neustart wirksam</p>
+<p>Eine Profiländerung wird beim nächsten Start von korTTY wirksam. Die Voreinstellung Ausbalanciert startet nie neu; Hoch und Maximal starten einmal pro Start neu, ihr Kaltstart ist dadurch geringfügig langsamer.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Lassen Sie Spielraum für den Rest Ihres Systems.</p>
+<p>Höhere Profile lassen korTTY deutlich mehr Speicher reservieren. Terminal- und Editor-Darstellung (die eingebetteten Browser-Engines) belegen auch Speicher <em>außerhalb</em> des Java-Heaps – deshalb begrenzt das Profil Maximal den Heap bewusst auf etwa drei Viertel des RAM, statt das Limit ganz aufzuheben: ein wirklich unbegrenzter Heap könnte das Betriebssystem aushungern.</p>
+</div>
 
 
 

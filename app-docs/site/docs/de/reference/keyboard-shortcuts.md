@@ -24,11 +24,11 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Verkleinern |
 | ++alt+0++ | Zoom zurücksetzen |
-| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS) |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
 | ++Strg+D++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH) |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f11++ | Vollbild umschalten |
-| ++f12++ | Nur Terminal-Vollbild umschalten |
+| ++f12++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 | ++Strg+Umschalt+B++ | Backup erstellen |
 | ++Strg+Q++ | Beenden |
 
@@ -36,12 +36,12 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 | Verknüpfung | Aktion |
 | --- | --- |
-| `agent` + ++tab++ (am Shell-Prompt) | Agentenbefehlsvarianten anzeigen (`agent`, `agent-ask`, `agent-plan`) |
-| `agent ` + ++tab++ (am Shell-Prompt) | Aktuellen Agent-Prompt-Verlauf anzeigen (neueste zuerst) |
-| ++esc++ oder ++Strg+C++ (während einer Ausführung) | Abbrechen der Registerkarte der ausgewählten Agentenausführung |
+| `agent` + ++tab++ (an der Shell-Eingabeaufforderung) | Agentenbefehlsvarianten anzeigen (`agent`, `agent-ask`, `agent-plan`) |
+| `agent ` + ++tab++ (an der Shell-Eingabeaufforderung) | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen (neueste zuerst) |
+| ++esc++ oder ++Strg+C++ (während eines Laufs) | Brechen Sie die Registerkarte der ausgewählten Agentenausführung ab |
 | ++Strg+R++ (während einer Ausführung) | Denkdetails für den ausgewählten Lauf umschalten |
 | ⏸ (Aktivitätsbereich) | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
 | ▶️ (Aktivitätsbereich) | Einen angehaltenen Lauf fortsetzen |
 
-!!! Notiz
+!!! note
     Die vollständige, immer aktuelle Shortcut-Liste wird aus den Beschleunigerdefinitionen der Anwendung generiert. Wenn eine Verknüpfung hier von der in der App angezeigten abweicht, ist die App maßgeblich.

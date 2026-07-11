@@ -1,0 +1,3063 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/getting-started/building-packages.html">
+      
+      
+        <link rel="prev" href="installation.html">
+      
+      
+        <link rel="next" href="first-launch.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>KorTTY-Pakete erstellen - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#kortty-pakete-erstellen" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              KorTTY-Pakete erstellen
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/getting-started/building-packages.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/kortty-logo.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="building-packages.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#wahlen-sie-ein-artefakt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wählen Sie ein Artefakt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allgemeine-voraussetzungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allgemeine Voraussetzungen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allgemeine Voraussetzungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-die-java-artefakte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie die Java-Artefakte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="macOS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie ein unsigniertes App-Image, eine tragbare ZIP- und DMG-Datei
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-macos-fur-intel-x86_64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build macOS für Intel (x86_64)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signieren-sie-die-app-und-dmg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signieren Sie die App und DMG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notariell-beglaubigen-und-vor-ort-heften" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notariell beglaubigen und vor Ort heften
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macos-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für macOS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Linux">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-das-app-image-tragbare-archive-und-pakete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie das App-Image, tragbare Archive und Pakete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für Linux
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Windows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-das-app-image-portable-zip-und-msi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie das App-Image, portable ZIP und MSI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allgemeine-fehlerbehebung-und-weiterfuhrende-literatur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allgemeine Fehlerbehebung und weiterführende Literatur
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Härtemöglichkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ressourcen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anonyme Daten zur Applikationsoptimierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#wahlen-sie-ein-artefakt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wählen Sie ein Artefakt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allgemeine-voraussetzungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allgemeine Voraussetzungen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Allgemeine Voraussetzungen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-die-java-artefakte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie die Java-Artefakte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="macOS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie ein unsigniertes App-Image, eine tragbare ZIP- und DMG-Datei
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-macos-fur-intel-x86_64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build macOS für Intel (x86_64)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signieren-sie-die-app-und-dmg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signieren Sie die App und DMG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notariell-beglaubigen-und-vor-ort-heften" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notariell beglaubigen und vor Ort heften
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macos-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für macOS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Linux">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-das-app-image-tragbare-archive-und-pakete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie das App-Image, tragbare Archive und Pakete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für Linux
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Windows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-software_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Software
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erstellen-sie-das-app-image-portable-zip-und-msi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie das App-Image, portable ZIP und MSI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows-fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows-Fehlerbehebung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weiterfuhrende-literatur-fur-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weiterführende Literatur für Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#allgemeine-fehlerbehebung-und-weiterfuhrende-literatur" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allgemeine Fehlerbehebung und weiterführende Literatur
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="kortty-pakete-erstellen">KorTTY-Pakete erstellen<a class="headerlink" href="#kortty-pakete-erstellen" title="Permanent link">&para;</a></h1>
+<p>korTTY kann als Java-Artefakte, als eigenständiges tragbares Anwendungs-Image oder als natives Installationsprogramm erstellt werden. Native Pakete müssen auf dem Zielbetriebssystem und der Prozessorarchitektur erstellt werden, da <code>jpackage</code>, JavaFX und die gebündelten nativen Tools plattformspezifische Dateien von der aktiven Build-Maschine auswählen.</p>
+<h2 id="wahlen-sie-ein-artefakt">Wählen Sie ein Artefakt<a class="headerlink" href="#wahlen-sie-ein-artefakt" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Ziel</th>
+<th>Gradle-Aufgabe</th>
+<th>Lokale Ausgabe</th>
+<th>Java auf dem Ziel erforderlich?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thin Application JAR</td>
+<td><code>jar</code></td>
+<td><code>build/libs/korTTY-&lt;version&gt;.jar</code></td>
+<td>Ja, plus alle Laufzeitabhängigkeiten; Dieses JAR ist kein eigenständiges ausführbares JAR</td>
+</tr>
+<tr>
+<td>Java-Distribution</td>
+<td><code>distZip</code> / <code>distTar</code></td>
+<td><code>build/distributions/korTTY-&lt;version&gt;.zip</code> / <code>.tar</code></td>
+<td>Ja; Das Archiv enthält Abhängigkeiten und Startskripte, aber keine Java-Laufzeit</td>
+</tr>
+<tr>
+<td>Eigenständiges App-Image</td>
+<td><code>jpackage</code></td>
+<td>Plattform-App-Bundle oder Verzeichnis unter <code>build/jpackage/</code></td>
+<td>Nein; <code>jpackage</code> enthält eine getrimmte Java-Laufzeitumgebung</td>
+</tr>
+<tr>
+<td>Nativer Installer</td>
+<td><code>jpackageDmg</code>, <code>jpackageMsi</code>, <code>jpackageDeb</code> oder <code>jpackageRpm</code></td>
+<td>DMG, MSI, DEB oder RPM unter <code>build/jpackage/</code></td>
+<td>Nein; Das Installationsprogramm enthält das eigenständige App-Image</td>
+</tr>
+<tr>
+<td>Portables natives Archiv</td>
+<td><code>jpackage</code>, dann der unten gezeigte Betriebssystem-Archivierungsbefehl</td>
+<td>ZIP oder TAR mit dem gesamten App-Image</td>
+<td>Nein; Behalten Sie das Bundle oder Verzeichnis nach der Extraktion bei</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition important">
+<p class="admonition-title">Ein App-Image ist keine einzelne ausführbare Datei</p>
+<p>Unter macOS ist das App-Image das vollständige <code>korTTY.app</code>-Bundle, unter Windows das vollständige <code>korTTY</code>-Verzeichnis mit <code>korTTY.exe</code> und unter Linux das vollständige <code>korTTY</code>-Verzeichnis mit <code>bin/korTTY</code>. Durch das Verschieben nur des Launchers wird die Anwendung unterbrochen, da ihre Laufzeit und Bibliotheken in Geschwisterverzeichnissen verbleiben. Das Linux-Verzeichnis ist keine <code>.AppImage</code>-Datei.</p>
+</div>
+<h2 id="allgemeine-voraussetzungen">Allgemeine Voraussetzungen<a class="headerlink" href="#allgemeine-voraussetzungen" title="Permanent link">&para;</a></h2>
+<p>Installieren Sie diese Tools, bevor Sie auf einem Betriebssystem aufbauen:</p>
+<table>
+<thead>
+<tr>
+<th>Anforderung</th>
+<th>Warum korTTY es braucht</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vollständiges <strong>JDK 25</strong> passend zur Ziel-CPU</td>
+<td>Kompiliert korTTY und stellt <code>java</code>, <code>javac</code>, <code>jlink</code> und <code>jpackage</code> bereit; Legen Sie das Verzeichnis <code>bin</code> in <code>PATH</code> ab und setzen Sie <code>JAVA_HOME</code> auf dasselbe JDK</td>
+</tr>
+<tr>
+<td>Git</td>
+<td>Klont korTTY und die angeheftete SithTermFX-Quellenabhängigkeit</td>
+</tr>
+<tr>
+<td>Apache Maven</td>
+<td>Erstellt SithTermFX vor der korTTY-Kompilierung im lokalen Maven-Repository</td>
+</tr>
+<tr>
+<td><code>curl</code></td>
+<td>Lädt die angehefteten mosh4j-Artefakte herunter, die von gepackten Builds verwendet werden</td>
+</tr>
+<tr>
+<td>Ausgehender HTTPS-Zugriff</td>
+<td>Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, mosh4j, Node.js, Formatierer, Monaco und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen</td>
+</tr>
+<tr>
+<td>Gradle Wrapper aus diesem Repository</td>
+<td><code>gradlew</code> und <code>gradlew.bat</code> laden die im Repository angeheftete Gradle-Version herunter und führen sie aus; Installieren oder ersetzen Sie kein System Gradle</td>
+</tr>
+</tbody>
+</table>
+<p>Node.js und MkDocs sind keine allgemeinen Voraussetzungen für eine Anwendungserstellung: Die Gradle-Aufgaben laden eine angeheftete Node.js-Laufzeitumgebung für generierte Assets herunter, und die normale Anwendungserstellung verwendet die festgeschriebenen Offline-Anleitungressourcen.</p>
+<div class="admonition warning">
+<p class="admonition-title">Verwenden Sie genau JDK 25</p>
+<p>Die gepackte Laufzeit enthält explizit <code>jdk.jsobject</code>, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem <code>JDK-8362628</code>: <a href="https://bugs.openjdk.org/browse/JDK-8362628">https://bugs.openjdk.org/browse/JDK-8362628</a> verfolgt. Gradle kann seine Compiler-Toolchain unabhängig bereitstellen, aber die Paketierungsaufgaben rufen den bloßen Befehl <code>jpackage</code> von <code>PATH</code> auf; ein neueres oder älteres <code>jpackage</code> kann daher auch dann fehlschlagen, wenn bei der Kompilierung JDK 25 ausgewählt wurde. Verweisen Sie sowohl <code>JAVA_HOME</code> als auch die ersten <code>java</code>/<code>javac</code>/<code>jpackage</code>-Einträge in <code>PATH</code> auf dieselbe JDK 25-Installation.</p>
+</div>
+<p>Klonen Sie die Quelle einmal:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chardonnay/korTTY.git
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>korTTY
+</span></code></pre></div>
+<p>Stellen Sie sicher, dass jeder Befehl vor dem ersten Build aufgelöst wird. <code>java</code>, <code>javac</code> und <code>jpackage</code> müssen alle die Hauptversion 25 melden, und Maven muss dasselbe <code>JAVA_HOME</code> melden.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS / Linux</label><label for="__tabbed_1_2">Windows PowerShell</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>java<span class="w"> </span>javac<span class="w"> </span>jpackage<span class="w"> </span>git<span class="w"> </span>mvn<span class="w"> </span>curl
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;java.specification.version|os.arch&#39;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>javac<span class="w"> </span>--version
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>jpackage<span class="w"> </span>--version
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>git<span class="w"> </span>--version
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>mvn<span class="w"> </span>--version
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>curl<span class="w"> </span>--version
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>./gradlew<span class="w"> </span>--version
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">javac</span><span class="p">,</span> <span class="n">jpackage</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">java</span> <span class="n">-XshowSettings</span><span class="p">:</span><span class="n">properties</span> <span class="n">-version</span> <span class="n">2</span><span class="p">&gt;&amp;</span><span class="n">1</span> <span class="p">|</span> <span class="nb">Select-String</span> <span class="s1">&#39;java.specification.version|os.arch&#39;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">javac</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">jpackage</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">git</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">mvn</span> <span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nb">curl </span><span class="p">-</span><span class="n">-version</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="p">-</span><span class="n">-version</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klont bei Bedarf auch SithTermFX, installiert es über Maven, lädt die angehefteten Build-Eingaben herunter, kompiliert korTTY und führt die Tests aus.</p>
+<h3 id="erstellen-sie-die-java-artefakte">Erstellen Sie die Java-Artefakte<a class="headerlink" href="#erstellen-sie-die-java-artefakte" title="Permanent link">&para;</a></h3>
+<p>Verwenden Sie den folgenden Plattformbefehl, um das Thin JAR sowie die Java ZIP- und TAR-Distributionen zu kompilieren, zu testen und zu erstellen:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS / Linux</label><label for="__tabbed_2_2">Windows PowerShell</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>ls<span class="w"> </span>-l<span class="w"> </span>build/libs/<span class="w"> </span>build/distributions/
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">libs</span><span class="p">,</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">distributions</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>Das Thin-JAR enthält korTTY-Klassen und -Ressourcen, jedoch keine Laufzeitabhängigkeiten und stellt selbst nicht die vollständige Bereitstellung bereit. Für ein Java-basiertes tragbares Layout extrahieren Sie die generierte ZIP- oder TAR-Datei und starten Sie <code>bin/korTTY</code> unter macOS/Linux oder <code>bin\korTTY.bat</code> unter Windows; Das Ziel benötigt weiterhin JDK 25. Diese Distributionen enthalten auch die nativen JavaFX-Abhängigkeiten, die auf dem Build-Host ausgewählt wurden. Erstellen Sie sie also auf demselben Betriebssystem und derselben Architektur, auf der sie ausgeführt werden.</p>
+<h2 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h2>
+<h3 id="zusatzliche-software">Zusätzliche Software<a class="headerlink" href="#zusatzliche-software" title="Permanent link">&para;</a></h3>
+<p>Installieren Sie die allgemeinen Voraussetzungen und die Apple-Befehlszeilentools. Der unsignierte <code>.app</code>-Build verwendet die JDK-Tools; Für die DMG-Erstellung werden <code>hdiutil</code> und das konfigurierte benutzerdefinierte Symbol verwendet, während für die Signierung und Beglaubigung zusätzlich <code>codesign</code>, <code>security</code>, <code>notarytool</code> und <code>stapler</code> verwendet werden. Wählen Sie vor einem Release-Build eine aktuelle Xcode-Installation aus.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>xcode-select<span class="w"> </span>-p
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>codesign
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>notarytool
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>xcrun<span class="w"> </span>--find<span class="w"> </span>stapler
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>hdiutil<span class="w"> </span>ditto
+</span></code></pre></div>
+<p>Führen Sie <code>xcode-select --install</code> aus, wenn die Befehlszeilentools nicht vorhanden sind. Eine für andere Benutzer bestimmte Veröffentlichung erfordert außerdem ein Apple Developer-Konto, ein <strong>Developer ID Application</strong>-Zertifikat und App Store Connect API-Anmeldeinformationen für die Beglaubigung; Bei einem nicht signierten lokalen Build ist dies nicht der Fall.</p>
+<h3 id="erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei">Erstellen Sie ein unsigniertes App-Image, eine tragbare ZIP- und DMG-Datei<a class="headerlink" href="#erstellen-sie-ein-unsigniertes-app-image-eine-tragbare-zip-und-dmg-datei" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>./gradlew<span class="w"> </span>jpackageDmg
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Artefakt</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eigenständiges App-Image</td>
+<td><code>build/jpackage/korTTY.app</code></td>
+</tr>
+<tr>
+<td>Tragbares Archiv</td>
+<td><code>build/jpackage/korTTY-macOS-local-&lt;architecture&gt;.zip</code></td>
+</tr>
+<tr>
+<td>Disk-Image</td>
+<td><code>build/jpackage/korTTY-&lt;version&gt;.dmg</code></td>
+</tr>
+</tbody>
+</table>
+<p>Öffnen Sie das App-Image für einen lokalen Rauchtest und überprüfen Sie den DMG-Container:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>open<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>hdiutil<span class="w"> </span>verify<span class="w"> </span>build/jpackage/korTTY-*.dmg
+</span></code></pre></div>
+<h3 id="build-macos-fur-intel-x86_64">Build macOS für Intel (<code>x86_64</code>)<a class="headerlink" href="#build-macos-fur-intel-x86_64" title="Permanent link">&para;</a></h3>
+<p>Die zuverlässigen Pfade sind ein Intel Mac mit einem x86_64 JDK 25 oder der GitHub Actions-Job des Repositorys auf <code>macos-15-intel</code>. <code>jpackage</code> führt keine Cross-Kompilierung durch, daher erstellt ein ARM-JDK, das nativ auf Apple Silicon ausgeführt wird, eine ARM-App, selbst wenn der gewünschte Dateiname <code>x86_64</code> lautet.</p>
+<p>Validieren Sie auf einem Intel-Mac die Maschine, die Java-Laufzeit und den generierten Launcher, bevor Sie das Ergebnis verteilen:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>/usr/libexec/java_home<span class="w"> </span>-v<span class="w"> </span><span class="m">25</span><span class="w"> </span>-a<span class="w"> </span>x86_64<span class="w"> </span>-F<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;x86_64&quot;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nb">test</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>jpackage<span class="w"> </span>--version<span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d.<span class="w"> </span>-f1<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;25&quot;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>./gradlew<span class="w"> </span>--stop
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>./gradlew<span class="w"> </span>jpackageDmg
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+</span></code></pre></div>
+<p>Der letzte <code>lipo</code>-Befehl darf nur <code>x86_64</code> ausgeben. Führen Sie den gleichen Build auf Apple Silicon mit einem ARM-JDK durch, um die separaten <code>aarch64</code>-Artefakte zu erhalten. Das Projekt erstellt keine universelle Binärdatei.</p>
+<h4 id="intel-build-mit-github-aktionen">Intel-Build mit GitHub-Aktionen<a class="headerlink" href="#intel-build-mit-github-aktionen" title="Permanent link">&para;</a></h4>
+<p>Der <code>Build Release Binaries</code>-Workflow enthält separate macOS-Matrixeinträge für <code>macos-latest</code>/<code>aarch64</code> und <code>macos-15-intel</code>/<code>x86_64</code>. Es installiert Temurin JDK 25, lehnt einen JDK- oder Runner-Architekturkonflikt ab, erstellt sowohl die signierte App als auch DMG, verifiziert den Launcher mit <code>lipo</code>, beglaubigt beide Ergebnisse und lädt Artefakte mit Architektursuffix hoch.</p>
+<p>Konfigurieren Sie diese Repository-Geheimnisse, bevor Sie den Workflow ausführen:</p>
+<table>
+<thead>
+<tr>
+<th>Geheimer</th>
+<th>Inhalt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APPLE_SIGNING_CERT_P12_BASE64</code></td>
+<td>Base64-codiertes Entwickler-ID-Anwendungszertifikat und privater Schlüssel im P12-Formular</td>
+</tr>
+<tr>
+<td><code>APPLE_SIGNING_CERT_PASSWORD</code></td>
+<td>Passwort zum Schutz der P12-Datei</td>
+</tr>
+<tr>
+<td><code>APPLE_SIGNING_IDENTITY</code></td>
+<td>Exakte Entwickler-ID Anwendungsidentität angezeigt durch <code>security find-identity</code></td>
+</tr>
+<tr>
+<td><code>APPLE_API_KEY_ID</code></td>
+<td>App Store Connect API-Schlüssel-ID</td>
+</tr>
+<tr>
+<td><code>APPLE_ISSUER_ID</code></td>
+<td>App Store Connect-Aussteller-ID</td>
+</tr>
+<tr>
+<td><code>APPLE_API_KEY</code></td>
+<td>Vollständiger Inhalt des privaten API-Schlüssels</td>
+</tr>
+</tbody>
+</table>
+<p>Öffnen Sie <strong>Aktionen → Release-Binärdateien erstellen → Workflow ausführen</strong>, wählen Sie den Zweig oder das Tag in <code>ref</code> aus und geben Sie die numerische Anwendungsversion ein. Ein Branch-Lauf lädt die macOS-Build-Artefakte zur Überprüfung hoch; Ein veröffentlichtes GitHub-Release oder eine manuelle Ausführung, deren <code>ref</code> ein Release-Tag ist, speist auch den endgültigen Release-Upload-Job. Die Intel-Artefakte heißen <code>korTTY-macOS-&lt;version&gt;-x86_64.zip</code> und <code>korTTY-macOS-&lt;version&gt;-x86_64.dmg</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Rosetta ist ein nicht verifizierter fortgeschrittener Pfad</p>
+<p>Ein Apple Silicon-Host kann versuchsweise ein x86_64 JDK 25 unter Rosetta ausführen, dies ist jedoch nicht der verifizierte Release-Pfad des Repositorys. Installieren Sie Rosetta, wählen Sie ein Intel JDK für <code>JAVA_HOME</code> und <code>PATH</code> aus, stoppen Sie vorhandene Gradle-Daemons, führen Sie den kompletten Build in einer x86_64-Shell aus und bestätigen Sie den Launcher mit <code>lipo</code>. Testen Sie das Ergebnis vor der Verteilung auf echter Intel-Hardware; Verwenden Sie <code>macos-15-intel</code>, wenn ein reproduzierbares Release-Artefakt erforderlich ist.</p>
+</div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>softwareupdate<span class="w"> </span>--install-rosetta<span class="w"> </span>--agree-to-license
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>arch<span class="w"> </span>-x86_64<span class="w"> </span>/bin/zsh
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">JAVA_HOME</span><span class="o">=</span><span class="s2">&quot;/path/to/x86_64-jdk-25/Contents/Home&quot;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$JAVA_HOME</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>java<span class="w"> </span>-XshowSettings:properties<span class="w"> </span>-version<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;os.arch = x86_64&#39;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>./gradlew<span class="w"> </span>--stop
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackage
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>./gradlew<span class="w"> </span>--no-daemon<span class="w"> </span>jpackageDmg
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+</span></code></pre></div>
+<h3 id="signieren-sie-die-app-und-dmg">Signieren Sie die App und DMG<a class="headerlink" href="#signieren-sie-die-app-und-dmg" title="Permanent link">&para;</a></h3>
+<p>Beim Signieren handelt es sich um ein Opt-In. Die Gradle-Aufgaben verwenden die folgenden Repository-Eigenschaften, um gebündelte native JNA/pty4j-Bibliotheken zu signieren und die Identität an <code>jpackage</code> zu übergeben; Ersetzen Sie diesen Fluss nicht durch eine Ad-hoc-Signatur nur für das äußere App-Bundle.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>security<span class="w"> </span>find-identity<span class="w"> </span>-v<span class="w"> </span>-p<span class="w"> </span>codesigning
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KORTTY_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">&quot;Developer ID Application: Your Name (TEAMID)&quot;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>./gradlew<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">  </span>jpackage
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>./gradlew<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">  </span>-Pkortty.macos.sign<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span>-Pkortty.macos.signingIdentity<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KORTTY_SIGNING_IDENTITY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">  </span>jpackageDmg
+</span></code></pre></div>
+<p>Wenn die Identität in einem nicht standardmäßigen Schlüsselbund gespeichert ist, fügen Sie <code>-Pkortty.macos.signingKeychain=/absolute/path/to/keychain-db</code> zu beiden Paketierungsbefehlen hinzu. Unterzeichnung und Beglaubigung sind separate Vorgänge: Die Gradle-Eigenschaften unterzeichnen die Artefakte, übermitteln sie jedoch nicht an den Notardienst von Apple.</p>
+<h3 id="notariell-beglaubigen-und-vor-ort-heften">Notariell beglaubigen und vor Ort heften<a class="headerlink" href="#notariell-beglaubigen-und-vor-ort-heften" title="Permanent link">&para;</a></h3>
+<p>Der Release-Workflow ist die kanonische automatisierte Implementierung. Um die Beglaubigungsphase lokal zu spiegeln, speichern Sie die App Store Connect API-Anmeldeinformationen in einem Schlüsselbundprofil, übermitteln Sie eine ZIP-Datei des signierten <code>.app</code>, heften Sie das akzeptierte Ticket zusammen und übermitteln und heften Sie dann das signierte DMG.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_ID</span><span class="o">=</span><span class="s2">&quot;&lt;key-id&gt;&quot;</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_ISSUER_ID</span><span class="o">=</span><span class="s2">&quot;&lt;issuer-id&gt;&quot;</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">&quot;/absolute/path/to/AuthKey_&lt;key-id&gt;.p8&quot;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>store-credentials<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span>--key<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_PATH</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span>--key-id<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_API_KEY_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span>--issuer<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APPLE_ISSUER_ID</span><span class="s2">&quot;</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span>build/jpackage/korTTY-notarization.zip
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span>build/jpackage/korTTY-notarization.zip<span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="nv">DMG</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/jpackage<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;korTTY-*.dmg&#39;</span><span class="w"> </span>-print<span class="w"> </span>-quit<span class="k">)</span><span class="s2">&quot;</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="nb">test</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>xcrun<span class="w"> </span>notarytool<span class="w"> </span>submit<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span><span class="w"> </span>--keychain-profile<span class="w"> </span><span class="s2">&quot;kortty-notary&quot;</span><span class="w"> </span>--wait
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>staple<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DMG</span><span class="s2">&quot;</span>
+</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
+</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>ditto<span class="w"> </span>-c<span class="w"> </span>-k<span class="w"> </span>--keepParent<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-macOS-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span>
+</span></code></pre></div>
+<p>Überprüfen Sie jede abgelehnte Einreichung mit <code>xcrun notarytool log &lt;submission-id&gt; --keychain-profile "kortty-notary"</code>. Überprüfen Sie vor der Veröffentlichung Gatekeeper, die eingebetteten Signaturen, die gehefteten Tickets und die Launcher-Architektur:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY.app
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span>build/jpackage/korTTY-*.dmg
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>lipo<span class="w"> </span>-archs<span class="w"> </span>build/jpackage/korTTY.app/Contents/MacOS/korTTY
+</span></code></pre></div>
+<h3 id="macos-fehlerbehebung">macOS-Fehlerbehebung<a class="headerlink" href="#macos-fehlerbehebung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>jpackage</code> meldet einen Signaturidentitätsfehler: Führen Sie <code>security find-identity -v -p codesigning</code> aus, kopieren Sie die vollständige Entwickler-ID-Anwendungsidentität und bestätigen Sie, dass der ausgewählte Schlüsselbund entsperrt ist.</li>
+<li><code>java</code>, <code>jpackage</code>, <code>uname</code> oder der generierte Launcher melden unterschiedliche Architekturen: Installieren Sie ein passendes JDK, aktualisieren Sie <code>JAVA_HOME</code> und <code>PATH</code>, führen Sie <code>./gradlew --stop</code> aus und erstellen Sie dann von <code>clean</code> neu.</li>
+<li>Notarisierung schlägt fehl: Lesen Sie das Übermittlungsprotokoll, anstatt einzelne JavaFX-Bibliotheken erneut zu signieren. Das Repository behält bewusst seine Upstream-Signaturen bei, während es die nativen Bibliotheken, die von seiner Gradle-Aufgabe abgedeckt werden, separat signiert.</li>
+<li>Die gepackte App kann einen LAN-Host erreichen, <code>./gradlew run</code> jedoch nicht: <code>.app</code> starten, damit macOS dem Anwendungspaket die Berechtigung für ein lokales Netzwerk erteilen kann.</li>
+</ul>
+<h3 id="weiterfuhrende-literatur-fur-macos">Weiterführende Literatur für macOS<a class="headerlink" href="#weiterfuhrende-literatur-fur-macos" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/25/jpackage/packaging-overview.html#GUID-786E15C0-2A0C-4B2D-9739-A04F98642C23">Voraussetzungen für die Oracle-JPackage-Verpackung</a></li>
+<li><a href="https://developer.apple.com/developer-id/">Apple: Signieren von Mac-Software mit der Entwickler-ID</a></li>
+<li><a href="https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution">Apple: Beglaubigung der macOS-Software vor der Verteilung</a></li>
+<li><a href="https://developer.apple.com/documentation/security/customizing-the-notarization-workflow">Apple: Anpassen des Beurkundungsworkflows</a></li>
+<li><a href="https://docs.github.com/en/actions/reference/runners/github-hosted-runners">GitHub-gehostete Runner-Referenz</a></li>
+</ul>
+<h2 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h2>
+<h3 id="zusatzliche-software_1">Zusätzliche Software<a class="headerlink" href="#zusatzliche-software_1" title="Permanent link">&para;</a></h3>
+<p>Für die App-Image-Aufgabe sind die allgemeinen Voraussetzungen erforderlich. Für die DEB-Erstellung ist <code>fakeroot</code> erforderlich; Für die RPM-Erstellung sind die RPM-Build-Tools erforderlich. <code>zip</code> wird nur benötigt, wenn Sie zusätzlich zum TAR.GZ-Archiv das portable ZIP benötigen.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Debian / Ubuntu</label><label for="__tabbed_3_2">Fedora / RHEL</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>update
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>fakeroot<span class="w"> </span>zip
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>maven<span class="w"> </span>curl<span class="w"> </span>rpm-build<span class="w"> </span>zip
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>Installieren und wählen Sie das vollständige JDK 25 separat aus, wenn der Verteilungsbefehl nicht genau dieses JDK bereitstellt. Erstellen Sie DEB-Pakete auf Debian/Ubuntu und RPM-Pakete auf einer RPM-basierten Distribution; Das tragbare App-Image ist für beide Familien verfügbar.</p>
+<h3 id="erstellen-sie-das-app-image-tragbare-archive-und-pakete">Erstellen Sie das App-Image, tragbare Archive und Pakete<a class="headerlink" href="#erstellen-sie-das-app-image-tragbare-archive-und-pakete" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>./gradlew<span class="w"> </span>jpackage
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>tar<span class="w"> </span>-C<span class="w"> </span>build/jpackage<span class="w"> </span>-czf<span class="w"> </span><span class="s2">&quot;build/jpackage/korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.tar.gz&quot;</span><span class="w"> </span>korTTY
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="o">(</span><span class="nb">cd</span><span class="w"> </span>build/jpackage<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zip<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;korTTY-Linux-local-</span><span class="k">$(</span>uname<span class="w"> </span>-m<span class="k">)</span><span class="s2">.zip&quot;</span><span class="w"> </span>korTTY<span class="o">)</span>
+</span></code></pre></div>
+<p>Erstellen Sie dann das native Paket für die aktuelle Distribution:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Debian / Ubuntu</label><label for="__tabbed_4_2">Fedora / RHEL</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>./gradlew<span class="w"> </span>jpackageDeb
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>./gradlew<span class="w"> </span>jpackageRpm
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Artefakt</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eigenständiges App-Image</td>
+<td><code>build/jpackage/korTTY/</code></td>
+</tr>
+<tr>
+<td>Tragbare Archive</td>
+<td><code>build/jpackage/korTTY-Linux-local-&lt;architecture&gt;.tar.gz</code> und <code>.zip</code></td>
+</tr>
+<tr>
+<td>Debian-Paket</td>
+<td><code>build/jpackage/kortty*.deb</code></td>
+</tr>
+<tr>
+<td>RPM-Paket</td>
+<td><code>build/jpackage/kortty*.rpm</code></td>
+</tr>
+</tbody>
+</table>
+<p>Führen Sie die Ausgaben aus und überprüfen Sie sie, ohne die Pakete zu installieren:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">test</span><span class="w"> </span>-x<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>file<span class="w"> </span>build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>./build/jpackage/korTTY/bin/korTTY
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>tar<span class="w"> </span>-tzf<span class="w"> </span>build/jpackage/korTTY-Linux-local-*.tar.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>dpkg-deb<span class="w"> </span>--info<span class="w"> </span>build/jpackage/kortty*.deb
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>rpm<span class="w"> </span>-qpi<span class="w"> </span>build/jpackage/kortty*.rpm
+</span></code></pre></div>
+<p>Verwenden Sie nur den Inspektionsbefehl, der für das von Ihnen erstellte Paket verfügbar ist. Testen Sie die Installation und Entfernung des Installationsprogramms in einer verfügbaren virtuellen Maschine oder einem Container, der der Zielverteilung entspricht, bevor Sie es veröffentlichen.</p>
+<h3 id="linux-fehlerbehebung">Linux-Fehlerbehebung<a class="headerlink" href="#linux-fehlerbehebung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>jpackageDeb</code> schlägt fehl, weil <code>fakeroot</code> fehlt: Installieren Sie <code>fakeroot</code> und führen Sie es erneut aus einem sauberen Build-Verzeichnis aus.</li>
+<li><code>jpackageRpm</code> kann <code>rpmbuild</code> nicht finden: Installieren Sie <code>rpm-build</code> auf RPM-Distributionen oder <code>rpm</code> auf Debian/Ubuntu und bestätigen Sie dann <code>command -v rpmbuild</code>.</li>
+<li>Die <code>jpackage</code>-Aufgabe ist erfolgreich, aber es wird kein <code>.AppImage</code> angezeigt: Dies wird erwartet; Überprüfen Sie <code>build/jpackage/korTTY/</code>, das eigenständige jpackage-App-Image-Verzeichnis.</li>
+<li><code>jpackage</code> meldet, dass das Ziel bereits vorhanden ist: Führen Sie <code>./gradlew clean</code> aus, bevor Sie das App-Image neu erstellen.</li>
+</ul>
+<h3 id="weiterfuhrende-literatur-fur-linux">Weiterführende Literatur für Linux<a class="headerlink" href="#weiterfuhrende-literatur-fur-linux" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/25/jpackage/packaging-overview.html#GUID-786E15C0-2A0C-4B2D-9739-A04F98642C23">Voraussetzungen für die Oracle-JPackage-Verpackung</a></li>
+<li><a href="https://www.debian.org/doc/manuals/debian-handbook/sect.manipulating-packages-with-dpkg.en.html">Debian-Anleitung: Pakete prüfen mit dpkg</a></li>
+<li><a href="https://manpages.debian.org/fakeroot/fakeroot.1.en.html">Debian Fakeroot-Anleitung</a></li>
+<li><a href="https://rpm.org/docs/">RPM-Dokumentation</a></li>
+</ul>
+<h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h2>
+<h3 id="zusatzliche-software_2">Zusätzliche Software<a class="headerlink" href="#zusatzliche-software_2" title="Permanent link">&para;</a></h3>
+<p>Verwenden Sie ein PowerShell-Terminal mit den allgemeinen Voraussetzungen. Für die portable App-Image-Aufgabe ist kein externer Installer-Builder erforderlich, für die MSI-Erstellung ist jedoch WiX Toolset 3 oder höher erforderlich, wobei <code>candle.exe</code> und <code>light.exe</code> in <code>PATH</code> verfügbar sind. Der Release-Workflow nutzt die WiX 3-Toolchain für seine Windows-Paketierungsaufgaben.</p>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">Get-Command</span> <span class="n">java</span><span class="p">,</span> <span class="n">javac</span><span class="p">,</span> <span class="n">jpackage</span><span class="p">,</span> <span class="n">git</span><span class="p">,</span> <span class="n">mvn</span><span class="p">,</span> <span class="nb">curl</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nb">Get-Command</span> <span class="n">candle</span><span class="p">.</span><span class="n">exe</span><span class="p">,</span> <span class="n">light</span><span class="p">.</span><span class="n">exe</span>
+</span></code></pre></div>
+<p>Starten Sie PowerShell neu, nachdem Sie <code>JAVA_HOME</code>, <code>PATH</code> oder die WiX-Installation geändert haben, damit der Wrapper und <code>jpackage</code> die neuen Werte sehen.</p>
+<h3 id="erstellen-sie-das-app-image-portable-zip-und-msi">Erstellen Sie das App-Image, portable ZIP und MSI<a class="headerlink" href="#erstellen-sie-das-app-image-portable-zip-und-msi" title="Permanent link">&para;</a></h3>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">clean</span> <span class="n">build</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackage</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">Compress-Archive</span> <span class="n">-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span> <span class="n">-DestinationPath</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span> <span class="n">-Force</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="p">.\</span><span class="n">gradlew</span><span class="p">.</span><span class="n">bat</span> <span class="n">jpackageMsi</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Artefakt</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eigenständiges App-Image</td>
+<td><code>build\jpackage\korTTY\</code></td>
+</tr>
+<tr>
+<td>Windows-Launcher im App-Image</td>
+<td><code>build\jpackage\korTTY\korTTY.exe</code></td>
+</tr>
+<tr>
+<td>Tragbares Archiv</td>
+<td><code>build\jpackage\korTTY-Windows-local.zip</code></td>
+</tr>
+<tr>
+<td>Installer</td>
+<td><code>build\jpackage\korTTY-&lt;version&gt;.msi</code></td>
+</tr>
+</tbody>
+</table>
+<p>Die ZIP-Datei ist portierbar, da sie das vollständige <code>korTTY</code>-Verzeichnis enthält. <code>korTTY.exe</code> ist ein Launcher in diesem Verzeichnis, keine eigenständige Binärdatei; Extrahieren Sie das gesamte Verzeichnis, bevor Sie es ausführen.</p>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">Test-Path</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="p">&amp;</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY</span><span class="p">\</span><span class="n">korTTY</span><span class="p">.</span><span class="n">exe</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nb">Get-ChildItem</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\*.</span><span class="n">msi</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nb">Get-Item</span> <span class="p">.\</span><span class="n">build</span><span class="p">\</span><span class="n">jpackage</span><span class="p">\</span><span class="n">korTTY-Windows-local</span><span class="p">.</span><span class="n">zip</span>
+</span></code></pre></div>
+<p>Testen Sie die Installation, den Start, das Upgrade und die Entfernung von MSI in einer verfügbaren virtuellen Windows-Maschine, die der Zielarchitektur entspricht, bevor Sie sie veröffentlichen.</p>
+<h3 id="windows-fehlerbehebung">Windows-Fehlerbehebung<a class="headerlink" href="#windows-fehlerbehebung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>jpackageMsi</code> meldet, dass WiX nicht gefunden werden kann: Bestätigen Sie, dass <code>Get-Command candle.exe, light.exe</code> in derselben PowerShell-Sitzung erfolgreich ist, und führen Sie dann <code>clean</code> und <code>jpackageMsi</code> erneut aus.</li>
+<li><code>jpackage</code> fehlt, obwohl <code>java</code> funktioniert: Eine JRE oder ein unvollständiges JDK steht zuerst in <code>PATH</code>; Zeigen Sie <code>JAVA_HOME</code> und <code>PATH</code> auf das vollständige JDK 25 und führen Sie <code>.\gradlew.bat --stop</code> aus.</li>
+<li>Maven kann SithTermFX nicht erstellen: Bestätigen Sie, dass <code>mvn --version</code> JDK 25 meldet und dass <code>mvn.cmd</code> in <code>PATH</code> verfügbar ist.</li>
+<li>Das App-Image-Ziel existiert bereits: Führen Sie <code>.\gradlew.bat clean</code> aus, bevor Sie es neu erstellen.</li>
+</ul>
+<h3 id="weiterfuhrende-literatur-fur-windows">Weiterführende Literatur für Windows<a class="headerlink" href="#weiterfuhrende-literatur-fur-windows" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/25/jpackage/packaging-overview.html#GUID-786E15C0-2A0C-4B2D-9739-A04F98642C23">Voraussetzungen für die Oracle-JPackage-Verpackung</a></li>
+<li><a href="https://wixtoolset.org/docs/">WiX Toolset-Dokumentation</a></li>
+<li><a href="https://github.com/wixtoolset/wix3/releases">WiX Toolset 3 veröffentlicht</a></li>
+<li><a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.archive/compress-archive">Microsoft PowerShell: Compress-Archive</a></li>
+</ul>
+<h2 id="allgemeine-fehlerbehebung-und-weiterfuhrende-literatur">Allgemeine Fehlerbehebung und weiterführende Literatur<a class="headerlink" href="#allgemeine-fehlerbehebung-und-weiterfuhrende-literatur" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Eine Paketierungsaufgabe für ein anderes Betriebssystem fehlt: Dies wird erwartet, da <code>build.gradle.kts</code> <code>jpackageDmg</code>, <code>jpackageMsi</code>, <code>jpackageDeb</code> und <code>jpackageRpm</code> nur auf den entsprechenden Hostplattformen registriert.</li>
+<li>Ein sauberer Build kann keine Abhängigkeiten auflösen oder ein angeheftetes Asset herunterladen: Bestätigen Sie den ausgehenden HTTPS-Zugriff und die Proxy-Konfiguration für GitHub, Maven-Repositorys, Gradle-Dienste, Node.js und die npm-Registrierung und führen Sie dann die fehlgeschlagene Gradle-Aufgabe erneut aus.</li>
+<li>Gradle verwendet nach den Änderungen von <code>JAVA_HOME</code> eine andere Java-Laufzeitumgebung: Stoppen Sie den Daemon mit <code>./gradlew --stop</code> oder <code>.\gradlew.bat --stop</code>, überprüfen Sie <code>./gradlew --version</code> und erstellen Sie von <code>clean</code> aus neu.</li>
+<li>A-Paket hat die falsche Architektur: Vergleichen Sie die Betriebssystemarchitektur mit der <code>os.arch</code>-Zeile von <code>java -XshowSettings:properties -version</code>; Installieren Sie ein natives JDK 25, das zum Ziel passt, und erstellen Sie es neu, anstatt die Ausgabe umzubenennen.</li>
+</ul>
+<p>Offizielle Referenzen:</p>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/25/jpackage/">Oracle Packaging Tool-Anleitung für JDK 25</a></li>
+<li><a href="https://docs.oracle.com/en/java/javase/25/docs/specs/man/jpackage.html">Oracle jpackage-Befehlsreferenz</a></li>
+<li><a href="https://docs.gradle.org/current/userguide/gradle_wrapper.html">Gradle Wrapper-Anleitung</a></li>
+<li><a href="https://maven.apache.org/install.html">Apache Maven-Installationsanleitung</a></li>
+<li><a href="https://git-scm.com/book/en/v2/Getting-Started-Installing-Git">Git-Installationsanleitung</a></li>
+<li><a href="https://adoptium.net/temurin/releases/?version=25">Eclipse Temurin JDK-Downloads</a></li>
+</ul>
+<p><a class="md-button" href="installation.html">Zurück zur Installation →</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.4.3</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

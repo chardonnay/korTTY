@@ -15,7 +15,7 @@ Die Terminalaufzeichnung speichert Sitzungsdaten in komprimierten JSONL-Wiederga
 - **Standardspeicher**: `~/.kortty/recordings`
 - **Inhalt**: Änderungen des Bildschirmstatus, Zeitereignisse und optionale Farbläufe
 
-!!! Notiz
+!!! note
     Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist.
 
 ## Konfiguration
@@ -48,7 +48,7 @@ Legen Sie unter **Tools > Video Manager** die folgenden Optionen fest:
 | **Farben erfassen** | Terminal-Läufe pro Zelle in neue Aufzeichnungen einbeziehen |
 | **ffmpeg-Pfad** | Pfad zur lokalen `ffmpeg`-Binärdatei für den Videoexport |
 
-!!! Tipp
+!!! tip
     Aktivieren Sie die Farberfassung *vor* der Aufnahme, wenn Sie möchten, dass exportierte Videos die Terminalfarben genau wiedergeben. Vorhandene Aufnahmen ohne Farbdaten können weiterhin exportiert werden, die Farben bleiben jedoch nicht erhalten.
 
 ### ffmpeg-Konfiguration
@@ -96,9 +96,9 @@ Für exportierte Videos muss `ffmpeg` verfügbar und konfiguriert sein.
 4. Klicken Sie auf **Exportieren**
 5. Im Exportdialog:
    - Wählen Sie **Gesamte Aufzeichnung exportieren** oder geben Sie einen benutzerdefinierten Zeitraum an
-   – Geben Sie für benutzerdefinierte Bereiche die Start-/Endzeiten als `MM` (Minuten) oder `MM:SS` (Minuten und Sekunden) ein.
+   - Geben Sie für benutzerdefinierte Bereiche die Start-/Endzeiten als `MM` (Minuten) oder `MM:SS` (Minuten und Sekunden) ein.
    - Werte, die über die Wiedergabedauer hinausgehen, werden abgelehnt
-   – Wählen Sie, ob **Terminalfarben einbezogen werden** (nur verfügbar, wenn die Wiedergabe Farbdaten enthält)
+   - Wählen Sie, ob **Terminalfarben einbezogen werden** (nur verfügbar, wenn die Wiedergabe Farbdaten enthält)
    - Wählen Sie das Ausgabeformat: **WebM/VP9** oder **MKV/FFV1**
    - Wählen Sie den Ausgabeort
 

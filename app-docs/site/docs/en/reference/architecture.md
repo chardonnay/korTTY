@@ -38,7 +38,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 
 ## SithTermFX Terminal Engine
 
-KorTTY uses **SithTermFX 1.2.0** as its primary terminal emulator, built from source during the build process. SithTermFX provides:
+KorTTY uses **SithTermFX 1.2.1** as its primary terminal emulator, built from source during the build process. SithTermFX provides:
 
 - **Terminal emulation**: VT100/xterm-compatible terminal rendering powered by a custom JavaFX control
 - **OSC 8 hyperlinks**: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` limited to local host)
@@ -49,7 +49,7 @@ KorTTY uses **SithTermFX 1.2.0** as its primary terminal emulator, built from so
 
 The build process automatically:
 
-1. Clones SithTermFX at tag `v1.2.0` into `vendor/sithtermfx` (no GitHub token required)
+1. Clones SithTermFX at tag `v1.2.1` into `vendor/sithtermfx` (no GitHub token required)
 2. Builds it locally using Maven via the `installSithtermfxLocal` task
 3. Installs artifacts to the local Maven repo (`mavenLocal()`)
 4. Links SithTermFX core and UI modules into the korTTY JAR

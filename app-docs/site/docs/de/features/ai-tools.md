@@ -6,7 +6,7 @@ title: Terminal-KI-Agent und -Tools
 
 Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
 
-!!! Hinweis „SSH vs. lokale Shells“
+!!! note "SSH vs. lokale Shells"
     In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 
@@ -28,7 +28,7 @@ Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn
 - Achten Sie beim Befehlsnamen auf die Groß-/Kleinschreibung
 - Deaktivieren Sie den Setup-Dialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist).
 
-!!! Notiz
+!!! note
     KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreichen. Vom Benutzer eingegebene Agentenbefehle bleiben im Shell-Verlauf verfügbar.
 
 ### Befehlszwecke
@@ -51,12 +51,12 @@ agent-plan migrate this host from package X to package Y
 
 An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbefehle verbessert:
 
-- Geben Sie den Namen des Agentenbefehls ein (z. B. `agent`) und drücken Sie dann ++tab++, um die Befehlsvarianten anzuzeigen (`agent`, `agent-ask`, `agent-plan`).
+- Geben Sie den Namen des Agentenbefehls ein (z. B. `agent`) und drücken Sie dann ++tab++, um Befehlsvarianten anzuzeigen (`agent`, `agent-ask`, `agent-plan`).
 - Geben Sie den Befehl + ein Leerzeichen ein (z. B. `agent `) und drücken Sie dann ++tab++, um den aktuellen Verlauf der Agentenaufforderungen anzuzeigen. In jeder Zeile werden die Eingabeaufforderung und das Datum/die Uhrzeit der letzten Ausführung angezeigt, dedupliziert durch den Eingabeaufforderungstext (neuester zuerst).
 - Eingabeaufforderungen mit mehr als 60 Zeichen werden zur besseren Lesbarkeit mit Auslassungspunkten gekürzt. Bei Auswahl wird weiterhin die vollständige Eingabeaufforderung eingefügt.
 - Die Größe des Verlaufs-Popups lässt sich ändern – ziehen Sie den Griff in der unteren rechten Ecke – und merkt sich seine Größe bei jedem Neustart. Es zeigt eine vertikale Bildlaufleiste an, wenn der Verlauf die Popup-Höhe überschreitet.
 - Klicken Sie im Verlaufs-Popup auf die Schaltfläche ✕ einer Zeile (oder drücken Sie ++del++ auf Tastaturen mit Vorwärts-Löschen-Taste), um eine einzelne Eingabeaufforderung zu entfernen, oder verwenden Sie **Alle löschen** (Bestätigung in zwei Schritten), um den gesamten Verlauf zu löschen. Löschungen werden sofort gespeichert.
-– Außerhalb dieses Kontexts bleibt ++tab++ die normale Shell-Vervollständigung.
+- Außerhalb dieses Kontexts bleibt ++tab++ die normale Shell-Vervollständigung.
 
 Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Standard 20, Bereich 5–100).
 
@@ -86,7 +86,7 @@ Der Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
 - Geheime Exfiltration oder blinde destruktive Befehle
 - Webrecherche nach lokalen Dateien, es sei denn, der Benutzer fragt ausdrücklich nach externen/aktuellen Informationen
 
-!!! Tipp
+!!! tip
     Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in Ihrer Eingabeaufforderung. Der Agent sollte es dann mit SSH-Befehlen wie `sed -n`, `cat`, `file` oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält KorTTY weiterhin Web-Tools von der lokalen Dateiplanung fern, es sei denn, Ihre Aufgabe verlangt eindeutig nach aktuellen oder externen Informationen.
 
 ## Aktivitätsbereich
@@ -270,9 +270,9 @@ So starten Sie eine Agentenaufgabe:
 
 | Verknüpfung | Aktion |
 |----------|--------|
-| ++tab++ beim Agentenbefehl | Varianten `agent`, `agent-ask`, `agent-plan` anzeigen |
+| ++tab++ auf Befehl des Agenten | Zeigen `agent`, `agent-ask`, `agent-plan` Varianten |
 | ++tab++ nach `agent ` | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen |
-| ++esc++ oder ++Strg+C++ während der Ausführung | Abbrechen der Registerkarte des ausgewählten Laufs |
+| ++esc++ oder ++Strg+C++ während der Ausführung | Brechen Sie die Registerkarte des ausgewählten Laufs ab |
 | ++Strg+R++ während der Ausführung | Denkdetails für den ausgewählten Lauf umschalten |
 | Aktivitätsfeld ⏸-Taste | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
 | Aktivitätsfeld ▶️ Schaltfläche | Einen angehaltenen Lauf fortsetzen |
@@ -324,6 +324,6 @@ Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig akt
 
 Konfigurieren Sie den Internetzugang pro AI-Profil unter **Einstellungen > AI > Internetzugang**.
 
-!!! Warnung
+!!! warning
     **Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools verwendet werden, keine Websuche.
 

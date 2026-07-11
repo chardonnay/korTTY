@@ -23,37 +23,37 @@ hide:
 
 <div class="grid cards" markdown>
 
-- :material-rocket-launch: __Erste Schritte__
+-   :material-raketenstart: __Erste Schritte__
 
     Installieren Sie korTTY, legen Sie Ihr Master-Passwort fest und lernen Sie das Hauptfenster kennen.
 
     [:octicons-arrow-right-24: Hier beginnen](getting-started/installation.md)
 
-- :material-console-network: __Verbindungen & Terminal__
+-   :material-console-network: __Verbindungen & Terminal__
 
     SSH/Mosh-Verbindungen, Tabs, Split-Screen, Tunnel, Jump-Server und SFTP.
 
     [:octicons-arrow-right-24: Verbindungen](features/connections.md)
 
-- :material-tune-variant: __Einstellungsreferenz__
+-   :material-tune-variant: __Einstellungsreferenz__
 
     Alle Einstellungen auf allen Konfigurationsregisterkarten, mit Typen, Standardeinstellungen und dem Speicherort der einzelnen Werte.
 
     [:octicons-arrow-right-24: Einstellungen](reference/settings/index.md)
 
-- :material-menu: __Menüs und Verknüpfungen__
+-   :material-menu: __Menüs und Verknüpfungen__
 
     Der vollständige Menübaum und alle Tastenkombinationen.
 
     [:octicons-arrow-right-24: Menüreferenz](reference/menu.md)
 
-- :material-robot-happy: __KI-Assistent und Agenten-Tools__
+-   :material-robot-happy: __KI-Assistent und Agenten-Tools__
 
     Profile, Fähigkeiten, der KI-Manager und die Tools des Terminal-KI-Agenten.
 
     [:octicons-arrow-right-24: Verbindungen & AI](features/connections.md)
 
-- :material-history: __Was ist neu__
+-   :material-history: __Was ist neu__
 
     Versionshinweise für die aktuelle und frühere Versionen.
 
@@ -61,5 +61,5 @@ hide:
 
 </div>
 
-!!! Info „Über diesen Anleitung“
+!!! info "Über diese Anleitung"
     Diese Anleitung ist in korTTY gebündelt (**Hilfe → Anleitung**, Verknüpfung ++f1++) und online veröffentlicht. Es ist in **Englisch** und **Deutsch** verfügbar und wird automatisch mit dem Code synchronisiert. Die korTTY-Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.

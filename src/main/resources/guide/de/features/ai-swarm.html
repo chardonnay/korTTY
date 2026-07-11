@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2421,16 +2451,20 @@
 </tbody>
 </table>
 <p>Die Ergebnisse landen an <strong>zwei Stellen</strong>: Das Job-<strong>Journal</strong> zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als <strong>gespeicherter Schwarm-Chat</strong> gespeichert, sodass Sie ihn später im Abschnitt <em>Schwarm-Chats</em> des AI Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.</p>
-<p>!!! Tipp „Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen“
-    Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf <strong>Planen…</strong> – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.</p>
+<div class="admonition tip">
+<p class="admonition-title">Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen</p>
+<p>Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf <strong>Planen…</strong> – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.</p>
+</div>
 <p>Typische Kombinationen von Schwarm + Scheduler:</p>
 <ul>
 <li><strong>Nächtlicher Flottenzustandsbericht</strong> – eine schreibgeschützte Eingabeaufforderung wie <em>„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“</em> für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom AI-Manager an.</li>
 <li><strong>Erkennung von Konfigurationsdrifts</strong> – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte <em>Fehler</em> auf.</li>
 <li><strong>Bestandsaufnahme auf Patch-Ebene</strong> – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.</li>
 </ul>
-<p>!!! Warnung „Unbeaufsichtigte Änderungen“
-    Ein geplanter Schwarm mit <strong>Schreibgeschützt aus</strong> und <strong>Auto-Genehmigung ein</strong> ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
+<div class="admonition warning">
+<p class="admonition-title">Unbeaufsichtigte Änderungen</p>
+<p>Ein geplanter Schwarm mit <strong>Schreibgeschützt aus</strong> und <strong>Auto-Genehmigung ein</strong> ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
+</div>
 
 
 

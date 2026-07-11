@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2725,7 +2755,7 @@
 <h2 id="offnen-des-snippet-managers">Öffnen des Snippet-Managers<a class="headerlink" href="#offnen-des-snippet-managers" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Menü:</strong> Extras → Snippet-Manager</li>
-<li><strong>Verknüpfung:</strong> ++Strg+Umschalt+s++ (++cmd+Umschalt+s++ unter macOS)</li>
+<li><strong>Verknüpfung:</strong> ++Strg+Umschalt+s++ (++cmd+Umschalt+S++ unter macOS)</li>
 </ul>
 <h2 id="snippets-erstellen-und-bearbeiten">Snippets erstellen und bearbeiten<a class="headerlink" href="#snippets-erstellen-und-bearbeiten" title="Permanent link">&para;</a></h2>
 <ol>
@@ -2815,8 +2845,8 @@
 </ul>
 <p>Das Editor-Kontextmenü bietet außerdem <strong>AI Assistant…</strong>, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.</p>
 <p>Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also <strong>wählen Sie zuerst eine Coderegion aus</strong> – andernfalls fordert KorTTY Sie dazu auf. Die Umschreibung wird immer als Vorher-/Nachher-Vorschau (das Fenster <em>AI-Änderung überprüfen</em>) angezeigt, bevor etwas angewendet wird.</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Snippet-KI-Aktionen senden den aktuellen Snippet-Inhalt, Auswahl- oder Cursor-Metadaten, Eingabeaufforderungsanweisungen und optional aktivierte KI-Fähigkeiten an das konfigurierte Standard-KI-Profil (oder, für die Sicherheitsprüfung, das dedizierte Sicherheitsprüfungsprofil). Snippet-KI-Aktionen aktivieren keine Internet-Tools, selbst wenn das ausgewählte Profil über Internetzugang verfügt. Die automatische Vervollständigung kann das Snippet wiederholt senden, während sie aktiv ist. Deaktivieren Sie sie daher für sensible Snippets, es sei denn, Sie vertrauen dem konfigurierten Endpunkt.</p>
 </div>
 <h4 id="vollstandige-code-analyse">Vollständige Code-Analyse<a class="headerlink" href="#vollstandige-code-analyse" title="Permanent link">&para;</a></h4>
@@ -2980,18 +3010,20 @@
 <h3 id="an-terminal-senden">An Terminal senden<a class="headerlink" href="#an-terminal-senden" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Behält bestehendes Verhalten bei</li>
-<li>Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet
-– Andere Snippets verwenden den vorhandenen Fallback-Pfad</li>
+<li>Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet</li>
+<li>Andere Snippets verwenden den vorhandenen Fallback-Pfad</li>
 </ul>
 <h3 id="mit-parametern-an-terminal-senden">Mit Parametern an Terminal senden<a class="headerlink" href="#mit-parametern-an-terminal-senden" title="Permanent link">&para;</a></h3>
-<p>– Öffnet einen Dialog für fehlende <code>${...}</code>-Platzhaltervariablen und Skriptargumente
-- Skriptargumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
-- Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei <strong>An Terminal senden</strong>, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden</p>
+<ul>
+<li>Öffnet einen Dialog für fehlende <code>${...}</code>-Platzhaltervariablen und Skriptargumente</li>
+<li>Skriptargumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert</li>
+<li>Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei <strong>An Terminal senden</strong>, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden</li>
+</ul>
 <h3 id="skriptargumente">Skriptargumente<a class="headerlink" href="#skriptargumente" title="Permanent link">&para;</a></h3>
 <p>Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:</p>
 <ul>
-<li>Argumente werden einzeln und in Shell-Anführungszeichen übergeben
-– Nicht als roher Shell-Text angehängt</li>
+<li>Argumente werden einzeln und in Shell-Anführungszeichen übergeben</li>
+<li>Nicht als roher Shell-Text angehängt</li>
 <li>Wenn Argumente für nicht unterstützte Sprachen eingegeben werden, zeigt KorTTY eine Informationsmeldung an und sendet nichts</li>
 </ul>
 <h3 id="terminalanzeige">Terminalanzeige<a class="headerlink" href="#terminalanzeige" title="Permanent link">&para;</a></h3>
@@ -3029,11 +3061,13 @@
 <h3 id="skriptorientierte-exporte">Skriptorientierte Exporte<a class="headerlink" href="#skriptorientierte-exporte" title="Permanent link">&para;</a></h3>
 <p>Wählen Sie für skriptspezifische Exporte Folgendes:</p>
 <h4 id="nur-text-skriptdateien">Nur-Text-Skriptdateien<a class="headerlink" href="#nur-text-skriptdateien" title="Permanent link">&para;</a></h4>
-<p>– Öffnet eine Zielordnerauswahl
-- Schreibt eine Datei pro Snippet
-– Der Dateiname stammt aus der Spalte <strong>Name</strong> des Snippets, einschließlich der Erweiterung
-- Unsichere Pfadzeichen werden bereinigt
-- Doppelte Namen erhalten ein Suffix wie <code>script (2).sh</code></p>
+<ul>
+<li>Öffnet eine Zielordnerauswahl</li>
+<li>Schreibt eine Datei pro Snippet</li>
+<li>Filename stammt aus der Spalte <strong>Name</strong> des Snippets, einschließlich der Erweiterung</li>
+<li>Unsichere Pfadzeichen werden bereinigt</li>
+<li>Doppelte Namen erhalten ein Suffix wie <code>script (2).sh</code></li>
+</ul>
 <h4 id="zip-skriptarchiv">ZIP-Skriptarchiv<a class="headerlink" href="#zip-skriptarchiv" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Schreibt eine ZIP-Datei mit einer Skriptdatei pro Snippet</li>
@@ -3046,8 +3080,8 @@
 <li><strong>AES passwortgeschützt</strong> – Passwortverschlüsselt mit AES-256</li>
 <li><strong>GPG-verschlüsselt</strong> – Erstellt eine <code>.zip.gpg</code>-Datei; erfordert den lokalen Befehl <code>gpg</code> und einen verwendbaren öffentlichen Schlüssel</li>
 </ul>
-<div class="admonition tipp">
-<p class="admonition-title">Tipp</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte <strong>Name</strong> verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung <code>.txt</code> und überprüfen Sie, ob alle ZIP-Einträge <code>.txt</code> verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. Für den GPG-Export entschlüsseln Sie <code>.zip.gpg</code> mit Ihrem lokalen GPG-Setup und überprüfen Sie die ZIP-Einträge.</p>
 </div>
 

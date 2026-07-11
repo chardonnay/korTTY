@@ -1,59 +1,36 @@
 # Installation
 
-korTTY runs on **macOS, Windows and Linux**. You can install a pre-built package or build from source.
+korTTY runs on **macOS, Windows and Linux**. The recommended installation is a self-contained package from the [GitHub Releases page](https://github.com/chardonnay/korTTY/releases); these packages include the Java runtime needed by korTTY, so users do not need to install Java separately.
 
-## System requirements
+## Choose the correct package
 
-| Requirement | Minimum |
-| --- | --- |
-| Java | 25 or higher (CI exception: the Windows ARM64 release runner currently uses Java 21) |
-| Gradle | 9.x — included via the wrapper (`./gradlew`) |
-| OS | macOS, Windows, Linux |
-| Optional — JobScheduler Rsync | local `rsync` and `ssh` in `PATH`, or a configured `rsync` binary path |
-| Optional — terminal video export | local `ffmpeg` in `PATH`, or a path configured in **Tools → Video Manager** |
-
-## Pre-built binaries (recommended)
-
-Ready-to-use packages are published on the [GitHub Releases page](https://github.com/chardonnay/korTTY/releases). Each asset name includes the architecture (`-x86_64` / `-aarch64` / `-arm64`). Pick the file matching your system:
+Each native asset name includes its processor architecture. Use `aarch64` or `arm64` for an ARM system and `x86_64` for an Intel or AMD system.
 
 === "macOS"
-    Apple Silicon only — use the `-aarch64` `.dmg`.
+    Use the `aarch64` assets on Apple Silicon and the `x86_64` assets on an Intel Mac. The DMG provides the normal installation experience; the ZIP contains the complete portable `.app` bundle.
 
 === "Windows"
-    Use `-x86_64` for Intel/AMD, or `-arm64` for Windows on ARM. `.exe` (portable) or `.msi` (installer).
+    Use the `x86_64` assets on a standard Intel or AMD PC and the `arm64` assets on Windows on ARM. The MSI is the installer; the ZIP contains the complete portable application directory, including `korTTY.exe` and its runtime. The executable inside that directory is not a stand-alone single-file application.
 
 === "Linux"
-    Use `-x86_64`, or `-aarch64` for ARM (e.g. Raspberry Pi 4, many cloud instances). Packages: `.deb`, `.rpm`, `.tar.gz`, `.zip`.
+    Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, or the ZIP/TAR archive for a portable installation. The archive contains a complete `jpackage` application-image directory; it is not a Linux `.AppImage` file.
 
-## Build from source
+## Optional system tools
 
-```bash
-git clone https://github.com/chardonnay/korTTY.git
-cd korTTY
-./gradlew build
-```
+Some features call external programs only when you use them:
 
-Run directly:
+| Feature | Optional requirement |
+| --- | --- |
+| JobScheduler Rsync | Local `rsync` and `ssh` in `PATH`, or a configured `rsync` binary path |
+| Terminal video export | Local `ffmpeg` in `PATH`, or a path configured in **Tools → Video Manager** |
 
-```bash
-./gradlew run
-```
+## Build your own package
 
-### Build native packages locally
+Building from source requires a complete JDK and platform packaging tools. The dedicated guide covers the thin JAR, Java ZIP/TAR distributions, self-contained portable app images and native installers for every supported operating system, including Intel macOS builds, signing and notarization.
 
-korTTY is packaged with `jpackage`; the output matches the architecture of the build machine.
-
-| Platform | Command | Output |
-| --- | --- | --- |
-| macOS (.app) | `./gradlew jpackage` | `build/jpackage/korTTY.app` |
-| macOS (.dmg) | `./gradlew jpackageDmg` | `build/jpackage/korTTY-<version>.dmg` |
-| Windows (.exe) | `gradlew.bat jpackage` | `build\jpackage\korTTY\` |
-| Windows (.msi) | `gradlew.bat jpackageMsi` | `build\jpackage\korTTY-<version>.msi` |
-| Linux (AppImage) | `./gradlew jpackage` | `build/jpackage/korTTY/` |
-| Linux (.deb) | `./gradlew jpackageDeb` | `build/jpackage/korTTY-<version>.deb` |
-| Linux (.rpm) | `./gradlew jpackageRpm` | `build/jpackage/korTTY-<version>.rpm` |
+[Build korTTY packages locally →](building-packages.md){ .md-button }
 
 !!! note "macOS Local Network privacy"
-    When launched via the Gradle daemon, korTTY runs as a child of a background process that has no "Local Network" permission, so connecting to LAN / private-IP hosts may fail. For LAN SSH, launch the packaged `.app` (which prompts for Local Network access on first launch) or start korTTY as a child of Terminal.
+    When launched via the Gradle daemon, korTTY runs as a child of a background process that has no Local Network permission, so connecting to LAN or private-IP hosts may fail. For LAN SSH, launch the packaged `.app`, which prompts for Local Network access on first launch, or start korTTY as a child of Terminal.
 
 [Next: First launch & master password →](first-launch.md){ .md-button }

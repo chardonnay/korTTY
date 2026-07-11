@@ -44,5 +44,5 @@ Dies ist besonders nützlich, wenn:
 - Sie müssen Sicherheitsrichtlinien einhalten, die das Routing über ein Gateway erfordern
 - Die interne Infrastruktur verwendet private IPs und erfordert einen Vermittler für den Zugriff
 
-!!! Notiz
+!!! note
     Die Jump-Server-Anmeldeinformationen werden wie normale Verbindungsanmeldeinformationen verschlüsselt in KorTTY gespeichert. Ihr Master-Passwort schützt alle gespeicherten Jump-Server-Passwörter und SSH-Schlüssel-Passphrasen.

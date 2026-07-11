@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
   
 
     
@@ -2955,7 +2985,7 @@
 </tbody>
 </table>
 <h2 id="sithtermfx-terminal-engine">SithTermFX Terminal Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
-<p>KorTTY uses <strong>SithTermFX 1.2.0</strong> as its primary terminal emulator, built from source during the build process. SithTermFX provides:</p>
+<p>KorTTY uses <strong>SithTermFX 1.2.1</strong> as its primary terminal emulator, built from source during the build process. SithTermFX provides:</p>
 <ul>
 <li><strong>Terminal emulation</strong>: VT100/xterm-compatible terminal rendering powered by a custom JavaFX control</li>
 <li><strong>OSC 8 hyperlinks</strong>: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> limited to local host)</li>
@@ -2965,7 +2995,7 @@
 <h3 id="build-integration">Build Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>The build process automatically:</p>
 <ol>
-<li>Clones SithTermFX at tag <code>v1.2.0</code> into <code>vendor/sithtermfx</code> (no GitHub token required)</li>
+<li>Clones SithTermFX at tag <code>v1.2.1</code> into <code>vendor/sithtermfx</code> (no GitHub token required)</li>
 <li>Builds it locally using Maven via the <code>installSithtermfxLocal</code> task</li>
 <li>Installs artifacts to the local Maven repo (<code>mavenLocal()</code>)</li>
 <li>Links SithTermFX core and UI modules into the korTTY JAR</li>

@@ -1,5 +1,6 @@
-# Pinned toolchain for the korTTY documentation site (MkDocs + Material).
+# Pinned toolchain for the korTTY documentation site and EN-to-DE generation.
 # Installed into the throwaway .venv-docs venv (see build.gradle.kts setupDocsVenv).
 # The `search` and `offline` plugins ship inside mkdocs-material — no extra deps needed.
 mkdocs==1.6.1
 mkdocs-material==9.7.6
+deep-translator==1.11.4

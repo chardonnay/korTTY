@@ -264,6 +264,8 @@
       
         
       
+        
+      
     
     
     
@@ -324,6 +326,34 @@
     
   
     Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
   
 
     
@@ -2749,8 +2779,10 @@
 
 <h1 id="terminal-ki-agent-und-tools">Terminal-KI-Agent und -Tools<a class="headerlink" href="#terminal-ki-agent-und-tools" title="Permanent link">&para;</a></h1>
 <p>Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.</p>
-<p>!!! Hinweis „SSH vs. lokale Shells“
-    In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+<div class="admonition note">
+<p class="admonition-title">SSH vs. lokale Shells</p>
+<p>In lokalen Shells werden Befehle in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+</div>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
 <h2 id="befehlsvarianten">Befehlsvarianten<a class="headerlink" href="#befehlsvarianten" title="Permanent link">&para;</a></h2>
 <p>Der Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter <strong>Einstellungen &gt; AI</strong> aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:</p>
@@ -2764,8 +2796,8 @@
 <li>Achten Sie beim Befehlsnamen auf die Groß-/Kleinschreibung</li>
 <li>Deaktivieren Sie den Setup-Dialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist).</li>
 </ul>
-<div class="admonition notiz">
-<p class="admonition-title">Notiz</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>KorTTY fängt diese Verknüpfungen lokal ab, bevor sie die Remote-Shell erreichen. Vom Benutzer eingegebene Agentenbefehle bleiben im Shell-Verlauf verfügbar.</p>
 </div>
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
@@ -2784,12 +2816,12 @@
 <h2 id="tab-vervollstandigung-und-eingabeaufforderungsverlauf">TAB-Vervollständigung und Eingabeaufforderungsverlauf<a class="headerlink" href="#tab-vervollstandigung-und-eingabeaufforderungsverlauf" title="Permanent link">&para;</a></h2>
 <p>An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbefehle verbessert:</p>
 <ul>
-<li>Geben Sie den Namen des Agentenbefehls ein (z. B. <code>agent</code>) und drücken Sie dann <span class="keys"><kbd class="key-tab">Tab</kbd></span>, um die Befehlsvarianten anzuzeigen (<code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code>).</li>
+<li>Geben Sie den Namen des Agentenbefehls ein (z. B. <code>agent</code>) und drücken Sie dann <span class="keys"><kbd class="key-tab">Tab</kbd></span>, um Befehlsvarianten anzuzeigen (<code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code>).</li>
 <li>Geben Sie den Befehl + ein Leerzeichen ein (z. B. <code>agent</code>) und drücken Sie dann <span class="keys"><kbd class="key-tab">Tab</kbd></span>, um den aktuellen Verlauf der Agentenaufforderungen anzuzeigen. In jeder Zeile werden die Eingabeaufforderung und das Datum/die Uhrzeit der letzten Ausführung angezeigt, dedupliziert durch den Eingabeaufforderungstext (neuester zuerst).</li>
 <li>Eingabeaufforderungen mit mehr als 60 Zeichen werden zur besseren Lesbarkeit mit Auslassungspunkten gekürzt. Bei Auswahl wird weiterhin die vollständige Eingabeaufforderung eingefügt.</li>
 <li>Die Größe des Verlaufs-Popups lässt sich ändern – ziehen Sie den Griff in der unteren rechten Ecke – und merkt sich seine Größe bei jedem Neustart. Es zeigt eine vertikale Bildlaufleiste an, wenn der Verlauf die Popup-Höhe überschreitet.</li>
-<li>Klicken Sie im Verlaufs-Popup auf die Schaltfläche ✕ einer Zeile (oder drücken Sie <span class="keys"><kbd class="key-delete">Del</kbd></span> auf Tastaturen mit Vorwärts-Löschen-Taste), um eine einzelne Eingabeaufforderung zu entfernen, oder verwenden Sie <strong>Alle löschen</strong> (Bestätigung in zwei Schritten), um den gesamten Verlauf zu löschen. Löschungen werden sofort gespeichert.
-– Außerhalb dieses Kontexts bleibt <span class="keys"><kbd class="key-tab">Tab</kbd></span> die normale Shell-Vervollständigung.</li>
+<li>Klicken Sie im Verlaufs-Popup auf die Schaltfläche ✕ einer Zeile (oder drücken Sie <span class="keys"><kbd class="key-delete">Del</kbd></span> auf Tastaturen mit Vorwärts-Löschen-Taste), um eine einzelne Eingabeaufforderung zu entfernen, oder verwenden Sie <strong>Alle löschen</strong> (Bestätigung in zwei Schritten), um den gesamten Verlauf zu löschen. Löschungen werden sofort gespeichert.</li>
+<li>Außerhalb dieses Kontexts bleibt <span class="keys"><kbd class="key-tab">Tab</kbd></span> die normale Shell-Vervollständigung.</li>
 </ul>
 <p>Die Verlaufsgröße kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden (Standard 20, Bereich 5–100).</p>
 <h2 id="so-funktioniert-der-ki-agent">So funktioniert der KI-Agent<a class="headerlink" href="#so-funktioniert-der-ki-agent" title="Permanent link">&para;</a></h2>
@@ -2817,8 +2849,8 @@
 <li>Geheime Exfiltration oder blinde destruktive Befehle</li>
 <li>Webrecherche nach lokalen Dateien, es sei denn, der Benutzer fragt ausdrücklich nach externen/aktuellen Informationen</li>
 </ul>
-<div class="admonition tipp">
-<p class="admonition-title">Tipp</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in Ihrer Eingabeaufforderung. Der Agent sollte es dann mit SSH-Befehlen wie <code>sed -n</code>, <code>cat</code>, <code>file</code> oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält KorTTY weiterhin Web-Tools von der lokalen Dateiplanung fern, es sei denn, Ihre Aufgabe verlangt eindeutig nach aktuellen oder externen Informationen.</p>
 </div>
 <h2 id="aktivitatsbereich">Aktivitätsbereich<a class="headerlink" href="#aktivitatsbereich" title="Permanent link">&para;</a></h2>
@@ -3045,8 +3077,8 @@
 </thead>
 <tbody>
 <tr>
-<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> beim Agentenbefehl</td>
-<td>Varianten <code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code> anzeigen</td>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> auf Befehl des Agenten</td>
+<td>Zeigen <code>agent</code>, <code>agent-ask</code>, <code>agent-plan</code> Varianten</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-tab">Tab</kbd></span> nach <code>agent</code></td>
@@ -3054,7 +3086,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-escape">Esc</kbd></span> oder ++Strg+C++ während der Ausführung</td>
-<td>Abbrechen der Registerkarte des ausgewählten Laufs</td>
+<td>Brechen Sie die Registerkarte des ausgewählten Laufs ab</td>
 </tr>
 <tr>
 <td>++Strg+R++ während der Ausführung</td>
@@ -3144,8 +3176,8 @@
 <li><strong>LM Studio MCP-Modi</strong> – Integrieren Sie Tavily, Bright Data, Brave Search, SearXNG oder LM Studio Toolpack über die native MCP-Unterstützung von LM Studio.</li>
 </ul>
 <p>Konfigurieren Sie den Internetzugang pro AI-Profil unter <strong>Einstellungen &gt; AI &gt; Internetzugang</strong>.</p>
-<div class="admonition warnung">
-<p class="admonition-title">Warnung</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen</strong>, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie <code>sed</code>, <code>cat</code>, <code>find</code> oder sprachspezifische Tools verwendet werden, keine Websuche.</p>
 </div>
 

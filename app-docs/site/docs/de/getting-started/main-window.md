@@ -16,7 +16,7 @@ Das Hauptfenster von korTTY hat diese Bereiche:
 - **Terminalbereich** – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.
 - **Statusleiste** – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.
 
-!!! Tipp „Nur Terminal-Vollbild“
+!!! tip "Nur Terminal-Vollbild"
     Drücken Sie ++f12++ (oder **Ansicht → Nur Terminal-Vollbild**), um das gesamte Fensterchrom auszublenden und nur das Terminal anzuzeigen. **Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden** entfernt auch die Bildlaufleisten. Drücken Sie erneut ++f12++, um die Wiederherstellung durchzuführen.
 
 ## macOS Dock-Menü

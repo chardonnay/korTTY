@@ -47,6 +47,9 @@ jobs:
           - os: macos-latest
             platform: macos
             arch: aarch64
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
           - os: windows-latest
             platform: windows
             arch: x86_64
@@ -154,6 +157,56 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
+
+      - name: Validate macOS JDK and architecture
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          canonical_arch() {
+            case "$1" in
+              arm64|aarch64|ARM64) echo "aarch64" ;;
+              x86_64|amd64|x64|X64) echo "x86_64" ;;
+              *) echo "$1" ;;
+            esac
+          }
+
+          java_path="$(command -v java || true)"
+          jpackage_path="$(command -v jpackage || true)"
+          if [ -z "$java_path" ] || [ -z "$jpackage_path" ]; then
+            echo "JDK 25 toolchain is incomplete: java='$java_path', jpackage='$jpackage_path'."
+            exit 1
+          fi
+
+          java_settings="$(java -XshowSettings:properties -version 2>&1)"
+          java_major="$(awk -F' = ' '/^[[:space:]]*java.specification.version = / { print $2; exit }' <<< "$java_settings")"
+          java_arch_raw="$(awk -F' = ' '/^[[:space:]]*os.arch = / { print $2; exit }' <<< "$java_settings")"
+          jpackage_version="$(jpackage --version 2>&1 | tr -d '\r')"
+
+          if [ "$java_major" != "25" ]; then
+            echo "Expected JDK major 25, but java reports '${java_major:-unknown}' ($java_path)."
+            exit 1
+          fi
+          if [[ ! "$jpackage_version" =~ ^25([.]|$) ]]; then
+            echo "Expected jpackage major 25, but got '${jpackage_version:-unknown}' ($jpackage_path)."
+            exit 1
+          fi
+          if [ -z "${RUNNER_ARCH:-}" ]; then
+            echo "RUNNER_ARCH is not set; cannot validate the GitHub runner architecture."
+            exit 1
+          fi
+
+          expected_arch="${{ matrix.arch }}"
+          runner_arch="$(canonical_arch "$RUNNER_ARCH")"
+          machine_arch="$(canonical_arch "$(uname -m)")"
+          java_arch="$(canonical_arch "$java_arch_raw")"
+          for actual in "$runner_arch" "$machine_arch" "$java_arch"; do
+            if [ "$actual" != "$expected_arch" ]; then
+              echo "Architecture mismatch: matrix=$expected_arch, RUNNER_ARCH=$RUNNER_ARCH, uname=$(uname -m), java.os.arch=${java_arch_raw:-unknown}."
+              exit 1
+            fi
+          done
+
+          echo "Validated macOS toolchain: java=$java_major, jpackage=$jpackage_version, architecture=$expected_arch."
 
       - name: Validate Apple signing secrets
         if: matrix.platform == 'macos'
@@ -314,6 +367,33 @@ jobs:
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" -Pkortty.macos.signingKeychain="$KORTTY_MAC_SIGNING_KEYCHAIN" jpackageDmg
 
+      - name: Validate macOS app launcher architecture
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          launcher="build/jpackage/korTTY.app/Contents/MacOS/korTTY"
+          if [ ! -x "$launcher" ]; then
+            echo "Expected macOS app launcher not found or not executable: $launcher"
+            exit 1
+          fi
+
+          case "${{ matrix.arch }}" in
+            aarch64) expected_lipo_arch="arm64" ;;
+            x86_64) expected_lipo_arch="x86_64" ;;
+            *)
+              echo "Unsupported macOS matrix architecture: ${{ matrix.arch }}"
+              exit 1
+              ;;
+          esac
+
+          launcher_archs="$(lipo -archs "$launcher" | xargs)"
+          if [ "$launcher_archs" != "$expected_lipo_arch" ]; then
+            echo "Launcher architecture mismatch: expected '$expected_lipo_arch' for artifact suffix '${{ matrix.arch }}', got '${launcher_archs:-unknown}'."
+            exit 1
+          fi
+
+          echo "Validated macOS app launcher architecture: $launcher_archs."
+
       - name: Store Apple notarization credentials
         if: matrix.platform == 'macos'
         shell: bash
@@ -432,7 +512,7 @@ jobs:
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} jpackageMsi
 
-      - name: Build Linux AppImage
+      - name: Build Linux application image
         if: matrix.platform == 'linux'
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} jpackage
@@ -492,19 +572,11 @@ jobs:
         run: |
           cd build/jpackage
           $artifactBase = "korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}"
-          if ("${{ matrix.arch }}" -eq "arm64") {
-            $exeFile = Get-Item "korTTY\*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if (-not $exeFile) {
-              $exeFile = Get-ChildItem -Recurse -Filter *.exe | Where-Object { $_.Name -ieq "korTTY.exe" } | Select-Object -First 1
-            }
-            if (-not $exeFile) {
-              Write-Error "No executable found for Windows ARM64 app-image in build/jpackage."
-              exit 1
-            }
-            Compress-Archive -Path $exeFile.FullName -DestinationPath "$artifactBase.zip" -Force
-          } else {
-            Compress-Archive -Path korTTY -DestinationPath "$artifactBase.zip" -Force
+          if (-not (Test-Path -Path "korTTY" -PathType Container)) {
+            Write-Error "Complete Windows application image not found at build/jpackage/korTTY."
+            exit 1
           }
+          Compress-Archive -Path korTTY -DestinationPath "$artifactBase.zip" -Force
           if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
             Copy-Item $msiFile.FullName "$artifactBase.msi"

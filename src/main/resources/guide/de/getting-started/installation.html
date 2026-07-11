@@ -18,7 +18,7 @@
         <link rel="prev" href="../index.html">
       
       
-        <link rel="next" href="first-launch.html">
+        <link rel="next" href="building-packages.html">
       
       
         
@@ -266,6 +266,8 @@
       
         
       
+        
+      
     
     
     
@@ -378,10 +380,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#systemanforderungen" class="md-nav__link">
+  <a href="#wahlen-sie-das-richtige-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Systemanforderungen
+        Wählen Sie das richtige Paket
       
     </span>
   </a>
@@ -389,10 +391,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#vorgefertigte-binardateien-empfohlen" class="md-nav__link">
+  <a href="#optionale-systemtools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Vorgefertigte Binärdateien (empfohlen)
+        Optionale Systemtools
       
     </span>
   </a>
@@ -400,30 +402,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aus-dem-quellcode-erstellen" class="md-nav__link">
+  <a href="#erstellen-sie-ihr-eigenes-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Aus dem Quellcode erstellen
+        Erstellen Sie Ihr eigenes Paket
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Aus dem Quellcode erstellen">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#native-pakete-lokal-erstellen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Native Pakete lokal erstellen
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -431,6 +416,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1983,10 +1996,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#systemanforderungen" class="md-nav__link">
+  <a href="#wahlen-sie-das-richtige-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Systemanforderungen
+        Wählen Sie das richtige Paket
       
     </span>
   </a>
@@ -1994,10 +2007,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#vorgefertigte-binardateien-empfohlen" class="md-nav__link">
+  <a href="#optionale-systemtools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Vorgefertigte Binärdateien (empfohlen)
+        Optionale Systemtools
       
     </span>
   </a>
@@ -2005,30 +2018,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aus-dem-quellcode-erstellen" class="md-nav__link">
+  <a href="#erstellen-sie-ihr-eigenes-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Aus dem Quellcode erstellen
+        Erstellen Sie Ihr eigenes Paket
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Aus dem Quellcode erstellen">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#native-pakete-lokal-erstellen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Native Pakete lokal erstellen
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2050,114 +2046,49 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>korTTY läuft auf <strong>macOS, Windows und Linux</strong>. Sie können ein vorgefertigtes Paket installieren oder aus dem Quellcode erstellen.</p>
-<h2 id="systemanforderungen">Systemanforderungen<a class="headerlink" href="#systemanforderungen" title="Permanent link">&para;</a></h2>
+<p>korTTY läuft auf <strong>macOS, Windows und Linux</strong>. Die empfohlene Installation ist ein eigenständiges Paket von der <a href="https://github.com/chardonnay/korTTY/releases">GitHub Releases-Seite</a>; Diese Pakete enthalten die von korTTY benötigte Java-Laufzeitumgebung, sodass Benutzer Java nicht separat installieren müssen.</p>
+<h2 id="wahlen-sie-das-richtige-paket">Wählen Sie das richtige Paket<a class="headerlink" href="#wahlen-sie-das-richtige-paket" title="Permanent link">&para;</a></h2>
+<p>Jeder native Asset-Name enthält seine Prozessorarchitektur. Verwenden Sie <code>aarch64</code> oder <code>arm64</code> für ein ARM-System und <code>x86_64</code> für ein Intel- oder AMD-System.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label><label for="__tabbed_1_2">Windows</label><label for="__tabbed_1_3">Linux</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Verwenden Sie die <code>aarch64</code>-Assets auf Apple Silicon und die <code>x86_64</code>-Assets auf einem Intel Mac. Das DMG bietet die normale Installationserfahrung; Die ZIP-Datei enthält das komplette portable <code>.app</code>-Bundle.</p>
+</div>
+<div class="tabbed-block">
+<p>Verwenden Sie die <code>x86_64</code>-Assets auf einem Standard-Intel- oder AMD-PC und die <code>arm64</code>-Assets unter Windows auf ARM. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich <code>korTTY.exe</code> und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.</p>
+</div>
+<div class="tabbed-block">
+<p>Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges <code>jpackage</code>-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-<code>.AppImage</code>-Datei.</p>
+</div>
+</div>
+</div>
+<h2 id="optionale-systemtools">Optionale Systemtools<a class="headerlink" href="#optionale-systemtools" title="Permanent link">&para;</a></h2>
+<p>Einige Funktionen rufen externe Programme nur auf, wenn Sie sie verwenden:</p>
 <table>
 <thead>
 <tr>
-<th>Anforderung</th>
-<th>Minimum</th>
+<th>Merkmal</th>
+<th>Optionale Anforderung</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Java</td>
-<td>25 oder höher (CI-Ausnahme: Der Windows ARM64 Release Runner verwendet derzeit Java 21)</td>
+<td>JobScheduler Rsync</td>
+<td>Lokal <code>rsync</code> und <code>ssh</code> in <code>PATH</code> oder ein konfigurierter <code>rsync</code> Binärpfad</td>
 </tr>
 <tr>
-<td>Gradle</td>
-<td>9.x – über den Wrapper enthalten (<code>./gradlew</code>)</td>
-</tr>
-<tr>
-<td>Betriebssystem</td>
-<td>macOS, Windows, Linux</td>
-</tr>
-<tr>
-<td>Optional – JobScheduler Rsync</td>
-<td>lokal <code>rsync</code> und <code>ssh</code> in <code>PATH</code> oder ein konfigurierter <code>rsync</code>-Binärpfad</td>
-</tr>
-<tr>
-<td>Optional – Terminal-Videoexport</td>
-<td>lokal <code>ffmpeg</code> in <code>PATH</code> oder ein Pfad, der in <strong>Tools → Video Manager</strong></td>
+<td>Terminal-Videoexport</td>
+<td>Lokal <code>ffmpeg</code> in <code>PATH</code> oder ein in <strong>Tools → Video Manager</strong> konfigurierter Pfad</td>
 </tr>
 </tbody>
 </table>
-<h2 id="vorgefertigte-binardateien-empfohlen">Vorgefertigte Binärdateien (empfohlen)<a class="headerlink" href="#vorgefertigte-binardateien-empfohlen" title="Permanent link">&para;</a></h2>
-<p>Gebrauchsfertige Pakete werden auf der <a href="https://github.com/chardonnay/korTTY/releases">GitHub Releases-Seite</a>] veröffentlicht. Jeder Asset-Name enthält die Architektur (<code>-x86_64</code> / <code>-aarch64</code> / <code>-arm64</code>). Wählen Sie die zu Ihrem System passende Datei aus:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p>Nur Apple Silicon – verwenden Sie den <code>-aarch64</code> <code>.dmg</code>.</p>
+<h2 id="erstellen-sie-ihr-eigenes-paket">Erstellen Sie Ihr eigenes Paket<a class="headerlink" href="#erstellen-sie-ihr-eigenes-paket" title="Permanent link">&para;</a></h2>
+<p>Für die Erstellung aus dem Quellcode sind ein vollständiges JDK und Plattform-Paketierungstools erforderlich. Der spezielle Anleitung behandelt die Thin JAR-, Java ZIP/TAR-Distributionen, eigenständige tragbare App-Images und native Installationsprogramme für jedes unterstützte Betriebssystem, einschließlich Intel macOS-Builds, Signierung und Beglaubigung.</p>
+<p><a class="md-button" href="building-packages.html">KorTTY-Pakete lokal erstellen →</a></p>
+<div class="admonition note">
+<p class="admonition-title">macOS Local Network-Datenschutz</p>
+<p>Wenn korTTY über den Gradle-Daemon gestartet wird, wird es als untergeordnetes Element eines Hintergrundprozesses ausgeführt, der keine Berechtigung für ein lokales Netzwerk hat, sodass die Verbindung zu LAN- oder privaten IP-Hosts möglicherweise fehlschlägt. Starten Sie für LAN-SSH das Paket <code>.app</code>, das beim ersten Start zum Zugriff auf das lokale Netzwerk auffordert, oder starten Sie korTTY als untergeordnetes Terminal von Terminal.</p>
 </div>
-</div>
-</div>
-<p>=== „Windows“
-    Verwenden Sie <code>-x86_64</code> für Intel/AMD oder <code>-arm64</code> für Windows auf ARM. <code>.exe</code> (tragbar) oder <code>.msi</code> (Installer).</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Linux</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p>Verwenden Sie <code>-x86_64</code> oder <code>-aarch64</code> für ARM (z. B. Raspberry Pi 4, viele Cloud-Instanzen). Pakete: <code>.deb</code>, <code>.rpm</code>, <code>.tar.gz</code>, <code>.zip</code>.</p>
-</div>
-</div>
-</div>
-<h2 id="aus-dem-quellcode-erstellen">Aus dem Quellcode erstellen<a class="headerlink" href="#aus-dem-quellcode-erstellen" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chardonnay/korTTY.git
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>korTTY
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>./gradlew<span class="w"> </span>build
-</span></code></pre></div>
-<p>Direkt ausführen:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./gradlew<span class="w"> </span>run
-</span></code></pre></div>
-<h3 id="native-pakete-lokal-erstellen">Native Pakete lokal erstellen<a class="headerlink" href="#native-pakete-lokal-erstellen" title="Permanent link">&para;</a></h3>
-<p>korTTY ist mit <code>jpackage</code> verpackt; Die Ausgabe entspricht der Architektur der Build-Maschine.</p>
-<table>
-<thead>
-<tr>
-<th>Plattform</th>
-<th>Befehl</th>
-<th>Ausgabe</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>macOS (.app)</td>
-<td><code>./gradlew jpackage</code></td>
-<td><code>build/jpackage/korTTY.app</code></td>
-</tr>
-<tr>
-<td>macOS (.dmg)</td>
-<td><code>./gradlew jpackageDmg</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.dmg</code></td>
-</tr>
-<tr>
-<td>Windows (.exe)</td>
-<td><code>gradlew.bat jpackage</code></td>
-<td><code>build\jpackage\korTTY\</code></td>
-</tr>
-<tr>
-<td>Windows (.msi)</td>
-<td><code>gradlew.bat jpackageMsi</code></td>
-<td><code>build\jpackage\korTTY-&lt;version&gt;.msi</code></td>
-</tr>
-<tr>
-<td>Linux (AppImage)</td>
-<td><code>./gradlew jpackage</code></td>
-<td><code>build/jpackage/korTTY/</code></td>
-</tr>
-<tr>
-<td>Linux (.deb)</td>
-<td><code>./gradlew jpackageDeb</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.deb</code></td>
-</tr>
-<tr>
-<td>Linux (.rpm)</td>
-<td><code>./gradlew jpackageRpm</code></td>
-<td><code>build/jpackage/korTTY-&lt;version&gt;.rpm</code></td>
-</tr>
-</tbody>
-</table>
-<p>!!! Hinweis „Datenschutz im lokalen Netzwerk von macOS“
-    Wenn korTTY über den Gradle-Daemon gestartet wird, wird es als untergeordnetes Element eines Hintergrundprozesses ausgeführt, der keine Berechtigung für „Lokales Netzwerk“ hat, sodass die Verbindung zu LAN-/privaten IP-Hosts möglicherweise fehlschlägt. Starten Sie für LAN-SSH das Paket <code>.app</code> (das beim ersten Start zum Zugriff auf das lokale Netzwerk auffordert) oder starten Sie korTTY als untergeordnetes Terminal von Terminal.</p>
 <p><a class="md-button" href="first-launch.html">Weiter: Erster Start und Master-Passwort →</a></p>
 
 
