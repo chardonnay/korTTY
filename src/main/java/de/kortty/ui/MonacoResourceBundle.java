@@ -33,12 +33,12 @@ final class MonacoResourceBundle {
 
     private static final Logger logger = LoggerFactory.getLogger(MonacoResourceBundle.class);
 
-    // Each HTML page plus its two relative siblings. The Monaco web workers are inline blobs baked into
-    // the host bundle (host.js imports WORKER_SOURCES and does new Worker(blob:)), so the large
+    // Both HTML pages share one JS/CSS pair. The Monaco web workers are inline blobs baked into
+    // the host bundle (common.js imports WORKER_SOURCES and does new Worker(blob:)), so the large
     // *.worker.js files are never fetched as resources and must NOT be extracted here.
     private static final String[] FILES = {
         "monaco-editor.html", "monaco-host.js", "monaco-host.css",
-        "monaco-diff-editor.html", "monaco-diff-host.js", "monaco-diff-host.css"
+        "monaco-diff-editor.html"
     };
 
     private static final Object LOCK = new Object();

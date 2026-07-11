@@ -198,7 +198,7 @@ $$a^2 + b^2 = c^2$$
 !!! note "Rendering details and requirements"
     * SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.
     * Mermaid runs with its `strict` security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.
-    * PlantUML rendering uses the local PlantUML toolchain: `java` and Graphviz `dot` must be on the `PATH`, and the PlantUML jar is downloaded to the user cache on first use (same requirements as snippet diagrams).
+    * PlantUML is downloaded to the user cache on first use and accepted only when it matches korTTY's fixed SHA-256. The packaged app renders it in a private, cancellable launcher worker, so neither `java` nor `dot` must be on `PATH`; Graphviz remains optional for PlantUML diagram types that require it. See the same cache and rendering details under [Snippet diagrams](snippets.md).
     * Full LaTeX documents (`\documentclass`) intentionally stay code blocks; only formulas are typeset.
     * Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.
 

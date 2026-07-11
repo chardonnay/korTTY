@@ -32,6 +32,12 @@ class Mosh4jTtyConnectorTest {
         assertThat(connector.isConnected()).isFalse();
     }
 
+    @Test
+    void reusesBouncyCastleFromParentClassLoader() {
+        assertThat(Mosh4jTtyConnector.parentProvidesBouncyCastle(getClass().getClassLoader())).isTrue();
+        assertThat(Mosh4jTtyConnector.parentProvidesBouncyCastle(new ClassLoader(null) {})).isFalse();
+    }
+
     private static void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);

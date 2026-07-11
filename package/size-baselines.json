@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "release": "v2.4.3",
+  "minimum_reduction_percent": 15,
+  "budget_tolerance_percent": 2,
+  "artifacts": {
+    "macos-aarch64-dmg": {
+      "baseline_bytes": 189860684,
+      "verified_bytes": 135407306,
+      "budget_bytes": 152043520
+    },
+    "macos-x86_64-dmg": {
+      "baseline_exempt": true,
+      "budget_bytes": 152043520
+    },
+    "windows-x86_64-msi": {
+      "baseline_bytes": 194954284,
+      "budget_bytes": 165711141
+    },
+    "linux-x86_64-deb": {
+      "baseline_bytes": 193980040,
+      "budget_bytes": 164883034
+    },
+    "linux-x86_64-rpm": {
+      "baseline_bytes": 223063636,
+      "budget_bytes": 189604090
+    },
+    "linux-aarch64-deb": {
+      "baseline_bytes": 191136540,
+      "budget_bytes": 162466059
+    },
+    "linux-aarch64-rpm": {
+      "baseline_bytes": 219836583,
+      "budget_bytes": 186861095
+    }
+  }
+}

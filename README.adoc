@@ -47,7 +47,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *AI Profiles, Defaults, Reasoning, Internet Access, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, editable model selection pre-filled with common models for known cloud providers (plus live model lists via refresh), LM Studio local-model auto mode, optional reasoning effort where supported by the configured API/model (including Anthropic extended thinking), optional internet mode, default profile selection, tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
 * *AI Profile Setup Wizard*: A guided wizard creates AI profiles — choose connection type (local LM Studio vs a cloud provider), pick a cloud provider with key/model/reasoning, or pick a loaded LM Studio model. Native Anthropic (Claude) API support is included alongside OpenAI-compatible endpoints.
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
-* *Rendered Images, Diagrams & Math in AI Chats*: AI answers render inline as images — SVG documents (sanitized, JavaScript disabled), base64 raster images (PNG/JPEG/GIF/BMP data URIs), PlantUML diagrams (local `java` + Graphviz toolchain), Mermaid diagrams and LaTeX formulas (```latex/```math blocks and `$$…$$` in prose) via bundled Mermaid/MathJax without network access — each with a *Show code / Show image* toggle and copy button
+* *Rendered Images, Diagrams & Math in AI Chats*: AI answers render inline as images — SVG documents (sanitized, JavaScript disabled), base64 raster images (PNG/JPEG/GIF/BMP data URIs), locally rendered PlantUML diagrams, Mermaid diagrams and LaTeX formulas (```latex/```math blocks and `$$…$$` in prose) via bundled Mermaid/MathJax without a remote renderer — each with a *Show code / Show image* toggle and copy button. Packaged PlantUML rendering reuses korTTY's private launcher worker; Graphviz is optional and needed only by diagram types that rely on `dot`.
 * *AI Manager*: Reopen, rename, refresh, and delete saved AI chats, and manage AI profiles from *Tools → AI Manager* (shortcut: *Ctrl/Cmd+Shift+Y*)
 * *AI Agent & Planning*: Start AI Agent and AI Planning from *Tools*, the terminal context menu, or shell-style shortcut commands. The agent inspects the active SSH session, plans safe non-interactive commands, runs them with approvals when needed, writes final answers back into the terminal, and can use configured AI Skills and internet access when the task requires it. Each run log starts with the used AI profile and model, expandable 💭 rows show the model's full reasoning where the provider exposes it, rerun uses the currently active profile, and *Ask AI Agent* on a terminal selection answers about that selection
 * *Interactive AI Planning*: Start planning with `agent-plan <task>` or `agent -plan <task>`, answer clarifying questions, select or describe an approach, generate a final plan, and start implementation only after accepting it
@@ -122,10 +122,9 @@ For terminal-effect plugin development, packaging, import/export behavior, and v
 
 == Requirements
 
-* *JDK 25* (the native packaging tasks call the JDK 25 `jpackage` executable from `PATH`; newer JDKs are not currently supported for packaging)
+* *A JDK supported by the pinned Gradle wrapper* (the build resolves a matching Temurin JDK 25 toolchain for compilation and `jpackage`, so a newer system JDK does not silently change the packaged runtime)
 * *Git*, *Maven*, and *curl* (to build SithTermFX from source and download pinned release dependencies; no GitHub token needed)
 * Internet access for the Gradle wrapper, Maven dependencies, SithTermFX, and pinned bundled tools
-* For GitHub Actions `windows-11-arm` release builds, Java 21 is used in CI for compatibility with currently available runner/toolchain combinations.
 * No separate Gradle installation; the pinned version is downloaded by the wrapper
 * Optional for JobScheduler Rsync jobs: local `rsync` and `ssh` commands available in `PATH`, or a configured `rsync` binary path in *Settings → SFTP*
 * Optional for terminal recording video export: local `ffmpeg` available in `PATH`, or a configured binary path in *Tools → Video Manager*
@@ -162,10 +161,10 @@ The packaged `.app` (`./gradlew jpackage`) is unaffected: it has a stable app id
 
 == Pre-built Binaries (Releases)
 
-Pre-built packages for *x86_64 (amd64)* and *arm64 (aarch64)* are available on the link:https://github.com/chardonnay/korTTY/releases[GitHub Releases] page:
+Pre-built packages for *x86_64 (amd64)* and, where native UI dependencies exist, *arm64 (aarch64)* are available on the link:https://github.com/chardonnay/korTTY/releases[GitHub Releases] page:
 
 * *macOS*: `-aarch64` for Apple Silicon and `-x86_64` for Intel Macs (separate DMG/ZIP files).
-* *Windows*: `-x86_64` for Intel/AMD and `-arm64` for Windows on ARM (both as separate MSI/ZIP files).
+* *Windows*: `-x86_64` for Intel/AMD and for Windows on ARM through Windows' x64 emulation; no native ARM package is currently published because the pinned OpenJFX line has no Windows ARM build.
 * *Linux*: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
 * *Arch Linux*: `-x86_64` (pacman `.pkg.tar.zst`; aarch64: use the Linux tarball).
 
@@ -214,7 +213,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 [cols="2,2,1"]
 |===
 | Category | Module | Version
-| *Java Platform* | JavaFX (controls, fxml, graphics, swing) | 21
+| *Java Platform* | JavaFX (controls, graphics, media, swing, web) | 21
 | *SSH & Crypto* | Apache SSHD (core, common, sftp) | 2.12.0
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0
 | *Terminal* | SithTermFX (core, ui) | 1.2.0
@@ -233,10 +232,10 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | *Logging* | SLF4J / Logback | 2.0.9 / 1.4.14
 | *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.2
 | *Optional system tools* | rsync + ssh for JobScheduler Rsync jobs | external
-| | Graphviz `dot` for local PlantUML rendering | external
+| | Graphviz `dot` for PlantUML diagram types that require it | external
 |===
 
-SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). pty4j backs both the native Mosh client and the <<#local-shell,Local Shell>> feature (spawning `cmd.exe`/PowerShell or `$SHELL` in a local PTY). mosh4j JARs are bundled in release builds so Mosh works without a first-run download. mosh4j `2.0.2` is a security-hardened release (replay/freshness protection, decompression limits). Its dynamically loaded classpath ships with Bouncy Castle `bcprov-jdk18on` `1.84` and `protobuf-java` `4.35.1` (the version mosh4j's generated DTOs are compiled against). The GitHub release tag is `v2.0.2` while the artifact files remain versioned `2.0.2`.
+SithTermFX is built from source (see <<#sithtermfx-integration,SithTermFX Integration>>). pty4j backs both the native Mosh client and the <<#local-shell,Local Shell>> feature (spawning `cmd.exe`/PowerShell or `$SHELL` in a local PTY). mosh4j JARs are bundled in release builds so Mosh works without a first-run download. mosh4j `2.0.2` is a security-hardened release (replay/freshness protection, decompression limits). Its parent-first classloader reuses korTTY's top-level Bouncy Castle `bcprov-jdk18on` `1.84`; only `protobuf-java` `4.35.1` is added to the dynamic child classpath. The GitHub release tag is `v2.0.2` while the artifact files remain versioned `2.0.2`.
 
 == Create Native Release
 
@@ -246,10 +245,10 @@ The complete OS-by-OS instructions, including prerequisites, archive commands, I
 
 === Common packaging requirements
 
-* Use a full *JDK 25* for the target CPU and ensure both `java` and `jpackage` from that JDK are in `PATH`. The Gradle toolchain can provision a compiler, but the packaging tasks invoke `jpackage` directly from `PATH`.
+* Use a full *JDK 25* for the target CPU or allow Gradle to provision its pinned Temurin toolchain. Packaging invokes `jpackage` from the same selected toolchain as compilation, independently of a newer `jpackage` in `PATH`.
 * Install *Git*, *Maven*, and *curl* and allow network access for the pinned build dependencies.
 * Use the included Gradle wrapper; no global Gradle installation is required.
-* Build on the target operating system. The package CPU architecture follows the JDK that runs Gradle, so use an x86_64 JDK for Intel packages and an arm64 JDK for ARM packages.
+* Build on the target operating system. The package CPU architecture follows the selected Gradle JDK 25 toolchain, so provide an x86_64 toolchain for Intel packages and an arm64 toolchain for ARM packages.
 * For installers, add Xcode Command Line Tools on macOS, WiX 3 on Windows, `fakeroot`/`dpkg` tools for DEB, or `rpmbuild` for RPM.
 
 Verify the active toolchain before packaging:
@@ -257,11 +256,11 @@ Verify the active toolchain before packaging:
 [source,bash]
 ----
 java -version
-jpackage --version
 mvn -version
+./gradlew -q javaToolchains
 ----
 
-`java` and `jpackage` must report major version 25.
+The system `java` may be newer, but Gradle must list a matching Temurin JDK 25 for the target CPU; the packaging tasks invoke that toolchain's `jpackage` directly.
 
 === Build outputs
 
@@ -286,6 +285,10 @@ mvn -version
 |===
 
 Run `./gradlew clean build` (or `gradlew.bat clean build`) before the packaging task. On Windows and Linux, distribute the whole application-image directory or archive it as ZIP/TAR; copying only `korTTY.exe` or `bin/korTTY` omits required libraries and the bundled runtime.
+
+The release workflow publishes Windows x86_64 packages. Windows on ARM runs that package through Windows emulation; the former mislabeled ARM archive is no longer built because the pinned OpenJFX line has no native Windows ARM artifacts.
+
+Node.js is downloaded only as an isolated Monaco build tool and never enters the installer. Prettier Standalone (Babel, Estree, TypeScript, HTML and PostCSS plugins) and sql-formatter run offline in a lazy JavaFX WebView. The final `prepareJpackage` Sync removes stale dependency versions and old Mosh architectures, reuses the application's Bouncy Castle JAR, and repacks JNA/pty4j with only target-platform native binaries.
 
 === macOS Intel releases
 

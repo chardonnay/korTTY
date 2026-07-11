@@ -2789,7 +2789,7 @@
 <p>Oberhalb des Inhaltsfelds hält das Spaltenlineal die aktuelle Caret-Spalte links als <code>Column N</code> fest und zeigt eine Live-Markierung an der entsprechenden Editorposition an. Wenn Sie mit der Maus über den Live-Marker fahren, wird <code>Position N</code> angezeigt. Klicken Sie auf das Lineal, um eine Markierung für die maximale Zeilenlänge festzulegen (Spalten 20–240). Klicken Sie mit der rechten Maustaste auf diese Markierung, um den Inhalt auf die ausgewählte Breite zu formatieren oder die Markierung zu entfernen.</p>
 <p>Die Formatierung der Zeilenbreite funktioniert lokal nur für Formatierer, die konfigurierbare Breite unterstützen:</p>
 <ul>
-<li>Schöner unterstützte Webformate (JavaScript, TypeScript, HTML, CSS, JSON)</li>
+<li>Prettier-gestützte Webformate (JavaScript, TypeScript, HTML, CSS)</li>
 <li>Python (Schwarz)</li>
 <li>Perl (Perl::Tidy)</li>
 </ul>
@@ -2801,6 +2801,7 @@
 <li><strong>Gebündelte Formatierer:</strong> Java (google-java-format), Bash/Shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)</li>
 <li><strong>Fallback:</strong> Optionale PATH-Fallbacks für Entwickler-Setups, wenn ein gebündelter Formatierer fehlt</li>
 </ul>
+<p>Prettier läuft als Offline-Standalone-Browser-Build mit nur den Plugins Babel, Estree, TypeScript, HTML und PostCSS; SQL verwendet den gebündelten SQL-Formatter-Browser-Build. Beide werden träge in einem isolierten JavaFX-WebView initialisiert und benötigen keine installierte oder gepackte Node.js-Laufzeit. Anfragen werden serialisiert und behalten das gleiche 15-Sekunden-Timeout, die gleiche Anbieteranzeige und die konfigurierbare Prettier-Linienbreite wie das Prozess-Backend; Eine ausgefallene oder abgelaufene Engine wird vor der nächsten Anfrage verworfen.</p>
 <p>Wenn die lokale Formatierung nicht verfügbar ist und das konfigurierte AI-Profil Snippet-AI-Funktionen bietet, fragt KorTTY, ob die AI-Unterstützung verwendet werden soll. Die AI-Formatierung wird erst angewendet, nachdem die Vorher/Nachher-Vorschau akzeptiert wurde.</p>
 <h3 id="editor-profile">Editor-Profile<a class="headerlink" href="#editor-profile" title="Permanent link">&para;</a></h3>
 <p>Wechseln Sie zwischen:</p>
@@ -2939,9 +2940,10 @@
 <h3 id="plantuml-diagramme">PlantUML-Diagramme<a class="headerlink" href="#plantuml-diagramme" title="Permanent link">&para;</a></h3>
 <p>PlantUML-Diagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.</p>
 <ul>
-<li><strong>Rendering:</strong> Nur lokal – KorTTY verwendet ein prüfsummenverifiziertes PlantUML-JAR und Graphviz <code>dot</code>; Es wird kein Remote-Server verwendet.</li>
+<li><strong>Rendering:</strong> Nur lokal – KorTTY lädt PlantUML 1.2026.2 bei der ersten Verwendung herunter, überprüft seinen festen SHA-256 und behält das aktuelle JAR im Benutzercache; Es wird kein Remote-Rendering-Server verwendet.</li>
 <li><strong>Dialogfunktionen:</strong> Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Kopieren in die Zwischenablage und die gemeinsamen <a href="#diagram-appearance">Diagrammdarstellung</a>-Steuerelemente.</li>
-<li><strong>Abhängigkeitsfehler:</strong> Wenn lokales Rendering nicht verfügbar ist, zeigt KorTTY den Fehler an, damit Java/Graphviz behoben werden kann.</li>
+<li><strong>Laufzeit:</strong> Eine gepackte App startet erneut in ihrem eigenen Launcher in einem privaten, stornierbaren Worker-Modus, da die entfernte Laufzeit absichtlich kein <code>bin/java</code> hat; Entwicklungsläufe können ihr gebündeltes oder System-Java verwenden. Graphviz <code>dot</code> ist für die Aktivitäts-/Sequenzdiagramme von korTTY optional und wird nur von PlantUML-Diagrammtypen benötigt, die von Graphviz abhängen.</li>
+<li><strong>Cache-Hygiene:</strong> Veraltete PlantUML-Versionen, ältere SHA-1-Dateien und aufgegebene Renderverzeichnisse, die älter als 24 Stunden sind, werden automatisch entfernt.</li>
 </ul>
 <h3 id="diagrammdarstellung">Diagrammdarstellung<a class="headerlink" href="#diagrammdarstellung" title="Permanent link">&para;</a></h3>
 <p>Beide Diagrammfenster – das eigenständige <strong>Diagramm</strong>-Dialogfeld und das <strong>Vollständige Codeanalyse</strong>-Flussdiagramm – teilen sich zwei Darstellungssteuerelemente und jedes merkt sich seine Einstellung sitzungsübergreifend:</p>

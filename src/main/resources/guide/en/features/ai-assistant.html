@@ -2848,7 +2848,7 @@
 <ul>
 <li>SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.</li>
 <li>Mermaid runs with its <code>strict</code> security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.</li>
-<li>PlantUML rendering uses the local PlantUML toolchain: <code>java</code> and Graphviz <code>dot</code> must be on the <code>PATH</code>, and the PlantUML jar is downloaded to the user cache on first use (same requirements as snippet diagrams).</li>
+<li>PlantUML is downloaded to the user cache on first use and accepted only when it matches korTTY's fixed SHA-256. The packaged app renders it in a private, cancellable launcher worker, so neither <code>java</code> nor <code>dot</code> must be on <code>PATH</code>; Graphviz remains optional for PlantUML diagram types that require it. See the same cache and rendering details under <a href="snippets.html">Snippet diagrams</a>.</li>
 <li>Full LaTeX documents (<code>\documentclass</code>) intentionally stay code blocks; only formulas are typeset.</li>
 <li>Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.</li>
 </ul>

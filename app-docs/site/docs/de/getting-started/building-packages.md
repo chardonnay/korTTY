@@ -21,17 +21,17 @@ Installieren Sie diese Tools, bevor Sie auf einem Betriebssystem aufbauen:
 
 | Anforderung | Warum korTTY es braucht |
 | --- | --- |
-| Vollständiges **JDK 25** passend zur Ziel-CPU | Kompiliert korTTY und stellt `java`, `javac`, `jlink` und `jpackage` bereit; Legen Sie das Verzeichnis `bin` in `PATH` ab und setzen Sie `JAVA_HOME` auf dasselbe JDK |
+| Ein vollständiges JDK, das vom angehefteten Gradle-Wrapper unterstützt wird. | Startet Gradle. korTTY löst dann eine passende Temurin JDK 25-Toolchain für die Kompilierung auf, `jlink` und `jpackage` |
 | Git | Klont korTTY und die angeheftete SithTermFX-Quellenabhängigkeit |
 | Apache Maven | Erstellt SithTermFX vor der korTTY-Kompilierung im lokalen Maven-Repository |
 | `curl` | Lädt die angehefteten mosh4j-Artefakte herunter, die von gepackten Builds verwendet werden |
-| Ausgehender HTTPS-Zugriff | Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, mosh4j, Node.js, Formatierer, Monaco und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen |
+| Ausgehender HTTPS-Zugriff | Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds | heruntergeladen
 | Gradle Wrapper aus diesem Repository | `gradlew` und `gradlew.bat` laden die im Repository angeheftete Gradle-Version herunter und führen sie aus; Installieren oder ersetzen Sie kein System Gradle |
 
-Node.js und MkDocs sind keine allgemeinen Voraussetzungen für eine Anwendungserstellung: Die Gradle-Aufgaben laden eine angeheftete Node.js-Laufzeitumgebung für generierte Assets herunter, und die normale Anwendungserstellung verwendet die festgeschriebenen Offline-Anleitungressourcen.
+Node.js und MkDocs sind keine allgemeinen Voraussetzungen für einen Anwendungs-Build: Gradle lädt eine angeheftete Node.js-Laufzeit nur zum Kompilieren von Monaco in ein isoliertes Build-Verzeichnis herunter, niemals in das Anwendungs-Image, und der normale Anwendungs-Build verwendet die festgeschriebenen Offline-Guide-Ressourcen. Prettier Standalone und SQL-Formatter werden als kompakte Browser-Bundles kopiert und offline in JavaFX WebView ohne Node ausgeführt.
 
-!!! warning "Verwenden Sie genau JDK 25"
-    Die gepackte Laufzeit enthält explizit `jdk.jsobject`, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem `JDK-8362628`: <https://bugs.openjdk.org/browse/JDK-8362628> verfolgt. Gradle kann seine Compiler-Toolchain unabhängig bereitstellen, aber die Paketierungsaufgaben rufen den bloßen Befehl `jpackage` von `PATH` auf; ein neueres oder älteres `jpackage` kann daher auch dann fehlschlagen, wenn bei der Kompilierung JDK 25 ausgewählt wurde. Verweisen Sie sowohl `JAVA_HOME` als auch die ersten `java`/`javac`/`jpackage`-Einträge in `PATH` auf dieselbe JDK 25-Installation.
+!!! important "Packaging ist an die JDK 25-Toolchain" angeheftet
+    Die gepackte Laufzeit enthält explizit `jdk.jsobject`, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem `JDK-8362628`: <https://bugs.openjdk.org/browse/JDK-8362628> verfolgt. Jede Paketierungsaufgabe löst `jpackage` aus derselben von Gradle ausgewählten Temurin JDK 25-Toolchain wie bei der Kompilierung auf, sodass ein neueres System `java` oder `jpackage` nicht stillschweigend eine inkompatible Laufzeit erstellen kann. Die ausgewählte Toolchain muss weiterhin mit der Ziel-CPU übereinstimmen, da `jpackage` keine Cross-Compilierung durchführt.
 
 Klonen Sie die Quelle einmal:
 
@@ -40,33 +40,58 @@ git clone https://github.com/chardonnay/korTTY.git
 cd korTTY
 ```
 
-Stellen Sie sicher, dass jeder Befehl vor dem ersten Build aufgelöst wird. `java`, `javac` und `jpackage` müssen alle die Hauptversion 25 melden, und Maven muss dasselbe `JAVA_HOME` melden.
+Überprüfen Sie die Host-Tools und prüfen Sie die JDKs, die Gradle vor dem ersten Build auswählen kann. Das System-JDK ist möglicherweise neuer als 25, aber `./gradlew javaToolchains` muss nach der Bereitstellung ein passendes JDK 25 für die Ziel-CPU auflisten; Maven muss ein JDK verwenden, das SithTermFX erstellen kann.
 
 === "macOS / Linux"
     ```bash
-    command -v java javac jpackage git mvn curl
+    command -v java git mvn curl
     java -XshowSettings:properties -version 2>&1 | grep -E 'java.specification.version|os.arch'
-    javac --version
-    jpackage --version
     git --version
     mvn --version
     curl --version
     ./gradlew --version
+    ./gradlew -q javaToolchains
     ```
 
 === "Windows PowerShell"
     ```powershell
-    Get-Command java, javac, jpackage, git, mvn, curl
+    Get-Command java, git, mvn, curl
     java -XshowSettings:properties -version 2>&1 | Select-String 'java.specification.version|os.arch'
-    javac --version
-    jpackage --version
     git --version
     mvn --version
     curl --version
     .\gradlew.bat --version
+    .\gradlew.bat -q javaToolchains
     ```
 
 Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klont bei Bedarf auch SithTermFX, installiert es über Maven, lädt die angehefteten Build-Eingaben herunter, kompiliert korTTY und führt die Tests aus.
+
+### Sauberes, zielspezifisches Paket-Staging
+
+`prepareJpackage` setzt `build/jpackage-input/libs` mit einem letzten Gradle `Sync` zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatierungsbäume, behält nur die aktuelle mosh4j-Architektur und Protobuf bei, verwendet das übergeordnet geladene Bouncy Castle der Anwendung wieder, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA/pty4j durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen, aber nur den nativen Zielpfad und die binäre Architektur beibehalten. Die Verifizierungsaufgabe setzt absichtlich veraltete Dateien vor der Synchronisierung und führt einen echten JNA/PTY-Smoke gegen die schlanken JARs durch:
+
+```bash
+./gradlew verifyJpackageStaging slimNativeRuntimeSmoke
+```
+
+### Berichte und Budgets in Paketgröße
+
+Der plattformunabhängige Größenreporter trennt das App-Image, die Laufzeit, Formatierer-/Mosh-Nutzlasten, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen und schreibt dann JSON und Markdown. CI vergleicht native Installationsprogramme mit der festgeschriebenen Release-Baseline, erfordert eine Reduzierung um mindestens 15 %, wendet die 180-MiB-App-Image- und 145-MiB-DMG-Grenzwerte an und verwendet eine Regressionstoleranz von 2 %, sobald eine neue Plattformgröße überprüft wurde:
+
+```bash
+DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
+python3 scripts/package-size-report.py \
+  --app-image build/jpackage/korTTY.app \
+  --artifact "macos-aarch64-dmg=$DMG" \
+  --baselines package/size-baselines.json \
+  --min-app-bytes 104857600 \
+  --max-app-bytes 188743680 \
+  --fail-on-budget \
+  --output-json build/package-size/local.json \
+  --output-markdown build/package-size/local.md
+```
+
+Bevor ein Windows-Archiv erstellt wird, erfordert der Release-Workflow außerdem eine Anwendungs-JAR, `jvm.dll`, mindestens 100 MiB plausiblen Inhalts und x86_64 PE-Header für Launcher und JVM. Die Linux-RPM-Größendurchsetzung wird nach `rpmsign` ausgeführt, sodass die gemessene Datei diejenige ist, die verteilt wird.
 
 ### Erstellen Sie die Java-Artefakte
 
@@ -356,6 +381,8 @@ Compress-Archive -Path .\build\jpackage\korTTY -DestinationPath .\build\jpackage
 
 Die ZIP-Datei ist portierbar, da sie das vollständige `korTTY`-Verzeichnis enthält. `korTTY.exe` ist ein Launcher in diesem Verzeichnis, keine eigenständige Binärdatei; Extrahieren Sie das gesamte Verzeichnis, bevor Sie es ausführen.
 
+Der Release-Workflow veröffentlicht derzeit nur das validierte x86_64-Windows-Paket. OpenJFX stellt keine nativen Windows ARM-Artefakte für die angeheftete JavaFX-Zeile bereit, daher verwendet Windows-on-ARM dieses x86_64-Paket über die Windows-Emulation; Das früher falsch beschriftete ARM-Archiv wird nicht mehr produziert oder als Größenbasis verwendet. Native Windows ARM-Paketierung erfordert einen separaten JavaFX/JDK-Paketierungstrack und eine native WebView/PTY-Validierung.
+
 ```powershell
 Test-Path .\build\jpackage\korTTY\korTTY.exe
 & .\build\jpackage\korTTY\korTTY.exe
@@ -368,7 +395,7 @@ Testen Sie die Installation, den Start, das Upgrade und die Entfernung von MSI i
 ### Windows-Fehlerbehebung
 
 - `jpackageMsi` meldet, dass WiX nicht gefunden werden kann: Bestätigen Sie, dass `Get-Command candle.exe, light.exe` in derselben PowerShell-Sitzung erfolgreich ist, und führen Sie dann `clean` und `jpackageMsi` erneut aus.
-- `jpackage` fehlt, obwohl `java` funktioniert: Eine JRE oder ein unvollständiges JDK steht zuerst in `PATH`; Zeigen Sie `JAVA_HOME` und `PATH` auf das vollständige JDK 25 und führen Sie `.\gradlew.bat --stop` aus.
+- Gradle kann das Paket-JDK nicht auflösen: Führen Sie `.\gradlew.bat -q javaToolchains` aus, erlauben Sie Toolchain-Downloads oder installieren Sie ein natives JDK 25 und stoppen Sie dann vorhandene Daemons mit `.\gradlew.bat --stop`.
 - Maven kann SithTermFX nicht erstellen: Bestätigen Sie, dass `mvn --version` JDK 25 meldet und dass `mvn.cmd` in `PATH` verfügbar ist.
 - Das App-Image-Ziel existiert bereits: Führen Sie `.\gradlew.bat clean` aus, bevor Sie es neu erstellen.
 

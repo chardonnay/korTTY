@@ -219,7 +219,8 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 
 ### Dynamische Abhängigkeiten
 
-- **mosh4j**: In Release-Builds gebündelt; Wird zur Laufzeit dynamisch geladen, wenn Mosh benötigt wird
+- **mosh4j**: Seine fünf SHA-256-fixierten, architekturspezifischen Release-JARs und Protobuf werden in nativen Builds gebündelt und nur dann dynamisch geladen, wenn Mosh benötigt wird. Der untergeordnete Lader verwendet Bouncy Castle aus der übergeordneten Anwendung wieder, anstatt eine zweite Kopie zu versenden.
+- **PlantUML**: PlantUML 1.2026.2 wird bei der ersten Verwendung heruntergeladen, anhand eines festen SHA-256 überprüft und außerhalb des Installationsprogramms zwischengespeichert. Eine gestrippte gepackte Laufzeit wird in einem privaten Native-Launcher-Worker gerendert; Alte JARs und verlassene temporäre Renderverzeichnisse werden automatisch bereinigt.
 - **rsync / ssh**: Externe Befehle, die von JobScheduler Rsync-Jobs verwendet werden
 - **ffmpeg**: Optional; Wird für die Terminalaufzeichnung und den Videoexport verwendet
 
@@ -227,16 +228,17 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 
 ### Zusammenstellung und Verpackung
 
-1. **SithTermFX-Build**: Lokal geklont und erstellt (Maven)
-2. **Formatierungstools**: Node.js, Prettier, shfmt, Perl::Tidy, SQL-Formatter heruntergeladen und gebündelt
-3. **Monaco-Editor**: Erstellt aus npm-Paketen, die als JavaFX WebView-Ressourcen gebündelt sind
-4. **Native Paketierung**: Gradle-JPackage-Aufgaben erstellen plattformspezifische Distributionen (macOS .app/.dmg, Windows .exe/.msi, Linux .deb/.rpm)
+1. **SithTermFX-Build**: Lokal geklont und erstellt (Maven); seine versehentlich veröffentlichte JUnit-Abhängigkeit wird von der Laufzeit ausgeschlossen.
+2. **Browser-Assets**: Ein isoliertes, angeheftetes Node.js wird nur zum Erstellen von Monaco verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD-Build werden direkt in die Anwendungs-JAR kopiert und ohne Node zur Laufzeit ausgeführt.
+3. **Nutzlast des externen Formatierers**: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.
+4. **Sauberes natives Staging**: `prepareJpackage` verwendet einen endgültigen Gradle `Sync`, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.
+5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
 
 ### Klassenpfad und Modulpfad
 
-- **Java 25+**: `jdk.jsobject` extern über das JavaFX-Artefakt bereitgestellt (Modul zur Entfernung auf JDK 25 veraltet)
-- **Java 21** (Windows ARM CI): Integriertes `jdk.jsobject`-Modul verwendet; externe Artefakte ausgeschlossen
-- **Kompilierungszeit**: Der JDK-Modulpfad umfasst JavaFX, SithTermFX und Apache SSHD
+- **Kompilierungszeit**: Auf JDK 25 wird das JavaFX `jdk-jsobject`-Artefakt im Upgrade-Modulpfad bereitgestellt, sodass WebView-Brücken konsistent kompiliert werden. Das Modul fehlt in JDK 26.
+- **Packaging-time**: Gradle löst die gleiche Temurin JDK 25-Toolchain auf und ruft sie auf, die für die Kompilierung verwendet wurde, sodass die gekürzte Laufzeit `jdk.jsobject` enthält, auch wenn das System `java`/`jpackage` neuer ist.
+- **Modulpfad**: JavaFX, SithTermFX und Apache SSHD sind während der Kompilierung verfügbar; Ungenutzte `javafx.fxml` und `java.scripting` sind nicht in der Paketlaufzeit enthalten.
 
 ## Datenfluss und Integrationspunkte
 
@@ -299,6 +301,8 @@ Menu-bar status displays next runs / live countdown
 - **Job Executor Threads**: Hintergrund-Thread-Pool für die JobScheduler-Ausführung
 - **AI-Chat-Threads**: Hintergrund-Threads für API-Anfragen (nicht blockierende Benutzeroberfläche)
 - **Datei-E/A-Threads**: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen
+- **Webformatter-Anfragen**: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufrufen des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.
+- **PlantUML-Worker**: Rendering- und Syntaxprüfungen werden in einem separaten abbrechbaren Prozess ausgeführt, wobei der gepackte Launcher-Worker verwendet wird, wenn die Jlink-Laufzeit keinen `bin/java` hat.
 
 ## Erweiterbarkeitspunkte
 

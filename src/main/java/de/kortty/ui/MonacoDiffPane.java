@@ -158,7 +158,7 @@ public class MonacoDiffPane extends StackPane {
     private void loadEditor() {
         // Load from a file: URL (resources extracted to a temp dir), NOT the jar: URL that
         // getResource() returns in the packaged app: a jar:-origin page's CSP blocks its relative
-        // monaco-diff-host.js/.css siblings, so the diff editor never boots. See MonacoResourceBundle.
+        // shared monaco-host.js/.css siblings, so the diff editor never boots. See MonacoResourceBundle.
         String pageUrl = MonacoResourceBundle.diffEditorHtmlUrl();
         if (pageUrl == null) {
             logger.error("Bundled Monaco diff editor resources could not be prepared");

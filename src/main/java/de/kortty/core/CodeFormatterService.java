@@ -174,6 +174,14 @@ public final class CodeFormatterService {
         if ("google-java-format".equals(info.formatterId()) && info.providerType() == ProviderType.BUNDLED) {
             return formatJava(text);
         }
+        if (isBundledWebFormatter(info)) {
+            return WebFormatterBackend.format(
+                info.formatterId(),
+                webParser(info.language()),
+                text,
+                safeLineWidth,
+                FORMATTER_TIMEOUT_SECONDS);
+        }
         List<String> commandLine = commandLineWithLineWidth(info, safeLineWidth);
         if (info.executionMode() == ExecutionMode.STDIN) {
             return runStdinFormatter(commandLine, text);
@@ -286,12 +294,12 @@ public final class CodeFormatterService {
     }
 
     private static FormatterInfo prettierFormatter(String language, String parser, String fileExtension) {
-        Optional<Path> node = findBundledNode();
-        Optional<Path> prettier = findBundledFile("prettier", Path.of("bin", "prettier.cjs"));
-        if (node.isPresent() && prettier.isPresent()) {
-            return bundledProcess(language, "prettier", "Prettier " + PRETTIER_VERSION + " (bundled)",
-                List.of(node.get().toString(), prettier.get().toString(), "--parser", parser),
-                ExecutionMode.STDIN, fileExtension);
+        if (WebFormatterBackend.isBundledAvailable()) {
+            return bundledWebFormatter(
+                language,
+                "prettier",
+                "Prettier " + PRETTIER_VERSION + " (bundled)",
+                fileExtension);
         }
         FormatterInfo external = externalCandidate(language, "prettier", List.of("prettier", "--parser", parser),
             ExecutionMode.STDIN, "Install Prettier for developer fallback: npm install -g prettier", fileExtension);
@@ -324,11 +332,12 @@ public final class CodeFormatterService {
     }
 
     private static FormatterInfo sqlFormatter(String language) {
-        Optional<Path> node = findBundledNode();
-        Optional<Path> sqlFormatter = findBundledFile("sql-formatter", Path.of("kortty-sql-formatter.cjs"));
-        if (node.isPresent() && sqlFormatter.isPresent()) {
-            return bundledProcess(language, "sql-formatter", "sql-formatter " + SQL_FORMATTER_VERSION + " (bundled)",
-                List.of(node.get().toString(), sqlFormatter.get().toString()), ExecutionMode.STDIN, ".sql");
+        if (WebFormatterBackend.isBundledAvailable()) {
+            return bundledWebFormatter(
+                language,
+                "sql-formatter",
+                "sql-formatter " + SQL_FORMATTER_VERSION + " (bundled)",
+                ".sql");
         }
         FormatterInfo external = externalCandidate(language, "sql-formatter", List.of("sql-formatter"), ExecutionMode.STDIN,
             "Install sql-formatter for developer fallback: npm install -g sql-formatter", ".sql");
@@ -404,6 +413,42 @@ public final class CodeFormatterService {
             fileExtension,
             true,
             null);
+    }
+
+    private static FormatterInfo bundledWebFormatter(
+        String language,
+        String formatterId,
+        String displayName,
+        String fileExtension) {
+
+        return new FormatterInfo(
+            language,
+            formatterId,
+            displayName,
+            ProviderType.BUNDLED,
+            null,
+            List.of(),
+            formatterId,
+            null,
+            fileExtension,
+            true,
+            null);
+    }
+
+    private static boolean isBundledWebFormatter(FormatterInfo info) {
+        if (info.providerType() != ProviderType.BUNDLED) {
+            return false;
+        }
+        return "prettier".equals(info.formatterId()) || "sql-formatter".equals(info.formatterId());
+    }
+
+    private static String webParser(String language) {
+        return switch (normalizeLanguage(language)) {
+            case "html" -> "html";
+            case "css" -> "css";
+            case "javascript", "typescript" -> "typescript";
+            default -> null;
+        };
     }
 
     private static FormatterInfo unavailable(String language, String formatterId, String fileExtension, String reason) {
@@ -808,21 +853,6 @@ public final class CodeFormatterService {
 
     private static String firstArg(List<String> args) {
         return args == null || args.isEmpty() ? "formatter" : args.get(0);
-    }
-
-    private static Optional<Path> findBundledNode() {
-        String nodeExecutable = isWindows() ? "node.exe" : "node";
-        for (Path root : formatterRoots()) {
-            List<Path> candidates = List.of(
-                root.resolve("node").resolve("bin").resolve(nodeExecutable),
-                root.resolve("node").resolve(nodeExecutable));
-            for (Path candidate : candidates) {
-                if (Files.isExecutable(candidate)) {
-                    return Optional.of(candidate);
-                }
-            }
-        }
-        return Optional.empty();
     }
 
     private static Optional<Path> findBundledExecutable(String formatterDir, String executable) {

@@ -198,7 +198,7 @@ $$a^2 + b^2 = c^2$$
 !!! note "Rendering-Details und Anforderungen"
     * Die SVG- und PlantUML-Ausgabe wird mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.
     * Mermaid läuft mit der Sicherheitsstufe `strict` aus einer lokal gebündelten Bibliothek; LaTeX wird von einem lokal gebündelten MathJax gesetzt. Keiner von beiden benötigt einen Internetzugang.
-    * Beim PlantUML-Rendering wird die lokale PlantUML-Toolchain verwendet: `java` und Graphviz `dot` müssen sich auf `PATH` befinden, und das PlantUML-JAR wird bei der ersten Verwendung in den Benutzercache heruntergeladen (dieselben Anforderungen wie bei Snippet-Diagrammen).
+    * PlantUML wird bei der ersten Verwendung in den Benutzercache heruntergeladen und nur akzeptiert, wenn es mit dem festen SHA-256 von korTTY übereinstimmt. Die gepackte App rendert sie in einem privaten, stornierbaren Launcher-Worker, sodass weder `java` noch `dot` auf `PATH` sein dürfen; Graphviz bleibt für PlantUML-Diagrammtypen, die es erfordern, optional. Dieselben Cache- und Rendering-Details finden Sie unter [Snippet-Diagramme](snippets.md).
     * Vollständige LaTeX-Dokumente (`\documentclass`) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.
     * Für gerenderte Bilder wird eine weiße Leinwand verwendet, sodass Diagramme und Formeln mit dunklen Strichen bei dunklen Themen lesbar bleiben.
 

@@ -61,7 +61,7 @@ pages:
     last_synced_ref: "91d77d0"
   - path: app-docs/site/docs/en/getting-started/building-packages.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml]
+    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, scripts/package-size-report.py, package/size-baselines.json]
     diagrams: []
     screenshots: []
     last_synced_ref: "91d77d0"
@@ -215,7 +215,7 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/snippets.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/SnippetManager.java]
+    owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/core/PlantUmlRenderService.java, src/main/java/de/kortty/core/InternalPlantUmlWorker.java]
     diagrams: [snippet-editor-workflow.svg]
     last_synced_ref: "5b39065"
   - path: app-docs/site/docs/en/features/jobscheduler.md

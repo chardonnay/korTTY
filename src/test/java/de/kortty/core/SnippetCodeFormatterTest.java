@@ -95,31 +95,18 @@ class SnippetCodeFormatterTest {
     }
 
     @Test
-    void detectsBundledNodeBasedFormatters() throws Exception {
-        String previous = System.getProperty("kortty.formatters.dir");
-        Path root = Files.createTempDirectory("kortty-node-formatters-test");
-        Path node = Files.createDirectories(root.resolve("node/bin")).resolve(isWindows() ? "node.exe" : "node");
-        Files.writeString(node, "#!/bin/sh\nexit 0\n");
-        node.toFile().setExecutable(true, false);
-        Files.createDirectories(root.resolve("prettier/bin"));
-        Files.writeString(root.resolve("prettier/bin/prettier.cjs"), "");
-        Files.createDirectories(root.resolve("sql-formatter"));
-        Files.writeString(root.resolve("sql-formatter/kortty-sql-formatter.cjs"), "");
-        try {
-            System.setProperty("kortty.formatters.dir", root.toString());
+    void detectsBundledWebFormattersWithoutNodeRuntime() {
+        assertThat(WebFormatterResourceBundle.isBundled()).isTrue();
 
-            CodeFormatterService.FormatterInfo javascript = CodeFormatterService.getFormatterInfo("javascript");
-            CodeFormatterService.FormatterInfo sql = CodeFormatterService.getFormatterInfo("sql");
+        CodeFormatterService.FormatterInfo javascript = CodeFormatterService.getFormatterInfo("javascript");
+        CodeFormatterService.FormatterInfo sql = CodeFormatterService.getFormatterInfo("sql");
 
-            assertThat(javascript.providerType()).isEqualTo(CodeFormatterService.ProviderType.BUNDLED);
-            assertThat(sql.providerType()).isEqualTo(CodeFormatterService.ProviderType.BUNDLED);
-        } finally {
-            if (previous == null) {
-                System.clearProperty("kortty.formatters.dir");
-            } else {
-                System.setProperty("kortty.formatters.dir", previous);
-            }
-        }
+        assertThat(javascript.providerType()).isEqualTo(CodeFormatterService.ProviderType.BUNDLED);
+        assertThat(javascript.displayName()).contains("Prettier");
+        assertThat(javascript.commandLine()).isEmpty();
+        assertThat(sql.providerType()).isEqualTo(CodeFormatterService.ProviderType.BUNDLED);
+        assertThat(sql.displayName()).contains("sql-formatter");
+        assertThat(sql.commandLine()).isEmpty();
     }
 
     @Test
@@ -133,39 +120,12 @@ class SnippetCodeFormatterTest {
     }
 
     @Test
-    void lineWidthFormattingAddsPrettierPrintWidth() throws Exception {
-        // The stub node binary is a /bin/sh script; Windows cannot execute it.
-        if (isWindows()) {
-            throw new SkipException("Prettier width test uses a /bin/sh stub node binary; not applicable on Windows.");
-        }
-        String previous = System.getProperty("kortty.formatters.dir");
-        Path root = Files.createTempDirectory("kortty-prettier-width-test");
-        Path argsFile = root.resolve("args.txt");
-        Path node = Files.createDirectories(root.resolve("node/bin")).resolve(isWindows() ? "node.exe" : "node");
-        Files.writeString(node, """
-            #!/bin/sh
-            printf '%%s\\n' "$@" > %s
-            cat
-            """.formatted(shellQuote(argsFile.toString())));
-        node.toFile().setExecutable(true, false);
-        Files.createDirectories(root.resolve("prettier/bin"));
-        Files.writeString(root.resolve("prettier/bin/prettier.cjs"), "");
+    void rejectsOutOfRangeLineWidthBeforeStartingWebFormatter() {
+        CodeFormatterService.FormatterException failure = expectThrows(
+            CodeFormatterService.FormatterException.class,
+            () -> CodeFormatterService.formatOrThrow("const name = 'korTTY';\n", "javascript", 10));
 
-        try {
-            System.setProperty("kortty.formatters.dir", root.toString());
-
-            String formatted = CodeFormatterService.formatOrThrow("const name = 'korTTY';\n", "javascript", 72);
-
-            assertThat(formatted).isEqualTo("const name = 'korTTY';\n");
-            assertThat(Files.readString(argsFile)).contains("--parser\ntypescript");
-            assertThat(Files.readString(argsFile)).contains("--print-width\n72");
-        } finally {
-            if (previous == null) {
-                System.clearProperty("kortty.formatters.dir");
-            } else {
-                System.setProperty("kortty.formatters.dir", previous);
-            }
-        }
+        assertThat(failure).hasMessageThat().contains("between 20 and 240");
     }
 
     @Test
@@ -179,9 +139,5 @@ class SnippetCodeFormatterTest {
 
     private static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("windows");
-    }
-
-    private static String shellQuote(String value) {
-        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 }

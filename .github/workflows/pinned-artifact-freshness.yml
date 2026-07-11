@@ -2,7 +2,7 @@ name: Pinned-artifact freshness
 
 # Covers the security-critical artifacts Dependabot CANNOT see because they are
 # fetched via hardcoded URLs (or built from a git tag) rather than declared as
-# Gradle dependencies: mosh4j, the BUNDLED BouncyCastle/protobuf copies, Node,
+# Gradle dependencies: mosh4j, bundled protobuf, the Monaco build Node runtime,
 # Monaco, and SithTermFX. It compares the versions pinned in build.gradle.kts
 # against upstream "latest" and opens/refreshes ONE tracking issue when any are
 # behind. It does NOT edit the build (each bump needs a new SHA-256 pin and, for
@@ -51,7 +51,7 @@ jobs:
           NODE_PIN="$(gv formatterNodeVersion)"
           MONACO_PIN="$(gv monacoEditorVersion)"
           SITH_PIN="$(gv sithtermfxVersion)"
-          BC_PIN="$(grep -oE 'bcprov-jdk18on/[0-9][0-9.]*/' build.gradle.kts | head -n1 | sed -E 's#.*/([0-9][0-9.]*)/#\1#')"
+          BC_PIN="$(grep -oE 'bcprov-jdk18on:[0-9][0-9.]*' build.gradle.kts | head -n1 | cut -d: -f2)"
           PB_PIN="$(grep -oE 'protobuf-java/[0-9][0-9.]*/' build.gradle.kts | head -n1 | sed -E 's#.*/([0-9][0-9.]*)/#\1#')"
 
           # --- upstream "latest" (failures degrade gracefully to empty) --------
@@ -75,9 +75,9 @@ jobs:
           ROWS=""
           add() { is_newer "$2" "$3" && ROWS="${ROWS}| ${1} | ${2} | ${3} |"$'\n'; }
           add "mosh4j (GitHub release, per-arch JARs)" "$MOSH4J_PIN" "$MOSH4J_UP"
-          add "BouncyCastle bcprov-jdk18on (BUNDLED copy)" "$BC_PIN" "$BC_UP"
+          add "BouncyCastle bcprov-jdk18on (Gradle runtime)" "$BC_PIN" "$BC_UP"
           add "protobuf-java (BUNDLED copy)" "$PB_PIN" "$PB_UP"
-          add "Node (formatter runtime, ${NODE_MAJOR}.x line)" "$NODE_PIN" "$NODE_UP"
+          add "Node (Monaco build runtime, ${NODE_MAJOR}.x line)" "$NODE_PIN" "$NODE_UP"
           add "monaco-editor" "$MONACO_PIN" "$MONACO_UP"
           add "SithTermFX (git tag)" "$SITH_PIN" "$SITH_UP"
 

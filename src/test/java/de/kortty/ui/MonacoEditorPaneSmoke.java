@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -41,7 +42,8 @@ public final class MonacoEditorPaneSmoke {
         CountDownLatch complete = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
         AtomicBoolean finishing = new AtomicBoolean(false);
-        Set<String> readyWorkers = ConcurrentHashMap.newKeySet();
+        Set<String> editorWorkers = ConcurrentHashMap.newKeySet();
+        Set<String> diffWorkers = ConcurrentHashMap.newKeySet();
 
         Platform.startup(() -> {
             LanguageManager.getInstance().initialize(new GlobalSettings());
@@ -52,12 +54,29 @@ public final class MonacoEditorPaneSmoke {
             MonacoEditorPane editorPane = new MonacoEditorPane();
             editorPane.setLanguage("javascript");
             editorPane.setText(INITIAL_TEXT);
+            MonacoDiffPane diffPane = new MonacoDiffPane();
+            diffPane.setComparison(
+                "function smoke() { return 1; }",
+                "function smoke() { return 2; }",
+                "javascript",
+                "javascript"
+            );
             editorPane.setWorkerReadyHandler(label -> {
-                readyWorkers.add(label);
-                finishWhenReady(editorPane, ruler, stage, readyWorkers, failure, finishing, complete);
+                editorWorkers.add(label);
+                finishWhenReady(editorPane, diffPane, ruler, stage, editorWorkers, diffWorkers,
+                    failure, finishing, complete);
             });
             editorPane.setWorkerFailureHandler(detail -> {
-                failure.compareAndSet(null, detail);
+                failure.compareAndSet(null, "editor: " + detail);
+                complete.countDown();
+            });
+            diffPane.setWorkerReadyHandler(label -> {
+                diffWorkers.add(label);
+                finishWhenReady(editorPane, diffPane, ruler, stage, editorWorkers, diffWorkers,
+                    failure, finishing, complete);
+            });
+            diffPane.setWorkerFailureHandler(detail -> {
+                failure.compareAndSet(null, "diff: " + detail);
                 complete.countDown();
             });
             editorPane.readyProperty().addListener((obs, oldValue, ready) -> {
@@ -68,15 +87,25 @@ public final class MonacoEditorPaneSmoke {
                         return;
                     }
                     editorPane.moveTo(EDITOR_SMOKE_COLUMN - 1);
-                    finishWhenReady(editorPane, ruler, stage, readyWorkers, failure, finishing, complete);
+                    finishWhenReady(editorPane, diffPane, ruler, stage, editorWorkers, diffWorkers,
+                        failure, finishing, complete);
                 }
             });
-            stage.setScene(new Scene(new VBox(ruler, editorPane), 900, 626));
+            diffPane.readyProperty().addListener((obs, oldValue, ready) -> {
+                if (Boolean.TRUE.equals(ready)) {
+                    finishWhenReady(editorPane, diffPane, ruler, stage, editorWorkers, diffWorkers,
+                        failure, finishing, complete);
+                }
+            });
+            VBox content = new VBox(ruler, editorPane, diffPane);
+            VBox.setVgrow(editorPane, Priority.ALWAYS);
+            VBox.setVgrow(diffPane, Priority.ALWAYS);
+            stage.setScene(new Scene(content, 900, 900));
             stage.setTitle("Monaco WebView Smoke");
             stage.show();
         });
 
-        boolean completed = complete.await(20, TimeUnit.SECONDS);
+        boolean completed = complete.await(45, TimeUnit.SECONDS);
         CountDownLatch stopped = new CountDownLatch(1);
         Platform.runLater(() -> {
             Platform.exit();
@@ -85,32 +114,45 @@ public final class MonacoEditorPaneSmoke {
         stopped.await(5, TimeUnit.SECONDS);
 
         if (!completed) {
-            throw new IllegalStateException("Timed out waiting for Monaco workers. Ready: " + new TreeSet<>(readyWorkers));
+            throw new IllegalStateException("Timed out waiting for Monaco workers. Editor: "
+                + new TreeSet<>(editorWorkers) + ", diff: " + new TreeSet<>(diffWorkers));
         }
         if (failure.get() != null) {
             throw new IllegalStateException("Monaco worker failed in JavaFX WebView: " + failure.get());
         }
-        if (!readyWorkers.containsAll(EXPECTED_WORKERS)) {
+        if (!editorWorkers.containsAll(EXPECTED_WORKERS)) {
             Set<String> missing = new TreeSet<>(EXPECTED_WORKERS);
-            missing.removeAll(readyWorkers);
-            throw new IllegalStateException("Missing Monaco workers: " + missing + ". Ready: " + new TreeSet<>(readyWorkers));
+            missing.removeAll(editorWorkers);
+            throw new IllegalStateException("Missing Monaco editor workers: " + missing
+                + ". Ready: " + new TreeSet<>(editorWorkers));
+        }
+        if (!diffWorkers.containsAll(EXPECTED_WORKERS)) {
+            Set<String> missing = new TreeSet<>(EXPECTED_WORKERS);
+            missing.removeAll(diffWorkers);
+            throw new IllegalStateException("Missing Monaco diff workers: " + missing
+                + ". Ready: " + new TreeSet<>(diffWorkers));
         }
 
-        System.out.println("Monaco WebView smoke passed. Workers: " + new TreeSet<>(readyWorkers));
+        System.out.println("Monaco WebView smoke passed. Editor workers: " + new TreeSet<>(editorWorkers)
+            + "; diff workers: " + new TreeSet<>(diffWorkers));
     }
 
     private static void finishWhenReady(
         MonacoEditorPane editorPane,
+        MonacoDiffPane diffPane,
         SnippetColumnRuler ruler,
         Stage stage,
-        Set<String> readyWorkers,
+        Set<String> editorWorkers,
+        Set<String> diffWorkers,
         AtomicReference<String> failure,
         AtomicBoolean finishing,
         CountDownLatch complete
     ) {
         if (!editorPane.isReady()
+            || !diffPane.isReady()
             || failure.get() != null
-            || !readyWorkers.containsAll(EXPECTED_WORKERS)
+            || !editorWorkers.containsAll(EXPECTED_WORKERS)
+            || !diffWorkers.containsAll(EXPECTED_WORKERS)
             || !finishing.compareAndSet(false, true)) {
             return;
         }
@@ -119,6 +161,10 @@ public final class MonacoEditorPaneSmoke {
             String visualFailure = verifyRenderedEditor(editorPane);
             if (visualFailure != null) {
                 failure.compareAndSet(null, visualFailure);
+            }
+            String diffVisualFailure = verifyRenderedDiff(diffPane);
+            if (diffVisualFailure != null) {
+                failure.compareAndSet(null, diffVisualFailure);
             }
             String caretFailure = verifyEditorCaret(editorPane);
             if (caretFailure != null) {
@@ -129,10 +175,41 @@ public final class MonacoEditorPaneSmoke {
                 failure.compareAndSet(null, rulerFailure);
             }
             editorPane.dispose();
+            diffPane.dispose();
             stage.close();
             complete.countDown();
         });
         delay.play();
+    }
+
+    private static String verifyRenderedDiff(MonacoDiffPane diffPane) {
+        WritableImage image = diffPane.snapshot(null, null);
+        PixelReader reader = image.getPixelReader();
+        if (reader == null) {
+            return "Could not snapshot Monaco diff editor";
+        }
+
+        int sampled = 0;
+        int darkPixels = 0;
+        int width = (int) image.getWidth();
+        int height = (int) image.getHeight();
+        for (int y = 0; y < height; y += 10) {
+            for (int x = 0; x < width; x += 10) {
+                Color color = reader.getColor(x, y);
+                sampled++;
+                double brightness = (color.getRed() + color.getGreen() + color.getBlue()) / 3.0;
+                if (brightness < 0.25) {
+                    darkPixels++;
+                }
+            }
+        }
+        if (sampled == 0) {
+            return "Monaco diff editor snapshot was empty";
+        }
+        if (darkPixels < sampled / 10) {
+            return "Monaco diff editor did not render the expected dark editor surface";
+        }
+        return null;
     }
 
     private static String verifyRenderedEditor(MonacoEditorPane editorPane) {

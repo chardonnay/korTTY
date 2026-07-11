@@ -358,10 +358,6 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
         Path depDir = cacheBase.resolve("deps");
         Files.createDirectories(depDir);
-        Path bcprovJar = depDir.resolve(DEP_BCPROV_JAR);
-        Path protobufJar = depDir.resolve(DEP_PROTOBUF_JAR);
-        downloadIfMissing(bcprovJar, DEP_BCPROV_URL);
-        downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
 
         List<Path> classpath = new ArrayList<>();
         classpath.add(releaseDir.resolve("mosh4j-protocol-" + MOSH4J_VERSION + "-" + arch + ".jar"));
@@ -369,8 +365,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         classpath.add(releaseDir.resolve("mosh4j-transport-" + MOSH4J_VERSION + "-" + arch + ".jar"));
         classpath.add(releaseDir.resolve("mosh4j-terminal-" + MOSH4J_VERSION + "-" + arch + ".jar"));
         classpath.add(releaseDir.resolve("mosh4j-core-" + MOSH4J_VERSION + "-" + arch + ".jar"));
-        classpath.add(bcprovJar);
-        classpath.add(protobufJar);
+        addSharedDependencies(classpath, depDir);
         return classpath;
     }
 
@@ -379,15 +374,36 @@ public class Mosh4jTtyConnector implements TtyConnector {
         Files.createDirectories(cacheBase);
         Path depDir = cacheBase.resolve("deps");
         Files.createDirectories(depDir);
-        Path bcprovJar = depDir.resolve(DEP_BCPROV_JAR);
-        Path protobufJar = depDir.resolve(DEP_PROTOBUF_JAR);
-        downloadIfMissing(bcprovJar, DEP_BCPROV_URL);
-        downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
 
         List<Path> classpath = new ArrayList<>(moduleJars);
-        classpath.add(bcprovJar);
-        classpath.add(protobufJar);
+        addSharedDependencies(classpath, depDir);
         return classpath;
+    }
+
+    private void addSharedDependencies(List<Path> classpath, Path depDir) throws IOException {
+        // URLClassLoader is parent-first. The application already carries bcprov for SSH key
+        // compatibility, so adding the same 8.5 MiB JAR to mosh4j's child classpath is redundant.
+        // Retain the download only for unusual developer/standalone setups whose parent lacks BC.
+        if (!parentProvidesBouncyCastle(getClass().getClassLoader())) {
+            Path bcprovJar = depDir.resolve(DEP_BCPROV_JAR);
+            downloadIfMissing(bcprovJar, DEP_BCPROV_URL);
+            classpath.add(bcprovJar);
+        }
+        Path protobufJar = depDir.resolve(DEP_PROTOBUF_JAR);
+        downloadIfMissing(protobufJar, DEP_PROTOBUF_URL);
+        classpath.add(protobufJar);
+    }
+
+    static boolean parentProvidesBouncyCastle(ClassLoader parent) {
+        if (parent == null) {
+            return false;
+        }
+        try {
+            Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider", false, parent);
+            return true;
+        } catch (ClassNotFoundException | LinkageError ignored) {
+            return false;
+        }
     }
 
     private List<Path> findLocalBuildClasspathJars() {
