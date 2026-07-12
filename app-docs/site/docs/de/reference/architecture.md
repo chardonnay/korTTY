@@ -142,7 +142,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | `TerminalPane` | Einzelne Terminal-Registerkarte mit Split-Pane-Unterstützung und Inline-KI-Aktivitätsfenster |
 | `ConnectionDialog` | Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.) |
 | `SFTPManagerDialog` | Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen |
-| `SnippetEditor` | Von Monaco unterstützter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und PlantUML-Diagrammen |
+| `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `JobSchedulerDialog` | Auftragserstellung, Terminplanung und Journalprüfung |
 | `QuickConnectDialog` | Schnelle Verbindungssuche und häufig verwendete Verbindungsverknüpfungen |
 
@@ -210,17 +210,17 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | | Tukaani xz | 1,9 | XZ-Komprimierung |
 | **Benutzeroberfläche** | JavaFX | 21 | Anwendungsframework |
 | | Monaco-Herausgeber | 0,55,1 | Code-Editor-Komponente |
+| | Mermaid | 11.16.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
+| | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | Google-Java-Format | 1,35,0 | Java-Codeformatierung |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
-| | PlantUML | 1.2026.2 | Diagrammdarstellung |
 | **Protokollierung** | SLF4J / Logback | 2.0.9 / 1.4.14 | Strukturierte Protokollierung |
 | **Optional** | mosh4j | 2.0.2 | Mosh-Protokoll (dynamisch geladen) |
 
 ### Dynamische Abhängigkeiten
 
 - **mosh4j**: Seine fünf SHA-256-fixierten, architekturspezifischen Release-JARs und Protobuf werden in nativen Builds gebündelt und nur dann dynamisch geladen, wenn Mosh benötigt wird. Der untergeordnete Lader verwendet Bouncy Castle aus der übergeordneten Anwendung wieder, anstatt eine zweite Kopie zu versenden.
-- **PlantUML**: PlantUML 1.2026.2 wird bei der ersten Verwendung heruntergeladen, anhand eines festen SHA-256 überprüft und außerhalb des Installationsprogramms zwischengespeichert. Eine gestrippte gepackte Laufzeit wird in einem privaten Native-Launcher-Worker gerendert; Alte JARs und verlassene temporäre Renderverzeichnisse werden automatisch bereinigt.
 - **rsync / ssh**: Externe Befehle, die von JobScheduler Rsync-Jobs verwendet werden
 - **ffmpeg**: Optional; Wird für die Terminalaufzeichnung und den Videoexport verwendet
 
@@ -229,7 +229,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 ### Zusammenstellung und Verpackung
 
 1. **SithTermFX-Build**: Lokal geklont und erstellt (Maven); seine versehentlich veröffentlichte JUnit-Abhängigkeit wird von der Laufzeit ausgeschlossen.
-2. **Browser-Assets**: Ein isoliertes, angeheftetes Node.js wird nur zum Erstellen von Monaco verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD-Build werden direkt in die Anwendungs-JAR kopiert und ohne Node zur Laufzeit ausgeführt.
+2. **Browser-Assets**: Ein isoliertes, angeheftetes Node.js wird nur zur Erstellungszeit für Monaco und für die JavaFX-WebKit-Kompatibilitätsverarbeitung des SHA-256-angehefteten Mermaid-Bundles verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Mermaid und MathJax bleiben getrennte Lazy-Ressourcen; Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD Build läuft ohne Node zur Laufzeit.
 3. **Nutzlast des externen Formatierers**: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.
 4. **Sauberes natives Staging**: `prepareJpackage` verwendet einen endgültigen Gradle `Sync`, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.
 5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
@@ -302,7 +302,7 @@ Menu-bar status displays next runs / live countdown
 - **AI-Chat-Threads**: Hintergrund-Threads für API-Anfragen (nicht blockierende Benutzeroberfläche)
 - **Datei-E/A-Threads**: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen
 - **Webformatter-Anfragen**: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufrufen des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.
-- **PlantUML-Worker**: Rendering- und Syntaxprüfungen werden in einem separaten abbrechbaren Prozess ausgeführt, wobei der gepackte Launcher-Worker verwendet wird, wenn die Jlink-Laufzeit keinen `bin/java` hat.
+- **Mermaid-Rendering-Anfragen**: Hintergrundaufrufer erhalten `CompletableFuture`-Ergebnisse, während der gesamte Zugriff auf den einzelnen Lazy-Renderer WebView im JavaFX-Anwendungsthread verbleibt. Anfragen werden serialisiert; Bei einem Abbruch, einem 30-Sekunden-Timeout oder einem WebEngine-Fehler wird die Engine-Generierung verworfen, und die Leerlaufbereinigung gibt die ausgeblendete WebView frei.
 
 ## Erweiterbarkeitspunkte
 

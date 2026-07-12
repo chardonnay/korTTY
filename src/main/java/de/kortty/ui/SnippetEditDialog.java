@@ -11,7 +11,7 @@ import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiTextSupport;
 import de.kortty.core.SnippetLinter;
 import de.kortty.core.SnippetMarkupPreviewRenderer;
-import de.kortty.core.PlantUmlRenderService;
+import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.WorkflowScriptSupport;
@@ -331,7 +331,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface DiagramProvider {
-        SnippetAiResponseSupport.PlantUmlDiagram generate(DiagramRequest request) throws Exception;
+        SnippetAiResponseSupport.MermaidDiagram generate(DiagramRequest request) throws Exception;
     }
 
     public record SelectionTextTransformRequest(
@@ -534,9 +534,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private record DiagramGenerationResult(
-        SnippetAiResponseSupport.PlantUmlDiagram diagram,
-        PlantUmlRenderService.SyntaxCheckResult syntaxCheck,
-        PlantUmlRenderService.RenderResult renderCheck) {
+        SnippetAiResponseSupport.MermaidDiagram diagram,
+        MermaidRenderService.SyntaxCheckResult syntaxCheck,
+        MermaidRenderService.RenderResult renderCheck) {
     }
 
     private record FormSnapshot(
@@ -545,7 +545,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String category,
         String tags,
         String description,
-        String content) {
+        String content,
+        String diagrams) {
     }
 
     private enum AiFormatScope {
@@ -1790,7 +1791,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private boolean hasUnsavedContentChanges() {
         FormSnapshot initial = initialFormSnapshot != null
             ? initialFormSnapshot
-            : new FormSnapshot("", "", "", "", "", initialContentSnapshot != null ? initialContentSnapshot : "");
+            : new FormSnapshot("", "", "", "", "", initialContentSnapshot != null ? initialContentSnapshot : "", "");
         return !currentFormSnapshot().equals(initial);
     }
 
@@ -1811,7 +1812,41 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             normalizedFieldValue(categoryCombo.getValue()),
             normalizedFieldValue(tagsField.getText()),
             normalizedFieldValue(descriptionArea.getText()),
-            safeContentText());
+            safeContentText(),
+            diagramFingerprint());
+    }
+
+    private String diagramFingerprint() {
+        StringBuilder fingerprint = new StringBuilder();
+        for (SnippetDiagram diagram : diagrams) {
+            if (diagram == null) {
+                fingerprint.append("<null>;");
+                continue;
+            }
+            appendFingerprintValue(fingerprint, diagram.getId());
+            appendFingerprintValue(fingerprint, diagram.getTitle());
+            appendFingerprintValue(fingerprint, diagram.getType());
+            appendFingerprintValue(fingerprint, diagram.getMermaidSource());
+            appendFingerprintValue(fingerprint, diagram.getSourceContentSha256());
+            appendFingerprintValue(fingerprint, diagram.getCustomInstructions());
+            fingerprint.append(diagram.getCreatedAt()).append(':').append(diagram.getUpdatedAt()).append(';');
+            for (SnippetDiagram.CodeReference reference : diagram.getCodeReferences()) {
+                if (reference == null) {
+                    fingerprint.append("<null-ref>;");
+                    continue;
+                }
+                appendFingerprintValue(fingerprint, reference.getNodeId());
+                appendFingerprintValue(fingerprint, reference.getLabel());
+                fingerprint.append(reference.getStartLine()).append(':').append(reference.getEndLine()).append(';');
+            }
+            fingerprint.append('|');
+        }
+        return fingerprint.toString();
+    }
+
+    private static void appendFingerprintValue(StringBuilder target, String value) {
+        String safe = value != null ? value : "";
+        target.append(safe.length()).append(':').append(safe).append(';');
     }
 
     private String normalizedFieldValue(String value) {
@@ -3216,9 +3251,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         AtomicReference<CompletableFuture<SnippetDiagramView.DiagramSource>> firstDiagram = new AtomicReference<>();
         Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () -> {
             CompletableFuture<SnippetDiagramView.DiagramSource> memoized = firstDiagram.getAndSet(null);
-            return memoized != null ? memoized : generateDiagramPlantUml(fullContent, language, fallback);
+            return memoized != null ? memoized : generateDiagramMermaid(fullContent, language, fallback);
         };
-        firstDiagram.set(generateDiagramPlantUml(fullContent, language, fallback));
+        firstDiagram.set(generateDiagramMermaid(fullContent, language, fallback));
 
         Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
             @Override
@@ -3261,22 +3296,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    /** Generates the diagram source (AI PlantUML + code references, with a local fallback) on a daemon
+    /** Generates the diagram source (AI Mermaid + code references, with a local fallback) on a daemon
      *  thread; the diagram viewer in the analysis dialog renders + fits it and shows hover code hotspots. */
-    private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagramPlantUml(
+    private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagramMermaid(
         String fullContent, String language, String fallback) {
         CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();
         Task<SnippetDiagramView.DiagramSource> task = new Task<>() {
             @Override
             protected SnippetDiagramView.DiagramSource call() throws Exception {
-                SnippetAiResponseSupport.PlantUmlDiagram diagram = aiAssist.diagramProvider() != null
-                    ? aiAssist.diagramProvider().generate(new DiagramRequest(fullContent, language, fallback, ""))
-                    : null;
-                if (diagram != null && diagram.isUsable()) {
-                    return new SnippetDiagramView.DiagramSource(diagram.plantUml(), fullContent, diagram.codeReferences());
+                SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                try {
+                    diagram = aiAssist.diagramProvider() != null
+                        ? aiAssist.diagramProvider().generate(new DiagramRequest(fullContent, language, fallback, ""))
+                        : null;
+                } catch (Exception e) {
+                    logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
                 }
-                String plantUml = SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(fullContent, language);
-                return new SnippetDiagramView.DiagramSource(plantUml, fullContent, List.of());
+                if (diagram != null && diagram.isUsable()) {
+                    return new SnippetDiagramView.DiagramSource(diagram.mermaid(), fullContent, diagram.codeReferences());
+                }
+                String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language);
+                return new SnippetDiagramView.DiagramSource(mermaid, fullContent, List.of());
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
@@ -3973,29 +4013,39 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Task<DiagramGenerationResult> task = new Task<>() {
             @Override
             protected DiagramGenerationResult call() throws Exception {
-                PlantUmlRenderService renderService = new PlantUmlRenderService();
-                SnippetAiResponseSupport.PlantUmlDiagram diagram = aiAssist.diagramProvider().generate(new DiagramRequest(
-                    fullContent,
-                    snippetLanguage,
-                    fallbackLanguageCode,
-                    requestInstructions));
-                PlantUmlRenderService.SyntaxCheckResult syntaxCheck = null;
-                PlantUmlRenderService.RenderResult renderCheck = null;
+                SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                try {
+                    diagram = aiAssist.diagramProvider().generate(new DiagramRequest(
+                        fullContent,
+                        snippetLanguage,
+                        fallbackLanguageCode,
+                        requestInstructions));
+                } catch (Exception e) {
+                    logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
+                }
+                MermaidRenderService.SyntaxCheckResult syntaxCheck = null;
+                MermaidRenderService.RenderResult renderCheck = null;
                 if (diagram != null && diagram.isUsable()) {
-                    syntaxCheck = renderService.checkSyntax(diagram.plantUml());
-                    renderCheck = renderService.renderSvg(diagram.plantUml());
+                    syntaxCheck = MermaidRenderService.checkSyntax(diagram.mermaid())
+                        .get(31, java.util.concurrent.TimeUnit.SECONDS);
+                    renderCheck = MermaidRenderService.render(MermaidRenderService.RenderRequest.generatedFlow(
+                            diagram.mermaid(), MermaidRenderService.Theme.LIGHT, "#FFFFFF", false))
+                        .get(31, java.util.concurrent.TimeUnit.SECONDS);
                 }
                 if (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success()) {
-                    String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(fullContent, snippetLanguage);
+                    String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, snippetLanguage);
                     String fallbackTitle = diagram != null && diagram.title() != null && !diagram.title().isBlank()
                         ? diagram.title()
                         : I18n.get("snippets.ai.diagram.title");
-                    SnippetAiResponseSupport.PlantUmlDiagram fallbackDiagram =
-                        new SnippetAiResponseSupport.PlantUmlDiagram(fallbackTitle, fallbackSource);
-                    PlantUmlRenderService.SyntaxCheckResult fallbackSyntaxCheck =
-                        renderService.checkSyntax(fallbackDiagram.plantUml());
-                    PlantUmlRenderService.RenderResult fallbackRenderCheck =
-                        renderService.renderSvg(fallbackDiagram.plantUml());
+                    SnippetAiResponseSupport.MermaidDiagram fallbackDiagram =
+                        new SnippetAiResponseSupport.MermaidDiagram(fallbackTitle, fallbackSource);
+                    MermaidRenderService.SyntaxCheckResult fallbackSyntaxCheck =
+                        MermaidRenderService.checkSyntax(fallbackDiagram.mermaid())
+                            .get(31, java.util.concurrent.TimeUnit.SECONDS);
+                    MermaidRenderService.RenderResult fallbackRenderCheck =
+                        MermaidRenderService.render(MermaidRenderService.RenderRequest.generatedFlow(
+                                fallbackDiagram.mermaid(), MermaidRenderService.Theme.LIGHT, "#FFFFFF", false))
+                            .get(31, java.util.concurrent.TimeUnit.SECONDS);
                     if (fallbackRenderCheck.success()) {
                         return new DiagramGenerationResult(fallbackDiagram, fallbackSyntaxCheck, fallbackRenderCheck);
                     }
@@ -4012,17 +4062,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
             DiagramGenerationResult result = task.getValue();
-            SnippetAiResponseSupport.PlantUmlDiagram generated = result != null ? result.diagram() : null;
+            SnippetAiResponseSupport.MermaidDiagram generated = result != null ? result.diagram() : null;
             if (generated == null || !generated.isUsable()) {
                 setStatus(I18n.get("snippets.ai.diagram.failed"));
                 return;
             }
-            PlantUmlRenderService.SyntaxCheckResult syntaxCheck = result.syntaxCheck();
+            MermaidRenderService.SyntaxCheckResult syntaxCheck = result.syntaxCheck();
             if (syntaxCheck != null && syntaxCheck.available() && !syntaxCheck.valid()) {
                 setStatus(I18n.get("snippets.ai.diagram.invalid", shortenStatusMessage(syntaxCheck.message())));
                 return;
             }
-            PlantUmlRenderService.RenderResult renderCheck = result.renderCheck();
+            MermaidRenderService.RenderResult renderCheck = result.renderCheck();
             if (renderCheck != null && !renderCheck.success()) {
                 setStatus(I18n.get("snippets.ai.diagram.invalid", shortenStatusMessage(renderCheck.message())));
                 return;
@@ -4030,13 +4080,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             SnippetDiagram diagram = targetDiagram != null ? new SnippetDiagram(targetDiagram) : new SnippetDiagram();
             diagram.setTitle(generated.title());
             diagram.setType(SnippetDiagram.TYPE_LOGICAL_STRUCTURE);
-            diagram.setPlantUmlSource(generated.plantUml());
+            diagram.setMermaidSource(generated.mermaid());
             diagram.setSourceContentSha256(SnippetDiagramSupport.contentHash(fullContent));
             diagram.setCustomInstructions(requestInstructions);
             diagram.setCodeReferences(persistedCodeReferences(generated, fullContent));
             diagram.setUpdatedAt(System.currentTimeMillis());
             upsertDiagram(diagram);
             pruneDuplicateDefaultLogicalStructureDiagrams();
+            updateSaveButtonState();
             setStatus(I18n.get("snippets.ai.diagram.ready"));
             openOrCreateDiagram();
         });
@@ -4049,7 +4100,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private List<SnippetDiagram.CodeReference> persistedCodeReferences(
-        SnippetAiResponseSupport.PlantUmlDiagram generated,
+        SnippetAiResponseSupport.MermaidDiagram generated,
         String fullContent) {
 
         if (generated == null || !generated.isUsable()) {
@@ -4057,12 +4108,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         List<SnippetDiagramSupport.CodeReference> validatedReferences =
             SnippetDiagramSupport.buildExpandedCodeReferences(
-                generated.plantUml(),
+                generated.mermaid(),
                 fullContent,
                 generated.codeReferences());
         List<SnippetDiagram.CodeReference> persistedReferences = new ArrayList<>();
         for (SnippetDiagramSupport.CodeReference reference : validatedReferences) {
             persistedReferences.add(new SnippetDiagram.CodeReference(
+                reference.nodeId(),
                 reference.label(),
                 reference.startLine(),
                 reference.endLine()));

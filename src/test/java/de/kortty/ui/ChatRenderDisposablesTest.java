@@ -12,7 +12,7 @@ import static com.google.common.truth.Truth.assertThat;
  * Pins the lifecycle contract of {@link ChatRenderDisposables}, the registry that lets
  * {@code AiResultTab} release its rendered Monaco/WebView engines on rebuild (font zoom) and
  * tab close: every registered disposable runs exactly once per generation, stale epoch tokens
- * stop async render callbacks (PlantUML subprocess, mermaid/MathJax poll chain) from attaching
+ * stop async render callbacks (Mermaid future and MathJax poll chain) from attaching
  * WebViews to a rebuilt or closed tab, and late registrations after close are disposed
  * immediately instead of leaking.
  */

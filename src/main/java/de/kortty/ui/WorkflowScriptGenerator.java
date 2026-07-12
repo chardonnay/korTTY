@@ -288,7 +288,7 @@ public final class WorkflowScriptGenerator {
     }
 
     /**
-     * Generates a PlantUML logical-structure diagram for a generated script, reusing the snippet
+     * Generates a Mermaid logical-structure diagram for a generated script, reusing the snippet
      * diagram pipeline. Internet access is forced off (same as script generation).
      */
     public de.kortty.model.SnippetDiagram generateDiagram(
@@ -298,11 +298,11 @@ public final class WorkflowScriptGenerator {
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings() : null;
         if (settings == null) {
-            throw new GenerationException(FailureKind.NO_PROFILE, "Settings unavailable");
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
         }
         AiProfile profile = resolveProfile(settings, data.profileId());
         if (profile == null) {
-            throw new GenerationException(FailureKind.NO_PROFILE, "No AI profile available");
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
         }
         // Same routing rule as generate(): keep LM-Studio-MCP modes on the copy, disable the rest.
         AiProfile generationProfile = new AiProfile(profile);
@@ -310,43 +310,76 @@ public final class WorkflowScriptGenerator {
             || !generationProfile.getInternetAccessMode().usesLmStudioMcp()) {
             generationProfile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
         }
-        String apiKey = resolveApiKey(generationProfile);
-
-        AiService service = AiServiceFactory.create(
-            generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
+        String apiKey;
+        AiService service;
+        try {
+            apiKey = resolveApiKey(generationProfile);
+            service = AiServiceFactory.create(
+                generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
+        } catch (Exception e) {
+            logger.warn("Workflow AI diagram provider could not be initialized; using the local Mermaid fallback", e);
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
+        }
         if (service == null) {
-            throw new GenerationException(FailureKind.NO_PROFILE, "AI service could not be created");
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
         }
         if (service instanceof FailingAiService failing) {
-            throw new GenerationException(FailureKind.AI_ERROR, failing.message());
+            logger.warn("Workflow AI diagram provider is unavailable ({}); using the local Mermaid fallback",
+                failing.message());
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
         }
         try {
-            de.kortty.core.SnippetAiResponseSupport.PlantUmlDiagram generated =
-                de.kortty.core.SnippetAiWorkflowSupport.generateSnippetPlantUml(
+            de.kortty.core.SnippetAiResponseSupport.MermaidDiagram generated =
+                de.kortty.core.SnippetAiWorkflowSupport.generateSnippetMermaid(
                     service, null, scriptContent, language.snippetLanguage(), "", "",
                     instructions != null ? instructions : "");
             if (generated == null || !generated.isUsable()) {
-                throw new GenerationException(FailureKind.AI_ERROR, "No usable diagram was produced");
+                return buildFallbackDiagram(scriptContent, language, instructions, existing);
             }
-            // Regenerating an existing diagram must keep its id so the caller replaces it in place
-            // (the copy constructor preserves the id); a fresh diagram gets a new id.
-            de.kortty.model.SnippetDiagram diagram = existing != null
-                ? new de.kortty.model.SnippetDiagram(existing)
-                : new de.kortty.model.SnippetDiagram();
-            diagram.setTitle(generated.title());
-            diagram.setType(de.kortty.model.SnippetDiagram.TYPE_LOGICAL_STRUCTURE);
-            diagram.setPlantUmlSource(generated.plantUml());
-            diagram.setSourceContentSha256(de.kortty.core.SnippetDiagramSupport.contentHash(scriptContent));
-            diagram.setCustomInstructions(instructions);
-            diagram.setUpdatedAt(System.currentTimeMillis());
-            return diagram;
-        } catch (GenerationException ge) {
-            throw ge;
+            return buildPersistedDiagram(generated, scriptContent, instructions, existing);
         } catch (Exception e) {
-            logger.warn("Workflow diagram generation failed", e);
-            throw new GenerationException(FailureKind.AI_ERROR,
-                e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.toString());
+            logger.warn("Workflow AI diagram generation failed; using the local Mermaid fallback", e);
+            return buildFallbackDiagram(scriptContent, language, instructions, existing);
         }
+    }
+
+    private de.kortty.model.SnippetDiagram buildFallbackDiagram(
+        String scriptContent,
+        ScriptLanguage language,
+        String instructions,
+        de.kortty.model.SnippetDiagram existing) {
+
+        String mermaid = de.kortty.core.SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(
+            scriptContent, language != null ? language.snippetLanguage() : "plain");
+        de.kortty.core.SnippetAiResponseSupport.MermaidDiagram fallback =
+            new de.kortty.core.SnippetAiResponseSupport.MermaidDiagram(
+                I18n.get("snippets.ai.diagram.title"), mermaid);
+        return buildPersistedDiagram(fallback, scriptContent, instructions, existing);
+    }
+
+    private de.kortty.model.SnippetDiagram buildPersistedDiagram(
+        de.kortty.core.SnippetAiResponseSupport.MermaidDiagram generated,
+        String scriptContent,
+        String instructions,
+        de.kortty.model.SnippetDiagram existing) {
+
+        // Regenerating an existing diagram must keep its id so the caller replaces it in place
+        // (the copy constructor preserves the id); a fresh diagram gets a new id.
+        de.kortty.model.SnippetDiagram diagram = existing != null
+            ? new de.kortty.model.SnippetDiagram(existing)
+            : new de.kortty.model.SnippetDiagram();
+        diagram.setTitle(generated.title());
+        diagram.setType(de.kortty.model.SnippetDiagram.TYPE_LOGICAL_STRUCTURE);
+        diagram.setMermaidSource(generated.mermaid());
+        diagram.setSourceContentSha256(de.kortty.core.SnippetDiagramSupport.contentHash(scriptContent));
+        diagram.setCustomInstructions(instructions);
+        diagram.setCodeReferences(de.kortty.core.SnippetDiagramSupport.buildExpandedCodeReferences(
+                generated.mermaid(), scriptContent, generated.codeReferences()).stream()
+            .map(reference -> new de.kortty.model.SnippetDiagram.CodeReference(
+                reference.nodeId(), reference.label(), reference.startLine(), reference.endLine()))
+            .toList());
+        diagram.setUpdatedAt(System.currentTimeMillis());
+        return diagram;
     }
 
     private AiProfile resolveProfile(GlobalSettings settings, String profileId) {

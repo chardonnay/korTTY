@@ -38,7 +38,7 @@
   <path class="grid" d="M 0 120 H 1400 M 0 240 H 1400 M 0 360 H 1400 M 0 480 H 1400 M 0 600 H 1400 M 0 720 H 1400 M 160 0 V 880 M 320 0 V 880 M 480 0 V 880 M 640 0 V 880 M 800 0 V 880 M 960 0 V 880 M 1120 0 V 880 M 1280 0 V 880" opacity="0.32"/>
 
   <text class="title" x="48" y="58">KorTTY Module Overview</text>
-  <text class="subtitle" x="48" y="86">Runtime modules grouped by responsibility. App designs are JavaFX CSS resources; PlantUML here refers only to snippet diagrams.</text>
+  <text class="subtitle" x="48" y="86">Runtime modules grouped by responsibility. Monaco, Mermaid, and MathJax are bundled browser assets.</text>
 
   <rect class="panel" x="470" y="120" width="460" height="170"/>
   <rect class="panelHeader" x="470" y="120" width="460" height="52"/>
@@ -105,8 +105,8 @@
   <rect class="box data" x="1090" y="555" width="230" height="56"/>
   <text class="label" x="1144" y="579">Editor formatters</text>
   <text class="detail" x="1119" y="599">google-java-format + bundled tools</text>
-  <rect class="box optional" x="1090" y="630" width="230" height="36"/>
-  <text class="detail" x="1114" y="653">PlantUML + Graphviz for snippets</text>
+  <rect class="box ui" x="1090" y="630" width="230" height="36"/>
+  <text class="detail" x="1115" y="653">Mermaid + MathJax browser assets</text>
 
   <path class="line" d="M 560 256 C 480 315 350 382 315 432"/>
   <path class="line" d="M 590 256 C 565 315 545 370 535 405"/>

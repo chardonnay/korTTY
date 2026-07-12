@@ -84,6 +84,7 @@ public class SnippetManager {
             if (wrapper.getSnippets() != null) {
                 snippets.addAll(wrapper.getSnippets());
             }
+            int discardedLegacyDiagrams = discardUnsupportedDiagramSources();
 
             categories.clear();
             if (wrapper.getCategories() != null) {
@@ -96,7 +97,8 @@ public class SnippetManager {
             }
             ensureDefaults();
 
-            logger.info("Loaded {} snippets and {} categories from {}", snippets.size(), categories.size(), file);
+            logger.info("Loaded {} snippets and {} categories from {} (discarded {} legacy diagrams)",
+                snippets.size(), categories.size(), file, discardedLegacyDiagrams);
         } catch (Exception e) {
             logger.error("Failed to load snippets from " + file, e);
             throw e;
@@ -117,6 +119,7 @@ public class SnippetManager {
         Path file = configDir.resolve(SNIPPETS_FILE);
         
         try {
+            discardUnsupportedDiagramSources();
             SnippetsWrapper wrapper = new SnippetsWrapper();
             wrapper.setSnippets(new ArrayList<>(snippets));
             wrapper.setCategories(new ArrayList<>(categories));
@@ -136,6 +139,31 @@ public class SnippetManager {
             logger.error("Failed to save snippets to " + file, e);
             throw e;
         }
+    }
+
+    /**
+     * Drops legacy-only diagram payloads without affecting their owning snippets. A diagram
+     * that already carries Mermaid is retained, but its legacy read shim is cleared so old XML is never
+     * written back.
+     */
+    private int discardUnsupportedDiagramSources() {
+        int discarded = 0;
+        for (Snippet snippet : snippets) {
+            if (snippet == null) {
+                continue;
+            }
+            Iterator<SnippetDiagram> iterator = snippet.getDiagrams().iterator();
+            while (iterator.hasNext()) {
+                SnippetDiagram diagram = iterator.next();
+                if (diagram == null || diagram.getMermaidSource() == null || diagram.getMermaidSource().isBlank()) {
+                    iterator.remove();
+                    discarded++;
+                    continue;
+                }
+                diagram.discardLegacySource();
+            }
+        }
+        return discarded;
     }
     
     // ---- Snippet CRUD ----

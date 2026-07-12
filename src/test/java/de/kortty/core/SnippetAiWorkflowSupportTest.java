@@ -136,19 +136,19 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void plantUmlRequestAsksForCodeReferencesWithLineNumberedSnippet() throws Exception {
+    void mermaidRequestAsksForNodeCodeReferencesWithLineNumberedSnippet() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "title": "Flow",
-              "plantUml": "@startuml\\nstart\\n:Run snippet;\\nstop\\n@enduml",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run snippet\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
               "codeReferences": [
-                { "label": "Run snippet", "startLine": 1, "endLine": 1 }
+                { "nodeId": "work_1", "label": "Run snippet", "startLine": 1, "endLine": 1 }
               ]
             }
             """);
 
-        SnippetAiResponseSupport.PlantUmlDiagram diagram =
-            SnippetAiWorkflowSupport.generateSnippetPlantUml(
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
                 aiService,
                 null,
                 "echo ok",
@@ -158,9 +158,9 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(diagram.codeReferences()).containsExactly(
-            new SnippetDiagramSupport.SourceCodeReference("Run snippet", 1, 1));
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run snippet", 1, 1));
         assertThat(aiService.lastRequest.conversationContext()).contains("codeReferences");
-        assertThat(aiService.lastRequest.conversationContext()).contains("every visible activity and decision");
+        assertThat(aiService.lastRequest.conversationContext()).contains("every visible action and decision node");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo ok");
     }

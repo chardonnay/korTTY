@@ -2,9 +2,13 @@
 
 == v2.4.3
 
+=== Mermaid diagrams
+
+* *One local Mermaid renderer for every diagram*: Snippet diagrams, full code analysis, workflow generation, exports, and AI-chat Mermaid blocks share the SHA-256-pinned Mermaid 11.16.0 browser renderer. Snippet flows retain SVG/PNG, clipboard, zoom, theme/background, regeneration, and node-to-code hover references without a Java/Graphviz subprocess or first-use download. Legacy saved diagram payloads are discarded without removing snippets or chats, and the retired renderer cache is deleted safely on upgrade.
+
 === Snippet AI code analysis
 
-* *Full code analysis*: The snippet editor's *AI Code → Full code analysis* opens a rich, non-modal window with a plain-language summary of what the script does, its external dependencies (each with a reduce/replace suggestion), improvement suggestions grouped into Security / Optimization / Design that you tick and apply, and an auto-generated flow diagram. The diagram carries the full toolbar (zoom, fit, save SVG/PNG, copy image/PlantUML, background colour, regenerate) and highlights the matching source lines when you hover a node.
+* *Full code analysis*: The snippet editor's *AI Code → Full code analysis* opens a rich, non-modal window with a plain-language summary of what the script does, its external dependencies (each with a reduce/replace suggestion), improvement suggestions grouped into Security / Optimization / Design that you tick and apply, and an auto-generated flow diagram. The diagram carries the full toolbar (zoom, fit, save SVG/PNG, copy image/Mermaid, background colour, regenerate) and highlights the matching source lines when you hover a node.
 * *File names in title bars*: The snippet editor and the analysis window now show the script's file name in their title bars.
 * *Per-run AI profile & re-run*: The analysis and other AI-code windows let you pick a transient AI profile for the next run and re-run with it; font sizes are remembered per window.
 * *AI skills picker*: Relevant AI Skills are pre-selected automatically and can be pinned so they apply to every AI-code action.

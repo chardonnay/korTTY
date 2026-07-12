@@ -153,7 +153,7 @@ Codeausschnitte, Skripte und Vorlagen.
 - ZIP-Archive mit optionaler Passwort- oder GPG-Verschlüsselung
 - Hervorhebung der lokalen Syntax mit dem Monaco-Editor
 - KI-gestützte Bearbeitung und Codegenerierung
-- PlantUML-Diagrammunterstützung
+- Persistierte Mermaid-Flussdiagramme mit stabilen Code-Referenz-Knoten-IDs
 - Einzeiliger Export mit optionalen Skriptargumenten
 
 ### snippet-variables.xml

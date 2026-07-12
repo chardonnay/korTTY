@@ -376,7 +376,7 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
     }
 
-    public static SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(
+    public static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
         AiService aiService,
         UsageRecorder usageRecorder,
         String fullContent,
@@ -386,17 +386,17 @@ public final class SnippetAiWorkflowSupport {
         String additionalInstructions) throws Exception {
 
         AiRequest request = new AiRequest(
-            AiAction.GENERATE_SNIPPET_PLANTUML,
+            AiAction.GENERATE_SNIPPET_MERMAID,
             fullContent,
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildPlantUmlContext(fullContent, snippetLanguage, fallbackLanguageCode));
+            buildMermaidContext(fullContent, snippetLanguage, fallbackLanguageCode));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiResponseSupport.parsePlantUmlDiagram(result != null ? result.content() : null);
+        return SnippetAiResponseSupport.parseMermaidDiagram(result != null ? result.content() : null);
     }
 
     public static SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(
@@ -627,20 +627,18 @@ public final class SnippetAiWorkflowSupport {
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
     }
 
-    private static String buildPlantUmlContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
+    private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         return "Snippet language: " + snippetLanguage + "\n"
             + "Diagram label language: " + fallbackLanguageCode + "\n"
-            + "Generate one compact logical-structure PlantUML diagram for this snippet. "
+            + "Generate one compact logical-structure Mermaid flowchart for this snippet. "
             + "Use only relationships visible in the code. "
-            + "For scripts and imperative code, generate only a simple activity diagram with start, activity lines, if/else branches, and stop. "
-            + "Use a small semantic HEX color palette to distinguish setup, main work, success, and failure paths. "
-            + "Activity lines may use :Action label; <<#RRGGBB>> syntax. "
-            + "Do not use gradients or large style blocks. "
-            + "Do not use component/package/class/object/actor/usecase blocks for script variables or commands. "
-            + "Do not copy raw source lines into PlantUML; summarize them as activity labels.\n"
-            + "Every action line between start and stop must use :Action label; or :Action label; <<#RRGGBB>> syntax.\n"
-            + "Also return codeReferences. Each entry must map one visible activity label or decision text exactly to a small relevant source range. "
-            + "Create one codeReferences entry for every visible activity and decision; exclude only start, stop, arrows, and merge nodes. "
+            + "Use only flowchart TD, stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminal nodes, separately declared quoted action/decision nodes, "
+            + "--> edges, optional yes/no edge labels, and class statements. "
+            + "Assign every node exactly one of the semantic classes setup, work, success, and failure. "
+            + "Use stable descriptive node ids and do not copy raw source lines into labels; summarize them. "
+            + "Do not use frontmatter, directives, comments, custom styles/colors, callbacks, URLs, images, icons, HTML, or other Mermaid syntax.\n"
+            + "Also return codeReferences. Each entry must map a declared nodeId and its exact visible label to a small relevant source range. "
+            + "Create one codeReferences entry for every visible action and decision node, excluding start_1 and stop_1. "
             + "Use only the 1-based line numbers shown in the line-numbered snippet. "
             + "When one diagram element summarizes a block, use the smallest source range that covers that block.\n"
             + "Line-numbered snippet:\n"

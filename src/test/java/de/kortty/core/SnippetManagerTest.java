@@ -64,9 +64,20 @@ class SnippetManagerTest {
         Snippet snippet = new Snippet("deploy.sh", "echo deploy", "bash");
         SnippetDiagram diagram = new SnippetDiagram();
         diagram.setTitle("Deploy flow");
-        diagram.setPlantUmlSource("@startuml\nstart\n:Deploy;\nstop\n@enduml");
+        diagram.setMermaidSource("""
+            flowchart TD
+                start_1(["Start"])
+                deploy_1["Deploy"]
+                stop_1(["Stop"])
+                start_1 --> deploy_1
+                deploy_1 --> stop_1
+                class start_1,stop_1 setup
+                class deploy_1 work
+            """.strip());
         diagram.setSourceContentSha256(SnippetDiagramSupport.contentHash(snippet.getContent()));
         diagram.setCustomInstructions("activity");
+        diagram.setCodeReferences(List.of(
+            new SnippetDiagram.CodeReference("deploy_1", "Deploy", 1, 1)));
         snippet.setDiagrams(List.of(diagram));
         manager.addSnippet(snippet);
         manager.save();
@@ -77,7 +88,52 @@ class SnippetManagerTest {
         Snippet loaded = reloaded.getAllSnippets().getFirst();
         assertThat(loaded.getDiagrams()).hasSize(1);
         assertThat(loaded.getDiagrams().getFirst().getTitle()).isEqualTo("Deploy flow");
+        assertThat(loaded.getDiagrams().getFirst().getMermaidSource()).contains("deploy_1");
         assertThat(loaded.getDiagrams().getFirst().getCustomInstructions()).isEqualTo("activity");
+        assertThat(loaded.getDiagrams().getFirst().getCodeReferences().getFirst().getNodeId())
+            .isEqualTo("deploy_1");
+    }
+
+    @Test
+    void legacyOnlyDiagramsAreDiscardedWithoutLosingSnippetOrMermaidDiagrams() throws Exception {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet snippet = new Snippet("mixed.sh", "echo preserved", "bash");
+        snippet.setDescription("Must survive legacy diagram cleanup");
+
+        SnippetDiagram retained = new SnippetDiagram();
+        retained.setTitle("Current");
+        retained.setMermaidSource("flowchart TD\n    start_1([\"Start\"])\n    keep_1[\"Keep\"]\n    stop_1([\"Stop\"])\n"
+            + "    start_1 --> keep_1\n    keep_1 --> stop_1\n    class start_1,stop_1 setup\n    class keep_1 work");
+        SnippetDiagram legacy = new SnippetDiagram();
+        legacy.setTitle("Legacy");
+        legacy.setMermaidSource("flowchart TD\n    start_1([\"Start\"])\n    old_1[\"Old\"]\n    stop_1([\"Stop\"])\n"
+            + "    start_1 --> old_1\n    old_1 --> stop_1\n    class start_1,stop_1 setup\n    class old_1 work");
+        snippet.setDiagrams(List.of(retained, legacy));
+        manager.addSnippet(snippet);
+        manager.save();
+
+        Path snippetsFile = tempDir.resolve("snippets.xml");
+        String xml = Files.readString(snippetsFile);
+        xml = xml.replaceFirst(
+            "(?s)(<title>Legacy</title>.*?)(<mermaidSource>).*?(</mermaidSource>)",
+            "$1<plantUmlSource>@startuml\\nstart\\nstop\\n@enduml</plantUmlSource>");
+        Files.writeString(snippetsFile, xml);
+
+        SnippetManager reloaded = new SnippetManager(tempDir);
+        reloaded.load();
+
+        Snippet loaded = reloaded.getAllSnippets().getFirst();
+        assertThat(loaded.getName()).isEqualTo("mixed.sh");
+        assertThat(loaded.getContent()).isEqualTo("echo preserved");
+        assertThat(loaded.getDescription()).isEqualTo("Must survive legacy diagram cleanup");
+        assertThat(loaded.getDiagrams()).hasSize(1);
+        assertThat(loaded.getDiagrams().getFirst().getTitle()).isEqualTo("Current");
+        assertThat(loaded.getDiagrams().getFirst().getMermaidSource()).contains("keep_1");
+
+        reloaded.save();
+        String migratedXml = Files.readString(snippetsFile);
+        assertThat(migratedXml).doesNotContain("plantUmlSource");
+        assertThat(migratedXml).contains("mermaidSource");
     }
 
     @Test

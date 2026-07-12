@@ -13,6 +13,7 @@ from typing import Any
 
 
 MIB = 1024 * 1024
+ARCHIVE_SUFFIXES = {".jar", ".zip"}
 
 
 def parse_artifact(value: str) -> tuple[str, Path]:
@@ -56,11 +57,63 @@ def app_bucket(relative: Path) -> str:
 
 def jar_bucket(name: str) -> str:
     first = name.split("/", 1)[0]
-    if first in {"monaco", "guide", "chatrender", "formatters-web", "fonts", "icon", "i18n"}:
+    if first in {"monaco", "mermaid", "guide", "chatrender", "formatters-web", "fonts", "icon", "i18n"}:
         return first
     if name.endswith(".class"):
         return "classes"
     return "other"
+
+
+def is_plantuml_artifact_name(name: str) -> bool:
+    """Return whether a packaged path identifies a PlantUML dependency/resource.
+
+    File contents are deliberately not searched, so the migration cleanup's cache-path string and
+    historic release-note prose cannot produce false positives.
+    """
+    normalized = name.replace("\\", "/").lower()
+    return "plantuml" in normalized
+
+
+def find_plantuml_artifacts(base: Path, files: list[Path]) -> list[dict[str, Any]]:
+    """Find named PlantUML files and PlantUML entries shaded into generic archives."""
+    artifacts: list[dict[str, Any]] = []
+    for path in files:
+        relative = path.relative_to(base).as_posix()
+        named_artifact = is_plantuml_artifact_name(relative)
+        if named_artifact:
+            size = path.stat().st_size
+            artifacts.append(
+                {
+                    "kind": "file",
+                    "path": relative,
+                    "raw_bytes": size,
+                    "compressed_bytes": size,
+                }
+            )
+
+        # A directly named PlantUML archive is already reported as one artifact. Expanding every
+        # class from that archive would make the report noisy; generic archives are inspected so a
+        # shaded/renamed PlantUML dependency cannot evade the acceptance check.
+        if named_artifact or path.suffix.lower() not in ARCHIVE_SUFFIXES:
+            continue
+        try:
+            with zipfile.ZipFile(path) as archive:
+                for entry in archive.infolist():
+                    if entry.is_dir() or not is_plantuml_artifact_name(entry.filename):
+                        continue
+                    artifacts.append(
+                        {
+                            "kind": "archive-entry",
+                            "path": f"{relative}!/{entry.filename}",
+                            "raw_bytes": entry.file_size,
+                            "compressed_bytes": entry.compress_size,
+                        }
+                    )
+        except zipfile.BadZipFile:
+            # The package report already treats the file as part of the application image. Only
+            # valid ZIP/JAR containers can hide class or resource entries from the path check.
+            continue
+    return sorted(artifacts, key=lambda item: (item["path"].lower(), item["kind"]))
 
 
 def analyze_app_image(root: Path) -> dict[str, Any]:
@@ -70,6 +123,7 @@ def analyze_app_image(root: Path) -> dict[str, Any]:
     app_dir, runtime_dir = app_layout(root)
     buckets: dict[str, int] = {}
     files = [path for path in base.rglob("*") if path.is_file()]
+    plantuml_artifacts = find_plantuml_artifacts(base, files)
     for path in files:
         relative = path.relative_to(base)
         bucket = app_bucket(relative)
@@ -105,6 +159,13 @@ def analyze_app_image(root: Path) -> dict[str, Any]:
         "app_jar": str(app_jar) if app_jar else None,
         "runtime_jvm": str(runtime_jvm) if runtime_jvm else None,
         "app_jar_buckets": dict(sorted(jar_buckets.items())),
+        "plantuml_artifact_status": "pass" if not plantuml_artifacts else "FAIL",
+        "plantuml_artifact_count": len(plantuml_artifacts),
+        "plantuml_artifact_raw_bytes": sum(item["raw_bytes"] for item in plantuml_artifacts),
+        "plantuml_artifact_compressed_bytes": sum(
+            item["compressed_bytes"] for item in plantuml_artifacts
+        ),
+        "plantuml_artifacts": plantuml_artifacts,
     }
 
 
@@ -134,6 +195,25 @@ def markdown(report: dict[str, Any]) -> str:
             f"| {key} | {mib(value['raw_bytes'])} | {mib(value['compressed_bytes'])} |"
             for key, value in app["app_jar_buckets"].items()
         )
+        lines.extend(["", "### PlantUML artifact check", ""])
+        if app["plantuml_artifacts"]:
+            lines.extend(
+                [
+                    f"- Status: **FAIL** ({app['plantuml_artifact_count']} bundled artifact(s))",
+                    f"- Raw size: **{mib(app['plantuml_artifact_raw_bytes'])} MiB**",
+                    f"- Stored size: **{mib(app['plantuml_artifact_compressed_bytes'])} MiB**",
+                    "",
+                    "| Location | Kind | Raw MiB | Stored MiB |",
+                    "| --- | --- | ---: | ---: |",
+                ]
+            )
+            lines.extend(
+                f"| `{item['path'].replace('|', '&#124;')}` | {item['kind']} | "
+                f"{mib(item['raw_bytes'])} | {mib(item['compressed_bytes'])} |"
+                for item in app["plantuml_artifacts"]
+            )
+        else:
+            lines.append("- Status: **PASS** — no bundled PlantUML dependency or resource artifacts found.")
 
     lines.extend(["", "## Native artifacts", "", "| Key | Size MiB | Budget MiB | Reduction | Status |", "| --- | ---: | ---: | ---: | --- |"])
     for item in report["artifacts"]:
@@ -185,6 +265,16 @@ def main() -> int:
         if args.max_app_bytes and report["app_image"]["logical_bytes"] > args.max_app_bytes:
             failures.append(
                 f"app image is {report['app_image']['logical_bytes']} bytes; maximum is {args.max_app_bytes}"
+            )
+        plantuml_artifacts = report["app_image"]["plantuml_artifacts"]
+        if plantuml_artifacts:
+            locations = ", ".join(item["path"] for item in plantuml_artifacts[:5])
+            remainder = len(plantuml_artifacts) - 5
+            if remainder > 0:
+                locations += f", and {remainder} more"
+            failures.append(
+                f"app image contains {len(plantuml_artifacts)} bundled PlantUML "
+                f"dependency/resource artifact(s): {locations}"
             )
 
     for key, path in args.artifact:

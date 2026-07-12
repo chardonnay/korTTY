@@ -9,6 +9,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.LegacyDiagramCacheCleanup;
 import de.kortty.core.LoggingConfiguration;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TerminalEffectPluginManager;
@@ -106,6 +107,11 @@ public class KorTTYApplication extends Application {
     @Override
     public void init() throws Exception {
         instance = this;
+
+        // Remove the retired diagram renderer's app-owned download cache and abandoned work
+        // directories before loading persisted application data. Cleanup is deliberately
+        // best-effort so a locked or read-only legacy file can never prevent korTTY from starting.
+        LegacyDiagramCacheCleanup.cleanupAtStartup();
         
         // Install global exception handler to suppress SithTermFX bug
         installGlobalExceptionHandler();

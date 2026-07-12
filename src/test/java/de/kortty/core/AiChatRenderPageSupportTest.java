@@ -7,16 +7,6 @@ import static com.google.common.truth.Truth.assertThat;
 class AiChatRenderPageSupportTest {
 
     @Test
-    void mermaidPageEmbedsSourceAsJsonAndUsesStrictSecurity() {
-        String html = AiChatRenderPageSupport.buildMermaidHtml("graph TD;\nA-->B;");
-
-        assertThat(html).contains("\"graph TD;\\nA--\\u003eB;\"");
-        assertThat(html).contains("securityLevel:'strict'");
-        assertThat(html).contains("mermaid.min.js");
-        assertThat(html).contains("window.korttyRenderState");
-    }
-
-    @Test
     void mathPageEmbedsTexAndDisablesAutoTypesetting() {
         String html = AiChatRenderPageSupport.buildMathHtml("\\frac{a}{b}");
 

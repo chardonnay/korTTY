@@ -2812,10 +2812,6 @@
 <td>Inline raster image (PNG, JPEG, GIF, BMP; up to 8 MB decoded) with a <strong>copy image</strong> button</td>
 </tr>
 <tr>
-<td><code>```plantuml</code> / <code>```puml</code> code block, or an untagged <code>@startuml</code> block</td>
-<td>Locally rendered PlantUML diagram</td>
-</tr>
-<tr>
 <td><code>```mermaid</code> code block</td>
 <td>Mermaid diagram (bundled library, no network)</td>
 </tr>
@@ -2825,20 +2821,18 @@
 </tr>
 </tbody>
 </table>
-<p>Every rendered block keeps a header with the usual copy button and a <strong>Show code / Show image</strong> toggle, so the underlying source stays one click away. While a PlantUML/Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason.</p>
+<p>Every rendered block keeps a header with the usual copy button and a <strong>Show code / Show image</strong> toggle, so the underlying source stays one click away. While a Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason. <code>plantuml</code>/<code>puml</code> fences and untagged <code>@startuml</code> content are ordinary source-code blocks and are not rendered specially.</p>
 <p>Example prompts that produce rendered answers:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Draw a simple house as an SVG image.
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Create a Mermaid flowchart of a typical login flow.
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Create a PlantUML sequence diagram for an SSH handshake.
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Create a Mermaid sequence diagram for an SSH handshake.
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Explain the Pythagorean theorem and show the formula.
 </span></code></pre></div>
-<p>A Mermaid answer block like this renders as a flowchart:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>```mermaid
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>graph TD;
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  Login--&gt;Validate;
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  Validate--&gt;|ok| Session;
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  Validate--&gt;|fail| Error;
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>```
+<p>A Mermaid answer fenced with the <code>mermaid</code> language tag and this body renders as a flowchart:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>flowchart TD
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  Login--&gt;Validate;
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  Validate--&gt;|ok| Session;
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  Validate--&gt;|fail| Error;
 </span></code></pre></div>
 <p>And display math in the answer text renders as a typeset formula:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>$$a^2 + b^2 = c^2$$
@@ -2846,11 +2840,11 @@
 <div class="admonition note">
 <p class="admonition-title">Rendering details and requirements</p>
 <ul>
-<li>SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.</li>
-<li>Mermaid runs with its <code>strict</code> security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.</li>
-<li>PlantUML is downloaded to the user cache on first use and accepted only when it matches korTTY's fixed SHA-256. The packaged app renders it in a private, cancellable launcher worker, so neither <code>java</code> nor <code>dot</code> must be on <code>PATH</code>; Graphviz remains optional for PlantUML diagram types that require it. See the same cache and rendering details under <a href="snippets.html">Snippet diagrams</a>.</li>
+<li>SVG and rendered Mermaid output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.</li>
+<li>Mermaid 11.16.0 runs with its <code>strict</code> security level from a SHA-256-pinned local bundle; LaTeX is typeset by a separately loaded local MathJax bundle. Neither needs internet access.</li>
+<li>Chat Mermaid retains the full bundled diagram support, including flowchart, sequence, class, state, ER, mindmap, and architecture diagrams. Frontmatter, directives, network/file/data/JavaScript URLs, external images/icons, links, and click callbacks are rejected; source, edge-count, raster-size, and timeout limits protect the renderer.</li>
 <li>Full LaTeX documents (<code>\documentclass</code>) intentionally stay code blocks; only formulas are typeset.</li>
-<li>Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.</li>
+<li>Mermaid follows the active chat's light/dark palette; other rendered images and formulas retain a readable neutral canvas.</li>
 </ul>
 </div>
 <h2 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
@@ -3048,7 +3042,7 @@
 <li>Auto-loads matching AI Skills (e.g., a language-quality skill for the target language).</li>
 <li>Can produce several language variants and multiple suggestions as inline tabs.</li>
 <li>Supports header templates from the fixed non-deletable <strong>Script-Header</strong> snippet category.</li>
-<li>Optionally includes a PlantUML diagram for the script logic. A working spinner is shown while the diagram is generated, so it is clear the AI connection is busy.</li>
+<li>Optionally includes a Mermaid flowchart for the script logic. A working spinner is shown while the diagram is generated, so it is clear the AI connection is busy.</li>
 <li>Saves into the Snippet Manager with a short auto-generated name plus correct extension (de-duplicated by full name including extension).</li>
 <li>Tags the snippet as <code>workflow</code> for easy filtering.</li>
 <li>Auto-sets the <strong>System</strong> (OS) column from the agent's probed OS (any Linux distro becomes Linux).</li>

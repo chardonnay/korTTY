@@ -142,7 +142,7 @@ The UI layer is built on JavaFX and organized into logical components:
 | `TerminalPane` | Single terminal tab with split-pane support and inline AI activity panel |
 | `ConnectionDialog` | Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.) |
 | `SFTPManagerDialog` | Dual-panel file manager for local and remote file operations |
-| `SnippetEditor` | Monaco-powered code editor with syntax highlighting, AI assistance, and PlantUML diagrams |
+| `SnippetEditor` | Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts |
 | `JobSchedulerDialog` | Job creation, scheduling, and journal inspection |
 | `QuickConnectDialog` | Fast connection search and frequently-used connection shortcuts |
 
@@ -210,17 +210,17 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | Tukaani xz | 1.9 | XZ compression |
 | **UI** | JavaFX | 21 | Application framework |
 | | Monaco Editor | 0.55.1 | Code editor component |
+| | Mermaid | 11.16.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
+| | MathJax | 3.2.2 | Local AI-chat formula rendering |
 | | google-java-format | 1.35.0 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Password strength (offline) |
-| | PlantUML | 1.2026.2 | Diagram rendering |
 | **Logging** | SLF4J / Logback | 2.0.9 / 1.4.14 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
 
 ### Dynamic Dependencies
 
 - **mosh4j**: Its five SHA-256-pinned, architecture-specific release JARs and protobuf are bundled in native builds and dynamically loaded only when Mosh is needed. The child loader reuses Bouncy Castle from the application parent instead of shipping a second copy.
-- **PlantUML**: PlantUML 1.2026.2 is downloaded on first use, checked against a fixed SHA-256 and cached outside the installer. A stripped packaged runtime renders in a private native-launcher worker; old JARs and abandoned temporary render directories are cleaned automatically.
 - **rsync / ssh**: External commands used by JobScheduler Rsync jobs
 - **ffmpeg**: Optional; used for terminal recording video export
 
@@ -229,7 +229,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 ### Compilation and Packaging
 
 1. **SithTermFX build**: Cloned and built locally (Maven); its accidentally published JUnit dependency is excluded from the runtime.
-2. **Browser assets**: An isolated, pinned Node.js is used only to build Monaco. Monaco's editor and diff pages share one mode-aware IIFE/CSS pair while retaining all five workers and language services. Prettier Standalone with five selected plugins and the sql-formatter UMD build are copied directly into the application JAR and run without Node at runtime.
+2. **Browser assets**: An isolated, pinned Node.js is used only at build time for Monaco and for JavaFX-WebKit compatibility processing of the SHA-256-pinned Mermaid bundle. Monaco's editor and diff pages share one mode-aware IIFE/CSS pair while retaining all five workers and language services. Mermaid and MathJax remain separate lazy resources; Prettier Standalone with five selected plugins and the sql-formatter UMD build run without Node at runtime.
 3. **External formatter payload**: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.
 4. **Clean native staging**: `prepareJpackage` uses a final Gradle `Sync`, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.
 5. **Native packaging and gates**: The selected Gradle JDK 25 toolchain supplies `jpackage` for .app/.dmg, .exe/.msi, .deb and .rpm output. `scripts/package-size-report.py` emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.
@@ -302,7 +302,7 @@ Menu-bar status displays next runs / live countdown
 - **AI Chat Threads**: Background threads for API requests (non-blocking UI)
 - **File I/O Threads**: Async writes for history, journal, and recordings
 - **Web formatter requests**: Background callers are serialized with one total timeout; creation, loading and invocation of the lazy Prettier/SQL WebView remain confined to the JavaFX application thread, and failures discard the engine generation.
-- **PlantUML worker**: Rendering and syntax checks run in a separate cancellable process, using the packaged launcher worker when the jlink runtime has no `bin/java`.
+- **Mermaid render requests**: Background callers receive `CompletableFuture` results while all access to the single lazy renderer WebView stays on the JavaFX application thread. Requests are serialized; cancellation, a 30-second timeout, or a WebEngine error discards the engine generation, and idle cleanup releases the hidden WebView.
 
 ## Extensibility Points
 

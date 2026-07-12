@@ -6,7 +6,7 @@ import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiChatDiagramSupport;
 import de.kortty.core.AiChatRenderPageSupport;
 import de.kortty.core.AiRasterImageSupport;
-import de.kortty.core.PlantUmlRenderService;
+import de.kortty.core.MermaidRenderService;
 import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
@@ -1375,9 +1375,6 @@ public class AiResultTab extends Tab {
         if (AiChatDiagramSupport.isMermaidBlock(language)) {
             return createMermaidBlock(language, code);
         }
-        if (AiChatDiagramSupport.isPlantUmlBlock(language, code)) {
-            return createPlantUmlBlock(language, code);
-        }
         if (AiChatDiagramSupport.isLatexMathBlock(language, code)) {
             return createLatexMathBlock(language, code);
         }
@@ -1427,20 +1424,6 @@ public class AiResultTab extends Tab {
         return codeScrollPane;
     }
 
-    /** Shared PlantUML renderer; downloads its jar once into the user cache on first use. */
-    private static final PlantUmlRenderService PLANT_UML_RENDERER = new PlantUmlRenderService();
-
-    /**
-     * Bounded pool for PlantUML renders: each render spawns a java subprocess, so a response
-     * with many diagram blocks must not fan out into unbounded concurrent workers.
-     */
-    private static final java.util.concurrent.ExecutorService PLANT_UML_RENDER_POOL =
-        java.util.concurrent.Executors.newFixedThreadPool(2, runnable -> {
-            Thread thread = new Thread(runnable, "ai-chat-plantuml-render");
-            thread.setDaemon(true);
-            return thread;
-        });
-
     /**
      * Renders a decoded base64 raster image (PNG/JPEG/GIF/BMP) inline on a white canvas with a
      * copy-image button. Falls back to a short notice when the bytes do not decode.
@@ -1482,80 +1465,6 @@ public class AiResultTab extends Tab {
         VBox imageBox = new VBox(6, header, canvas);
         imageBox.getStyleClass().add("ai-chat-block-surface");
         return imageBox;
-    }
-
-    /**
-     * Renders a PlantUML code block: the source stays visible while the diagram renders in the
-     * background (local PlantUML jar, needs java + graphviz); on success the block switches to
-     * the diagram image with a code toggle, on failure it stays on the source and shows why.
-     */
-    private VBox createPlantUmlBlock(String language, String code) {
-        Label languageLabel = new Label(language != null && !language.isBlank() ? language : "plantuml");
-        languageLabel.setStyle("-fx-font-weight: bold;");
-        Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
-        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
-        Button copyCodeButton = new Button("⧉");
-        copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
-        copyCodeButton.setOnAction(e -> copyToClipboard(code));
-        copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
-        Button toggleButton = new Button(I18n.get("ai.result.svg.showCode"));
-        toggleButton.setStyle("-fx-padding: 3 10 3 10;");
-        toggleButton.setVisible(false);
-        toggleButton.setManaged(false);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(8, languageLabel, statusLabel, spacer, toggleButton, copyCodeButton);
-
-        javafx.scene.Node codeNode = createCodeEditorNode(
-            SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
-        StackPane contentHolder = new StackPane(codeNode);
-        VBox diagramBox = new VBox(6, header, contentHolder);
-        diagramBox.getStyleClass().add("ai-chat-block-surface");
-
-        String source = AiChatDiagramSupport.normalizePlantUml(code);
-        // The WebView is created only after the render subprocess returns; by then the tab may
-        // have been closed or rebuilt (font zoom), so a stale epoch must not attach anything.
-        int renderEpoch = renderDisposables.epoch();
-        PLANT_UML_RENDER_POOL.submit(() -> {
-            PlantUmlRenderService.RenderResult result = PLANT_UML_RENDERER.renderSvg(source);
-            String svg = null;
-            if (result.success()) {
-                try {
-                    svg = Files.readString(result.imagePath());
-                } catch (Exception ex) {
-                    // fall through to the failure branch with the read error
-                }
-            }
-            String renderedSvg = svg;
-            String failureMessage = result.message();
-            Platform.runLater(() -> {
-                if (!renderDisposables.isLive(renderEpoch)) {
-                    return;
-                }
-                if (renderedSvg != null) {
-                    String sanitizedSvg = AiSvgContentSupport.sanitizeSvg(renderedSvg);
-                    WebView imageView = new WebView();
-                    renderDisposables.register(() -> imageView.getEngine().loadContent(""));
-                    imageView.getEngine().setJavaScriptEnabled(false);
-                    imageView.setContextMenuEnabled(false);
-                    imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(sanitizedSvg, 120, 520, 320));
-                    imageView.getEngine().loadContent(AiSvgContentSupport.buildSvgHtml(sanitizedSvg));
-                    contentHolder.getChildren().setAll(imageView);
-                    statusLabel.setVisible(false);
-                    statusLabel.setManaged(false);
-                    enableImageCodeToggle(toggleButton, contentHolder, imageView, codeNode);
-                } else {
-                    String message = failureMessage != null && !failureMessage.isBlank()
-                        ? failureMessage
-                        : "";
-                    if (message.length() > 160) {
-                        message = message.substring(0, 160) + "…";
-                    }
-                    statusLabel.setText(I18n.get("ai.result.diagram.failed", message));
-                }
-            });
-        });
-        return diagramBox;
     }
 
     /**
@@ -1691,16 +1600,78 @@ public class AiResultTab extends Tab {
         return renderedBox;
     }
 
-    /** Renders a ```mermaid block as a diagram via the bundled mermaid library. */
+    /** Renders a Mermaid block centrally and displays only the sanitized static SVG. */
     private VBox createMermaidBlock(String language, String code) {
-        return createWebViewRenderedBlock(
-            language != null && !language.isBlank() ? language : "mermaid",
-            language,
-            code,
-            "mermaid",
-            AiChatRenderPageSupport.buildMermaidHtml(code),
-            120,
-            640);
+        Label languageLabel = new Label(language != null && !language.isBlank() ? language : "mermaid");
+        languageLabel.setStyle("-fx-font-weight: bold;");
+        Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
+        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
+        Button copyCodeButton = new Button("⧉");
+        copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
+        copyCodeButton.setOnAction(event -> copyToClipboard(code));
+        copyCodeButton.setStyle("-fx-padding: 3 8 3 8;");
+        Button toggleButton = new Button(I18n.get("ai.result.svg.showCode"));
+        toggleButton.setStyle("-fx-padding: 3 10 3 10;");
+        toggleButton.setVisible(false);
+        toggleButton.setManaged(false);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(8, languageLabel, statusLabel, spacer, toggleButton, copyCodeButton);
+
+        javafx.scene.Node codeNode = createCodeEditorNode(
+            SnippetLanguageSupport.detectSnippetLanguage(language, code), code);
+        StackPane contentHolder = new StackPane(codeNode);
+        VBox diagramBox = new VBox(6, header, contentHolder);
+        diagramBox.getStyleClass().add("ai-chat-block-surface");
+
+        int renderEpoch = renderDisposables.epoch();
+        java.util.concurrent.CompletableFuture<MermaidRenderService.RenderResult> future =
+            MermaidRenderService.render(MermaidRenderService.RenderRequest.chat(code, currentMermaidTheme()));
+        renderDisposables.register(() -> future.cancel(true));
+        future.whenComplete((result, error) -> Platform.runLater(() -> {
+            if (!renderDisposables.isLive(renderEpoch)) {
+                return;
+            }
+            if (error == null && result != null && result.success() && !result.svg().isBlank()) {
+                WebView imageView = new WebView();
+                renderDisposables.register(() -> imageView.getEngine().loadContent(""));
+                imageView.getEngine().setJavaScriptEnabled(false);
+                imageView.setContextMenuEnabled(false);
+                imageView.setPrefHeight(AiSvgContentSupport.estimateDisplayHeight(result.svg(), 120, 640, 320));
+                imageView.getEngine().loadContent(AiSvgContentSupport.buildSvgHtml(result.svg()));
+                contentHolder.getChildren().setAll(imageView);
+                statusLabel.setVisible(false);
+                statusLabel.setManaged(false);
+                enableImageCodeToggle(toggleButton, contentHolder, imageView, codeNode);
+                return;
+            }
+            String message = error != null ? error.getMessage() : result != null ? result.message() : "";
+            if (message == null) {
+                message = "";
+            } else if (message.length() > 160) {
+                message = message.substring(0, 160) + "…";
+            }
+            statusLabel.setText(I18n.get("ai.result.diagram.failed", message));
+        }));
+        return diagramBox;
+    }
+
+    private MermaidRenderService.Theme currentMermaidTheme() {
+        ChatColorProfile profile = chatProfileComboBox.getSelectionModel().getSelectedItem();
+        if (profile == null) {
+            profile = ChatColorProfileSupport.activeProfile(KorTTYApplication.getInstance());
+        }
+        ThemeCssSupport.ChatPalette palette =
+            ChatColorProfileSupport.resolvePalette(profile, KorTTYApplication.getInstance());
+        try {
+            javafx.scene.paint.Color background = javafx.scene.paint.Color.web(palette.background());
+            double luminance = (0.2126 * background.getRed())
+                + (0.7152 * background.getGreen())
+                + (0.0722 * background.getBlue());
+            return luminance < 0.5 ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT;
+        } catch (RuntimeException ignored) {
+            return MermaidRenderService.Theme.LIGHT;
+        }
     }
 
     /** Renders a LaTeX math block (fenced or $$-framed) via the bundled MathJax library. */

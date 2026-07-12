@@ -36,6 +36,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
 import java.io.File;
@@ -116,7 +117,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             Window owner,
             String scriptName,
             SnippetAiResponseSupport.ScriptAnalysis analysis,
-            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramPlantUmlSupplier,
+            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramMermaidSupplier,
             String activeProfileId,
             Consumer<String> onRerun,
             SkillContext skillContext) {
@@ -151,7 +152,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
 
         // Right pane: the full-featured, embeddable diagram viewer (fit-to-window, zoom, save/copy,
         // background, regenerate) — same functionality as the standalone "Snippet diagrams" dialog.
-        diagramView = new SnippetDiagramView(diagramPlantUmlSupplier, true);
+        diagramView = new SnippetDiagramView(diagramMermaidSupplier, true);
         Label diagramTitle = new Label(I18n.get("snippets.ai.analysis.diagram.title"));
         VBox rightPane = new VBox(6, diagramTitle, diagramView);
         VBox.setVgrow(diagramView, Priority.ALWAYS);
@@ -193,7 +194,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
         setOnShown(event -> diagramView.loadIfNeeded());
-        setOnHidden(event -> {
+        addEventHandler(WindowEvent.WINDOW_HIDDEN, event -> {
             diagramView.dispose();
             // Unload the findings page so its WebKit engine releases its native memory.
             findingsView.getEngine().loadContent("");
@@ -265,7 +266,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
 
     /**
      * Exports the report (summary + findings + dependencies + diagram) to the chosen file. The diagram is
-     * re-rendered from PlantUML during export, so the work runs off the FX thread; the outcome is surfaced
+     * rendered from Mermaid during export, so the work runs off the FX thread; the outcome is surfaced
      * via a lightweight alert owned by this (non-modal) dialog.
      */
     private void exportReport(SnippetAnalysisExportService.Format format) {
@@ -286,11 +287,11 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId),
             LocalDateTime.now(),
             includedSkillNames);
-        String diagramPlantUml = diagramView.currentStyledPlantUml();
+        de.kortty.core.MermaidRenderService.RenderRequest diagramRequest = diagramView.currentRenderRequest(true);
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                new SnippetAnalysisExportService().export(target.toPath(), format, analysis, context, diagramPlantUml);
+                new SnippetAnalysisExportService().export(target.toPath(), format, analysis, context, diagramRequest);
                 return null;
             }
         };

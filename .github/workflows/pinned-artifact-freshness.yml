@@ -3,7 +3,7 @@ name: Pinned-artifact freshness
 # Covers the security-critical artifacts Dependabot CANNOT see because they are
 # fetched via hardcoded URLs (or built from a git tag) rather than declared as
 # Gradle dependencies: mosh4j, bundled protobuf, the Monaco build Node runtime,
-# Monaco, and SithTermFX. It compares the versions pinned in build.gradle.kts
+# Monaco, Mermaid, and SithTermFX. It compares the versions pinned in build.gradle.kts
 # against upstream "latest" and opens/refreshes ONE tracking issue when any are
 # behind. It does NOT edit the build (each bump needs a new SHA-256 pin and, for
 # mosh4j, a per-arch JAR matrix) — a human/agent then opens the fix PR.
@@ -50,6 +50,7 @@ jobs:
           MOSH4J_PIN="$(gv mosh4jVersion)"
           NODE_PIN="$(gv formatterNodeVersion)"
           MONACO_PIN="$(gv monacoEditorVersion)"
+          MERMAID_PIN="$(gv mermaidVersion)"
           SITH_PIN="$(gv sithtermfxVersion)"
           BC_PIN="$(grep -oE 'bcprov-jdk18on:[0-9][0-9.]*' build.gradle.kts | head -n1 | cut -d: -f2)"
           PB_PIN="$(grep -oE 'protobuf-java/[0-9][0-9.]*/' build.gradle.kts | head -n1 | sed -E 's#.*/([0-9][0-9.]*)/#\1#')"
@@ -66,6 +67,7 @@ jobs:
           BC_UP="$(maven_latest org/bouncycastle bcprov-jdk18on)"
           PB_UP="$(maven_latest com/google/protobuf protobuf-java)"
           MONACO_UP="$(curl -fsS 'https://registry.npmjs.org/monaco-editor/latest' 2>/dev/null | jq -r '.version // empty' || true)"
+          MERMAID_UP="$(curl -fsS 'https://registry.npmjs.org/mermaid/latest' 2>/dev/null | jq -r '.version // empty' || true)"
           # Node: newest release within the SAME major line as the pin (security patches).
           NODE_MAJOR="${NODE_PIN%%.*}"
           NODE_UP="$(curl -fsS 'https://nodejs.org/dist/index.json' 2>/dev/null \
@@ -79,6 +81,7 @@ jobs:
           add "protobuf-java (BUNDLED copy)" "$PB_PIN" "$PB_UP"
           add "Node (Monaco build runtime, ${NODE_MAJOR}.x line)" "$NODE_PIN" "$NODE_UP"
           add "monaco-editor" "$MONACO_PIN" "$MONACO_UP"
+          add "mermaid (bundled browser renderer)" "$MERMAID_PIN" "$MERMAID_UP"
           add "SithTermFX (git tag)" "$SITH_PIN" "$SITH_UP"
 
           {

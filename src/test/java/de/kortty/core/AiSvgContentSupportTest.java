@@ -96,6 +96,8 @@ class AiSvgContentSupportTest {
         String html = AiSvgContentSupport.buildSvgHtml(SIMPLE_SVG);
 
         assertThat(html).contains(SIMPLE_SVG);
+        assertThat(html).contains("default-src 'none'");
+        assertThat(html).contains("connect-src 'none'");
         assertThat(html).contains("max-width:100%");
         assertThat(html).contains("background:#ffffff");
     }

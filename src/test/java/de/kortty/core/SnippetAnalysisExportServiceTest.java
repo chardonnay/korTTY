@@ -14,7 +14,7 @@ import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * Exercises the AI-code-analysis report exporter end-to-end (no diagram, so no PlantUML/network): HTML and
+ * Exercises the AI-code-analysis report exporter end-to-end (without a diagram): HTML and
  * Markdown must carry the report content, and the PDF must be a real, non-empty PDF document.
  */
 class SnippetAnalysisExportServiceTest {

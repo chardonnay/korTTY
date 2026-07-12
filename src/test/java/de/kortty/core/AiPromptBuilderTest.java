@@ -266,9 +266,9 @@ class AiPromptBuilderTest {
     }
 
     @Test
-    void plantUmlPromptRequiresRenderablePlantUmlJson() {
+    void mermaidPromptRequiresRestrictedNodeMappedFlowchartJson() {
         AiRequest request = new AiRequest(
-            AiAction.GENERATE_SNIPPET_PLANTUML,
+            AiAction.GENERATE_SNIPPET_MERMAID,
             "if ok; then echo yes; fi",
             null,
             "en",
@@ -278,22 +278,25 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
-        assertThat(systemPrompt).contains("@startuml");
-        assertThat(systemPrompt).contains("@enduml");
-        assertThat(systemPrompt).contains("activity diagram");
-        assertThat(systemPrompt).contains("Do not use component");
-        assertThat(systemPrompt).contains("semantic HEX color palette");
-        assertThat(systemPrompt).contains(":Action; <<#RRGGBB>>");
+        assertThat(systemPrompt).contains("flowchart TD");
+        assertThat(systemPrompt).contains("start_1([\"Start\"])");
+        assertThat(systemPrompt).contains("stop_1([\"Stop\"])");
+        assertThat(systemPrompt).contains("stable descriptive node ids");
+        assertThat(systemPrompt).contains("setup, work, success, or failure");
+        assertThat(systemPrompt).contains("frontmatter");
+        assertThat(systemPrompt).contains("URLs");
         assertThat(systemPrompt).contains("codeReferences");
+        assertThat(systemPrompt).contains("nodeId");
         assertThat(systemPrompt).contains("startLine");
         assertThat(systemPrompt).contains("endLine");
-        assertThat(systemPrompt).contains("for every activity and decision");
-        assertThat(userPrompt).contains("\"plantUml\"");
+        assertThat(systemPrompt).contains("for every action and decision node");
+        assertThat(userPrompt).contains("\"mermaid\"");
         assertThat(userPrompt).contains("\"codeReferences\"");
-        assertThat(userPrompt).contains("Valid example syntax");
-        assertThat(userPrompt).contains(":Run main command; <<#EAF4FF>>");
-        assertThat(userPrompt).contains(":Action label; <<#RRGGBB>>");
-        assertThat(userPrompt).contains("every visible activity and decision");
+        assertThat(userPrompt).contains("decision_1 -->|yes| success_1");
+        assertThat(userPrompt).contains("class failure_1 failure");
+        assertThat(userPrompt).contains("excluding start_1 and stop_1");
+        assertThat(userPrompt).contains("\"nodeId\": \"work_1\"");
+        assertThat(userPrompt).contains("every visible action and decision node");
         assertThat(userPrompt).contains("1-based line numbers");
         assertThat(userPrompt).contains("Snippet context");
     }

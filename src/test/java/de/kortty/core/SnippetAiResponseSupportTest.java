@@ -250,14 +250,17 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void parsePlantUmlDiagramRequiresRenderableSource() {
-        SnippetAiResponseSupport.PlantUmlDiagram diagram =
-            SnippetAiResponseSupport.parsePlantUmlDiagram("""
+    void parseMermaidDiagramRequiresSafeRestrictedFlowchart() {
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
             {
               "title": "Flow",
-              "plantUml": "@startuml\\nstart\\n:Run snippet;\\nstop\\n@enduml",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run snippet\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
               "codeReferences": [
-                { "label": "Run snippet", "startLine": 2, "endLine": 4 }
+                { "nodeId": "work_1", "label": "Run snippet", "startLine": 2, "endLine": 4 },
+                { "nodeId": "start_1", "label": "Start", "startLine": 1, "endLine": 1 },
+                { "nodeId": "work_1", "label": "Wrong label", "startLine": 1, "endLine": 1 },
+                { "nodeId": "missing_1", "label": "Missing", "startLine": 1, "endLine": 1 }
               ]
             }
             """);
@@ -265,11 +268,15 @@ class SnippetAiResponseSupportTest {
         assertThat(diagram.title()).isEqualTo("Flow");
         assertThat(diagram.isUsable()).isTrue();
         assertThat(diagram.codeReferences()).containsExactly(
-            new SnippetDiagramSupport.SourceCodeReference("Run snippet", 2, 4));
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run snippet", 2, 4));
 
-        SnippetAiResponseSupport.PlantUmlDiagram malformed =
-            SnippetAiResponseSupport.parsePlantUmlDiagram("{ \"title\": \"Broken\", \"plantUml\": \"\" }");
+        SnippetAiResponseSupport.MermaidDiagram malformed =
+            SnippetAiResponseSupport.parseMermaidDiagram("{ \"title\": \"Broken\", \"mermaid\": \"\" }");
         assertThat(malformed.isUsable()).isFalse();
+
+        SnippetAiResponseSupport.MermaidDiagram legacy =
+            SnippetAiResponseSupport.parseMermaidDiagram("{ \"title\": \"Legacy\", \"plantUml\": \"@startuml\\n@enduml\" }");
+        assertThat(legacy.isUsable()).isFalse();
     }
 
     @Test
@@ -290,18 +297,18 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void parsePlantUmlDiagramIgnoresLeakedThinkReasoningWithBraces() {
+    void parseMermaidDiagramIgnoresLeakedThinkReasoningWithBraces() {
         // Reasoning models (LM Studio / Ollama serving DeepSeek-R1 etc.) leak <think>…</think> into
         // the answer; the reasoning text often contains braces. The greedy first-brace-to-last-brace
         // extractor captured those braces and failed to parse. The real JSON must still be found.
-        SnippetAiResponseSupport.PlantUmlDiagram diagram =
-            SnippetAiResponseSupport.parsePlantUmlDiagram("""
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
             <think>
-            I should return an object like {title, plantUml}. Let me build the @startuml block.
+            I should return an object like {title, mermaid}. Let me build the flowchart.
             </think>
             {
               "title": "Flow",
-              "plantUml": "@startuml\\nstart\\n:Run;\\nstop\\n@enduml"
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work"
             }
             """);
 
@@ -310,13 +317,13 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void parsePlantUmlDiagramExtractsJsonWrappedInProseAndFences() {
+    void parseMermaidDiagramExtractsJsonWrappedInProseAndFences() {
         // Prose braces before the JSON, plus a ```json fence, used to corrupt greedy extraction.
-        SnippetAiResponseSupport.PlantUmlDiagram diagram =
-            SnippetAiResponseSupport.parsePlantUmlDiagram("""
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
             Sure! Use a map like {key: value} internally. Here is the diagram:
             ```json
-            { "title": "Flow", "plantUml": "@startuml\\nstart\\nstop\\n@enduml" }
+            { "title": "Flow", "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work" }
             ```
             """);
 

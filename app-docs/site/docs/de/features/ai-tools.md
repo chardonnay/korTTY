@@ -205,7 +205,7 @@ Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#gen
 - **Mehrere Sprachvarianten** – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.
 - **Anpassbare Schriftgröße** – Jeder Editor für generierte Skripte verfügt über **A−** / **A+**-Tasten und unterstützt ++ctrl++ + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.
 - **Header-Vorlagen** – Verwenden Sie wiederverwendbare Header aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
-- **PlantUML-Diagramm** – Fügen Sie optional ein PlantUML-Diagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
+- **Mermaid-Diagramm** – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
 - **Snippet Manager** – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.
 - **Workflow-Tagging** – Das Snippet ist zur einfachen Filterung mit `workflow` getaggt.
 - **Betriebssystemerkennung** – Die Spalte **System** (Betriebssystem) wird automatisch vom untersuchten Betriebssystem des Agenten (jede Linux-Distribution → Linux) festgelegt.
@@ -326,4 +326,3 @@ Konfigurieren Sie den Internetzugang pro AI-Profil unter **Einstellungen > AI > 
 
 !!! warning
     **Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Überprüfung einer lokalen Datei sollten SSH-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools verwendet werden, keine Websuche.
-
