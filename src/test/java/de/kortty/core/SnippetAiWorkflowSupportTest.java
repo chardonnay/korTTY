@@ -136,6 +136,81 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void selectionSpellingUsesExplicitEnglishWithoutDominantLanguageException() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            { "segments": [ { "text": "Create backup files" } ] }
+            """);
+        String snippet = """
+            # Erstelle bakup Datein
+            echo "Sicherung abgeschlossen"
+            """;
+
+        SnippetAiWorkflowSupport.correctSelectionText(
+            aiService,
+            null,
+            snippet,
+            snippet,
+            "bash",
+            null,
+            "en",
+            null);
+
+        String completePrompt = AiPromptBuilder.buildSystemPrompt(aiService.lastRequest)
+            + "\n" + AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
+        assertThat(completePrompt).contains("Treat language code en as the spelling and grammar language");
+        assertThat(completePrompt).contains("Required natural language for editable text: en");
+        assertThat(completePrompt).doesNotContain("dominant natural language");
+        assertThat(completePrompt).doesNotContain("unless the provided snippet context");
+    }
+
+    @Test
+    void codeImprovementRequestsEnglishForRewrittenCommentsAndUserFacingStrings() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "# Validate input\nprint(\"Invalid input\")",
+              "summary": "Updated validation"
+            }
+            """);
+
+        SnippetAiWorkflowSupport.improveSnippetCode(
+            aiService,
+            null,
+            "# Eingabe pruefen\nprint(\"Ungueltige Eingabe\")",
+            "# Eingabe pruefen\nprint(\"Ungueltige Eingabe\")",
+            "python",
+            null,
+            "en",
+            "Improve validation",
+            null);
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(aiService.lastRequest);
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
+        assertThat(systemPrompt)
+            .contains("any new or rewritten comments or user-facing strings in language code en");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("Write any new or rewritten comments or user-facing strings in that language");
+    }
+
+    @Test
+    void descriptionCorrectionCarriesExplicitEnglishLanguage() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("Creates backup files.");
+
+        SnippetAiWorkflowSupport.correctSnippetDescription(
+            aiService,
+            null,
+            "echo backup",
+            "Creates bakup files.",
+            "bash",
+            null,
+            "en");
+
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("corrected plain text in language code en");
+    }
+
+    @Test
     void mermaidRequestAsksForNodeCodeReferencesWithLineNumberedSnippet() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
@@ -154,15 +229,185 @@ class SnippetAiWorkflowSupportTest {
                 "echo ok",
                 "bash",
                 null,
-                "en",
+                "de",
                 null);
 
         assertThat(diagram.codeReferences()).containsExactly(
             new SnippetDiagramSupport.SourceCodeReference("work_1", "Run snippet", 1, 1));
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("de");
         assertThat(aiService.lastRequest.conversationContext()).contains("codeReferences");
         assertThat(aiService.lastRequest.conversationContext()).contains("every visible action and decision node");
+        assertThat(aiService.lastRequest.conversationContext()).contains("Diagram label language: de");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo ok");
+    }
+
+    @Test
+    void combinedCodeAnalysisExecutesAndRecordsUsageExactlyOnce() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints a greeting.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Greeting flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": [
+                { "nodeId": "work_1", "label": "Print greeting", "startLine": 1, "endLine": 1 }
+              ]
+            }
+            """);
+        int[] recordedUsages = {0};
+
+        SnippetAiResponseSupport.FullCodeAnalysis result =
+            SnippetAiWorkflowSupport.analyzeSnippetCode(
+                aiService,
+                (request, executionResult) -> recordedUsages[0]++,
+                "echo hello",
+                "bash",
+                "demo",
+                "de",
+                null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+        assertThat(aiService.lastRequest.action()).isEqualTo(AiAction.ANALYZE_SNIPPET_CODE);
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("de");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("Natural language for the analysis: de");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("Diagram label language: de");
+        assertThat(result.analysis().summary()).isEqualTo("Prints a greeting.");
+        assertThat(result.diagram().isUsable()).isTrue();
+    }
+
+    @Test
+    void applySelectedImprovementsUsesAlternativeEnglishForGeneratedCodeText() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "# Validate input\\necho \\\"Invalid input\\\"",
+              "summary": "Applied the selected validation improvement.",
+              "changes": [
+                {
+                  "finding": "DES-1",
+                  "anchor": "# Validate input",
+                  "reason": "Added explicit validation before processing."
+                }
+              ]
+            }
+            """);
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements = List.of(
+            new SnippetAiResponseSupport.ScriptImprovement(
+                "DES-1",
+                "design",
+                "medium",
+                "Validate input",
+                "The input is used without validation.",
+                "Validate the input before processing.",
+                1));
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "# Eingabe verarbeiten\necho \"Ungueltige Eingabe\"",
+                "bash",
+                null,
+                "en",
+                improvements,
+                List.of(),
+                null);
+
+        assertThat(fix.replacement()).startsWith("# Validate input");
+        assertThat(aiService.lastRequest.action()).isEqualTo(AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("new or rewritten comments or user-facing strings in language code en");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("Natural language for the summary: en");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("Write any new or rewritten comments or user-facing strings in that language");
+    }
+
+    @Test
+    void combinedCodeAnalysisDoesNotRetryWhenMermaidIsUnsafe() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints a greeting.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Unsafe flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    click work_1 href \\\"https://example.com\\\"\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": []
+            }
+            """);
+        int[] recordedUsages = {0};
+
+        SnippetAiResponseSupport.FullCodeAnalysis result =
+            SnippetAiWorkflowSupport.analyzeSnippetCode(
+                aiService,
+                (request, executionResult) -> recordedUsages[0]++,
+                "echo hello",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+        assertThat(result.analysis().isUsable()).isTrue();
+        assertThat(result.diagram().isUsable()).isFalse();
+    }
+
+    @Test
+    void combinedCodeAnalysisPromptIncludesLineNumbersAndOneRawSnippetBlock() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints two lines.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Output flow",
+              "mermaid": "",
+              "codeReferences": []
+            }
+            """);
+        String snippet = "echo one\necho two";
+
+        SnippetAiWorkflowSupport.analyzeSnippetCode(
+            aiService,
+            null,
+            snippet,
+            "bash",
+            null,
+            "en",
+            null);
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(aiService.lastRequest);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
+        String completePrompt = systemPrompt + "\n" + userPrompt;
+        assertThat(completePrompt).contains("\"summary\"");
+        assertThat(completePrompt).contains("\"dependencies\"");
+        assertThat(completePrompt).contains("\"improvements\"");
+        assertThat(completePrompt).contains("\"title\"");
+        assertThat(completePrompt).contains("\"mermaid\"");
+        assertThat(completePrompt).contains("\"codeReferences\"");
+        assertThat(completePrompt).contains("flowchart TD");
+        assertThat(completePrompt).contains("decision_1 -->|yes| success_1");
+        assertThat(completePrompt).contains("decision_1 -->|no| failure_1");
+        assertThat(completePrompt).doesNotContain("\"mermaid\": \"flowchart TD\\n...\"");
+        assertThat(completePrompt).contains("frontmatter");
+        assertThat(completePrompt).contains("callbacks");
+        assertThat(completePrompt).contains("URLs");
+        assertThat(completePrompt).contains("HTML");
+        assertThat(completePrompt).contains("Represent meaningful decisions, branches, and loop outcomes");
+        assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
+        assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo one");
+        assertThat(aiService.lastRequest.conversationContext()).contains("2 | echo two");
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
+        assertThat(userPrompt).contains("Script content for context only:");
+        int rawSnippetOffset = userPrompt.indexOf(snippet);
+        assertThat(rawSnippetOffset).isAtLeast(0);
+        assertThat(userPrompt.indexOf(snippet, rawSnippetOffset + snippet.length())).isEqualTo(-1);
+        assertThat(aiService.lastRequest.selectedText()).isEqualTo(snippet);
     }
 
     @Test
@@ -261,6 +506,7 @@ class SnippetAiWorkflowSupportTest {
     private static final class CapturingAiService implements AiService {
         private final String response;
         private AiRequest lastRequest;
+        private int executionCount;
 
         private CapturingAiService(String response) {
             this.response = response;
@@ -269,6 +515,7 @@ class SnippetAiWorkflowSupportTest {
         @Override
         public AiExecutionResult execute(AiRequest request) {
             this.lastRequest = request;
+            this.executionCount++;
             return new AiExecutionResult(response, null);
         }
 

@@ -10,7 +10,7 @@ Mit dem Snippet Manager können Sie wiederverwendbare Codefragmente, Skripte und
 
 Der Snippet Manager umfasst die folgenden Funktionen:
 
-- **System (OS)-Spalte** – Eine sortierbare Betriebssystemspalte für jedes Snippet (Beliebig, Linux, macOS, Windows). Wird automatisch festgelegt, wenn ein Snippet über *Workflow-Skript generieren* erstellt wird.
+- **Systemspalte (Betriebssystem)** – Eine sortierbare Betriebssystemspalte für jedes Snippet (Beliebig, Linux, macOS, Windows). Wird automatisch festgelegt, wenn ein Snippet über *Workflow-Skript generieren* erstellt wird.
 - **Sortierbare Spalten** – Alle Spalten (Name, Sprache, Kategorie, System, Tags) sind sortierbar.
 - **Skript-Header-Kategorie** – Eine feste, nicht löschbare Kategorie, die wiederverwendbare Header-Vorlagen für die Workflow-Skript-Generierung enthält.
 
@@ -28,7 +28,7 @@ Der Snippet Manager umfasst die folgenden Funktionen:
    - **Kategorie** – Wählen Sie eine vorhandene Kategorie aus oder geben Sie eine neue ein. Die feste, nicht löschbare Kategorie *Script-Header* enthält wiederverwendbare Header-Vorlagen für generierte Workflow-Skripte.
    - **System** – Wählen Sie optional ein Zielbetriebssystem (Beliebig, Linux, macOS, Windows). Automatische Einstellung bei Erstellung über *Workflow-Skript generieren* basierend auf dem geprüften Betriebssystem des Agenten; Sie können es für jedes Snippet manuell überschreiben.
    - **Tags** – Durch Kommas getrennte Schlüsselwörter für die Suche (z. B. `docker, deploy, backup`).
-   - **Beschreibung** – Optionale Freitextbeschreibung des Snippets.
+   - **Description** – Optionale Freitextbeschreibung des Snippets.
    - **Inhalt** – Der Snippet-Code. Der Editor bietet Live-Syntaxhervorhebung basierend auf der ausgewählten Sprache.
 3. Klicken Sie auf **OK**. Wenn sich der Snippet-Inhalt geändert hat, speichert KorTTY das bearbeitete Snippet und schließt gleichzeitig den Dialog. Beim Bearbeiten eines vorhandenen Eintrags speichert **Als neues Snippet speichern** den aktuellen Inhalt als neues Snippet mit einer neuen ID und lässt das Original unverändert.
 
@@ -36,11 +36,11 @@ Der Snippet Manager umfasst die folgenden Funktionen:
 
 Die Symbolleiste des Snippet-Editors bietet:
 
-- **Formatcode** – Formatieren Sie den Inhalt mit lokalen Formatierern oder KI-gestützter Formatierung.
+- **Formatierungscode** – Formatieren Sie den Inhalt mit lokalen Formatierern oder KI-gestützter Formatierung.
 - **Syntax prüfen** – Validieren Sie die Syntax (lokal oder KI-unterstützt).
-- **KI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
-- **KI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
-- **Einzeiler** – Export als Terminal-Einzeiler.
+- **AI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
+- **AI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
+- **Einzeiler** – Als Terminal-Einzeiler exportieren.
 - **Editor-Zoom** – Passen Sie die Textgröße mit ++Strg+Plus++ and ++Strg+Minus++ an.
 - **Editor-Profile** – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.
 - **Hintergrundhelligkeit** – Editor-Hintergrund anpassen.
@@ -85,16 +85,24 @@ Profile speichern Vordergrund-/Hintergrundfarben, Syntaxfarben, Cursorfarbe und 
 
 ![Snippet editor workflow](../assets/diagrams/snippet-editor-workflow.svg)
 
-## KI-gestützte Editorfunktionen
+## AI-unterstützte Editorfunktionen
 
 Wenn AI konfiguriert ist, bietet der Snippet-Editor zusätzliche Aktionen:
 
-### KI-Vorschläge
+### AI-Vorschläge
 
-- **KI-Vorschlag** – Erzeugt einen Dateinamen, eine Beschreibung und eine passende Sprache aus dem aktuellen Codeinhalt.
+- **AI-Vorschlag** – Erzeugt einen Dateinamen, eine Beschreibung und eine passende Sprache aus dem aktuellen Codeinhalt.
 - **Korrekte Schreibweise** – Im Beschreibungsfeld; sendet nur Beschreibungstext an die KI.
 
-### AI-Textmenü
+### AI Textsprache
+
+Wenn AI konfiguriert ist, wählt **AI-Textsprache** unterhalb der Editor-Symbolleiste die natürliche Sprache für die Rechtschreibkorrektur sowie für neue oder neu geschriebene Codekommentare und benutzerbezogene Zeichenfolgen. Es ist sowohl von der korTTY-Schnittstellensprache als auch vom **Sprachselektor** des Snippets unabhängig, der weiterhin die Programmiersprache und die Syntaxhervorhebung definiert. Analyseberichte, Verbesserungsbeschreibungen und Analysediagrammbeschriftungen folgen immer der korTTY-Schnittstellensprache; Wenn Sie auf **Ausgewählte anwenden** klicken, steuert die separate Auswahl Kommentare und benutzerbezogene Zeichenfolgen im generierten Code.
+
+Lassen Sie **Als Standard speichern** deaktiviert, um eine vorübergehende Auswahl zu treffen, die nur für das aktuelle Editorfenster gilt. Markieren Sie es, um die ausgewählte Sprache als Standard für neu geöffnete Snippet-Editoren zu speichern; Dadurch wird die bestehende **Standardsprache für AI-Text im Code**-Einstellung unter *Einstellungen → AI* aktualisiert. Andere bereits geöffnete Editorfenster behalten ihre eigene Auswahl.
+
+Die Rechtschreibkorrektur verwendet die ausgewählte Sprache für Grammatik- und Rechtschreibregeln, ohne den Text zu übersetzen. **Auswahl übersetzen…** behält seinen separaten Zielsprachendialog bei und wählt zunächst die aktuelle AI-Textsprache aus. Lokale Formatierer und Syntaxprüfungen sind davon nicht betroffen.
+
+### AI Textmenü
 
 - **Rechtschreibung in der Auswahl korrigieren** – Tippfehler im ausgewählten Text korrigieren.
 - **Auswahl übersetzen…** – Ausgewählten Text in eine andere Sprache übersetzen.
@@ -108,20 +116,20 @@ Wenn die Option in *Einstellungen → KI* aktiviert ist, zeigt der Editor ein Fe
 
 Die Schaltfläche ↺ wechselt zwischen dem Originalcode und der letzten KI-generierten Editoränderung.
 
-### AI-Code-Vervollständigungen
+### AI Codevervollständigungen
 
 - **AI Complete** – Fordert die Vervollständigung des Codes an der aktuellen Cursorposition an und zeigt ihn als nicht editierbaren Ghost-Vorschlag an. Klicken Sie zum Einfügen.
 - **Auto AI Complete** – Fordert automatisch Abschlüsse an, nachdem Sie an einer Cursorposition angehalten haben. Standardmäßig deaktiviert; Nur für die aktuelle Editor-Sitzung aktiv.
 
-### AI-Code-Aktionen
+### AI Codeaktionen
 
 Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu schreiben:
 
-- **AI-Abschluss** / **Auto-AI-Abschluss** – Code-Vervollständigung am Cursor (siehe [AI-Code-Vervollständigungen](#ai-code-completions) oben).
-- **Vollständige Code-Analyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts im Klartext, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten].
+- **AI Complete** / **Auto AI Complete** – Code-Vervollständigung am Cursor (siehe [AI Code-Vervollständigungen](#ai-code-completions) oben).
+- **Vollständige Codeanalyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten.
 - **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungsoptionen](../reference/hardening-options.md) vor der Ausführung.
-- **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit den gleichen [Härtungsoptionen](../reference/hardening-options.md).
-- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten].
+- **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung mit denselben [Hardening-Optionen](../reference/hardening-options.md) neu.
+- **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten.
 - **Diagramm** – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.
 
 Das Editor-Kontextmenü bietet außerdem **AI Assistant…**, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.
@@ -135,45 +143,49 @@ Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wä
 
 **Vollständige Codeanalyse** öffnet ein spezielles Fenster, das das gesamte Snippet auf einmal untersucht und konkrete Verbesserungen anbietet, die Sie anwenden können. Das Fenster ist **nicht modal** – Sie können das Snippet weiter bearbeiten, während es geöffnet bleibt – und in der Titelleiste wird der Dateiname des Skripts angezeigt, sodass Sie mehrere Analysen unterscheiden können. In der Titelleiste des Snippet-Editors wird ebenfalls der Name der Datei angezeigt, die Sie bearbeiten.
 
+Der anfängliche Bericht und das Flussdiagramm werden zusammen in **einer KI-Anfrage** generiert, und bei jeder **Wiederholung** wird ebenfalls eine kombinierte Anfrage mit dem ausgewählten Profil und den ausgewählten KI-Fähigkeiten verwendet. Der gemeinsame Mermaid-Vertrag verlangt vom Modell, sinnvolle Entscheidungen, Verzweigungen und Schleifenergebnisse beizubehalten, anstatt bedingten Code in einem generischen Schritt zusammenzufassen. Wenn diese Antwort keine sichere, verwendbare Mermaid-Quelle hat, behält korTTY die Analyse bei und zeigt sein deterministisches lokales Fallback-Diagramm an, ohne stillschweigend eine weitere Anfrage zu senden; Der Fallback erkennt auch eingerückte bedingte Blöcke in gängigen Skriptsprachen. Nur ein expliziter **Neugenerieren**-Klick fordert ein neues Diagramm von der KI an.
+
+Die Zusammenfassung, Abhängigkeiten, Verbesserungsbeschreibungen und Diagrammbeschriftungen verwenden die aktuelle korTTY-Schnittstellensprache. Die separate **KI-Textsprache** wird erst relevant, nachdem Sie auf **Ausgewählte anwenden** geklickt haben: Sie steuert die natürliche Sprache neu generierter oder umgeschriebener Kommentare und benutzerbezogener Zeichenfolgen im resultierenden Code.
+
 Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld.
 
 **Symbolleiste:**
 
 - **Verwendetes Profil** – Der Name des KI-Profils, mit dem die Analyse ausgeführt wurde, wird links angezeigt (für das Standardprofil wird sein *tatsächlicher* Name angezeigt, z. B. *Profil: LM Studio* – nicht nur „Standardprofil“), sodass Sie immer erkennen können, welches Modell den Bericht erstellt hat.
-- **KI-Fähigkeiten** – Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fähigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Fähigkeiten für diese Analyse** unten.
+- **KI-Fähigkeiten** – Wenn [AI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fertigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Fähigkeiten für diese Analyse** unten.
 - **Erneut ausführen** – Eine vorübergehende KI-Profilauswahl und eine Schaltfläche **Erneut ausführen** wiederholen die Analyse mit dem ausgewählten Profil *und* Ihrer aktuellen KI-Fähigkeitsauswahl. Die Auswahl wird auf die Standardeinstellung zurückgesetzt, wenn das Fenster erneut geöffnet wird.
-- **Alle auswählen** – Markieren Sie alle Verbesserungen und Abhängigkeiten gleichzeitig.
+- **Alle Verbesserungen auswählen** – Aktivieren oder deaktivieren Sie alle Sicherheits-, Optimierungs- und Designverbesserungen gleichzeitig. Dieses Steuerelement ändert niemals eine Abhängigkeitsauswahl.
 - **A− / A+** – Passen Sie die Leseschriftgröße an (wird sitzungsübergreifend gespeichert).
 - **Kopieren** – Kopieren Sie die Zusammenfassung, Verbesserungen und Abhängigkeiten als Klartext in die Zwischenablage.
-- **Exportieren** – Speichern Sie den gesamten Bericht (einschließlich des Diagramms) als Datei; siehe **Bericht exportieren** unten.
+- **Export** – Speichern Sie den gesamten Bericht (einschließlich des Diagramms) als Datei. siehe **Bericht exportieren** unten.
 
 **Links – Analyse und Verbesserungen:**
 
-- **Zusammenfassung** – Eine kurze, verständliche Beschreibung dessen, was das Skript tut. Da es sich um eine Beschreibung und nicht um ein auswählbares Element handelt, wird es als einfacher Block ohne Auswahlakzent angezeigt.
-- **Verbesserungen** – Vorschläge gruppiert in die Abschnitte **Sicherheit**, **Optimierung** und **Design**. Jeder Abschnittstitel trägt ein farbcodiertes Symbol und eine Anzahl, und jeder Vorschlag verfügt über ein Schweregradkennzeichen, eine Erklärung und eine konkrete Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle auswählen**, um alles auf einmal anzukreuzen. Leere Abschnitte werden ausgeblendet.
-- **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie eine Abhängigkeit, um deren Vorschlag ebenfalls anzuwenden.
+- **Zusammenfassung** – Eine kurze, verständliche Beschreibung der Funktionsweise des Skripts. Da es sich um eine Beschreibung und nicht um ein auswählbares Element handelt, wird es als einfacher Block ohne Auswahlakzent angezeigt.
+- **Verbesserungen** – Vorschläge gruppiert in die Abschnitte **Sicherheit**, **Optimierung** und **Design**. Jeder Abschnittstitel trägt ein farbcodiertes Symbol und eine Anzahl, und jeder Vorschlag verfügt über ein Schweregradkennzeichen, eine Erklärung und eine konkrete Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle Verbesserungen auswählen**, um alle Verbesserungen gleichzeitig umzuschalten. Leere Abschnitte werden ausgeblendet.
+- **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie jede Abhängigkeit einzeln, damit auch der entsprechende Vorschlag angewendet wird. **Alle Verbesserungen auswählen** lässt diese Kontrollkästchen unverändert.
 
 **Rechts – Flussdiagramm:**
 
-- Ein **automatisch generiertes Mermaid-Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **Mermaid kopieren**, ein Steuerelement für den **Dunkelmodus** und einen Farbwähler für den **Hintergrund** (beide gespeichert) sowie **Regenerieren**. Siehe [Diagrammdarstellung](#diagram-appearance) unten.
-- **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#mermaid-diagrams)-Fenster.
+- Ein **automatisch generiertes Mermaid-Flussdiagramm** aus der kombinierten Analyseantwort wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **Mermaid kopieren**, ein Steuerelement für den **Dunkelmodus** und einen Farbwähler für den **Hintergrund** (beide gespeichert) sowie **Regenerieren**. **Regenerieren** sendet absichtlich eine neue Nur-Diagramm-Anfrage unter Verwendung des aktiven Profils des Analysefensters und der aktuellen KI-Fähigkeiten. Siehe [Diagrammdarstellung](#diagram-appearance) unten.
+- **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen Fenster [Diagram](#mermaid-diagrams).
 
 **KI-Fähigkeiten für diese Analyse:**
 
-Wenn [AI Skills](../reference/settings/ai-skills.md) konfiguriert sind, zeigt eine Zeile oben im Fenster genau an, **welche Fähigkeiten** in die Analyse einbezogen wurden, als Chips, mit einem **(automatisch ausgewählten)** oder **(manuell)**-Abzeichen:
+Wenn [AI Skills](../reference/settings/ai-skills.md) konfiguriert sind, zeigt eine Zeile oben im Fenster genau **welche Fähigkeiten** in die Analyse einbezogen wurden, als Chips, mit einem **(automatisch ausgewählten)** oder **(manuell)** Abzeichen:
 
-- **Automatisch ausgewählt** – korTTY wählt die für das Snippet relevanten Fertigkeiten vorab aus, indem es die Tags, den Namen und die Beschreibung jeder Fertigkeit mit der Sprache und dem Inhalt des Snippets abgleicht und sie in die Analyse einbezieht. Aus diesem Grund lautet das Abzeichen beim ersten Durchlauf *(automatisch ausgewählt)*.
-- **Manuell** – Klicken Sie auf **Auswählen…**, um eine **durchsuchbare Auswahl** zu öffnen: Geben Sie in das Suchfeld ein, um Ihre gespeicherten Fertigkeiten nach Namen, Beschreibung oder Tags zu filtern, und aktivieren oder deaktivieren Sie dann die gewünschten Fertigkeiten. Sobald Sie das Set ändern, wechselt das Badge zu *(manuell)* und korTTY behält Ihre Auswahl bei, anstatt sie automatisch auszuwählen.
+- **Automatisch ausgewählt** – korTTY wählt die für das Snippet relevanten Fertigkeiten vorab aus, indem es die Tags, den Namen und die Beschreibung jeder Fertigkeit mit der Sprache und dem Inhalt des Snippets abgleicht, und bezieht sie in die Analyse ein. Aus diesem Grund lautet das Abzeichen beim ersten Durchlauf *(automatisch ausgewählt)*.
+- **Anleitung** – Klicken Sie auf **Auswählen…**, um eine **durchsuchbare Auswahl** zu öffnen: Geben Sie in das Suchfeld ein, um Ihre gespeicherten Fähigkeiten nach Name, Beschreibung oder Tags zu filtern, und aktivieren oder deaktivieren Sie dann die gewünschten Fähigkeiten. Sobald Sie das Set ändern, wechselt das Badge zu *(manuell)* und korTTY behält Ihre Auswahl bei, anstatt sie automatisch auszuwählen.
 
-Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten **Wiederholen** angewendet, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fertigkeiten erzeugt (und keine überraschende Flut von KI-Anrufen). Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten *Ziel* der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.
+Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten **Neudurchlauf** angewendet, sodass ein bewusster Klick eine kombinierte Berichts- und Diagrammanforderung mit genau den von Ihnen ausgewählten Fertigkeiten erzeugt. Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten *Ziel* der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.
 
 **Härtungsmöglichkeiten:**
 
-Unten können Sie in einem zusammenklappbaren Bereich **Härtungsoptionen** Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, `--dry-run`, `--help` und mehr) den angewendeten Korrekturen hinzufügen. Der Panel-Titel zeigt live **Zählung**, wie viele Optionen derzeit aktiviert sind – zum Beispiel *Härtungsoptionen (11)* – und korTTY **merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben** und stellt diesen Zustand wieder her, wenn das Fenster das nächste Mal geöffnet wird. Unter [Härtungsoptionen](../reference/hardening-options.md)] erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+Unten können Sie in einem zusammenklappbaren Bereich **Härtungsoptionen** Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, `--dry-run`, `--help` und mehr) den angewendeten Fixes hinzufügen. Der Panel-Titel zeigt live **Zählung**, wie viele Optionen derzeit aktiviert sind – zum Beispiel *Härtungsoptionen (11)* – und korTTY **merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben** und stellt diesen Zustand wieder her, wenn das Fenster das nächste Mal geöffnet wird. Unter [Hardening options](../reference/hardening-options.md) erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
 
 **Skript-Header:**
 
-Mit einem **Skript-Header**-Selektor können Sie einem Ihrer gespeicherten *Skript-Header*-Snippets (aus der festen [Skript-Header-Kategorie ](#creating-and-editing-snippets))) dem Code voranstellen, wenn Sie die Analyse anwenden. Wählen Sie einen Header aus – oder belassen Sie ihn auf *Kein Header* (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.
+Mit einem **Script-Header**-Selektor können Sie beim Anwenden der Analyse eines Ihrer gespeicherten *Script-Header*-Snippets (aus der festen [Script-Header-Kategorie ](#creating-and-editing-snippets)) dem Code voranstellen. Wählen Sie einen Header aus – oder belassen Sie ihn auf *Kein Header* (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.
 
 **Ausgewählt anwenden:**
 
@@ -183,17 +195,17 @@ Wenn Sie auf **Ausgewählte übernehmen** klicken, sendet korTTY die angekreuzte
 
 Die Schaltfläche **Exportieren** speichert den vollständigen Bericht – Zusammenfassung, kategorisierte Verbesserungen, Abhängigkeiten und das Flussdiagramm – als eigenständige Datei in einem attraktiven, druckfreundlichen Design. Im Export-Header werden der Skriptname, das verwendete KI-Profil, das Datum und die enthaltenen KI-Fähigkeiten aufgezeichnet:
 
-- **PDF** – Ein paginiertes Dokument mit eingebettetem Diagramm als Bild.
+- **PDF** – Ein paginiertes Dokument, in das das Diagramm als Bild eingebettet ist.
 - **HTML** – Eine einzelne eigenständige Webseite (das Diagramm ist inline eingebettet), die in jedem Browser geöffnet wird.
 - **Markdown** – Eine `.md`-Datei, neben der das Diagramm als PNG gespeichert ist.
 
-#### Sicherheitsüberprüfung
+#### Sicherheitsprüfung
 
 Im Berichtsfenster **Sicherheitsüberprüfung** wird jeder Befund mit einem farblich gekennzeichneten Schweregradsymbol aufgeführt (Befunde werden nach dem schwerwiegendsten zuerst sortiert). In diesem Fenster können Sie:
 
 - Passen Sie die Leseschriftgröße mit **A−** / **A+** an (wird sitzungsübergreifend gespeichert).
-- Kopieren Sie alle Ergebnisse in die Zwischenablage.
-- **Wählen Sie alle Ergebnisse auf einmal aus und wenden Sie dann die ausgewählten Korrekturen an.
+- Alle Ergebnisse in die Zwischenablage kopieren.
+- **Wählen Sie alle** Ergebnisse auf einmal aus und wenden Sie dann die ausgewählten Korrekturen an.
 - Wählen Sie ein dediziertes **Sicherheitsprofil** – das KI-Profil, das für Sicherheitsüberprüfungen verwendet wird. Die Auswahl wird dauerhaft gespeichert und ist auch unter **Konfiguration → Globale Einstellungen → AI** verfügbar; Lassen Sie es auf *Standardprofil verwenden*, um die Standardeinstellung wiederzuverwenden. Änderungen werden sofort wirksam.
 - **Prüfung erneut ausführen**, um die Überprüfung mit dem neu ausgewählten Profil zu wiederholen.
 
@@ -203,14 +215,14 @@ Wenn Sie Fixes anwenden, werden im Fenster **Sicherheitsfixes überprüfen** der
 
 Die AI-Code-Berichtsfenster (vollständige Codeanalyse, Sicherheitsprüfung, die Dialoge zur technischen Beschreibung und alternativen Lösung sowie der Änderungsüberprüfungsunterschied) teilen sich eine kleine Symbolleiste:
 
-- **KI-Profil** – Wählen Sie ein anderes KI-Profil für die **nächste** Ausführung dieses Fensters. Die Auswahl ist vorübergehend: Sie wird auf das Standardprofil zurückgesetzt, wenn das Fenster erneut geöffnet wird. (Security Check behält stattdessen sein eigenes, dauerhaft gespeichertes *Sicherheitsprofil*.)
+- **AI-Profil** – Wählen Sie ein anderes AI-Profil für die **nächste** Ausführung dieses Fensters. Die Auswahl ist vorübergehend: Sie wird auf das Standardprofil zurückgesetzt, wenn das Fenster erneut geöffnet wird. (Security Check behält stattdessen sein eigenes, dauerhaft gespeichertes *Sicherheitsprofil*.)
 - **Erneut ausführen** – Wiederholen Sie die Anforderung mit dem aktuell ausgewählten Profil.
-- **A− / A+** – Passen Sie die Schriftgröße für das Lesen oder die Vorschau an; Die gewählte Größe wird sitzungsübergreifend gespeichert, getrennt pro Fenstertyp.
+- **A− / A+** – Passen Sie die Lese- oder Vorschau-Schriftgröße an; Die gewählte Größe wird sitzungsübergreifend gespeichert, getrennt pro Fenstertyp.
 - **Kopieren** – Kopieren Sie den Bericht oder Inhalt in die Zwischenablage.
 
-### KI-Fähigkeiten
+### AI-Fähigkeiten
 
-Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, zeigt der Snippet-Editor eine **KI-Fähigkeiten**-Auswahl an. Fertigkeiten, die für die Sprache des Snippets relevant sind, werden automatisch vorab ausgewählt, und jede Fertigkeit, die Sie hier ankreuzen, wird auf **jede** AI-Code-Aktion (Abschluss, Analyse, Verbesserung, Sicherheitsüberprüfung, Diagramm) angewendet, unabhängig vom konfigurierten Ziel der Fertigkeit. Die Auswahl erscheint nur, wenn mindestens eine KI-Fähigkeit aktiviert ist.
+Wenn [AI Skills](../reference/settings/ai-skills.md) konfiguriert sind, zeigt der Snippet-Editor eine **KI-Fähigkeiten**-Auswahl an. Fertigkeiten, die für die Sprache des Snippets relevant sind, werden automatisch vorab ausgewählt, und jede Fertigkeit, die Sie hier ankreuzen, wird auf **jede** AI-Code-Aktion (Abschluss, Analyse, Verbesserung, Sicherheitsüberprüfung, Diagramm) angewendet, unabhängig vom konfigurierten Ziel der Fertigkeit. Die Auswahl erscheint nur, wenn mindestens eine KI-Fähigkeit aktiviert ist.
 
 Das Fenster **Vollständige Codeanalyse** zeigt dieselbe Auswahl als eine Reihe von Chips an – mit der Bezeichnung *(automatisch ausgewählt)* oder *(manuell)* – und ermöglicht Ihnen, sie mithilfe einer durchsuchbaren Auswahl nur für diese Analyse zu verfeinern. Dort vorgenommene Änderungen gelten bei der nächsten **Wiederholung**. Siehe [Vollständige Codeanalyse](#full-code-analysis).
 
@@ -233,9 +245,9 @@ Mit dem Beschreibungsdialog können Sie:
 
 Klicken Sie mit der rechten Maustaste auf eine ausgewählte Coderegion und wählen Sie **Alternative Lösung**, um:
 
-- Fordern Sie mehrere alternative Implementierungen an (bis zum konfigurierten Limit)
+- Mehrere alternative Implementierungen anfordern (bis zum konfigurierten Limit)
 - Fügen Sie ein dreizeiliges Feld für zusätzliche Anweisungen hinzu
-- Laden Sie neue Alternativen neu und regenerieren Sie sie
+- Neue Alternativen laden und neu generieren
 - Zoomen Sie eine einzelne Vorschau auf den gesamten Dialogbereich
 - Wenden Sie genau den ursprünglich ausgewählten Code an, wenn Sie fertig sind
 
@@ -274,7 +286,7 @@ Diese Variablen werden automatisch ersetzt:
 | `${date}` | Aktuelles Datum im `YYYY-MM-DD`-Format |
 | `${time}` | Aktuelle Uhrzeit im `HH:MM:SS`-Format |
 | `${datetime}` | Aktuelles Datum und Uhrzeit im `YYYY-MM-DD HH:MM:SS`-Format |
-| `${hostname}` | Hostname des lokalen Computers |
+| `${hostname}` | Hostname der lokalen Maschine |
 | `${username}` | Aktueller Systembenutzername |
 | `${clipboard}` | Aktueller Inhalt der Zwischenablage |
 | `${cursor}` | Cursorposition (aus dem Text entfernt; Position zurückgegeben) |
@@ -284,7 +296,7 @@ Diese Variablen werden automatisch ersetzt:
 Jeder `${variableName}`, der nicht in der integrierten Liste enthalten ist, wird als benutzerdefinierte Variable behandelt. Wenn Sie das Snippet einfügen:
 
 - KorTTY überprüft den Variablenmanager auf gespeicherte Werte
-- Variablen ohne gespeicherte Werte fordern zur Eingabe auf
+- Variablen ohne gespeicherte Werte erfordern eine Eingabe
 
 ## Snippets an das Terminal senden
 
@@ -292,21 +304,21 @@ Der Snippet Manager kann ein ausgewähltes Snippet direkt an das aktive Terminal
 
 ### An Terminal senden
 
-- Behält bestehendes Verhalten bei
+- Behält das vorhandene Verhalten bei
 - Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet
 - Andere Snippets verwenden den vorhandenen Fallback-Pfad
 
 ### Mit Parametern an Terminal senden
 
 - Öffnet einen Dialog für fehlende `${...}`-Platzhaltervariablen und Skriptargumente
-- Skriptargumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
+- Script-Argumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
 - Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei **An Terminal senden**, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden
 
-### Skriptargumente
+### Script-Argumente
 
 Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:
 
-- Argumente werden einzeln und in Shell-Anführungszeichen übergeben
+- Argumente werden einzeln übergeben und in Shell-Anführungszeichen gesetzt
 - Nicht als roher Shell-Text angehängt
 - Wenn Argumente für nicht unterstützte Sprachen eingegeben werden, zeigt KorTTY eine Informationsmeldung an und sendet nichts
 
@@ -314,7 +326,7 @@ Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:
 
 Bei eingebetteten/Base64-Einzeilern zeigt das Terminal die Bezeichnung `KorTTY snippet: ...` an, anstatt den vollständig generierten Befehl wiederzugeben.
 
-## Importieren und Exportieren
+## Import und Export
 
 Snippets können in mehreren Formaten importiert und exportiert werden.
 
@@ -322,17 +334,17 @@ Snippets können in mehreren Formaten importiert und exportiert werden.
 
 Verwenden Sie **Exportieren**, um ausgewählte Snippets oder alle Snippets zu speichern, wenn nichts ausgewählt ist. Verwenden Sie **Importieren**, um Snippets aus einer Datei zusammenzuführen.
 
-| Formatieren | Erweiterung | Anwendungsfall |
+| Format | Erweiterung | Anwendungsfall |
 |--------|-----------|----------|
-| JSON | `.json` | Datenaustausch, programmatischer Zugriff |
+| JSON | `.json` | Datenaustausch, programmgesteuerter Zugriff |
 | XML | `.xml` | Strukturierte Daten, Tool-Integration |
-| YAML | `.yaml` | Für Menschen lesbar, konfigurationsfreundlich |
+| YAML | `.yaml` | Für Menschen lesbares, konfigurationsfreundliches |
 
 ### Skriptorientierte Exporte
 
 Wählen Sie für skriptspezifische Exporte Folgendes:
 
-#### Nur-Text-Skriptdateien
+#### Einfache Textskriptdateien
 
 - Öffnet eine Zielordnerauswahl
 - Schreibt eine Datei pro Snippet

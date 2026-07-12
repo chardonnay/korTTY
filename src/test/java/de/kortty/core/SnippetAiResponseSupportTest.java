@@ -476,6 +476,89 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseFullCodeAnalysisReadsFlatPayloadFromThinkProseAndFence() {
+        SnippetAiResponseSupport.FullCodeAnalysis result = SnippetAiResponseSupport.parseFullCodeAnalysis(
+            """
+            <think>
+            I should first sketch {summary, dependencies, improvements} before returning the final object.
+            </think>
+            Here is the requested combined result (the internal shape is {key: value}):
+            ```json
+            {
+              "summary": "Downloads and verifies a release asset.",
+              "dependencies": [
+                { "id": "D1", "name": "curl", "kind": "program", "purpose": "download", "suggestion": "use a built-in HTTP client" }
+              ],
+              "improvements": [
+                { "id": "SEC-1", "category": "security", "severity": "high", "title": "Verify checksum", "detail": "The asset is trusted without verification.", "recommendation": "Check its checksum.", "line": 2 }
+              ],
+              "title": "Release download flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Download asset\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": [
+                { "nodeId": "work_1", "label": "Download asset", "startLine": 2, "endLine": 2 }
+              ]
+            }
+            ```
+            """);
+
+        assertThat(result.analysis().summary()).isEqualTo("Downloads and verifies a release asset.");
+        assertThat(result.analysis().dependencies()).hasSize(1);
+        assertThat(result.analysis().dependencies().get(0).name()).isEqualTo("curl");
+        assertThat(result.analysis().improvements()).hasSize(1);
+        assertThat(result.analysis().improvements().get(0).category()).isEqualTo("security");
+        assertThat(result.diagram().title()).isEqualTo("Release download flow");
+        assertThat(result.diagram().isUsable()).isTrue();
+        assertThat(result.diagram().codeReferences()).containsExactly(
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Download asset", 2, 2));
+    }
+
+    @Test
+    void parseFullCodeAnalysisPreservesUsableAnalysisWhenMermaidIsMissingUnsafeOrTooLarge() {
+        SnippetAiResponseSupport.FullCodeAnalysis missingDiagram =
+            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+                {
+                  "summary": "Prints a greeting.",
+                  "dependencies": [],
+                  "improvements": [
+                    { "id": "DES-1", "category": "design", "severity": "low", "title": "Extract greeting", "recommendation": "Use a function." }
+                  ]
+                }
+                """);
+        SnippetAiResponseSupport.FullCodeAnalysis unsafeDiagram =
+            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+                {
+                  "summary": "Prints a greeting.",
+                  "dependencies": [],
+                  "improvements": [],
+                  "title": "Unsafe flow",
+                  "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    click work_1 href \\\"https://example.com\\\"\\n    class start_1,stop_1 setup\\n    class work_1 work",
+                  "codeReferences": []
+                }
+                """);
+        String tooLargeMermaid = "flowchart TD\n" + "    work_1[\"Run\"]\n".repeat(2_000);
+        SnippetAiResponseSupport.FullCodeAnalysis tooLargeDiagram =
+            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+                {
+                  "summary": "Prints a greeting.",
+                  "dependencies": [],
+                  "improvements": [],
+                  "title": "Oversized flow",
+                  "mermaid": %s,
+                  "codeReferences": []
+                }
+                """.formatted(new com.google.gson.Gson().toJson(tooLargeMermaid)));
+
+        assertThat(missingDiagram.analysis().isUsable()).isTrue();
+        assertThat(missingDiagram.analysis().improvements()).hasSize(1);
+        assertThat(missingDiagram.diagram().isUsable()).isFalse();
+        assertThat(unsafeDiagram.analysis().isUsable()).isTrue();
+        assertThat(unsafeDiagram.analysis().summary()).isEqualTo("Prints a greeting.");
+        assertThat(unsafeDiagram.diagram().isUsable()).isFalse();
+        assertThat(tooLargeDiagram.analysis().isUsable()).isTrue();
+        assertThat(tooLargeDiagram.diagram().isUsable()).isFalse();
+    }
+
+    @Test
     void isDegenerateFullReplacementRejectsBareTokensAndTinyCollapses() {
         String realScript = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
             + "my $log = shift or die \"usage\";\nopen my $fh, '<', $log or die $!;\n"

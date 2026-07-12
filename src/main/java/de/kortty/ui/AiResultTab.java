@@ -1960,17 +1960,19 @@ public class AiResultTab extends Tab {
             return null;
         }
         return new SnippetEditDialog.AiAssist(
-            (currentContent, currentLanguage) -> generateSnippetMetadata(
-                profile,
-                aiService,
-                currentLanguage != null ? currentLanguage : snippetLanguage,
-                currentContent != null ? currentContent : code),
-            (currentContent, currentLanguage, description) -> correctSnippetDescription(
+            (currentContent, currentLanguage, responseLanguageCode) -> generateSnippetMetadata(
                 profile,
                 aiService,
                 currentLanguage != null ? currentLanguage : snippetLanguage,
                 currentContent != null ? currentContent : code,
-                description),
+                responseLanguageCode),
+            (currentContent, currentLanguage, description, responseLanguageCode) -> correctSnippetDescription(
+                profile,
+                aiService,
+                currentLanguage != null ? currentLanguage : snippetLanguage,
+                currentContent != null ? currentContent : code,
+                description,
+                responseLanguageCode),
             request -> correctSnippetSelectionText(profile, aiService, request),
             request -> translateSnippetSelectionText(profile, aiService, request),
             request -> describeSnippet(profile, aiService, request),
@@ -1993,12 +1995,13 @@ public class AiResultTab extends Tab {
         AiProfile profile,
         AiService aiService,
         String snippetLanguage,
-        String code) throws Exception {
+        String code,
+        String responseLanguageCode) throws Exception {
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_METADATA,
             code,
             connectionDisplayName,
-            languageCode,
+            responseLanguageCode,
             snippetLanguage,
             null);
         AiExecutionResult result = aiService.execute(request);
@@ -2017,7 +2020,8 @@ public class AiResultTab extends Tab {
         AiService aiService,
         String snippetLanguage,
         String code,
-        String description) throws Exception {
+        String description,
+        String responseLanguageCode) throws Exception {
         return SnippetAiWorkflowSupport.correctSnippetDescription(
             aiService,
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
@@ -2025,7 +2029,7 @@ public class AiResultTab extends Tab {
             description,
             snippetLanguage,
             connectionDisplayName,
-            languageCode);
+            responseLanguageCode);
     }
 
     private String correctSnippetSelectionText(
