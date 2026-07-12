@@ -1,48 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" role="img" aria-labelledby="title desc">
-  <title id="title">KorTTY AI API integration</title>
-  <desc id="desc">AI request flow from terminal or snippet editor through local profile handling to OpenAI-compatible, Anthropic, or LM Studio endpoints.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">KorTTY AI request and rendered-response integration</title>
+  <desc id="desc">AI requests flow from terminal, chat, snippet and agent entry points through profiles and prompt policy to configured endpoints, then through safe response handling including the central Mermaid renderer.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
+    </marker>
     <style>
-      text{font-family:Arial,Helvetica,sans-serif;fill:#e5f2ff;font-size:16px}.bg{fill:#07111d}.panel{fill:#0d1a2b;stroke:#274763;stroke-width:2;rx:18}.box{fill:#132238;stroke:#38bdf8;stroke-width:2;rx:10}.ai{stroke:#a78bfa}.store{stroke:#34d399}.sec{stroke:#f59e0b}.ext{stroke:#fb7185}.title{font-size:30px;font-weight:700;fill:#f8fafc}.label{font-size:19px;font-weight:700;fill:#7dd3fc}.small{font-size:14px;fill:#b8c7d9}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.muted{stroke:#60758d;stroke-dasharray:6 6;fill:none;marker-end:url(#arrow)}
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .grid{stroke:#14243a;stroke-width:1}
+      .panel{fill:#0d1a2b;stroke:#263f5c;stroke-width:2;rx:18}
+      .header{fill:#14243a;rx:18}
+      .box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:10}
+      .ai{stroke:#a78bfa}
+      .store{stroke:#34d399}
+      .secure{stroke:#f59e0b}
+      .external{stroke:#fb7185}
+      .render{stroke:#60a5fa}
+      .title{font-size:30px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .panelTitle{font-size:18px;font-weight:700;fill:#7dd3fc}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc}
+      .detail{font-size:12px;fill:#b9c8da}
+      .note{font-size:13px;fill:#93a8bd}
+      .line{stroke:#67e8f9;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:1.8;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect class="bg" width="1180" height="700"/>
-  <text class="title" x="40" y="54">AI API Integration</text>
-  <text class="small" x="40" y="82">Profile selection, model resolution, skill prompts, quotas, and result handling stay in KorTTY.</text>
 
-  <rect class="panel" x="40" y="125" width="300" height="420"/>
-  <text class="label" x="70" y="160">User entry points</text>
-  <rect class="box" x="75" y="195" width="230" height="54"/><text x="109" y="227">Terminal selection</text>
-  <rect class="box" x="75" y="275" width="230" height="54"/><text x="121" y="307">AI result chat</text>
-  <rect class="box" x="75" y="355" width="230" height="54"/><text x="110" y="387">Snippet editor AI</text>
-  <rect class="box" x="75" y="435" width="230" height="54"/><text x="103" y="467">Terminal AI Agent</text>
+  <rect class="bg" width="1280" height="720"/>
+  <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
-  <rect class="panel" x="390" y="125" width="370" height="420"/>
-  <text class="label" x="420" y="160">KorTTY AI pipeline</text>
-  <rect class="box ai" x="430" y="195" width="290" height="52"/><text x="478" y="227">Preview + Prompt Builder</text>
-  <rect class="box ai" x="430" y="260" width="290" height="52"/><text x="487" y="292">LM Studio Auto Model</text>
-  <rect class="box ai" x="430" y="325" width="290" height="52"/><text x="485" y="357">Skills + Internet Gate</text>
-  <rect class="box ai" x="430" y="390" width="290" height="52"/><text x="492" y="422">HTTP AI Service</text>
-  <rect class="box ai" x="430" y="455" width="290" height="52"/><text x="468" y="487">Sanitize + Record Usage</text>
+  <text class="title" x="42" y="52">AI Request + Rendered Response Flow</text>
+  <text class="subtitle" x="42" y="80">Profiles, prompts and quotas stay in korTTY; diagram and math output is rendered locally from pinned browser assets.</text>
 
-  <rect class="panel" x="810" y="125" width="320" height="420"/>
-  <text class="label" x="840" y="160">Local data / endpoint</text>
-  <rect class="box store" x="850" y="195" width="240" height="52"/><text x="900" y="227">AI profiles</text>
-  <rect class="box sec" x="850" y="260" width="240" height="52"/><text x="884" y="292">Encrypted API keys</text>
-  <rect class="box store" x="850" y="325" width="240" height="52"/><text x="885" y="357">Quotas + saved chats</text>
-  <rect class="box store" x="850" y="390" width="240" height="52"/><text x="906" y="422">AI Skills</text>
-  <rect class="box ext" x="850" y="455" width="240" height="52"/><text x="874" y="487">OpenAI or Anthropic API</text>
+  <rect class="panel" x="35" y="125" width="245" height="430"/>
+  <rect class="header" x="35" y="125" width="245" height="50"/>
+  <text class="panelTitle" x="62" y="157">1. Entry points</text>
+  <rect class="box" x="65" y="198" width="185" height="54"/>
+  <text class="label" x="86" y="222">Terminal selection</text>
+  <text class="detail" x="90" y="241">analysis and follow-up</text>
+  <rect class="box" x="65" y="274" width="185" height="54"/>
+  <text class="label" x="105" y="298">AI chat</text>
+  <text class="detail" x="88" y="317">new or saved conversation</text>
+  <rect class="box" x="65" y="350" width="185" height="54"/>
+  <text class="label" x="91" y="374">Snippet editor AI</text>
+  <text class="detail" x="89" y="393">code and diagram actions</text>
+  <rect class="box" x="65" y="426" width="185" height="54"/>
+  <text class="label" x="85" y="450">Agent + workflow</text>
+  <text class="detail" x="87" y="469">planned terminal actions</text>
 
-  <path class="line" d="M305 222 H430"/>
-  <path class="line" d="M305 302 H430"/>
-  <path class="line" d="M305 382 H430"/>
-  <path class="line" d="M305 462 H430"/>
-  <path class="line" d="M720 286 H850"/>
-  <path class="line" d="M720 351 H850"/>
-  <path class="line" d="M720 416 H850"/>
-  <path class="line" d="M720 481 H850"/>
-  <path class="muted" d="M850 221 C790 221 790 221 720 221"/>
-  <text class="small" x="74" y="602">Auto mode asks LM Studio for loaded LLMs directly before each real request.</text>
-  <text class="small" x="74" y="628">Snippet AI does not expose internet tools; terminal-agent web tools are gated by task intent.</text>
+  <rect class="panel" x="320" y="125" width="275" height="430"/>
+  <rect class="header" x="320" y="125" width="275" height="50"/>
+  <text class="panelTitle" x="347" y="157">2. korTTY request</text>
+  <rect class="box store" x="350" y="198" width="215" height="62"/>
+  <text class="label" x="394" y="222">AI profile</text>
+  <text class="detail" x="375" y="242">endpoint, model, reasoning</text>
+  <rect class="box secure" x="350" y="282" width="215" height="62"/>
+  <text class="label" x="382" y="306">Prompt + policy</text>
+  <text class="detail" x="370" y="326">skills, privacy, internet gate</text>
+  <rect class="box ai" x="350" y="366" width="215" height="62"/>
+  <text class="label" x="380" y="390">Model selection</text>
+  <text class="detail" x="365" y="410">configured or loopback Auto</text>
+  <rect class="box store" x="350" y="450" width="215" height="62"/>
+  <text class="label" x="394" y="474">Quota gate</text>
+  <text class="detail" x="376" y="494">estimate and record usage</text>
+
+  <rect class="panel" x="635" y="125" width="270" height="430"/>
+  <rect class="header" x="635" y="125" width="270" height="50"/>
+  <text class="panelTitle" x="662" y="157">3. Provider</text>
+  <rect class="box external" x="665" y="198" width="210" height="62"/>
+  <text class="label" x="700" y="222">OpenAI-compatible</text>
+  <text class="detail" x="692" y="242">HTTP chat completions API</text>
+  <rect class="box external" x="665" y="282" width="210" height="62"/>
+  <text class="label" x="707" y="306">Anthropic</text>
+  <text class="detail" x="700" y="326">native Messages endpoint</text>
+  <rect class="box external" x="665" y="366" width="210" height="62"/>
+  <text class="label" x="704" y="390">LM Studio</text>
+  <text class="detail" x="688" y="410">OpenAI or native local API</text>
+  <rect class="box external" x="665" y="450" width="210" height="62"/>
+  <text class="label" x="704" y="474">Local CLI</text>
+  <text class="detail" x="687" y="494">verified provider command</text>
+
+  <rect class="panel" x="945" y="125" width="300" height="430"/>
+  <rect class="header" x="945" y="125" width="300" height="50"/>
+  <text class="panelTitle" x="972" y="157">4. Response handling</text>
+  <rect class="box secure" x="975" y="198" width="240" height="62"/>
+  <text class="label" x="1011" y="222">Parse + sanitize</text>
+  <text class="detail" x="997" y="242">text, SVG and raster images</text>
+  <rect class="box render" x="975" y="282" width="240" height="62"/>
+  <text class="label" x="997" y="306">MermaidRenderService</text>
+  <text class="detail" x="991" y="326">strict local SVG/PNG render</text>
+  <rect class="box render" x="975" y="366" width="240" height="62"/>
+  <text class="label" x="1017" y="390">MathJax host</text>
+  <text class="detail" x="996" y="410">separate lazy formula render</text>
+  <rect class="box store" x="975" y="450" width="240" height="62"/>
+  <text class="label" x="1008" y="474">Display + persist</text>
+  <text class="detail" x="992" y="494">result tab, saved chat, usage</text>
+
+  <path class="line" d="M 280 340 H 320"/>
+  <path class="line" d="M 595 340 H 635"/>
+  <path class="line" d="M 905 340 H 945"/>
+  <path class="dash" d="M 1095 260 V 282"/>
+  <path class="dash" d="M 1215 229 H 1230 V 397 H 1215"/>
+  <path class="dash" d="M 995 344 H 960 V 481 H 975"/>
+  <path class="dash" d="M 1095 428 V 450"/>
+
+  <rect class="panel" x="155" y="595" width="970" height="68"/>
+  <text class="note" x="190" y="622">Loopback LM Studio Auto mode resolves a loaded LLM; remote endpoints use the configured model identifier.</text>
+  <text class="note" x="190" y="645">Mermaid and MathJax never use a remote renderer. Cancellation, timeout or disposal releases their hidden WebView work.</text>
 </svg>
