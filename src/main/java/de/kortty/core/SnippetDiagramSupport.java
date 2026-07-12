@@ -39,6 +39,8 @@ public final class SnippetDiagramSupport {
         "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*-->\\s*(?:\\|\\s*\"?([^|\"]*)\"?\\s*\\|\\s*)?([A-Za-z][A-Za-z0-9_-]{0,63})\\s*;?$");
     private static final Pattern CLASS_PATTERN = Pattern.compile(
         "(?i)^class\\s+([A-Za-z][A-Za-z0-9_-]{0,63}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_-]{0,63})*)\\s+(setup|work|success|failure)\\s*;?$");
+    private static final Pattern CONDITIONAL_FLOW_PATTERN = Pattern.compile(
+        "(?im)^\\s*(?:if|unless|elif|elsif|else\\s+if|case|switch|when)\\b|\\belse\\b");
     private static final Pattern FORBIDDEN_DIRECTIVE_PATTERN = Pattern.compile(
         "(?im)^\\s*(?:---\\s*$|%%\\{|click\\b|href\\b|style\\b|classDef\\b|linkStyle\\b)");
     private static final Pattern FORBIDDEN_URL_PATTERN = Pattern.compile(
@@ -486,11 +488,7 @@ public final class SnippetDiagramSupport {
     }
 
     private static boolean hasConditionalFlow(String lowerContent) {
-        return lowerContent != null
-            && (lowerContent.contains("\nif ")
-            || lowerContent.startsWith("if ")
-            || lowerContent.contains("\ncase ")
-            || lowerContent.contains(" else"));
+        return lowerContent != null && CONDITIONAL_FLOW_PATTERN.matcher(lowerContent).find();
     }
 
     private static String successAction(String lowerContent) {

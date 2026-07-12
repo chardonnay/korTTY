@@ -190,7 +190,7 @@ public final class LegacyDiagramCacheCleanup {
                 }
             });
             if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
-                logger.info("Removed {}: {}", description, root);
+                logger.debug("Removed {}: {}", description, root);
             }
         } catch (IOException | SecurityException e) {
             logger.warn("Could not remove {} {}", description, root, e);

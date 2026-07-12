@@ -163,7 +163,7 @@ public final class SnippetAiWorkflowSupport {
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildCompletionContext(fullContent, cursorOffset, snippetLanguage));
+            buildCompletionContext(fullContent, cursorOffset, snippetLanguage, fallbackLanguageCode));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -478,8 +478,8 @@ public final class SnippetAiWorkflowSupport {
 
         StringBuilder builder = new StringBuilder();
         builder.append("Snippet language: ").append(snippetLanguage).append("\n");
-        builder.append("Fallback natural language for comments and user-facing strings: ").append(fallbackLanguageCode).append("\n");
-        builder.append("Use the natural language already dominant in existing comments or user-facing strings when it is clear; otherwise use the fallback language.\n");
+        builder.append("Required natural language for editable text: ").append(fallbackLanguageCode).append("\n");
+        builder.append("For spelling correction, use that language without translating. For translation, use it as the target language.\n");
         builder.append("Editable text segments JSON:\n").append(SnippetAiTextSupport.toSegmentsJson(segments)).append("\n");
         builder.append("Full snippet for context only:\n").append(AiPromptBuilder.toSafeTextCodeBlock(fullContent));
         return builder.toString();
@@ -487,8 +487,7 @@ public final class SnippetAiWorkflowSupport {
 
     private static String buildDescriptionContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Fallback natural language for the description: " + fallbackLanguageCode + "\n"
-            + "Use the natural language already dominant in existing comments or user-facing strings when it is clear; otherwise use the fallback language.\n"
+            + "Required natural language for the description: " + fallbackLanguageCode + "\n"
             + "Full snippet for context:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
     }
@@ -506,7 +505,7 @@ public final class SnippetAiWorkflowSupport {
             + "Return at most " + maxSolutions + " solutions.\n"
             + "Keep the generated code in the same programming language as the snippet language.\n"
             + "Each solution code must replace exactly the target scope, not any surrounding context.\n"
-            + "If you add comments or user-facing strings, use the natural language already dominant in the snippet when it is clear; otherwise use fallback language " + fallbackLanguageCode + ".\n"
+            + "Write titles, summaries, and any generated comments or user-facing strings in language " + fallbackLanguageCode + ".\n"
             + "Target scope to replace:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(targetText)
             + "\n"
@@ -514,10 +513,12 @@ public final class SnippetAiWorkflowSupport {
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
     }
 
-    private static String buildCompletionContext(String fullContent, int cursorOffset, String snippetLanguage) {
+    private static String buildCompletionContext(
+        String fullContent, int cursorOffset, String snippetLanguage, String fallbackLanguageCode) {
         String content = fullContent != null ? fullContent : "";
         int safeOffset = Math.max(0, Math.min(cursorOffset, content.length()));
         return "Snippet language: " + snippetLanguage + "\n"
+            + "Write any generated comments or user-facing strings in language " + fallbackLanguageCode + ".\n"
             + "Cursor offset: " + safeOffset + "\n"
             + "Text before cursor:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(content.substring(0, safeOffset))
@@ -534,6 +535,7 @@ public final class SnippetAiWorkflowSupport {
 
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for report text: " + fallbackLanguageCode + "\n"
+            + "Write any new or rewritten comments or user-facing strings in that language.\n"
             + "Scope: " + (wholeSnippet ? "full snippet" : "selected code region") + "\n"
             + "Full snippet for context:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent)
@@ -555,6 +557,7 @@ public final class SnippetAiWorkflowSupport {
         int safeColumn = Math.max(1, cursorColumn);
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for summary: " + fallbackLanguageCode + "\n"
+            + "Write any new or rewritten comments or user-facing strings in that language.\n"
             + "Cursor offset: " + safeOffset + "\n"
             + "Cursor line: " + safeLine + "\n"
             + "Cursor column: " + safeColumn + "\n"
@@ -587,6 +590,7 @@ public final class SnippetAiWorkflowSupport {
             : "";
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for the summary: " + fallbackLanguageCode + "\n"
+            + "Write any new or rewritten comments or user-facing strings in that language.\n"
             + "Selected security findings to fix:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(findingsText)
             + "\nFull snippet to update:\n"
@@ -628,6 +632,7 @@ public final class SnippetAiWorkflowSupport {
         }
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for the summary: " + fallbackLanguageCode + "\n"
+            + "Write any new or rewritten comments or user-facing strings in that language.\n"
             + "Selected items to apply (each tagged with its id — echo the id back in changes[].finding):\n"
             + AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip())
             + "\nFull snippet to update:\n"
@@ -648,6 +653,7 @@ public final class SnippetAiWorkflowSupport {
         return "Diagram label language: " + fallbackLanguageCode + "\n"
             + "Generate one compact logical-structure Mermaid flowchart for this snippet. "
             + "Use only relationships visible in the code. "
+            + "Represent meaningful decisions, branches, and loop outcomes that are present; do not collapse conditional control flow into a generic main-action node. "
             + "Use only flowchart TD, stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminal nodes, separately declared quoted action/decision nodes, "
             + "--> edges, optional yes/no edge labels, and class statements. "
             + "Assign every node exactly one of the semantic classes setup, work, success, and failure. "

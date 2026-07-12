@@ -102,6 +102,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final ToggleButton markupPreviewToggleButton;
     private final WebView markupPreviewView;
     private final TextArea aiAdditionalInstructionsArea;
+    private ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
+    private CheckBox rememberAiCodeTextLanguageCheckBox;
+    private HBox aiCodeTextLanguageRow;
+    private volatile String aiCodeTextLanguageCode;
     private MenuButton aiSkillsMenuButton;
     private HBox aiSkillsRow;
     private final Set<String> selectedAiSkillIds = new LinkedHashSet<>();
@@ -261,12 +265,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface SuggestedMetadataProvider {
-        SuggestedSnippetMetadata generate(String content, String language) throws Exception;
+        SuggestedSnippetMetadata generate(String content, String language, String responseLanguageCode) throws Exception;
     }
 
     @FunctionalInterface
     public interface DescriptionCorrectionProvider {
-        String correct(String content, String language, String description) throws Exception;
+        String correct(String content, String language, String description, String responseLanguageCode) throws Exception;
     }
 
     @FunctionalInterface
@@ -603,6 +607,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean saveAsNewSnippetEnabled) {
         this.existingSnippet = snippet;
         this.aiAssist = aiAssist;
+        this.aiCodeTextLanguageCode = loadConfiguredAiCodeTextLanguageCode();
         this.externalFileActionConfig = externalFileActionConfig;
         this.saveAsNewSnippetEnabled = saveAsNewSnippetEnabled && snippet != null && externalFileActionConfig == null;
         if (snippet != null && snippet.getDiagrams() != null) {
@@ -682,13 +687,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         instructionsSubBox.setVisible(instructionsEnabled);
         instructionsSubBox.setManaged(instructionsEnabled);
 
+        aiCodeTextLanguageRow = buildAiCodeTextLanguageRow();
+        boolean languagePickerShow = aiAssist != null;
+        aiCodeTextLanguageRow.setVisible(languagePickerShow);
+        aiCodeTextLanguageRow.setManaged(languagePickerShow);
+
         aiSkillsRow = buildAiSkillsRow();
         boolean skillsShow = aiSkillPickerShouldShow();
         aiSkillsRow.setVisible(skillsShow);
         aiSkillsRow.setManaged(skillsShow);
 
-        aiAdditionalInstructionsBox = new VBox(6, aiSkillsRow, instructionsSubBox);
-        boolean aiBoxShow = instructionsEnabled || skillsShow;
+        aiAdditionalInstructionsBox = new VBox(6, aiCodeTextLanguageRow, aiSkillsRow, instructionsSubBox);
+        boolean aiBoxShow = languagePickerShow || instructionsEnabled || skillsShow;
         aiAdditionalInstructionsBox.setVisible(aiBoxShow);
         aiAdditionalInstructionsBox.setManaged(aiBoxShow);
 
@@ -2553,6 +2563,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean correctionRunning = isDescriptionCorrectionRunning();
         boolean snippetActionRunning = isSnippetAiActionRunning();
         boolean busy = metadataRunning || correctionRunning || snippetActionRunning;
+        if (aiCodeTextLanguageCombo != null) {
+            aiCodeTextLanguageCombo.setDisable(busy);
+        }
+        if (rememberAiCodeTextLanguageCheckBox != null) {
+            rememberAiCodeTextLanguageCheckBox.setDisable(busy);
+        }
         boolean hasMetadataProvider = aiAssist != null && aiAssist.metadataProvider() != null;
         boolean hasCorrectionProvider = aiAssist != null && aiAssist.descriptionCorrectionProvider() != null;
         boolean hasContent = contentArea.getText() != null && !contentArea.getText().isBlank();
@@ -2616,6 +2632,118 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      */
     private boolean profileSwitchingSupported() {
         return aiAssist != null && aiAssist.profileSwitchingSupported();
+    }
+
+    // ---- AI text language + skill pickers -------------------------------------------------------
+
+    private HBox buildAiCodeTextLanguageRow() {
+        aiCodeTextLanguageCombo = new ComboBox<>();
+        aiCodeTextLanguageCombo.setId("snippet-ai-text-language");
+        aiCodeTextLanguageCombo.getItems().setAll(
+            AiLanguageSupport.buildAvailableLanguageOptions(aiCodeTextLanguageCode));
+        aiCodeTextLanguageCombo.setPrefWidth(260);
+        aiCodeTextLanguageCombo.setTooltip(new Tooltip(I18n.get("snippets.ai.language.tooltip")));
+        aiCodeTextLanguageCombo.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageSupport.LanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        aiCodeTextLanguageCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AiLanguageSupport.LanguageOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.label());
+            }
+        });
+        AiLanguageSupport.LanguageOption selected = AiLanguageSupport.findOption(
+            aiCodeTextLanguageCombo.getItems(), aiCodeTextLanguageCode);
+        if (selected != null && !aiCodeTextLanguageCombo.getItems().contains(selected)) {
+            aiCodeTextLanguageCombo.getItems().add(selected);
+        }
+        aiCodeTextLanguageCombo.getSelectionModel().select(selected);
+
+        rememberAiCodeTextLanguageCheckBox = new CheckBox(I18n.get("snippets.ai.language.remember"));
+        rememberAiCodeTextLanguageCheckBox.setId("snippet-ai-text-language-remember");
+        rememberAiCodeTextLanguageCheckBox.setTooltip(
+            new Tooltip(I18n.get("snippets.ai.language.remember.tooltip")));
+
+        aiCodeTextLanguageCombo.setOnAction(event -> applyAiCodeTextLanguageSelection());
+        rememberAiCodeTextLanguageCheckBox.setOnAction(event -> {
+            if (rememberAiCodeTextLanguageCheckBox.isSelected()) {
+                persistSelectedAiCodeTextLanguage();
+            } else {
+                setStatus(I18n.get("snippets.ai.language.temporary", selectedAiCodeTextLanguageLabel()));
+            }
+        });
+
+        HBox row = new HBox(8,
+            new Label(I18n.get("snippets.ai.language.label")),
+            aiCodeTextLanguageCombo,
+            rememberAiCodeTextLanguageCheckBox);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private void applyAiCodeTextLanguageSelection() {
+        AiLanguageSupport.LanguageOption selected = aiCodeTextLanguageCombo != null
+            ? aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem()
+            : null;
+        if (selected == null) {
+            return;
+        }
+        aiCodeTextLanguageCode = AiLanguageSupport.resolveFallbackLanguageCode(selected.code());
+        if (rememberAiCodeTextLanguageCheckBox != null && rememberAiCodeTextLanguageCheckBox.isSelected()) {
+            persistSelectedAiCodeTextLanguage();
+        } else {
+            setStatus(I18n.get("snippets.ai.language.temporary", selected.label()));
+        }
+    }
+
+    private void persistSelectedAiCodeTextLanguage() {
+        if (saveAiCodeTextLanguagePreference(aiCodeTextLanguageCode)) {
+            setStatus(I18n.get("snippets.ai.language.saved", selectedAiCodeTextLanguageLabel()));
+            return;
+        }
+        if (rememberAiCodeTextLanguageCheckBox != null) {
+            rememberAiCodeTextLanguageCheckBox.setSelected(false);
+        }
+        setStatus(I18n.get("snippets.ai.language.saveFailed"));
+    }
+
+    private String selectedAiCodeTextLanguageLabel() {
+        AiLanguageSupport.LanguageOption selected = aiCodeTextLanguageCombo != null
+            ? aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem()
+            : null;
+        return selected != null ? selected.label() : aiCodeTextLanguageCode;
+    }
+
+    private String loadConfiguredAiCodeTextLanguageCode() {
+        GlobalSettings settings = currentGlobalSettings();
+        return AiLanguageSupport.resolveFallbackLanguageCode(
+            settings != null ? settings.getAiCodeTextDefaultLanguage() : null);
+    }
+
+    private boolean saveAiCodeTextLanguagePreference(String languageCode) {
+        GlobalSettings settings = null;
+        String previousLanguageCode = null;
+        try {
+            KorTTYApplication application = KorTTYApplication.getInstance();
+            settings = application.getGlobalSettingsManager().getSettings();
+            if (settings != null) {
+                previousLanguageCode = settings.getAiCodeTextDefaultLanguage();
+                settings.setAiCodeTextDefaultLanguage(languageCode);
+                application.getGlobalSettingsManager().save();
+                return true;
+            }
+        } catch (Exception e) {
+            if (settings != null) {
+                settings.setAiCodeTextDefaultLanguage(previousLanguageCode);
+            }
+            logger.debug("Could not persist the snippet AI text language", e);
+        }
+        return false;
     }
 
     // ---- AI skill picker (forces selected skills into every AI-code run) -------------------------
@@ -2828,13 +2956,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private String resolveAiTextFallbackLanguageCode() {
-        try {
-            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            return AiLanguageSupport.resolveFallbackLanguageCode(
-                settings != null ? settings.getAiCodeTextDefaultLanguage() : null);
-        } catch (Exception e) {
-            return AiLanguageSupport.resolveFallbackLanguageCode(null);
-        }
+        return AiLanguageSupport.resolveFallbackLanguageCode(aiCodeTextLanguageCode);
+    }
+
+    /** Analysis reports and their diagrams follow the application UI, independently of code-text output. */
+    private String resolveAnalysisLanguageCode() {
+        return AiLanguageSupport.resolveFallbackLanguageCode(null);
     }
 
     private String additionalInstructions() {
@@ -3252,14 +3379,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // skill picker doesn't apply or the user has taken manual control.
         autoDetectAiSkills();
         String language = languageCombo.getValue();
-        String fallback = resolveAiTextFallbackLanguageCode();
+        String analysisLanguageCode = resolveAnalysisLanguageCode();
         String extra = additionalInstructions();
 
         Task<SnippetAiResponseSupport.FullCodeAnalysis> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.FullCodeAnalysis call() throws Exception {
                 return aiAssist.codeAnalysisProvider().analyze(new CodeAnalysisRequest(
-                    fullContent, language, fallback, extra, aiProfileId));
+                    fullContent, language, analysisLanguageCode, extra, aiProfileId));
             }
         };
         snippetAiActionTask = task;
@@ -3284,7 +3411,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 SnippetDiagramView.DiagramSource memoized = firstDiagram.getAndSet(null);
                 return memoized != null
                     ? CompletableFuture.completedFuture(memoized)
-                    : generateDiagramMermaid(fullContent, language, fallback, aiProfileId);
+                    : generateDiagramMermaid(
+                        fullContent, language, resolveAnalysisLanguageCode(), aiProfileId);
             };
             SnippetCodeAnalysisDialog dialog = new SnippetCodeAnalysisDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
@@ -4377,7 +4505,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Task<SuggestedSnippetMetadata> task = new Task<>() {
             @Override
             protected SuggestedSnippetMetadata call() throws Exception {
-                return aiAssist.metadataProvider().generate(contentArea.getText(), languageCombo.getValue());
+                return aiAssist.metadataProvider().generate(
+                    contentArea.getText(), languageCombo.getValue(), resolveAiTextFallbackLanguageCode());
             }
         };
         metadataTask = task;
@@ -4453,7 +4582,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Task<String> task = new Task<>() {
             @Override
             protected String call() throws Exception {
-                return aiAssist.descriptionCorrectionProvider().correct(contentArea.getText(), languageCombo.getValue(), description);
+                return aiAssist.descriptionCorrectionProvider().correct(
+                    contentArea.getText(), languageCombo.getValue(), description,
+                    resolveAiTextFallbackLanguageCode());
             }
         };
         descriptionCorrectionTask = task;

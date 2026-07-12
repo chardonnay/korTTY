@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Snippet editor and Mermaid diagram workflow</title>
-  <desc id="desc">Flow from the Monaco snippet editor through one combined full-analysis response or local Mermaid fallback, the secure centralized renderer, the shared viewer and exports, and snippet persistence.</desc>
+  <desc id="desc">Flow from the Monaco snippet editor through one combined full-analysis response or local Mermaid fallback, the secure centralized renderer, the shared viewer and exports, and snippet persistence; reports follow the interface language while generated code text uses the selected AI text language.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -44,8 +44,9 @@
   <text class="label" x="103" y="298">Local editor tools</text>
   <text class="detail" x="90" y="317">format, syntax, ruler, profiles</text>
   <rect class="box ai" x="65" y="350" width="210" height="54"/>
-  <text class="label" x="105" y="374">AI Code actions</text>
-  <text class="detail" x="90" y="393">combined analysis, regenerate</text>
+  <text class="label" x="108" y="371">AI text + code</text>
+  <text class="detail" x="89" y="389">selected natural language</text>
+  <text class="detail" x="91" y="402">temporary or remembered</text>
   <rect class="box state" x="65" y="426" width="210" height="54"/>
   <text class="label" x="106" y="450">Snippet lifecycle</text>
   <text class="detail" x="88" y="469">save, reopen, stale detection</text>
@@ -115,5 +116,5 @@
   <path class="dash" d="M 1113 505 V 555"/>
   <path class="dash" d="M 170 505 V 540 H 318 V 580"/>
 
-  <text class="note" x="42" y="694">Full analysis uses one combined request; Regenerate requests only a fresh diagram. Diagrams persist only with saved snippets.</text>
+  <text class="note" x="42" y="694">Analysis follows the UI language; applied code uses the selected AI text language. Regenerate requests only a fresh diagram.</text>
 </svg>

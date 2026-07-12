@@ -2,10 +2,10 @@ package de.kortty.ui;
 
 import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
 import de.kortty.core.AiSnippetMetadataSupport;
-import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetLanguageSupport;
@@ -41,9 +41,12 @@ final class SnippetAiAssistFactory {
         // lambdas so the picker's current selection always applies.
         SnippetAiRuntimeOptions runtimeOptions = new SnippetAiRuntimeOptions();
         return new SnippetEditDialog.AiAssist(
-            (content, language) -> generateSnippetMetadata(ownerWindow, profile, aiService, content, language, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            (content, language, description) -> correctSnippetDescription(
-                ownerWindow, profile, aiService, content, language, description, contextDisplayName, runtimeOptions.forcedSkillIds()),
+            (content, language, responseLanguageCode) -> generateSnippetMetadata(
+                ownerWindow, profile, aiService, content, language, responseLanguageCode,
+                contextDisplayName, runtimeOptions.forcedSkillIds()),
+            (content, language, description, responseLanguageCode) -> correctSnippetDescription(
+                ownerWindow, profile, aiService, content, language, description, responseLanguageCode,
+                contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> correctSnippetSelectionText(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> translateSnippetSelectionText(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> describeSnippet(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
@@ -104,6 +107,7 @@ final class SnippetAiAssistFactory {
         AiService aiService,
         String content,
         String language,
+        String responseLanguageCode,
         String connectionDisplayName,
         java.util.Collection<String> forcedSkillIds) throws Exception {
         String scriptContent = content != null ? content : "";
@@ -113,7 +117,7 @@ final class SnippetAiAssistFactory {
             AiAction.GENERATE_SNIPPET_METADATA,
             scriptContent,
             connectionDisplayName,
-            currentLanguageCode(),
+            AiLanguageSupport.resolveFallbackLanguageCode(responseLanguageCode),
             snippetLanguage,
             null);
         AiExecutionResult result = resolved.service().execute(request);
@@ -134,6 +138,7 @@ final class SnippetAiAssistFactory {
         String content,
         String language,
         String description,
+        String responseLanguageCode,
         String connectionDisplayName,
         java.util.Collection<String> forcedSkillIds) throws Exception {
         String scriptContent = content != null ? content : "";
@@ -146,7 +151,7 @@ final class SnippetAiAssistFactory {
             description,
             snippetLanguage,
             connectionDisplayName,
-            currentLanguageCode());
+            AiLanguageSupport.resolveFallbackLanguageCode(responseLanguageCode));
     }
 
     private static String correctSnippetSelectionText(
@@ -455,9 +460,5 @@ final class SnippetAiAssistFactory {
             connectionDisplayName,
             request.fallbackLanguageCode(),
             request.additionalInstructions());
-    }
-
-    private static String currentLanguageCode() {
-        return LanguageManager.getInstance().getCurrentLanguageCode();
     }
 }

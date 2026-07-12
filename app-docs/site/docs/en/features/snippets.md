@@ -94,6 +94,14 @@ If AI is configured, the snippet editor offers additional actions:
 - **AI suggestion** — Generates a file name, description, and matching language from the current code content.
 - **Correct spelling** — On the description field; sends only description text to the AI.
 
+### AI text language
+
+When AI is configured, **AI text language** below the editor toolbar chooses the natural language for spelling correction and for new or rewritten code comments and user-facing strings. It is independent of both the korTTY interface language and the snippet's **Language** selector, which continues to define the programming language and syntax highlighting. Analysis reports, improvement descriptions and analysis-diagram labels always follow the korTTY interface language; when you click **Apply selected**, the separate choice controls comments and user-facing strings in the generated code.
+
+Leave **Remember as default** unticked for a temporary choice that applies only to the current editor window. Tick it to save the selected language as the default for newly opened snippet editors; this updates the existing **Default language for AI text in code** setting under *Settings → AI*. Other editor windows that are already open keep their own selection.
+
+Spelling correction uses the selected language for grammar and spelling rules without translating the text. **Translate selection…** keeps its separate target-language dialog and initially selects the current AI text language. Local formatters and syntax checks are unaffected.
+
 ### AI Text menu
 
 - **Correct spelling in selection** — Fix typos in selected text.
@@ -135,7 +143,9 @@ All improvement actions rewrite the selected region only, so **select a code reg
 
 **Full code analysis** opens a dedicated window that examines the whole snippet at once and offers concrete improvements you can apply. The window is **non-modal** — you can keep editing the snippet while it stays open — and its title bar shows the script's file name so you can tell several analyses apart. The snippet editor's own title bar likewise shows the name of the file you are editing.
 
-The initial report and flow diagram are generated together in **one AI request**, and each **Re-run** likewise uses one combined request with the selected profile and AI Skills. If that response has no safe, usable Mermaid source, korTTY keeps the analysis and shows its deterministic local fallback diagram without silently sending another request; only an explicit **Regenerate** click requests a fresh diagram from the AI.
+The initial report and flow diagram are generated together in **one AI request**, and each **Re-run** likewise uses one combined request with the selected profile and AI Skills. The shared Mermaid contract asks the model to retain meaningful decisions, branches and loop outcomes instead of collapsing conditional code into one generic step. If that response has no safe, usable Mermaid source, korTTY keeps the analysis and shows its deterministic local fallback diagram without silently sending another request; the fallback also recognizes indented conditional blocks in common scripting languages. Only an explicit **Regenerate** click requests a fresh diagram from the AI.
+
+The summary, dependencies, improvement descriptions and diagram labels use the current korTTY interface language. The separate **AI text language** becomes relevant only after you click **Apply selected**: it controls the natural language of newly generated or rewritten comments and user-facing strings in the resulting code.
 
 A toolbar runs along the top of the window, the report and flow diagram fill the two panes below it, and a script-header selector plus a collapsible hardening panel sit in the footer.
 

@@ -19,6 +19,20 @@ public final class AiPromptBuilder {
         + "macro, reference, placeholder, or empty value, however labeled. Returning real code is required "
         + "and safe; less fails.";
 
+    /** One validator-compatible Mermaid example shared by initial analysis and explicit regeneration. */
+    private static final String RESTRICTED_MERMAID_EXAMPLE =
+        "flowchart TD\\n    start_1([\"Start\"])\\n    setup_1[\"Read configuration\"]"
+            + "\\n    work_1[\"Run main command\"]\\n    decision_1{\"Command succeeds?\"}"
+            + "\\n    success_1[\"Handle success\"]\\n    failure_1[\"Handle failure\"]"
+            + "\\n    stop_1([\"Stop\"])\\n    start_1 --> setup_1\\n    setup_1 --> work_1"
+            + "\\n    work_1 --> decision_1\\n    decision_1 -->|yes| success_1"
+            + "\\n    decision_1 -->|no| failure_1\\n    success_1 --> stop_1"
+            + "\\n    failure_1 --> stop_1\\n    class start_1,stop_1,setup_1 setup"
+            + "\\n    class work_1,decision_1 work\\n    class success_1 success"
+            + "\\n    class failure_1 failure\n";
+    private static final String RESTRICTED_MERMAID_JSON_VALUE =
+        RESTRICTED_MERMAID_EXAMPLE.stripTrailing().replace("\"", "\\\"");
+
     private AiPromptBuilder() {
     }
 
@@ -43,7 +57,7 @@ public final class AiPromptBuilder {
                 + "Never modify code, identifiers, operators, keywords, syntax, delimiters, or control flow. "
                 + "Return exactly one JSON object with an array field named segments. "
                 + "Each array entry must contain only the corrected text for one segment in the same order as provided. "
-                + "Use language code " + languageCode + " unless the provided snippet context clearly shows a different natural language for existing comments or user-facing strings. "
+                + "Treat language code " + languageCode + " as the spelling and grammar language. Correct mistakes without translating the text into another language. "
                 + "Do not include hidden reasoning, analysis, <think> tags, explanations, or Markdown.";
         }
         if (request != null && request.action() == AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT) {
@@ -56,7 +70,7 @@ public final class AiPromptBuilder {
         }
         if (request != null && request.action() == AiAction.DESCRIBE_SNIPPET_SELECTION) {
             return "You write a concise technical description for a marked code selection. "
-                + "Write in language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
+                + "Write in language code " + languageCode + ". "
                 + "Summarize only relevant responsibilities, inputs, outputs, side effects, conditions, and risks. "
                 + "Do not explain every single line. "
                 + "Do not include hidden reasoning, analysis, or <think> tags. "
@@ -64,7 +78,7 @@ public final class AiPromptBuilder {
         }
         if (request != null && request.action() == AiAction.DESCRIBE_SNIPPET_FULL) {
             return "You write a concise technical description for a full code snippet. "
-                + "Write in language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
+                + "Write in language code " + languageCode + ". "
                 + "Summarize only relevant blocks, flow, inputs, outputs, side effects, conditions, and risks. "
                 + "Do not explain every single line. "
                 + "Do not include hidden reasoning, analysis, or <think> tags. "
@@ -75,13 +89,14 @@ public final class AiPromptBuilder {
                 + "Return exactly one JSON object with a solutions array. "
                 + "Each solution entry must contain title, code, and optionally summary. "
                 + "Keep the program code in the same programming language as the provided snippet. "
-                + "If you include comments or user-facing strings, use language code " + languageCode + " unless the provided full snippet clearly shows another dominant natural language in comments or user-facing strings. "
+                + "Write titles, summaries, and any generated comments or user-facing strings in language code " + languageCode + ". "
                 + "Do not include explanations outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
             return "You generate a short code completion at the current cursor position in a snippet editor. "
                 + "Return exactly one JSON object with keys insertText and summary. "
                 + "insertText must contain only the code that should be inserted at the cursor, not the full file. "
+                + "Write summary and any generated comments or user-facing strings in language code " + languageCode + ". "
                 + "Keep the code in the snippet language. Do not include Markdown or explanations outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.REVIEW_SNIPPET_CODE) {
@@ -96,7 +111,7 @@ public final class AiPromptBuilder {
                 + "Return exactly one JSON object with keys replacement and summary. "
                 + "replacement must contain only the replacement code for the selected region. "
                 + "Preserve behavior unless the user explicitly requests a behavior change. "
-                + "Write summary in language code " + languageCode + ". "
+                + "Write summary and any new or rewritten comments or user-facing strings in language code " + languageCode + ". "
                 + "Do not nest this JSON object inside another JSON string. "
                 + "Do not include Markdown outside the JSON object.";
         }
@@ -107,7 +122,7 @@ public final class AiPromptBuilder {
                 + "Use the cursor as the user's focal point, but update other locations when the instruction requires it. "
                 + "Preserve existing behavior unless the user explicitly requests a behavior change. "
                 + "Do not invent files, endpoints, configuration keys, schemas, secrets, versions, or external facts. "
-                + "Write summary in language code " + languageCode + ". "
+                + "Write summary and any new or rewritten comments or user-facing strings in language code " + languageCode + ". "
                 + "Do not nest this JSON object inside another JSON string. "
                 + "Do not include Markdown outside the JSON object.";
         }
@@ -127,7 +142,7 @@ public final class AiPromptBuilder {
                 + "finding id it addresses), anchor (a single line copied verbatim from replacement that "
                 + "locates the edited region) and reason (one short sentence explaining why this region changed). "
                 + "Do not apply findings that were not selected. Preserve unrelated behavior and formatting where possible. "
-                + "Write summary and every reason in language code " + languageCode + ". "
+                + "Write summary, every reason, and any new or rewritten comments or user-facing strings in language code " + languageCode + ". "
                 + "Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
@@ -142,6 +157,7 @@ public final class AiPromptBuilder {
                 + "mermaid must start with exactly 'flowchart TD', use stable start_1 and stop_1 terminal nodes, "
                 + "separately declared quoted action or decision nodes, --> edges, optional yes/no edge labels, and class statements only. "
                 + "Every Mermaid node must have exactly one semantic class: setup, work, success, or failure. "
+                + "Represent meaningful decisions, branches, and loop outcomes that are present in the code; do not collapse conditional control flow into one generic action. "
                 + "codeReferences must map every action and decision node to nodeId, its exact visible label, startLine, and endLine; "
                 + "never map start_1 or stop_1. Use only 1-based lines from the provided line-numbered snippet. "
                 + "Do not include Mermaid frontmatter, directives, comments, custom styles, callbacks, URLs, images, icons, HTML, or subgraphs. "
@@ -158,7 +174,7 @@ public final class AiPromptBuilder {
                 + "that locates the edited region) and reason (one short sentence explaining why this region changed). "
                 + "Apply only the selected items; for a selected dependency, implement its reduce/replace suggestion. "
                 + "Preserve unrelated behavior and formatting where possible. "
-                + "Write summary and every reason in language code " + languageCode + ". "
+                + "Write summary, every reason, and any new or rewritten comments or user-facing strings in language code " + languageCode + ". "
                 + "Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER) {
@@ -306,12 +322,15 @@ public final class AiPromptBuilder {
                     + "{ \"summary\": \"...\", "
                     + "\"dependencies\": [ { \"id\": \"D1\", \"name\": \"curl\", \"kind\": \"program\", \"purpose\": \"...\", \"suggestion\": \"...\" } ], "
                     + "\"improvements\": [ { \"id\": \"SEC-1\", \"category\": \"security\", \"severity\": \"high\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ], "
-                    + "\"title\": \"...\", \"mermaid\": \"flowchart TD\\n...\", "
+                    + "\"title\": \"...\", \"mermaid\": \"" + RESTRICTED_MERMAID_JSON_VALUE + "\", "
                     + "\"codeReferences\": [ { \"nodeId\": \"work_1\", \"label\": \"Run main command\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
                     + "summary explains what the script does. Each dependency lists an external script/program/service and a suggestion to reduce or replace it.\n"
                     + "Use category values security, optimization or design for improvements. Return empty arrays when nothing applies.\n"
+                    + "For conditional code, follow this restricted Mermaid structure and replace the example labels with code-specific labels:\n"
+                    + RESTRICTED_MERMAID_EXAMPLE
                     + "The Mermaid source must start with flowchart TD and use stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminals.\n"
                     + "Use only separately declared quoted action/decision nodes, --> edges, optional yes/no edge labels, and class statements.\n"
+                    + "Preserve meaningful decisions, branches, and loop outcomes visible in the snippet instead of reducing them to one generic main-action node.\n"
                     + "Assign every node exactly one of setup, work, success, and failure. Do not use frontmatter, directives, comments, custom styles, callbacks, URLs, media, HTML, or subgraphs.\n"
                     + "Create one 1-based codeReferences entry for every action and decision node except start_1 and stop_1; nodeId and label must exactly match the declaration.\n");
             case APPLY_SNIPPET_IMPROVEMENTS -> prompt.append(
@@ -332,12 +351,12 @@ public final class AiPromptBuilder {
             case GENERATE_SNIPPET_MERMAID -> prompt.append(
                 "Generate a compact Mermaid logical-structure flowchart for the snippet.\n"
                     + "Use only this restricted syntax and keep node ids stable and descriptive:\n"
-                    + "flowchart TD\\n    start_1([\"Start\"])\\n    setup_1[\"Read configuration\"]\\n    work_1[\"Run main command\"]\\n    decision_1{\"Command succeeds?\"}\\n    success_1[\"Handle success\"]\\n    failure_1[\"Handle failure\"]\\n    stop_1([\"Stop\"])\\n    start_1 --> setup_1\\n    setup_1 --> work_1\\n    work_1 --> decision_1\\n    decision_1 -->|yes| success_1\\n    decision_1 -->|no| failure_1\\n    success_1 --> stop_1\\n    failure_1 --> stop_1\\n    class start_1,stop_1,setup_1 setup\\n    class work_1,decision_1 work\\n    class success_1 success\\n    class failure_1 failure\n"
+                    + RESTRICTED_MERMAID_EXAMPLE
                     + "Use only quoted action/decision labels, --> edges, and the semantic classes setup, work, success, and failure.\n"
                     + "Do not include frontmatter, directives, comments, classDef/style/linkStyle, callbacks, URLs, images, icons, HTML, or custom colors.\n"
                     + "Do not put raw variable declarations or shell commands into labels.\n"
                     + "Return exactly one JSON object with this shape:\n"
-                    + "{ \"title\": \"...\", \"mermaid\": \"flowchart TD\\n...\", \"codeReferences\": [ { \"nodeId\": \"work_1\", \"label\": \"Run main command\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
+                    + "{ \"title\": \"...\", \"mermaid\": \"" + RESTRICTED_MERMAID_JSON_VALUE + "\", \"codeReferences\": [ { \"nodeId\": \"work_1\", \"label\": \"Run main command\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
                     + "Every codeReferences nodeId and label must exactly match one declared node.\n"
                     + "Create a codeReferences entry for every visible action and decision node, excluding start_1 and stop_1.\n"
                     + "Use only 1-based line numbers from the line-numbered snippet context.\n");

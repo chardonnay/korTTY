@@ -82,6 +82,45 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void fallbackRecognizesIndentedPerlConditionAsDecisionWithBothBranches() {
+        String content = """
+            sub process_file {
+                my ($path) = @_;
+                if (-f $path) {
+                    print "Processing $path\n";
+                } else {
+                    warn "Missing $path\n";
+                }
+            }
+            """;
+
+        String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(content, "perl");
+
+        assertThat(mermaid).contains("decision_1{\"Main command succeeds?\"}");
+        assertThat(mermaid).contains("decision_1 -->|yes| success_1");
+        assertThat(mermaid).contains("decision_1 -->|no| failure_1");
+        assertThat(SnippetDiagramSupport.validateMermaid(mermaid).valid()).isTrue();
+    }
+
+    @Test
+    void fallbackRecognizesIndentedPythonConditionAsDecisionWithBothBranches() {
+        String content = """
+            def process_file(path):
+                if path.exists():
+                    print(f"Processing {path}")
+                else:
+                    print(f"Missing {path}")
+            """;
+
+        String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(content, "python");
+
+        assertThat(mermaid).contains("decision_1{\"Main command succeeds?\"}");
+        assertThat(mermaid).contains("decision_1 -->|yes| success_1");
+        assertThat(mermaid).contains("decision_1 -->|no| failure_1");
+        assertThat(SnippetDiagramSupport.validateMermaid(mermaid).valid()).isTrue();
+    }
+
+    @Test
     void localFallbackBuildsNodeIdBasedCodeReferences() {
         String content = """
             BACKUP_DIR="/backup"

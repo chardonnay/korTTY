@@ -4,18 +4,22 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.Snippet;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -28,7 +32,9 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -184,6 +190,11 @@ public final class SnippetAiDialogsSmoke {
             throw new AssertionError("Select-all-improvements must be disabled when only dependencies exist");
         }
 
+        // 3c) The AI text-language selector is independent from the snippet's code language. Drive the
+        // real editor controls and defer checking the asynchronous provider calls until the final pause.
+        Runnable verifyAiTextLanguage = exerciseSnippetEditorAiTextLanguageSelection();
+        Runnable verifyAnalysisLanguages = exerciseSnippetAnalysisLanguageRouting();
+
         // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow). Capture the
         //    MonacoDiffPane logger while its WebView loads to assert the Java bridge installs cleanly.
         ListAppender<ILoggingEvent> diffLog = new ListAppender<>();
@@ -229,6 +240,12 @@ public final class SnippetAiDialogsSmoke {
                     failure.compareAndSet(null,
                         "SnippetCodeAnalysisDialog selection page did not finish loading within the wait");
                 }
+                try {
+                    verifyAiTextLanguage.run();
+                    verifyAnalysisLanguages.run();
+                } catch (Throwable e) {
+                    failure.compareAndSet(null, "SnippetEditDialog AI language check failed: " + e);
+                }
             } finally {
                 diffLogger.detachAppender(diffLog);
                 diffLogger.setLevel(previousLevel);
@@ -236,6 +253,239 @@ public final class SnippetAiDialogsSmoke {
             }
         });
         pause.play();
+    }
+
+    /**
+     * Exercises the temporary AI text-language setting through the real selector and action controls.
+     * The persistent XML round-trip is covered by {@code GlobalSettingsManagerTest}; this owner-less
+     * JavaFX harness intentionally keeps "remember" off so it never touches the user's settings file.
+     */
+    private static Runnable exerciseSnippetEditorAiTextLanguageSelection() throws Exception {
+        AtomicReference<ProviderLanguage> metadataLanguage = new AtomicReference<>();
+        AtomicReference<ProviderLanguage> descriptionLanguage = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog.SelectionTextTransformRequest> selectionRequest =
+            new AtomicReference<>();
+
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            (content, language, responseLanguageCode) -> {
+                metadataLanguage.set(new ProviderLanguage(language, responseLanguageCode));
+                return new SnippetEditDialog.SuggestedSnippetMetadata(
+                    "language-smoke.sh", "Prüft die temporäre Textsprache.", language);
+            },
+            (content, language, description, responseLanguageCode) -> {
+                descriptionLanguage.set(new ProviderLanguage(language, responseLanguageCode));
+                return description;
+            },
+            request -> {
+                selectionRequest.set(request);
+                return request.selectedText();
+            },
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            null);
+
+        String content = "# Deutscher Kommentar\nprintf '%s\\n' \"$HOME\"\n";
+        Snippet snippet = new Snippet("language-smoke.sh", content, "bash");
+        snippet.setDescription("Beschreibung für den Sprachtest.");
+        SnippetEditDialog dialog = new SnippetEditDialog(snippet, List.of(), assist);
+
+        @SuppressWarnings("unchecked")
+        ComboBox<AiLanguageSupport.LanguageOption> textLanguageCombo =
+            (ComboBox<AiLanguageSupport.LanguageOption>) nodeById(
+                dialog.getDialogPane(), "snippet-ai-text-language", ComboBox.class);
+        CheckBox rememberLanguage = nodeById(
+            dialog.getDialogPane(), "snippet-ai-text-language-remember", CheckBox.class);
+        if (!textLanguageCombo.isVisible() || !textLanguageCombo.isManaged()
+                || textLanguageCombo.getParent() == null
+                || !textLanguageCombo.getParent().isVisible()
+                || !textLanguageCombo.getParent().isManaged()) {
+            throw new AssertionError("SnippetEditDialog AI text-language selector is not visible with AiAssist");
+        }
+        if (rememberLanguage.isSelected()) {
+            throw new AssertionError("Remember-AI-text-language must be off by default");
+        }
+
+        @SuppressWarnings("unchecked")
+        ComboBox<String> codeLanguageCombo = (ComboBox<String>) field(
+            dialog, "languageCombo", ComboBox.class);
+        if (!"bash".equals(codeLanguageCombo.getValue())) {
+            throw new AssertionError("Expected the snippet code language to start as bash, was "
+                + codeLanguageCombo.getValue());
+        }
+
+        AiLanguageSupport.LanguageOption english = textLanguageCombo.getItems().stream()
+            .filter(option -> option != null && "en".equals(option.code()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("AI text-language selector is missing English"));
+        textLanguageCombo.getSelectionModel().select(english);
+        if (textLanguageCombo.getOnAction() == null) {
+            throw new AssertionError("AI text-language selector has no action handler");
+        }
+        textLanguageCombo.getOnAction().handle(new ActionEvent(textLanguageCombo, textLanguageCombo));
+        if (rememberLanguage.isSelected()) {
+            throw new AssertionError("Temporary language selection unexpectedly enabled persistence");
+        }
+        if (!"bash".equals(codeLanguageCombo.getValue())) {
+            throw new AssertionError("Changing AI text language changed the snippet code language");
+        }
+
+        MonacoEditorPane editor = field(dialog, "contentArea", MonacoEditorPane.class);
+        editor.selectRange(0, content.indexOf('\n'));
+        field(dialog, "generateMetadataButton", Button.class).fire();
+        field(dialog, "correctDescriptionButton", Button.class).fire();
+        field(dialog, "correctSelectionTextItem", MenuItem.class).fire();
+        snapshotPane(dialog.getDialogPane(), "snippet-ai-language-selector.png", 900);
+
+        return () -> {
+            try {
+                assertProviderLanguage("metadata", metadataLanguage.get(), "bash", "en");
+                assertProviderLanguage("description", descriptionLanguage.get(), "bash", "en");
+                SnippetEditDialog.SelectionTextTransformRequest request = selectionRequest.get();
+                if (request == null) {
+                    throw new AssertionError("Selection correction provider was not invoked");
+                }
+                assertProviderLanguage(
+                    "selection",
+                    new ProviderLanguage(request.snippetLanguage(), request.fallbackLanguageCode()),
+                    "bash",
+                    "en");
+                if (!"bash".equals(codeLanguageCombo.getValue())) {
+                    throw new AssertionError("AI provider completion changed the snippet code language");
+                }
+                if (rememberLanguage.isSelected()) {
+                    throw new AssertionError("Temporary language selection was persisted unexpectedly");
+                }
+            } finally {
+                editor.dispose();
+            }
+        };
+    }
+
+    private static void assertProviderLanguage(
+        String provider,
+        ProviderLanguage actual,
+        String expectedSnippetLanguage,
+        String expectedTextLanguage) {
+
+        if (actual == null) {
+            throw new AssertionError(provider + " provider was not invoked");
+        }
+        if (!expectedSnippetLanguage.equals(actual.snippetLanguage())) {
+            throw new AssertionError(provider + " provider received snippet language "
+                + actual.snippetLanguage() + " instead of " + expectedSnippetLanguage);
+        }
+        if (!expectedTextLanguage.equals(actual.textLanguage())) {
+            throw new AssertionError(provider + " provider received AI text language "
+                + actual.textLanguage() + " instead of " + expectedTextLanguage);
+        }
+    }
+
+    private record ProviderLanguage(String snippetLanguage, String textLanguage) {
+    }
+
+    /** Verifies the editor forwards GUI/report language and code language through the two analysis actions. */
+    private static Runnable exerciseSnippetAnalysisLanguageRouting() throws Exception {
+        String guiLanguage = LanguageManager.getInstance().getCurrentLanguageCode();
+        AtomicReference<SnippetEditDialog.CodeAnalysisRequest> analysisRequest = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog.ImprovementApplyRequest> applyRequest = new AtomicReference<>();
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            request -> new SnippetAiResponseSupport.MermaidDiagram("", ""),
+            request -> {
+                analysisRequest.set(request);
+                return null;
+            },
+            request -> {
+                applyRequest.set(request);
+                return new SnippetAiResponseSupport.SnippetSecurityFix("", "", List.of());
+            },
+            false,
+            null);
+        Snippet snippet = new Snippet(
+            "analysis-language-smoke.sh",
+            "#!/usr/bin/env bash\nprintf '%s\\n' \"$value\"\n",
+            "bash");
+        SnippetEditDialog dialog = new SnippetEditDialog(snippet, List.of(), assist);
+
+        @SuppressWarnings("unchecked")
+        ComboBox<AiLanguageSupport.LanguageOption> textLanguageCombo =
+            (ComboBox<AiLanguageSupport.LanguageOption>) nodeById(
+                dialog.getDialogPane(), "snippet-ai-text-language", ComboBox.class);
+        AiLanguageSupport.LanguageOption english = textLanguageCombo.getItems().stream()
+            .filter(option -> option != null && "en".equals(option.code()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("AI text-language selector is missing English"));
+        textLanguageCombo.getSelectionModel().select(english);
+        textLanguageCombo.getOnAction().handle(new ActionEvent(textLanguageCombo, textLanguageCombo));
+
+        invoke(dialog, "runCodeReview", new Class<?>[0]);
+        SnippetAiResponseSupport.ScriptImprovement improvement =
+            new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
+                "Quote the expansion.", 2);
+        SnippetCodeAnalysisDialog.ApplySelection selection = new SnippetCodeAnalysisDialog.ApplySelection(
+            List.of(improvement),
+            List.of(),
+            EnumSet.noneOf(de.kortty.core.WorkflowScriptSupport.HardeningOption.class),
+            null);
+        invoke(
+            dialog,
+            "runImprovementFixes",
+            new Class<?>[] {SnippetCodeAnalysisDialog.ApplySelection.class},
+            selection);
+
+        MonacoEditorPane editor = field(dialog, "contentArea", MonacoEditorPane.class);
+        return () -> {
+            try {
+                SnippetEditDialog.CodeAnalysisRequest analysis = analysisRequest.get();
+                if (analysis == null) {
+                    throw new AssertionError("Full-code-analysis provider was not invoked");
+                }
+                assertProviderLanguage(
+                    "full-code-analysis",
+                    new ProviderLanguage(analysis.snippetLanguage(), analysis.fallbackLanguageCode()),
+                    "bash",
+                    guiLanguage);
+                SnippetEditDialog.ImprovementApplyRequest apply = applyRequest.get();
+                if (apply == null) {
+                    throw new AssertionError("Apply-selected provider was not invoked");
+                }
+                assertProviderLanguage(
+                    "apply-selected",
+                    new ProviderLanguage(apply.snippetLanguage(), apply.fallbackLanguageCode()),
+                    "bash",
+                    "en");
+                if (apply.improvements().size() != 1 || !"SEC-1".equals(apply.improvements().getFirst().id())) {
+                    throw new AssertionError("Apply-selected did not forward the selected improvement");
+                }
+            } finally {
+                editor.dispose();
+            }
+        };
     }
 
     /** Asserts the dialog exposes both a profile combo and a re-run button. */
@@ -305,6 +555,32 @@ public final class SnippetAiDialogsSmoke {
             .orElseThrow(() -> new AssertionError(
                 "SnippetCodeAnalysisDialog is missing the select-all-improvements checkbox ('"
                     + expectedText + "')"));
+    }
+
+    private static <T extends Node> T nodeById(Node root, String id, Class<T> type) {
+        return findNodes(root, type).stream()
+            .map(type::cast)
+            .filter(node -> id.equals(node.getId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing " + type.getSimpleName() + " with id " + id));
+    }
+
+    private static <T> T field(Object target, String name, Class<T> type) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            return type.cast(field.get(target));
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(target.getClass().getSimpleName() + " is missing field " + name, e);
+        }
+    }
+
+    private static void invoke(
+        Object target, String name, Class<?>[] parameterTypes, Object... arguments) throws Exception {
+
+        Method method = target.getClass().getDeclaredMethod(name, parameterTypes);
+        method.setAccessible(true);
+        method.invoke(target, arguments);
     }
 
     private static WebView findingsWebView(SnippetCodeAnalysisDialog dialog) {
