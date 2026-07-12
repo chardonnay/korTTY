@@ -12,7 +12,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Extracts the bundled AI-chat render libraries (mermaid, MathJax) to a temp directory and writes
+ * Extracts the bundled AI-chat MathJax library to a temp directory and writes
  * per-block render pages next to them, handing out {@code file:} URLs.
  *
  * <p>Serving from {@code file:} instead of the {@code jar:} classpath URL is required for the same
@@ -25,7 +25,7 @@ final class ChatRenderResourceBundle {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatRenderResourceBundle.class);
 
-    private static final String[] FILES = {"mermaid.min.js", "tex-svg.js"};
+    private static final String[] FILES = {"tex-svg.js"};
 
     private static final Object LOCK = new Object();
     private static final AtomicInteger PAGE_COUNTER = new AtomicInteger();

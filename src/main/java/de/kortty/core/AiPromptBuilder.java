@@ -163,20 +163,22 @@ public final class AiPromptBuilder {
                 + "Do not use curl, wget, temporary downloads, external URLs, invented files, base64, heredocs, Markdown, or explanations. "
                 + "Preserve the snippet behavior as closely as possible for the declared snippet language.";
         }
-        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
-            return "You generate a compact PlantUML diagram for the logical structure of a code snippet. "
-                + "Return exactly one JSON object with keys title, plantUml, and codeReferences. "
-                + "plantUml must start with @startuml and end with @enduml. "
-                + "codeReferences must be an array of objects with label, startLine, and endLine. "
-                + "Each codeReferences label must exactly match one visible PlantUML activity or decision label. "
-                + "Create one codeReferences entry for every activity and decision in plantUml; exclude only start, stop, arrows, and merge nodes. "
-                + "Line numbers must be 1-based and must refer only to lines visible in the provided line-numbered snippet. "
-                + "For scripts and imperative snippets, use only a PlantUML activity diagram. "
-                + "Use a small semantic HEX color palette to improve readability. "
-                + "Allowed activity syntax is limited to start, :Action;, :Action; <<#RRGGBB>>, if (...) then (...) else (...) endif, and stop. "
-                + "Do not use gradients or large style blocks. "
-                + "Do not use component, package, class, object, actor, or usecase blocks for scripts. "
-                + "Do not place raw variable names or shell commands as free text inside PlantUML blocks. "
+        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            return "You generate a compact Mermaid flowchart for the logical structure of a code snippet. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "mermaid must start with exactly 'flowchart TD', declare stable terminal nodes start_1([\"Start\"]) and stop_1([\"Stop\"]), "
+                + "and use only separately declared quoted action nodes node_id[\"Action label\"], quoted decision nodes node_id{\"Decision?\"}, "
+                + "--> edges, optional |yes|/|no| edge labels, "
+                + "and class statements. "
+                + "Use stable descriptive node ids containing only letters, digits, underscores, or hyphens. "
+                + "Every node must have exactly one semantic class: setup, work, success, or failure. "
+                + "codeReferences must be an array of objects with nodeId, label, startLine, and endLine. "
+                + "Each nodeId must exactly match a declared Mermaid node and each label must exactly match that node's visible label. "
+                + "Create one codeReferences entry for every action and decision node, but never for start_1 or stop_1. "
+                + "Line numbers must be 1-based and refer only to lines visible in the provided line-numbered snippet. "
+                + "Do not include frontmatter, Mermaid directives, comments, classDef, style, linkStyle, click, href, URLs, "
+                + "images, icons, HTML, custom colors, subgraphs, or any other Mermaid syntax. "
+                + "Do not copy raw variable declarations or commands as labels; summarize them. "
                 + "Do not include Markdown or explanations outside the JSON object.";
         }
         if (isConversationFollowUp(request)) {
@@ -315,20 +317,17 @@ public final class AiPromptBuilder {
                     + "Do not use base64, heredocs, curl, wget, temporary downloads, or external URLs.\n"
                     + "Do not invent files, endpoints, placeholders, or network locations.\n"
                     + "Prefer readable shell separators, interpreter -e/-c flags, and safe quoting.\n");
-            case GENERATE_SNIPPET_PLANTUML -> prompt.append(
-                "Generate a compact PlantUML logical-structure diagram for the snippet.\n"
-                    + "For bash/shell or other imperative snippets, use a simple activity diagram only. Valid example syntax:\n"
-                    + "@startuml\\nstart\\n:Read configuration; <<#EAF7EF>>\\n:Run main command; <<#EAF4FF>>\\nif (command succeeds?) then (yes)\\n  :Handle success; <<#EAF7EF>>\\nelse (no)\\n  :Handle failure; <<#FDECEC>>\\nendif\\nstop\\n@enduml\n"
-                    + "Use HEX colors sparingly to distinguish setup, main work, success, and failure paths. "
-                    + "Action lines may use :Action label; <<#RRGGBB>> syntax.\n"
-                    + "Do not use gradients or large style blocks.\n"
-                    + "Do not use component/package/class/object/actor/usecase blocks for script variables or commands.\n"
-                    + "Do not put raw variable declarations or shell commands as standalone PlantUML lines.\n"
-                    + "Each executable step must be an activity line like :Create backup archive;.\n"
+            case GENERATE_SNIPPET_MERMAID -> prompt.append(
+                "Generate a compact Mermaid logical-structure flowchart for the snippet.\n"
+                    + "Use only this restricted syntax and keep node ids stable and descriptive:\n"
+                    + "flowchart TD\\n    start_1([\"Start\"])\\n    setup_1[\"Read configuration\"]\\n    work_1[\"Run main command\"]\\n    decision_1{\"Command succeeds?\"}\\n    success_1[\"Handle success\"]\\n    failure_1[\"Handle failure\"]\\n    stop_1([\"Stop\"])\\n    start_1 --> setup_1\\n    setup_1 --> work_1\\n    work_1 --> decision_1\\n    decision_1 -->|yes| success_1\\n    decision_1 -->|no| failure_1\\n    success_1 --> stop_1\\n    failure_1 --> stop_1\\n    class start_1,stop_1,setup_1 setup\\n    class work_1,decision_1 work\\n    class success_1 success\\n    class failure_1 failure\n"
+                    + "Use only quoted action/decision labels, --> edges, and the semantic classes setup, work, success, and failure.\n"
+                    + "Do not include frontmatter, directives, comments, classDef/style/linkStyle, callbacks, URLs, images, icons, HTML, or custom colors.\n"
+                    + "Do not put raw variable declarations or shell commands into labels.\n"
                     + "Return exactly one JSON object with this shape:\n"
-                    + "{ \"title\": \"...\", \"plantUml\": \"@startuml\\n...\\n@enduml\", \"codeReferences\": [ { \"label\": \"Create backup archive\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
-                    + "Each codeReferences label must exactly match a visible activity label or decision text in plantUml.\n"
-                    + "Create a codeReferences entry for every visible activity and decision; exclude only start, stop, arrows, and merge nodes.\n"
+                    + "{ \"title\": \"...\", \"mermaid\": \"flowchart TD\\n...\", \"codeReferences\": [ { \"nodeId\": \"work_1\", \"label\": \"Run main command\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
+                    + "Every codeReferences nodeId and label must exactly match one declared node.\n"
+                    + "Create a codeReferences entry for every visible action and decision node, excluding start_1 and stop_1.\n"
                     + "Use only 1-based line numbers from the line-numbered snippet context.\n");
         }
         if (request.action() == AiAction.ASSIST_SNIPPET_CODE) {
@@ -384,7 +383,7 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
-            || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML) {
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
             if (request.userPrompt() != null && !request.userPrompt().isBlank()) {
                 prompt.append("Additional user instructions:\n")
                     .append(request.userPrompt().trim())
@@ -412,7 +411,7 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
-            || request.action() == AiAction.GENERATE_SNIPPET_PLANTUML;
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID;
         prompt.append(request.action() == AiAction.ASSIST_SNIPPET_CODE
                 ? "Full script content to update:\n"
                 : usesScriptContext

@@ -7,8 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Detects diagram code blocks in AI chat responses (PlantUML, Mermaid) and normalizes their
- * sources for rendering.
+ * Detects Mermaid and mathematical code blocks in AI chat responses.
  */
 public final class AiChatDiagramSupport {
 
@@ -56,36 +55,6 @@ public final class AiChatDiagramSupport {
             segments.add(new MathSegment(trailing, null));
         }
         return segments;
-    }
-
-    /** True when a fenced code block carries PlantUML source. */
-    public static boolean isPlantUmlBlock(String language, String content) {
-        if (content == null || content.isBlank()) {
-            return false;
-        }
-        String tag = language != null ? language.trim().toLowerCase(Locale.ROOT) : "";
-        if (tag.equals("plantuml") || tag.equals("puml")) {
-            return true;
-        }
-        // Untagged blocks are still recognizable by the mandatory @startuml marker.
-        return tag.isEmpty() && content.strip().startsWith("@startuml");
-    }
-
-    /**
-     * Ensures the PlantUML source carries the {@code @startuml}/{@code @enduml} frame the
-     * renderer requires; AI responses sometimes omit it (entirely, or just the truncated end
-     * marker) inside a ```plantuml fence. Other {@code @start...} dialects pass through
-     * untouched, since their end markers differ per dialect.
-     */
-    public static String normalizePlantUml(String content) {
-        String source = content != null ? content.strip() : "";
-        if (source.startsWith("@startuml")) {
-            return source.endsWith("@enduml") ? source : source + "\n@enduml";
-        }
-        if (source.startsWith("@start")) {
-            return source;
-        }
-        return "@startuml\n" + source + "\n@enduml";
     }
 
     /** True when a fenced code block carries Mermaid source. */

@@ -125,23 +125,27 @@ public final class SnippetAiResponseSupport {
         }
     }
 
-    public record PlantUmlDiagram(
+    public record MermaidDiagram(
         String title,
-        String plantUml,
+        String mermaid,
         List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
 
-        public PlantUmlDiagram(String title, String plantUml) {
-            this(title, plantUml, List.of());
+        public MermaidDiagram(String title, String mermaid) {
+            this(title, mermaid, List.of());
         }
 
-        public PlantUmlDiagram {
+        public MermaidDiagram {
             title = title != null && !title.isBlank() ? title.trim() : "Snippet structure";
-            plantUml = SnippetDiagramSupport.ensureReadableActivityColors(plantUml);
-            codeReferences = codeReferences != null ? List.copyOf(codeReferences) : List.of();
+            String rawMermaid = mermaid != null ? mermaid : "";
+            mermaid = rawMermaid.getBytes(java.nio.charset.StandardCharsets.UTF_8).length
+                <= SnippetDiagramSupport.MAX_MERMAID_SOURCE_BYTES
+                    ? SnippetDiagramSupport.normalizeMermaid(rawMermaid)
+                    : "";
+            codeReferences = SnippetDiagramSupport.filterValidSourceReferences(mermaid, codeReferences);
         }
 
         public boolean isUsable() {
-            return SnippetDiagramSupport.isRenderablePlantUml(plantUml);
+            return SnippetDiagramSupport.isRenderableMermaid(mermaid);
         }
     }
 
@@ -440,16 +444,16 @@ public final class SnippetAiResponseSupport {
         return parsedFindings;
     }
 
-    public static PlantUmlDiagram parsePlantUmlDiagram(String responseText) {
+    public static MermaidDiagram parseMermaidDiagram(String responseText) {
         JsonObject object = parseJsonObject(responseText);
         if (object == null) {
-            return new PlantUmlDiagram("", "");
+            return new MermaidDiagram("", "");
         }
-        PlantUmlDiagram diagram = new PlantUmlDiagram(
+        MermaidDiagram diagram = new MermaidDiagram(
             firstString(object, "title", "name"),
-            firstString(object, "plantUml", "plantuml", "source", "diagram"),
+            firstString(object, "mermaid"),
             parseDiagramCodeReferences(object));
-        return diagram.isUsable() ? diagram : new PlantUmlDiagram("", "");
+        return diagram.isUsable() ? diagram : new MermaidDiagram("", "");
     }
 
     private static List<SnippetDiagramSupport.SourceCodeReference> parseDiagramCodeReferences(JsonObject object) {
@@ -463,14 +467,17 @@ public final class SnippetAiResponseSupport {
                 continue;
             }
             JsonObject reference = element.getAsJsonObject();
-            String label = firstString(reference, "label", "diagramLabel", "node", "activity", "decision");
+            String nodeId = firstString(reference, "nodeId");
+            String label = firstString(reference, "label");
             Integer startLine = firstInt(reference, "startLine", "lineStart", "line");
             Integer endLine = firstInt(reference, "endLine", "lineEnd");
             if (endLine == null) {
                 endLine = startLine;
             }
-            if (label != null && !label.isBlank() && startLine != null && endLine != null) {
-                parsedReferences.add(new SnippetDiagramSupport.SourceCodeReference(label, startLine, endLine));
+            if (nodeId != null && !nodeId.isBlank() && label != null && !label.isBlank()
+                && startLine != null && endLine != null) {
+                parsedReferences.add(new SnippetDiagramSupport.SourceCodeReference(
+                    nodeId, label, startLine, endLine));
             }
         }
         return List.copyOf(parsedReferences);

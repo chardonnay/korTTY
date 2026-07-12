@@ -2,12 +2,11 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
-import de.kortty.core.PlantUmlRenderService;
+import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SystemThemeDetector;
 import de.kortty.model.GlobalSettings;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -32,20 +31,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -57,26 +48,30 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A self-contained, embeddable diagram viewer with the same controls as the standalone
- * {@link SnippetDiagramDialog}: fit-to-viewport auto-scaling, zoom (−/Fit/+), Save SVG / Save PNG,
- * Copy image / Copy PlantUML, a background-colour picker (persisted), an optional Regenerate button,
- * and hover code-reference tooltips that show the matching source lines. It renders a {@link DiagramSource}
- * (PlantUML text + source content + code references), supplied lazily so it can be regenerated. Used as
- * the right-hand pane of {@link SnippetCodeAnalysisDialog}; the standalone dialog is unchanged.
+ * Shared Mermaid viewer used by both the standalone snippet-diagram dialog and the code-analysis dialog.
+ * Mermaid executes only inside {@link MermaidRenderService}; this view displays the returned sanitized SVG
+ * in a separate WebView with JavaScript disabled and keeps SVG/PNG bytes cached for exports.
  */
 final class SnippetDiagramView extends VBox {
 
-    /** The lazily-supplied diagram input: the PlantUML text plus the source + label→line mappings for hotspots. */
-    public record DiagramSource(String plantUml, String content,
-                                List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+    public record DiagramSource(
+        String mermaid,
+        String content,
+        List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+    }
+
+    record CodeNavigationTarget(int startLine, int endLine) {
+    }
+
+    private record SvgHotspot(double x, double y, double width, double height,
+                              int startLine, int endLine, String tooltip) {
     }
 
     private static final Pattern SVG_VIEW_BOX_PATTERN =
         Pattern.compile("viewBox\\s*=\\s*\"[^\"]*?\\s+([0-9.]+)\\s+([0-9.]+)\"");
     private static final Pattern SVG_WIDTH_HEIGHT_PATTERN =
         Pattern.compile("<svg[^>]*\\swidth\\s*=\\s*\"([0-9.]+)[^\"]*\"[^>]*\\sheight\\s*=\\s*\"([0-9.]+)[^\"]*\"");
-    private static final Pattern POLYGON_POINT_PATTERN =
-        Pattern.compile("(-?[0-9]+(?:\\.[0-9]+)?),(-?[0-9]+(?:\\.[0-9]+)?)");
+    private static final Pattern NAVIGATION_PATTERN = Pattern.compile("#kortty-code-reference-(\\d+)-(\\d+)$");
     private static final double MIN_ZOOM_FACTOR = 0.25;
     private static final double MAX_ZOOM_FACTOR = 4.0;
     private static final double MIN_ZOOM = 0.05;
@@ -84,6 +79,7 @@ final class SnippetDiagramView extends VBox {
     private static final String DEFAULT_BACKGROUND = "#FFFFFF";
 
     private final Supplier<CompletableFuture<DiagramSource>> diagramSupplier;
+    private final Consumer<CodeNavigationTarget> codeNavigationHandler;
     private final WebView diagramView = new WebView();
     private final ScrollPane diagramScroll = new ScrollPane(diagramView);
     private final StackPane diagramStack = new StackPane();
@@ -94,29 +90,34 @@ final class SnippetDiagramView extends VBox {
     private final MenuButton darkModeButton = new MenuButton();
 
     private SnippetDiagramSupport.DiagramColorMode colorMode;
+    private long sourceGeneration;
     private long renderGeneration;
+    private boolean disposed;
     private boolean lastResolvedDark;
-    private String currentPlantUml;
+    private String currentMermaid;
     private String currentContent = "";
     private List<SnippetDiagramSupport.SourceCodeReference> currentSourceReferences = List.of();
     private List<SvgHotspot> currentHotspots = List.of();
-    private Path renderedSvgPath;
+    private String renderedSvg;
+    private byte[] renderedPng;
     private double baseWidth = 900.0;
     private double baseHeight = 600.0;
     private double zoomFactor = 1.0;
     private String backgroundColor;
-    private Task<PlantUmlRenderService.RenderResult> renderTask;
-    private Task<PlantUmlRenderService.RenderResult> exportTask;
+    private CompletableFuture<MermaidRenderService.RenderResult> renderFuture;
     private boolean loadedOnce;
 
-    private record SvgHotspot(String referenceId, double x, double y, double width, double height, String tooltip) {
-    }
-
-    private record SvgBounds(double x, double y, double width, double height) {
-    }
-
     SnippetDiagramView(Supplier<CompletableFuture<DiagramSource>> diagramSupplier, boolean showRegenerate) {
+        this(diagramSupplier, showRegenerate, null);
+    }
+
+    SnippetDiagramView(
+        Supplier<CompletableFuture<DiagramSource>> diagramSupplier,
+        boolean showRegenerate,
+        Consumer<CodeNavigationTarget> codeNavigationHandler) {
+
         this.diagramSupplier = diagramSupplier;
+        this.codeNavigationHandler = codeNavigationHandler;
         this.backgroundColor = SnippetDiagramSupport.normalizeHexColor(loadConfiguredBackground(), DEFAULT_BACKGROUND);
         this.colorMode = SnippetDiagramSupport.DiagramColorMode.fromKey(loadConfiguredColorMode());
         this.lastResolvedDark = colorMode.isDarkActive();
@@ -125,7 +126,10 @@ final class SnippetDiagramView extends VBox {
         installSystemThemeFocusWatcher();
 
         diagramView.setContextMenuEnabled(false);
+        diagramView.getEngine().setJavaScriptEnabled(false);
         diagramView.setMinSize(1, 1);
+        diagramView.getEngine().locationProperty().addListener((observable, oldLocation, newLocation) ->
+            handleNavigation(newLocation));
         diagramScroll.setPannable(true);
         diagramScroll.setFitToWidth(false);
         diagramScroll.setFitToHeight(false);
@@ -137,17 +141,18 @@ final class SnippetDiagramView extends VBox {
         spinnerBox = buildSpinnerBox();
         diagramStack.getChildren().addAll(diagramScroll, spinnerBox);
         VBox.setVgrow(diagramStack, Priority.ALWAYS);
-
         getChildren().addAll(buildToolbar(showRegenerate), diagramStack);
     }
 
-    // ---- Public API -----------------------------------------------------------------------------
-
-    /** (Re)loads the diagram from the supplier. Safe to call multiple times (e.g. Regenerate). */
     void reload() {
+        if (disposed) {
+            return;
+        }
+        long generation = ++sourceGeneration;
         loadedOnce = true;
-        cancelRenderTask();
-        renderedSvgPath = null;
+        cancelRender();
+        renderedSvg = null;
+        renderedPng = null;
         currentHotspots = List.of();
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -156,110 +161,109 @@ final class SnippetDiagramView extends VBox {
         try {
             future = diagramSupplier != null ? diagramSupplier.get() : null;
         } catch (RuntimeException e) {
-            showError(String.valueOf(e.getMessage()));
+            showError(e.getMessage());
             return;
         }
         if (future == null) {
             showError(I18n.get("snippets.ai.analysis.diagram.unavailable"));
             return;
         }
-        future.whenComplete((source, error) -> Platform.runLater(() -> onSourceReady(source, error)));
+        future.whenComplete((source, error) -> Platform.runLater(() -> {
+            if (!disposed && generation == sourceGeneration) {
+                onSourceReady(source, error);
+            }
+        }));
     }
 
-    /** Loads once (on first show); subsequent calls are no-ops until {@link #reload()}. */
     void loadIfNeeded() {
         if (!loadedOnce) {
             reload();
         }
     }
 
-    void dispose() {
-        cancelRenderTask();
-        if (exportTask != null && exportTask.isRunning()) {
-            exportTask.cancel(true);
-        }
+    void clear() {
+        sourceGeneration++;
+        cancelRender();
+        currentMermaid = null;
+        currentContent = "";
+        currentSourceReferences = List.of();
+        currentHotspots = List.of();
+        renderedSvg = null;
+        renderedPng = null;
+        diagramScroll.setVisible(false);
+        diagramScroll.setManaged(false);
+        spinnerBox.setVisible(false);
+        spinnerBox.setManaged(false);
+        diagramView.getEngine().loadContent("");
     }
 
-    // ---- Render lifecycle -----------------------------------------------------------------------
+    void dispose() {
+        disposed = true;
+        sourceGeneration++;
+        clear();
+    }
+
+    MermaidRenderService.RenderRequest currentRenderRequest(boolean includePng) {
+        if (currentMermaid == null || currentMermaid.isBlank()) {
+            return null;
+        }
+        return MermaidRenderService.RenderRequest.generatedFlow(
+            currentMermaid,
+            isDarkActive() ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT,
+            effectiveBackgroundColor(),
+            includePng);
+    }
 
     private void onSourceReady(DiagramSource source, Throwable error) {
         if (error != null) {
             showError(error.getMessage());
             return;
         }
-        if (source == null || source.plantUml() == null || source.plantUml().isBlank()) {
+        if (source == null || source.mermaid() == null || source.mermaid().isBlank()) {
             showError(I18n.get("snippets.ai.analysis.diagram.unavailable"));
             return;
         }
-        currentPlantUml = source.plantUml();
+        currentMermaid = source.mermaid();
         currentContent = source.content() != null ? source.content() : "";
-        currentSourceReferences = source.codeReferences() != null ? source.codeReferences() : List.of();
-        renderSvgAsync(currentPlantUml, true);
+        currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
+        renderAsync(true);
     }
 
-    /**
-     * The currently-shown diagram's PlantUML with the active appearance (background / dark palette) baked in,
-     * or {@code null} when nothing has rendered yet. Lets the analysis dialog re-render the same image for an
-     * export without reaching into the view's private render state.
-     */
-    String currentStyledPlantUml() {
-        if (currentPlantUml == null || currentPlantUml.isBlank()) {
-            return null;
+    private void renderAsync(boolean resetZoom) {
+        MermaidRenderService.RenderRequest request = currentRenderRequest(true);
+        if (request == null) {
+            return;
         }
-        return styledPlantUml(currentPlantUml);
-    }
-
-    /**
-     * @param resetZoom {@code true} for a genuinely new diagram (fit to viewport); {@code false} for a
-     *                  re-render that only changes appearance (background colour, dark mode) so the user's
-     *                  current zoom is preserved.
-     */
-    private void renderSvgAsync(String plantUml, boolean resetZoom) {
-        // Bake the chosen appearance (background colour, and dark-mode palette when active) into the PlantUML
-        // source so the rendered SVG itself is themed, not only the HTML padding around it. Without this the
-        // diagram keeps PlantUML's default white page while only the surrounding page area picks up the colour.
-        String renderSource = styledPlantUml(plantUml);
-        // Cancel any in-flight render (e.g. a rapid background-colour change) and stamp this render with a
-        // generation id so a superseded task — even one that already finished call() and cannot be cancelled —
-        // can never deliver a stale SVG through the shared handlers.
-        cancelRenderTask();
+        cancelRender();
         long generation = ++renderGeneration;
-        Task<PlantUmlRenderService.RenderResult> task = new Task<>() {
-            @Override
-            protected PlantUmlRenderService.RenderResult call() {
-                return new PlantUmlRenderService().renderSvg(renderSource);
+        renderFuture = MermaidRenderService.render(request);
+        renderFuture.whenComplete((result, error) -> Platform.runLater(() -> {
+            if (generation != renderGeneration) {
+                return;
             }
-        };
-        task.setOnSucceeded(event -> {
-            if (generation == renderGeneration) {
-                onRendered(task.getValue(), resetZoom);
+            if (error != null) {
+                showError(error.getMessage());
+            } else {
+                onRendered(result, resetZoom);
             }
-        });
-        task.setOnFailed(event -> {
-            if (generation == renderGeneration) {
-                showError(task.getException() != null ? task.getException().getMessage() : "");
-            }
-        });
-        renderTask = task;
-        Thread thread = new Thread(task, "snippet-diagram-view-render");
-        thread.setDaemon(true);
-        thread.start();
+        }));
     }
 
-    private void onRendered(PlantUmlRenderService.RenderResult result, boolean resetZoom) {
-        if (result == null || !result.success() || result.imagePath() == null) {
+    private void onRendered(MermaidRenderService.RenderResult result, boolean resetZoom) {
+        if (result == null || !result.success() || result.svg().isBlank()) {
             showError(result != null ? result.message() : "");
             return;
         }
-        renderedSvgPath = result.imagePath();
+        renderedSvg = result.svg();
+        renderedPng = result.png();
         if (resetZoom) {
             zoomFactor = 1.0;
         }
-        double[] size = readSvgSize(renderedSvgPath);
-        baseWidth = size[0];
-        baseHeight = size[1];
-        currentHotspots = buildSvgHotspots(renderedSvgPath, SnippetDiagramSupport.buildExpandedCodeReferences(
-            currentPlantUml, currentContent, currentSourceReferences));
+        double[] parsedSize = readSvgSize(renderedSvg);
+        baseWidth = result.width() > 0 ? result.width() : parsedSize[0];
+        baseHeight = result.height() > 0 ? result.height() : parsedSize[1];
+        currentHotspots = buildHotspots(result.nodeBounds(), SnippetDiagramSupport.buildExpandedCodeReferences(
+            currentMermaid, currentContent, currentSourceReferences));
         spinnerBox.setVisible(false);
         spinnerBox.setManaged(false);
         diagramScroll.setVisible(true);
@@ -267,8 +271,32 @@ final class SnippetDiagramView extends VBox {
         Platform.runLater(this::renderDiagramToFitViewport);
     }
 
+    private List<SvgHotspot> buildHotspots(
+        List<MermaidRenderService.NodeBounds> nodeBounds,
+        List<SnippetDiagramSupport.CodeReference> references) {
+
+        if (nodeBounds == null || references == null || references.isEmpty()) {
+            return List.of();
+        }
+        Map<String, SnippetDiagramSupport.CodeReference> byNodeId = new LinkedHashMap<>();
+        for (SnippetDiagramSupport.CodeReference reference : references) {
+            if (reference != null && reference.nodeId() != null && !reference.nodeId().isBlank()) {
+                byNodeId.putIfAbsent(reference.nodeId(), reference);
+            }
+        }
+        return nodeBounds.stream()
+            .map(bounds -> {
+                SnippetDiagramSupport.CodeReference reference = byNodeId.get(bounds.nodeId());
+                return reference == null ? null : new SvgHotspot(
+                    bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                    reference.startLine(), reference.endLine(), codeReferenceTooltip(reference));
+            })
+            .filter(java.util.Objects::nonNull)
+            .toList();
+    }
+
     private void renderDiagramToFitViewport() {
-        if (renderedSvgPath == null || !diagramScroll.isVisible()) {
+        if (renderedSvg == null || !diagramScroll.isVisible()) {
             return;
         }
         Bounds viewport = diagramScroll.getViewportBounds();
@@ -285,230 +313,83 @@ final class SnippetDiagramView extends VBox {
         double canvasHeight = Math.max(viewportHeight, displayHeight);
         diagramView.setZoom(1.0);
         diagramView.setPrefSize(canvasWidth, canvasHeight);
-        diagramView.getEngine().loadContent(
-            buildDiagramHtml(renderedSvgPath.toUri().toString(), canvasWidth, canvasHeight, displayWidth, displayHeight));
+        diagramView.getEngine().loadContent(buildDiagramHtml(
+            renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight));
         zoomLabel.setText(Math.round(zoom * 100) + "%");
     }
 
-    private String buildDiagramHtml(String svgUri, double canvasWidth, double canvasHeight,
-                                    double displayWidth, double displayHeight) {
+    private String buildDiagramHtml(
+        String svg,
+        double canvasWidth,
+        double canvasHeight,
+        double displayWidth,
+        double displayHeight) {
+
         double imageLeft = Math.max(0.0, (canvasWidth - displayWidth) / 2.0);
         double imageTop = Math.max(0.0, (canvasHeight - displayHeight) / 2.0);
         double scaleX = displayWidth / Math.max(1.0, baseWidth);
         double scaleY = displayHeight / Math.max(1.0, baseHeight);
-        String hotspots = buildHotspotHtml(currentHotspots, imageLeft, imageTop, scaleX, scaleY);
-        return "<!doctype html><html><head><meta charset=\"UTF-8\"><style>"
-            + "html,body{margin:0;width:" + fmt(canvasWidth) + "px;height:" + fmt(canvasHeight)
-            + "px;overflow:hidden;background:" + effectiveBackgroundColor() + ";}"
-            + "body{position:relative;}"
-            + "img{display:block;position:absolute;left:" + fmt(imageLeft) + "px;top:" + fmt(imageTop)
-            + "px;width:" + fmt(displayWidth) + "px;height:" + fmt(displayHeight) + "px;}"
-            + ".diagram-hotspot{position:absolute;border-radius:8px;cursor:default;}"
-            + ".diagram-hotspot:hover{background:rgba(37,99,235,0.08);outline:2px solid rgba(37,99,235,0.5);}"
-            + "#code-tooltip{display:none;position:absolute;z-index:20;max-width:560px;max-height:240px;overflow:auto;"
-            + "padding:8px 10px;border-radius:6px;background:rgba(24,24,27,0.94);color:#f8fafc;"
-            + "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1.35;"
-            + "white-space:pre;pointer-events:none;box-shadow:0 8px 24px rgba(15,23,42,0.25);}"
-            + "</style></head><body><img src=\"" + escapeHtml(svgUri) + "\" alt=\"\">" + hotspots
-            + "<div id=\"code-tooltip\"></div><script>"
-            + "(function(){var t=document.getElementById('code-tooltip');"
-            + "function show(e,h){t.textContent=h.getAttribute('data-tooltip')||'';t.style.display='block';move(e);}"
-            + "function move(e){var m=14,b=t.getBoundingClientRect(),l=e.clientX+m,tp=e.clientY+m;"
-            + "if(l+b.width>window.innerWidth){l=Math.max(0,e.clientX-b.width-m);}"
-            + "if(tp+b.height>window.innerHeight){tp=Math.max(0,e.clientY-b.height-m);}"
-            + "t.style.left=l+'px';t.style.top=tp+'px';}"
-            + "function hide(){t.style.display='none';}"
-            + "document.querySelectorAll('.diagram-hotspot').forEach(function(h){"
-            + "h.addEventListener('mouseenter',function(e){show(e,h);});"
-            + "h.addEventListener('mousemove',move);h.addEventListener('mouseleave',hide);});"
-            + "}());</script></body></html>";
+        return "<!doctype html><html><head><meta charset=\"UTF-8\">"
+            + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">"
+            + "<style>html,body{margin:0;width:" + fmt(canvasWidth) + "px;height:" + fmt(canvasHeight)
+            + "px;overflow:hidden;background:" + effectiveBackgroundColor() + ";}body{position:relative;}"
+            + ".diagram-svg{position:absolute;left:" + fmt(imageLeft) + "px;top:" + fmt(imageTop)
+            + "px;width:" + fmt(displayWidth) + "px;height:" + fmt(displayHeight) + "px;pointer-events:none;}"
+            + ".diagram-svg>svg{display:block;width:100%;height:100%;}"
+            + ".diagram-hotspot{position:absolute;display:block;border-radius:8px;cursor:pointer;}"
+            + ".diagram-hotspot:hover{background:rgba(37,99,235,.08);outline:2px solid rgba(37,99,235,.5);}</style>"
+            + "</head><body><div class=\"diagram-svg\">" + svg + "</div>"
+            + buildHotspotHtml(imageLeft, imageTop, scaleX, scaleY)
+            + "</body></html>";
     }
 
-    private String buildHotspotHtml(List<SvgHotspot> hotspots, double imageLeft, double imageTop,
-                                    double scaleX, double scaleY) {
-        if (hotspots == null || hotspots.isEmpty()) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder();
-        for (SvgHotspot hotspot : hotspots) {
-            double left = imageLeft + (hotspot.x() * scaleX);
-            double top = imageTop + (hotspot.y() * scaleY);
+    private String buildHotspotHtml(double imageLeft, double imageTop, double scaleX, double scaleY) {
+        StringBuilder html = new StringBuilder();
+        for (SvgHotspot hotspot : currentHotspots) {
             double width = hotspot.width() * scaleX;
             double height = hotspot.height() * scaleY;
-            if (width <= 0.0 || height <= 0.0) {
+            if (width <= 0 || height <= 0) {
                 continue;
             }
-            builder.append("<div class=\"diagram-hotspot\" data-tooltip=\"").append(escapeHtml(hotspot.tooltip()))
-                .append("\" style=\"left:").append(fmt(left)).append("px;top:").append(fmt(top))
-                .append("px;width:").append(fmt(width)).append("px;height:").append(fmt(height)).append("px;\"></div>");
-        }
-        return builder.toString();
-    }
-
-    // ---- Hotspot building (matches PlantUML activity labels to SVG shapes) -----------------------
-
-    private List<SvgHotspot> buildSvgHotspots(Path svgPath, List<SnippetDiagramSupport.CodeReference> codeReferences) {
-        if (svgPath == null || codeReferences == null || codeReferences.isEmpty()) {
-            return List.of();
-        }
-        Map<String, Deque<SnippetDiagramSupport.CodeReference>> byLabel = new LinkedHashMap<>();
-        for (SnippetDiagramSupport.CodeReference reference : codeReferences) {
-            byLabel.computeIfAbsent(normalizeSvgText(reference.label()), ignored -> new ArrayDeque<>()).add(reference);
-        }
-        try {
-            Document document = readSvgDocument(svgPath);
-            NodeList textNodes = document.getElementsByTagName("text");
-            List<SvgHotspot> hotspots = new ArrayList<>();
-            for (int i = 0; i < textNodes.getLength(); i++) {
-                if (!(textNodes.item(i) instanceof Element textElement)) {
-                    continue;
-                }
-                Deque<SnippetDiagramSupport.CodeReference> candidates = byLabel.get(normalizeSvgText(textElement.getTextContent()));
-                if (candidates == null || candidates.isEmpty()) {
-                    continue;
-                }
-                Element shape = precedingSvgShape(textElement);
-                if (shape == null) {
-                    continue;
-                }
-                SvgBounds bounds = svgShapeBounds(shape);
-                if (bounds == null || bounds.width() <= 0.0 || bounds.height() <= 0.0) {
-                    continue;
-                }
-                SnippetDiagramSupport.CodeReference reference = candidates.removeFirst();
-                hotspots.add(new SvgHotspot(reference.id(), bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                    codeReferenceTooltip(reference)));
+            String tag = codeNavigationHandler != null ? "a" : "div";
+            html.append('<').append(tag).append(" class=\"diagram-hotspot\" title=\"")
+                .append(escapeHtml(hotspot.tooltip())).append('"');
+            if (codeNavigationHandler != null) {
+                html.append(" href=\"#kortty-code-reference-").append(hotspot.startLine())
+                    .append('-').append(hotspot.endLine()).append("\"");
             }
-            return List.copyOf(hotspots);
-        } catch (Exception ignored) {
-            return List.of();
+            html.append(" style=\"left:").append(fmt(imageLeft + hotspot.x() * scaleX))
+                .append("px;top:").append(fmt(imageTop + hotspot.y() * scaleY))
+                .append("px;width:").append(fmt(width)).append("px;height:").append(fmt(height)).append("px\"></")
+                .append(tag).append('>');
         }
+        return html.toString();
     }
 
-    private static Document readSvgDocument(Path svgPath) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
-        try (InputStream inputStream = Files.newInputStream(svgPath)) {
-            return factory.newDocumentBuilder().parse(inputStream);
+    private void handleNavigation(String location) {
+        if (codeNavigationHandler == null || location == null) {
+            return;
         }
-    }
-
-    private static Element precedingSvgShape(Element textElement) {
-        org.w3c.dom.Node sibling = textElement.getPreviousSibling();
-        while (sibling != null) {
-            if (sibling instanceof Element element
-                && ("rect".equals(element.getTagName()) || "polygon".equals(element.getTagName()))) {
-                return element;
-            }
-            sibling = sibling.getPreviousSibling();
+        Matcher matcher = NAVIGATION_PATTERN.matcher(location);
+        if (!matcher.find()) {
+            return;
         }
-        return null;
+        int startLine = Integer.parseInt(matcher.group(1));
+        int endLine = Integer.parseInt(matcher.group(2));
+        codeNavigationHandler.accept(new CodeNavigationTarget(startLine, endLine));
+        Platform.runLater(this::renderDiagramToFitViewport);
     }
-
-    private static SvgBounds svgShapeBounds(Element shape) {
-        return switch (shape.getTagName()) {
-            case "rect" -> new SvgBounds(
-                parseSvgNumber(shape.getAttribute("x"), 0.0),
-                parseSvgNumber(shape.getAttribute("y"), 0.0),
-                parseSvgNumber(shape.getAttribute("width"), 0.0),
-                parseSvgNumber(shape.getAttribute("height"), 0.0));
-            case "polygon" -> polygonBounds(shape);
-            default -> null;
-        };
-    }
-
-    private static SvgBounds polygonBounds(Element polygon) {
-        Matcher matcher = POLYGON_POINT_PATTERN.matcher(polygon.getAttribute("points"));
-        double minX = Double.POSITIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
-        while (matcher.find()) {
-            double x = parseSvgNumber(matcher.group(1), 0.0);
-            double y = parseSvgNumber(matcher.group(2), 0.0);
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-        }
-        if (!Double.isFinite(minX) || !Double.isFinite(minY) || !Double.isFinite(maxX) || !Double.isFinite(maxY)) {
-            return null;
-        }
-        return new SvgBounds(minX, minY, maxX - minX, maxY - minY);
-    }
-
-    private static double parseSvgNumber(String value, double fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private static String codeReferenceTooltip(SnippetDiagramSupport.CodeReference reference) {
-        String header = reference.startLine() == reference.endLine()
-            ? I18n.get("snippets.ai.diagram.codeReference.line", reference.startLine())
-            : I18n.get("snippets.ai.diagram.codeReference.lines", reference.startLine(), reference.endLine());
-        return header + "\n" + reference.excerpt();
-    }
-
-    private static String normalizeSvgText(String value) {
-        return value != null ? value.replaceAll("\\s+", " ").trim() : "";
-    }
-
-    private static double[] readSvgSize(Path svgPath) {
-        try {
-            String svg = Files.readString(svgPath, StandardCharsets.UTF_8);
-            Matcher viewBox = SVG_VIEW_BOX_PATTERN.matcher(svg);
-            if (viewBox.find()) {
-                return new double[] {parseLength(viewBox.group(1), 900.0), parseLength(viewBox.group(2), 600.0)};
-            }
-            Matcher widthHeight = SVG_WIDTH_HEIGHT_PATTERN.matcher(svg);
-            if (widthHeight.find()) {
-                return new double[] {parseLength(widthHeight.group(1), 900.0), parseLength(widthHeight.group(2), 600.0)};
-            }
-        } catch (Exception ignored) {
-            // Fall through to defaults.
-        }
-        return new double[] {900.0, 600.0};
-    }
-
-    private static double parseLength(String value, double fallback) {
-        try {
-            double parsed = Double.parseDouble(value);
-            return parsed > 0 ? parsed : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static String fmt(double value) {
-        return String.format(Locale.ROOT, "%.2f", value);
-    }
-
-    // ---- Toolbar --------------------------------------------------------------------------------
 
     private FlowPane buildToolbar(boolean showRegenerate) {
         FlowPane toolbar = new FlowPane(6, 6);
         toolbar.setAlignment(Pos.CENTER_LEFT);
-
         if (showRegenerate) {
             Button regenerate = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.diagram.regenerate"));
             regenerate.setOnAction(event -> reload());
             toolbar.getChildren().add(regenerate);
         }
-
         buildDarkModeButton();
         toolbar.getChildren().add(darkModeButton);
-
         backgroundPicker.setOnAction(event -> changeBackground(toHex(backgroundPicker.getValue())));
         toolbar.getChildren().addAll(new Label(I18n.get("snippets.ai.diagram.backgroundColor")), backgroundPicker);
         updateBackgroundPickerState();
@@ -519,9 +400,8 @@ final class SnippetDiagramView extends VBox {
         savePng.setOnAction(event -> savePng());
         Button copyImage = new Button(I18n.get("snippets.ai.diagram.copyImage"));
         copyImage.setOnAction(event -> copyImage());
-        Button copyPlantUml = new Button(I18n.get("snippets.ai.diagram.copyPlantUml"));
-        copyPlantUml.setOnAction(event -> copyPlantUml());
-
+        Button copyMermaid = new Button(I18n.get("snippets.ai.diagram.copyMermaid"));
+        copyMermaid.setOnAction(event -> copyMermaid());
         Button zoomOut = new Button("−");
         zoomOut.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
         zoomOut.setOnAction(event -> setZoomFactor(zoomFactor - 0.15));
@@ -531,8 +411,7 @@ final class SnippetDiagramView extends VBox {
         zoomIn.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
         zoomIn.setOnAction(event -> setZoomFactor(zoomFactor + 0.15));
         zoomLabel.setMinWidth(Region.USE_PREF_SIZE);
-
-        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyPlantUml, zoomOut, zoomLabel, zoomIn, zoomFit);
+        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyMermaid, zoomOut, zoomLabel, zoomIn, zoomFit);
         return toolbar;
     }
 
@@ -549,12 +428,10 @@ final class SnippetDiagramView extends VBox {
     }
 
     private void showSpinner(String message) {
-        for (javafx.scene.Node node : spinnerBox.getChildren()) {
-            if (node instanceof ProgressIndicator indicator) {
-                indicator.setVisible(true);
-                indicator.setManaged(true);
-            }
-        }
+        spinnerBox.getChildren().stream()
+            .filter(ProgressIndicator.class::isInstance)
+            .map(ProgressIndicator.class::cast)
+            .forEach(indicator -> { indicator.setVisible(true); indicator.setManaged(true); });
         statusLabel.setText(message);
         spinnerBox.setVisible(true);
         spinnerBox.setManaged(true);
@@ -563,42 +440,35 @@ final class SnippetDiagramView extends VBox {
     private void showError(String message) {
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
-        for (javafx.scene.Node node : spinnerBox.getChildren()) {
-            if (node instanceof ProgressIndicator indicator) {
-                indicator.setVisible(false);
-                indicator.setManaged(false);
-            }
-        }
-        statusLabel.setText(I18n.get("snippets.ai.diagram.renderFailed", message != null && !message.isBlank() ? message : "?"));
+        spinnerBox.getChildren().stream()
+            .filter(ProgressIndicator.class::isInstance)
+            .map(ProgressIndicator.class::cast)
+            .forEach(indicator -> { indicator.setVisible(false); indicator.setManaged(false); });
+        statusLabel.setText(I18n.get("snippets.ai.diagram.renderFailed",
+            message != null && !message.isBlank() ? message : "?"));
         spinnerBox.setVisible(true);
         spinnerBox.setManaged(true);
     }
 
-    private void setZoomFactor(double factor) {
-        zoomFactor = Math.max(MIN_ZOOM_FACTOR, Math.min(MAX_ZOOM_FACTOR, factor));
-        renderDiagramToFitViewport();
-    }
-
-    // ---- Save / copy ----------------------------------------------------------------------------
-
     private void saveSvg() {
-        if (renderedSvgPath == null) {
+        if (renderedSvg == null) {
             return;
         }
         File target = chooseSaveFile("svg");
         if (target == null) {
             return;
         }
+        Path targetPath = ensureExtension(target.toPath(), ".svg");
         try {
-            Files.copy(renderedSvgPath, ensureExtension(target.toPath(), ".svg"), StandardCopyOption.REPLACE_EXISTING);
-            statusLabel.setText(I18n.get("snippets.ai.diagram.export.saved", target.toString()));
+            Files.writeString(targetPath, renderedSvg, StandardCharsets.UTF_8);
+            statusLabel.setText(I18n.get("snippets.ai.diagram.export.saved", targetPath.toString()));
         } catch (Exception e) {
             statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", String.valueOf(e.getMessage())));
         }
     }
 
     private void savePng() {
-        if (currentPlantUml == null) {
+        if (renderedPng == null) {
             return;
         }
         File target = chooseSaveFile("png");
@@ -606,90 +476,59 @@ final class SnippetDiagramView extends VBox {
             return;
         }
         Path targetPath = ensureExtension(target.toPath(), ".png");
-        renderPngAsync(I18n.get("snippets.ai.diagram.export.rendering"), result -> {
-            if (result != null && result.success() && result.imagePath() != null) {
-                try {
-                    Files.copy(result.imagePath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                    statusLabel.setText(I18n.get("snippets.ai.diagram.export.saved", targetPath.toString()));
-                } catch (Exception e) {
-                    statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", String.valueOf(e.getMessage())));
-                }
-            } else {
-                statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", result != null ? result.message() : "?"));
-            }
-        });
+        try {
+            Files.write(targetPath, renderedPng);
+            statusLabel.setText(I18n.get("snippets.ai.diagram.export.saved", targetPath.toString()));
+        } catch (Exception e) {
+            statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", String.valueOf(e.getMessage())));
+        }
     }
 
     private void copyImage() {
-        if (currentPlantUml == null) {
+        if (renderedPng == null) {
             return;
         }
-        renderPngAsync(I18n.get("snippets.ai.diagram.copy.rendering"), result -> {
-            if (result != null && result.success() && result.imagePath() != null) {
-                Image image = new Image(result.imagePath().toUri().toString());
-                ClipboardContent content = new ClipboardContent();
-                content.putImage(image);
-                Clipboard.getSystemClipboard().setContent(content);
-                statusLabel.setText(I18n.get("snippets.ai.diagram.copy.ready"));
-            } else {
-                statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", result != null ? result.message() : "?"));
-            }
-        });
-    }
-
-    private void copyPlantUml() {
-        if (currentPlantUml == null || currentPlantUml.isBlank()) {
+        Image image = new Image(new ByteArrayInputStream(renderedPng));
+        if (image.isError()) {
+            statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", "invalid PNG"));
             return;
         }
         ClipboardContent content = new ClipboardContent();
-        content.putString(currentPlantUml);
+        content.putImage(image);
         Clipboard.getSystemClipboard().setContent(content);
         statusLabel.setText(I18n.get("snippets.ai.diagram.copy.ready"));
     }
 
-    private void renderPngAsync(String runningStatus, Consumer<PlantUmlRenderService.RenderResult> handler) {
-        if (currentPlantUml == null) {
+    private void copyMermaid() {
+        if (currentMermaid == null || currentMermaid.isBlank()) {
             return;
         }
-        // Bake the current appearance (dark palette or the picked background) into the exported/copied image too,
-        // so a saved PNG / clipboard image matches exactly what is shown on screen.
-        String plantUml = styledPlantUml(currentPlantUml);
-        if (plantUml.isBlank()) {
-            return;
-        }
-        statusLabel.setText(runningStatus);
-        exportTask = new Task<>() {
-            @Override
-            protected PlantUmlRenderService.RenderResult call() {
-                return new PlantUmlRenderService().renderPng(plantUml);
-            }
-        };
-        exportTask.setOnSucceeded(event -> handler.accept(exportTask.getValue()));
-        exportTask.setOnFailed(event -> statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed",
-            exportTask.getException() != null ? exportTask.getException().getMessage() : "?")));
-        Thread thread = new Thread(exportTask, "snippet-diagram-view-export");
-        thread.setDaemon(true);
-        thread.start();
+        ClipboardContent content = new ClipboardContent();
+        content.putString(currentMermaid);
+        Clipboard.getSystemClipboard().setContent(content);
+        statusLabel.setText(I18n.get("snippets.ai.diagram.copyMermaid.ready"));
     }
 
     private File chooseSaveFile(String extension) {
         FileChooser chooser = new FileChooser();
         chooser.setInitialFileName("diagram." + extension);
         chooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter(extension.toUpperCase() + " (*." + extension + ")", "*." + extension));
+            new FileChooser.ExtensionFilter(extension.toUpperCase(Locale.ROOT) + " (*." + extension + ")", "*." + extension));
         Window window = getScene() != null ? getScene().getWindow() : null;
         return chooser.showSaveDialog(window);
     }
 
     private static Path ensureExtension(Path path, String dottedExtension) {
         String name = path.getFileName().toString();
-        if (name.toLowerCase().endsWith(dottedExtension)) {
-            return path;
-        }
-        return path.resolveSibling(name + dottedExtension);
+        return name.toLowerCase(Locale.ROOT).endsWith(dottedExtension)
+            ? path
+            : path.resolveSibling(name + dottedExtension);
     }
 
-    // ---- Background & dark mode -----------------------------------------------------------------
+    private void setZoomFactor(double factor) {
+        zoomFactor = Math.max(MIN_ZOOM_FACTOR, Math.min(MAX_ZOOM_FACTOR, factor));
+        renderDiagramToFitViewport();
+    }
 
     private void changeBackground(String color) {
         String normalized = SnippetDiagramSupport.normalizeHexColor(color, DEFAULT_BACKGROUND);
@@ -698,21 +537,12 @@ final class SnippetDiagramView extends VBox {
         }
         backgroundColor = normalized;
         saveConfiguredBackground(backgroundColor);
-        // The manual background colour only applies in light mode; dark mode uses its own dark canvas.
-        if (isDarkActive()) {
-            return;
-        }
-        applyBackgroundStyle();
-        // Re-render the SVG so the diagram page itself takes the new colour (baked into the PlantUML source in
-        // renderSvgAsync); a plain HTML rebuild would only recolour the surrounding page. Preserve the zoom.
-        if (currentPlantUml != null && !currentPlantUml.isBlank()) {
-            renderSvgAsync(currentPlantUml, false);
-        } else if (renderedSvgPath != null) {
-            renderDiagramToFitViewport();
+        if (!isDarkActive()) {
+            applyBackgroundStyle();
+            renderAsync(false);
         }
     }
 
-    /** Builds the "Dark mode" menu button (Auto / Light / Dark), reflecting and persisting the choice. */
     private void buildDarkModeButton() {
         darkModeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.darkMode.tooltip")));
         ToggleGroup group = new ToggleGroup();
@@ -748,43 +578,25 @@ final class SnippetDiagramView extends VBox {
         reapplyAppearance();
     }
 
-    /** Re-applies background/dark styling and re-renders (preserving zoom) after a colour-mode change. */
     private void reapplyAppearance() {
         lastResolvedDark = isDarkActive();
         updateBackgroundPickerState();
         applyBackgroundStyle();
-        if (currentPlantUml != null && !currentPlantUml.isBlank()) {
-            renderSvgAsync(currentPlantUml, false);
-        } else if (renderedSvgPath != null) {
-            renderDiagramToFitViewport();
-        }
+        renderAsync(false);
     }
 
     private boolean isDarkActive() {
         return colorMode != null && colorMode.isDarkActive();
     }
 
-    /** The colour actually shown behind the diagram: the dark canvas in dark mode, else the picked colour. */
     private String effectiveBackgroundColor() {
         return isDarkActive() ? SnippetDiagramSupport.DARK_BACKGROUND_COLOR : backgroundColor;
     }
 
-    /** Themes the PlantUML source: dark palette in dark mode, else the picked background colour. */
-    private String styledPlantUml(String plantUml) {
-        return isDarkActive()
-            ? SnippetDiagramSupport.applyDarkMode(plantUml)
-            : SnippetDiagramSupport.applyBackgroundColor(plantUml, backgroundColor);
-    }
-
     private void updateBackgroundPickerState() {
-        // The manual background colour is meaningless while dark mode drives the appearance.
         backgroundPicker.setDisable(isDarkActive());
     }
 
-    /**
-     * When the window regains focus and the mode is AUTO, re-probe the OS appearance and re-render if it
-     * flipped — so switching the system to dark/light while the diagram is open takes effect on return.
-     */
     private void installSystemThemeFocusWatcher() {
         sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
@@ -806,8 +618,7 @@ final class SnippetDiagramView extends VBox {
             return;
         }
         SystemThemeDetector.invalidateCache();
-        boolean darkNow = isDarkActive();
-        if (darkNow != lastResolvedDark) {
+        if (isDarkActive() != lastResolvedDark) {
             reapplyAppearance();
         }
     }
@@ -857,10 +668,44 @@ final class SnippetDiagramView extends VBox {
         }
     }
 
-    private void cancelRenderTask() {
-        if (renderTask != null && renderTask.isRunning()) {
-            renderTask.cancel(true);
+    private void cancelRender() {
+        renderGeneration++;
+        if (renderFuture != null && !renderFuture.isDone()) {
+            renderFuture.cancel(true);
         }
+        renderFuture = null;
+    }
+
+    private static String codeReferenceTooltip(SnippetDiagramSupport.CodeReference reference) {
+        String header = reference.startLine() == reference.endLine()
+            ? I18n.get("snippets.ai.diagram.codeReference.line", reference.startLine())
+            : I18n.get("snippets.ai.diagram.codeReference.lines", reference.startLine(), reference.endLine());
+        return header + "\n" + reference.excerpt();
+    }
+
+    private static double[] readSvgSize(String svg) {
+        Matcher viewBox = SVG_VIEW_BOX_PATTERN.matcher(svg != null ? svg : "");
+        if (viewBox.find()) {
+            return new double[] {parseLength(viewBox.group(1), 900.0), parseLength(viewBox.group(2), 600.0)};
+        }
+        Matcher widthHeight = SVG_WIDTH_HEIGHT_PATTERN.matcher(svg != null ? svg : "");
+        if (widthHeight.find()) {
+            return new double[] {parseLength(widthHeight.group(1), 900.0), parseLength(widthHeight.group(2), 600.0)};
+        }
+        return new double[] {900.0, 600.0};
+    }
+
+    private static double parseLength(String value, double fallback) {
+        try {
+            double parsed = Double.parseDouble(value);
+            return parsed > 0 ? parsed : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static String fmt(double value) {
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
     private static String toHex(Color color) {
@@ -874,6 +719,6 @@ final class SnippetDiagramView extends VBox {
     }
 
     private static String escapeHtml(String value) {
-        return SnippetAiDialogSupport.escapeHtml(value);
+        return SnippetAiDialogSupport.escapeHtml(value != null ? value : "");
     }
 }

@@ -522,7 +522,8 @@ fun runBundledNodeCommand(workingDirectory: File, vararg command: String) {
 
 val monacoWorkspaceDir = layout.buildDirectory.dir("monaco-workspace")
 val monacoGeneratedResourceDir = layout.buildDirectory.dir("generated-monaco-resources")
-val chatRenderGeneratedResourceDir = layout.buildDirectory.dir("generated-chatrender-resources")
+val mermaidGeneratedResourceDir = layout.buildDirectory.dir("generated-mermaid-resources")
+val mathJaxGeneratedResourceDir = layout.buildDirectory.dir("generated-mathjax-resources")
 val formatterWebGeneratedResourceDir = layout.buildDirectory.dir("generated-formatter-web-resources")
 
 tasks.register("copyMonacoBuildNode") {
@@ -724,8 +725,12 @@ tasks.named<ProcessResources>("processResources") {
     from(monacoGeneratedResourceDir) {
         into("")
     }
-    dependsOn("prepareChatRenderResources")
-    from(chatRenderGeneratedResourceDir) {
+    dependsOn("prepareMermaidResources")
+    from(mermaidGeneratedResourceDir) {
+        into("")
+    }
+    dependsOn("prepareMathJaxResources")
+    from(mathJaxGeneratedResourceDir) {
         into("")
     }
     dependsOn("prepareFormatterWebResources")
@@ -742,42 +747,75 @@ tasks.named<ProcessResources>("processResources") {
     exclude("icon/kortty_icon.ico")
 }
 
-// ---- AI-chat diagram/math rendering assets (mermaid + MathJax) ----------------
-// The AI chat renders ```mermaid blocks and LaTeX math in a WebView. Both libraries ship
-// prebuilt single-file browser bundles inside their npm tarballs, so no npm/node workspace is
-// needed: the pinned tarballs are downloaded, SHA-verified and the two files extracted into the
-// app resources under /chatrender/ (served from a temp dir at runtime, like Monaco).
-val chatRenderMermaidVersion = "11.16.0"
-val chatRenderMermaidSha256 = "ff48c94a0a0458b377a5187ad01407184d2a182e6476c2015b7068ff58355fae"
+// ---- Mermaid diagram and AI-chat MathJax assets -------------------------------
+// The complete Mermaid browser bundle is syntax-lowered at build time with the already pinned
+// Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
+// remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
+// WebView extracts only the library it needs.
+val mermaidVersion = "11.16.0"
+val mermaidSha256 = "ff48c94a0a0458b377a5187ad01407184d2a182e6476c2015b7068ff58355fae"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
-tasks.register("prepareChatRenderResources") {
+tasks.register("prepareMermaidResources") {
     group = "build"
-    description = "Downloads the pinned mermaid/MathJax browser bundles for AI-chat diagram and math rendering."
-    inputs.property("mermaidVersion", chatRenderMermaidVersion)
-    inputs.property("mermaidSha256", chatRenderMermaidSha256)
-    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
-    inputs.property("mathJaxSha256", chatRenderMathJaxSha256)
-    outputs.dir(chatRenderGeneratedResourceDir)
+    description = "Builds the pinned Mermaid browser bundle for the JavaFX-compatible central renderer."
+    dependsOn("prepareMonacoWorkspace")
+    inputs.property("mermaidVersion", mermaidVersion)
+    inputs.property("mermaidSha256", mermaidSha256)
+    inputs.property("esbuildVersion", monacoEsbuildVersion)
+    inputs.file("src/mermaid/build-mermaid.mjs")
+    outputs.dir(mermaidGeneratedResourceDir)
     doLast {
-        val outputDir = chatRenderGeneratedResourceDir.get().asFile.resolve("chatrender")
-        delete(chatRenderGeneratedResourceDir)
+        val outputDir = mermaidGeneratedResourceDir.get().asFile.resolve("mermaid")
+        delete(mermaidGeneratedResourceDir)
         outputDir.mkdirs()
 
-        val mermaidTarball = formatterDownloadDir.get().asFile.resolve("mermaid-$chatRenderMermaidVersion.tgz")
+        val mermaidTarball = formatterDownloadDir.get().asFile.resolve("mermaid-$mermaidVersion.tgz")
         downloadPinned(
-            "https://registry.npmjs.org/mermaid/-/mermaid-$chatRenderMermaidVersion.tgz",
+            "https://registry.npmjs.org/mermaid/-/mermaid-$mermaidVersion.tgz",
             mermaidTarball,
-            chatRenderMermaidSha256
+            mermaidSha256
         )
         copy {
             from(tarTree(resources.gzip(mermaidTarball)))
             include("package/dist/mermaid.min.js")
-            eachFile { path = name }
+            eachFile { path = "mermaid.upstream.min.js" }
             includeEmptyDirs = false
             into(outputDir)
         }
+        val upstreamBundle = outputDir.resolve("mermaid.upstream.min.js")
+        if (!upstreamBundle.isFile) {
+            throw GradleException("mermaid.min.js was not extracted from the Mermaid tarball")
+        }
+        val outputBundle = outputDir.resolve("mermaid.min.js")
+        val esbuildModule = monacoWorkspaceDir.get().asFile.resolve("node_modules/esbuild/lib/main.js")
+        runBundledNodeCommand(
+            monacoWorkspaceDir.get().asFile,
+            monacoNodeExecutable().absolutePath,
+            file("src/mermaid/build-mermaid.mjs").absolutePath,
+            upstreamBundle.absolutePath,
+            outputBundle.absolutePath,
+            esbuildModule.absolutePath
+        )
+        delete(upstreamBundle)
+        if (!outputBundle.isFile || outputBundle.length() < 1_000_000L
+            || !outputBundle.readText().contains("globalThis.mermaid=")) {
+            throw GradleException("JavaFX-compatible Mermaid bundle was not generated correctly")
+        }
+    }
+}
+
+tasks.register("prepareMathJaxResources") {
+    group = "build"
+    description = "Extracts the pinned MathJax browser bundle for AI-chat math rendering."
+    inputs.property("mathJaxVersion", chatRenderMathJaxVersion)
+    inputs.property("mathJaxSha256", chatRenderMathJaxSha256)
+    outputs.dir(mathJaxGeneratedResourceDir)
+    doLast {
+        val outputDir = mathJaxGeneratedResourceDir.get().asFile.resolve("chatrender")
+        delete(mathJaxGeneratedResourceDir)
+        outputDir.mkdirs()
 
         val mathJaxTarball = formatterDownloadDir.get().asFile.resolve("mathjax-$chatRenderMathJaxVersion.tgz")
         downloadPinned(
@@ -793,9 +831,6 @@ tasks.register("prepareChatRenderResources") {
             into(outputDir)
         }
 
-        if (!outputDir.resolve("mermaid.min.js").isFile) {
-            throw GradleException("mermaid.min.js was not extracted from the mermaid tarball")
-        }
         if (!outputDir.resolve("tex-svg.js").isFile) {
             throw GradleException("tex-svg.js was not extracted from the MathJax tarball")
         }
@@ -1801,8 +1836,20 @@ tasks.test {
     systemProperty("kortty.mosh4j.testDir", bundledMosh4jDir.get().asFile.absolutePath)
 }
 
+val packageSizeReportTest = tasks.register<Exec>("packageSizeReportTest") {
+    group = "verification"
+    description = "Runs the package-size report's PlantUML artifact regression tests."
+    inputs.files("scripts/package-size-report.py", "scripts/test_package_size_report.py")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_package_size_report.py")
+    } else {
+        commandLine("python3", "scripts/test_package_size_report.py")
+    }
+}
+
 tasks.named("check") {
-    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke")
+    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
@@ -1831,6 +1878,14 @@ tasks.register<JavaExec>("webFormatterSmoke") {
     description = "Formats web and SQL samples through the bundled Node-free JavaFX WebView backend."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.core.WebFormatterBackendSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("mermaidRendererSmoke") {
+    group = "verification"
+    description = "Renders Mermaid SVG/PNG through the bundled JavaFX WebView backend."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.MermaidRenderServiceSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

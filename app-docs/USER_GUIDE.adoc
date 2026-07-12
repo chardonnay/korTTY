@@ -668,7 +668,7 @@ Script generation:
 * Auto-loads matching AI Skills (e.g., a language-quality skill for the target language).
 * Can produce several language variants and multiple suggestions as inline tabs.
 * Supports header templates from the fixed non-deletable *Script-Header* snippet category.
-* Optionally includes a PlantUML diagram for the script logic.
+* Optionally includes a Mermaid flow diagram for the script logic.
 * Saves into the Snippet Manager with a short auto-generated name + correct extension (de-duplicated by full name incl. extension).
 * Tags the snippet as `workflow` for easy filtering.
 * Auto-sets the *System* (OS) column from the agent's probed OS (any Linux distro → Linux).
@@ -1075,7 +1075,7 @@ If AI is configured, the snippet editor offers these additional actions:
 * *AI Code > Review errors and improvements* - Generates an informational report without changing the editor content.
 * *AI Code > Improve...* - Rewrites only the selected code region. KorTTY shows a before/after preview before applying the replacement.
 * *AI Code > Security Check* - Generates a security report. Select the findings you want to fix; KorTTY asks the AI to apply only those findings and shows a before/after preview before changing the snippet.
-* *AI Code > Diagram* - Generates and reopens a persisted PlantUML logical-structure diagram for the snippet. Diagrams are saved only when the snippet itself is saved.
+* *AI Code > Diagram* - Generates and reopens a persisted Mermaid logical-structure diagram for the snippet. Diagrams are saved only when the snippet itself is saved.
 
 [WARNING]
 ====
@@ -1106,7 +1106,7 @@ The editor context menu exposes the same AI text actions and also adds *Alternat
 * remembers the dialog size you last used,
 * replaces exactly the originally selected code when you click *Apply*.
 
-PlantUML diagrams are stored with the snippet. If the snippet content changes after a diagram was generated, KorTTY marks the diagram as possibly outdated and offers regeneration with the original diagram instructions. Rendering is local only: KorTTY uses a checksum-verified PlantUML JAR and Graphviz `dot`; no remote PlantUML server is used. The diagram dialog shows the rendered image, scales it to the available area without distortion, supports zoom/fit, and can export the image as SVG/PNG or copy it to the clipboard. If local rendering is unavailable, KorTTY shows the dependency error so Java/Graphviz can be fixed locally.
+Mermaid diagrams are stored with the snippet. If the snippet content changes after a diagram was generated, KorTTY marks the diagram as possibly outdated and offers regeneration with the original diagram instructions. Rendering is local and offline through the checksum-pinned Mermaid bundle in an isolated WebView; no remote diagram server, Java subprocess, or Graphviz installation is required. The diagram dialog shows the rendered image, scales it to the available area without distortion, supports zoom/fit, and can export the image as SVG/PNG or copy it to the clipboard. Legacy PlantUML diagram payloads are discarded safely when snippets are loaded; snippet content, metadata, and chats remain intact.
 
 *Validation path:* create or edit a snippet, move the caret across a line and verify that the fixed ruler label and live marker update to the same column. Hover the live marker and verify the `Position N` tooltip. Click the ruler to set a marker, right-click it, remove the marker, then set it again and trigger formatting. For a language with local line-width support, confirm that KorTTY shows a before/after formatting preview and applies it only after acceptance. For a language without local line-width support, confirm that KorTTY asks for AI-assisted formatting and shows a preview before applying it. Use *Check Syntax* for a language without a local linter and verify that KorTTY asks for an AI-assisted syntax check. Configure a default AI profile, click *AI Code > AI Complete*, verify that a ghost suggestion appears at the cursor and inserts only on click, then select a code block and use *Improve...* or *Security Check* to confirm the before/after preview. For diagrams, generate one via *AI Code > Diagram*, save the snippet, reopen it, change the snippet content, and verify that the diagram is marked as possibly outdated. Use the diagram dialog's export/copy controls to verify PNG/SVG and clipboard output.
 

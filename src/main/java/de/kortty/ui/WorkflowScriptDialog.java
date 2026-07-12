@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Dialog that turns a finished terminal-agent run into reproducible scripts. The user picks the
  * target language(s), an optional header template and hardening options, and generates one or more
  * suggestions (shown as tabs). Each suggestion can be edited, saved to the Snippet Manager, copied,
- * or visualized as a PlantUML diagram.
+ * or visualized as a Mermaid diagram.
  */
 public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
 

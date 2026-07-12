@@ -6,39 +6,47 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Local helpers for persisted snippet diagrams.
+ * Local helpers for the restricted Mermaid flowcharts generated for snippets.
+ *
+ * <p>This is intentionally not a general Mermaid parser. AI-generated snippet diagrams use a small,
+ * deterministic dialect so source mappings remain stable and untrusted diagrams cannot opt into
+ * Mermaid features that load resources, attach callbacks, or inject their own styles.</p>
  */
 public final class SnippetDiagramSupport {
-    private static final String COLOR_SETUP = "#EAF7EF";
-    private static final String COLOR_MAIN = "#EAF4FF";
-    private static final String COLOR_FAILURE = "#FDECEC";
-    /** Dark-mode canvas + palette for {@link #applyDarkMode(String)}. */
+    public static final int MAX_MERMAID_SOURCE_BYTES = 32 * 1024;
+    public static final int MAX_MERMAID_EDGES = 300;
     public static final String DARK_BACKGROUND_COLOR = "#1E1E1E";
-    private static final String DARK_SETUP = "#26382D";
-    private static final String DARK_MAIN = "#22303D";
-    private static final String DARK_FAILURE = "#3E2A2A";
-    private static final String DARK_FOREGROUND = "#E6E6E6";
-    private static final String DARK_LINE = "#B8C2CC";
-    private static final String DARK_BORDER = "#5A6673";
-    private static final String DARK_PANEL = "#2B2B2B";
-    private static final Pattern ACTIVITY_LABEL_PATTERN =
-        Pattern.compile("^\\s*(?:#[A-Fa-f0-9]{6})?:(.*?)\\s*;\\s*(?:<<\\s*#[A-Fa-f0-9]{6}\\s*>>)?\\s*$");
-    private static final Pattern DECISION_LABEL_PATTERN =
-        Pattern.compile("^\\s*if\\s*\\((.*?)\\)\\s*then\\s*\\([^)]*\\)\\s*$", Pattern.CASE_INSENSITIVE);
+
+    private static final Set<String> SEMANTIC_CLASSES = Set.of("setup", "work", "success", "failure");
+    private static final Pattern HEADER_PATTERN = Pattern.compile("(?i)^flowchart\\s+TD\\s*;?$");
+    private static final Pattern NODE_PATTERN = Pattern.compile(
+        "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*(?:\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]|\\{\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*}|\\(\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]\\))\\s*;?$");
+    private static final Pattern EDGE_PATTERN = Pattern.compile(
+        "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*-->\\s*(?:\\|\\s*\"?([^|\"]*)\"?\\s*\\|\\s*)?([A-Za-z][A-Za-z0-9_-]{0,63})\\s*;?$");
+    private static final Pattern CLASS_PATTERN = Pattern.compile(
+        "(?i)^class\\s+([A-Za-z][A-Za-z0-9_-]{0,63}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_-]{0,63})*)\\s+(setup|work|success|failure)\\s*;?$");
+    private static final Pattern FORBIDDEN_DIRECTIVE_PATTERN = Pattern.compile(
+        "(?im)^\\s*(?:---\\s*$|%%\\{|click\\b|href\\b|style\\b|classDef\\b|linkStyle\\b)");
+    private static final Pattern FORBIDDEN_URL_PATTERN = Pattern.compile(
+        "(?i)(?:https?|ftp|file|data|javascript):|\\bwww\\.|\\burl\\s*\\(");
+    private static final Pattern FORBIDDEN_MEDIA_PATTERN = Pattern.compile(
+        "(?i)@\\{|\\b(?:img|icon)\\s*:");
+    private static final Pattern FORBIDDEN_HTML_PATTERN = Pattern.compile("<\\s*/?\\s*[A-Za-z!]");
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#[A-Fa-f0-9]{6}$");
-    private static final Pattern SKINPARAM_BACKGROUND_PATTERN =
-        Pattern.compile("(?im)^\\s*skinparam\\s+backgroundColor\\s+\\S+\\s*(?:\\R|$)");
     private static final Set<String> STOP_WORDS = Set.of(
         "a", "an", "and", "are", "as", "by", "default", "for", "from", "in", "into", "is", "main",
         "of", "or", "path", "snippet", "step", "the", "to", "with");
@@ -46,12 +54,32 @@ public final class SnippetDiagramSupport {
     private SnippetDiagramSupport() {
     }
 
-    public record CodeReference(String id, String label, int startLine, int endLine, String excerpt) {
+    /** A validated mapping used by viewers and exporters. */
+    public record CodeReference(
+        String id,
+        String nodeId,
+        String label,
+        int startLine,
+        int endLine,
+        String excerpt) {
     }
 
-    public record SourceCodeReference(String label, int startLine, int endLine) {
+    /** The source mapping returned by the AI. Node ids, rather than SVG text, are the stable key. */
+    public record SourceCodeReference(String nodeId, String label, int startLine, int endLine) {
         public SourceCodeReference {
+            nodeId = nodeId != null ? nodeId.trim() : "";
             label = label != null ? label.trim() : "";
+        }
+    }
+
+    /** Result of the local security and shape validation performed before Mermaid is invoked. */
+    public record MermaidValidation(boolean valid, String diagramType, String message) {
+        private static MermaidValidation success() {
+            return new MermaidValidation(true, "flowchart", "");
+        }
+
+        private static MermaidValidation failure(String message) {
+            return new MermaidValidation(false, "", message != null ? message : "Invalid Mermaid diagram.");
         }
     }
 
@@ -73,61 +101,261 @@ public final class SnippetDiagramSupport {
         return savedHash != null && !savedHash.isBlank() && !savedHash.equals(contentHash(currentContent));
     }
 
-    public static String normalizePlantUml(String source) {
+    /** Removes only an optional Mermaid code fence; it never repairs or broadens invalid syntax. */
+    public static String normalizeMermaid(String source) {
         String value = source != null ? source.trim() : "";
         if (value.isBlank()) {
             return "";
         }
-        value = value.replaceAll("(?s)^```(?:plantuml|puml)?\\s*", "")
-            .replaceAll("(?s)```\\s*$", "")
-            .trim();
-        if (!value.startsWith("@startuml")) {
-            value = "@startuml\n" + value;
-        }
-        if (!value.endsWith("@enduml")) {
-            value = value + "\n@enduml";
-        }
-        return value.trim();
+        Matcher fence = Pattern.compile("(?is)^```mermaid\\s*\\R(.*?)\\R?```$").matcher(value);
+        return fence.matches() ? fence.group(1).trim() : value;
     }
 
-    public static boolean isRenderablePlantUml(String source) {
-        String value = source != null ? source.trim() : "";
-        return value.startsWith("@startuml") && value.endsWith("@enduml");
-    }
-
-    public static String applyBackgroundColor(String source, String backgroundColor) {
-        String value = normalizePlantUml(source);
-        if (value.isBlank()) {
-            return value;
-        }
-        String color = normalizeHexColor(backgroundColor, "#FFFFFF");
-        String backgroundLine = "skinparam backgroundColor " + color + "\n";
-        Matcher existingBackground = SKINPARAM_BACKGROUND_PATTERN.matcher(value);
-        if (existingBackground.find()) {
-            return existingBackground.replaceFirst(Matcher.quoteReplacement(backgroundLine)).trim();
-        }
-        int firstLineEnd = value.indexOf('\n');
-        if (firstLineEnd < 0) {
-            return value + "\n" + backgroundLine.trim();
-        }
-        return (value.substring(0, firstLineEnd + 1)
-            + backgroundLine
-            + value.substring(firstLineEnd + 1)).trim();
+    public static boolean isRenderableMermaid(String source) {
+        return validateMermaid(source).valid();
     }
 
     /**
-     * How a diagram viewer picks its light/dark appearance. {@code AUTO} follows the operating system
-     * (see {@link SystemThemeDetector}); {@code LIGHT}/{@code DARK} are permanent manual choices.
+     * Validates korTTY's restricted snippet-flowchart dialect and rejects network, media, callback,
+     * frontmatter, directive and custom-style syntax before it reaches Mermaid.
      */
+    public static MermaidValidation validateMermaid(String source) {
+        if ((source != null ? source : "").getBytes(StandardCharsets.UTF_8).length > MAX_MERMAID_SOURCE_BYTES) {
+            return MermaidValidation.failure("Mermaid source exceeds the 32 KiB limit.");
+        }
+        String value = normalizeMermaid(source);
+        if (value.isBlank()) {
+            return MermaidValidation.failure("Mermaid source is empty.");
+        }
+        if (value.indexOf('\0') >= 0) {
+            return MermaidValidation.failure("Mermaid source contains an invalid NUL character.");
+        }
+        if (FORBIDDEN_DIRECTIVE_PATTERN.matcher(value).find()) {
+            return MermaidValidation.failure("Mermaid directives, callbacks and custom styles are not allowed.");
+        }
+        if (FORBIDDEN_URL_PATTERN.matcher(value).find()) {
+            return MermaidValidation.failure("Mermaid diagrams must not contain external or executable URLs.");
+        }
+        if (FORBIDDEN_MEDIA_PATTERN.matcher(value).find()) {
+            return MermaidValidation.failure("Mermaid image and icon shapes are not allowed.");
+        }
+        if (FORBIDDEN_HTML_PATTERN.matcher(value).find()) {
+            return MermaidValidation.failure("HTML labels are not allowed in Mermaid diagrams.");
+        }
+
+        ParsedDiagram parsed = parseRestrictedFlowchart(value);
+        return parsed.validation();
+    }
+
+    /**
+     * Creates a deterministic local fallback using only quoted nodes, stable ids and korTTY's four
+     * semantic classes. The unused language argument is retained because callers already supply it.
+     */
+    public static String buildFallbackLogicalStructureMermaid(String content, String snippetLanguage) {
+        String normalizedContent = content != null ? content : "";
+        String lowerContent = normalizedContent.toLowerCase(Locale.ROOT);
+        boolean assignments = hasAssignments(normalizedContent);
+        boolean conditional = hasConditionalFlow(lowerContent);
+
+        List<NodeDefinition> nodes = new ArrayList<>();
+        nodes.add(new NodeDefinition("start_1", "Start", NodeType.TERMINAL, "setup"));
+        if (assignments) {
+            nodes.add(new NodeDefinition("setup_1", "Read configured values", NodeType.ACTION, "setup"));
+        }
+        nodes.add(new NodeDefinition("work_1", "Run main snippet logic", NodeType.ACTION, "work"));
+        if (conditional) {
+            nodes.add(new NodeDefinition("decision_1", "Main command succeeds?", NodeType.DECISION, "work"));
+            nodes.add(new NodeDefinition("success_1", successAction(lowerContent), NodeType.ACTION, "success"));
+            nodes.add(new NodeDefinition("failure_1", failureAction(lowerContent), NodeType.ACTION, "failure"));
+        }
+        nodes.add(new NodeDefinition("stop_1", "Stop", NodeType.TERMINAL, "setup"));
+
+        StringBuilder builder = new StringBuilder("flowchart TD\n");
+        for (NodeDefinition node : nodes) {
+            builder.append("    ").append(node.id());
+            if (node.type() == NodeType.DECISION) {
+                builder.append("{\"").append(escapeLabel(node.label())).append("\"}");
+            } else if (node.type() == NodeType.TERMINAL) {
+                builder.append("([\"").append(escapeLabel(node.label())).append("\"])");
+            } else {
+                builder.append("[\"").append(escapeLabel(node.label())).append("\"]");
+            }
+            builder.append('\n');
+        }
+
+        builder.append(assignments ? "    start_1 --> setup_1\n" : "    start_1 --> work_1\n");
+        if (assignments) {
+            builder.append("    setup_1 --> work_1\n");
+        }
+        if (conditional) {
+            builder.append("    work_1 --> decision_1\n")
+                .append("    decision_1 -->|yes| success_1\n")
+                .append("    decision_1 -->|no| failure_1\n")
+                .append("    success_1 --> stop_1\n")
+                .append("    failure_1 --> stop_1\n");
+        } else {
+            builder.append("    work_1 --> stop_1\n");
+        }
+        for (NodeDefinition node : nodes) {
+            builder.append("    class ").append(node.id()).append(' ').append(node.semanticClass()).append('\n');
+        }
+        return builder.toString().stripTrailing();
+    }
+
+    public static List<CodeReference> buildCodeReferences(String mermaidSource, String content) {
+        String normalizedContent = content != null ? content : "";
+        if (normalizedContent.isBlank()) {
+            return List.of();
+        }
+        ParsedDiagram diagram = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        if (!diagram.validation().valid()) {
+            return List.of();
+        }
+        List<String> lines = List.of(normalizedContent.split("\\R", -1));
+        List<CodeReference> references = new ArrayList<>();
+        for (NodeDefinition node : diagram.nodes().values()) {
+            if (node.type() == NodeType.TERMINAL) {
+                continue;
+            }
+            Optional<LineRange> range = findLineRange(node.label(), node.type(), lines);
+            range.ifPresent(lineRange -> references.add(new CodeReference(
+                "ref-" + references.size(),
+                node.id(),
+                node.label(),
+                lineRange.startLine(),
+                lineRange.endLine(),
+                formatExcerpt(lines, lineRange.startLine(), lineRange.endLine()))));
+        }
+        return List.copyOf(references);
+    }
+
+    public static List<CodeReference> buildValidatedCodeReferences(
+        String mermaidSource,
+        String content,
+        List<SourceCodeReference> sourceReferences) {
+
+        String normalizedContent = content != null ? content : "";
+        if (normalizedContent.isBlank() || sourceReferences == null || sourceReferences.isEmpty()) {
+            return List.of();
+        }
+        ParsedDiagram diagram = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        if (!diagram.validation().valid()) {
+            return List.of();
+        }
+        List<String> lines = List.of(normalizedContent.split("\\R", -1));
+        List<CodeReference> references = new ArrayList<>();
+        Set<String> usedNodeIds = new LinkedHashSet<>();
+        for (SourceCodeReference sourceReference : sourceReferences) {
+            if (sourceReference == null || usedNodeIds.contains(sourceReference.nodeId())) {
+                continue;
+            }
+            NodeDefinition node = diagram.nodes().get(sourceReference.nodeId());
+            if (node == null || node.type() == NodeType.TERMINAL
+                || !normalizeDiagramLabel(node.label()).equals(normalizeDiagramLabel(sourceReference.label()))) {
+                continue;
+            }
+            int startLine = sourceReference.startLine();
+            int endLine = Math.max(startLine, sourceReference.endLine());
+            if (!isValidCodeReferenceRange(lines, startLine, endLine)) {
+                continue;
+            }
+            usedNodeIds.add(sourceReference.nodeId());
+            references.add(new CodeReference(
+                "ref-" + references.size(),
+                node.id(),
+                node.label(),
+                startLine,
+                endLine,
+                formatExcerpt(lines, startLine, endLine)));
+        }
+        return List.copyOf(references);
+    }
+
+    /**
+     * Filters an AI mapping to declared non-terminal nodes with exact labels and structurally valid
+     * positive line ranges. Bounds against the actual snippet are checked later when references are built.
+     */
+    static List<SourceCodeReference> filterValidSourceReferences(
+        String mermaidSource, List<SourceCodeReference> sourceReferences) {
+
+        if (sourceReferences == null || sourceReferences.isEmpty()) {
+            return List.of();
+        }
+        ParsedDiagram diagram = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        if (!diagram.validation().valid()) {
+            return List.of();
+        }
+        List<SourceCodeReference> filtered = new ArrayList<>();
+        Set<String> usedNodeIds = new LinkedHashSet<>();
+        for (SourceCodeReference reference : sourceReferences) {
+            if (reference == null || usedNodeIds.contains(reference.nodeId())) {
+                continue;
+            }
+            NodeDefinition node = diagram.nodes().get(reference.nodeId());
+            if (node == null || node.type() == NodeType.TERMINAL
+                || !normalizeDiagramLabel(node.label()).equals(normalizeDiagramLabel(reference.label()))
+                || reference.startLine() < 1 || reference.endLine() < reference.startLine()) {
+                continue;
+            }
+            usedNodeIds.add(reference.nodeId());
+            filtered.add(new SourceCodeReference(
+                node.id(), node.label(), reference.startLine(), reference.endLine()));
+        }
+        return List.copyOf(filtered);
+    }
+
+    public static List<CodeReference> buildExpandedCodeReferences(
+        String mermaidSource,
+        String content,
+        List<SourceCodeReference> sourceReferences) {
+
+        List<CodeReference> validated = buildValidatedCodeReferences(mermaidSource, content, sourceReferences);
+        List<CodeReference> local = buildCodeReferences(mermaidSource, content);
+        if (validated.isEmpty()) {
+            return local;
+        }
+        if (local.isEmpty()) {
+            return validated;
+        }
+        List<CodeReference> merged = new ArrayList<>(validated);
+        Set<String> coveredNodeIds = new LinkedHashSet<>();
+        validated.forEach(reference -> coveredNodeIds.add(reference.nodeId()));
+        for (CodeReference reference : local) {
+            if (coveredNodeIds.add(reference.nodeId())) {
+                merged.add(reference);
+            }
+        }
+        return withSequentialIds(merged);
+    }
+
+    static List<String> extractCodeReferenceLabels(String mermaidSource) {
+        ParsedDiagram diagram = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        return diagram.validation().valid()
+            ? diagram.nodes().values().stream()
+                .filter(node -> node.type() != NodeType.TERMINAL)
+                .map(NodeDefinition::label)
+                .toList()
+            : List.of();
+    }
+
+    static Map<String, String> extractNodeLabels(String mermaidSource) {
+        ParsedDiagram diagram = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        if (!diagram.validation().valid()) {
+            return Map.of();
+        }
+        Map<String, String> labels = new LinkedHashMap<>();
+        diagram.nodes().forEach((id, node) -> labels.put(id, node.label()));
+        return Map.copyOf(labels);
+    }
+
+    /** How a diagram viewer picks its light/dark appearance. */
     public enum DiagramColorMode {
         AUTO, LIGHT, DARK;
 
-        /** Stable lowercase key for persistence in settings. */
         public String key() {
             return name().toLowerCase(Locale.ROOT);
         }
 
-        /** Parses a persisted key, defaulting to {@link #AUTO} for null/unknown values. */
         public static DiagramColorMode fromKey(String key) {
             if (key != null) {
                 for (DiagramColorMode mode : values()) {
@@ -139,103 +367,9 @@ public final class SnippetDiagramSupport {
             return AUTO;
         }
 
-        /** @return whether a diagram should render dark for this mode right now (AUTO consults the OS). */
         public boolean isDarkActive() {
             return this == DARK || (this == AUTO && SystemThemeDetector.isSystemDarkMode());
         }
-    }
-
-    /**
-     * Rewrites {@code source} for a dark canvas: known light activity-node colours are swapped for dark
-     * equivalents, ANY other light explicit node colour the AI may have picked is darkened to a same-hue
-     * dark tint, and a skinparam block sets a dark background plus light connectors, borders, diamonds,
-     * notes and default font so the whole diagram reads on dark. This keeps the light default font legible
-     * on every card (a light card would otherwise render light-on-light). Safe to call on any source;
-     * returns "" for blank/unrenderable input.
-     */
-    public static String applyDarkMode(String source) {
-        String value = normalizePlantUml(source);
-        if (value.isBlank()) {
-            return value;
-        }
-        value = replaceColorIgnoreCase(value, COLOR_SETUP, DARK_SETUP);
-        value = replaceColorIgnoreCase(value, COLOR_MAIN, DARK_MAIN);
-        value = replaceColorIgnoreCase(value, COLOR_FAILURE, DARK_FAILURE);
-        // The AI is free to pick its own <<#RRGGBB>> palette beyond the three semantic colours (e.g. a
-        // cream "skip" card). Any such light fill would be unreadable under the light default font, so
-        // darken every remaining light node stereotype to a same-hue dark tint. Already-dark fills stay.
-        value = darkenLightActivityStereotypes(value);
-        String block = String.join("\n",
-            "skinparam backgroundColor " + DARK_BACKGROUND_COLOR,
-            "skinparam defaultFontColor " + DARK_FOREGROUND,
-            "skinparam ArrowColor " + DARK_LINE,
-            "skinparam ArrowFontColor " + DARK_FOREGROUND,
-            "skinparam ActivityBackgroundColor " + DARK_PANEL,
-            "skinparam ActivityBorderColor " + DARK_BORDER,
-            "skinparam ActivityFontColor " + DARK_FOREGROUND,
-            "skinparam ActivityDiamondBackgroundColor " + DARK_PANEL,
-            "skinparam ActivityDiamondBorderColor " + DARK_BORDER,
-            "skinparam ActivityDiamondFontColor " + DARK_FOREGROUND,
-            "skinparam ActivityStartColor " + DARK_FOREGROUND,
-            "skinparam ActivityEndColor " + DARK_FOREGROUND,
-            "skinparam ActivityBarColor " + DARK_FOREGROUND,
-            "skinparam NoteBackgroundColor " + DARK_PANEL,
-            "skinparam NoteBorderColor " + DARK_BORDER,
-            "skinparam NoteFontColor " + DARK_FOREGROUND) + "\n";
-        return insertAfterStartLine(value, block);
-    }
-
-    private static String replaceColorIgnoreCase(String value, String from, String to) {
-        return Pattern.compile(Pattern.quote(from), Pattern.CASE_INSENSITIVE)
-            .matcher(value).replaceAll(Matcher.quoteReplacement(to));
-    }
-
-    private static final Pattern ACTIVITY_STEREOTYPE_COLOR =
-        Pattern.compile("<<\\s*#([0-9A-Fa-f]{6})\\s*>>");
-
-    /**
-     * Darkens every light {@code <<#RRGGBB>>} activity-node stereotype to a same-hue dark tint so the
-     * light dark-mode font stays readable on it. Already-dark fills (including the swapped DARK_* ones)
-     * are left untouched. Covers arbitrary palette colours the AI may pick beyond the three semantic ones.
-     */
-    private static String darkenLightActivityStereotypes(String value) {
-        Matcher matcher = ACTIVITY_STEREOTYPE_COLOR.matcher(value);
-        StringBuilder builder = new StringBuilder();
-        while (matcher.find()) {
-            String hex = matcher.group(1);
-            String replacement = isLightColor(hex) ? "<<#" + darkTint(hex) + ">>" : matcher.group();
-            matcher.appendReplacement(builder, Matcher.quoteReplacement(replacement));
-        }
-        matcher.appendTail(builder);
-        return builder.toString();
-    }
-
-    /** True when the colour is bright enough that light dark-mode text would be hard to read on it. */
-    private static boolean isLightColor(String hex) {
-        int r = Integer.parseInt(hex.substring(0, 2), 16);
-        int g = Integer.parseInt(hex.substring(2, 4), 16);
-        int b = Integer.parseInt(hex.substring(4, 6), 16);
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0 > 0.5;
-    }
-
-    /** Same hue, dark brightness, saturation lifted so pastel fills still read as a tint (not flat grey). */
-    private static String darkTint(String hex) {
-        int r = Integer.parseInt(hex.substring(0, 2), 16);
-        int g = Integer.parseInt(hex.substring(2, 4), 16);
-        int b = Integer.parseInt(hex.substring(4, 6), 16);
-        float[] hsb = java.awt.Color.RGBtoHSB(r, g, b, null);
-        float saturation = Math.min(0.45f, Math.max(0.22f, hsb[1] * 2.0f));
-        java.awt.Color tint = java.awt.Color.getHSBColor(hsb[0], saturation, 0.22f);
-        return String.format(Locale.ROOT, "%02X%02X%02X", tint.getRed(), tint.getGreen(), tint.getBlue());
-    }
-
-    /** Inserts {@code block} right after the first line (the {@code @startuml} line) of a normalized source. */
-    private static String insertAfterStartLine(String value, String block) {
-        int firstLineEnd = value.indexOf('\n');
-        if (firstLineEnd < 0) {
-            return (value + "\n" + block).trim();
-        }
-        return (value.substring(0, firstLineEnd + 1) + block + value.substring(firstLineEnd + 1)).trim();
     }
 
     public static String normalizeHexColor(String color, String fallback) {
@@ -250,270 +384,105 @@ public final class SnippetDiagramSupport {
         return "#FFFFFF";
     }
 
-    public static String ensureReadableActivityColors(String source) {
-        String value = normalizePlantUml(source);
-        if (value.isBlank() || !isActivityDiagram(value)) {
-            return value;
+    private static ParsedDiagram parseRestrictedFlowchart(String source) {
+        if (source == null || source.isBlank()) {
+            return ParsedDiagram.failure("Mermaid source is empty.");
         }
-
-        StringBuilder builder = new StringBuilder();
-        FlowBranch flowBranch = FlowBranch.NEUTRAL;
-        String[] lines = value.split("\\R", -1);
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
-            String trimmed = line.trim();
-            if (trimmed.startsWith(":")) {
-                builder.append(leadingWhitespace(line))
-                    .append(colorizedActivityLine(trimmed, activityColor(trimmed, flowBranch)))
-                    .append("\n");
-            } else if (isDeprecatedColoredActivityLine(trimmed)) {
-                builder.append(leadingWhitespace(line))
-                    .append(convertDeprecatedColoredActivityLine(trimmed))
-                    .append("\n");
-            } else {
-                builder.append(line).append("\n");
-            }
-            flowBranch = nextFlowBranch(trimmed, flowBranch);
-        }
-        return builder.toString().trim();
-    }
-
-    public static String buildFallbackLogicalStructurePlantUml(String content, String snippetLanguage) {
-        String normalizedContent = content != null ? content : "";
-        String lowerContent = normalizedContent.toLowerCase(Locale.ROOT);
-        List<String> actions = new ArrayList<>();
-
-        if (hasAssignments(normalizedContent)) {
-            actions.add("Read configured values");
-        }
-        actions.add("Run main snippet logic");
-
-        StringBuilder builder = new StringBuilder();
-        builder.append("@startuml\n");
-        builder.append("start\n");
-        for (String action : actions) {
-            String color = "Run main snippet logic".equals(action) ? COLOR_MAIN : COLOR_SETUP;
-            appendColoredActivity(builder, color, action);
-        }
-        if (hasConditionalFlow(lowerContent)) {
-            builder.append("if (Main command succeeds?) then (yes)\n");
-            appendColoredActivity(builder, COLOR_SETUP, successAction(lowerContent), "  ");
-            builder.append("else (no)\n");
-            appendColoredActivity(builder, COLOR_FAILURE, failureAction(lowerContent), "  ");
-            builder.append("endif\n");
-        }
-        builder.append("stop\n");
-        builder.append("@enduml");
-        return builder.toString();
-    }
-
-    public static List<CodeReference> buildCodeReferences(String plantUmlSource, String content) {
-        String normalizedContent = content != null ? content : "";
-        if (normalizedContent.isBlank()) {
-            return List.of();
-        }
-        List<String> lines = List.of(normalizedContent.split("\\R", -1));
-        List<DiagramLabel> labels = extractDiagramLabels(plantUmlSource);
-        if (labels.isEmpty()) {
-            return List.of();
-        }
-
-        List<CodeReference> references = new ArrayList<>();
-        for (DiagramLabel label : labels) {
-            Optional<LineRange> range = findLineRange(label.label(), label.type(), lines);
-            if (range.isPresent()) {
-                LineRange lineRange = range.get();
-                references.add(new CodeReference(
-                    "ref-" + references.size(),
-                    label.label(),
-                    lineRange.startLine(),
-                    lineRange.endLine(),
-                    formatExcerpt(lines, lineRange.startLine(), lineRange.endLine())));
+        String[] lines = source.split("\\R", -1);
+        int headerIndex = -1;
+        for (int index = 0; index < lines.length; index++) {
+            if (!lines[index].isBlank()) {
+                headerIndex = index;
+                break;
             }
         }
-        return List.copyOf(references);
-    }
-
-    public static List<CodeReference> buildValidatedCodeReferences(
-        String plantUmlSource,
-        String content,
-        List<SourceCodeReference> sourceReferences) {
-
-        String normalizedContent = content != null ? content : "";
-        if (normalizedContent.isBlank() || sourceReferences == null || sourceReferences.isEmpty()) {
-            return List.of();
-        }
-        List<String> lines = List.of(normalizedContent.split("\\R", -1));
-        Set<String> diagramLabels = new LinkedHashSet<>();
-        for (DiagramLabel label : extractDiagramLabels(plantUmlSource)) {
-            diagramLabels.add(normalizeDiagramLabel(label.label()));
-        }
-        if (diagramLabels.isEmpty()) {
-            return List.of();
+        if (headerIndex < 0 || !HEADER_PATTERN.matcher(lines[headerIndex].trim()).matches()) {
+            return ParsedDiagram.failure("Snippet diagrams must start with 'flowchart TD'.");
         }
 
-        List<CodeReference> references = new ArrayList<>();
-        for (SourceCodeReference sourceReference : sourceReferences) {
-            if (sourceReference == null) {
+        Map<String, NodeDefinition> nodes = new LinkedHashMap<>();
+        Map<String, String> classes = new LinkedHashMap<>();
+        List<EdgeDefinition> edges = new ArrayList<>();
+        for (int index = headerIndex + 1; index < lines.length; index++) {
+            String line = lines[index].trim();
+            if (line.isBlank()) {
                 continue;
             }
-            String label = normalizeDiagramLabel(sourceReference.label());
-            if (label.isBlank() || !diagramLabels.contains(label)) {
+            Matcher nodeMatcher = NODE_PATTERN.matcher(line);
+            if (nodeMatcher.matches()) {
+                String id = nodeMatcher.group(1);
+                if (nodes.containsKey(id)) {
+                    return ParsedDiagram.failure("Mermaid node id is duplicated: " + id);
+                }
+                boolean decision = nodeMatcher.group(3) != null;
+                boolean terminal = nodeMatcher.group(4) != null;
+                String label = unescapeLabel(
+                    terminal ? nodeMatcher.group(4) : decision ? nodeMatcher.group(3) : nodeMatcher.group(2));
+                if (label.isBlank()) {
+                    return ParsedDiagram.failure("Mermaid nodes must have a visible label.");
+                }
+                NodeType type = terminal ? NodeType.TERMINAL : decision ? NodeType.DECISION : NodeType.ACTION;
+                nodes.put(id, new NodeDefinition(id, label, type, ""));
                 continue;
             }
-            int startLine = sourceReference.startLine();
-            int endLine = Math.max(startLine, sourceReference.endLine());
-            if (!isValidCodeReferenceRange(lines, startLine, endLine)) {
+            Matcher edgeMatcher = EDGE_PATTERN.matcher(line);
+            if (edgeMatcher.matches()) {
+                edges.add(new EdgeDefinition(edgeMatcher.group(1), edgeMatcher.group(3)));
+                if (edges.size() > MAX_MERMAID_EDGES) {
+                    return ParsedDiagram.failure("Mermaid diagram exceeds the 300-edge limit.");
+                }
                 continue;
             }
-            references.add(new CodeReference(
-                "ref-" + references.size(),
-                label,
-                startLine,
-                endLine,
-                formatExcerpt(lines, startLine, endLine)));
+            Matcher classMatcher = CLASS_PATTERN.matcher(line);
+            if (classMatcher.matches()) {
+                String semanticClass = classMatcher.group(2).toLowerCase(Locale.ROOT);
+                if (!SEMANTIC_CLASSES.contains(semanticClass)) {
+                    return ParsedDiagram.failure("Unsupported Mermaid semantic class: " + semanticClass);
+                }
+                for (String id : classMatcher.group(1).split("\\s*,\\s*")) {
+                    if (classes.putIfAbsent(id, semanticClass) != null) {
+                        return ParsedDiagram.failure("Mermaid node has more than one semantic class: " + id);
+                    }
+                }
+                continue;
+            }
+            return ParsedDiagram.failure("Unsupported Mermaid syntax on line " + (index + 1) + ".");
         }
-        return List.copyOf(references);
-    }
-
-    public static List<CodeReference> buildExpandedCodeReferences(
-        String plantUmlSource,
-        String content,
-        List<SourceCodeReference> sourceReferences) {
-
-        List<CodeReference> validatedReferences =
-            buildValidatedCodeReferences(plantUmlSource, content, sourceReferences);
-        List<CodeReference> localReferences = buildCodeReferences(plantUmlSource, content);
-        if (validatedReferences.isEmpty()) {
-            return localReferences;
+        if (nodes.isEmpty()) {
+            return ParsedDiagram.failure("Mermaid flowchart must contain at least one node.");
         }
-        if (localReferences.isEmpty()) {
-            return validatedReferences;
+        if (!isTerminalNode(nodes.get("start_1")) || !isTerminalNode(nodes.get("stop_1"))) {
+            return ParsedDiagram.failure(
+                "Snippet flowcharts must declare stable start_1 and stop_1 terminal nodes.");
         }
-
-        List<CodeReference> mergedReferences = new ArrayList<>(validatedReferences);
-        Set<String> coveredLabels = new LinkedHashSet<>();
-        for (CodeReference reference : validatedReferences) {
-            coveredLabels.add(normalizeDiagramLabel(reference.label()));
-        }
-        for (CodeReference reference : localReferences) {
-            if (coveredLabels.add(normalizeDiagramLabel(reference.label()))) {
-                mergedReferences.add(reference);
+        for (EdgeDefinition edge : edges) {
+            if (!nodes.containsKey(edge.from()) || !nodes.containsKey(edge.to())) {
+                return ParsedDiagram.failure("Mermaid edges must reference declared node ids.");
             }
         }
-        return withSequentialIds(mergedReferences);
-    }
-
-    static List<String> extractCodeReferenceLabels(String plantUmlSource) {
-        return extractDiagramLabels(plantUmlSource).stream()
-            .map(DiagramLabel::label)
-            .toList();
-    }
-
-    private static String colorizedActivityLine(String trimmedActivityLine, String color) {
-        if (hasActivityColorStereotype(trimmedActivityLine)) {
-            return trimmedActivityLine;
+        if (edges.stream().noneMatch(edge -> "start_1".equals(edge.from()))
+            || edges.stream().noneMatch(edge -> "stop_1".equals(edge.to()))) {
+            return ParsedDiagram.failure("Snippet flowcharts must connect start_1 and stop_1.");
         }
-        return trimmedActivityLine + " <<" + color + ">>";
-    }
-
-    private static boolean hasActivityColorStereotype(String trimmedActivityLine) {
-        return trimmedActivityLine.matches(".*<<\\s*#[A-Fa-f0-9]{6}\\s*>>\\s*$");
-    }
-
-    private static boolean isDeprecatedColoredActivityLine(String trimmedLine) {
-        return trimmedLine.matches("#[A-Fa-f0-9]{6}:.*");
-    }
-
-    private static String convertDeprecatedColoredActivityLine(String trimmedLine) {
-        int separatorIndex = trimmedLine.indexOf(':');
-        String color = trimmedLine.substring(0, separatorIndex);
-        String activity = trimmedLine.substring(separatorIndex);
-        return colorizedActivityLine(activity, color);
-    }
-
-    private enum FlowBranch {
-        NEUTRAL,
-        SUCCESS,
-        FAILURE
-    }
-
-    private static boolean isActivityDiagram(String source) {
-        if (!isRenderablePlantUml(source)) {
-            return false;
-        }
-        boolean hasStart = source.lines().anyMatch(line -> "start".equals(line.trim()));
-        boolean hasStop = source.lines().anyMatch(line -> "stop".equals(line.trim()));
-        boolean hasActivity = source.lines().anyMatch(line -> line.trim().startsWith(":")
-            || line.trim().matches("#[A-Za-z0-9_]+:.*"));
-        return hasStart && hasStop && hasActivity;
-    }
-
-    private static FlowBranch nextFlowBranch(String trimmed, FlowBranch currentBranch) {
-        String lower = trimmed.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("else")) {
-            return lower.contains("no") || lower.contains("fail") || lower.contains("error")
-                ? FlowBranch.FAILURE
-                : FlowBranch.NEUTRAL;
-        }
-        if (lower.startsWith("if ") && lower.contains("then")) {
-            return lower.contains("yes") || lower.contains("success") || lower.contains("ok")
-                ? FlowBranch.SUCCESS
-                : FlowBranch.NEUTRAL;
-        }
-        if (lower.startsWith("endif")) {
-            return FlowBranch.NEUTRAL;
-        }
-        return currentBranch;
-    }
-
-    private static String activityColor(String trimmedActivityLine, FlowBranch flowBranch) {
-        if (flowBranch == FlowBranch.FAILURE || containsAny(trimmedActivityLine, "fail", "error", "no-result", "no result")) {
-            return COLOR_FAILURE;
-        }
-        if (flowBranch == FlowBranch.SUCCESS || containsAny(trimmedActivityLine, "success", "complete", "ok")) {
-            return COLOR_SETUP;
-        }
-        if (containsAny(trimmedActivityLine, "config", "configuration", "option", "argument", "parse", "load", "read", "init")) {
-            return COLOR_SETUP;
-        }
-        return COLOR_MAIN;
-    }
-
-    private static boolean containsAny(String value, String... needles) {
-        String lower = value != null ? value.toLowerCase(Locale.ROOT) : "";
-        for (String needle : needles) {
-            if (lower.contains(needle)) {
-                return true;
+        for (String id : classes.keySet()) {
+            if (!nodes.containsKey(id)) {
+                return ParsedDiagram.failure("Mermaid class assignment references an unknown node id: " + id);
             }
         }
-        return false;
-    }
-
-    private static String leadingWhitespace(String value) {
-        int index = 0;
-        while (index < value.length() && Character.isWhitespace(value.charAt(index))) {
-            index++;
+        if (!classes.keySet().containsAll(nodes.keySet())) {
+            return ParsedDiagram.failure("Every Mermaid node must use a semantic setup, work, success, or failure class.");
         }
-        return value.substring(0, index);
-    }
-
-    private static void appendColoredActivity(StringBuilder builder, String color, String label) {
-        appendColoredActivity(builder, color, label, "");
-    }
-
-    private static void appendColoredActivity(StringBuilder builder, String color, String label, String indent) {
-        builder.append(indent)
-            .append(":")
-            .append(safeActivityLabel(label))
-            .append("; <<")
-            .append(color)
-            .append(">>\n");
+        Map<String, NodeDefinition> classifiedNodes = new LinkedHashMap<>();
+        nodes.forEach((id, node) -> classifiedNodes.put(
+            id, new NodeDefinition(id, node.label(), node.type(), classes.get(id))));
+        return new ParsedDiagram(
+            MermaidValidation.success(),
+            Collections.unmodifiableMap(new LinkedHashMap<>(classifiedNodes)));
     }
 
     private static boolean hasAssignments(String content) {
         return content != null && content.lines()
-            .anyMatch(line -> line.matches("\\s*[A-Za-z_][A-Za-z0-9_]*=.*"));
+            .anyMatch(line -> line.matches("\\s*(?:[A-Za-z_][A-Za-z0-9_]*|\\$[A-Za-z_][A-Za-z0-9_]*)\\s*=.*"));
     }
 
     private static boolean hasConditionalFlow(String lowerContent) {
@@ -536,70 +505,50 @@ public final class SnippetDiagramSupport {
             : "Handle failure path";
     }
 
-    private static String safeActivityLabel(String label) {
+    private static String escapeLabel(String label) {
         String value = label != null ? label : "Run step";
-        value = value.replace('\n', ' ').replace('\r', ' ');
-        value = value.replace(':', '-').replace(';', ',');
-        return value.isBlank() ? "Run step" : value.trim();
+        value = value.replace('\n', ' ').replace('\r', ' ').trim();
+        return value.replace("&", "&amp;").replace("\"", "&quot;");
     }
 
-    private static List<DiagramLabel> extractDiagramLabels(String plantUmlSource) {
-        String normalized = normalizePlantUml(plantUmlSource);
-        if (normalized.isBlank()) {
-            return List.of();
-        }
-
-        List<DiagramLabel> labels = new ArrayList<>();
-        String[] lines = normalized.split("\\R");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            Matcher activityMatcher = ACTIVITY_LABEL_PATTERN.matcher(trimmed);
-            if (activityMatcher.matches()) {
-                String label = normalizeDiagramLabel(activityMatcher.group(1));
-                if (!label.isBlank()) {
-                    labels.add(new DiagramLabel(label, DiagramLabelType.ACTIVITY));
-                }
-                continue;
-            }
-
-            Matcher decisionMatcher = DECISION_LABEL_PATTERN.matcher(trimmed);
-            if (decisionMatcher.matches()) {
-                String label = normalizeDiagramLabel(decisionMatcher.group(1));
-                if (!label.isBlank()) {
-                    labels.add(new DiagramLabel(label, DiagramLabelType.DECISION));
-                }
-            }
-        }
-        return List.copyOf(labels);
+    private static String unescapeLabel(String label) {
+        String value = label != null ? label : "";
+        return value.replace("&quot;", "\"").replace("&amp;", "&").replace("\\\"", "\"").trim();
     }
 
-    private static Optional<LineRange> findLineRange(String label, DiagramLabelType type, List<String> lines) {
+    private static String normalizeDiagramLabel(String label) {
+        String value = label != null ? label : "";
+        return value.replace("\\n", " ").replaceAll("\\s+", " ").trim();
+    }
+
+    private static Optional<LineRange> findLineRange(String label, NodeType type, List<String> lines) {
         Optional<LineRange> specialized = findSpecializedLineRange(label, type, lines);
-        if (specialized.isPresent()) {
-            return specialized;
-        }
-        return findTokenLineRange(label, lines);
+        return specialized.isPresent() ? specialized : findTokenLineRange(label, lines);
     }
 
-    private static Optional<LineRange> findSpecializedLineRange(String label, DiagramLabelType type, List<String> lines) {
+    private static Optional<LineRange> findSpecializedLineRange(String label, NodeType type, List<String> lines) {
         String lowerLabel = label.toLowerCase(Locale.ROOT);
-        if (type == DiagramLabelType.DECISION || containsAny(lowerLabel, "succeed", "condition", "test?", "found?", "csv?")) {
-            return uniqueLineRange(lines, SnippetDiagramSupport::isConditionalLine, false);
+        if (type == NodeType.DECISION || containsAny(lowerLabel, "succeed", "condition", "test?", "found?", "csv?")) {
+            return uniqueLineRange(lines, SnippetDiagramSupport::isConditionalLine);
         }
         if (containsAny(lowerLabel, "configured value", "configuration", "config", "default")) {
             return firstAssignmentRange(lines);
         }
         if (containsAny(lowerLabel, "command-line", "command line", "option", "argument")) {
-            return uniqueLineRange(lines, SnippetDiagramSupport::isOptionParsingLine, false);
+            return uniqueLineRange(lines, SnippetDiagramSupport::isOptionParsingLine);
         }
         if (containsAny(lowerLabel, "scan", "directory", "directories", "list files", "find files")) {
-            return uniqueLineRange(lines, SnippetDiagramSupport::isDirectoryScanLine, false);
+            return uniqueLineRange(lines, SnippetDiagramSupport::isDirectoryScanLine);
         }
         if (containsAny(lowerLabel, "success", "ok", "complete")) {
-            return uniqueLineRange(lines, line -> containsAny(line, "success", "succeeded", "ok", "complete"), false);
+            return uniqueLineRange(lines,
+                line -> !isConditionalLine(line)
+                    && containsAny(line, "success", "succeeded", "ok", "complete"));
         }
         if (containsAny(lowerLabel, "failure", "failed", "error", "no-result", "no result")) {
-            return uniqueLineRange(lines, line -> containsAny(line, "failure", "failed", "error", "no-result", "no result"), false);
+            return uniqueLineRange(lines,
+                line -> !isConditionalLine(line)
+                    && containsAny(line, "failure", "failed", "error", "no-result", "no result"));
         }
         if (containsAny(lowerLabel, "main snippet logic", "main logic")) {
             return firstExecutableRange(lines);
@@ -625,8 +574,7 @@ public final class SnippetDiagramSupport {
 
     private static Optional<LineRange> firstExecutableRange(List<String> lines) {
         for (int index = 0; index < lines.size(); index++) {
-            String line = lines.get(index);
-            if (isExecutableLine(line)) {
+            if (isExecutableLine(lines.get(index))) {
                 return Optional.of(new LineRange(index + 1, index + 1));
             }
         }
@@ -634,19 +582,17 @@ public final class SnippetDiagramSupport {
     }
 
     private static Optional<LineRange> uniqueLineRange(
-        List<String> lines,
-        java.util.function.Predicate<String> matcher,
-        boolean includeBlankLines) {
+        List<String> lines, java.util.function.Predicate<String> matcher) {
 
         List<Integer> matches = new ArrayList<>();
         for (int index = 0; index < lines.size(); index++) {
             String line = lines.get(index);
-            if ((includeBlankLines || !line.isBlank()) && matcher.test(line)) {
+            if (!line.isBlank() && matcher.test(line)) {
                 matches.add(index + 1);
             }
         }
         return matches.size() == 1
-            ? Optional.of(new LineRange(matches.get(0), matches.get(0)))
+            ? Optional.of(new LineRange(matches.getFirst(), matches.getFirst()))
             : Optional.empty();
     }
 
@@ -671,7 +617,7 @@ public final class SnippetDiagramSupport {
             return Optional.empty();
         }
         scores.sort(Comparator.comparingInt(LineScore::score).reversed());
-        LineScore best = scores.get(0);
+        LineScore best = scores.getFirst();
         if (scores.size() > 1 && scores.get(1).score() == best.score()) {
             return Optional.empty();
         }
@@ -689,8 +635,8 @@ public final class SnippetDiagramSupport {
     }
 
     private static Set<String> meaningfulTokens(String value) {
-        String normalized = value != null ? value.toLowerCase(Locale.ROOT) : "";
-        normalized = normalized.replaceAll("([a-z])([A-Z])", "$1 $2");
+        String normalized = value != null ? value : "";
+        normalized = normalized.replaceAll("([a-z])([A-Z])", "$1 $2").toLowerCase(Locale.ROOT);
         String[] rawTokens = normalized.split("[^a-z0-9]+");
         Set<String> tokens = new LinkedHashSet<>();
         for (String rawToken : rawTokens) {
@@ -707,33 +653,15 @@ public final class SnippetDiagramSupport {
             return "";
         }
         String value = token.toLowerCase(Locale.ROOT);
-        if (value.startsWith("config")) {
-            return "config";
-        }
-        if (value.startsWith("arg")) {
-            return "argument";
-        }
-        if (value.startsWith("dir")) {
-            return "directory";
-        }
-        if (value.startsWith("file")) {
-            return "file";
-        }
-        if (value.startsWith("notif")) {
-            return "notification";
-        }
-        if (value.startsWith("succ")) {
-            return "success";
-        }
-        if (value.startsWith("fail")) {
-            return "failure";
-        }
-        if (value.endsWith("ies") && value.length() > 4) {
-            return value.substring(0, value.length() - 3) + "y";
-        }
-        if (value.endsWith("s") && value.length() > 3) {
-            return value.substring(0, value.length() - 1);
-        }
+        if (value.startsWith("config")) return "config";
+        if (value.startsWith("arg")) return "argument";
+        if (value.startsWith("dir")) return "directory";
+        if (value.startsWith("file")) return "file";
+        if (value.startsWith("notif")) return "notification";
+        if (value.startsWith("succ")) return "success";
+        if (value.startsWith("fail")) return "failure";
+        if (value.endsWith("ies") && value.length() > 4) return value.substring(0, value.length() - 3) + "y";
+        if (value.endsWith("s") && value.length() > 3) return value.substring(0, value.length() - 1);
         return value;
     }
 
@@ -753,19 +681,17 @@ public final class SnippetDiagramSupport {
 
     private static boolean isConditionalLine(String line) {
         String trimmed = line != null ? line.trim().toLowerCase(Locale.ROOT) : "";
-        return trimmed.startsWith("if ")
-            || trimmed.startsWith("if[")
-            || trimmed.startsWith("if(")
-            || trimmed.startsWith("case ")
-            || trimmed.startsWith("when ");
+        return trimmed.startsWith("if ") || trimmed.startsWith("if[") || trimmed.startsWith("if(")
+            || trimmed.startsWith("case ") || trimmed.startsWith("when ");
     }
 
     private static boolean isOptionParsingLine(String line) {
-        return containsAny(line, "getopt", "getopts", "@argv", "argv", "$1", "$2", "--", "-h", "-v", "option", "opts");
+        return containsAny(
+            line, "getopt", "getopts", "@argv", "argv", "$1", "$2", "--", "-h", "-v", "option", "opts");
     }
 
     private static boolean isDirectoryScanLine(String line) {
-        return containsAny(line, "find ", "find(", "ls ", "opendir", "readdir", "glob", "scandir", "listfiles");
+        return containsAny(line, "find ", "find(", "ls ", "glob", "readdir", "opendir", "scandir", "listfiles");
     }
 
     private static boolean isExecutableLine(String line) {
@@ -779,9 +705,24 @@ public final class SnippetDiagramSupport {
             && !lower.equals("do")
             && !lower.equals("done")
             && !lower.equals("fi")
+            && !lower.equals("esac")
+            && !lower.equals("end")
+            && !lower.equals("}")
             && !lower.startsWith("if ")
             && !lower.startsWith("else")
             && !lower.startsWith("case ");
+    }
+
+    private static boolean isValidCodeReferenceRange(List<String> lines, int startLine, int endLine) {
+        if (lines == null || lines.isEmpty() || startLine < 1 || endLine < startLine || endLine > lines.size()) {
+            return false;
+        }
+        for (int line = startLine; line <= endLine; line++) {
+            if (!lines.get(line - 1).isBlank()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String formatExcerpt(List<String> lines, int startLine, int endLine) {
@@ -789,62 +730,53 @@ public final class SnippetDiagramSupport {
         int safeEnd = Math.max(safeStart, Math.min(endLine, lines.size()));
         int displayedEnd = Math.min(safeEnd, safeStart + 7);
         int width = String.valueOf(displayedEnd).length();
-        StringBuilder builder = new StringBuilder();
-        for (int lineNumber = safeStart; lineNumber <= displayedEnd; lineNumber++) {
-            if (!builder.isEmpty()) {
-                builder.append("\n");
+        StringBuilder excerpt = new StringBuilder();
+        for (int line = safeStart; line <= displayedEnd; line++) {
+            if (!excerpt.isEmpty()) {
+                excerpt.append('\n');
             }
-            builder.append(String.format(Locale.ROOT, "%" + width + "d | %s", lineNumber, lines.get(lineNumber - 1)));
+            excerpt.append(String.format(Locale.ROOT, "%" + width + "d | %s", line, lines.get(line - 1)));
         }
         if (displayedEnd < safeEnd) {
-            builder.append("\n...");
+            excerpt.append("\n...");
         }
-        return builder.toString();
+        return excerpt.toString();
     }
 
-    private static boolean isValidCodeReferenceRange(List<String> lines, int startLine, int endLine) {
-        if (lines == null || lines.isEmpty() || startLine < 1 || endLine < startLine || endLine > lines.size()) {
-            return false;
-        }
-        for (int lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
-            if (!lines.get(lineNumber - 1).isBlank()) {
-                return true;
-            }
+    private static boolean containsAny(String value, String... needles) {
+        String lower = value != null ? value.toLowerCase(Locale.ROOT) : "";
+        for (String needle : needles) {
+            if (lower.contains(needle)) return true;
         }
         return false;
     }
 
-    private static String normalizeDiagramLabel(String label) {
-        String value = label != null ? label : "";
-        value = value.replace("\\n", " ");
-        value = value.replaceAll("\\s+", " ").trim();
-        return value;
-    }
-
     private static List<CodeReference> withSequentialIds(List<CodeReference> references) {
-        if (references == null || references.isEmpty()) {
-            return List.of();
-        }
-        List<CodeReference> renumbered = new ArrayList<>();
+        List<CodeReference> result = new ArrayList<>();
         for (CodeReference reference : references) {
-            if (reference != null) {
-                renumbered.add(new CodeReference(
-                    "ref-" + renumbered.size(),
-                    reference.label(),
-                    reference.startLine(),
-                    reference.endLine(),
-                    reference.excerpt()));
-            }
+            result.add(new CodeReference(
+                "ref-" + result.size(), reference.nodeId(), reference.label(),
+                reference.startLine(), reference.endLine(), reference.excerpt()));
         }
-        return List.copyOf(renumbered);
+        return List.copyOf(result);
     }
 
-    private enum DiagramLabelType {
-        ACTIVITY,
-        DECISION
+    private static boolean isTerminalNode(NodeDefinition node) {
+        return node != null && node.type() == NodeType.TERMINAL;
     }
 
-    private record DiagramLabel(String label, DiagramLabelType type) {
+    private enum NodeType { ACTION, DECISION, TERMINAL }
+
+    private record NodeDefinition(String id, String label, NodeType type, String semanticClass) {
+    }
+
+    private record EdgeDefinition(String from, String to) {
+    }
+
+    private record ParsedDiagram(MermaidValidation validation, Map<String, NodeDefinition> nodes) {
+        private static ParsedDiagram failure(String message) {
+            return new ParsedDiagram(MermaidValidation.failure(message), Map.of());
+        }
     }
 
     private record LineRange(int startLine, int endLine) {

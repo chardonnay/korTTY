@@ -1,30 +1,119 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 680" role="img" aria-labelledby="title desc">
-  <title id="title">Snippet editor workflow</title>
-  <desc id="desc">Snippet editor content, Monaco column ruler, toolbar actions, local tools, cursor-aware AI assistant flows, and SFTP file mode save actions.</desc>
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#08111f}.panel{fill:#0e1b2c;stroke:#29445f;stroke-width:2;rx:18}.box{fill:#14243a;stroke:#38bdf8;stroke-width:2;rx:10}.ai{stroke:#a78bfa}.local{stroke:#34d399}.sec{stroke:#f59e0b}.title{font-size:28px;font-weight:700;fill:#f8fafc}.label{font-size:19px;font-weight:700;fill:#7dd3fc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:6 6;fill:none;marker-end:url(#arrow)}</style></defs>
-  <rect class="bg" width="1160" height="680"/>
-  <text class="title" x="40" y="54">Snippet Editor Workflow</text>
-  <text class="small" x="40" y="82">One Monaco editor surface supports snippets, SFTP file mode, local formatting, AI previews, and diagram storage.</text>
-  <rect class="panel" x="55" y="130" width="305" height="380"/>
-  <text class="label" x="85" y="165">Editor surface</text>
-  <rect class="box" x="90" y="195" width="230" height="52"/><text x="114" y="226">Monaco code area</text>
-  <rect class="box local" x="90" y="260" width="230" height="52"/><text x="115" y="286">Column ruler</text><text class="small" x="117" y="303">Column N + Position N</text>
-  <rect class="box" x="90" y="325" width="230" height="52"/><text x="122" y="356">Toolbar + menus</text>
-  <rect class="box" x="90" y="390" width="230" height="52"/><text x="118" y="421">Editor profiles</text>
-  <rect class="panel" x="420" y="130" width="300" height="380"/>
-  <text class="label" x="450" y="165">Local tools</text>
-  <rect class="box local" x="455" y="205" width="230" height="52"/><text x="485" y="237">CodeFormatterService</text>
-  <rect class="box local" x="455" y="275" width="230" height="52"/><text x="500" y="307">Syntax checks</text>
-  <rect class="box local" x="455" y="345" width="230" height="52"/><text x="505" y="377">PlantUML render</text>
-  <rect class="box local" x="455" y="415" width="230" height="52"/><text x="492" y="447">SFTP/local save</text>
-  <rect class="panel" x="780" y="130" width="320" height="380"/>
-  <text class="label" x="810" y="165">AI actions</text>
-  <rect class="box ai" x="815" y="205" width="245" height="52"/><text x="855" y="237">Ghost completion</text>
-  <rect class="box ai" x="815" y="275" width="245" height="52"/><text x="860" y="300">AI Assistant</text><text class="small" x="866" y="318">cursor + skills</text>
-  <rect class="box sec" x="815" y="345" width="245" height="52"/><text x="847" y="377">Review + security</text>
-  <rect class="box ai" x="815" y="415" width="245" height="52"/><text x="852" y="447">Diff before apply</text>
-  <path class="line" d="M320 351 H455"/><path class="line" d="M320 286 C382 250 398 231 455 231"/><path class="line" d="M320 416 C390 430 400 440 455 441"/><path class="line" d="M685 301 H815"/><path class="line" d="M685 371 H815"/><path class="dash" d="M815 441 C690 560 260 560 205 247"/>
-  <text class="small" x="88" y="575">SFTP file mode keeps the same editor functions, then writes back by overwrite, save-as, or save-as-snippet.</text>
-  <text class="small" x="88" y="602">Right-click AI Assistant sends full snippet plus cursor metadata; AI changes use explicit preview/diff actions.</text>
-  <text class="small" x="88" y="629">The ruler tracks the caret column, has a removable limit marker, and previews line-width formatting before apply.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Snippet editor and Mermaid diagram workflow</title>
+  <desc id="desc">Flow from the Monaco snippet editor through AI or local Mermaid source generation, the secure centralized renderer, the shared viewer and exports, and snippet persistence.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
+    </marker>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .grid{stroke:#14243a;stroke-width:1}
+      .panel{fill:#0d1a2b;stroke:#263f5c;stroke-width:2;rx:18}
+      .header{fill:#14243a;rx:18}
+      .box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:10}
+      .editor{stroke:#60a5fa}
+      .ai{stroke:#a78bfa}
+      .render{stroke:#34d399}
+      .secure{stroke:#f59e0b}
+      .state{stroke:#fb7185}
+      .title{font-size:30px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .panelTitle{font-size:18px;font-weight:700;fill:#7dd3fc}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc}
+      .detail{font-size:12px;fill:#b9c8da}
+      .note{font-size:13px;fill:#93a8bd}
+      .line{stroke:#67e8f9;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:1.8;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1280" height="720"/>
+  <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
+
+  <text class="title" x="42" y="52">Snippet Editor + Mermaid Workflow</text>
+  <text class="subtitle" x="42" y="80">Stable Mermaid source and code references move through one secure renderer into every diagram view and export.</text>
+
+  <rect class="panel" x="35" y="125" width="270" height="380"/>
+  <rect class="header" x="35" y="125" width="270" height="50"/>
+  <text class="panelTitle" x="62" y="157">1. Editor surface</text>
+  <rect class="box editor" x="65" y="198" width="210" height="54"/>
+  <text class="label" x="104" y="222">Monaco code area</text>
+  <text class="detail" x="96" y="241">snippet or SFTP file mode</text>
+  <rect class="box editor" x="65" y="274" width="210" height="54"/>
+  <text class="label" x="103" y="298">Local editor tools</text>
+  <text class="detail" x="90" y="317">format, syntax, ruler, profiles</text>
+  <rect class="box ai" x="65" y="350" width="210" height="54"/>
+  <text class="label" x="105" y="374">AI Code actions</text>
+  <text class="detail" x="88" y="393">diagram, analysis, regenerate</text>
+  <rect class="box state" x="65" y="426" width="210" height="54"/>
+  <text class="label" x="106" y="450">Snippet lifecycle</text>
+  <text class="detail" x="88" y="469">save, reopen, stale detection</text>
+
+  <rect class="panel" x="350" y="125" width="270" height="380"/>
+  <rect class="header" x="350" y="125" width="270" height="50"/>
+  <text class="panelTitle" x="377" y="157">2. Diagram source</text>
+  <rect class="box ai" x="380" y="198" width="210" height="70"/>
+  <text class="label" x="422" y="222">AI response</text>
+  <text class="detail" x="401" y="242">title + mermaid + references</text>
+  <text class="detail" x="408" y="258">stable nodeId and line range</text>
+  <rect class="box ai" x="380" y="291" width="210" height="70"/>
+  <text class="label" x="416" y="315">Restricted flowchart</text>
+  <text class="detail" x="405" y="335">flowchart TD, quoted labels</text>
+  <text class="detail" x="397" y="351">setup/work/success/failure</text>
+  <rect class="box secure" x="380" y="384" width="210" height="70"/>
+  <text class="label" x="412" y="408">Local fallback</text>
+  <text class="detail" x="406" y="428">same dialect without AI</text>
+  <text class="detail" x="404" y="444">used on provider failure</text>
+
+  <rect class="panel" x="665" y="125" width="270" height="380"/>
+  <rect class="header" x="665" y="125" width="270" height="50"/>
+  <text class="panelTitle" x="692" y="157">3. Central renderer</text>
+  <rect class="box secure" x="695" y="198" width="210" height="70"/>
+  <text class="label" x="725" y="222">Safety preflight</text>
+  <text class="detail" x="713" y="242">source, edge and URL limits</text>
+  <text class="detail" x="723" y="258">strict Mermaid security</text>
+  <rect class="box render" x="695" y="291" width="210" height="70"/>
+  <text class="label" x="718" y="315">MermaidRenderService</text>
+  <text class="detail" x="716" y="335">serialized lazy WebView</text>
+  <text class="detail" x="707" y="351">parse + render + node bounds</text>
+  <rect class="box render" x="695" y="384" width="210" height="70"/>
+  <text class="label" x="732" y="408">Safe output</text>
+  <text class="detail" x="718" y="428">sanitized SVG + Canvas PNG</text>
+  <text class="detail" x="711" y="444">theme and background included</text>
+
+  <rect class="panel" x="980" y="125" width="265" height="380"/>
+  <rect class="header" x="980" y="125" width="265" height="50"/>
+  <text class="panelTitle" x="1007" y="157">4. View + export</text>
+  <rect class="box render" x="1008" y="198" width="209" height="70"/>
+  <text class="label" x="1041" y="222">Shared viewer</text>
+  <text class="detail" x="1027" y="242">standalone + full analysis</text>
+  <text class="detail" x="1037" y="258">JavaScript disabled</text>
+  <rect class="box editor" x="1008" y="291" width="209" height="70"/>
+  <text class="label" x="1045" y="315">Interaction</text>
+  <text class="detail" x="1033" y="335">zoom, fit, dark, background</text>
+  <text class="detail" x="1029" y="351">node hover → source lines</text>
+  <rect class="box state" x="1008" y="384" width="209" height="70"/>
+  <text class="label" x="1053" y="408">Exports</text>
+  <text class="detail" x="1024" y="428">SVG, PNG, clipboard image</text>
+  <text class="detail" x="1026" y="444">PDF, HTML and Markdown</text>
+
+  <path class="line" d="M 305 377 H 350"/>
+  <path class="line" d="M 620 326 H 665"/>
+  <path class="line" d="M 935 326 H 980"/>
+
+  <rect class="panel" x="135" y="555" width="1010" height="105"/>
+  <rect class="box state" x="175" y="580" width="285" height="54"/>
+  <text class="label" x="214" y="604">snippets.xml persistence</text>
+  <text class="detail" x="204" y="623">mermaidSource + instructions + hash</text>
+  <rect class="box secure" x="500" y="580" width="285" height="54"/>
+  <text class="label" x="542" y="604">Upgrade compatibility</text>
+  <text class="detail" x="519" y="623">discard legacy diagram only; keep snippet</text>
+  <rect class="box render" x="825" y="580" width="285" height="54"/>
+  <text class="label" x="872" y="604">Renderer lifecycle</text>
+  <text class="detail" x="849" y="623">cancel/timeout resets; idle releases WebView</text>
+  <path class="dash" d="M 1113 505 V 555"/>
+  <path class="dash" d="M 170 505 V 540 H 318 V 580"/>
+
+  <text class="note" x="42" y="694">SFTP file mode keeps the same editor tools; diagrams are persisted only with saved snippets.</text>
 </svg>

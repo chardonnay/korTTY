@@ -55,7 +55,7 @@ final class SnippetAiAssistFactory {
             request -> reviewSnippetSecurity(ownerWindow, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> applySnippetSecurityFixes(ownerWindow, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> generateCompactOneLiner(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> generateSnippetPlantUml(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
+            request -> generateSnippetMermaid(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> analyzeSnippetCode(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             request -> applySnippetImprovements(ownerWindow, profile, aiService, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
             true,
@@ -419,7 +419,7 @@ final class SnippetAiAssistFactory {
         return aiService;
     }
 
-    private static SnippetAiResponseSupport.PlantUmlDiagram generateSnippetPlantUml(
+    private static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
         MainWindow ownerWindow,
         AiProfile profile,
         AiService aiService,
@@ -428,7 +428,7 @@ final class SnippetAiAssistFactory {
         java.util.Collection<String> forcedSkillIds) throws Exception {
 
         ResolvedProfile resolved = resolve(ownerWindow, profile, aiService, null, forcedSkillIds);
-        return SnippetAiWorkflowSupport.generateSnippetPlantUml(
+        return SnippetAiWorkflowSupport.generateSnippetMermaid(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
             request.fullContent(),

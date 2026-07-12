@@ -22,7 +22,7 @@ class AiInternetPromptSupportTest {
             AiAction.ASSIST_SNIPPET_CODE,
             AiAction.SECURITY_REVIEW_SNIPPET_CODE,
             AiAction.APPLY_SNIPPET_SECURITY_FIXES,
-            AiAction.GENERATE_SNIPPET_PLANTUML
+            AiAction.GENERATE_SNIPPET_MERMAID
         }) {
             assertThat(AiInternetPromptSupport.isInternetEligible(new AiRequest(action, "code", null, "en"))).isFalse();
         }

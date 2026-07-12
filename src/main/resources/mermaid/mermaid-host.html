@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src data:; object-src 'none'; frame-src 'none'">
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+    #render-target { position: absolute; left: -100000px; top: 0; }
+  </style>
+</head>
+<body>
+  <div id="render-target"></div>
+  <script src="mermaid.min.js"></script>
+  <script src="mermaid-host.js"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.SnippetDiagram;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -8,6 +9,28 @@ import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
 
 class SnippetDiagramSupportTest {
+
+    private static final String VALID_FLOWCHART = """
+        flowchart TD
+            start_1(["Start"])
+            setup_1["Read configured values"]
+            work_1["Run main snippet logic"]
+            decision_1{"Main command succeeds?"}
+            success_1["Send success notification"]
+            failure_1["Send failure notification"]
+            stop_1(["Stop"])
+            start_1 --> setup_1
+            setup_1 --> work_1
+            work_1 --> decision_1
+            decision_1 -->|yes| success_1
+            decision_1 -->|no| failure_1
+            success_1 --> stop_1
+            failure_1 --> stop_1
+            class start_1,stop_1,setup_1 setup
+            class work_1,decision_1 work
+            class success_1 success
+            class failure_1 failure
+        """;
 
     @Test
     void contentHashMarksDiagramStaleAfterCodeChange() {
@@ -19,178 +42,20 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
-    void normalizePlantUmlAddsBoundaries() {
-        String normalized = SnippetDiagramSupport.normalizePlantUml("start\nstop");
-
-        assertThat(normalized).startsWith("@startuml");
-        assertThat(normalized).endsWith("@enduml");
+    void normalizeMermaidRemovesOnlyExplicitMermaidFence() {
+        assertThat(SnippetDiagramSupport.normalizeMermaid("""
+            ```mermaid
+            flowchart TD
+                work_1["Run"]
+                class work_1 work
+            ```
+            """)).startsWith("flowchart TD");
+        assertThat(SnippetDiagramSupport.normalizeMermaid("```plantuml\nflowchart TD\n```"))
+            .startsWith("```plantuml");
     }
 
     @Test
-    void fallbackLogicalStructureUsesRenderableActivitySyntax() {
-        String plantUml = SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml("""
-            BACKUP_DIR="/backup"
-            tar -czf "$BACKUP_FILE" "${SOURCE_DIRS[@]}"
-            if [ $? -eq 0 ]; then
-              echo ok | mail -s Success admin@example.com
-            else
-              echo failed | mail -s Failed admin@example.com
-            fi
-            """, "bash");
-
-        assertThat(plantUml).startsWith("@startuml");
-        assertThat(plantUml).contains(":Read configured values; <<#EAF7EF>>");
-        assertThat(plantUml).contains(":Run main snippet logic; <<#EAF4FF>>");
-        assertThat(plantUml).contains("if (Main command succeeds?) then (yes)");
-        assertThat(plantUml).contains(":Send success notification; <<#EAF7EF>>");
-        assertThat(plantUml).contains(":Send failure notification; <<#FDECEC>>");
-        assertThat(plantUml).doesNotContain("component");
-        assertThat(plantUml).doesNotContain("package");
-        assertThat(plantUml).doesNotContain("class");
-        assertThat(plantUml).doesNotContain("actor");
-        assertThat(plantUml).endsWith("@enduml");
-    }
-
-    @Test
-    void ensureReadableActivityColorsColorizesPlainActivityDiagram() {
-        String plantUml = SnippetDiagramSupport.ensureReadableActivityColors("""
-            @startuml
-            start
-            :Load default configuration;
-            :Scan directory for files;
-            if (output format is CSV?) then (yes)
-              :Format and print CSV output;
-            else (no)
-              :Format and print table output;
-            endif
-            stop
-            @enduml
-            """);
-
-        assertThat(plantUml).contains(":Load default configuration; <<#EAF7EF>>");
-        assertThat(plantUml).contains(":Scan directory for files; <<#EAF4FF>>");
-        assertThat(plantUml).contains(":Format and print CSV output; <<#EAF7EF>>");
-        assertThat(plantUml).contains(":Format and print table output; <<#FDECEC>>");
-        assertThat(plantUml).doesNotContain("#EAF7EF:Load default configuration;");
-    }
-
-    @Test
-    void ensureReadableActivityColorsMigratesDeprecatedPrefixColorSyntax() {
-        String plantUml = SnippetDiagramSupport.ensureReadableActivityColors("""
-            @startuml
-            start
-            #EAF7EF:Load default configuration;
-            #FDECEC:Handle failure;
-            stop
-            @enduml
-            """);
-
-        assertThat(plantUml).contains(":Load default configuration; <<#EAF7EF>>");
-        assertThat(plantUml).contains(":Handle failure; <<#FDECEC>>");
-        assertThat(plantUml).doesNotContain("#EAF7EF:Load default configuration;");
-        assertThat(plantUml).doesNotContain("#FDECEC:Handle failure;");
-    }
-
-    @Test
-    void ensureReadableActivityColorsKeepsNonActivityDiagramUnchanged() {
-        String plantUml = """
-            @startuml
-            Alice -> Bob : hello
-            @enduml
-            """.trim();
-
-        assertThat(SnippetDiagramSupport.ensureReadableActivityColors(plantUml)).isEqualTo(plantUml);
-    }
-
-    @Test
-    void applyBackgroundColorAddsSkinparamAfterStart() {
-        String plantUml = SnippetDiagramSupport.applyBackgroundColor("""
-            @startuml
-            start
-            stop
-            @enduml
-            """, "#f4f8ff");
-
-        assertThat(plantUml).contains("@startuml\nskinparam backgroundColor #F4F8FF\nstart");
-        assertThat(plantUml).endsWith("@enduml");
-    }
-
-    @Test
-    void applyBackgroundColorReplacesExistingSkinparam() {
-        String plantUml = SnippetDiagramSupport.applyBackgroundColor("""
-            @startuml
-            skinparam backgroundColor #FFFFFF
-            start
-            stop
-            @enduml
-            """, "#202020");
-
-        assertThat(plantUml).contains("skinparam backgroundColor #202020");
-        assertThat(plantUml).doesNotContain("skinparam backgroundColor #FFFFFF");
-    }
-
-    @Test
-    void codeReferenceLabelsIncludeColoredActivitiesAndDecisions() {
-        List<String> labels = SnippetDiagramSupport.extractCodeReferenceLabels("""
-            @startuml
-            start
-            :Load default configuration; <<#EAF7EF>>
-            if (output format is CSV?) then (yes)
-              :Format and print CSV output; <<#EAF4FF>>
-            endif
-            stop
-            @enduml
-            """);
-
-        assertThat(labels).containsExactly(
-            "Load default configuration",
-            "output format is CSV?",
-            "Format and print CSV output").inOrder();
-    }
-
-    @Test
-    void buildCodeReferencesMapsOnlyDistinctLocalMatches() {
-        List<SnippetDiagramSupport.CodeReference> references = SnippetDiagramSupport.buildCodeReferences("""
-            @startuml
-            start
-            :Scan directory for files; <<#EAF4FF>>
-            :Sort files by selected criterion; <<#EAF4FF>>
-            stop
-            @enduml
-            """, """
-            SOURCE_DIR="/tmp"
-            find "$SOURCE_DIR" -type f -name '*.log'
-            sort "$file_list"
-            """);
-
-        SnippetDiagramSupport.CodeReference scanReference = findReference(references, "Scan directory for files");
-        SnippetDiagramSupport.CodeReference sortReference = findReference(references, "Sort files by selected criterion");
-
-        assertThat(scanReference.startLine()).isEqualTo(2);
-        assertThat(scanReference.endLine()).isEqualTo(2);
-        assertThat(scanReference.excerpt()).contains("2 | find \"$SOURCE_DIR\" -type f -name '*.log'");
-        assertThat(sortReference.startLine()).isEqualTo(3);
-        assertThat(sortReference.excerpt()).contains("3 | sort \"$file_list\"");
-    }
-
-    @Test
-    void buildCodeReferencesSkipsAmbiguousMatches() {
-        List<SnippetDiagramSupport.CodeReference> references = SnippetDiagramSupport.buildCodeReferences("""
-            @startuml
-            start
-            :Print output;
-            stop
-            @enduml
-            """, """
-            echo output
-            echo output
-            """);
-
-        assertThat(references).isEmpty();
-    }
-
-    @Test
-    void fallbackLogicalStructureBuildsCodeReferencesForKnownBlocks() {
+    void fallbackUsesStableIdsQuotedLabelsAndSemanticClasses() {
         String content = """
             BACKUP_DIR="/backup"
             tar -czf "$BACKUP_FILE" "${SOURCE_DIRS[@]}"
@@ -200,155 +65,187 @@ class SnippetDiagramSupportTest {
               echo failed | mail -s Failed admin@example.com
             fi
             """;
-        String plantUml = SnippetDiagramSupport.buildFallbackLogicalStructurePlantUml(content, "bash");
 
-        List<SnippetDiagramSupport.CodeReference> references =
-            SnippetDiagramSupport.buildCodeReferences(plantUml, content);
+        String first = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(content, "bash");
+        String second = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(content, "bash");
 
-        assertThat(findReference(references, "Read configured values").startLine()).isEqualTo(1);
-        assertThat(findReference(references, "Run main snippet logic").startLine()).isEqualTo(2);
-        assertThat(findReference(references, "Main command succeeds?").startLine()).isEqualTo(3);
-        assertThat(findReference(references, "Send success notification").startLine()).isEqualTo(4);
-        assertThat(findReference(references, "Send failure notification").startLine()).isEqualTo(6);
+        assertThat(first).isEqualTo(second);
+        assertThat(first).startsWith("flowchart TD");
+        assertThat(first).contains("start_1([\"Start\"])");
+        assertThat(first).contains("stop_1([\"Stop\"])");
+        assertThat(first).contains("setup_1[\"Read configured values\"]");
+        assertThat(first).contains("decision_1{\"Main command succeeds?\"}");
+        assertThat(first).contains("decision_1 -->|yes| success_1");
+        assertThat(first).contains("class work_1 work");
+        assertThat(first).contains("class failure_1 failure");
+        assertThat(SnippetDiagramSupport.validateMermaid(first).valid()).isTrue();
     }
 
     @Test
-    void buildValidatedCodeReferencesKeepsAiMapAndRejectsInvalidEntries() {
+    void localFallbackBuildsNodeIdBasedCodeReferences() {
+        String content = """
+            BACKUP_DIR="/backup"
+            tar -czf "$BACKUP_FILE" "${SOURCE_DIRS[@]}"
+            if [ $? -eq 0 ]; then
+              echo ok | mail -s Success admin@example.com
+            else
+              echo failed | mail -s Failed admin@example.com
+            fi
+            """;
+        String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(content, "bash");
+
         List<SnippetDiagramSupport.CodeReference> references =
-            SnippetDiagramSupport.buildValidatedCodeReferences("""
-                @startuml
-                start
-                :Load default configuration; <<#EAF7EF>>
-                :Run main snippet logic; <<#EAF4FF>>
-                stop
-                @enduml
-                """, """
+            SnippetDiagramSupport.buildCodeReferences(mermaid, content);
+
+        assertThat(findReference(references, "setup_1").startLine()).isEqualTo(1);
+        assertThat(findReference(references, "work_1").startLine()).isEqualTo(2);
+        assertThat(findReference(references, "decision_1").startLine()).isEqualTo(3);
+        assertThat(findReference(references, "success_1").startLine()).isEqualTo(4);
+        assertThat(findReference(references, "failure_1").startLine()).isEqualTo(6);
+        assertThat(references.stream().map(SnippetDiagramSupport.CodeReference::nodeId).toList())
+            .containsNoneOf("start_1", "stop_1");
+    }
+
+    @Test
+    void validatedCodeReferencesRequireMatchingNodeIdLabelAndLineRange() {
+        List<SnippetDiagramSupport.CodeReference> references =
+            SnippetDiagramSupport.buildValidatedCodeReferences(VALID_FLOWCHART, """
                 CONFIG=/etc/tool.conf
                 tool --config "$CONFIG"
                 """, List.of(
-                new SnippetDiagramSupport.SourceCodeReference("Load default configuration", 1, 1),
-                new SnippetDiagramSupport.SourceCodeReference("Run main snippet logic", 2, 2),
-                new SnippetDiagramSupport.SourceCodeReference("Missing diagram label", 1, 1),
-                new SnippetDiagramSupport.SourceCodeReference("Run main snippet logic", 4, 4)));
+                new SnippetDiagramSupport.SourceCodeReference("setup_1", "Read configured values", 1, 1),
+                new SnippetDiagramSupport.SourceCodeReference("work_1", "Run main snippet logic", 2, 2),
+                new SnippetDiagramSupport.SourceCodeReference("missing", "Run main snippet logic", 1, 1),
+                new SnippetDiagramSupport.SourceCodeReference("work_1", "Wrong label", 1, 1),
+                new SnippetDiagramSupport.SourceCodeReference("decision_1", "Main command succeeds?", 4, 4)));
 
         assertThat(references).hasSize(2);
-        assertThat(findReference(references, "Load default configuration").excerpt()).contains("1 | CONFIG=/etc/tool.conf");
-        assertThat(findReference(references, "Run main snippet logic").excerpt()).contains("2 | tool --config \"$CONFIG\"");
+        assertThat(references.get(0).nodeId()).isEqualTo("setup_1");
+        assertThat(references.get(0).excerpt()).contains("1 | CONFIG=/etc/tool.conf");
+        assertThat(references.get(1).nodeId()).isEqualTo("work_1");
     }
 
     @Test
-    void buildExpandedCodeReferencesUsesAiMapAndAddsLocalMatchesForMissingLabels() {
+    void expandedReferencesKeepAiRangesAndAddLocallyMatchedNodes() {
         List<SnippetDiagramSupport.CodeReference> references =
             SnippetDiagramSupport.buildExpandedCodeReferences("""
-                @startuml
-                start
-                :Read configured values; <<#EAF7EF>>
-                :Scan directory for files; <<#EAF4FF>>
-                :Sort files by selected criterion; <<#EAF4FF>>
-                stop
-                @enduml
+                flowchart TD
+                    start_1(["Start"])
+                    setup_1["Read configured values"]
+                    scan_1["Scan directory for files"]
+                    sort_1["Sort files by selected criterion"]
+                    stop_1(["Stop"])
+                    start_1 --> setup_1
+                    setup_1 --> scan_1
+                    scan_1 --> sort_1
+                    sort_1 --> stop_1
+                    class start_1,stop_1,setup_1 setup
+                    class scan_1,sort_1 work
                 """, """
                 SOURCE_DIR="/tmp"
                 find "$SOURCE_DIR" -type f -name '*.log'
                 sort "$file_list"
                 """, List.of(
-                new SnippetDiagramSupport.SourceCodeReference("Read configured values", 1, 1)));
+                new SnippetDiagramSupport.SourceCodeReference("setup_1", "Read configured values", 1, 1)));
 
         assertThat(references).hasSize(3);
-        assertThat(findReference(references, "Read configured values").startLine()).isEqualTo(1);
-        assertThat(findReference(references, "Scan directory for files").startLine()).isEqualTo(2);
-        assertThat(findReference(references, "Sort files by selected criterion").startLine()).isEqualTo(3);
+        assertThat(findReference(references, "setup_1").startLine()).isEqualTo(1);
+        assertThat(findReference(references, "scan_1").startLine()).isEqualTo(2);
+        assertThat(findReference(references, "sort_1").startLine()).isEqualTo(3);
+    }
+
+    @DataProvider
+    Object[][] forbiddenMermaidSources() {
+        return new Object[][] {
+            {"---\nconfig:\n  theme: dark\n---\n" + VALID_FLOWCHART},
+            {VALID_FLOWCHART + "\n%%{init: {'theme':'dark'}}%%"},
+            {VALID_FLOWCHART + "\nclick work_1 https://example.com"},
+            {VALID_FLOWCHART.replace("Run main snippet logic", "https://example.com/pixel.png")},
+            {VALID_FLOWCHART + "\nstyle work_1 fill:#fff"},
+            {VALID_FLOWCHART + "\nclassDef danger fill:red"},
+            {VALID_FLOWCHART.replace("work_1[\"Run main snippet logic\"]", "work_1@{ img: 'https://example.com/a.png' }")},
+            {VALID_FLOWCHART.replace("Run main snippet logic", "<b>Run</b>")}
+        };
+    }
+
+    @Test(dataProvider = "forbiddenMermaidSources")
+    void validationRejectsNetworkInteractionMediaDirectivesAndCustomStyles(String source) {
+        assertThat(SnippetDiagramSupport.validateMermaid(source).valid()).isFalse();
+    }
+
+    @Test
+    void validationEnforcesSourceAndEdgeLimits() {
+        String oversized = "flowchart TD\n    work_1[\"" + "x".repeat(33 * 1024)
+            + "\"]\n    class work_1 work";
+        assertThat(SnippetDiagramSupport.validateMermaid(oversized).message()).contains("32 KiB");
+
+        StringBuilder tooManyEdges = new StringBuilder("flowchart TD\n");
+        for (int index = 0; index <= SnippetDiagramSupport.MAX_MERMAID_EDGES + 1; index++) {
+            tooManyEdges.append("n").append(index).append("[\"Node ").append(index).append("\"]\n");
+        }
+        for (int index = 0; index <= SnippetDiagramSupport.MAX_MERMAID_EDGES; index++) {
+            tooManyEdges.append("n").append(index).append(" --> n").append(index + 1).append('\n');
+        }
+        tooManyEdges.append("class ");
+        for (int index = 0; index <= SnippetDiagramSupport.MAX_MERMAID_EDGES + 1; index++) {
+            if (index > 0) tooManyEdges.append(',');
+            tooManyEdges.append('n').append(index);
+        }
+        tooManyEdges.append(" work");
+
+        assertThat(SnippetDiagramSupport.validateMermaid(tooManyEdges.toString()).message())
+            .contains("300-edge");
+    }
+
+    @Test
+    void validationRequiresRestrictedFlowchartAndSemanticClassForEveryNode() {
+        assertThat(SnippetDiagramSupport.validateMermaid("sequenceDiagram\nAlice->>Bob: Hi").valid()).isFalse();
+        assertThat(SnippetDiagramSupport.validateMermaid("""
+            flowchart TD
+                work_1["Run"]
+                class work_1 work
+            """).message()).contains("start_1 and stop_1");
+        assertThat(SnippetDiagramSupport.validateMermaid("""
+            flowchart TD
+                start_1(["Start"])
+                work_1["Run"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                class start_1,stop_1 setup
+            """).message())
+            .contains("Every Mermaid node");
+        assertThat(SnippetDiagramSupport.validateMermaid("""
+            flowchart TD
+                start_1(["Start"])
+                work_1["Run"]
+                work_1 --> missing_1
+                work_1 --> stop_1
+                stop_1(["Stop"])
+                start_1 --> work_1
+                class start_1,stop_1 setup
+                class work_1 work
+            """).message()).contains("declared node ids");
+    }
+
+    @Test
+    void diagramColorModeAndHexColorRemainStableViewerHelpers() {
+        assertThat(SnippetDiagramSupport.normalizeHexColor("#f4f8ff", "#FFFFFF"))
+            .isEqualTo("#F4F8FF");
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("dark"))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.DARK);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("bogus"))
+            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.AUTO);
+        assertThat(SnippetDiagramSupport.DiagramColorMode.DARK.isDarkActive()).isTrue();
+        assertThat(SnippetDiagramSupport.DiagramColorMode.LIGHT.isDarkActive()).isFalse();
     }
 
     private SnippetDiagramSupport.CodeReference findReference(
-        List<SnippetDiagramSupport.CodeReference> references,
-        String label) {
+        List<SnippetDiagramSupport.CodeReference> references, String nodeId) {
 
         return references.stream()
-            .filter(reference -> label.equals(reference.label()))
+            .filter(reference -> nodeId.equals(reference.nodeId()))
             .findFirst()
             .orElseThrow();
-    }
-
-    @Test
-    void applyDarkModeDarkensKnownNodeColoursAndSetsDarkCanvas() {
-        String source = """
-            @startuml
-            start
-            :Read configured values; <<#EAF7EF>>
-            :Run main snippet logic; <<#EAF4FF>>
-            :Send failure notification; <<#FDECEC>>
-            stop
-            @enduml""";
-
-        String dark = SnippetDiagramSupport.applyDarkMode(source);
-
-        assertThat(dark).contains("skinparam backgroundColor " + SnippetDiagramSupport.DARK_BACKGROUND_COLOR);
-        assertThat(dark).contains("skinparam defaultFontColor");
-        assertThat(dark).contains("skinparam ArrowColor");
-        // The known light activity-node colours are swapped for dark equivalents.
-        assertThat(dark).doesNotContain("#EAF7EF");
-        assertThat(dark).doesNotContain("#EAF4FF");
-        assertThat(dark).doesNotContain("#FDECEC");
-        assertThat(dark).startsWith("@startuml");
-        assertThat(dark).endsWith("@enduml");
-    }
-
-    @Test
-    void applyDarkModeIsCaseInsensitiveOnKnownColours() {
-        String dark = SnippetDiagramSupport.applyDarkMode("@startuml\n:x; <<#eaf7ef>>\n@enduml");
-
-        assertThat(dark).doesNotContain("#eaf7ef");
-        assertThat(dark).doesNotContain("#EAF7EF");
-    }
-
-    @Test
-    void applyDarkModeDarkensUnknownLightNodeColours() {
-        // The AI may pick its own light palette colour beyond the three semantic ones (e.g. a cream
-        // "skip" card). It must be darkened so the light dark-mode font stays readable — light text on
-        // a light card was the reported bug.
-        String source = "@startuml\nstart\n:Skip empty message; <<#FEFECE>>\nstop\n@enduml";
-
-        String dark = SnippetDiagramSupport.applyDarkMode(source);
-
-        assertThat(dark).doesNotContain("#FEFECE");
-        java.util.regex.Matcher matcher =
-            java.util.regex.Pattern.compile("<<#([0-9A-Fa-f]{6})>>").matcher(dark);
-        assertThat(matcher.find()).isTrue();
-        String hex = matcher.group(1);
-        int r = Integer.parseInt(hex.substring(0, 2), 16);
-        int g = Integer.parseInt(hex.substring(2, 4), 16);
-        int b = Integer.parseInt(hex.substring(4, 6), 16);
-        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-        assertThat(luminance).isLessThan(0.35);
-    }
-
-    @Test
-    void applyDarkModeKeepsAlreadyDarkNodeColours() {
-        // A node whose explicit colour is already dark must be left untouched (never flipped light).
-        String dark = SnippetDiagramSupport.applyDarkMode("@startuml\n:x; <<#26382D>>\n@enduml");
-        assertThat(dark).contains("<<#26382D>>");
-    }
-
-    @Test
-    void applyDarkModeReturnsBlankForBlankSource() {
-        assertThat(SnippetDiagramSupport.applyDarkMode("   ")).isEmpty();
-        assertThat(SnippetDiagramSupport.applyDarkMode(null)).isEmpty();
-    }
-
-    @Test
-    void diagramColorModeParsesSerializesAndResolves() {
-        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("dark"))
-            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.DARK);
-        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("LIGHT"))
-            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.LIGHT);
-        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey(null))
-            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.AUTO);
-        assertThat(SnippetDiagramSupport.DiagramColorMode.fromKey("bogus"))
-            .isEqualTo(SnippetDiagramSupport.DiagramColorMode.AUTO);
-        assertThat(SnippetDiagramSupport.DiagramColorMode.DARK.key()).isEqualTo("dark");
-        // DARK/LIGHT resolve deterministically; AUTO depends on the OS and is not asserted here.
-        assertThat(SnippetDiagramSupport.DiagramColorMode.DARK.isDarkActive()).isTrue();
-        assertThat(SnippetDiagramSupport.DiagramColorMode.LIGHT.isDarkActive()).isFalse();
     }
 }

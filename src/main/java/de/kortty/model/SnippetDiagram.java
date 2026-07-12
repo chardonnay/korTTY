@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Persisted PlantUML diagram generated for a snippet.
+ * Persisted Mermaid diagram generated for a snippet.
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 public class SnippetDiagram {
@@ -26,7 +26,14 @@ public class SnippetDiagram {
     private String type = TYPE_LOGICAL_STRUCTURE;
 
     @XmlElement
-    private String plantUmlSource;
+    private String mermaidSource;
+
+    /**
+     * Read-only JAXB migration field. {@link de.kortty.core.SnippetManager} clears it immediately after
+     * unmarshalling and discards a diagram when this is its only source, so it is never written again.
+    */
+    @XmlElement(name = "plantUmlSource")
+    private String legacyDiagramSource;
 
     @XmlElement
     private String sourceContentSha256;
@@ -55,7 +62,7 @@ public class SnippetDiagram {
         this.id = source != null && source.id != null ? source.id : java.util.UUID.randomUUID().toString();
         this.title = source != null ? source.title : null;
         this.type = source != null && source.type != null ? source.type : TYPE_LOGICAL_STRUCTURE;
-        this.plantUmlSource = source != null ? source.plantUmlSource : null;
+        this.mermaidSource = source != null ? source.mermaidSource : null;
         this.sourceContentSha256 = source != null ? source.sourceContentSha256 : null;
         this.customInstructions = source != null ? source.customInstructions : null;
         this.codeReferences = source != null && source.codeReferences != null
@@ -89,12 +96,16 @@ public class SnippetDiagram {
         this.type = type != null && !type.isBlank() ? type : TYPE_LOGICAL_STRUCTURE;
     }
 
-    public String getPlantUmlSource() {
-        return plantUmlSource;
+    public String getMermaidSource() {
+        return mermaidSource;
     }
 
-    public void setPlantUmlSource(String plantUmlSource) {
-        this.plantUmlSource = plantUmlSource;
+    public void setMermaidSource(String mermaidSource) {
+        this.mermaidSource = mermaidSource;
+    }
+
+    public void discardLegacySource() {
+        legacyDiagramSource = null;
     }
 
     public String getSourceContentSha256() {
@@ -160,6 +171,9 @@ public class SnippetDiagram {
     @XmlAccessorType(XmlAccessType.FIELD)
     public static class CodeReference {
         @XmlElement
+        private String nodeId;
+
+        @XmlElement
         private String label;
 
         @XmlElement
@@ -171,16 +185,26 @@ public class SnippetDiagram {
         public CodeReference() {
         }
 
-        public CodeReference(String label, int startLine, int endLine) {
+        public CodeReference(String nodeId, String label, int startLine, int endLine) {
+            this.nodeId = nodeId;
             this.label = label;
             this.startLine = startLine;
             this.endLine = endLine;
         }
 
         public CodeReference(CodeReference source) {
+            this.nodeId = source != null ? source.nodeId : null;
             this.label = source != null ? source.label : null;
             this.startLine = source != null ? source.startLine : 0;
             this.endLine = source != null ? source.endLine : 0;
+        }
+
+        public String getNodeId() {
+            return nodeId;
+        }
+
+        public void setNodeId(String nodeId) {
+            this.nodeId = nodeId;
         }
 
         public String getLabel() {

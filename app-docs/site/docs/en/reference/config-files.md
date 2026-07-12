@@ -153,7 +153,7 @@ Code snippets, scripts, and templates.
 - ZIP archives with optional password or GPG encryption
 - Local syntax highlighting with Monaco editor
 - AI-assisted editing and code generation
-- PlantUML diagram support
+- Persisted Mermaid flowcharts with stable code-reference node IDs
 - One-liner export with optional script arguments
 
 ### snippet-variables.xml

@@ -24,7 +24,7 @@ public enum AiAction {
     SECURITY_REVIEW_SNIPPET_CODE,
     APPLY_SNIPPET_SECURITY_FIXES,
     GENERATE_SNIPPET_ONE_LINER,
-    GENERATE_SNIPPET_PLANTUML;
+    GENERATE_SNIPPET_MERMAID;
 
     /**
      * Whether this action requires a strict machine-parsed reply — a single JSON object of a fixed
@@ -39,7 +39,7 @@ public enum AiAction {
                  GENERATE_SNIPPET_ALTERNATIVES, COMPLETE_SNIPPET_CODE, REVIEW_SNIPPET_CODE,
                  ANALYZE_SNIPPET_CODE, APPLY_SNIPPET_IMPROVEMENTS, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE,
                  SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES, GENERATE_SNIPPET_ONE_LINER,
-                 GENERATE_SNIPPET_PLANTUML -> true;
+                 GENERATE_SNIPPET_MERMAID -> true;
             default -> false;
         };
     }

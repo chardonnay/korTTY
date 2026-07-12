@@ -330,6 +330,20 @@ jobs:
           fi
           ${{ steps.gradle.outputs.cmd }} clean build
 
+      - name: Install virtual display for Mermaid smoke (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get install -y xvfb
+
+      - name: Verify bundled Mermaid renderer
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a ${{ steps.gradle.outputs.cmd }} mermaidRendererSmoke
+          else
+            ${{ steps.gradle.outputs.cmd }} mermaidRendererSmoke
+          fi
+
       - name: Build macOS .app
         if: matrix.platform == 'macos'
         shell: bash

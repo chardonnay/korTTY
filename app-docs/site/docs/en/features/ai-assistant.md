@@ -163,31 +163,28 @@ AI answers that contain images, diagrams, or math formulas are rendered as image
 |--------------------------|-------------|
 | ` ```svg ` / ` ```xml ` / ` ```html ` code block (or untagged block) containing an `<svg>` document | Inline vector image |
 | Markdown image link with a `data:image/png;base64,…` URI in the answer text, or a code block containing only such a data URI | Inline raster image (PNG, JPEG, GIF, BMP; up to 8 MB decoded) with a **copy image** button |
-| ` ```plantuml ` / ` ```puml ` code block, or an untagged `@startuml` block | Locally rendered PlantUML diagram |
 | ` ```mermaid ` code block | Mermaid diagram (bundled library, no network) |
 | ` ```latex ` / ` ```tex ` / ` ```math ` code block, or `$$ … $$` math in the answer text | Typeset formula (bundled MathJax, no network) |
 
-Every rendered block keeps a header with the usual copy button and a **Show code / Show image** toggle, so the underlying source stays one click away. While a PlantUML/Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason.
+Every rendered block keeps a header with the usual copy button and a **Show code / Show image** toggle, so the underlying source stays one click away. While a Mermaid/math block is still rendering, the source remains visible; if rendering fails (for example a Mermaid syntax error), the block stays on the source view and the header shows the reason. `plantuml`/`puml` fences and untagged `@startuml` content are ordinary source-code blocks and are not rendered specially.
 
 Example prompts that produce rendered answers:
 
 ```text
 Draw a simple house as an SVG image.
 Create a Mermaid flowchart of a typical login flow.
-Create a PlantUML sequence diagram for an SSH handshake.
+Create a Mermaid sequence diagram for an SSH handshake.
 Explain the Pythagorean theorem and show the formula.
 ```
 
-A Mermaid answer block like this renders as a flowchart:
+A Mermaid answer fenced with the `mermaid` language tag and this body renders as a flowchart:
 
-````text
 ```mermaid
-graph TD;
+flowchart TD
   Login-->Validate;
   Validate-->|ok| Session;
   Validate-->|fail| Error;
 ```
-````
 
 And display math in the answer text renders as a typeset formula:
 
@@ -196,11 +193,11 @@ $$a^2 + b^2 = c^2$$
 ```
 
 !!! note "Rendering details and requirements"
-    * SVG and PlantUML output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.
-    * Mermaid runs with its `strict` security level from a locally bundled library; LaTeX is typeset by a locally bundled MathJax. Neither needs internet access.
-    * PlantUML is downloaded to the user cache on first use and accepted only when it matches korTTY's fixed SHA-256. The packaged app renders it in a private, cancellable launcher worker, so neither `java` nor `dot` must be on `PATH`; Graphviz remains optional for PlantUML diagram types that require it. See the same cache and rendering details under [Snippet diagrams](snippets.md).
+    * SVG and rendered Mermaid output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.
+    * Mermaid 11.16.0 runs with its `strict` security level from a SHA-256-pinned local bundle; LaTeX is typeset by a separately loaded local MathJax bundle. Neither needs internet access.
+    * Chat Mermaid retains the full bundled diagram support, including flowchart, sequence, class, state, ER, mindmap, and architecture diagrams. Frontmatter, directives, network/file/data/JavaScript URLs, external images/icons, links, and click callbacks are rejected; source, edge-count, raster-size, and timeout limits protect the renderer.
     * Full LaTeX documents (`\documentclass`) intentionally stay code blocks; only formulas are typeset.
-    * Rendered images use a white canvas so diagrams and formulas with dark strokes stay readable on dark themes.
+    * Mermaid follows the active chat's light/dark palette; other rendered images and formulas retain a readable neutral canvas.
 
 ## AI Manager
 
@@ -378,7 +375,7 @@ Script generation:
 * Auto-loads matching AI Skills (e.g., a language-quality skill for the target language).
 * Can produce several language variants and multiple suggestions as inline tabs.
 * Supports header templates from the fixed non-deletable **Script-Header** snippet category.
-* Optionally includes a PlantUML diagram for the script logic. A working spinner is shown while the diagram is generated, so it is clear the AI connection is busy.
+* Optionally includes a Mermaid flowchart for the script logic. A working spinner is shown while the diagram is generated, so it is clear the AI connection is busy.
 * Saves into the Snippet Manager with a short auto-generated name plus correct extension (de-duplicated by full name including extension).
 * Tags the snippet as `workflow` for easy filtering.
 * Auto-sets the **System** (OS) column from the agent's probed OS (any Linux distro becomes Linux).

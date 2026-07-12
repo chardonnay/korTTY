@@ -122,7 +122,7 @@ The **AI Code** menu groups the actions that read or rewrite the code itself:
 - **Improve readability / robustness / performance** — Rewrites the **selected** code region toward one goal without unrelated changes. *Improve robustness* additionally offers [Hardening options](../reference/hardening-options.md) before it runs.
 - **Custom improvement…** — Rewrites the selected code region following a free-text instruction you type, with the same [Hardening options](../reference/hardening-options.md).
 - **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See [Security Check](#security-check) below.
-- **Diagram** — Generates and saves a persisted PlantUML logical-structure diagram for the snippet.
+- **Diagram** — Generates and saves a persisted Mermaid logical-structure flowchart for the snippet.
 
 The editor context menu also offers **AI Assistant…**, which opens an instruction dialog for the current cursor position: KorTTY sends the full snippet, cursor offset, line, column, and your instruction to the configured AI profile and shows the result as a before/after preview.
 
@@ -155,8 +155,8 @@ A toolbar runs along the top of the window, the report and flow diagram fill the
 
 **Right — flow diagram:**
 
-- An **auto-generated flow diagram** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy PlantUML**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. See [Diagram appearance](#diagram-appearance) below.
-- **Hover code references** — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone [Diagram](#plantuml-diagrams) window.
+- An **auto-generated Mermaid flowchart** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy Mermaid**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. See [Diagram appearance](#diagram-appearance) below.
+- **Hover code references** — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone [Diagram](#mermaid-diagrams) window.
 
 **AI skills for this analysis:**
 
@@ -239,14 +239,15 @@ Right-click a selected code region and choose **Alternative solution** to:
 - Zoom an individual preview to the full dialog area
 - Apply exactly the originally selected code when ready
 
-### PlantUML diagrams
+### Mermaid diagrams
 
-PlantUML diagrams are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.
+Mermaid flowcharts are stored with the snippet. If the snippet content changes after diagram generation, KorTTY marks the diagram as possibly outdated and offers regeneration.
 
-- **Rendering:** Local only — KorTTY downloads PlantUML 1.2026.2 on first use, verifies its fixed SHA-256 and keeps the current JAR in the user cache; no remote rendering server is used.
-- **Dialog features:** Rendered image, scaling without distortion, zoom/fit, SVG/PNG export, clipboard copy, and the shared [Diagram appearance](#diagram-appearance) controls.
-- **Runtime:** A packaged app re-enters its own launcher in a private, cancellable worker mode because the stripped runtime intentionally has no `bin/java`; development runs can use their bundled or system Java. Graphviz `dot` is optional for korTTY's activity/sequence diagrams and is needed only by PlantUML diagram types that depend on Graphviz.
-- **Cache hygiene:** Obsolete PlantUML versions, legacy SHA-1 files and abandoned render directories older than 24 hours are removed automatically.
+- **Generation:** AI-generated and local fallback diagrams use a compact `flowchart TD` dialect with stable node IDs and the semantic classes `setup`, `work`, `success`, and `failure`; code references map those IDs to exact snippet lines.
+- **Rendering:** Local only — the SHA-256-pinned Mermaid 11.16.0 browser bundle is included with KorTTY and runs in an isolated, lazily created JavaFX WebView. No rendering server, Graphviz installation, Java subprocess, or first-use download is required.
+- **Dialog features:** Sanitized SVG display with JavaScript disabled, scaling without distortion, zoom/fit, SVG/PNG export, image and Mermaid-source clipboard copy, hover code references, and the shared [Diagram appearance](#diagram-appearance) controls.
+- **Safety and recovery:** KorTTY rejects frontmatter, directives, links, callbacks, external images/icons, oversized sources and overly complex graphs before rendering. Requests are serialized with a 30-second timeout; cancellation or timeout discards the renderer, and the hidden WebView is released after idle time.
+- **Upgrade cleanup:** Saved legacy diagram entries are discarded without removing their owning snippets or chats. KorTTY also removes its retired diagram-renderer download cache and abandoned temporary render directories without following symbolic links.
 
 ### Diagram appearance
 

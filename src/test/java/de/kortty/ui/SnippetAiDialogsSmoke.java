@@ -121,10 +121,11 @@ public final class SnippetAiDialogsSmoke {
                     "OPT-1", "optimization", "low", "Avoid re-downloading",
                     "The asset is fetched twice.", "Cache the download.", null)));
         // The diagram viewer only renders when the dialog is shown (setOnShown), which the smoke never does,
-        // so no PlantUML is invoked; the supplier is just a placeholder source.
+        // so no Mermaid render is invoked; the supplier is just a placeholder source.
         java.util.function.Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader =
             () -> CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
-                "@startuml\nstart\n:Analyze;\nstop\n@enduml", "print 'x';\n", java.util.List.of()));
+                de.kortty.core.SnippetDiagramSupport.buildFallbackLogicalStructureMermaid("print 'x';\n", "perl"),
+                "print 'x';\n", java.util.List.of()));
         List<de.kortty.model.AiSkill> analysisSkills = List.of(
             smokeSkill("skill-bash", "Bash hardening", "Adds strict mode, traps and safe expansions"),
             smokeSkill("skill-posix", "POSIX portability", "Prefers POSIX-compliant constructs"));

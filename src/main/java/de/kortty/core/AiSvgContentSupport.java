@@ -90,7 +90,10 @@ public final class AiSvgContentSupport {
      * available width while keeping its aspect ratio.
      */
     public static String buildSvgHtml(String sanitizedSvg) {
-        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
+        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+            + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; "
+            + "style-src 'unsafe-inline'; object-src 'none'; frame-src 'none'; connect-src 'none'\">"
+            + "<style>"
             + "html,body{margin:0;padding:8px;background:#ffffff;}"
             + "svg{max-width:100%;height:auto;display:block;margin:0 auto;}"
             + "</style></head><body>"

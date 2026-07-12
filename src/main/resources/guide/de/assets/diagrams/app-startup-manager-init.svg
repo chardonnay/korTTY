@@ -1,68 +1,90 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
-  <title id="title">korTTY startup &amp; manager init</title>
-  <desc id="desc">Cold launch from Launcher through manager initialization to a ready main window.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">KorTTY startup and lazy service initialization</title>
+  <desc id="desc">Cold launch performs best-effort legacy diagram cleanup, loads local state and credentials, initializes managers, shows the main window, and creates browser-backed services only on demand.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
-    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.ai{stroke:#a78bfa}.external{stroke:#fb7185}.service{stroke:#60a5fa}.label{font-size:14px;font-weight:700;fill:#f8fafc}.mline{font-size:14px;fill:#cfe0f0}</style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
+    </marker>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .grid{stroke:#14243a;stroke-width:1}
+      .box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}
+      .state{stroke:#34d399}
+      .secure{stroke:#f59e0b}
+      .service{stroke:#60a5fa}
+      .cleanup{stroke:#fb7185}
+      .lazy{stroke:#a78bfa}
+      .title{font-size:30px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc}
+      .detail{font-size:12px;fill:#b9c8da}
+      .note{font-size:13px;fill:#93a8bd}
+      .line{stroke:#67e8f9;stroke-width:2.3;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:1.8;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow)}
+    </style>
   </defs>
-  <rect class="bg" width="1200" height="640"/>
-  <text class="title" x="40" y="52">korTTY Startup &amp; Manager Init</text>
-  <text class="subtitle" x="40" y="80">Cold launch from Launcher through manager initialization to a ready main window.</text>
 
-  <!-- Row 1 -->
-  <rect class="box" x="40" y="130" width="210" height="90"/>
-  <text class="label" x="72" y="170">Launcher</text>
-  <text class="mline" x="72" y="194">bootstrap</text>
+  <rect class="bg" width="1280" height="720"/>
+  <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
-  <rect class="box" x="330" y="130" width="220" height="90"/>
-  <text class="label" x="362" y="166">KorTTYApplication</text>
-  <text class="mline" x="362" y="190">JavaFX init</text>
-  <text class="small" x="362" y="210">start() lifecycle</text>
+  <text class="title" x="42" y="52">KorTTY Startup + Lazy Service Init</text>
+  <text class="subtitle" x="42" y="80">Cold launch keeps migration cleanup best-effort and leaves Mermaid, MathJax and formatter WebViews unloaded until first use.</text>
 
-  <rect class="box state" x="630" y="130" width="230" height="90"/>
-  <text class="label" x="662" y="166">Load State</text>
-  <text class="mline" x="662" y="190">read ~/.kortty/*.xml</text>
-  <text class="small" x="662" y="210">sessions &amp; settings</text>
+  <rect class="box" x="35" y="135" width="175" height="92"/>
+  <text class="label" x="88" y="169">Launcher</text>
+  <text class="detail" x="69" y="190">JVM + JavaFX bootstrap</text>
+  <text class="detail" x="72" y="207">resource profile applied</text>
 
-  <rect class="box secure" x="940" y="130" width="220" height="90"/>
-  <text class="label" x="972" y="166">Master Password</text>
-  <text class="mline" x="972" y="190">unlock vault</text>
-  <text class="small" x="972" y="210">decrypt secrets</text>
+  <rect class="box" x="255" y="135" width="200" height="92"/>
+  <text class="label" x="292" y="169">KorTTYApplication</text>
+  <text class="detail" x="289" y="190">init() and start()</text>
+  <text class="detail" x="284" y="207">exception handling</text>
 
-  <!-- Row 2 -->
-  <rect class="box service" x="630" y="350" width="320" height="200"/>
-  <text class="label" x="662" y="386">Init Managers</text>
-  <text class="mline" x="662" y="414">Connection</text>
-  <text class="mline" x="662" y="438">Credential</text>
-  <text class="mline" x="662" y="462">AI</text>
-  <text class="mline" x="662" y="486">JobScheduler</text>
-  <text class="mline" x="662" y="510">Plugin (ServiceLoader)</text>
-  <text class="mline" x="662" y="534">i18n &amp; Theme</text>
+  <rect class="box cleanup" x="500" y="135" width="220" height="92"/>
+  <text class="label" x="536" y="164">Legacy cleanup</text>
+  <text class="detail" x="525" y="185">retired renderer cache</text>
+  <text class="detail" x="526" y="202">abandoned temp paths</text>
+  <text class="detail" x="528" y="219">no symlink traversal</text>
 
-  <rect class="box state" x="200" y="395" width="230" height="110"/>
-  <text class="label" x="232" y="438">MainWindow Ready</text>
-  <text class="mline" x="232" y="464">UI shown</text>
-  <text class="small" x="232" y="486">terminal &amp; sidebar</text>
+  <rect class="box state" x="765" y="135" width="210" height="92"/>
+  <text class="label" x="824" y="169">Load state</text>
+  <text class="detail" x="799" y="190">~/.kortty XML files</text>
+  <text class="detail" x="797" y="207">snippets + saved chats</text>
 
-  <!-- Arrows row 1 -->
-  <path class="line" d="M250 175 H330"/>
-  <text class="small" x="262" y="160">1. launch</text>
+  <rect class="box secure" x="1020" y="135" width="225" height="92"/>
+  <text class="label" x="1069" y="169">Master password</text>
+  <text class="detail" x="1068" y="190">unlock local vault</text>
+  <text class="detail" x="1053" y="207">decrypt stored secrets</text>
 
-  <path class="line" d="M550 175 H630"/>
-  <text class="small" x="560" y="160">2. start()</text>
+  <path class="line" d="M 210 181 H 255"/>
+  <path class="line" d="M 455 181 H 500"/>
+  <path class="line" d="M 720 181 H 765"/>
+  <path class="line" d="M 975 181 H 1020"/>
 
-  <path class="line" d="M860 175 H940"/>
-  <text class="small" x="868" y="160">3. restore</text>
+  <rect class="box service" x="735" y="330" width="360" height="215"/>
+  <text class="label" x="775" y="365">Initialize managers and services</text>
+  <text class="detail" x="775" y="394">Connection + credentials + SSH keys</text>
+  <text class="detail" x="775" y="420">AI profiles + chats + skills</text>
+  <text class="detail" x="775" y="446">Snippet + variables + projects</text>
+  <text class="detail" x="775" y="472">JobScheduler + update checks</text>
+  <text class="detail" x="775" y="498">Terminal effects + i18n + theme</text>
+  <text class="detail" x="775" y="524">wire dependencies into MainWindow</text>
 
-  <!-- Master password down to managers -->
-  <path class="line" d="M1050 220 V300 H810 V350"/>
-  <text class="small" x="900" y="288">4. keys ready</text>
+  <rect class="box state" x="290" y="365" width="280" height="140"/>
+  <text class="label" x="359" y="402">MainWindow ready</text>
+  <text class="detail" x="345" y="427">menus, dashboard and tabs</text>
+  <text class="detail" x="338" y="451">terminal and sidebar interactive</text>
+  <text class="detail" x="334" y="475">background checks can continue</text>
 
-  <!-- Managers to MainWindow -->
-  <path class="line" d="M630 450 H430"/>
-  <text class="small" x="470" y="438">5. wire managers</text>
+  <path class="line" d="M 1132 227 V 285 H 915 V 330"/>
+  <path class="line" d="M 735 437 H 570"/>
 
-  <!-- Note -->
-  <path class="dash" d="M315 505 C360 580 560 580 700 555"/>
-  <text class="small" x="360" y="600">Managers register services and load plugins before the main window becomes interactive.</text>
+  <rect class="box lazy" x="290" y="585" width="705" height="70"/>
+  <text class="label" x="330" y="612">On demand only</text>
+  <text class="detail" x="330" y="634">Mermaid renderer WebView · MathJax host · Web formatter backend · Monaco editor/diff hosts</text>
+  <path class="dash" d="M 430 505 V 585"/>
+  <path class="dash" d="M 915 545 V 570 H 800 V 585"/>
+
+  <text class="note" x="42" y="694">Cleanup failures are logged but never block startup; hidden renderer engines reset after timeout and release after idle.</text>
 </svg>

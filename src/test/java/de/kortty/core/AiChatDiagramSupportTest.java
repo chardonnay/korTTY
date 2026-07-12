@@ -7,37 +7,11 @@ import static com.google.common.truth.Truth.assertThat;
 class AiChatDiagramSupportTest {
 
     @Test
-    void detectsPlantUmlBlocks() {
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("plantuml", "A -> B: hi")).isTrue();
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("puml", "A -> B: hi")).isTrue();
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("", "@startuml\nA -> B\n@enduml")).isTrue();
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("", "A -> B")).isFalse();
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("bash", "@startuml")).isFalse();
-        assertThat(AiChatDiagramSupport.isPlantUmlBlock("plantuml", "")).isFalse();
-    }
-
-    @Test
-    void normalizePlantUmlWrapsBareSources() {
-        assertThat(AiChatDiagramSupport.normalizePlantUml("A -> B: hi"))
-            .isEqualTo("@startuml\nA -> B: hi\n@enduml");
-        assertThat(AiChatDiagramSupport.normalizePlantUml("@startuml\nA -> B\n@enduml"))
-            .isEqualTo("@startuml\nA -> B\n@enduml");
-        // Other @start dialects (mindmap, gantt, ...) are passed through untouched.
-        assertThat(AiChatDiagramSupport.normalizePlantUml("@startmindmap\n* root\n@endmindmap"))
-            .isEqualTo("@startmindmap\n* root\n@endmindmap");
-    }
-
-    @Test
-    void normalizePlantUmlAppendsMissingEndMarker() {
-        // Truncated AI output: @startuml without the closing @enduml.
-        assertThat(AiChatDiagramSupport.normalizePlantUml("@startuml\nA -> B"))
-            .isEqualTo("@startuml\nA -> B\n@enduml");
-    }
-
-    @Test
     void detectsMermaidBlocksByLanguageTag() {
         assertThat(AiChatDiagramSupport.isMermaidBlock("mermaid")).isTrue();
         assertThat(AiChatDiagramSupport.isMermaidBlock("Mermaid")).isTrue();
+        assertThat(AiChatDiagramSupport.isMermaidBlock("plantuml")).isFalse();
+        assertThat(AiChatDiagramSupport.isMermaidBlock("puml")).isFalse();
         assertThat(AiChatDiagramSupport.isMermaidBlock("")).isFalse();
         assertThat(AiChatDiagramSupport.isMermaidBlock(null)).isFalse();
     }

@@ -215,9 +215,9 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/snippets.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/core/PlantUmlRenderService.java, src/main/java/de/kortty/core/InternalPlantUmlWorker.java]
+    owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "5b39065"
+    last_synced_ref: "c507489"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
@@ -234,15 +234,15 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/ai-assistant.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core]
+    owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "984bbba"
+    last_synced_ref: "c507489"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "dcff3f4"
+    last_synced_ref: "ccc66c9"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
@@ -280,13 +280,13 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/reference/architecture.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty, build.gradle.kts]
+    owns_code: [src/main/java/de/kortty, src/mermaid, build.gradle.kts]
     diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
-    last_synced_ref: "91d77d0"
+    last_synced_ref: "c507489"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/persistence]
-    last_synced_ref: "e7f0df8"
+    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java]
+    last_synced_ref: "ccc66c9"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]

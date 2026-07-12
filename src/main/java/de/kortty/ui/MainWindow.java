@@ -5368,7 +5368,7 @@ public class MainWindow {
             case ASSIST_SNIPPET_CODE -> I18n.get("snippets.ai.assistant.context");
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
             case GENERATE_SNIPPET_ONE_LINER -> I18n.get("snippets.oneliner.compact");
-            case GENERATE_SNIPPET_PLANTUML -> I18n.get("snippets.ai.diagram.menu");
+            case GENERATE_SNIPPET_MERMAID -> I18n.get("snippets.ai.diagram.menu");
         };
     }
 

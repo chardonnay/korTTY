@@ -1650,10 +1650,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#plantuml-diagramme" class="md-nav__link">
+  <a href="#mermaid-diagramme" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PlantUML-Diagramme
+        Mermaid-Diagramme
       
     </span>
   </a>
@@ -2561,10 +2561,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#plantuml-diagramme" class="md-nav__link">
+  <a href="#mermaid-diagramme" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PlantUML-Diagramme
+        Mermaid-Diagramme
       
     </span>
   </a>
@@ -2842,7 +2842,7 @@
 <li><strong>Verbesserung der Lesbarkeit/Robustheit/Leistung</strong> – Schreibt den <strong>ausgewählten</strong> Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. <em>Robustheit verbessern</em> bietet zusätzlich <a href="../reference/hardening-options.html">Härtungsoptionen</a> vor der Ausführung.</li>
 <li><strong>Benutzerdefinierte Verbesserung…</strong> – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit den gleichen <a href="../reference/hardening-options.html">Härtungsoptionen</a>.</li>
 <li><strong>Sicherheitsprüfung</strong> – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe <a href="#security-check">Sicherheitscheck</a> unten].</li>
-<li><strong>Diagramm</strong> – Erzeugt und speichert ein persistentes PlantUML-Logikstrukturdiagramm für das Snippet.</li>
+<li><strong>Diagramm</strong> – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.</li>
 </ul>
 <p>Das Editor-Kontextmenü bietet außerdem <strong>AI Assistant…</strong>, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.</p>
 <p>Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also <strong>wählen Sie zuerst eine Coderegion aus</strong> – andernfalls fordert KorTTY Sie dazu auf. Die Umschreibung wird immer als Vorher-/Nachher-Vorschau (das Fenster <em>AI-Änderung überprüfen</em>) angezeigt, bevor etwas angewendet wird.</p>
@@ -2871,8 +2871,8 @@
 </ul>
 <p><strong>Rechts – Flussdiagramm:</strong></p>
 <ul>
-<li>Ein <strong>automatisch generiertes Flussdiagramm</strong> der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom <strong>−</strong> / <strong>Anpassen</strong> / <strong>+</strong>, <strong>SVG speichern</strong> / <strong>PNG speichern</strong>, <strong>Bild kopieren</strong> / <strong>PflanzenUML kopieren</strong>, ein Steuerelement <strong>Dunkelmodus</strong> und einen Farbwähler <strong>Hintergrund</strong> (beide gespeichert) und <strong>Regenerieren</strong>. Siehe <a href="#diagram-appearance">Diagrammdarstellung</a> unten].</li>
-<li><strong>Hover-Code-Referenzen</strong> – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen <a href="#plantuml-diagrams">Diagram</a>-Fenster.</li>
+<li>Ein <strong>automatisch generiertes Mermaid-Flussdiagramm</strong> der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom <strong>−</strong> / <strong>Anpassen</strong> / <strong>+</strong>, <strong>SVG speichern</strong> / <strong>PNG speichern</strong>, <strong>Bild kopieren</strong> / <strong>Mermaid kopieren</strong>, ein Steuerelement für den <strong>Dunkelmodus</strong> und einen Farbwähler für den <strong>Hintergrund</strong> (beide gespeichert) sowie <strong>Regenerieren</strong>. Siehe <a href="#diagram-appearance">Diagrammdarstellung</a> unten.</li>
+<li><strong>Hover-Code-Referenzen</strong> – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen <a href="#mermaid-diagrams">Diagram</a>-Fenster.</li>
 </ul>
 <p><strong>KI-Fähigkeiten für diese Analyse:</strong></p>
 <p>Wenn <a href="../reference/settings/ai-skills.html">AI Skills</a> konfiguriert sind, zeigt eine Zeile oben im Fenster genau an, <strong>welche Fähigkeiten</strong> in die Analyse einbezogen wurden, als Chips, mit einem <strong>(automatisch ausgewählten)</strong> oder <strong>(manuell)</strong>-Abzeichen:</p>
@@ -2937,13 +2937,14 @@
 <li>Zoomen Sie eine einzelne Vorschau auf den gesamten Dialogbereich</li>
 <li>Wenden Sie genau den ursprünglich ausgewählten Code an, wenn Sie fertig sind</li>
 </ul>
-<h3 id="plantuml-diagramme">PlantUML-Diagramme<a class="headerlink" href="#plantuml-diagramme" title="Permanent link">&para;</a></h3>
-<p>PlantUML-Diagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.</p>
+<h3 id="mermaid-diagramme">Mermaid-Diagramme<a class="headerlink" href="#mermaid-diagramme" title="Permanent link">&para;</a></h3>
+<p>Mermaid-Flussdiagramme werden mit dem Snippet gespeichert. Wenn sich der Snippet-Inhalt nach der Diagrammgenerierung ändert, markiert KorTTY das Diagramm als möglicherweise veraltet und bietet eine Neugenerierung an.</p>
 <ul>
-<li><strong>Rendering:</strong> Nur lokal – KorTTY lädt PlantUML 1.2026.2 bei der ersten Verwendung herunter, überprüft seinen festen SHA-256 und behält das aktuelle JAR im Benutzercache; Es wird kein Remote-Rendering-Server verwendet.</li>
-<li><strong>Dialogfunktionen:</strong> Gerendertes Bild, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Kopieren in die Zwischenablage und die gemeinsamen <a href="#diagram-appearance">Diagrammdarstellung</a>-Steuerelemente.</li>
-<li><strong>Laufzeit:</strong> Eine gepackte App startet erneut in ihrem eigenen Launcher in einem privaten, stornierbaren Worker-Modus, da die entfernte Laufzeit absichtlich kein <code>bin/java</code> hat; Entwicklungsläufe können ihr gebündeltes oder System-Java verwenden. Graphviz <code>dot</code> ist für die Aktivitäts-/Sequenzdiagramme von korTTY optional und wird nur von PlantUML-Diagrammtypen benötigt, die von Graphviz abhängen.</li>
-<li><strong>Cache-Hygiene:</strong> Veraltete PlantUML-Versionen, ältere SHA-1-Dateien und aufgegebene Renderverzeichnisse, die älter als 24 Stunden sind, werden automatisch entfernt.</li>
+<li><strong>Generierung:</strong> KI-generierte und lokale Fallback-Diagramme verwenden einen kompakten <code>flowchart TD</code>-Dialekt mit stabilen Knoten-IDs und den semantischen Klassen <code>setup</code>, <code>work</code>, <code>success</code> und <code>failure</code>; Code-Referenzen ordnen diese IDs genauen Snippet-Zeilen zu.</li>
+<li><strong>Rendering:</strong> Nur lokal – das SHA-256-gepinnte Browserpaket Mermaid 11.16.0 ist in KorTTY enthalten und läuft in einem isolierten, langsam erstellten JavaFX WebView. Es ist kein Rendering-Server, keine Graphviz-Installation, kein Java-Unterprozess und kein Erst-Download erforderlich.</li>
+<li><strong>Dialogfunktionen:</strong> Bereinigte SVG-Anzeige mit deaktiviertem JavaScript, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Bild- und Mermaid-Quell-Zwischenablagekopie, Hover-Code-Referenzen und die gemeinsamen <a href="#diagram-appearance">Diagrammdarstellung</a>-Steuerelemente.</li>
+<li><strong>Sicherheit und Wiederherstellung:</strong> KorTTY lehnt Frontmatter, Anweisungen, Links, Rückrufe, externe Bilder/Symbole, übergroße Quellen und übermäßig komplexe Grafiken vor dem Rendern ab. Anfragen werden mit einem Timeout von 30 Sekunden serialisiert; Bei Abbruch oder Zeitüberschreitung wird der Renderer verworfen und die ausgeblendete WebView wird nach der Leerlaufzeit freigegeben.</li>
+<li><strong>Upgrade-Bereinigung:</strong> Gespeicherte ältere Diagrammeinträge werden verworfen, ohne dass die dazugehörigen Snippets oder Chats entfernt werden. KorTTY entfernt außerdem den Download-Cache für den veralteten Diagramm-Renderer und die aufgegebenen temporären Render-Verzeichnisse, ohne symbolischen Links zu folgen.</li>
 </ul>
 <h3 id="diagrammdarstellung">Diagrammdarstellung<a class="headerlink" href="#diagrammdarstellung" title="Permanent link">&para;</a></h3>
 <p>Beide Diagrammfenster – das eigenständige <strong>Diagramm</strong>-Dialogfeld und das <strong>Vollständige Codeanalyse</strong>-Flussdiagramm – teilen sich zwei Darstellungssteuerelemente und jedes merkt sich seine Einstellung sitzungsübergreifend:</p>

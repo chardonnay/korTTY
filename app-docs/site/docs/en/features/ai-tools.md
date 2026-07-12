@@ -205,7 +205,7 @@ For fleet-wide tasks, the [AI Swarm](ai-swarm.md#generate-multi-server-workflow)
 - **Multiple language variants** — Generate several language variants and suggestions as inline tabs within the workflow dialog.
 - **Adjustable font size** — Each generated-script editor has **A−** / **A+** buttons and supports ++ctrl++ + mouse wheel (Cmd on macOS); the chosen size is remembered across sessions.
 - **Header templates** — Use reusable headers from the fixed non-deletable **Script-Header** snippet category.
-- **PlantUML diagram** — Optionally include a PlantUML diagram depicting the script logic. A working spinner is shown while the diagram is generated.
+- **Mermaid diagram** — Optionally include a Mermaid flowchart depicting the script logic. A working spinner is shown while the diagram is generated.
 - **Snippet Manager** — Save the generated script into the Snippet Manager with a short auto-generated name and correct file extension. Scripts are de-duplicated by full name including extension.
 - **Workflow tagging** — The snippet is tagged as `workflow` for easy filtering.
 - **OS detection** — The **System** (OS) column is auto-set from the agent's probed OS (any Linux distro → Linux).
@@ -326,4 +326,3 @@ Configure internet access per AI profile in **Settings > AI > Internet access**.
 
 !!! warning
     **Web tools are withheld from local file/script review tasks** unless your prompt clearly asks for current or external information. Inspecting a local file should use SSH commands like `sed`, `cat`, `find`, or language-specific tools, not web search.
-

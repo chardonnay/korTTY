@@ -3156,7 +3156,7 @@
 </tr>
 <tr>
 <td><code>SnippetEditor</code></td>
-<td>Von Monaco unterstützter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und PlantUML-Diagrammen</td>
+<td>Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen</td>
 </tr>
 <tr>
 <td><code>JobSchedulerDialog</code></td>
@@ -3316,6 +3316,18 @@
 </tr>
 <tr>
 <td></td>
+<td>Mermaid</td>
+<td>11.16.0</td>
+<td>Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung</td>
+</tr>
+<tr>
+<td></td>
+<td>MathJax</td>
+<td>3.2.2</td>
+<td>Lokales AI-Chat-Formel-Rendering</td>
+</tr>
+<tr>
+<td></td>
 <td>Google-Java-Format</td>
 <td>1,35,0</td>
 <td>Java-Codeformatierung</td>
@@ -3331,12 +3343,6 @@
 <td>zxcvbn</td>
 <td>1.9.0</td>
 <td>Passwortstärke (offline)</td>
-</tr>
-<tr>
-<td></td>
-<td>PlantUML</td>
-<td>1.2026.2</td>
-<td>Diagrammdarstellung</td>
 </tr>
 <tr>
 <td><strong>Protokollierung</strong></td>
@@ -3355,7 +3361,6 @@
 <h3 id="dynamische-abhangigkeiten">Dynamische Abhängigkeiten<a class="headerlink" href="#dynamische-abhangigkeiten" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>mosh4j</strong>: Seine fünf SHA-256-fixierten, architekturspezifischen Release-JARs und Protobuf werden in nativen Builds gebündelt und nur dann dynamisch geladen, wenn Mosh benötigt wird. Der untergeordnete Lader verwendet Bouncy Castle aus der übergeordneten Anwendung wieder, anstatt eine zweite Kopie zu versenden.</li>
-<li><strong>PlantUML</strong>: PlantUML 1.2026.2 wird bei der ersten Verwendung heruntergeladen, anhand eines festen SHA-256 überprüft und außerhalb des Installationsprogramms zwischengespeichert. Eine gestrippte gepackte Laufzeit wird in einem privaten Native-Launcher-Worker gerendert; Alte JARs und verlassene temporäre Renderverzeichnisse werden automatisch bereinigt.</li>
 <li><strong>rsync / ssh</strong>: Externe Befehle, die von JobScheduler Rsync-Jobs verwendet werden</li>
 <li><strong>ffmpeg</strong>: Optional; Wird für die Terminalaufzeichnung und den Videoexport verwendet</li>
 </ul>
@@ -3363,7 +3368,7 @@
 <h3 id="zusammenstellung-und-verpackung">Zusammenstellung und Verpackung<a class="headerlink" href="#zusammenstellung-und-verpackung" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>SithTermFX-Build</strong>: Lokal geklont und erstellt (Maven); seine versehentlich veröffentlichte JUnit-Abhängigkeit wird von der Laufzeit ausgeschlossen.</li>
-<li><strong>Browser-Assets</strong>: Ein isoliertes, angeheftetes Node.js wird nur zum Erstellen von Monaco verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD-Build werden direkt in die Anwendungs-JAR kopiert und ohne Node zur Laufzeit ausgeführt.</li>
+<li><strong>Browser-Assets</strong>: Ein isoliertes, angeheftetes Node.js wird nur zur Erstellungszeit für Monaco und für die JavaFX-WebKit-Kompatibilitätsverarbeitung des SHA-256-angehefteten Mermaid-Bundles verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Mermaid und MathJax bleiben getrennte Lazy-Ressourcen; Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD Build läuft ohne Node zur Laufzeit.</li>
 <li><strong>Nutzlast des externen Formatierers</strong>: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.</li>
 <li><strong>Sauberes natives Staging</strong>: <code>prepareJpackage</code> verwendet einen endgültigen Gradle <code>Sync</code>, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.</li>
 <li><strong>Native Verpackung und Gates</strong>: Die ausgewählte Gradle JDK 25-Toolchain stellt <code>jpackage</code> für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. <code>scripts/package-size-report.py</code> gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.</li>
@@ -3426,7 +3431,7 @@
 <li><strong>AI-Chat-Threads</strong>: Hintergrund-Threads für API-Anfragen (nicht blockierende Benutzeroberfläche)</li>
 <li><strong>Datei-E/A-Threads</strong>: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen</li>
 <li><strong>Webformatter-Anfragen</strong>: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufrufen des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.</li>
-<li><strong>PlantUML-Worker</strong>: Rendering- und Syntaxprüfungen werden in einem separaten abbrechbaren Prozess ausgeführt, wobei der gepackte Launcher-Worker verwendet wird, wenn die Jlink-Laufzeit keinen <code>bin/java</code> hat.</li>
+<li><strong>Mermaid-Rendering-Anfragen</strong>: Hintergrundaufrufer erhalten <code>CompletableFuture</code>-Ergebnisse, während der gesamte Zugriff auf den einzelnen Lazy-Renderer WebView im JavaFX-Anwendungsthread verbleibt. Anfragen werden serialisiert; Bei einem Abbruch, einem 30-Sekunden-Timeout oder einem WebEngine-Fehler wird die Engine-Generierung verworfen, und die Leerlaufbereinigung gibt die ausgeblendete WebView frei.</li>
 </ul>
 <h2 id="erweiterbarkeitspunkte">Erweiterbarkeitspunkte<a class="headerlink" href="#erweiterbarkeitspunkte" title="Permanent link">&para;</a></h2>
 <h3 id="fur-plugin-entwickler">Für Plugin-Entwickler<a class="headerlink" href="#fur-plugin-entwickler" title="Permanent link">&para;</a></h3>

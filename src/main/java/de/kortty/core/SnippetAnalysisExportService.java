@@ -33,8 +33,8 @@ import java.util.List;
  * Exports a {@link ScriptAnalysis} (the "AI Code Analysis" report) — summary, categorized improvements,
  * external dependencies, and the flow diagram — into an attractive, self-contained HTML page, a Markdown
  * document, or a PDF. Unlike {@link AiChatExportService} (chat transcripts, text only), this exporter
- * embeds the rendered PlantUML diagram: base64-inline for HTML, a sibling PNG for Markdown, and a scaled
- * image page for the PDF. Diagram rendering reuses {@link PlantUmlRenderService}; the PDF reuses the same
+ * embeds the rendered Mermaid diagram: base64-inline for HTML, a sibling PNG for Markdown, and a scaled
+ * image page for the PDF. Diagram rendering reuses {@link MermaidRenderService}; the PDF reuses the same
  * bundled Noto fonts as the chat export.
  */
 public final class SnippetAnalysisExportService {
@@ -78,16 +78,21 @@ public final class SnippetAnalysisExportService {
     private static final float CONTENT_TOP_Y = PDRectangle.A4.getHeight() - 60f;
 
     /**
-     * Writes the analysis to {@code target} in {@code format}. When {@code diagramPlantUml} is non-blank the
-     * diagram is rendered once (via {@link PlantUmlRenderService#renderPng}) and embedded; a render failure
+     * Writes the analysis to {@code target} in {@code format}. When {@code diagramRequest} is present the
+     * diagram is rendered once and embedded; a render failure
      * degrades gracefully to a diagram-less report.
      */
-    public void export(Path target, Format format, ScriptAnalysis analysis, Context context, String diagramPlantUml)
+    public void export(
+        Path target,
+        Format format,
+        ScriptAnalysis analysis,
+        Context context,
+        MermaidRenderService.RenderRequest diagramRequest)
         throws IOException {
 
         ScriptAnalysis safe = analysis != null ? analysis : new ScriptAnalysis("", List.of(), List.of());
         Context ctx = context != null ? context : new Context(null, null, LocalDateTime.now(), List.of());
-        byte[] diagramPng = renderDiagramPng(diagramPlantUml);
+        byte[] diagramPng = renderDiagramPng(diagramRequest);
         switch (format) {
             case HTML -> Files.writeString(target, buildHtml(safe, ctx, diagramPng), StandardCharsets.UTF_8);
             case MARKDOWN -> writeMarkdown(target, safe, ctx, diagramPng);
@@ -97,14 +102,17 @@ public final class SnippetAnalysisExportService {
 
     // ---- diagram -------------------------------------------------------------------------------
 
-    private byte[] renderDiagramPng(String plantUml) {
-        if (plantUml == null || plantUml.isBlank()) {
+    private byte[] renderDiagramPng(MermaidRenderService.RenderRequest request) {
+        if (request == null || request.source().isBlank()) {
             return null;
         }
         try {
-            PlantUmlRenderService.RenderResult result = new PlantUmlRenderService().renderPng(plantUml);
-            if (result != null && result.success() && result.imagePath() != null) {
-                return Files.readAllBytes(result.imagePath());
+            MermaidRenderService.RenderRequest pngRequest = new MermaidRenderService.RenderRequest(
+                request.source(), request.theme(), request.backgroundColor(), true, request.generatedFlow());
+            MermaidRenderService.RenderResult result = MermaidRenderService.render(pngRequest)
+                .get(31, java.util.concurrent.TimeUnit.SECONDS);
+            if (result != null && result.success()) {
+                return result.png();
             }
         } catch (Exception ignored) {
             // A diagram that fails to render must not fail the whole export.

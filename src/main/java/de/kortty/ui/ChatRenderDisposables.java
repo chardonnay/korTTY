@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Tracks dispose callbacks for the WebView/Monaco nodes a chat tab renders, so a message
  * rebuild (font zoom) or tab close releases their native WebKit memory instead of orphaning
- * the engines. Also hands out epoch tokens that asynchronous render callbacks (PlantUML
+ * the engines. Also hands out epoch tokens that asynchronous render callbacks (Mermaid
  * subprocess, mermaid/MathJax poll chain) check before attaching a late WebView to a message
  * list that has since been rebuilt or closed.
  *
