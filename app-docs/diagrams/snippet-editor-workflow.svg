@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Snippet editor and Mermaid diagram workflow</title>
-  <desc id="desc">Flow from the Monaco snippet editor through AI or local Mermaid source generation, the secure centralized renderer, the shared viewer and exports, and snippet persistence.</desc>
+  <desc id="desc">Flow from the Monaco snippet editor through one combined full-analysis response or local Mermaid fallback, the secure centralized renderer, the shared viewer and exports, and snippet persistence.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -32,7 +32,7 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
   <text class="title" x="42" y="52">Snippet Editor + Mermaid Workflow</text>
-  <text class="subtitle" x="42" y="80">Stable Mermaid source and code references move through one secure renderer into every diagram view and export.</text>
+  <text class="subtitle" x="42" y="80">One full-analysis request returns report data, Mermaid source and code references for the secure shared renderer.</text>
 
   <rect class="panel" x="35" y="125" width="270" height="380"/>
   <rect class="header" x="35" y="125" width="270" height="50"/>
@@ -45,18 +45,18 @@
   <text class="detail" x="90" y="317">format, syntax, ruler, profiles</text>
   <rect class="box ai" x="65" y="350" width="210" height="54"/>
   <text class="label" x="105" y="374">AI Code actions</text>
-  <text class="detail" x="88" y="393">diagram, analysis, regenerate</text>
+  <text class="detail" x="90" y="393">combined analysis, regenerate</text>
   <rect class="box state" x="65" y="426" width="210" height="54"/>
   <text class="label" x="106" y="450">Snippet lifecycle</text>
   <text class="detail" x="88" y="469">save, reopen, stale detection</text>
 
   <rect class="panel" x="350" y="125" width="270" height="380"/>
   <rect class="header" x="350" y="125" width="270" height="50"/>
-  <text class="panelTitle" x="377" y="157">2. Diagram source</text>
+  <text class="panelTitle" x="377" y="157">2. Combined response</text>
   <rect class="box ai" x="380" y="198" width="210" height="70"/>
   <text class="label" x="422" y="222">AI response</text>
-  <text class="detail" x="401" y="242">title + mermaid + references</text>
-  <text class="detail" x="408" y="258">stable nodeId and line range</text>
+  <text class="detail" x="401" y="242">summary + deps + improvements</text>
+  <text class="detail" x="400" y="258">title + mermaid + references</text>
   <rect class="box ai" x="380" y="291" width="210" height="70"/>
   <text class="label" x="416" y="315">Restricted flowchart</text>
   <text class="detail" x="405" y="335">flowchart TD, quoted labels</text>
@@ -64,7 +64,7 @@
   <rect class="box secure" x="380" y="384" width="210" height="70"/>
   <text class="label" x="412" y="408">Local fallback</text>
   <text class="detail" x="406" y="428">same dialect without AI</text>
-  <text class="detail" x="404" y="444">used on provider failure</text>
+  <text class="detail" x="397" y="444">used when Mermaid is unusable</text>
 
   <rect class="panel" x="665" y="125" width="270" height="380"/>
   <rect class="header" x="665" y="125" width="270" height="50"/>
@@ -115,5 +115,5 @@
   <path class="dash" d="M 1113 505 V 555"/>
   <path class="dash" d="M 170 505 V 540 H 318 V 580"/>
 
-  <text class="note" x="42" y="694">SFTP file mode keeps the same editor tools; diagrams are persisted only with saved snippets.</text>
+  <text class="note" x="42" y="694">Full analysis uses one combined request; Regenerate requests only a fresh diagram. Diagrams persist only with saved snippets.</text>
 </svg>

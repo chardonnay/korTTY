@@ -210,9 +210,10 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         zoomInButton.setOnAction(event -> changeFontSize(1));
         updateFontSizeLabel();
 
-        CheckBox selectAll = new CheckBox(I18n.get("snippets.ai.security.selectAll"));
-        selectAll.setDisable(improvementsById.isEmpty() && dependenciesById.isEmpty());
-        selectAll.setOnAction(event -> executeIfReady("window.korttyAnalysis.setAll(" + selectAll.isSelected() + ");"));
+        CheckBox selectAll = new CheckBox(I18n.get("snippets.ai.analysis.selectAllImprovements"));
+        selectAll.setDisable(improvementsById.isEmpty());
+        selectAll.setOnAction(event ->
+            executeIfReady("window.korttyAnalysis.setAllImprovements(" + selectAll.isSelected() + ");"));
 
         Button copyButton = new Button(I18n.get("snippets.copyClipboard"));
         copyButton.setOnAction(event -> copyAnalysis(copyButton));
@@ -610,7 +611,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private static String buildScript() {
         return "<script>"
             + "window.korttyAnalysis={"
-            + "setAll:function(c){document.querySelectorAll('input.analysis-check').forEach(function(b){b.checked=c;mark(b);});},"
+            + "setAllImprovements:function(c){document.querySelectorAll('input.analysis-check[data-kind=\"imp\"]').forEach(function(b){b.checked=c;mark(b);});},"
             + "getSelected:function(){var o=[];document.querySelectorAll('input.analysis-check').forEach(function(b){"
             + "if(b.checked)o.push(b.getAttribute('data-kind')+':'+b.getAttribute('data-id'));});return o.join(',');},"
             + "setFontSize:function(p){document.body.style.fontSize=p+'px';}"

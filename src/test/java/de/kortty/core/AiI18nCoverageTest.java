@@ -569,6 +569,7 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.title",
         "snippets.ai.analysis.info",
         "snippets.ai.analysis.applySelected",
+        "snippets.ai.analysis.selectAllImprovements",
         "snippets.ai.analysis.section.security",
         "snippets.ai.analysis.section.optimization",
         "snippets.ai.analysis.section.design",

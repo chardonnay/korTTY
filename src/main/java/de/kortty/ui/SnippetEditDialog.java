@@ -316,7 +316,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface CodeAnalysisProvider {
-        SnippetAiResponseSupport.ScriptAnalysis analyze(CodeAnalysisRequest request) throws Exception;
+        SnippetAiResponseSupport.FullCodeAnalysis analyze(CodeAnalysisRequest request) throws Exception;
     }
 
     @FunctionalInterface
@@ -490,7 +490,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
-        String additionalInstructions) {
+        String additionalInstructions,
+        String aiProfileId) {
+
+        public DiagramRequest(
+                String fullContent,
+                String snippetLanguage,
+                String fallbackLanguageCode,
+                String additionalInstructions) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, null);
+        }
     }
 
     public record SuggestedSnippetMetadata(String fileName, String description, String language) {
@@ -3226,9 +3235,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
-     * The rich "AI Code Review": one analysis call (summary + dependencies + categorized improvements)
-     * and, in parallel, an activity-diagram render, both surfaced in {@link SnippetCodeAnalysisDialog}.
-     * The user's selected improvements/dependency suggestions are applied via {@link #runImprovementFixes}.
+     * The rich "AI Code Review": one combined provider call returns the summary, dependencies, categorized
+     * improvements and initial Mermaid diagram surfaced in {@link SnippetCodeAnalysisDialog}. The user's
+     * selected improvements/dependency suggestions are applied via {@link #runImprovementFixes}.
      */
     private void runCodeReview(String aiProfileId) {
         if (!hasCodeAnalysisProviders() || !ensureSnippetAiDataNoticeAccepted(false)) {
@@ -3246,18 +3255,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fallback = resolveAiTextFallbackLanguageCode();
         String extra = additionalInstructions();
 
-        // Kick the diagram's AI generation off in parallel with the analysis; the dialog's diagram viewer
-        // awaits the first (memoized) future and requests a fresh generation only on "regenerate".
-        AtomicReference<CompletableFuture<SnippetDiagramView.DiagramSource>> firstDiagram = new AtomicReference<>();
-        Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () -> {
-            CompletableFuture<SnippetDiagramView.DiagramSource> memoized = firstDiagram.getAndSet(null);
-            return memoized != null ? memoized : generateDiagramMermaid(fullContent, language, fallback);
-        };
-        firstDiagram.set(generateDiagramMermaid(fullContent, language, fallback));
-
-        Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
+        Task<SnippetAiResponseSupport.FullCodeAnalysis> task = new Task<>() {
             @Override
-            protected SnippetAiResponseSupport.ScriptAnalysis call() throws Exception {
+            protected SnippetAiResponseSupport.FullCodeAnalysis call() throws Exception {
                 return aiAssist.codeAnalysisProvider().analyze(new CodeAnalysisRequest(
                     fullContent, language, fallback, extra, aiProfileId));
             }
@@ -3270,10 +3270,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
+            SnippetAiResponseSupport.FullCodeAnalysis result = task.getValue();
+            if (result == null || !result.analysis().isUsable()) {
+                setStatus(I18n.get("snippets.ai.review.failed"));
+                return;
+            }
+            SnippetDiagramView.DiagramSource initialDiagram = initialAnalysisDiagramSource(
+                result.diagram(), fullContent, language);
+            // The first load uses the diagram already returned by the combined analysis. Only an explicit
+            // "Regenerate" consumes the supplier again and starts a dedicated diagram request.
+            AtomicReference<SnippetDiagramView.DiagramSource> firstDiagram = new AtomicReference<>(initialDiagram);
+            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () -> {
+                SnippetDiagramView.DiagramSource memoized = firstDiagram.getAndSet(null);
+                return memoized != null
+                    ? CompletableFuture.completedFuture(memoized)
+                    : generateDiagramMermaid(fullContent, language, fallback, aiProfileId);
+            };
             SnippetCodeAnalysisDialog dialog = new SnippetCodeAnalysisDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 currentSnippetName(),
-                task.getValue(),
+                result.analysis(),
                 diagramLoader,
                 aiProfileId,
                 profileSwitchingSupported() ? this::runCodeReview : null,
@@ -3296,10 +3312,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    /** Generates the diagram source (AI Mermaid + code references, with a local fallback) on a daemon
-     *  thread; the diagram viewer in the analysis dialog renders + fits it and shows hover code hotspots. */
+    private SnippetDiagramView.DiagramSource initialAnalysisDiagramSource(
+            SnippetAiResponseSupport.MermaidDiagram diagram,
+            String fullContent,
+            String language) {
+        if (diagram != null && diagram.isUsable()) {
+            return new SnippetDiagramView.DiagramSource(diagram.mermaid(), fullContent, diagram.codeReferences());
+        }
+        return new SnippetDiagramView.DiagramSource(
+            SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language),
+            fullContent,
+            List.of());
+    }
+
+    /** Generates a fresh diagram after an explicit Regenerate click, with a local fallback on failure. */
     private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagramMermaid(
-        String fullContent, String language, String fallback) {
+        String fullContent, String language, String fallback, String aiProfileId) {
         CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();
         Task<SnippetDiagramView.DiagramSource> task = new Task<>() {
             @Override
@@ -3307,7 +3335,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
                 try {
                     diagram = aiAssist.diagramProvider() != null
-                        ? aiAssist.diagramProvider().generate(new DiagramRequest(fullContent, language, fallback, ""))
+                        ? aiAssist.diagramProvider().generate(
+                            new DiagramRequest(fullContent, language, fallback, "", aiProfileId))
                         : null;
                 } catch (Exception e) {
                     logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);

@@ -275,7 +275,7 @@ final class SnippetAiAssistFactory {
             request.additionalInstructions());
     }
 
-    private static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
+    private static SnippetAiResponseSupport.FullCodeAnalysis analyzeSnippetCode(
         MainWindow ownerWindow,
         AiProfile profile,
         AiService aiService,
@@ -427,7 +427,7 @@ final class SnippetAiAssistFactory {
         String connectionDisplayName,
         java.util.Collection<String> forcedSkillIds) throws Exception {
 
-        ResolvedProfile resolved = resolve(ownerWindow, profile, aiService, null, forcedSkillIds);
+        ResolvedProfile resolved = resolve(ownerWindow, profile, aiService, request.aiProfileId(), forcedSkillIds);
         return SnippetAiWorkflowSupport.generateSnippetMermaid(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),

@@ -13,22 +13,27 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.util.Duration;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -119,7 +124,10 @@ public final class SnippetAiDialogsSmoke {
                     "$path is used unquoted.", "Quote it: \"$path\".", 12),
                 new SnippetAiResponseSupport.ScriptImprovement(
                     "OPT-1", "optimization", "low", "Avoid re-downloading",
-                    "The asset is fetched twice.", "Cache the download.", null)));
+                    "The asset is fetched twice.", "Cache the download.", null),
+                new SnippetAiResponseSupport.ScriptImprovement(
+                    "DES-1", "design", "medium", "Separate download and install",
+                    "One function handles both concerns.", "Split it into two functions.", 18)));
         // The diagram viewer only renders when the dialog is shown (setOnShown), which the smoke never does,
         // so no Mermaid render is invoked; the supplier is just a placeholder source.
         java.util.function.Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader =
@@ -136,6 +144,17 @@ public final class SnippetAiDialogsSmoke {
             ids -> { });
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
             null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { }, skillContext);
+        AtomicBoolean analysisSelectionVerified = new AtomicBoolean();
+        CheckBox selectAllImprovements = selectAllImprovementsCheckBox(analysisDialog.getDialogPane());
+        WebEngine analysisEngine = findingsWebView(analysisDialog).getEngine();
+        onLoadSuccess(analysisEngine, () -> {
+            try {
+                verifyImprovementBulkSelection(selectAllImprovements, analysisEngine);
+                analysisSelectionVerified.set(true);
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "SnippetCodeAnalysisDialog selection check failed: " + e);
+            }
+        });
         if (findNodes(analysisDialog.getDialogPane(), SplitPane.class).isEmpty()) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the split pane");
         }
@@ -153,6 +172,16 @@ public final class SnippetAiDialogsSmoke {
                 && ((Button) b).getText().contains(I18n.get("snippets.ai.analysis.applySelected")));
         if (!hasApply) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the Apply-selected button");
+        }
+
+        // Dependencies alone must not enable the JavaFX bulk selector: it controls improvements only.
+        SnippetAiResponseSupport.ScriptAnalysis dependenciesOnly = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Calls curl.", analysis.dependencies(), List.of());
+        SnippetCodeAnalysisDialog dependenciesOnlyDialog = new SnippetCodeAnalysisDialog(
+            null, "dependency_only.sh", dependenciesOnly, diagramLoader, null, null, null);
+        CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyDialog.getDialogPane());
+        if (!dependenciesOnlyBulkCheck.isDisable()) {
+            throw new AssertionError("Select-all-improvements must be disabled when only dependencies exist");
         }
 
         // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow). Capture the
@@ -196,6 +225,10 @@ public final class SnippetAiDialogsSmoke {
                     System.out.println("MonacoDiffPane bridge did not report within the wait "
                         + "(WebView likely did not finish loading headless); no error was logged.");
                 }
+                if (!analysisSelectionVerified.get()) {
+                    failure.compareAndSet(null,
+                        "SnippetCodeAnalysisDialog selection page did not finish loading within the wait");
+                }
             } finally {
                 diffLogger.detachAppender(diffLog);
                 diffLogger.setLevel(previousLevel);
@@ -225,6 +258,96 @@ public final class SnippetAiDialogsSmoke {
         skill.setContent("Example skill content.");
         skill.setEnabled(true);
         return skill;
+    }
+
+    /**
+     * Drives the real JavaFX bulk checkbox and checks the WebView selection state. Improvements from all
+     * three display categories must follow it, while a dependency keeps its independently chosen state.
+     */
+    private static void verifyImprovementBulkSelection(CheckBox bulkCheck, WebEngine engine) {
+        assertChecked(engine, "imp", "SEC-1", false);
+        assertChecked(engine, "imp", "OPT-1", false);
+        assertChecked(engine, "imp", "DES-1", false);
+
+        setChecked(engine, "dep", "D1", true);
+        bulkCheck.fire();
+        assertChecked(engine, "imp", "SEC-1", true);
+        assertChecked(engine, "imp", "OPT-1", true);
+        assertChecked(engine, "imp", "DES-1", true);
+        assertChecked(engine, "dep", "D1", true);
+
+        bulkCheck.fire();
+        assertChecked(engine, "imp", "SEC-1", false);
+        assertChecked(engine, "imp", "OPT-1", false);
+        assertChecked(engine, "imp", "DES-1", false);
+        assertChecked(engine, "dep", "D1", true);
+
+        setChecked(engine, "dep", "D1", false);
+        bulkCheck.fire();
+        assertChecked(engine, "imp", "SEC-1", true);
+        assertChecked(engine, "imp", "OPT-1", true);
+        assertChecked(engine, "imp", "DES-1", true);
+        assertChecked(engine, "dep", "D1", false);
+
+        bulkCheck.fire();
+        assertChecked(engine, "imp", "SEC-1", false);
+        assertChecked(engine, "imp", "OPT-1", false);
+        assertChecked(engine, "imp", "DES-1", false);
+        assertChecked(engine, "dep", "D1", false);
+    }
+
+    private static CheckBox selectAllImprovementsCheckBox(DialogPane pane) {
+        String expectedText = I18n.get("snippets.ai.analysis.selectAllImprovements");
+        return findNodes(pane, CheckBox.class).stream()
+            .map(CheckBox.class::cast)
+            .filter(checkBox -> expectedText.equals(checkBox.getText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError(
+                "SnippetCodeAnalysisDialog is missing the select-all-improvements checkbox ('"
+                    + expectedText + "')"));
+    }
+
+    private static WebView findingsWebView(SnippetCodeAnalysisDialog dialog) {
+        try {
+            Field field = SnippetCodeAnalysisDialog.class.getDeclaredField("findingsView");
+            field.setAccessible(true);
+            return (WebView) field.get(dialog);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("SnippetCodeAnalysisDialog is missing its findings WebView", e);
+        }
+    }
+
+    private static void setChecked(WebEngine engine, String kind, String id, boolean checked) {
+        Object result = engine.executeScript("(function(){var b=document.querySelector(\"input.analysis-check[data-kind='"
+            + kind + "'][data-id='" + id + "']\");if(!b)return false;b.checked=" + checked
+            + ";return true;})()");
+        if (!Boolean.TRUE.equals(result)) {
+            throw new AssertionError("Missing analysis checkbox " + kind + ":" + id);
+        }
+    }
+
+    private static void assertChecked(WebEngine engine, String kind, String id, boolean expected) {
+        Object result = engine.executeScript("(function(){var b=document.querySelector(\"input.analysis-check[data-kind='"
+            + kind + "'][data-id='" + id + "']\");return b?b.checked:null;})()");
+        if (!(result instanceof Boolean actual) || actual != expected) {
+            throw new AssertionError("Expected " + kind + ":" + id + " checked=" + expected + ", was " + result);
+        }
+    }
+
+    private static void onLoadSuccess(WebEngine engine, Runnable action) {
+        if (engine.getLoadWorker().getState() == javafx.concurrent.Worker.State.SUCCEEDED) {
+            action.run();
+            return;
+        }
+        AtomicReference<javafx.beans.value.ChangeListener<javafx.concurrent.Worker.State>> holder =
+            new AtomicReference<>();
+        holder.set((obs, was, state) -> {
+            if (state == javafx.concurrent.Worker.State.SUCCEEDED) {
+                engine.getLoadWorker().stateProperty().removeListener(holder.get());
+                action.run();
+            }
+        });
+        engine.getLoadWorker().stateProperty().addListener(holder.get());
     }
 
     private static List<Node> findNodes(Node root, Class<? extends Node> type) {

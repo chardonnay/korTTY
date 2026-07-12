@@ -326,8 +326,11 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
     }
 
-    /** Rich code analysis: summary + external dependencies (with reduce/replace suggestions) + categorized improvements. */
-    public static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
+    /**
+     * Rich code analysis plus the initial Mermaid flowchart, returned by one provider request so the full
+     * snippet and its enabled AI skills are not sent twice.
+     */
+    public static SnippetAiResponseSupport.FullCodeAnalysis analyzeSnippetCode(
         AiService aiService,
         UsageRecorder usageRecorder,
         String fullContent,
@@ -347,7 +350,12 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiResponseSupport.parseScriptAnalysis(result != null ? result.content() : null);
+        SnippetAiResponseSupport.FullCodeAnalysis analysis =
+            SnippetAiResponseSupport.parseFullCodeAnalysis(result != null ? result.content() : null);
+        if (!analysis.analysis().isUsable()) {
+            throw new IllegalStateException("AI code analysis returned no usable analysis.");
+        }
+        return analysis;
     }
 
     /** Applies the user-selected improvements + dependency suggestions; returns the same shape as the security-fix flow. */
@@ -591,10 +599,9 @@ public final class SnippetAiWorkflowSupport {
             + "Explain in plain language what the script does. List external dependencies (other scripts, "
             + "programs or services) with a reduce-or-replace suggestion for each. List concrete, individually-"
             + "applicable improvements categorized as security, optimization or design. Only report what this code supports.\n"
+            + mermaidRequirements(fallbackLanguageCode)
             + "Line-numbered snippet:\n"
-            + lineNumberedTextBlock(fullContent)
-            + "\nFull snippet:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+            + lineNumberedTextBlock(fullContent);
     }
 
     private static String buildImprovementApplyContext(
@@ -629,7 +636,16 @@ public final class SnippetAiWorkflowSupport {
 
     private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Diagram label language: " + fallbackLanguageCode + "\n"
+            + mermaidRequirements(fallbackLanguageCode)
+            + "Line-numbered snippet:\n"
+            + lineNumberedTextBlock(fullContent)
+            + "\n"
+            + "Full snippet:\n"
+            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static String mermaidRequirements(String fallbackLanguageCode) {
+        return "Diagram label language: " + fallbackLanguageCode + "\n"
             + "Generate one compact logical-structure Mermaid flowchart for this snippet. "
             + "Use only relationships visible in the code. "
             + "Use only flowchart TD, stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminal nodes, separately declared quoted action/decision nodes, "
@@ -640,12 +656,7 @@ public final class SnippetAiWorkflowSupport {
             + "Also return codeReferences. Each entry must map a declared nodeId and its exact visible label to a small relevant source range. "
             + "Create one codeReferences entry for every visible action and decision node, excluding start_1 and stop_1. "
             + "Use only the 1-based line numbers shown in the line-numbered snippet. "
-            + "When one diagram element summarizes a block, use the smallest source range that covers that block.\n"
-            + "Line-numbered snippet:\n"
-            + lineNumberedTextBlock(fullContent)
-            + "\n"
-            + "Full snippet:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+            + "When one diagram element summarizes a block, use the smallest source range that covers that block.\n";
     }
 
     private static String buildOneLinerContext(String fullContent, String snippetLanguage) {

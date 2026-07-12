@@ -135,6 +135,8 @@ All improvement actions rewrite the selected region only, so **select a code reg
 
 **Full code analysis** opens a dedicated window that examines the whole snippet at once and offers concrete improvements you can apply. The window is **non-modal** — you can keep editing the snippet while it stays open — and its title bar shows the script's file name so you can tell several analyses apart. The snippet editor's own title bar likewise shows the name of the file you are editing.
 
+The initial report and flow diagram are generated together in **one AI request**, and each **Re-run** likewise uses one combined request with the selected profile and AI Skills. If that response has no safe, usable Mermaid source, korTTY keeps the analysis and shows its deterministic local fallback diagram without silently sending another request; only an explicit **Regenerate** click requests a fresh diagram from the AI.
+
 A toolbar runs along the top of the window, the report and flow diagram fill the two panes below it, and a script-header selector plus a collapsible hardening panel sit in the footer.
 
 **Toolbar:**
@@ -142,7 +144,7 @@ A toolbar runs along the top of the window, the report and flow diagram fill the
 - **Profile in use** — The name of the AI profile the analysis ran with is shown on the left (for the default profile its *actual* name is shown, e.g. *Profile: LM Studio* — not just "Default profile"), so you can always tell which model produced the report.
 - **AI skills** — When [AI Skills](../reference/settings/ai-skills.md) are configured, a row shows which skills were included and lets you change them; see **AI skills for this analysis** below.
 - **Re-run** — A transient AI-profile picker plus a **Re-run** button repeat the analysis with the chosen profile *and* your current AI-skill selection. The picker resets to the default when the window is reopened.
-- **Select all** — Tick every improvement and dependency at once.
+- **Select all improvements** — Tick or untick all Security, Optimization and Design improvements at once. This control never changes any dependency selection.
 - **A− / A+** — Adjust the reading font size (remembered across sessions).
 - **Copy** — Copy the summary, improvements and dependencies to the clipboard as plain text.
 - **Export** — Save the whole report (including the diagram) as a file; see **Export the report** below.
@@ -150,12 +152,12 @@ A toolbar runs along the top of the window, the report and flow diagram fill the
 **Left — analysis and improvements:**
 
 - **Summary** — A short, plain-language description of what the script does. It is a description, not a pickable item, so it is shown as a plain block without a selection accent.
-- **Improvements** — Suggestions grouped into **Security**, **Optimization** and **Design** sections. Each section title carries a colour-coded icon and a count, and each suggestion has a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use **Select all** to tick everything at once. Empty sections are hidden.
-- **Dependencies** — External programs, scripts or services the snippet relies on, each with its *Purpose* and a *Reduce/replace* suggestion. Tick a dependency to have its suggestion applied too.
+- **Improvements** — Suggestions grouped into **Security**, **Optimization** and **Design** sections. Each section title carries a colour-coded icon and a count, and each suggestion has a severity badge, an explanation, and a concrete recommendation. Tick the ones you want; use **Select all improvements** to toggle every improvement at once. Empty sections are hidden.
+- **Dependencies** — External programs, scripts or services the snippet relies on, each with its *Purpose* and a *Reduce/replace* suggestion. Tick each dependency independently to have its suggestion applied too; **Select all improvements** leaves these checkboxes unchanged.
 
 **Right — flow diagram:**
 
-- An **auto-generated Mermaid flowchart** of the script's logic renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy Mermaid**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. See [Diagram appearance](#diagram-appearance) below.
+- An **auto-generated Mermaid flowchart** from the combined analysis response renders while a spinner is shown, then fills the pane. It carries the full diagram toolbar: zoom **−** / **Fit** / **+**, **Save SVG** / **Save PNG**, **Copy image** / **Copy Mermaid**, a **Dark mode** control and a **Background** colour picker (both remembered), and **Regenerate**. **Regenerate** deliberately sends one new diagram-only request using the analysis window's active profile and current AI Skills. See [Diagram appearance](#diagram-appearance) below.
 - **Hover code references** — Moving the mouse over a diagram node shows the matching lines from the snippet, so you can trace each step back to the code — the same behaviour as the standalone [Diagram](#mermaid-diagrams) window.
 
 **AI skills for this analysis:**
@@ -165,7 +167,7 @@ When [AI Skills](../reference/settings/ai-skills.md) are configured, a row at th
 - **Auto-selected** — korTTY pre-selects the skills relevant to the snippet by matching each skill's tags, name and description against the snippet's language and content, and includes them in the analysis. This is why the badge reads *(auto-selected)* on the first run.
 - **Manual** — Click **Select…** to open a **searchable picker**: type in the search field to filter your saved skills by name, description or tags, then tick or untick the skills you want. As soon as you change the set, the badge switches to *(manual)* and korTTY keeps your choice instead of auto-selecting.
 
-Changing the skills does **not** re-analyse immediately — the new set is applied on the next **Re-run**, so one deliberate click produces one analysis with exactly the skills you chose (and no surprise flurry of AI calls). Skills you include here are sent regardless of each skill's configured *target*. The row appears only when at least one AI Skill is enabled.
+Changing the skills does **not** re-analyse immediately — the new set is applied on the next **Re-run**, so one deliberate click produces one combined report-and-diagram request with exactly the skills you chose. Skills you include here are sent regardless of each skill's configured *target*. The row appears only when at least one AI Skill is enabled.
 
 **Hardening options:**
 

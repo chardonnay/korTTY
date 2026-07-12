@@ -17,6 +17,8 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ### AI Code Analysis
 
+- **One request for analysis and diagram** — opening **Full code analysis** or clicking **Re-run** now sends one combined AI request for the report and its initial Mermaid flowchart instead of sending the snippet twice. An invalid or missing Mermaid result falls back locally without a hidden retry; **Regenerate** remains an explicit diagram-only request and uses the active analysis profile.
+- **Bulk selection no longer changes dependencies** — the clearly labelled **Select all improvements** control now toggles only Security, Optimization and Design suggestions. Every dependency keeps its independent selected or unselected state.
 - **Pick the AI skills for an analysis** — the **Full code analysis** window now shows which AI Skills were included, as chips with an *(auto-selected)* or *(manual)* badge, and lets you change them with a **searchable** picker (filter by name, description or tags). Your changes take effect on the next **Re-run**, so one deliberate click runs one analysis with exactly the skills you chose. korTTY also auto-selects the skills relevant to the snippet before the first analysis so the set is meaningful out of the box.
 - **Hardening options show a count and remember their state** — the *Hardening options* panel title now shows how many options are ticked (e.g. *Hardening options (11)*), and the window remembers whether you left the panel open or closed.
 - **Add a script header on apply** — a **Script header** selector lets you prepend one of your saved *Script-Header* snippets to the code when you apply the analysis; a header on its own is inserted without an AI round-trip.

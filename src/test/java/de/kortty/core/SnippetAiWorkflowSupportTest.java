@@ -166,6 +166,113 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void combinedCodeAnalysisExecutesAndRecordsUsageExactlyOnce() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints a greeting.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Greeting flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": [
+                { "nodeId": "work_1", "label": "Print greeting", "startLine": 1, "endLine": 1 }
+              ]
+            }
+            """);
+        int[] recordedUsages = {0};
+
+        SnippetAiResponseSupport.FullCodeAnalysis result =
+            SnippetAiWorkflowSupport.analyzeSnippetCode(
+                aiService,
+                (request, executionResult) -> recordedUsages[0]++,
+                "echo hello",
+                "bash",
+                "demo",
+                "en",
+                null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+        assertThat(aiService.lastRequest.action()).isEqualTo(AiAction.ANALYZE_SNIPPET_CODE);
+        assertThat(result.analysis().summary()).isEqualTo("Prints a greeting.");
+        assertThat(result.diagram().isUsable()).isTrue();
+    }
+
+    @Test
+    void combinedCodeAnalysisDoesNotRetryWhenMermaidIsUnsafe() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints a greeting.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Unsafe flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    click work_1 href \\\"https://example.com\\\"\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": []
+            }
+            """);
+        int[] recordedUsages = {0};
+
+        SnippetAiResponseSupport.FullCodeAnalysis result =
+            SnippetAiWorkflowSupport.analyzeSnippetCode(
+                aiService,
+                (request, executionResult) -> recordedUsages[0]++,
+                "echo hello",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+        assertThat(result.analysis().isUsable()).isTrue();
+        assertThat(result.diagram().isUsable()).isFalse();
+    }
+
+    @Test
+    void combinedCodeAnalysisPromptIncludesFlatContractAndSafeMermaidRulesWithoutFullSnippetCopy() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "summary": "Prints two lines.",
+              "dependencies": [],
+              "improvements": [],
+              "title": "Output flow",
+              "mermaid": "",
+              "codeReferences": []
+            }
+            """);
+        String snippet = "echo one\necho two";
+
+        SnippetAiWorkflowSupport.analyzeSnippetCode(
+            aiService,
+            null,
+            snippet,
+            "bash",
+            null,
+            "en",
+            null);
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(aiService.lastRequest);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
+        String completePrompt = systemPrompt + "\n" + userPrompt;
+        assertThat(completePrompt).contains("\"summary\"");
+        assertThat(completePrompt).contains("\"dependencies\"");
+        assertThat(completePrompt).contains("\"improvements\"");
+        assertThat(completePrompt).contains("\"title\"");
+        assertThat(completePrompt).contains("\"mermaid\"");
+        assertThat(completePrompt).contains("\"codeReferences\"");
+        assertThat(completePrompt).contains("flowchart TD");
+        assertThat(completePrompt).contains("frontmatter");
+        assertThat(completePrompt).contains("callbacks");
+        assertThat(completePrompt).contains("URLs");
+        assertThat(completePrompt).contains("HTML");
+        assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
+        assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo one");
+        assertThat(aiService.lastRequest.conversationContext()).contains("2 | echo two");
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
+        assertThat(aiService.lastRequest.selectedText()).isEqualTo(snippet);
+    }
+
+    @Test
     void compactOneLinerRequestUsesDedicatedAiActionAndParsesCommand() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             { "command": "python3 -c 'print(1)'" }
@@ -261,6 +368,7 @@ class SnippetAiWorkflowSupportTest {
     private static final class CapturingAiService implements AiService {
         private final String response;
         private AiRequest lastRequest;
+        private int executionCount;
 
         private CapturingAiService(String response) {
             this.response = response;
@@ -269,6 +377,7 @@ class SnippetAiWorkflowSupportTest {
         @Override
         public AiExecutionResult execute(AiRequest request) {
             this.lastRequest = request;
+            this.executionCount++;
             return new AiExecutionResult(response, null);
         }
 

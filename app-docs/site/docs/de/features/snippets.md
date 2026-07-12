@@ -135,6 +135,8 @@ Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wä
 
 **Vollständige Codeanalyse** öffnet ein spezielles Fenster, das das gesamte Snippet auf einmal untersucht und konkrete Verbesserungen anbietet, die Sie anwenden können. Das Fenster ist **nicht modal** – Sie können das Snippet weiter bearbeiten, während es geöffnet bleibt – und in der Titelleiste wird der Dateiname des Skripts angezeigt, sodass Sie mehrere Analysen unterscheiden können. In der Titelleiste des Snippet-Editors wird ebenfalls der Name der Datei angezeigt, die Sie bearbeiten.
 
+Der anfängliche Bericht und das Flussdiagramm werden zusammen in **einer KI-Anfrage** generiert, und bei jeder **Wiederholung** wird ebenfalls eine kombinierte Anfrage mit dem ausgewählten Profil und den ausgewählten KI-Fähigkeiten verwendet. Wenn diese Antwort keine sichere, verwendbare Mermaid-Quelle hat, behält korTTY die Analyse bei und zeigt sein deterministisches lokales Fallback-Diagramm an, ohne stillschweigend eine weitere Anfrage zu senden; Nur ein expliziter **Neugenerieren**-Klick fordert ein neues Diagramm von der KI an.
+
 Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld.
 
 **Symbolleiste:**
@@ -142,7 +144,7 @@ Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flu
 - **Verwendetes Profil** – Der Name des KI-Profils, mit dem die Analyse ausgeführt wurde, wird links angezeigt (für das Standardprofil wird sein *tatsächlicher* Name angezeigt, z. B. *Profil: LM Studio* – nicht nur „Standardprofil“), sodass Sie immer erkennen können, welches Modell den Bericht erstellt hat.
 - **KI-Fähigkeiten** – Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fähigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Fähigkeiten für diese Analyse** unten.
 - **Erneut ausführen** – Eine vorübergehende KI-Profilauswahl und eine Schaltfläche **Erneut ausführen** wiederholen die Analyse mit dem ausgewählten Profil *und* Ihrer aktuellen KI-Fähigkeitsauswahl. Die Auswahl wird auf die Standardeinstellung zurückgesetzt, wenn das Fenster erneut geöffnet wird.
-- **Alle auswählen** – Markieren Sie alle Verbesserungen und Abhängigkeiten gleichzeitig.
+- **Alle Verbesserungen auswählen** – Aktivieren oder deaktivieren Sie alle Sicherheits-, Optimierungs- und Designverbesserungen gleichzeitig. Dieses Steuerelement ändert niemals eine Abhängigkeitsauswahl.
 - **A− / A+** – Passen Sie die Leseschriftgröße an (wird sitzungsübergreifend gespeichert).
 - **Kopieren** – Kopieren Sie die Zusammenfassung, Verbesserungen und Abhängigkeiten als Klartext in die Zwischenablage.
 - **Exportieren** – Speichern Sie den gesamten Bericht (einschließlich des Diagramms) als Datei; siehe **Bericht exportieren** unten.
@@ -150,12 +152,12 @@ Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flu
 **Links – Analyse und Verbesserungen:**
 
 - **Zusammenfassung** – Eine kurze, verständliche Beschreibung dessen, was das Skript tut. Da es sich um eine Beschreibung und nicht um ein auswählbares Element handelt, wird es als einfacher Block ohne Auswahlakzent angezeigt.
-- **Verbesserungen** – Vorschläge gruppiert in die Abschnitte **Sicherheit**, **Optimierung** und **Design**. Jeder Abschnittstitel trägt ein farbcodiertes Symbol und eine Anzahl, und jeder Vorschlag verfügt über ein Schweregradkennzeichen, eine Erklärung und eine konkrete Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle auswählen**, um alles auf einmal anzukreuzen. Leere Abschnitte werden ausgeblendet.
-- **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie eine Abhängigkeit, um deren Vorschlag ebenfalls anzuwenden.
+- **Verbesserungen** – Vorschläge gruppiert in die Abschnitte **Sicherheit**, **Optimierung** und **Design**. Jeder Abschnittstitel trägt ein farbcodiertes Symbol und eine Anzahl, und jeder Vorschlag verfügt über ein Schweregradkennzeichen, eine Erklärung und eine konkrete Empfehlung. Kreuzen Sie die gewünschten an; Verwenden Sie **Alle Verbesserungen auswählen**, um alle Verbesserungen gleichzeitig umzuschalten. Leere Abschnitte werden ausgeblendet.
+- **Abhängigkeiten** – Externe Programme, Skripte oder Dienste, auf die sich das Snippet stützt, jedes mit seinem *Zweck* und einem *Reduzieren/Ersetzen*-Vorschlag. Markieren Sie jede Abhängigkeit einzeln, damit auch der entsprechende Vorschlag angewendet wird. **Alle Verbesserungen auswählen** lässt diese Kontrollkästchen unverändert.
 
 **Rechts – Flussdiagramm:**
 
-- Ein **automatisch generiertes Mermaid-Flussdiagramm** der Logik des Skripts wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **Mermaid kopieren**, ein Steuerelement für den **Dunkelmodus** und einen Farbwähler für den **Hintergrund** (beide gespeichert) sowie **Regenerieren**. Siehe [Diagrammdarstellung](#diagram-appearance) unten.
+- Ein **automatisch generiertes Mermaid-Flussdiagramm** aus der kombinierten Analyseantwort wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom **−** / **Anpassen** / **+**, **SVG speichern** / **PNG speichern**, **Bild kopieren** / **Mermaid kopieren**, ein Steuerelement für den **Dunkelmodus** und einen Farbwähler für den **Hintergrund** (beide gespeichert) sowie **Regenerieren**. **Regenerieren** sendet absichtlich eine neue Nur-Diagramm-Anfrage unter Verwendung des aktiven Profils des Analysefensters und der aktuellen KI-Fähigkeiten. Siehe [Diagrammdarstellung](#diagram-appearance) unten.
 - **Hover-Code-Referenzen** – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen [Diagram](#mermaid-diagrams)-Fenster.
 
 **KI-Fähigkeiten für diese Analyse:**
@@ -165,7 +167,7 @@ Wenn [AI Skills](../reference/settings/ai-skills.md) konfiguriert sind, zeigt ei
 - **Automatisch ausgewählt** – korTTY wählt die für das Snippet relevanten Fertigkeiten vorab aus, indem es die Tags, den Namen und die Beschreibung jeder Fertigkeit mit der Sprache und dem Inhalt des Snippets abgleicht und sie in die Analyse einbezieht. Aus diesem Grund lautet das Abzeichen beim ersten Durchlauf *(automatisch ausgewählt)*.
 - **Manuell** – Klicken Sie auf **Auswählen…**, um eine **durchsuchbare Auswahl** zu öffnen: Geben Sie in das Suchfeld ein, um Ihre gespeicherten Fertigkeiten nach Namen, Beschreibung oder Tags zu filtern, und aktivieren oder deaktivieren Sie dann die gewünschten Fertigkeiten. Sobald Sie das Set ändern, wechselt das Badge zu *(manuell)* und korTTY behält Ihre Auswahl bei, anstatt sie automatisch auszuwählen.
 
-Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten **Wiederholen** angewendet, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fertigkeiten erzeugt (und keine überraschende Flut von KI-Anrufen). Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten *Ziel* der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.
+Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten **Neudurchlauf** angewendet, sodass ein bewusster Klick eine kombinierte Berichts- und Diagrammanforderung mit genau den von Ihnen ausgewählten Fertigkeiten erzeugt. Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten *Ziel* der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.
 
 **Härtungsmöglichkeiten:**
 
