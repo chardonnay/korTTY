@@ -58,13 +58,13 @@ pages:
     owns_code: [build.gradle.kts, .github/workflows/build-release.yml]
     diagrams: []
     screenshots: []
-    last_synced_ref: "91d77d0"
+    last_synced_ref: "2a5397f"
   - path: app-docs/site/docs/en/getting-started/building-packages.md
     owns_i18n: []
     owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, scripts/package-size-report.py, package/size-baselines.json]
     diagrams: []
     screenshots: []
-    last_synced_ref: "91d77d0"
+    last_synced_ref: "2a5397f"
   - path: app-docs/site/docs/en/getting-started/first-launch.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/MasterPasswordManager.java]
@@ -282,7 +282,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty, src/mermaid, build.gradle.kts]
     diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
-    last_synced_ref: "c507489"
+    last_synced_ref: "2a5397f"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java]
