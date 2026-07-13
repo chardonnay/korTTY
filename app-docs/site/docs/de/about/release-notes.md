@@ -2,7 +2,7 @@
 
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
-## v2.4.3
+## v2.5.0
 
 ### Verpackung und Dokumentation
 

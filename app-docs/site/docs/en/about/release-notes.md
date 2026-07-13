@@ -2,7 +2,7 @@
 
 The full, version-by-version changelog. The version this guide was built for is shown in the footer.
 
-## v2.4.3
+## v2.5.0
 
 ### Packaging and documentation
 

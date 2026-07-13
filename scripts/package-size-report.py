@@ -313,7 +313,7 @@ def main() -> int:
                 f"{key} reduction is {reduction:.2f}%; minimum is {required_reduction}%"
             )
         elif args.fail_on_budget and not baseline_bytes and not baseline.get("baseline_exempt", False):
-            failures.append(f"artifact key has no v2.4.3 baseline and is not exempt: {key}")
+            failures.append(f"artifact key has no configured baseline and is not exempt: {key}")
         report["artifacts"].append(
             {
                 "key": key,
