@@ -2680,7 +2680,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>verifyJpackageStaging<span class="w"> </span>slimNativeRuntimeSmoke
 </span></code></pre></div>
 <h3 id="package-size-reports-and-budgets">Package-size reports and budgets<a class="headerlink" href="#package-size-reports-and-budgets" title="Permanent link">&para;</a></h3>
-<p>The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:</p>
+<p>The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS <code>Contents/app</code> and <code>Contents/runtime</code>, Windows <code>app</code> and <code>runtime</code>, and Linux <code>lib/app</code> and <code>lib/runtime</code> layouts produced by <code>jpackage</code>. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">DMG</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>find<span class="w"> </span>build/jpackage<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;korTTY-*.dmg&#39;</span><span class="w"> </span>-print<span class="w"> </span>-quit<span class="k">)</span><span class="s2">&quot;</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python3<span class="w"> </span>scripts/package-size-report.py<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--app-image<span class="w"> </span>build/jpackage/korTTY.app<span class="w"> </span><span class="se">\</span>
@@ -2692,7 +2692,7 @@
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span>--output-json<span class="w"> </span>build/package-size/local.json<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span>--output-markdown<span class="w"> </span>build/package-size/local.md
 </span></code></pre></div>
-<p>Before a Windows archive is created, the release workflow also requires an application JAR, <code>jvm.dll</code>, at least 100 MiB of plausible content and x86_64 PE headers for both launcher and JVM. Linux RPM size enforcement runs after <code>rpmsign</code>, so the measured file is the one that is distributed.</p>
+<p>Before a Windows archive is created, the release workflow resolves the generated app image and requires an application JAR, <code>jvm.dll</code>, at least 100 MiB of plausible content and x86_64 PE headers for both launcher and JVM. Linux RPM size enforcement runs after <code>rpmsign</code>, so the measured file is the one that is distributed.</p>
 <h3 id="build-the-java-artifacts">Build the Java artifacts<a class="headerlink" href="#build-the-java-artifacts" title="Permanent link">&para;</a></h3>
 <p>Use the platform command below to compile, test and create the thin JAR plus the Java ZIP and TAR distributions:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS / Linux</label><label for="__tabbed_2_2">Windows PowerShell</label></div>
@@ -3084,7 +3084,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.5.0</strong>
+    korTTY <strong>v2.5.1</strong>
   </div>
 </div>
       

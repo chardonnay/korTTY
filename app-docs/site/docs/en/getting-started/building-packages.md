@@ -76,7 +76,7 @@ The first wrapper invocation downloads Gradle. A clean application build also cl
 
 ### Package-size reports and budgets
 
-The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
+The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
@@ -91,7 +91,7 @@ python3 scripts/package-size-report.py \
   --output-markdown build/package-size/local.md
 ```
 
-Before a Windows archive is created, the release workflow also requires an application JAR, `jvm.dll`, at least 100 MiB of plausible content and x86_64 PE headers for both launcher and JVM. Linux RPM size enforcement runs after `rpmsign`, so the measured file is the one that is distributed.
+Before a Windows archive is created, the release workflow resolves the generated app image and requires an application JAR, `jvm.dll`, at least 100 MiB of plausible content and x86_64 PE headers for both launcher and JVM. Linux RPM size enforcement runs after `rpmsign`, so the measured file is the one that is distributed.
 
 ### Build the Java artifacts
 

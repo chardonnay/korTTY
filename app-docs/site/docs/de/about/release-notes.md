@@ -2,6 +2,14 @@
 
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
+## v2.5.1
+
+### Freigabe und Verpackung
+
+- **Zuverlässige Linux-Paketvalidierung** – Paketgrößenprüfungen verstehen jetzt das standardmäßige Linux-JPackage-Layout `lib/app` und `lib/runtime`, sodass die Anwendungs-JAR und die gebündelte JVM validiert werden, anstatt als fehlend gemeldet zu werden.
+- **Zuverlässige Windows-Artefaktvorbereitung** – Der Release-Workflow löst das jpackage-Verzeichnis explizit auf und erkennt den Windows-Launcher im generierten App-Image, bevor das tragbare Archiv erstellt wird.
+- **Abhängigkeits- und CI-Wartung** – aktualisierte CodeQL-Aktionen, Apache MINA SSHD- und Bouncy Castle-, Logback- und Apache PDFBox-Abhängigkeiten.
+
 ## v2.5.0
 
 ### Verpackung und Dokumentation

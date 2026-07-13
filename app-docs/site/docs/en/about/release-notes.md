@@ -2,6 +2,14 @@
 
 The full, version-by-version changelog. The version this guide was built for is shown in the footer.
 
+## v2.5.1
+
+### Release and packaging
+
+- **Reliable Linux package validation** — package-size checks now understand the standard Linux jpackage `lib/app` and `lib/runtime` layout, so the application JAR and bundled JVM are validated instead of being reported as missing.
+- **Reliable Windows artifact preparation** — the release workflow resolves the jpackage directory explicitly and discovers the Windows launcher within the generated app image before creating the portable archive.
+- **Dependency and CI maintenance** — updated CodeQL Actions, Apache MINA SSHD and Bouncy Castle, Logback, and Apache PDFBox dependencies.
+
 ## v2.5.0
 
 ### Packaging and documentation
