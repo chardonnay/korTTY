@@ -100,9 +100,9 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 | Vergrößern | ++alt+plus++ | Terminal-Schriftgröße erhöhen |
 | Verkleinern | ++alt+minus++ | Terminal-Schriftgröße verringern |
 | Zoom zurücksetzen | ++alt+0++ | Terminal-Schriftgröße zurücksetzen |
-| Hintergrundtransparenz | | Schieberegler (0–100 %), der den Hintergrund des Terminals auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Der Wert bleibt über Neustarts hinweg gespeichert. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
+| Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
 | Vollbild | ++f11++ | Fenster-Vollbild umschalten |
-| Nur Terminal-Vollbild | ++f12++ | Verstecke alles Chrome, zeige nur das Terminal |
+| Nur Terminal-Vollbild | ++f12++ | Titelleiste, Menüs, Registerkartenleiste und Statusleiste ausblenden; Zeigt nur das Terminal an |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie aus, wo sich das AI-Agent-Aktivitätsfenster befindet |
 

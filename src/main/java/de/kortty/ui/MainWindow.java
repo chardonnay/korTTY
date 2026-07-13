@@ -724,6 +724,10 @@ public class MainWindow {
             if (!isFullscreen && terminalOnlyFullscreenActive) {
                 setTerminalOnlyFullscreen(false);
             }
+            // Fullscreen is intentionally solid. Keep the persisted percentage untouched and
+            // restore it across all panes as soon as the window leaves fullscreen again.
+            applyBackgroundTransparencyToAllTabs();
+            refreshTransparentModeContainers();
             applyTerminalScrollbarVisibilityForOpenTabs();
             Platform.runLater(() -> {
                 // Give layout time to update, then resize terminal
@@ -2556,7 +2560,7 @@ public class MainWindow {
      */
     private void applyTransparentModeContainerBackgrounds(String bg) {
         Tab active = tabPane.getSelectionModel().getSelectedItem();
-        if (active instanceof TerminalTab) {
+        if (active instanceof TerminalTab && !stage.isFullScreen()) {
             root.setStyle("-fx-background-color: transparent;");
             mainContentBox.setStyle("-fx-background-color: transparent;");
             tabPane.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent;");
@@ -2601,8 +2605,9 @@ public class MainWindow {
 
     /**
      * Applies the current background transparency to one terminal tab. The translucent alpha is only
-     * used when the window actually runs in see-through mode; otherwise the terminal stays opaque so a
-     * lingering setting can't dim the terminal over an opaque window.
+     * used when the window actually runs in see-through mode outside fullscreen; otherwise the terminal
+     * stays opaque so a lingering setting can't dim the terminal over an opaque window. The persisted
+     * percentage is never changed by this temporary fullscreen suppression.
      */
     private void applyBackgroundTransparencyToTab(TerminalTab terminalTab) {
         if (terminalTab == null) {
@@ -2612,8 +2617,9 @@ public class MainWindow {
         if (view == null) {
             return;
         }
-        view.setBackgroundTransparent(transparentWindowMode);
-        view.setBackgroundTransparency(transparentWindowMode ? currentBackgroundTransparencyPercent() : 0);
+        boolean transparencyActive = transparentWindowMode && !stage.isFullScreen();
+        view.setBackgroundTransparent(transparencyActive);
+        view.setBackgroundTransparency(transparencyActive ? currentBackgroundTransparencyPercent() : 0);
     }
 
     /** Live-applies the current background transparency to every open terminal tab (used by the slider). */

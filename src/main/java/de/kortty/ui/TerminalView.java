@@ -2829,7 +2829,9 @@ public class TerminalView extends BorderPane {
             terminalContainer.setStyle(style);
         }
         if (splitPane != null) {
-            splitPane.setStyle(style);
+            // TerminalSplitPane also propagates this state to every current and future nested
+            // JavaFX SplitPane. Otherwise the first split reinstates the theme's opaque background.
+            splitPane.setBackgroundTransparent(transparent);
         }
     }
 

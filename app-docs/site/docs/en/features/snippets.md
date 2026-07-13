@@ -189,7 +189,7 @@ A **Script header** selector lets you prepend one of your saved *Script-Header* 
 
 **Apply selected:**
 
-When you click **Apply selected**, korTTY sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request and shows the result in an *Apply improvements — review changes* window: the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below. Any chosen **Script header** is prepended to the result before it is shown. Apply the change to update the editor. A header on its own — with no improvements, dependencies or hardening ticked — is inserted directly, without an AI round-trip, and still shown as a before/after preview first.
+When you click **Apply selected**, korTTY closes the analysis window before starting the apply flow, sends the ticked improvements and dependency suggestions (plus any hardening options) to the AI in one request, and brings the *Apply improvements — review changes* window to the front. It shows the original and rewritten script side by side, with changed lines highlighted and per-change reasons, exactly like the Security-Check review below; the editor remains unchanged until you confirm **Apply change** in this preview. Any chosen **Script header** is prepended to the result before it is shown. A header on its own — with no improvements, dependencies or hardening ticked — is inserted directly, without an AI round-trip, and still shown as a before/after preview first.
 
 **Export the report:**
 

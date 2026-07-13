@@ -2554,7 +2554,7 @@
 <tr>
 <td>Background Transparency</td>
 <td></td>
-<td>Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; the value is saved across restarts. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only.</td>
+<td>Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; every split pane inherits the value. The value is saved across restarts; fullscreen temporarily renders terminal backgrounds opaque and restores the value when you leave. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only.</td>
 </tr>
 <tr>
 <td>Fullscreen</td>
@@ -2564,7 +2564,7 @@
 <tr>
 <td>Terminal-only Fullscreen</td>
 <td><span class="keys"><kbd class="key-f12">F12</kbd></span></td>
-<td>Hide all chrome, show only the terminal</td>
+<td>Hide the title bar, menus, tab bar and status bar; show only the terminal</td>
 </tr>
 <tr>
 <td>Hide terminal scrollbars in fullscreen</td>

@@ -3422,11 +3422,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 aiProfileId,
                 profileSwitchingSupported() ? this::runCodeReview : null,
                 buildAnalysisSkillContext());
-            // Non-modal: the editor stays usable. Apply the selection (if any) once the window closes.
-            dialog.setOnHidden(hidden -> {
+            // Non-modal: the editor stays usable. Wait until the analysis window has completely closed
+            // before starting the apply flow; opening the modal diff from inside DIALOG_HIDDEN can leave
+            // the new window behind the editor on macOS.
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
                 SnippetCodeAnalysisDialog.ApplySelection selection = dialog.getResult();
                 if (selection != null && !selection.isEmpty()) {
-                    runImprovementFixes(selection);
+                    Platform.runLater(() -> {
+                        if (isShowing()) {
+                            runImprovementFixes(selection);
+                        }
+                    });
                 }
             });
             dialog.show();

@@ -75,7 +75,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "0d15d06"
+    last_synced_ref: "0225110"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -85,7 +85,7 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "4c5af99"
+    last_synced_ref: "0225110"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
@@ -196,9 +196,9 @@ pages:
     last_synced_ref: "4184473"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/TerminalView.java]
+    owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "0d15d06"
+    last_synced_ref: "0225110"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -215,9 +215,9 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/snippets.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]
+    owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java, src/main/java/de/kortty/ui/SnippetAiDiffDialog.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "6c62998"
+    last_synced_ref: "0225110"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]

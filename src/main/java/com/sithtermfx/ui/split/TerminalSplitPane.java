@@ -53,6 +53,7 @@ import javafx.scene.layout.HBox;
 public class TerminalSplitPane extends StackPane {
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalSplitPane.class);
+    private static final String TRANSPARENT_BACKGROUND_STYLE = "-fx-background-color: transparent;";
 
     private static final DataFormat DRAG_TERMINAL_FORMAT = new DataFormat("application/x-sithtermfx-terminal-widget");
 
@@ -82,6 +83,9 @@ public class TerminalSplitPane extends StackPane {
     private SplitCell rootCell;
     private SithTermFxWidget focusedWidget;
     private boolean broadcastMode = false;
+    // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
+    // existing and future nested controls stay transparent instead of restoring the opaque theme.
+    private boolean backgroundTransparent = false;
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
@@ -346,6 +350,22 @@ public class TerminalSplitPane extends StackPane {
 
     public void setOnBroadcastModeChanged(@Nullable Consumer<Boolean> onBroadcastModeChanged) {
         this.onBroadcastModeChanged = onBroadcastModeChanged;
+    }
+
+    /**
+     * Makes this container and every nested JavaFX split control transparent. The state is retained so
+     * split controls created later inherit it as well; clearing it restores the active theme background.
+     */
+    public void setBackgroundTransparent(boolean transparent) {
+        backgroundTransparent = transparent;
+        applyBackgroundStyle(this);
+        if (rootCell != null) {
+            rootCell.refreshBackgroundStyle();
+        }
+    }
+
+    private void applyBackgroundStyle(@NotNull Region region) {
+        region.setStyle(backgroundTransparent ? TRANSPARENT_BACKGROUND_STYLE : null);
     }
 
     private void notifyWidgetClosed(@Nullable SithTermFxWidget widget) {
@@ -915,6 +935,7 @@ public class TerminalSplitPane extends StackPane {
             splitPane.setMinSize(0, 0);
             splitPane.setMaxWidth(Double.MAX_VALUE);
             splitPane.setMaxHeight(Double.MAX_VALUE);
+            applyBackgroundStyle(splitPane);
             this.node = splitPane;
             Platform.runLater(() -> splitPane.setDividerPositions(0.5));
         }
@@ -1004,6 +1025,14 @@ public class TerminalSplitPane extends StackPane {
             if (widget != null) return 1;
             return (leftCell != null ? leftCell.countWidgets() : 0)
                     + (rightCell != null ? rightCell.countWidgets() : 0);
+        }
+
+        void refreshBackgroundStyle() {
+            if (splitPane != null) {
+                applyBackgroundStyle(splitPane);
+            }
+            if (leftCell != null) leftCell.refreshBackgroundStyle();
+            if (rightCell != null) rightCell.refreshBackgroundStyle();
         }
 
         void closeAll() {

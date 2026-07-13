@@ -10,12 +10,14 @@ import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetEditorProfile;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DialogEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
@@ -27,6 +29,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import java.util.HashMap;
@@ -151,11 +154,26 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         getDialogPane().setPrefWidth(1040);
         getDialogPane().setPrefHeight(700);
         getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
-        setOnHidden(event -> {
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
             diffPane.dispose();
             explanationsView.getEngine().loadContent("");
         });
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(this::bringToFront));
         setResultConverter(buttonType -> buttonType == applyButton);
+    }
+
+    /** Keeps a newly opened review window above its non-modal editor/analysis window on macOS. */
+    private void bringToFront() {
+        Window window = getDialogPane().getScene() != null
+            ? getDialogPane().getScene().getWindow()
+            : null;
+        if (window == null || !window.isShowing()) {
+            return;
+        }
+        if (window instanceof Stage stage) {
+            stage.toFront();
+        }
+        window.requestFocus();
     }
 
     /**

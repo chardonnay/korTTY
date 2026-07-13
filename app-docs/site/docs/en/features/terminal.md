@@ -54,6 +54,8 @@ Holding ++ctrl++ (or ++cmd++ on macOS) and scrolling the mouse wheel over the te
 
 Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.
 
+Horizontal, vertical and nested split terminals inherit the active transparency level, including panes added after transparency was enabled. Entering fullscreen with ++f11++ or terminal-only fullscreen with ++f12++ temporarily renders the terminal area opaque without changing the saved value; leaving fullscreen restores that value to every pane.
+
 Because a see-through window uses a different window style that the operating system fixes when the window opens, **switching transparency on or off (crossing 0 %) only takes full effect after a restart**; the status bar shows a hint when you cross that threshold. Adjusting the level while already in transparent mode applies live. In transparent mode the window uses a lightweight custom title bar (drag to move, buttons to minimise/maximise/close, double-click the strip to maximise, drag the edges to resize).
 
 The slider lives in the in-window menu bar only (the native macOS menu bar cannot host a slider).

@@ -42,6 +42,9 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ### Fixes
 
+- **Transparency survives split terminals** — opening horizontal, vertical or nested split panes no longer replaces the configured terminal transparency with the theme's opaque background. Every new pane inherits the active level; fullscreen still becomes temporarily opaque and restores the saved transparency to all panes when you leave it.
+- **The Help window remains visible in the background** — korTTY no longer clears the left content pane after the window has remained unfocused for 20 seconds. The former behavior could leave a completely white area next to AI search. WebViews are still released when users close the corresponding view, and invisible rendering services keep their idle cleanup.
+- **Full code analysis shows its change preview again** — after **Apply selected**, korTTY now waits until the analysis window has completely closed and brings the side-by-side review window in front of the snippet editor. The editor remains unchanged until **Apply change** is confirmed in that preview.
 - **No crash when a snippet fails to save** — saving a snippet as a new entry could, if the save failed, crash with a null-pointer error while trying to show the failure message. The error is now reported cleanly.
 - **"Save as new snippet" no longer shows a false "already exists" error** — after editing a snippet (for example applying analysis improvements) and saving it under a new name with **Save as new snippet**, korTTY wrongly popped up *"Snippet name already exists"* even though it had just saved the snippet correctly. The dialog now delivers its save exactly once.
 

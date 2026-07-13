@@ -9,8 +9,11 @@ import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.concurrent.Worker;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -25,6 +28,8 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import javafx.util.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -194,6 +199,7 @@ public final class SnippetAiDialogsSmoke {
         // real editor controls and defer checking the asynchronous provider calls until the final pause.
         Runnable verifyAiTextLanguage = exerciseSnippetEditorAiTextLanguageSelection();
         Runnable verifyAnalysisLanguages = exerciseSnippetAnalysisLanguageRouting();
+        Runnable verifyAnalysisApplyPreview = exerciseFullAnalysisApplyPreview(failure);
 
         // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow). Capture the
         //    MonacoDiffPane logger while its WebView loads to assert the Java bridge installs cleanly.
@@ -243,8 +249,9 @@ public final class SnippetAiDialogsSmoke {
                 try {
                     verifyAiTextLanguage.run();
                     verifyAnalysisLanguages.run();
+                    verifyAnalysisApplyPreview.run();
                 } catch (Throwable e) {
-                    failure.compareAndSet(null, "SnippetEditDialog AI language check failed: " + e);
+                    failure.compareAndSet(null, "SnippetEditDialog AI flow check failed: " + e);
                 }
             } finally {
                 diffLogger.detachAppender(diffLog);
@@ -393,6 +400,157 @@ public final class SnippetAiDialogsSmoke {
     }
 
     private record ProviderLanguage(String snippetLanguage, String textLanguage) {
+    }
+
+    /**
+     * Drives the real Full-code-analysis window through Apply selected and proves that the generated
+     * replacement is surfaced in the review-diff window before the editor content can change.
+     */
+    private static Runnable exerciseFullAnalysisApplyPreview(AtomicReference<String> failure) throws Exception {
+        String original = "#!/usr/bin/env bash\nprintf '%s\\n' $value\n";
+        String replacement = "#!/usr/bin/env bash\nprintf '%s\\n' \"$value\"\n";
+        SnippetAiResponseSupport.ScriptImprovement improvement =
+            new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
+                "Quote the expansion.", 2);
+        SnippetAiResponseSupport.FullCodeAnalysis fullAnalysis =
+            new SnippetAiResponseSupport.FullCodeAnalysis(
+                new SnippetAiResponseSupport.ScriptAnalysis(
+                    "Prints one value.", List.of(), List.of(improvement)),
+                new SnippetAiResponseSupport.MermaidDiagram("Flow", ""));
+        AtomicBoolean applyProviderCalled = new AtomicBoolean();
+        AtomicBoolean applyClicked = new AtomicBoolean();
+        AtomicBoolean previewShown = new AtomicBoolean();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            request -> new SnippetAiResponseSupport.MermaidDiagram("Flow", ""),
+            request -> fullAnalysis,
+            request -> {
+                applyProviderCalled.set(true);
+                return new SnippetAiResponseSupport.SnippetSecurityFix(
+                    replacement,
+                    "Quotes the variable expansion.",
+                    List.of(new SnippetAiResponseSupport.SecurityChange(
+                        "SEC-1", "printf '%s\\n' \"$value\"", "Prevents word splitting.")));
+            },
+            false,
+            null);
+        SnippetEditDialog editorDialog = new SnippetEditDialog(
+            new Snippet("analysis-preview-smoke.sh", original, "bash"), List.of(), assist);
+        MonacoEditorPane editor = field(editorDialog, "contentArea", MonacoEditorPane.class);
+        editorDialog.show();
+
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                Stage preview = findShowingStage(I18n.get("snippets.ai.analysis.diff.title"));
+                if (preview != null) {
+                    previewShown.set(true);
+                    Timeline active = poller.get();
+                    if (active != null) {
+                        active.stop();
+                    }
+                    return;
+                }
+                if (applyClicked.get()) {
+                    return;
+                }
+                Stage analysis = findShowingStage(I18n.get("snippets.ai.analysis.title"));
+                if (analysis == null || analysis.getScene() == null) {
+                    return;
+                }
+                WebEngine findings = analysisFindingsEngine(analysis);
+                if (findings == null) {
+                    return;
+                }
+                setChecked(findings, "imp", "SEC-1", true);
+                Button apply = findNodes(analysis.getScene().getRoot(), Button.class).stream()
+                    .map(Button.class::cast)
+                    .filter(button -> button.getText() != null
+                        && button.getText().contains(I18n.get("snippets.ai.analysis.applySelected")))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Full-code-analysis Apply-selected button is missing"));
+                applyClicked.set(true);
+                apply.fire();
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Full-code-analysis preview flow failed: " + e);
+                Timeline active = poller.get();
+                if (active != null) {
+                    active.stop();
+                }
+                editorDialog.close();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+        invoke(editorDialog, "runCodeReview", new Class<?>[0]);
+
+        return () -> {
+            timeline.stop();
+            try {
+                if (!applyClicked.get()) {
+                    throw new AssertionError("Full-code-analysis selection was not applied from its real dialog");
+                }
+                if (!applyProviderCalled.get()) {
+                    throw new AssertionError("Full-code-analysis apply provider was not invoked");
+                }
+                if (!previewShown.get()) {
+                    throw new AssertionError("Full-code-analysis did not show the review-diff window");
+                }
+                if (!original.equals(editor.getText())) {
+                    throw new AssertionError("Editor content changed before the review-diff was confirmed");
+                }
+            } finally {
+                Stage preview = findShowingStage(I18n.get("snippets.ai.analysis.diff.title"));
+                if (preview != null) {
+                    // Close only after Monaco has had the smoke's full wait interval to finish loading.
+                    preview.close();
+                }
+            }
+        };
+    }
+
+    private static Stage findShowingStage(String titlePrefix) {
+        return Window.getWindows().stream()
+            .filter(Window::isShowing)
+            .filter(Stage.class::isInstance)
+            .map(Stage.class::cast)
+            .filter(stage -> stage.getTitle() != null && stage.getTitle().startsWith(titlePrefix))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private static WebEngine analysisFindingsEngine(Stage analysisStage) {
+        for (Node node : findNodes(analysisStage.getScene().getRoot(), WebView.class)) {
+            WebEngine engine = ((WebView) node).getEngine();
+            if (engine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
+                continue;
+            }
+            try {
+                Object found = engine.executeScript(
+                    "document.querySelector(\"input.analysis-check[data-kind='imp'][data-id='SEC-1']\") !== null");
+                if (Boolean.TRUE.equals(found)) {
+                    return engine;
+                }
+            } catch (RuntimeException ignored) {
+                // This is another WebView in the analysis window (for example the Mermaid renderer).
+            }
+        }
+        return null;
     }
 
     /** Verifies the editor forwards GUI/report language and code language through the two analysis actions. */

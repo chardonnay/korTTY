@@ -1905,6 +1905,14 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalSplitTransparencySmoke") {
+    group = "verification"
+    description = "Verifies terminal background transparency survives current and newly nested splits."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalSplitTransparencySmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerModelComboSmoke") {
     group = "verification"
     description = "Selects a model in the real AI Manager model picker to verify the choice sticks."
@@ -1921,11 +1929,11 @@ tasks.register<JavaExec>("guideAskPanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("guideBackgroundUnloadSmoke") {
+tasks.register<JavaExec>("guideBackgroundVisibilitySmoke") {
     group = "verification"
-    description = "Verifies the guide WebView drops its page in the background and reloads the same URL on return."
+    description = "Verifies the guide WebView remains rendered after the window stays in the background."
     dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.GuideBackgroundUnloadSmoke")
+    mainClass.set("de.kortty.ui.GuideBackgroundVisibilitySmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

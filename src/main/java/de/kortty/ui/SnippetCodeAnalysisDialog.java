@@ -20,6 +20,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DialogEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -36,7 +37,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
-import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
 import java.io.File;
@@ -194,7 +194,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
         setOnShown(event -> diagramView.loadIfNeeded());
-        addEventHandler(WindowEvent.WINDOW_HIDDEN, event -> {
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
             diagramView.dispose();
             // Unload the findings page so its WebKit engine releases its native memory.
             findingsView.getEngine().loadContent("");
