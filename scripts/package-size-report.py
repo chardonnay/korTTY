@@ -29,14 +29,22 @@ def file_bytes(root: Path) -> int:
 
 def app_layout(root: Path) -> tuple[Path, Path]:
     contents = root / "Contents"
-    base = contents if contents.is_dir() else root
-    return base / "app", base / "runtime"
+    if contents.is_dir():
+        return contents / "app", contents / "runtime"
+    linux_lib = root / "lib"
+    if linux_lib.is_dir():
+        return linux_lib / "app", linux_lib / "runtime"
+    return root / "app", root / "runtime"
 
 
 def app_bucket(relative: Path) -> str:
     parts = relative.parts
     if not parts:
         return "other"
+    if parts[0] == "lib":
+        parts = parts[1:]
+        if not parts:
+            return "other"
     if parts[0] == "runtime":
         return "runtime"
     if parts[0] != "app" or len(parts) < 2:

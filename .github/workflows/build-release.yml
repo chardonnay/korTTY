@@ -557,18 +557,21 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          cd build/jpackage
+          $jpackageDir = Join-Path $env:GITHUB_WORKSPACE "build/jpackage"
+          Set-Location $jpackageDir
           $artifactBase = "korTTY-Windows-${{ steps.version.outputs.version }}-${{ matrix.arch }}"
-          if (-not (Test-Path -Path "korTTY" -PathType Container)) {
+          $appImage = Join-Path $jpackageDir "korTTY"
+          if (-not (Test-Path -Path $appImage -PathType Container)) {
             Write-Error "Complete Windows application image not found at build/jpackage/korTTY."
             exit 1
           }
-          $appJar = Get-ChildItem -Path "korTTY\app" -Filter "korTTY-*.jar" -File -ErrorAction SilentlyContinue
-          $jvm = Get-ChildItem -Path "korTTY\runtime" -Filter "jvm.dll" -File -Recurse -ErrorAction SilentlyContinue
-          $logicalBytes = (Get-ChildItem -Path "korTTY" -File -Recurse | Measure-Object -Property Length -Sum).Sum
+          $appJar = Get-ChildItem -Path (Join-Path $appImage "app") -Filter "korTTY-*.jar" -File -ErrorAction SilentlyContinue
+          $jvm = Get-ChildItem -Path (Join-Path $appImage "runtime") -Filter "jvm.dll" -File -Recurse -ErrorAction SilentlyContinue
+          $launcher = Get-ChildItem -Path $appImage -Filter "korTTY.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          $logicalBytes = (Get-ChildItem -Path $appImage -File -Recurse | Measure-Object -Property Length -Sum).Sum
           if (-not $appJar -or -not $jvm -or $logicalBytes -lt 100MB) {
             Write-Error "Windows app image is incomplete (appJar=$($appJar.Count), jvm=$($jvm.Count), bytes=$logicalBytes)."
-            Get-ChildItem -Path "korTTY" -Recurse | Select-Object -First 100
+            Get-ChildItem -Path $appImage -Recurse | Select-Object -First 100
             exit 1
           }
           function Get-PeMachine([string]$Path) {
@@ -578,13 +581,17 @@ jobs:
             if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) { return -1 }
             return [BitConverter]::ToUInt16($bytes, $peOffset + 4)
           }
-          $launcherMachine = Get-PeMachine "korTTY\korTTY.exe"
+          if (-not $launcher) {
+            Write-Error "Windows launcher korTTY.exe not found in $appImage."
+            exit 1
+          }
+          $launcherMachine = Get-PeMachine $launcher.FullName
           $jvmMachine = Get-PeMachine $jvm[0].FullName
           if ($launcherMachine -ne 0x8664 -or $jvmMachine -ne 0x8664) {
             Write-Error "Windows x86_64 artifact has the wrong PE machine (launcher=0x$('{0:X4}' -f $launcherMachine), jvm=0x$('{0:X4}' -f $jvmMachine))."
             exit 1
           }
-          Compress-Archive -Path korTTY -DestinationPath "$artifactBase.zip" -Force
+          Compress-Archive -Path $appImage -DestinationPath (Join-Path $jpackageDir "$artifactBase.zip") -Force
           if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
             Copy-Item $msiFile.FullName "$artifactBase.msi"

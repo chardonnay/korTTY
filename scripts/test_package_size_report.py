@@ -33,6 +33,17 @@ class PackageSizePlantUmlGuardTest(unittest.TestCase):
                 archive.writestr(name, content)
         return app_image
 
+    def create_linux_app_image(self, root: Path) -> Path:
+        app_image = root / "korTTY"
+        app_dir = app_image / "lib" / "app"
+        runtime_dir = app_image / "lib" / "runtime" / "lib" / "server"
+        app_dir.mkdir(parents=True)
+        runtime_dir.mkdir(parents=True)
+        (runtime_dir / "libjvm.so").write_bytes(b"jvm")
+        with zipfile.ZipFile(app_dir / "korTTY-test.jar", "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("de/kortty/KorTTYApplication.class", b"app")
+        return app_image
+
     def test_generic_migration_cleanup_class_is_not_reported_as_a_renderer_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             app_image = self.create_app_image(
@@ -67,6 +78,15 @@ class PackageSizePlantUmlGuardTest(unittest.TestCase):
                 },
                 {item["path"] for item in report["plantuml_artifacts"]},
             )
+
+    def test_linux_jpackage_layout_finds_application_jar_and_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = PACKAGE_SIZE_REPORT.analyze_app_image(self.create_linux_app_image(Path(directory)))
+
+            self.assertIsNotNone(report["app_jar"])
+            self.assertIsNotNone(report["runtime_jvm"])
+            self.assertIn("app/kortty-jar", report["buckets"])
+            self.assertIn("runtime", report["buckets"])
 
     def test_cli_rejects_artifacts_only_when_budget_enforcement_is_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
