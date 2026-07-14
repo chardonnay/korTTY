@@ -9,6 +9,7 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.layout.Region;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -26,7 +27,7 @@ import java.util.WeakHashMap;
  * CSS-styled effect — so it can never fight the stylesheet.</p>
  *
  * <p>It is gated by the global "design animations" switch and stops while the owning window
- * is hidden, keeping idle CPU at zero.</p>
+ * is hidden, iconified, or in the background, keeping idle CPU at zero.</p>
  */
 final class AppDesignAnimator {
 
@@ -69,14 +70,20 @@ final class AppDesignAnimator {
             return;
         }
         scene.windowProperty().addListener((obs, oldWin, newWin) -> {
-            if (newWin != null) {
-                newWin.showingProperty().addListener((o, was, isShowing) -> evaluate(cursor));
-            }
+            attachWindowLifecycle(cursor, newWin);
             evaluate(cursor);
         });
-        Window window = scene.getWindow();
-        if (window != null) {
-            window.showingProperty().addListener((o, was, isShowing) -> evaluate(cursor));
+        attachWindowLifecycle(cursor, scene.getWindow());
+    }
+
+    private static void attachWindowLifecycle(Region cursor, Window window) {
+        if (window == null) {
+            return;
+        }
+        window.showingProperty().addListener((o, was, isShowing) -> evaluate(cursor));
+        window.focusedProperty().addListener((o, was, isFocused) -> evaluate(cursor));
+        if (window instanceof Stage stage) {
+            stage.iconifiedProperty().addListener((o, was, isIconified) -> evaluate(cursor));
         }
     }
 
@@ -94,8 +101,8 @@ final class AppDesignAnimator {
         cursor.setVisible(true);
         cursor.setManaged(true);
         cursor.setOpacity(1.0);
-        if (!isShowing(cursor)) {
-            return; // configured, but the timeline stays parked while the window is hidden
+        if (!isForeground(cursor)) {
+            return; // configured, but the timeline stays parked outside the foreground
         }
         Timeline timeline = breatheTimeline(cursor);
         CURSORS.put(cursor, timeline);
@@ -119,10 +126,17 @@ final class AppDesignAnimator {
         }
     }
 
-    private static boolean isShowing(Region cursor) {
+    private static boolean isForeground(Region cursor) {
         Scene scene = cursor.getScene();
         Window window = scene != null ? scene.getWindow() : null;
-        return window != null && window.isShowing();
+        return window != null && shouldAnimateWindow(
+            window.isShowing(),
+            window.isFocused(),
+            window instanceof Stage stage && stage.isIconified());
+    }
+
+    static boolean shouldAnimateWindow(boolean showing, boolean focused, boolean iconified) {
+        return showing && focused && !iconified;
     }
 
     private static void runFx(Runnable action) {

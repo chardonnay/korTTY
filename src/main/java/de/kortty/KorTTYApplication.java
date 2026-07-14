@@ -30,6 +30,7 @@ import de.kortty.telemetry.TelemetryService;
 import de.kortty.update.UpdateCheckService;
 import de.kortty.jmx.SSHClientMonitor;
 import de.kortty.security.MasterPasswordManager;
+import de.kortty.power.PowerManagementCoordinator;
 import de.kortty.ui.MainWindow;
 import de.kortty.ui.MasterPasswordDialog;
 import java.awt.Desktop;
@@ -91,6 +92,8 @@ public class KorTTYApplication extends Application {
     private UpdateCheckService updateCheckService;
     private TelemetryService telemetryService;
     private ScheduledExecutorService logMaintenanceExecutor;
+    private PowerManagementCoordinator powerManagementCoordinator;
+    private Runnable schedulerPowerStateListener;
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     private volatile boolean shuttingDown = false;
@@ -135,6 +138,7 @@ public class KorTTYApplication extends Application {
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
+        powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
@@ -245,6 +249,7 @@ public class KorTTYApplication extends Application {
                 logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
                 applyLoggingSettings();
+                applyPersistedPowerManagementSetting(loadedSettings);
                 
                 // Sync ConfigurationManager with persisted terminal settings
                 // so that all components reading from configManager see the saved values
@@ -257,6 +262,9 @@ public class KorTTYApplication extends Application {
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
                 jobSchedulerService = new JobSchedulerService(this, getConfigDirectory());
                 jobSchedulerService.load();
+                schedulerPowerStateListener = this::syncSchedulerPowerState;
+                jobSchedulerService.addListener(schedulerPowerStateListener);
+                syncSchedulerPowerState();
                 jobSchedulerService.start();
             } catch (Exception e) {
                 logger.warn("Failed to load GPG keys or credentials", e);
@@ -441,6 +449,10 @@ public class KorTTYApplication extends Application {
         }
         if (jobSchedulerService != null) {
             shutdownStep("stop job scheduler", jobSchedulerService::shutdownSchedulerThreads);
+        }
+        if (powerManagementCoordinator != null) {
+            shutdownStep("release power-management assertions", powerManagementCoordinator::close);
+            powerManagementCoordinator = null;
         }
         if (updateCheckService != null) {
             shutdownStep("stop update check", updateCheckService::stop);
@@ -861,6 +873,35 @@ public class KorTTYApplication extends Application {
 
     public JobSchedulerService getJobSchedulerService() {
         return jobSchedulerService;
+    }
+
+    public PowerManagementCoordinator getPowerManagementCoordinator() {
+        return powerManagementCoordinator;
+    }
+
+    private void applyPersistedPowerManagementSetting(GlobalSettings settings) {
+        if (settings == null || powerManagementCoordinator == null || !settings.isPreventSystemSleep()) {
+            return;
+        }
+        if (!powerManagementCoordinator.setManualSleepPrevention(true)
+                && powerManagementCoordinator.supportsSystemSleepPrevention()) {
+            settings.setPreventSystemSleep(false);
+            logger.warn("Persisted system-sleep prevention could not be activated; resetting the setting");
+            try {
+                globalSettingsManager.save();
+            } catch (Exception e) {
+                logger.warn("Could not persist reset power-management setting", e);
+            }
+        }
+    }
+
+    private void syncSchedulerPowerState() {
+        if (powerManagementCoordinator == null || jobSchedulerService == null) {
+            return;
+        }
+        powerManagementCoordinator.updateSchedulerState(
+            jobSchedulerService.hasEnabledScheduledJobs(),
+            jobSchedulerService.hasActiveJobs());
     }
 
     public UpdateCheckService getUpdateCheckService() {

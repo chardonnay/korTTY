@@ -54,6 +54,7 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Item | Description |
 | --- | --- |
 | Global Settings… | Open the global Settings dialog (all tabs) |
+| Prevent System Sleep | On macOS and Windows, enable activity-based system-sleep prevention. The computer is kept awake only while a terminal is connected, an enabled Scheduler job has a future run or is running, or an AI request is in progress. With none of these activities, system sleep remains available even while the item is checked. Display sleep is unaffected. On Linux the item is visible but disabled. |
 
 See the [Settings reference](settings/index.md) for every individual setting.
 

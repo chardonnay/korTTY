@@ -125,7 +125,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             Files.writeString(userPromptFile, safeUserPrompt, StandardCharsets.UTF_8);
             Files.writeString(promptFile, combinedPrompt, StandardCharsets.UTF_8);
             CliCommand command = buildCommand(promptFile, systemPromptFile, userPromptFile, combinedPrompt);
-            CliProcessResult result = runProcess(command.command(), command.stdin(), timeout);
+            CliProcessResult result = AiPowerManagementScope.call(
+                () -> runProcess(command.command(), command.stdin(), timeout));
             if (result.exitCode() != 0) {
                 throw new IllegalStateException(buildExitMessage(result));
             }

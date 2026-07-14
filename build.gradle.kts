@@ -213,6 +213,11 @@ dependencies {
     // until the macOS signing step is taught to sign jar-internal natives.
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
 
+    // Native desktop power-management integration. pty4j already brings these transitively, but
+    // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
+    implementation("net.java.dev.jna:jna:5.13.0")
+    implementation("net.java.dev.jna:jna-platform:5.13.0")
+
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")
     implementation("ch.qos.logback:logback-classic:1.5.38")

@@ -4,48 +4,48 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 
 ## Datei
 
-| Artikel | Verknüpfung | Beschreibung |
+| Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Neues Fenster | ++Strg+Umschalt+N++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
-| Neuer Tab | ++Strg+T++ | Öffnen Sie Quick Connect in einem neuen Terminal-Tab |
+| Neues Fenster | ++Strg+Umschalt+N++ | Öffnet ein zusätzliches, unabhängiges Hauptfenster |
+| Neue Registerkarte | ++Strg+T++ | Öffnen Sie Quick Connect in einer neuen Terminal-Registerkarte |
 | Projekt öffnen… | ++Strg+O++ | Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout) |
-| Projekt speichern… | ++Strg+S++ | Speichern Sie die aktuelle Sitzung als Projekt (`.kortty`) |
-| Schnellverbindung… | ++Strg+K++ | Mit einem Host verbinden, ohne ihn vorher zu speichern |
+| Projekt speichern… | ++Strg+S++ | Aktuelle Sitzung als Projekt speichern (`.kortty`) |
+| Schnellverbindung… | ++Strg+K++ | Verbindung zu einem Host herstellen, ohne ihn vorher zu speichern |
 | Verbindungen verwalten… | | Öffnen Sie den Verbindungsmanager |
 | Verbindungen importieren… | | Import aus MTPuTTY / MobaXterm / PuTTY CM |
 | Verbindungen exportieren… | | Gespeicherte Verbindungen exportieren |
-| Tab schließen | ++Strg+W++ | Schließen Sie die aktive Terminal-Registerkarte |
-| Alle Tabs schließen | | Alle Registerkarten im aktuellen Fenster schließen |
+| Tab schließen | ++Strg+W++ | Aktives Terminal-Tab schließen |
+| Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen |
 | Fenster schließen | | Aktuelles Fenster schließen |
-| Beenden | ++Strg+Q++ | Beenden Sie korTTY |
+| Beenden | ++Strg+Q++ | Beenden korTTY |
 
 ## Bearbeiten
 
-| Artikel | Verknüpfung | Beschreibung |
+| Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Schneiden | ++Strg+x++ | Ausschneiden (für Anschlusslaschen deaktiviert) |
-| Kopieren | ++Strg+C++ | Kopieren Sie die Terminalauswahl |
-| Einfügen | ++Strg+V++ | In das Terminal einfügen |
+| Ausschneiden | ++Strg+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
+| Kopieren | ++Strg+C++ | Kopieren der Terminalauswahl |
+| Einfügen | ++Strg+V++ | Einfügen in das Terminal |
 | Alle auswählen | | Alle Terminalinhalte auswählen |
-| Terminal löschen | | Löschen Sie das aktive Terminal |
+| Terminal löschen | | Aktives Terminal löschen |
 | Backup erstellen… | ++Strg+Umschalt+B++ | Erstellen Sie ein verschlüsseltes Backup (ZIP-Passwort oder GPG) |
-| Backup importieren… | | Aus einer Sicherungsdatei wiederherstellen |
+| Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 
 ## Verbindungen
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Schnellverbindung… | Ohne Speichern eine Verbindung zu einem Host herstellen |
-| Verbindungen verwalten… | Öffnen Sie den Verbindungsmanager (Baum, Suchen, Bearbeiten) |
+| Quick Connect… | Verbindung zu einem Host herstellen, ohne | zu speichern
+| Verbindungen verwalten… | Öffnen Sie den Verbindungsmanager (Struktur, Suche, Bearbeiten) |
 | Importieren… | Verbindungen von anderen Clients importieren |
-| Exportieren… | Verbindungen exportieren |
+| Export… | Exportverbindungen |
 | SFTP-Client… | Öffnen Sie den Dual-Panel-SFTP-Dateimanager |
 
 ## Sicherheit
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Anmeldeinformationen… | Gespeicherte Zugangsdaten verwalten (verschlüsselt) |
+| Anmeldeinformationen… | Gespeicherte Anmeldeinformationen verwalten (verschlüsselt) |
 | GPG-Schlüssel… | GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden |
 | SSH-Schlüssel… | SSH-Schlüssel und Passphrasen verwalten |
 
@@ -54,29 +54,30 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 | Artikel | Beschreibung |
 | --- | --- |
 | Globale Einstellungen… | Öffnen Sie den globalen Einstellungsdialog (alle Registerkarten) |
+| System-Ruhezustand verhindern | Aktivieren Sie unter macOS und Windows die aktivitätsbasierte Verhinderung des System-Ruhezustands. Der Computer bleibt nur dann wach, wenn ein Terminal angeschlossen ist, ein aktivierter Scheduler-Job in Zukunft ausgeführt wird oder ausgeführt wird oder eine KI-Anfrage ausgeführt wird. Wenn keine dieser Aktivitäten erfolgt, bleibt der Systemschlaf auch dann verfügbar, wenn das Element überprüft wird. Der Display-Ruhezustand ist davon nicht betroffen. Unter Linux ist das Element sichtbar, aber deaktiviert. |
 
-Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne Einstellung an.
+Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md).
 
-## Werkzeuge
+## Tools
 
 ![Tools menu](../assets/screenshots/main/menu-tools.png)
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Snippet-Manager… | Befehlsschnipsel erstellen, bearbeiten, organisieren, senden und exportieren |
-| JobScheduler… | Planen Sie Hintergrundbefehle/Snippets/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs |
-| Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über `ffmpeg` | nach WebM/MKV
+| Snippet Manager… | Erstellen, Bearbeiten, Organisieren, Senden und Exportieren von Befehlsausschnitten |
+| JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
+| Video Manager… | Terminalaufzeichnungen verwalten und über `ffmpeg` | nach WebM/MKV exportieren
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++Strg+Umschalt+E++) |
-| ASCII-Kunst… | FIGlet-Bannergenerator mit mehreren Schriftarten |
+| ASCII Art… | FIGlet-Bannergenerator mit mehreren Schriftarten |
 
-## KI
+## AI
 
 ![AI menu](../assets/screenshots/main/menu-ai.png)
 
 | Artikel | Beschreibung |
 | --- | --- |
-| KI-Manager… | KI-Profile und gespeicherte Chats verwalten |
-| KI-Agent… | Öffnen Sie den Terminal AI Agent |
+| AI Manager… | AI-Profile und gespeicherte Chats verwalten |
+| AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Übertragen Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++Strg+Alt+S++) |
 
@@ -88,23 +89,23 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Endgültige Auswirkungen… | Terminaleffekt-Plugins aktivieren/deaktivieren, konfigurieren, importieren/exportieren |
+| Terminal-Effekte… | Terminal-Effekt-Plugins aktivieren/deaktivieren, konfigurieren, importieren/exportieren |
 
-## Sicht
+## Ansicht
 
-| Artikel | Verknüpfung | Beschreibung |
+| Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Dashboard anzeigen | ++Strg+Umschalt+D++ | Schalten Sie das Verbindungs-Dashboard um |
-| Menüleiste anzeigen | ++Strg+Umschalt+L++ | Schalten Sie die Menüleiste um |
+| Dashboard anzeigen | ++Strg+Umschalt+D++ | Verbindungs-Dashboard umschalten |
+| Menüleiste anzeigen | ++Strg+Umschalt+L++ | Menüleiste umschalten |
 | Befehlszeitstempel anzeigen | | Inline-Befehlszeitstempel umschalten |
-| Vergrößern | ++alt+plus++ | Terminal-Schriftgröße erhöhen |
-| Verkleinern | ++alt+minus++ | Terminal-Schriftgröße verringern |
+| Vergrößern | ++Alt+Plus++ | Terminal-Schriftgröße erhöhen |
+| Verkleinern | ++Alt+Minus++ | Terminal-Schriftgröße verringern |
 | Zoom zurücksetzen | ++alt+0++ | Terminal-Schriftgröße zurücksetzen |
 | Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
 | Vollbild | ++f11++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++f12++ | Titelleiste, Menüs, Registerkartenleiste und Statusleiste ausblenden; Zeigt nur das Terminal an |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
-| AI Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie aus, wo sich das AI-Agent-Aktivitätsfenster befindet |
+| AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
 
 ## Teamarbeit
 
@@ -112,18 +113,18 @@ Sehen Sie sich die [Einstellungsreferenz](settings/index.md)] für jede einzelne
 | --- | --- |
 | Teamwork-Einstellungen… | Gemeinsam genutzte Verbindungsquellen und Synchronisierung konfigurieren |
 
-## Helfen
+## Hilfe
 
-| Artikel | Verknüpfung | Beschreibung |
+| Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-## macOS Dock und Menüleiste
+## macOS Dock & Menüleiste
 
 Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster geschlossen wurde. korTTY fügt daher zwei zusätzliche Einstiegspunkte hinzu, damit es erreichbar – und beendet – bleibt, auch wenn kein Fenster geöffnet ist:
 
-- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen auszuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
-- **Symbol in der Menüleiste (Status)** – ein Symbol in der Taskleiste mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
+- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.

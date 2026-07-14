@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -38,9 +39,11 @@ public class JobSchedulerService {
     private final Map<String, ActiveJobControl> activeJobs = new ConcurrentHashMap<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private final Object drainMonitor = new Object();
+    private final Object tickScheduleMonitor = new Object();
 
     private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile boolean draining;
+    private ScheduledFuture<?> scheduledTick;
 
     public JobSchedulerService(KorTTYApplication app, Path configDir) {
         this(app, new JobSchedulerRepository(configDir));
@@ -99,13 +102,14 @@ public class JobSchedulerService {
         if (!started.compareAndSet(false, true)) {
             return;
         }
-        schedulerExecutor.scheduleAtFixedRate(this::tickSafely, 5, 15, TimeUnit.SECONDS);
+        scheduleNextTick();
     }
 
     public void shutdownSchedulerThreads() {
         synchronized (drainMonitor) {
             draining = true;
         }
+        cancelScheduledTick();
         schedulerExecutor.shutdownNow();
         workerExecutor.shutdown();
         try {
@@ -143,6 +147,7 @@ public class JobSchedulerService {
         repository.upsertJob(job);
         repository.save();
         notifyListeners();
+        scheduleNextTick();
     }
 
     public void deleteJob(String jobId) throws Exception {
@@ -154,6 +159,7 @@ public class JobSchedulerService {
         }
         repository.save();
         notifyListeners();
+        scheduleNextTick();
     }
 
     public void runJobNow(String jobId) {
@@ -204,6 +210,18 @@ public class JobSchedulerService {
         return !activeJobs.isEmpty();
     }
 
+    /** True when at least one enabled job has an enabled schedule and a future run. */
+    public boolean hasEnabledScheduledJobs() {
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        return repository.getJobs().stream()
+            .filter(ScheduledJob::isEnabled)
+            .filter(job -> job.getSchedule() != null && job.getSchedule().isEnabled())
+            .map(ScheduledJob::getNextRunAt)
+            .map(this::parseZoned)
+            .flatMap(Optional::stream)
+            .anyMatch(nextRun -> nextRun.isAfter(now));
+    }
+
     public boolean isDraining() {
         return draining;
     }
@@ -215,6 +233,7 @@ public class JobSchedulerService {
             }
             draining = true;
         }
+        cancelScheduledTick();
         schedulerExecutor.shutdownNow();
         appendJournal(JobJournalEntry.system(
             JobRunStatus.RUNNING,
@@ -291,6 +310,57 @@ public class JobSchedulerService {
             tick();
         } catch (Exception e) {
             logger.warn("JobScheduler tick failed", e);
+        } finally {
+            scheduleNextTick();
+        }
+    }
+
+    /**
+     * Schedules one wake-up for the earliest runnable job. With no enabled future jobs the scheduler
+     * owns no timer at all, allowing the JVM and macOS App Nap to remain idle.
+     */
+    private void scheduleNextTick() {
+        synchronized (tickScheduleMonitor) {
+            if (!started.get() || draining || schedulerExecutor.isShutdown()) {
+                cancelScheduledTickLocked();
+                return;
+            }
+            cancelScheduledTickLocked();
+            ZonedDateTime now = ZonedDateTime.now(clock);
+            Optional<ZonedDateTime> nextRun = repository.getJobs().stream()
+                .filter(ScheduledJob::isEnabled)
+                .filter(job -> job.getSchedule() != null && job.getSchedule().isEnabled())
+                .filter(job -> !activeJobs.containsKey(job.getId()))
+                .map(ScheduledJob::getNextRunAt)
+                .map(this::parseZoned)
+                .flatMap(Optional::stream)
+                .min(ZonedDateTime::compareTo);
+            if (nextRun.isEmpty()) {
+                return;
+            }
+            long delayMillis = Math.max(
+                1L,
+                java.time.Duration.between(now, nextRun.get()).toMillis());
+            scheduledTick = schedulerExecutor.schedule(this::tickSafely, delayMillis, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void cancelScheduledTick() {
+        synchronized (tickScheduleMonitor) {
+            cancelScheduledTickLocked();
+        }
+    }
+
+    private void cancelScheduledTickLocked() {
+        if (scheduledTick != null) {
+            scheduledTick.cancel(false);
+            scheduledTick = null;
+        }
+    }
+
+    boolean isTickScheduled() {
+        synchronized (tickScheduleMonitor) {
+            return scheduledTick != null && !scheduledTick.isCancelled() && !scheduledTick.isDone();
         }
     }
 
@@ -346,6 +416,7 @@ public class JobSchedulerService {
         } catch (RejectedExecutionException e) {
             removeActiveJob(jobToRun.getId(), control);
             notifyListeners();
+            scheduleNextTick();
             if (!draining) {
                 logger.warn("JobScheduler worker rejected job {}", jobToRun.getId(), e);
             }
@@ -405,6 +476,7 @@ public class JobSchedulerService {
         } finally {
             removeActiveJob(job.getId(), control);
             notifyListeners();
+            scheduleNextTick();
         }
     }
 
@@ -454,12 +526,17 @@ public class JobSchedulerService {
     }
 
     private void updateNextRun(ScheduledJob job) {
-        if (job == null || !job.isEnabled()) {
+        if (job == null) {
+            return;
+        }
+        if (!job.isEnabled() || job.getSchedule() == null || !job.getSchedule().isEnabled()) {
+            job.setNextRunAt(null);
             return;
         }
         ZonedDateTime now = ZonedDateTime.now(clock);
-        scheduleCalculator.nextRunAfter(job.getSchedule(), now)
-            .ifPresent(next -> job.setNextRunAt(next.toString()));
+        job.setNextRunAt(scheduleCalculator.nextRunAfter(job.getSchedule(), now)
+            .map(ZonedDateTime::toString)
+            .orElse(null));
     }
 
     private String currentJournalTimestamp() {

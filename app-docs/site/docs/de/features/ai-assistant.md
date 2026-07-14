@@ -6,6 +6,8 @@ title: KI-Assistent
 
 KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.
 
+Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows aktiviert ist, hält korTTY den Computer wach, während eine AI-API-, lokale Modell-, Web-Tool- oder lokale AI-CLI-Anfrage auf ein Ergebnis wartet. Die Behauptung wird freigegeben, nachdem die letzte gleichzeitige AI-Anfrage abgeschlossen ist. Wenn kein Terminal angeschlossen ist und kein zukünftiger oder laufender Scheduler-Job vorhanden ist, kann der Computer normal schlafen. Der Display-Ruhezustand bleibt verfügbar.
+
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
 !!! warning "Datensicherheit"

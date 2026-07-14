@@ -163,9 +163,12 @@ public final class LocalLmModelResolver {
         if (normalizedApiKey != null) {
             requestBuilder.header("Authorization", "Bearer " + normalizedApiKey);
         }
-        HttpResponse<String> response = client.send(
-            requestBuilder.build(),
-            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response;
+        try (AiPowerManagementScope ignored = AiPowerManagementScope.open()) {
+            response = client.send(
+                requestBuilder.build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException(
                 "Could not detect the loaded local LM Studio model from "
@@ -192,9 +195,12 @@ public final class LocalLmModelResolver {
         if (normalizedApiKey != null) {
             requestBuilder.header("Authorization", "Bearer " + normalizedApiKey);
         }
-        HttpResponse<String> response = client.send(
-            requestBuilder.build(),
-            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response;
+        try (AiPowerManagementScope ignored = AiPowerManagementScope.open()) {
+            response = client.send(
+                requestBuilder.build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException(
                 "Could not list AI models from "

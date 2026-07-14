@@ -1877,6 +1877,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#energieverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energieverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#freigabe-und-verpackung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2592,6 +2603,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#energieverwaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energieverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#freigabe-und-verpackung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3216,6 +3238,10 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v251">v2.5.1<a class="headerlink" href="#v251" title="Permanent link">&para;</a></h2>
+<h3 id="energieverwaltung">Energieverwaltung<a class="headerlink" href="#energieverwaltung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Aktivitätsbasierte Energieverwaltung</strong> – macOS App Nap wird unterdrückt, während ein Scheduler-Job, eine AI-Anfrage oder eine Terminal-Eingabe/Ausgabe aktiv ist (mit einem 60-sekündigen Ende der Terminalaktivität). Hintergrundfenster parken regelmäßige Statusaktualisierungen und Designanimationen, und der Scheduler verfügt über keinen Abfrage-Timer, wenn keine aktivierte zukünftige Ausführung vorhanden ist. Unter macOS wird die Verhinderung des Ruhezustands des Systems an einen separaten <code>caffeinate</code>-Helfer delegiert, sodass der korTTY-Prozess weiterhin für App Nap geeignet ist. Unter macOS und Windows hält <strong>Konfiguration &gt; System-Ruhezustand verhindern</strong> den Computer nur dann wach, wenn ein Terminal angeschlossen ist, ein zukünftiger oder laufender Scheduler-Job existiert oder eine AI-Anfrage aktiv ist; Ohne diese Aktivitäten bleibt der Systemschlaf auch dann verfügbar, wenn die dauerhafte Einstellung aktiviert ist. Der Display-Ruhezustand ist davon nicht betroffen und Linux zeigt die Option als noch nicht unterstützt an.</li>
+</ul>
 <h3 id="freigabe-und-verpackung">Freigabe und Verpackung<a class="headerlink" href="#freigabe-und-verpackung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Zuverlässige Linux-Paketvalidierung</strong> – Paketgrößenprüfungen verstehen jetzt das standardmäßige Linux-JPackage-Layout <code>lib/app</code> und <code>lib/runtime</code>, sodass die Anwendungs-JAR und die gebündelte JVM validiert werden, anstatt als fehlend gemeldet zu werden.</li>
@@ -3237,7 +3263,7 @@
 <h3 id="ai-codeanalyse">AI-Codeanalyse<a class="headerlink" href="#ai-codeanalyse" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Wählen Sie die KI-Textsprache in jedem Snippet-Editor</strong> – ein neuer <strong>KI-Textsprachen-Selektor</strong> steuert die Rechtschreibkorrektur sowie neue oder neu geschriebene Codekommentare und benutzerseitige Zeichenfolgen unabhängig von der korTTY-Schnittstelle und der Programmiersprache. Analyseberichte, Verbesserungsbeschreibungen und Diagrammbeschriftungen folgen weiterhin der Oberflächensprache; <strong>Ausgewählte anwenden</strong> verwendet die separate Auswahl für den generierten Code. Eine Änderung kann für diesen Editor vorübergehend bleiben oder als Standard für zukünftige Editoren gespeichert werden.</li>
-<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke; <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
+<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke. <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
 <li><strong>Die Massenauswahl ändert keine Abhängigkeiten mehr</strong> – das klar gekennzeichnete Steuerelement <strong>Alle Verbesserungen auswählen</strong> schaltet jetzt nur noch Sicherheits-, Optimierungs- und Designvorschläge um. Jede Abhängigkeit behält ihren unabhängigen ausgewählten oder nicht ausgewählten Status.</li>
 <li><strong>Wählen Sie die KI-Fähigkeiten für eine Analyse aus</strong> – das Fenster <strong>Vollständige Codeanalyse</strong> zeigt jetzt an, welche KI-Fähigkeiten enthalten waren, als Chips mit einem <em>(automatisch ausgewählten)</em> oder <em>(manuell)</em>-Abzeichen, und ermöglicht Ihnen, sie mit einer <strong>durchsuchbaren</strong> Auswahl zu ändern (nach Name, Beschreibung oder Tags filtern). Ihre Änderungen werden bei der nächsten <strong>Wiederholung</strong> wirksam, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fähigkeiten ausführt. korTTY wählt außerdem vor der ersten Analyse automatisch die für das Snippet relevanten Fähigkeiten aus, sodass der Satz sofort aussagekräftig ist.</li>
 <li><strong>Härtungsoptionen zeigen eine Zählung an und merken sich ihren Status</strong> – der Titel des Panels <em>Härtungsoptionen</em> zeigt jetzt an, wie viele Optionen aktiviert sind (z. B. <em>Härtungsoptionen (11)</em>), und das Fenster merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben.</li>

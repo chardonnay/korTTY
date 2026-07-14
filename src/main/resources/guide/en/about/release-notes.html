@@ -1877,6 +1877,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#power-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#release-and-packaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2592,6 +2603,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#power-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#release-and-packaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3216,6 +3238,10 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is shown in the footer.</p>
 <h2 id="v251">v2.5.1<a class="headerlink" href="#v251" title="Permanent link">&para;</a></h2>
+<h3 id="power-management">Power management<a class="headerlink" href="#power-management" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Activity-based power management</strong> — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate <code>caffeinate</code> helper so the korTTY process remains eligible for App Nap. On macOS and Windows, <strong>Configuration &gt; Prevent System Sleep</strong> keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.</li>
+</ul>
 <h3 id="release-and-packaging">Release and packaging<a class="headerlink" href="#release-and-packaging" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Reliable Linux package validation</strong> — package-size checks now understand the standard Linux jpackage <code>lib/app</code> and <code>lib/runtime</code> layout, so the application JAR and bundled JVM are validated instead of being reported as missing.</li>

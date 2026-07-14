@@ -6,6 +6,8 @@ title: JobScheduler
 
 The JobScheduler runs unattended background jobs while KorTTY is open. It does not require an operating system service or an active SSH terminal tab. Jobs execute automatically on a configured schedule using saved SSH connections from the Connection Manager.
 
+On macOS and Windows, an enabled job with a future run keeps the computer from entering system sleep while korTTY is running when **Configuration > Prevent System Sleep** is enabled, so the scheduled time remains reachable. The Scheduler uses a single wake-up for the next due run and owns no polling timer when no enabled future job exists. With no terminal connection, future or running Scheduler job, or active AI request, system sleep remains available even while the setting is checked. While a job is running, macOS does not put korTTY into App Nap. Display sleep is not blocked. Linux power inhibition is not yet supported.
+
 Open it with **Tools > JobScheduler...**. The dialog remembers its window position and size.
 
 

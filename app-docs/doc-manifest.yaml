@@ -85,7 +85,7 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "0225110"
+    last_synced_ref: "64066ed"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
@@ -222,7 +222,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
     diagrams: [jobscheduler-execution.svg]
-    last_synced_ref: "984bbba"
+    last_synced_ref: "64066ed"
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -237,7 +237,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "88f2da0"
+    last_synced_ref: "64066ed"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]

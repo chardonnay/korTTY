@@ -936,4 +936,30 @@ class GlobalSettingsManagerTest {
             Files.deleteIfExists(dir);
         }
     }
+
+    @Test
+    void preventSystemSleepDefaultsFalseForLegacyXmlAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-power-management");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <language>en</language>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager legacy = new GlobalSettingsManager(dir);
+            legacy.load();
+            assertThat(legacy.getSettings().isPreventSystemSleep()).isFalse();
+
+            legacy.getSettings().setPreventSystemSleep(true);
+            legacy.save();
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().isPreventSystemSleep()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
 }

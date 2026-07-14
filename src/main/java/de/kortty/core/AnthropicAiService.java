@@ -161,7 +161,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
             .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8))
             .build();
 
-        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = AiPowerManagementScope.call(
+            () -> httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         int status = response.statusCode();
         String responseBody = response.body();
         if (status < 200 || status >= 300) {
