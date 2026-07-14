@@ -28,6 +28,8 @@ public final class SnippetAiWorkflowSupport {
         UsageRecorder usageRecorder,
         String fullContent,
         String selectedText,
+        int selectionStart,
+        int selectionEnd,
         String snippetLanguage,
         String connectionDisplayName,
         String fallbackLanguageCode,
@@ -39,6 +41,8 @@ public final class SnippetAiWorkflowSupport {
             usageRecorder,
             fullContent,
             selectedText,
+            selectionStart,
+            selectionEnd,
             snippetLanguage,
             connectionDisplayName,
             fallbackLanguageCode,
@@ -50,6 +54,8 @@ public final class SnippetAiWorkflowSupport {
         UsageRecorder usageRecorder,
         String fullContent,
         String selectedText,
+        int selectionStart,
+        int selectionEnd,
         String snippetLanguage,
         String connectionDisplayName,
         String targetLanguageCode,
@@ -62,6 +68,8 @@ public final class SnippetAiWorkflowSupport {
             usageRecorder,
             fullContent,
             selectedText,
+            selectionStart,
+            selectionEnd,
             snippetLanguage,
             connectionDisplayName,
             targetLanguageCode != null && !targetLanguageCode.isBlank() ? targetLanguageCode : fallbackLanguageCode,
@@ -440,19 +448,28 @@ public final class SnippetAiWorkflowSupport {
         UsageRecorder usageRecorder,
         String fullContent,
         String selectedText,
+        int selectionStart,
+        int selectionEnd,
         String snippetLanguage,
         String connectionDisplayName,
         String responseLanguageCode,
         String additionalInstructions) throws Exception {
 
-        List<SnippetAiTextSupport.EditableTextSegment> segments =
-            SnippetAiTextSupport.extractEditableSegments(selectedText, snippetLanguage);
+        String content = fullContent != null ? fullContent : "";
+        String selection = selectedText != null ? selectedText : "";
+        boolean selectionMatchesContent = selectionStart >= 0
+            && selectionEnd >= selectionStart
+            && selectionEnd <= content.length()
+            && content.substring(selectionStart, selectionEnd).equals(selection);
+        List<SnippetAiTextSupport.EditableTextSegment> segments = selectionMatchesContent
+            ? SnippetAiTextSupport.extractEditableSegments(content, selectionStart, selectionEnd, snippetLanguage)
+            : SnippetAiTextSupport.extractEditableSegments(selection, snippetLanguage);
         if (segments.isEmpty()) {
-            return selectedText != null ? selectedText : "";
+            return selection;
         }
         AiRequest request = new AiRequest(
             action,
-            selectedText,
+            selection,
             connectionDisplayName,
             responseLanguageCode,
             additionalInstructions,
@@ -465,9 +482,9 @@ public final class SnippetAiWorkflowSupport {
             result != null ? result.content() : null,
             segments.size());
         if (replacements.isEmpty()) {
-            return selectedText != null ? selectedText : "";
+            return selection;
         }
-        return SnippetAiTextSupport.applyReplacements(selectedText, segments, replacements);
+        return SnippetAiTextSupport.applyReplacements(selection, segments, replacements);
     }
 
     private static String buildSelectionTransformContext(

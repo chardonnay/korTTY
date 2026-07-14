@@ -349,7 +349,9 @@ public final class SnippetAiDialogsSmoke {
         }
 
         MonacoEditorPane editor = field(dialog, "contentArea", MonacoEditorPane.class);
-        editor.selectRange(0, content.indexOf('\n'));
+        String selectedComment = "Deutscher Kommentar";
+        int selectedCommentStart = content.indexOf(selectedComment);
+        editor.selectRange(selectedCommentStart, selectedCommentStart + selectedComment.length());
         field(dialog, "generateMetadataButton", Button.class).fire();
         field(dialog, "correctDescriptionButton", Button.class).fire();
         field(dialog, "correctSelectionTextItem", MenuItem.class).fire();
@@ -368,6 +370,11 @@ public final class SnippetAiDialogsSmoke {
                     new ProviderLanguage(request.snippetLanguage(), request.fallbackLanguageCode()),
                     "bash",
                     "en");
+                if (!selectedComment.equals(request.selectedText())
+                        || request.selectionStart() != selectedCommentStart
+                        || request.selectionEnd() != selectedCommentStart + selectedComment.length()) {
+                    throw new AssertionError("Selection correction did not preserve the partial comment range");
+                }
                 if (!"bash".equals(codeLanguageCombo.getValue())) {
                     throw new AssertionError("AI provider completion changed the snippet code language");
                 }

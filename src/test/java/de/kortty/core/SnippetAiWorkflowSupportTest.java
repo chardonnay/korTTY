@@ -150,6 +150,8 @@ class SnippetAiWorkflowSupportTest {
             null,
             snippet,
             snippet,
+            0,
+            snippet.length(),
             "bash",
             null,
             "en",
@@ -162,6 +164,34 @@ class SnippetAiWorkflowSupportTest {
         assertThat(completePrompt).contains("Required natural language for editable text: en");
         assertThat(completePrompt).doesNotContain("dominant natural language");
         assertThat(completePrompt).doesNotContain("unless the provided snippet context");
+    }
+
+    @Test
+    void translationUsesFullSnippetContextForTextSelectedInsideString() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            { "segments": [ { "text": "Backup complete" } ] }
+            """);
+        String snippet = "echo \"Sicherung abgeschlossen\"\n";
+        String selectedText = "Sicherung abgeschlossen";
+        int selectionStart = snippet.indexOf(selectedText);
+
+        String translated = SnippetAiWorkflowSupport.translateSelectionText(
+            aiService,
+            null,
+            snippet,
+            selectedText,
+            selectionStart,
+            selectionStart + selectedText.length(),
+            "bash",
+            null,
+            "en",
+            "de",
+            null);
+
+        assertThat(translated).isEqualTo("Backup complete");
+        assertThat(aiService.lastRequest.action()).isEqualTo(AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT);
+        assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
+        assertThat(aiService.lastRequest.conversationContext()).contains("Sicherung abgeschlossen");
     }
 
     @Test
