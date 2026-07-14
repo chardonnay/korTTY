@@ -981,6 +981,7 @@ public class TerminalView extends BorderPane {
         if (baseConnector == null || connectorInUseByOtherPane(widget, baseConnector)) {
             return;
         }
+        reportTerminalDisconnected(baseConnector);
         if (baseConnector instanceof ObservableTtyConnector observableConnector) {
             ObservableTtyConnector.InputActivityListener inputListener =
                 terminalRecordingInputListeners.remove(observableConnector);
@@ -1991,7 +1992,8 @@ public class TerminalView extends BorderPane {
         if (effect == null || effect.session == null) {
             return new TerminalColorFilteringTtyConnector(
                 decorated,
-                () -> settings == null || settings.isTerminalColorsEnabled());
+                () -> settings == null || settings.isTerminalColorsEnabled(),
+                this::reportTerminalActivity);
         }
         try {
             decorated = effect.session.wrapConnector(widget, baseConnector);
@@ -2001,7 +2003,8 @@ public class TerminalView extends BorderPane {
         }
         return new TerminalColorFilteringTtyConnector(
             decorated,
-            () -> settings == null || settings.isTerminalColorsEnabled());
+            () -> settings == null || settings.isTerminalColorsEnabled(),
+            this::reportTerminalActivity);
     }
 
     private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
@@ -2435,24 +2438,31 @@ public class TerminalView extends BorderPane {
     }
 
     private boolean connectConnector(TtyConnector connector) throws Exception {
+        boolean connected;
         if (connector instanceof Mosh4jTtyConnector mosh4jConnector) {
-            return mosh4jConnector.connect();
+            connected = mosh4jConnector.connect();
+        } else if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
+            connected = nativeMoshConnector.connect();
+        } else if (connector instanceof LocalShellTtyConnector localShellConnector) {
+            connected = localShellConnector.connect();
+        } else if (connector instanceof SshTtyConnector sshConnector) {
+            connected = sshConnector.connect();
+        } else {
+            throw new IllegalStateException("Unsupported connector type: " + connector.getClass().getName());
         }
-        if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
-            return nativeMoshConnector.connect();
+        if (connected) {
+            reportTerminalConnected(connector);
         }
-        if (connector instanceof LocalShellTtyConnector localShellConnector) {
-            return localShellConnector.connect();
-        }
-        if (connector instanceof SshTtyConnector sshConnector) {
-            return sshConnector.connect();
-        }
-        throw new IllegalStateException("Unsupported connector type: " + connector.getClass().getName());
+        return connected;
     }
 
     private void setConnectorDisconnectListener(TtyConnector connector, DisconnectListener listener) {
+        DisconnectListener powerAwareListener = (reason, wasError) -> {
+            reportTerminalDisconnected(connector);
+            listener.onDisconnect(reason, wasError);
+        };
         if (connector instanceof Mosh4jTtyConnector mosh4jConnector) {
-            mosh4jConnector.setDisconnectListener(listener);
+            mosh4jConnector.setDisconnectListener(powerAwareListener);
             mosh4jConnector.setOnRecoveredCallback(() ->
                     Platform.runLater(this::requestTerminalFocusAfterRecovery));
             mosh4jConnector.setOnInterruptedCallback(() ->
@@ -2464,15 +2474,36 @@ public class TerminalView extends BorderPane {
             return;
         }
         if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
-            nativeMoshConnector.setDisconnectListener(listener);
+            nativeMoshConnector.setDisconnectListener(powerAwareListener);
             return;
         }
         if (connector instanceof LocalShellTtyConnector localShellConnector) {
-            localShellConnector.setDisconnectListener(listener);
+            localShellConnector.setDisconnectListener(powerAwareListener);
             return;
         }
         if (connector instanceof SshTtyConnector sshConnector) {
-            sshConnector.setDisconnectListener(listener);
+            sshConnector.setDisconnectListener(powerAwareListener);
+        }
+    }
+
+    private void reportTerminalConnected(TtyConnector connector) {
+        var app = KorTTYApplication.getInstance();
+        if (app != null && app.getPowerManagementCoordinator() != null) {
+            app.getPowerManagementCoordinator().terminalConnected(connector);
+        }
+    }
+
+    private void reportTerminalDisconnected(TtyConnector connector) {
+        var app = KorTTYApplication.getInstance();
+        if (app != null && app.getPowerManagementCoordinator() != null) {
+            app.getPowerManagementCoordinator().terminalDisconnected(connector);
+        }
+    }
+
+    private void reportTerminalActivity() {
+        var app = KorTTYApplication.getInstance();
+        if (app != null && app.getPowerManagementCoordinator() != null) {
+            app.getPowerManagementCoordinator().recordTerminalActivity();
         }
     }
 
@@ -5184,6 +5215,7 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         stopLogger();
         if (ttyConnector != null) {
+            reportTerminalDisconnected(ttyConnector);
             try {
                 ttyConnector.close();
             } catch (Exception e) {
@@ -5203,6 +5235,7 @@ public class TerminalView extends BorderPane {
         stopLogger();
         stopAllEffects();
         if (ttyConnector != null) {
+            reportTerminalDisconnected(ttyConnector);
             try {
                 ttyConnector.close();
             } catch (Exception e) {
@@ -5970,14 +6003,17 @@ public class TerminalView extends BorderPane {
 
         private final TtyConnector delegate;
         private final BooleanSupplier terminalColorsEnabled;
+        private final Runnable activityCallback;
         private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
         private final StringBuilder pendingOutput = new StringBuilder();
 
         private TerminalColorFilteringTtyConnector(
                 TtyConnector delegate,
-                BooleanSupplier terminalColorsEnabled) {
+                BooleanSupplier terminalColorsEnabled,
+                Runnable activityCallback) {
             this.delegate = Objects.requireNonNull(delegate, "delegate");
             this.terminalColorsEnabled = Objects.requireNonNull(terminalColorsEnabled, "terminalColorsEnabled");
+            this.activityCallback = Objects.requireNonNull(activityCallback, "activityCallback");
         }
 
         TtyConnector delegate() {
@@ -5992,7 +6028,11 @@ public class TerminalView extends BorderPane {
             if (terminalColorsEnabled.getAsBoolean()) {
                 filter.reset();
                 pendingOutput.setLength(0);
-                return delegate.read(buf, offset, length);
+                int count = delegate.read(buf, offset, length);
+                if (count > 0) {
+                    activityCallback.run();
+                }
+                return count;
             }
             while (pendingOutput.length() == 0) {
                 char[] source = new char[Math.max(length, 256)];
@@ -6000,6 +6040,7 @@ public class TerminalView extends BorderPane {
                 if (count <= 0) {
                     return count;
                 }
+                activityCallback.run();
                 pendingOutput.append(filter.filter(source, 0, count));
             }
 
@@ -6012,11 +6053,17 @@ public class TerminalView extends BorderPane {
         @Override
         public void write(byte[] bytes) throws IOException {
             delegate.write(bytes);
+            if (bytes != null && bytes.length > 0) {
+                activityCallback.run();
+            }
         }
 
         @Override
         public void write(String string) throws IOException {
             delegate.write(string);
+            if (string != null && !string.isEmpty()) {
+                activityCallback.run();
+            }
         }
 
         @Override

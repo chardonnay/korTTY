@@ -105,6 +105,9 @@ public class GlobalSettings {
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
+    @XmlElement
+    private boolean preventSystemSleep = false; // Manual, persistent power-management override
+
     // 0 means keep journal entries indefinitely.
     @XmlElement
     private Integer jobSchedulerJournalRetentionDays = DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS;
@@ -863,6 +866,14 @@ public class GlobalSettings {
 
     public void setJobSchedulerMenuStatusEnabled(boolean jobSchedulerMenuStatusEnabled) {
         this.jobSchedulerMenuStatusEnabled = jobSchedulerMenuStatusEnabled;
+    }
+
+    public boolean isPreventSystemSleep() {
+        return preventSystemSleep;
+    }
+
+    public void setPreventSystemSleep(boolean preventSystemSleep) {
+        this.preventSystemSleep = preventSystemSleep;
     }
 
     public int getJobSchedulerJournalRetentionDays() {

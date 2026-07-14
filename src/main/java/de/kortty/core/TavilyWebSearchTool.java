@@ -55,7 +55,10 @@ public class TavilyWebSearchTool {
                 .header("Authorization", "Bearer " + apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(buildSearchBody(normalizedQuery), StandardCharsets.UTF_8))
                 .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response;
+            try (AiPowerManagementScope ignored = AiPowerManagementScope.open()) {
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 return errorResult(
                     "http_" + response.statusCode(),

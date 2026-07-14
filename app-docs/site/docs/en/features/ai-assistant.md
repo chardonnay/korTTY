@@ -6,6 +6,8 @@ title: AI assistant
 
 KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.
 
+When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, korTTY keeps the computer awake while an AI API, local-model, web-tool, or local AI CLI request is waiting for a result. The assertion is released after the last concurrent AI request finishes; if no terminal is connected and no future or running Scheduler job exists, the computer may then sleep normally. Display sleep remains available.
+
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
 !!! warning "Data Security"

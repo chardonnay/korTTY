@@ -19,6 +19,39 @@ import static com.google.common.truth.Truth.assertThat;
 class JobSchedulerServiceDrainTest {
 
     @Test
+    void schedulerOwnsNoTimerWithoutEnabledFutureJobs() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-idle");
+        JobSchedulerService service = null;
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            service = new JobSchedulerService(
+                repository,
+                new JobScheduleCalculator(),
+                (job, runId) -> JobExecutionOutcome.success("done", null, null, null),
+                Clock.fixed(Instant.parse("2026-05-04T08:00:00Z"), ZoneId.of("Europe/Berlin")));
+
+            service.start();
+            assertThat(service.isTickScheduled()).isFalse();
+
+            ScheduledJob job = new ScheduledJob();
+            job.setName("Future job");
+            job.setSchedule(JobSchedule.dailyInterval(60));
+            service.saveJob(job);
+            assertThat(service.isTickScheduled()).isTrue();
+
+            job.setEnabled(false);
+            service.saveJob(job);
+            assertThat(service.isTickScheduled()).isFalse();
+        } finally {
+            if (service != null) {
+                service.shutdownSchedulerThreads();
+            }
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void drainWaitsForRunningJobAndBlocksNewStarts() throws Exception {
         Path dir = Files.createTempDirectory("kortty-job-scheduler-drain");
         try {
@@ -277,6 +310,43 @@ class JobSchedulerServiceDrainTest {
         Method tick = JobSchedulerService.class.getDeclaredMethod("tick");
         tick.setAccessible(true);
         tick.invoke(service);
+    }
+
+    @Test
+    void enabledScheduledJobsRequireEnabledScheduleAndFutureRun() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-power-state");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            Clock clock = Clock.fixed(
+                Instant.parse("2026-05-04T08:00:00Z"), ZoneId.of("Europe/Berlin"));
+            JobSchedulerService service = new JobSchedulerService(
+                repository,
+                new JobScheduleCalculator(),
+                (job, runId) -> JobExecutionOutcome.success("done", null, null, null),
+                clock);
+
+            ScheduledJob future = new ScheduledJob();
+            future.setNextRunAt("2026-05-04T12:00:00+02:00[Europe/Berlin]");
+            repository.upsertJob(future);
+            assertThat(service.hasEnabledScheduledJobs()).isTrue();
+
+            future.getSchedule().setEnabled(false);
+            repository.upsertJob(future);
+            assertThat(service.hasEnabledScheduledJobs()).isFalse();
+
+            future.getSchedule().setEnabled(true);
+            future.setEnabled(false);
+            repository.upsertJob(future);
+            assertThat(service.hasEnabledScheduledJobs()).isFalse();
+
+            future.setEnabled(true);
+            future.setNextRunAt("2026-05-04T09:00:00+02:00[Europe/Berlin]");
+            repository.upsertJob(future);
+            assertThat(service.hasEnabledScheduledJobs()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
     }
 
     private static final class DeleteOnFindRepository extends JobSchedulerRepository {

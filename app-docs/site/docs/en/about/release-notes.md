@@ -4,6 +4,10 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.5.1
 
+### Power management
+
+- **Activity-based power management** — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate `caffeinate` helper so the korTTY process remains eligible for App Nap. On macOS and Windows, **Configuration > Prevent System Sleep** keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.
+
 ### Release and packaging
 
 - **Reliable Linux package validation** — package-size checks now understand the standard Linux jpackage `lib/app` and `lib/runtime` layout, so the application JAR and bundled JVM are validated instead of being reported as missing.

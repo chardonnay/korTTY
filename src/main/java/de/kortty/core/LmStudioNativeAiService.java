@@ -275,7 +275,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         HttpRequest request = buildJsonPostRequest(
             buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel),
             timeout);
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = AiPowerManagementScope.call(
+            () -> httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException("LM Studio API error " + response.statusCode() + ": " + extractErrorMessage(response.body()));
         }

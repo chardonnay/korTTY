@@ -246,6 +246,8 @@ public class MainWindow {
     private static final List<MainWindow> openWindows = new ArrayList<>();
     private static final Set<MainWindow> applicationQuitApprovedWindows =
         Collections.newSetFromMap(new IdentityHashMap<>());
+    private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
+    private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
     private static volatile boolean schedulerDrainInProgress = false;
@@ -299,6 +301,7 @@ public class MainWindow {
         setupMenuBar();
         installTransparentWindowChrome();
         setupKeyBindings();
+        installForegroundActivityLifecycle();
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
         openWindows.add(this);
@@ -788,6 +791,10 @@ public class MainWindow {
                     aiAgentDockManager.removePlacementListener(aiAgentPlacementListener);
                     aiAgentPlacementListener = null;
                 }
+                if (powerManagementStateListener != null && app.getPowerManagementCoordinator() != null) {
+                    app.getPowerManagementCoordinator().removeListener(powerManagementStateListener);
+                    powerManagementStateListener = null;
+                }
                 openWindows.remove(this);
 
                 // On macOS the application stays alive after the last window closes so the
@@ -912,12 +919,16 @@ public class MainWindow {
     }
 
     private void startJobSchedulerStatusUpdates() {
-        if (jobSchedulerStatusTimeline != null) {
+        if (!isForegroundWindow() || jobSchedulerStatusTimeline != null) {
             return;
         }
         JobSchedulerService schedulerService = app.getJobSchedulerService();
         if (schedulerService != null) {
-            jobSchedulerStatusListener = () -> Platform.runLater(this::updateJobSchedulerStatusMenus);
+            jobSchedulerStatusListener = () -> Platform.runLater(() -> {
+                if (isForegroundWindow()) {
+                    updateJobSchedulerStatusMenus();
+                }
+            });
             schedulerService.addListener(jobSchedulerStatusListener);
         }
         jobSchedulerStatusTimeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> updateJobSchedulerStatusMenus()));
@@ -936,6 +947,35 @@ public class MainWindow {
             schedulerService.removeListener(jobSchedulerStatusListener);
         }
         jobSchedulerStatusListener = null;
+    }
+
+    private void installForegroundActivityLifecycle() {
+        stage.showingProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
+        stage.focusedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
+        stage.iconifiedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
+    }
+
+    private void updateForegroundActivity() {
+        if (isForegroundWindow()) {
+            startJobSchedulerStatusUpdates();
+            if (!terminalTabs().isEmpty()) {
+                startAgentStatusIndicatorTimer();
+                refreshAgentStatusIndicators();
+            }
+            updateJobSchedulerStatusMenus();
+        } else {
+            stopJobSchedulerStatusUpdates();
+            stopAgentStatusIndicatorTimer();
+        }
+        AppDesignAnimator.refreshAll();
+    }
+
+    private boolean isForegroundWindow() {
+        return shouldRunForegroundPolling(stage.isShowing(), stage.isIconified(), stage.isFocused());
+    }
+
+    static boolean shouldRunForegroundPolling(boolean showing, boolean iconified, boolean focused) {
+        return showing && !iconified && focused;
     }
 
     private void updateJobSchedulerStatusMenus() {
@@ -1320,8 +1360,71 @@ public class MainWindow {
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
 
-        configurationMenu.getItems().addAll(securityMenu, new SeparatorMenuItem(), settings);
+        CheckMenuItem preventSleep = new CheckMenuItem();
+        preventSleep.setOnAction(e -> setManualSleepPrevention(preventSleep.isSelected()));
+        preventSleepMenuItems.add(preventSleep);
+        installPowerManagementStateListener();
+        syncPreventSleepMenuItems();
+
+        configurationMenu.getItems().addAll(
+            securityMenu,
+            new SeparatorMenuItem(),
+            settings,
+            new SeparatorMenuItem(),
+            preventSleep);
         return configurationMenu;
+    }
+
+    private void installPowerManagementStateListener() {
+        if (powerManagementStateListener != null || app.getPowerManagementCoordinator() == null) {
+            return;
+        }
+        powerManagementStateListener = () -> Platform.runLater(this::syncPreventSleepMenuItems);
+        app.getPowerManagementCoordinator().addListener(powerManagementStateListener);
+    }
+
+    private void syncPreventSleepMenuItems() {
+        var coordinator = app.getPowerManagementCoordinator();
+        boolean supported = coordinator != null && coordinator.supportsSystemSleepPrevention();
+        boolean selected = supported && coordinator.isManualSleepPreventionEnabled();
+        String label = I18n.get(supported
+            ? "menu.configuration.preventSleep"
+            : "menu.configuration.preventSleep.unsupported");
+        for (CheckMenuItem item : preventSleepMenuItems) {
+            item.setText(label);
+            item.setDisable(!supported);
+            item.setSelected(selected);
+        }
+    }
+
+    private void setManualSleepPrevention(boolean enabled) {
+        var coordinator = app.getPowerManagementCoordinator();
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        boolean previous = coordinator != null && coordinator.isManualSleepPreventionEnabled();
+        if (coordinator == null || !coordinator.setManualSleepPrevention(enabled)) {
+            syncPreventSleepMenuItems();
+            showPowerManagementError();
+            return;
+        }
+        settings.setPreventSystemSleep(enabled);
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist system-sleep prevention setting", e);
+            settings.setPreventSystemSleep(previous);
+            coordinator.setManualSleepPrevention(previous);
+            showPowerManagementError();
+        }
+        syncPreventSleepMenuItems();
+    }
+
+    private void showPowerManagementError() {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("menu.configuration.preventSleep.error.title"));
+        alert.setHeaderText(I18n.get("menu.configuration.preventSleep.error.header"));
+        alert.setContentText(I18n.get("menu.configuration.preventSleep.error.content"));
+        alert.showAndWait();
     }
 
     private Menu createToolsMenu() {
@@ -1887,7 +1990,7 @@ public class MainWindow {
 
         // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
         applyPersistedAiAgentPlacement();
-        startAgentStatusIndicatorTimer();
+        updateForegroundActivity();
 
         // Mark startup as complete after a short delay to allow UI to settle
         Platform.runLater(() -> {
@@ -3423,7 +3526,7 @@ public class MainWindow {
     }
 
     private void startAgentStatusIndicatorTimer() {
-        if (agentStatusIndicatorTimer != null) {
+        if (!isForegroundWindow() || terminalTabs().isEmpty() || agentStatusIndicatorTimer != null) {
             return;
         }
         agentStatusIndicatorTimer = new javafx.animation.Timeline(

@@ -318,7 +318,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     private AiExecutionResult executeRequestWithClient(HttpRequest httpRequest, HttpClient client) throws Exception {
-        HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        HttpResponse<InputStream> response = AiPowerManagementScope.call(
+            () -> client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream()));
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
@@ -345,7 +346,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         List<String> reasoningEntries = new ArrayList<>();
         for (int round = 0; round <= MAX_WEB_TOOL_ROUNDS; round++) {
             String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true, effectiveModel);
-            HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
+            HttpRequest request = buildJsonPostRequest(body, timeout);
+            HttpResponse<InputStream> response = AiPowerManagementScope.call(
+                () -> client.send(request, HttpResponse.BodyHandlers.ofInputStream()));
             String responseBody = readResponseBody(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw apiError(response.statusCode(), responseBody);
@@ -419,7 +422,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String effectiveModel) throws Exception {
 
         String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false, effectiveModel);
-        HttpResponse<InputStream> response = client.send(buildJsonPostRequest(body, timeout), HttpResponse.BodyHandlers.ofInputStream());
+        HttpRequest request = buildJsonPostRequest(body, timeout);
+        HttpResponse<InputStream> response = AiPowerManagementScope.call(
+            () -> client.send(request, HttpResponse.BodyHandlers.ofInputStream()));
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
@@ -803,9 +808,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             true,
             false,
             effectiveModel);
-        HttpResponse<InputStream> response = client.send(
-            buildJsonPostRequest(body, SKILL_CLASSIFICATION_TIMEOUT),
-            HttpResponse.BodyHandlers.ofInputStream());
+        HttpRequest request = buildJsonPostRequest(body, SKILL_CLASSIFICATION_TIMEOUT);
+        HttpResponse<InputStream> response = AiPowerManagementScope.call(
+            () -> client.send(request, HttpResponse.BodyHandlers.ofInputStream()));
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException("AI skill classification failed with status " + response.statusCode());
@@ -972,7 +977,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private AiExecutionResult executeConnectionTestWithClient(HttpClient client, Duration timeout) throws Exception {
         String effectiveModel = resolveModelForRequest(client);
         HttpRequest httpRequest = buildConnectionTestHttpRequest(timeout, effectiveModel);
-        HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        HttpResponse<InputStream> response = AiPowerManagementScope.call(
+            () -> client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream()));
         String responseBody = readResponseBody(response.body());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
