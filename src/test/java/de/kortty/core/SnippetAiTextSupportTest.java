@@ -24,6 +24,35 @@ class SnippetAiTextSupportTest {
     }
 
     @Test
+    void extractEditableSegmentsUsesFullSnippetContextForTextSelectedInsideComment() {
+        String snippet = "echo start\n# Die Sicherung ist abgeschlossen\necho done\n";
+        String selectedText = "Sicherung ist abgeschlossen";
+        int selectionStart = snippet.indexOf(selectedText);
+
+        List<SnippetAiTextSupport.EditableTextSegment> segments =
+            SnippetAiTextSupport.extractEditableSegments(
+                snippet,
+                selectionStart,
+                selectionStart + selectedText.length(),
+                "bash");
+
+        assertThat(segments).hasSize(1);
+        assertThat(segments.get(0).start()).isEqualTo(0);
+        assertThat(segments.get(0).end()).isEqualTo(selectedText.length());
+        assertThat(segments.get(0).coreText()).isEqualTo(selectedText);
+    }
+
+    @Test
+    void extractEditableSegmentsStillRejectsCodeOnlySelection() {
+        String snippet = "echo \"Sicherung abgeschlossen\"\n";
+
+        List<SnippetAiTextSupport.EditableTextSegment> segments =
+            SnippetAiTextSupport.extractEditableSegments(snippet, 0, 4, "bash");
+
+        assertThat(segments).isEmpty();
+    }
+
+    @Test
     void applyReplacementsPreservesOuterWhitespace() {
         String updated = SnippetAiTextSupport.applyReplacements(
             "#  backup log filez  ",

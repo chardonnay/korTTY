@@ -103,6 +103,43 @@ public final class SnippetAiTextSupport {
         return segments;
     }
 
+    /**
+     * Extracts the editable parts of a selection while parsing the complete snippet for syntax context.
+     * Returned offsets are relative to the selected text so callers can apply replacements directly to
+     * that selection. This also recognizes selections that start and end inside a comment or string.
+     */
+    public static List<EditableTextSegment> extractEditableSegments(
+        String fullContent,
+        int selectionStart,
+        int selectionEnd,
+        String language) {
+
+        String content = fullContent != null ? fullContent : "";
+        int safeStart = Math.max(0, Math.min(selectionStart, content.length()));
+        int safeEnd = Math.max(safeStart, Math.min(selectionEnd, content.length()));
+        if (safeStart == safeEnd) {
+            return List.of();
+        }
+        List<EditableTextSegment> selectedSegments = new ArrayList<>();
+        for (EditableTextSegment segment : extractEditableSegments(content, language)) {
+            int overlapStart = Math.max(safeStart, segment.start());
+            int overlapEnd = Math.min(safeEnd, segment.end());
+            if (overlapStart >= overlapEnd) {
+                continue;
+            }
+            String selectedPart = content.substring(overlapStart, overlapEnd);
+            if (selectedPart.isBlank()) {
+                continue;
+            }
+            selectedSegments.add(new EditableTextSegment(
+                overlapStart - safeStart,
+                overlapEnd - safeStart,
+                selectedPart,
+                segment.type()));
+        }
+        return selectedSegments;
+    }
+
     public static String applyReplacements(String selectedText, List<EditableTextSegment> segments, List<String> replacements) {
         if (selectedText == null || selectedText.isEmpty() || segments == null || segments.isEmpty()) {
             return selectedText != null ? selectedText : "";

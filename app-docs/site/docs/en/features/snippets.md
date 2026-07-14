@@ -228,7 +228,7 @@ The **Full code analysis** window surfaces this same selection as a row of chips
 
 ### Text correction and translation
 
-For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and user-facing text segments. It does not rewrite logical code structure.
+For selection-based text correction and translation, KorTTY only rewrites editable comment text, string literals, and user-facing text segments. A selection may begin or end inside such a segment: KorTTY uses the surrounding snippet to recognize the selected words and replaces only the overlapping text. It does not rewrite logical code structure.
 
 ### Technical descriptions
 

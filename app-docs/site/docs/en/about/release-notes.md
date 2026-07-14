@@ -42,6 +42,7 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ### Fixes
 
+- **Snippet AI translation now applies to text selected inside comments and strings** — **AI Text → Translate selection…** and the editor context-menu action keep the original selection while the target-language dialog is open and use the surrounding snippet to recognize partial comment or string selections, so confirming a language now invokes the AI and replaces the selected text instead of doing nothing.
 - **Transparency survives split terminals** — opening horizontal, vertical or nested split panes no longer replaces the configured terminal transparency with the theme's opaque background. Every new pane inherits the active level; fullscreen still becomes temporarily opaque and restores the saved transparency to all panes when you leave it.
 - **The Help window remains visible in the background** — korTTY no longer clears the left content pane after the window has remained unfocused for 20 seconds. The former behavior could leave a completely white area next to AI search. WebViews are still released when users close the corresponding view, and invisible rendering services keep their idle cleanup.
 - **Full code analysis shows its change preview again** — after **Apply selected**, korTTY now waits until the analysis window has completely closed and brings the side-by-side review window in front of the snippet editor. The editor remains unchanged until **Apply change** is confirmed in that preview.

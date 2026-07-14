@@ -342,6 +342,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String fullContent,
         String snippetLanguage,
         String selectedText,
+        int selectionStart,
+        int selectionEnd,
         String fallbackLanguageCode,
         String targetLanguageCode,
         String additionalInstructions) {
@@ -538,6 +540,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         int beforeCaret,
         int afterAnchor,
         int afterCaret) {
+    }
+
+    private record SelectionTextTransformTarget(
+        String fullContent,
+        String snippetLanguage,
+        String selectedText,
+        int selectionStart,
+        int selectionEnd) {
     }
 
     private record CodeAssistantPrompt(String instruction, boolean includeAiSkills) {
@@ -3005,8 +3015,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (aiAssist == null || aiAssist.selectionCorrectionProvider() == null) {
             return;
         }
+        SelectionTextTransformTarget target = captureSelectionTextTransformTarget();
+        if (target == null) {
+            return;
+        }
         runSelectionTextTransform(
             aiAssist.selectionCorrectionProvider(),
+            target,
             null,
             I18n.get("snippets.ai.correctingSelection"),
             I18n.get("snippets.ai.selectionCorrected"),
@@ -3018,12 +3033,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (aiAssist == null || aiAssist.selectionTranslationProvider() == null) {
             return;
         }
+        SelectionTextTransformTarget target = captureSelectionTextTransformTarget();
+        if (target == null) {
+            return;
+        }
         AiLanguageSupport.LanguageOption targetLanguage = promptTranslationLanguage();
         if (targetLanguage == null) {
             return;
         }
         runSelectionTextTransform(
             aiAssist.selectionTranslationProvider(),
+            target,
             targetLanguage.code(),
             I18n.get("snippets.ai.translatingSelection"),
             I18n.get("snippets.ai.selectionTranslated"),
@@ -3033,38 +3053,36 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private void runSelectionTextTransform(
         SelectionTextTransformProvider provider,
+        SelectionTextTransformTarget target,
         String targetLanguageCode,
         String runningStatus,
         String successStatus,
         String failedStatus,
         String actionLabel) {
 
-        IndexRange range = contentArea.getSelection();
-        if (provider == null || range == null || range.getLength() <= 0) {
+        if (provider == null || target == null) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
-        String selectedText = contentArea.getSelectedText();
-        List<SnippetAiTextSupport.EditableTextSegment> segments =
-            SnippetAiTextSupport.extractEditableSegments(selectedText, languageCombo.getValue());
-        if (segments.isEmpty()) {
-            setStatus(I18n.get("snippets.ai.noTextSegments"));
-            return;
-        }
-        int selectionStart = range.getStart();
-        int selectionEnd = range.getEnd();
+        String selectedText = target.selectedText();
+        int selectionStart = target.selectionStart();
+        int selectionEnd = target.selectionEnd();
+        String fallbackLanguageCode = resolveAiTextFallbackLanguageCode();
+        String instructions = additionalInstructions();
         Task<String> task = new Task<>() {
             @Override
             protected String call() throws Exception {
                 return provider.transform(new SelectionTextTransformRequest(
-                    contentArea.getText(),
-                    languageCombo.getValue(),
+                    target.fullContent(),
+                    target.snippetLanguage(),
                     selectedText,
-                    resolveAiTextFallbackLanguageCode(),
+                    selectionStart,
+                    selectionEnd,
+                    fallbackLanguageCode,
                     targetLanguageCode,
-                    additionalInstructions()));
+                    instructions));
             }
         };
         snippetAiActionTask = task;
@@ -3089,6 +3107,37 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-selection-transform");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private SelectionTextTransformTarget captureSelectionTextTransformTarget() {
+        contentArea.syncFromEditor();
+        IndexRange range = contentArea.getSelection();
+        String fullContent = contentArea.getText() != null ? contentArea.getText() : "";
+        if (range == null || range.getLength() <= 0) {
+            return null;
+        }
+        int selectionStart = Math.max(0, Math.min(range.getStart(), fullContent.length()));
+        int selectionEnd = Math.max(selectionStart, Math.min(range.getEnd(), fullContent.length()));
+        if (selectionStart == selectionEnd) {
+            return null;
+        }
+        String snippetLanguage = languageCombo.getValue();
+        List<SnippetAiTextSupport.EditableTextSegment> segments =
+            SnippetAiTextSupport.extractEditableSegments(
+                fullContent,
+                selectionStart,
+                selectionEnd,
+                snippetLanguage);
+        if (segments.isEmpty()) {
+            setStatus(I18n.get("snippets.ai.noTextSegments"));
+            return null;
+        }
+        return new SelectionTextTransformTarget(
+            fullContent,
+            snippetLanguage,
+            fullContent.substring(selectionStart, selectionEnd),
+            selectionStart,
+            selectionEnd);
     }
 
     private void runSnippetDescription() {

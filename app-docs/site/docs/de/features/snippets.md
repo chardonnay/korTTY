@@ -228,7 +228,7 @@ Das Fenster **Vollständige Codeanalyse** zeigt dieselbe Auswahl als eine Reihe 
 
 ### Textkorrektur und Übersetzung
 
-Für die auswahlbasierte Textkorrektur und -übersetzung schreibt KorTTY nur bearbeitbaren Kommentartext, Zeichenfolgenliterale und für den Benutzer sichtbare Textsegmente neu. Die logische Codestruktur wird nicht neu geschrieben.
+Für die auswahlbasierte Textkorrektur und -übersetzung schreibt KorTTY nur bearbeitbaren Kommentartext, Zeichenfolgenliterale und für den Benutzer sichtbare Textsegmente neu. Eine Auswahl kann innerhalb eines solchen Segments beginnen oder enden: KorTTY erkennt die ausgewählten Wörter anhand des umgebenden Snippets und ersetzt nur den überlappenden Text. Die logische Codestruktur wird nicht neu geschrieben.
 
 ### Technische Beschreibungen
 
