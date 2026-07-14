@@ -2635,6 +2635,7 @@
 
 <h1 id="ai-assistant">AI assistant<a class="headerlink" href="#ai-assistant" title="Permanent link">&para;</a></h1>
 <p>KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.</p>
+<p>When <strong>Configuration &gt; Prevent System Sleep</strong> is enabled on macOS or Windows, korTTY keeps the computer awake while an AI API, local-model, web-tool, or local AI CLI request is waiting for a result. The assertion is released after the last concurrent AI request finishes; if no terminal is connected and no future or running Scheduler job exists, the computer may then sleep normally. Display sleep remains available.</p>
 <p><img alt="AI request/integration flow" src="../assets/diagrams/ai-api-integration.svg" /></p>
 <div class="admonition warning">
 <p class="admonition-title">Data Security</p>
