@@ -73,14 +73,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -206,6 +201,11 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    private record TerminalAgentShortcutInputFilterRegistration(
+        @Nullable SithTermFxWidget widget,
+        TerminalAgentShortcutInputFilter filter) {
+    }
+
     /**
      * Immutable per-pane appearance override contributed by an active terminal effect.
      * Any {@code null} field means "inherit the tab baseline" (the connection settings).
@@ -325,6 +325,8 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
     private ObservableTtyConnector.DataListener terminalLoggerDataListener;
     private final Map<SshTtyConnector, ObservableTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
+    private final Map<ObservableTtyConnector, TerminalAgentShortcutInputFilterRegistration>
+        terminalAgentShortcutInputFilters = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> terminalRecordingModelListeners = new ConcurrentHashMap<>();
     private final Map<ObservableTtyConnector, ObservableTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
@@ -739,10 +741,19 @@ public class TerminalView extends BorderPane {
         @Nullable String workingDirectory) {
 
         String promptDirectory = resolveWorkingDirectoryFromPrompt(widget, connector);
-        String directory = firstAbsolutePath(
+        String cachedDirectory = connector.getCurrentWorkingDirectory();
+        if (connector instanceof LocalShellTtyConnector localConnector
+            && localConnector.hasUnresolvedWorkingDirectoryChange()
+            && workingDirectory == null
+            && promptDirectory == null) {
+            // After a submitted cd/pushd/popd there is no safe JAT-side fallback until either the
+            // OS or a new absolute prompt confirms the current directory.
+            cachedDirectory = null;
+        }
+        String directory = firstAbsoluteWorkingDirectory(
             workingDirectory,
             promptDirectory,
-            connector.getCurrentRemoteDirectory());
+            cachedDirectory);
         return new TerminalAgentRunContext(widget, connector, directory);
     }
 
@@ -760,16 +771,26 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private static String firstAbsolutePath(String... candidates) {
+    private static String firstAbsoluteWorkingDirectory(String... candidates) {
         if (candidates == null) {
             return null;
         }
         for (String candidate : candidates) {
-            if (candidate != null && candidate.startsWith("/")) {
+            if (isAbsoluteWorkingDirectorySyntax(candidate)) {
                 return candidate;
             }
         }
-        return candidates.length > 0 ? candidates[candidates.length - 1] : null;
+        return null;
+    }
+
+    static boolean isAbsoluteWorkingDirectorySyntax(String candidate) {
+        if (candidate == null || candidate.isBlank()) {
+            return false;
+        }
+        String value = candidate.strip();
+        return value.startsWith("/")
+            || value.matches("^[A-Za-z]:[\\\\/].*")
+            || value.startsWith("\\\\");
     }
 
     private @Nullable SithTermFxWidget findWidgetForConnector(TtyConnector connector) {
@@ -983,19 +1004,12 @@ public class TerminalView extends BorderPane {
         }
         reportTerminalDisconnected(baseConnector);
         if (baseConnector instanceof ObservableTtyConnector observableConnector) {
+            releaseAgentShortcutInputInterceptor(observableConnector);
             ObservableTtyConnector.InputActivityListener inputListener =
                 terminalRecordingInputListeners.remove(observableConnector);
             if (inputListener != null) {
                 observableConnector.removeInputActivityListener(inputListener);
             }
-        }
-        if (baseConnector instanceof SshTtyConnector sshConnector) {
-            ObservableTtyConnector.DataListener promptListener =
-                terminalAgentPromptDataListeners.remove(sshConnector);
-            if (promptListener != null) {
-                sshConnector.removeDataListener(promptListener);
-            }
-            terminalAgentOscBuffers.remove(sshConnector);
         }
     }
 
@@ -1627,6 +1641,12 @@ public class TerminalView extends BorderPane {
 
     /** Builds an {@link AgentCommandRunner} for the active connector (SSH or local), or null. */
     public AgentCommandRunner createActiveAgentRunner() {
+        TerminalAgentRunContext runContext = captureTerminalAgentRunContext();
+        if (runContext != null) {
+            return AgentCommandRunners.forConnector(
+                runContext.connector(),
+                runContext.workingDirectory());
+        }
         return AgentCommandRunners.forConnector(getActiveAgentConnector());
     }
 
@@ -2038,15 +2058,70 @@ public class TerminalView extends BorderPane {
     }
 
     private void installAgentShortcutInputInterceptor(SithTermFxWidget widget, TtyConnector connector) {
-        if (!(connector instanceof SshTtyConnector sshConnector)) {
+        if (!(connector instanceof ObservableTtyConnector observableConnector)) {
             return;
         }
-        sshConnector.addDataListener(getTerminalAgentPromptDataListener(sshConnector));
-        AgentShortcutInputFilter inputFilter = new AgentShortcutInputFilter(
-            widget,
-            sshConnector.hasShellStartupCommandConfigured());
-        sshConnector.setInputInterceptor(inputFilter::filter);
-        logger.debug("Installed terminal AI SSH input interceptor (widgetBound={})", widget != null);
+        boolean preferRemoteShortcut = false;
+        if (observableConnector instanceof SshTtyConnector sshConnector) {
+            sshConnector.addDataListener(getTerminalAgentPromptDataListener(sshConnector));
+            preferRemoteShortcut = sshConnector.hasShellStartupCommandConfigured();
+        }
+
+        TerminalAgentShortcutInputFilterRegistration existing =
+            terminalAgentShortcutInputFilters.get(observableConnector);
+        if (existing != null && existing.widget() == widget) {
+            observableConnector.setInputInterceptor(existing.filter()::filter);
+            return;
+        }
+
+        boolean shellHandlesRecognizedShortcut = preferRemoteShortcut;
+        TerminalAgentShortcutInputFilter inputFilter = new TerminalAgentShortcutInputFilter(
+            bufferedCommand -> bufferedCommand != null ? bufferedCommand.trim() : "",
+            rawCommand -> shouldLetRemoteShellHandleAgentShortcut(
+                shellHandlesRecognizedShortcut,
+                rawCommand,
+                getTerminalAgentCommandName(),
+                isTerminalAgentCommandNameCaseInsensitive()),
+            rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
+            rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand));
+        terminalAgentShortcutInputFilters.put(
+            observableConnector,
+            new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
+        observableConnector.setInputInterceptor(inputFilter::filter);
+        logger.debug(
+            "Installed terminal AI input interceptor for {} (widgetBound={}, preferRemote={})",
+            observableConnector.getClass().getSimpleName(),
+            widget != null,
+            preferRemoteShortcut);
+    }
+
+    private void releaseAgentShortcutInputInterceptor(TtyConnector connector) {
+        TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        if (!(baseConnector instanceof ObservableTtyConnector observableConnector)) {
+            return;
+        }
+        TerminalAgentShortcutInputFilterRegistration registration =
+            terminalAgentShortcutInputFilters.remove(observableConnector);
+        if (registration != null) {
+            observableConnector.setInputInterceptor(null);
+            if (registration.widget() != null) {
+                agentShortcutBuffers.remove(registration.widget());
+            }
+        }
+        if (observableConnector instanceof SshTtyConnector sshConnector) {
+            ObservableTtyConnector.DataListener promptListener =
+                terminalAgentPromptDataListeners.remove(sshConnector);
+            if (promptListener != null) {
+                sshConnector.removeDataListener(promptListener);
+            }
+            terminalAgentOscBuffers.remove(sshConnector);
+        }
+    }
+
+    private void releaseAllAgentShortcutInputInterceptors() {
+        for (ObservableTtyConnector connector : List.copyOf(terminalAgentShortcutInputFilters.keySet())) {
+            releaseAgentShortcutInputInterceptor(connector);
+        }
     }
 
     private ObservableTtyConnector.DataListener getTerminalAgentPromptDataListener(SshTtyConnector connector) {
@@ -2431,7 +2506,6 @@ public class TerminalView extends BorderPane {
                     );
                 }
             }
-            installAgentShortcutInputInterceptor(null, sshConnector);
             connector = sshConnector;
         }
         return connector;
@@ -2458,6 +2532,7 @@ public class TerminalView extends BorderPane {
 
     private void setConnectorDisconnectListener(TtyConnector connector, DisconnectListener listener) {
         DisconnectListener powerAwareListener = (reason, wasError) -> {
+            releaseAgentShortcutInputInterceptor(connector);
             reportTerminalDisconnected(connector);
             listener.onDisconnect(reason, wasError);
         };
@@ -3168,6 +3243,13 @@ public class TerminalView extends BorderPane {
         if (event.getCode() != KeyCode.ENTER) {
             return;
         }
+        if (hasAgentShortcutInputFilter(widget)) {
+            // The connector byte stream contains keyboard input and clipboard paste. Let its filter
+            // be the sole Enter/dispatch authority; this key path only resets the TAB/history buffer.
+            buffer.setLength(0);
+            agentShortcutPromptReady = false;
+            return;
+        }
         // Concurrent runs are supported: a new `agent ...` command must still be intercepted and
         // launched as an additional run (a new tab) even while another run is active. The per-widget
         // concurrency cap is enforced when the run is dispatched.
@@ -3211,14 +3293,63 @@ public class TerminalView extends BorderPane {
         });
     }
 
+    private boolean hasAgentShortcutInputFilter(@Nullable SithTermFxWidget widget) {
+        if (widget == null) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return connector instanceof ObservableTtyConnector observableConnector
+            && terminalAgentShortcutInputFilters.containsKey(observableConnector);
+    }
+
+    private boolean shouldInterceptFilteredAgentShortcut(
+        @Nullable SithTermFxWidget widget,
+        String rawCommand) {
+
+        if (!isTerminalAgentShortcutEnabled() || terminalAgentShortcutHandler == null) {
+            return false;
+        }
+        String commandName = getTerminalAgentCommandName();
+        if (!canInterceptBufferedAgentShortcut(
+            rawCommand,
+            commandName,
+            isTerminalAgentCommandNameCaseInsensitive())) {
+            return false;
+        }
+        logger.debug("Intercepting terminal AI shortcut before shell execution");
+        agentShortcutPromptReady = false;
+        if (widget != null) {
+            StringBuilder keyEventBuffer = agentShortcutBuffers.get(widget);
+            if (keyEventBuffer != null) {
+                keyEventBuffer.setLength(0);
+            }
+        }
+        return true;
+    }
+
+    private void dispatchFilteredTerminalAgentShortcut(
+        @Nullable SithTermFxWidget widget,
+        String rawCommand) {
+
+        String command = rawCommand != null ? rawCommand.trim() : "";
+        Platform.runLater(() -> {
+            TerminalAgentRunContext runContext = createTerminalAgentRunContext(widget);
+            recordAgentInputHistory(
+                command,
+                getTerminalAgentCommandName(),
+                isTerminalAgentCommandNameCaseInsensitive());
+            TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
+            if (handler != null) {
+                handler.handle(command, runContext);
+            }
+        });
+    }
+
     /** Records the prompt part of an intercepted agent command into the persistent input history. */
     private void recordAgentInputHistory(String typedCommand, String commandName, boolean caseInsensitive) {
         try {
-            // Record ONLY from the literally-typed buffer. The visible-screen reconstruction joins
-            // soft-wrapped terminal rows, and it cannot tell a wrap-at-space from a mid-word break, so
-            // it corrupted long prompts ("nur" -> "nu r", "ansible" -> "ansibl e"). The typed buffer is
-            // captured character-by-character and has no wrap artifacts. A command the buffer did not
-            // capture (e.g. pasted) is simply not added to history rather than stored corrupted.
+            // Record from the connector-filtered command. Unlike visible-screen reconstruction it has
+            // no soft-wrap artifacts, and unlike KEY_TYPED it includes clipboard-pasted text.
             String prompt = TerminalAgentCompletionSupport.promptFromRaw(typedCommand, commandName, caseInsensitive);
             prompt = TerminalAgentCompletionSupport.sanitizeHistoryPrompt(prompt);
             if (prompt == null || prompt.isBlank()) {
@@ -3734,6 +3865,10 @@ public class TerminalView extends BorderPane {
         logger.debug("Received terminal AI OSC shortcut kind='{}'", kind);
         TerminalAgentRunContext runContext = createTerminalAgentRunContext(sourceConnector, workingDirectory);
         Platform.runLater(() -> {
+            recordAgentInputHistory(
+                rawCommand,
+                getTerminalAgentCommandName(),
+                isTerminalAgentCommandNameCaseInsensitive());
             TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
             if (handler != null) {
                 handler.handle(rawCommand, runContext);
@@ -3925,11 +4060,15 @@ public class TerminalView extends BorderPane {
             return null;
         }
         String beforePrompt = prompt.substring(0, prompt.length() - 1).stripTrailing();
+        String windowsDirectory = extractNativeWindowsWorkingDirectory(beforePrompt);
+        if (windowsDirectory != null) {
+            return windowsDirectory;
+        }
         String candidate = extractWorkingDirectoryCandidate(beforePrompt);
         if (candidate.isBlank()) {
             return null;
         }
-        if (candidate.startsWith("/")) {
+        if (isAbsoluteWorkingDirectorySyntax(candidate)) {
             return candidate;
         }
         if ("~".equals(candidate)) {
@@ -3941,6 +4080,16 @@ public class TerminalView extends BorderPane {
                 : null;
         }
         return null;
+    }
+
+    private static @Nullable String extractNativeWindowsWorkingDirectory(String beforePrompt) {
+        String candidate = beforePrompt != null ? beforePrompt.strip() : "";
+        if (candidate.regionMatches(true, 0, "PS ", 0, 3)) {
+            candidate = candidate.substring(3).stripLeading();
+        }
+        return isAbsoluteWorkingDirectorySyntax(candidate) && !candidate.startsWith("/")
+            ? candidate
+            : null;
     }
 
     private static String extractWorkingDirectoryCandidate(String beforePrompt) {
@@ -4092,273 +4241,6 @@ public class TerminalView extends BorderPane {
             case "plan" -> TerminalAgentCommandSupport.getPlanCommandName(normalizedCommand) + " " + prompt;
             default -> null;
         };
-    }
-
-    private final class AgentShortcutInputFilter {
-        private static final char ESCAPE = '\u001B';
-        private static final char CTRL_C = '\u0003';
-        private static final char CTRL_U = '\u0015';
-        private static final char DELETE = '\u007F';
-
-        private final SithTermFxWidget widget;
-        private final boolean preferRemoteShortcut;
-        private final StringBuilder inputLine = new StringBuilder();
-        private final ByteArrayOutputStream partialUtf8 = new ByteArrayOutputStream(4);
-        private boolean swallowNextLineFeed;
-        private boolean escapePending;
-        private boolean escapeSequence;
-
-        private AgentShortcutInputFilter(SithTermFxWidget widget, boolean preferRemoteShortcut) {
-            this.widget = widget;
-            this.preferRemoteShortcut = preferRemoteShortcut;
-        }
-
-        private byte[] filter(byte[] bytes) {
-            if (bytes == null || bytes.length == 0) {
-                return new byte[0];
-            }
-
-            ByteArrayOutputStream outgoing = new ByteArrayOutputStream(bytes.length);
-            int[] currentLineStart = {0};
-            for (byte value : bytes) {
-                processByte(value & 0xFF, outgoing, currentLineStart);
-            }
-            return outgoing.toByteArray();
-        }
-
-        private void processByte(int value, ByteArrayOutputStream outgoing, int[] currentLineStart) {
-            // Note: input is no longer blocked while an agent run is active. The user may keep typing
-            // the next command and it flows to the shell as usual (run-control characters are handled
-            // at the key-event level). Agent re-dispatch while a run is active is suppressed in
-            // handleLineBreak so a second run is not launched.
-            while (true) {
-                if (partialUtf8.size() > 0) {
-                    if (isUtf8Continuation(value)) {
-                        partialUtf8.write(value);
-                        if (partialUtf8.size() == expectedUtf8Length(partialUtf8.toByteArray()[0] & 0xFF)) {
-                            byte[] characterBytes = partialUtf8.toByteArray();
-                            partialUtf8.reset();
-                            emitUtf8Character(characterBytes, outgoing, currentLineStart);
-                        }
-                        return;
-                    }
-                    flushPartialUtf8(outgoing);
-                    continue;
-                }
-
-                if (value < 0x80) {
-                    byte[] originalBytes = {(byte) value};
-                    processCharacter(String.valueOf((char) value), originalBytes, outgoing, currentLineStart);
-                    return;
-                }
-
-                if (expectedUtf8Length(value) > 1) {
-                    partialUtf8.write(value);
-                    return;
-                }
-
-                outgoing.write(value);
-                return;
-            }
-        }
-
-        private void emitUtf8Character(byte[] characterBytes, ByteArrayOutputStream outgoing, int[] currentLineStart) {
-            if (!isWellFormedUtf8(characterBytes)) {
-                outgoing.writeBytes(characterBytes);
-                return;
-            }
-            processCharacter(new String(characterBytes, StandardCharsets.UTF_8), characterBytes, outgoing, currentLineStart);
-        }
-
-        private void processCharacter(
-            String text,
-            byte[] originalBytes,
-            ByteArrayOutputStream outgoing,
-            int[] currentLineStart) {
-            if (text == null || text.isEmpty()) {
-                return;
-            }
-            if (text.length() == 1 && swallowNextLineFeed && text.charAt(0) == '\n') {
-                swallowNextLineFeed = false;
-                return;
-            }
-            swallowNextLineFeed = false;
-            if (text.length() == 1 && isLineBreak(text.charAt(0))) {
-                handleLineBreak(text.charAt(0), originalBytes, outgoing, currentLineStart);
-                return;
-            }
-            if (text.length() == 1 && consumeTerminalControlForInputLine(text.charAt(0))) {
-                outgoing.writeBytes(originalBytes);
-                return;
-            }
-            updateInputLine(text);
-            outgoing.writeBytes(originalBytes);
-        }
-
-        private void handleLineBreak(
-            char ch,
-            byte[] originalBytes,
-            ByteArrayOutputStream outgoing,
-            int[] currentLineStart) {
-            // Concurrent runs are supported, so a new `agent ...` line is still intercepted and
-            // launched as an additional run even while another run is active on this widget.
-            String rawCommand = resolveAgentShortcutCommand(widget, inputLine.toString());
-            String commandName = getTerminalAgentCommandName();
-            boolean caseInsensitiveCommandName = isTerminalAgentCommandNameCaseInsensitive();
-            boolean recognized = canInterceptBufferedAgentShortcut(
-                rawCommand,
-                commandName,
-                caseInsensitiveCommandName);
-            inputLine.setLength(0);
-            escapePending = false;
-            escapeSequence = false;
-            if (shouldLetRemoteShellHandleAgentShortcut(
-                preferRemoteShortcut,
-                rawCommand,
-                commandName,
-                caseInsensitiveCommandName)) {
-                outgoing.writeBytes(originalBytes);
-                currentLineStart[0] = outgoing.size();
-                return;
-            }
-            if (recognized && shouldInterceptShortcut(rawCommand)) {
-                truncate(outgoing, currentLineStart[0]);
-                outgoing.write((byte) CTRL_U);
-                dispatchTerminalAgentShortcut(rawCommand);
-                if (ch == '\r') {
-                    swallowNextLineFeed = true;
-                }
-                currentLineStart[0] = outgoing.size();
-                return;
-            }
-            outgoing.writeBytes(originalBytes);
-            currentLineStart[0] = outgoing.size();
-        }
-
-        private void truncate(ByteArrayOutputStream outgoing, int length) {
-            byte[] current = outgoing.toByteArray();
-            outgoing.reset();
-            outgoing.write(current, 0, Math.min(length, current.length));
-        }
-
-        private void flushPartialUtf8(ByteArrayOutputStream outgoing) {
-            if (partialUtf8.size() == 0) {
-                return;
-            }
-            outgoing.writeBytes(partialUtf8.toByteArray());
-            partialUtf8.reset();
-        }
-
-        private boolean isUtf8Continuation(int value) {
-            return (value & 0xC0) == 0x80;
-        }
-
-        private int expectedUtf8Length(int value) {
-            if (value >= 0xC2 && value <= 0xDF) {
-                return 2;
-            }
-            if (value >= 0xE0 && value <= 0xEF) {
-                return 3;
-            }
-            if (value >= 0xF0 && value <= 0xF4) {
-                return 4;
-            }
-            return value < 0x80 ? 1 : -1;
-        }
-
-        private boolean isWellFormedUtf8(byte[] value) {
-            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT);
-            try {
-                decoder.decode(ByteBuffer.wrap(value));
-                return true;
-            } catch (CharacterCodingException e) {
-                return false;
-            }
-        }
-
-        private boolean shouldInterceptShortcut(String rawCommand) {
-            if (!isTerminalAgentShortcutEnabled() || terminalAgentShortcutHandler == null) {
-                return false;
-            }
-            String commandName = getTerminalAgentCommandName();
-            if (!canInterceptBufferedAgentShortcut(
-                rawCommand,
-                commandName,
-                isTerminalAgentCommandNameCaseInsensitive())) {
-                return false;
-            }
-            logger.debug("Intercepting terminal AI shortcut before shell execution");
-            agentShortcutPromptReady = false;
-            if (widget != null) {
-                StringBuilder keyEventBuffer = agentShortcutBuffers.get(widget);
-                if (keyEventBuffer != null) {
-                    keyEventBuffer.setLength(0);
-                }
-            }
-            return true;
-        }
-
-        private void dispatchTerminalAgentShortcut(String rawCommand) {
-            String command = rawCommand.trim();
-            TerminalAgentRunContext runContext = createTerminalAgentRunContext(widget);
-            Platform.runLater(() -> {
-                TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
-                if (handler != null) {
-                    handler.handle(command, runContext);
-                }
-            });
-        }
-
-        private boolean isLineBreak(char ch) {
-            return ch == '\r' || ch == '\n';
-        }
-
-        private boolean consumeTerminalControlForInputLine(char ch) {
-            if (ch == ESCAPE) {
-                escapePending = true;
-                escapeSequence = false;
-                return true;
-            }
-            if (escapePending) {
-                escapePending = false;
-                if (ch == '[' || ch == 'O' || ch == ']') {
-                    escapeSequence = true;
-                }
-                return true;
-            }
-            if (escapeSequence) {
-                if (ch >= '@' && ch <= '~') {
-                    escapeSequence = false;
-                }
-                return true;
-            }
-            return false;
-        }
-
-        private void updateInputLine(String text) {
-            if (text == null || text.isEmpty()) {
-                return;
-            }
-            char first = text.charAt(0);
-            if (text.length() == 1 && (first == '\b' || first == DELETE)) {
-                if (!inputLine.isEmpty()) {
-                    int lastCodePoint = inputLine.codePointBefore(inputLine.length());
-                    inputLine.setLength(inputLine.length() - Character.charCount(lastCodePoint));
-                }
-                return;
-            }
-            if (text.length() == 1 && (first == CTRL_U || first == CTRL_C)) {
-                inputLine.setLength(0);
-                escapePending = false;
-                escapeSequence = false;
-                return;
-            }
-            if (first == '\t' || first >= 32) {
-                inputLine.append(text);
-            }
-        }
     }
 
     /**
@@ -5216,6 +5098,7 @@ public class TerminalView extends BorderPane {
         stopLogger();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);
+            releaseAgentShortcutInputInterceptor(ttyConnector);
             try {
                 ttyConnector.close();
             } catch (Exception e) {
@@ -5236,6 +5119,7 @@ public class TerminalView extends BorderPane {
         stopAllEffects();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);
+            releaseAgentShortcutInputInterceptor(ttyConnector);
             try {
                 ttyConnector.close();
             } catch (Exception e) {
@@ -5251,6 +5135,7 @@ public class TerminalView extends BorderPane {
             }
             splitPane = null;
         }
+        releaseAllAgentShortcutInputInterceptors();
         terminalContainer = null;
         terminalAgentBusyStylesheetUrl = null;
         terminalAgentActivityPanels.clear();

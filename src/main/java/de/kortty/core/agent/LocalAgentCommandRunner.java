@@ -1,5 +1,7 @@
 package de.kortty.core.agent;
 
+import de.kortty.core.LanguageManager;
+import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.ServerConnection;
 
@@ -30,14 +32,45 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
     private static final String PS_UTF8_PREFIX = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;";
 
     private final ServerConnection connection;
+    private final LocalShellTtyConnector connector;
     private final ShellKind shellKind;
-    private final String workingDirectory;
+    private final String startDirectory;
+    private final String workingDirectoryHint;
+    private final Object workingDirectoryLock = new Object();
+    private volatile String workingDirectorySnapshot;
+    private volatile boolean workingDirectorySnapshotResolved;
 
+    /**
+     * Compatibility constructor for callers without an active terminal connector. Commands use the
+     * connection's configured start directory, matching the historical behavior.
+     */
     public LocalAgentCommandRunner(ServerConnection connection) {
+        this(null, connection, null);
+    }
+
+    public LocalAgentCommandRunner(LocalShellTtyConnector connector) {
+        this(connector, null);
+    }
+
+    /**
+     * Creates a runner tied to the active PTY. The optional prompt-derived hint is considered only
+     * if the live OS refresh is unavailable, and the selected directory is frozen for this run.
+     */
+    public LocalAgentCommandRunner(LocalShellTtyConnector connector, String workingDirectoryHint) {
+        this(connector, connector != null ? connector.getConnection() : null, workingDirectoryHint);
+    }
+
+    private LocalAgentCommandRunner(
+        LocalShellTtyConnector connector,
+        ServerConnection connection,
+        String workingDirectoryHint) {
+        this.connector = connector;
         this.connection = connection;
         this.shellKind = resolveShellKind(connection != null ? connection.getLocalShellCommand() : null);
-        this.workingDirectory = resolveWorkingDirectory(
-            connection != null ? connection.getLocalShellWorkingDirectory() : null);
+        this.startDirectory = connector != null
+            ? connector.getStartDirectory()
+            : resolveWorkingDirectory(connection != null ? connection.getLocalShellWorkingDirectory() : null);
+        this.workingDirectoryHint = workingDirectoryHint;
     }
 
     static ShellKind resolveShellKind(String configuredCommand) {
@@ -107,13 +140,26 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
-        return runProcess(wrap(command), stdin, outputConsumer, cancellationSupplier);
+        ensureConnected();
+        String directory = useTrackedWorkingDirectory
+            ? resolveWorkingDirectorySnapshot()
+            : startDirectory;
+        return runProcess(wrap(command), stdin, outputConsumer, cancellationSupplier, directory);
     }
 
     @Override
     public ExecResult runProbe(boolean useTrackedWorkingDirectory, BooleanSupplier cancellationSupplier) throws Exception {
+        ensureConnected();
+        String directory = useTrackedWorkingDirectory
+            ? resolveWorkingDirectorySnapshot()
+            : startDirectory;
         if (shellKind == ShellKind.POSIX) {
-            return runProcess(List.of("/bin/sh", "-c", AgentProbeScripts.POSIX), null, null, cancellationSupplier);
+            return runProcess(
+                List.of("/bin/sh", "-c", AgentProbeScripts.POSIX),
+                null,
+                null,
+                cancellationSupplier,
+                directory);
         }
         // Windows: always probe via PowerShell (encoded so quotes/newlines survive argv quoting),
         // regardless of whether the agent's command shell is PowerShell or cmd.
@@ -121,21 +167,76 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         String script = PS_UTF8_PREFIX + AgentProbeScripts.windowsPowerShell(shellLabel);
         List<String> argv = List.of(
             "powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodePowerShell(script));
-        return runProcess(argv, null, null, cancellationSupplier);
+        return runProcess(argv, null, null, cancellationSupplier, directory);
+    }
+
+    private void ensureConnected() {
+        if (connector != null && !connector.isConnected()) {
+            throw new IllegalStateException("The selected local shell is not connected.");
+        }
+    }
+
+    /**
+     * Resolves once, on the worker thread that starts the first tracked probe/command. Keeping this
+     * snapshot stable prevents later interactive {@code cd} commands from moving an in-flight agent
+     * run between directories.
+     */
+    private String resolveWorkingDirectorySnapshot() {
+        if (workingDirectorySnapshotResolved) {
+            return workingDirectorySnapshot;
+        }
+        synchronized (workingDirectoryLock) {
+            if (workingDirectorySnapshotResolved) {
+                return workingDirectorySnapshot;
+            }
+
+            String resolved = null;
+            if (connector != null) {
+                resolved = LocalShellTtyConnector.normalizeTrustedLocalDirectory(
+                    connector.refreshCurrentWorkingDirectory());
+            }
+            if (resolved == null) {
+                resolved = LocalShellTtyConnector.normalizeTrustedLocalDirectory(workingDirectoryHint);
+                if (resolved != null && connector != null) {
+                    connector.updateCurrentWorkingDirectoryHint(resolved);
+                } else if (resolved == null && isAbsoluteLookingPath(workingDirectoryHint)) {
+                    throw workingDirectoryUnavailable(workingDirectoryHint);
+                }
+            }
+            if (resolved == null && connector != null
+                && !connector.hasUnresolvedWorkingDirectoryChange()) {
+                resolved = LocalShellTtyConnector.normalizeTrustedLocalDirectory(
+                    connector.getCurrentWorkingDirectory());
+            }
+            if (resolved == null && connector != null
+                && connector.hasUnresolvedWorkingDirectoryChange()) {
+                throw workingDirectoryUnavailable(null);
+            }
+            if (resolved == null) {
+                resolved = LocalShellTtyConnector.normalizeTrustedLocalDirectory(startDirectory);
+            }
+            if (resolved == null) {
+                throw workingDirectoryUnavailable(startDirectory);
+            }
+
+            workingDirectorySnapshot = resolved;
+            workingDirectorySnapshotResolved = true;
+            return resolved;
+        }
     }
 
     private ExecResult runProcess(
         List<String> argv,
         byte[] stdin,
         Consumer<String> outputConsumer,
-        BooleanSupplier cancellationSupplier) throws Exception {
+        BooleanSupplier cancellationSupplier,
+        String workingDirectory) throws Exception {
 
         ProcessBuilder builder = new ProcessBuilder(argv);
-        if (workingDirectory != null) {
-            File dir = new File(workingDirectory);
-            if (dir.isDirectory()) {
-                builder.directory(dir);
-            }
+        if (workingDirectory != null && !workingDirectory.isBlank()) {
+            // Always set the selected directory. If it disappears before process start, fail rather
+            // than silently executing in the JVM's unrelated working directory.
+            builder.directory(new File(workingDirectory));
         }
         Process process = builder.start();
 
@@ -213,16 +314,81 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
 
     @Override
     public String currentWorkingDirectory() {
-        return workingDirectory;
+        if (workingDirectorySnapshotResolved) {
+            return workingDirectorySnapshot;
+        }
+        String hint = LocalShellTtyConnector.normalizeTrustedLocalDirectory(workingDirectoryHint);
+        if (hint != null) {
+            return hint;
+        }
+        if (isAbsoluteLookingPath(workingDirectoryHint)) {
+            return null;
+        }
+        if (connector != null) {
+            if (connector.hasUnresolvedWorkingDirectoryChange()) {
+                return null;
+            }
+            String cached = connector.getCurrentWorkingDirectory();
+            if (cached != null) {
+                return cached;
+            }
+        }
+        return startDirectory;
+    }
+
+    @Override
+    public void updateDirectoryHints(String homeDir, String currentDir) {
+        // The probe runs in this runner's frozen subprocess directory, not necessarily the
+        // interactive PTY's current directory. Never let a concurrent interactive cd be cleared by
+        // a late probe result.
+        String trustedProbeDirectory = LocalShellTtyConnector.normalizeTrustedLocalDirectory(currentDir);
+        if (connector != null
+            && workingDirectorySnapshotResolved
+            && trustedProbeDirectory != null
+            && trustedProbeDirectory.equals(workingDirectorySnapshot)
+            && !connector.hasUnresolvedWorkingDirectoryChange()) {
+            connector.updateCurrentWorkingDirectoryHint(currentDir);
+        }
     }
 
     @Override
     public boolean isConnected() {
-        return true;
+        return connector == null || connector.isConnected();
     }
 
     public ServerConnection getConnection() {
         return connection;
+    }
+
+    public LocalShellTtyConnector connector() {
+        return connector;
+    }
+
+    private static boolean isAbsoluteLookingPath(String directory) {
+        if (directory == null || directory.isBlank()) {
+            return false;
+        }
+        String value = directory.trim();
+        if (value.startsWith("/") || value.startsWith("\\\\")) {
+            return true;
+        }
+        return value.length() >= 3
+            && Character.isLetter(value.charAt(0))
+            && value.charAt(1) == ':'
+            && (value.charAt(2) == '\\' || value.charAt(2) == '/');
+    }
+
+    private static IllegalStateException workingDirectoryUnavailable(String directory) {
+        String key = "localShell.workingDirectoryUnavailable";
+        String message = LanguageManager.getInstance().getString(key);
+        if (message == null || message.isBlank() || key.equals(message)) {
+            message = "The current shell directory could not be safely determined or mapped. "
+                + "The action was stopped to avoid using the wrong directory.";
+        }
+        if (directory != null && !directory.isBlank()) {
+            message += " (" + directory.trim() + ")";
+        }
+        return new IllegalStateException(message);
     }
 
     private static final class StreamCollector implements Runnable {

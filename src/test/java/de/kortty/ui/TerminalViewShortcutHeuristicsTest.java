@@ -156,6 +156,35 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void extractsNativePowerShellWorkingDirectoryWithTypedAgentCommand() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "PS C:\\Users\\Daniel\\Projekt mit Leerzeichen> agent prüfe datei.txt",
+            null)).isEqualTo("C:\\Users\\Daniel\\Projekt mit Leerzeichen");
+    }
+
+    @Test
+    void extractsNativeCmdWorkingDirectoryWithTypedAgentCommand() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "C:\\Users\\Daniel\\Projekt mit Leerzeichen> agent prüfe datei.txt",
+            null)).isEqualTo("C:\\Users\\Daniel\\Projekt mit Leerzeichen");
+    }
+
+    @Test
+    void extractsPowerShellFileSystemProviderUncDirectory() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "PS Microsoft.PowerShell.Core\\FileSystem::\\\\server\\share\\work> agent prüfe datei.txt",
+            null)).isEqualTo("\\\\server\\share\\work");
+    }
+
+    @Test
+    void recognizesPosixDriveAndUncWorkingDirectorySyntax() {
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("/tmp/work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("C:\\work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("\\\\server\\share\\work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("work")).isFalse();
+    }
+
+    @Test
     void ignoresPromptWithoutDirectoryShape() {
         assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
             "daniel@fedora$",

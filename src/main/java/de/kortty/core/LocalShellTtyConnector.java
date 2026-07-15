@@ -15,6 +15,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,12 +53,13 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private volatile InputStreamReader reader;
     private volatile Thread monitorThread;
 
-    // Short-lived cache for the OS-level cwd lookup: coalesces the two calls made during a single
-    // "Load as text file" action (run-context capture + resolution) into one query, without ever
-    // serving a directory from a previous user action (the TTL is far below human action cadence).
-    private static final long WORKING_DIRECTORY_CACHE_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+    // Last OS- or prompt-confirmed local path. It deliberately does not expire: on platforms where
+    // no live OS query is available (notably Windows), an absolute prompt path remains useful until
+    // submitted input indicates that the shell may have changed directory.
     private volatile String cachedWorkingDirectory;
-    private volatile long cachedWorkingDirectoryAtNanos;
+    private final AtomicBoolean unresolvedWorkingDirectoryChange = new AtomicBoolean(false);
+    private final LocalShellDirectoryChangeTracker directoryChangeTracker =
+        new LocalShellDirectoryChangeTracker();
 
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
@@ -94,6 +98,9 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             // Freeze the effective spawn directory: the live ServerConnection can be edited while
             // this tab is open, and the existence check above can flip later.
             this.startDirectory = workingDirectory != null ? workingDirectory : System.getProperty("user.dir");
+            cachedWorkingDirectory = null;
+            unresolvedWorkingDirectoryChange.set(false);
+            directoryChangeTracker.reset();
 
             logger.info("Starting local shell ({}x{}) cmd={}", cols, rows, String.join(" ", command));
             ptyProcess = builder.start();
@@ -338,23 +345,28 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     }
 
     /**
-     * The shell's tracked working directory. Deliberately NON-BLOCKING: it returns only the last
-     * value cached by {@link #readLiveWorkingDirectory()} (while still fresh) and never forks the OS
-     * query itself, because this runs on the JavaFX thread during terminal run-context capture (for
-     * every AI-agent / "Load as text file" menu action). A cold or stale cache returns {@code null};
-     * callers then fall back to the prompt-derived directory. The actual live query is done off the
-     * JavaFX thread via {@link #readLiveWorkingDirectory()}.
+     * The last trusted shell working directory. Deliberately NON-BLOCKING: it never invokes the OS
+     * query itself, because run-context capture occurs on the JavaFX application thread. Once a
+     * submitted command may have changed directory, the retained cache is hidden until a live
+     * refresh or trusted absolute hint confirms the new value.
      */
     @Override
+    public String getCurrentWorkingDirectory() {
+        return connected.get() && !unresolvedWorkingDirectoryChange.get()
+            ? cachedWorkingDirectory
+            : null;
+    }
+
+    /** Legacy compatibility for existing remote-directory callers. */
+    @Override
     public String getCurrentRemoteDirectory() {
-        if (!connected.get()) {
-            return null;
-        }
-        String cached = cachedWorkingDirectory;
-        if (cached != null && System.nanoTime() - cachedWorkingDirectoryAtNanos < WORKING_DIRECTORY_CACHE_NANOS) {
-            return cached;
-        }
-        return null;
+        return getCurrentWorkingDirectory();
+    }
+
+    /** Performs the potentially blocking OS lookup and refreshes the trusted local-directory cache. */
+    @Override
+    public String refreshCurrentWorkingDirectory() {
+        return readLiveWorkingDirectory();
     }
 
     /**
@@ -380,12 +392,56 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         } catch (UnsupportedOperationException e) {
             return null;
         }
-        String live = LocalProcessDirectory.read(pid);
+        String live = normalizeTrustedLocalDirectory(LocalProcessDirectory.read(pid));
         if (live != null) {
             cachedWorkingDirectory = live;
-            cachedWorkingDirectoryAtNanos = System.nanoTime();
+            unresolvedWorkingDirectoryChange.set(false);
         }
         return live;
+    }
+
+    /**
+     * Accepts a prompt/probe-derived hint only when it names an existing absolute directory in the
+     * JVM's local filesystem namespace. This rejects relative prompt fragments and foreign paths
+     * such as WSL/Git-Bash POSIX paths on Windows.
+     */
+    @Override
+    public void updateCurrentWorkingDirectoryHint(String directory) {
+        String trusted = normalizeTrustedLocalDirectory(directory);
+        if (trusted != null) {
+            cachedWorkingDirectory = trusted;
+            unresolvedWorkingDirectoryChange.set(false);
+        }
+    }
+
+    /** Legacy compatibility for callers that still use the SSH-oriented method name. */
+    @Override
+    public void updateCurrentRemoteDirectoryHint(String directory) {
+        updateCurrentWorkingDirectoryHint(directory);
+    }
+
+    /**
+     * True after a submitted command may have changed the shell directory and neither a live OS
+     * refresh nor a trusted absolute prompt hint has confirmed the new one yet.
+     */
+    public boolean hasUnresolvedWorkingDirectoryChange() {
+        return unresolvedWorkingDirectoryChange.get();
+    }
+
+    /** Shared by local agent execution so every local feature applies the same path trust policy. */
+    public static String normalizeTrustedLocalDirectory(String directory) {
+        if (directory == null || directory.isBlank()) {
+            return null;
+        }
+        try {
+            Path path = Path.of(directory.trim());
+            if (!path.isAbsolute() || !Files.isDirectory(path)) {
+                return null;
+            }
+            return path.toAbsolutePath().normalize().toString();
+        } catch (InvalidPathException | SecurityException e) {
+            return null;
+        }
     }
 
     /**
@@ -539,6 +595,9 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 return;
             }
             notifyInputActivity(bytesToWrite.length);
+            if (directoryChangeTracker.accept(bytesToWrite)) {
+                unresolvedWorkingDirectoryChange.set(true);
+            }
             localOut.write(bytesToWrite);
             localOut.flush();
         }
@@ -607,6 +666,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     @Override
     public void close() {
         connected.set(false);
+        directoryChangeTracker.reset();
 
         // Destroy the shell process FIRST. A terminal reader thread is typically blocked inside a
         // pty read(); closing the input stream before the process exits deadlocks, because the

@@ -63,11 +63,29 @@ public interface ObservableTtyConnector extends TtyConnector {
     ServerConnection getConnection();
 
     /**
-     * The current working directory tracked for this connector, or {@code null} when not tracked.
-     * SSH tracks this via OSC 7; local shells do not, so the default is {@code null}.
+     * Legacy SSH-oriented name for the tracked working directory, or {@code null} when not tracked.
+     * New transport-neutral callers should use {@link #getCurrentWorkingDirectory()}.
      */
     default String getCurrentRemoteDirectory() {
         return null;
+    }
+
+    /**
+     * Returns the connector's best currently known working directory without performing blocking
+     * I/O. This transport-neutral name is preferred by features that work for both SSH and local
+     * shells. The legacy remote-directory method remains the compatibility source by default.
+     */
+    default String getCurrentWorkingDirectory() {
+        return getCurrentRemoteDirectory();
+    }
+
+    /**
+     * Refreshes and returns the connector's current working directory. Implementations may block;
+     * callers must invoke this off the JavaFX application thread. Connectors without an active
+     * refresh mechanism simply return their non-blocking value.
+     */
+    default String refreshCurrentWorkingDirectory() {
+        return getCurrentWorkingDirectory();
     }
 
     /** The home directory tracked for this connector, or {@code null} when not tracked. */
@@ -77,5 +95,13 @@ public interface ObservableTtyConnector extends TtyConnector {
 
     /** Hint the connector about the current working directory. No-op for connectors that don't track it. */
     default void updateCurrentRemoteDirectoryHint(String directory) {
+    }
+
+    /**
+     * Supplies a transport-neutral working-directory hint. The default delegates to the legacy SSH
+     * API so existing connector implementations retain their behavior.
+     */
+    default void updateCurrentWorkingDirectoryHint(String directory) {
+        updateCurrentRemoteDirectoryHint(directory);
     }
 }
