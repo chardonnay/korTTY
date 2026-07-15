@@ -12,7 +12,7 @@ import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 group = "de.kortty"
-version = "2.5.1"
+version = "2.5.2"
 
 // Resolved JDK major for this build. Native release packaging defaults to 25;
 // the property remains available for explicit compatibility builds. Hoisted to

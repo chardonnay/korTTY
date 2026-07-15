@@ -1,6 +1,6 @@
 = KorTTY - SSH Client
 
-*v2.5.1* | link:https://github.com/chardonnay/korTTY/releases/latest[Latest release] — A modern SSH client with JavaFX interface, tabbed terminals, local-shell sessions (Windows cmd/PowerShell or your `$SHELL`), SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
+*v2.5.2* | link:https://github.com/chardonnay/korTTY/releases/latest[Latest release] — A modern SSH client with JavaFX interface, tabbed terminals, local-shell sessions (Windows cmd/PowerShell or your `$SHELL`), SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
 
 == Architecture Overview
 
