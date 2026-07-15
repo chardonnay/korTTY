@@ -12,6 +12,11 @@ name: Docs guide auto-commit
 
 on:
   push:
+    # A tag is immutable and has no branch for this workflow to update. Release
+    # tags still build the application through the release workflow, but must not
+    # attempt the branch-only guide auto-commit below.
+    tags-ignore:
+      - "**"
     paths:
       - "app-docs/site/**"
       - "app-docs/diagrams/**"
