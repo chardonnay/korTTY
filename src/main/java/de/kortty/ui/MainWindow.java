@@ -5521,12 +5521,32 @@ public class MainWindow {
                 () -> {
                     // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
                     // prompt-derived directory (null whenever the prompt shows only the folder basename,
-                    // the macOS zsh default). Fall back to the prompt directory when the OS query is
-                    // unavailable (Windows), then to the shell's start directory downstream.
-                    String liveWorkingDirectory = localConnector.readLiveWorkingDirectory();
-                    String workingDirectory = liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()
-                        ? liveWorkingDirectory
-                        : promptWorkingDirectory;
+                    // the macOS zsh default). Native Windows shells use their absolute prompt path. A
+                    // previously observed directory-change command makes the start directory unsafe as a
+                    // fallback until either source confirms the new cwd.
+                    String liveWorkingDirectory = localConnector.refreshCurrentWorkingDirectory();
+                    String workingDirectory;
+                    if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
+                        workingDirectory = liveWorkingDirectory;
+                    } else {
+                        if (promptWorkingDirectory != null && !promptWorkingDirectory.isBlank()) {
+                            String trustedPromptDirectory = LocalShellTtyConnector
+                                .normalizeTrustedLocalDirectory(promptWorkingDirectory);
+                            if (trustedPromptDirectory == null
+                                && TerminalView.isAbsoluteWorkingDirectorySyntax(promptWorkingDirectory)) {
+                                throw new TerminalTextFileLoadException(
+                                    TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY,
+                                    promptWorkingDirectory);
+                            }
+                            localConnector.updateCurrentWorkingDirectoryHint(trustedPromptDirectory);
+                        }
+                        if (localConnector.hasUnresolvedWorkingDirectoryChange()) {
+                            throw new TerminalTextFileLoadException(
+                                TerminalTextFileLoadFailure.WORKING_DIRECTORY_UNKNOWN,
+                                selectedFileName);
+                        }
+                        workingDirectory = localConnector.getCurrentWorkingDirectory();
+                    }
                     Path filePath;
                     try {
                         filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
@@ -5883,6 +5903,7 @@ public class MainWindow {
                 case TOO_LARGE -> I18n.get("terminal.loadTextFile.tooLarge", remotePath);
                 case UNMAPPABLE_WORKING_DIRECTORY ->
                     I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", remotePath);
+                case WORKING_DIRECTORY_UNKNOWN -> I18n.get("localShell.workingDirectoryUnavailable");
                 case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
             };
             showError(I18n.get("error.title"), message);
@@ -5906,6 +5927,7 @@ public class MainWindow {
         BINARY_OR_NON_TEXT,
         TOO_LARGE,
         UNMAPPABLE_WORKING_DIRECTORY,
+        WORKING_DIRECTORY_UNKNOWN,
         INVALID_SELECTION
     }
 
@@ -6475,7 +6497,7 @@ public class MainWindow {
         if (runContext == null || runContext.connector() == null) {
             return null;
         }
-        return AgentCommandRunners.forConnector(runContext.connector());
+        return AgentCommandRunners.forConnector(runContext.connector(), runContext.workingDirectory());
     }
 
     private TerminalView.TerminalAgentRunContext resolveTerminalAgentRunContext(
@@ -6494,7 +6516,12 @@ public class MainWindow {
         if (runContext == null || runContext.connector() == null) {
             return;
         }
-        runContext.connector().updateCurrentRemoteDirectoryHint(runContext.workingDirectory());
+        if (runContext.connector() instanceof LocalShellTtyConnector) {
+            // Local hints are validated against the filesystem and may block. The local runner
+            // receives this same run-context hint and resolves it on its worker thread instead.
+            return;
+        }
+        runContext.connector().updateCurrentWorkingDirectoryHint(runContext.workingDirectory());
     }
 
     private TerminalAgentModels.Request withTerminalAgentSessionId(

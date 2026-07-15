@@ -1898,6 +1898,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#local-terminal-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local terminal fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2624,6 +2635,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#local-terminal-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local terminal fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3247,6 +3269,11 @@
 <li><strong>Reliable Linux package validation</strong> — package-size checks now understand the standard Linux jpackage <code>lib/app</code> and <code>lib/runtime</code> layout, so the application JAR and bundled JVM are validated instead of being reported as missing.</li>
 <li><strong>Reliable Windows artifact preparation</strong> — the release workflow resolves the jpackage directory explicitly and discovers the Windows launcher within the generated app image before creating the portable archive.</li>
 <li><strong>Dependency and CI maintenance</strong> — updated CodeQL Actions, Apache MINA SSHD and Bouncy Castle, Logback, and Apache PDFBox dependencies.</li>
+</ul>
+<h3 id="local-terminal-fixes">Local terminal fixes<a class="headerlink" href="#local-terminal-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Local shells now keep the real working directory</strong> — after <code>cd</code>, <code>pushd</code>, <code>popd</code>, or <code>Set-Location</code>, <strong>Open in Snippet Editor</strong> and local AI Agent runs use the interactive shell's current directory, including paths with spaces or Unicode. The directory is refreshed from the shell process on macOS/Linux or an absolute native PowerShell/cmd prompt on Windows, and unsafe or foreign path fallbacks stop with a clear error instead of opening or overwriting a same-named file in the start directory.</li>
+<li><strong>Pasted text is retained in terminal agent requests</strong> — typed text and clipboard paste now share one connector-level input filter for SSH and local shells. Plain paste, bracketed paste, split UTF-8 input, Backspace, and Ctrl+U are tracked correctly; the complete request is saved to agent history and Enter dispatches it exactly once.</li>
 </ul>
 <h2 id="v250">v2.5.0<a class="headerlink" href="#v250" title="Permanent link">&para;</a></h2>
 <h3 id="packaging-and-documentation">Packaging and documentation<a class="headerlink" href="#packaging-and-documentation" title="Permanent link">&para;</a></h3>

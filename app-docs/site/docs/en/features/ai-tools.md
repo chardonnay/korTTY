@@ -7,7 +7,7 @@ title: Terminal AI agent & tools
 korTTY's Terminal AI Agent is a controlled automation workflow that enables safe, intelligent command execution on remote servers — and, since the execution engine was decoupled behind an `AgentCommandRunner` abstraction (SSH exec-channel and local-process backends), in [local shells](connections.md#local-shell) on Windows, macOS and Linux too. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.
 
 !!! note "SSH vs. local shells"
-    In local shells, commands run in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`) and the environment probe and system prompt are platform-aware. Local-shell limitations: no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
+    In local shells, commands use a native local backend (PowerShell via `-EncodedCommand`, `cmd.exe`, or POSIX `/bin/sh`) and the environment probe and system prompt are platform-aware. The agent captures the interactive shell's current directory when a run starts and uses that same snapshot for its probe and every command in the run. Local-shell limitations: no `sudo`/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
@@ -29,11 +29,11 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 - Disable the per-run setup dialog (uses the configured default profile when disabled)
 
 !!! note
-    KorTTY intercepts these shortcuts locally before they reach the remote shell. User-entered agent commands remain available in the shell history.
+    KorTTY recognizes these shortcuts in the connector input path before normal shell execution. Keyboard input and clipboard paste are assembled from the same byte stream, so pasted file names and Unicode text are included in the request, the complete prompt is saved in agent history, and one Enter produces exactly one agent run.
 
 ### Command purposes
 
-- **`agent <goal>`** — Execute safe SSH commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.
+- **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.
 - **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask AI Agent**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
 - **`agent-plan <task>` / `agent -plan <task>`** — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click **Implement**.
 
@@ -64,11 +64,11 @@ History size is configurable in **Settings > AI** (default 20, range 5–100).
 
 The Terminal AI Agent follows a strict, safe execution loop:
 
-1. **Probe the session** — KorTTY probes the active SSH session with a non-interactive command and records compact context: current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.
+1. **Probe the session** — KorTTY probes the active terminal session with a non-interactive command and records compact context: current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.
 2. **Send context to the model** — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.
 3. **Model returns a JSON decision** — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.
 4. **Validate the decision** — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.
-5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory (the connection's start directory for local shells). A `cd` inside one command does not persist to the next.
+5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A `cd` inside a one-shot command does not persist to the next command, while an interactive `cd` completed before the run is included in the captured directory.
 6. **Iterate or conclude** — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).
 
 ### Suitable tasks
@@ -87,7 +87,7 @@ The Terminal AI Agent follows a strict, safe execution loop:
 - Web research for local files unless the user explicitly asks for external/current information
 
 !!! tip
-    For local file review tasks, name the file in your prompt. The agent should then inspect it with SSH commands such as `sed -n`, `cat`, `file`, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.
+    For local file review tasks, name the file in your prompt. The agent should then inspect it with shell commands such as `sed -n`, `cat`, `file`, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.
 
 ## Activity panel
 
@@ -153,7 +153,7 @@ KorTTY enforces multiple guardrails around agent execution:
 ### Command limits
 
 - **Per-turn limit** — A maximum of 3 commands per turn prevents runaway automation.
-- **Non-interactive only** — The agent rejects interactive commands (like `vim`, `less`, `su`) that would hang in a non-interactive SSH exec channel.
+- **Non-interactive only** — The agent rejects interactive commands (like `vim`, `less`, `su`) that would hang in a non-interactive command backend.
 - **Mutating-command detection** — Commands that change the system (`chmod`, `rm`, `mv`, `mkdir`, etc.) are flagged for confirmation unless the agent has auto-approval bypass.
 
 ### Privilege handling
@@ -173,8 +173,10 @@ KorTTY enforces multiple guardrails around agent execution:
 
 ### Directory tracking
 
-- **Active directory** — Terminal shortcut runs use KorTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.
-- **Directory loss** — If a tracked directory no longer exists, KorTTY retries the probe from the SSH default directory and reports the issue.
+- **Active directory** — Terminal shortcut runs use KorTTY's tracked current directory for both SSH and local shells. For a local run, korTTY refreshes the shell process directory on macOS/Linux, accepts an existing absolute path from a native PowerShell/cmd prompt, then uses the last trusted directory or the connection's start directory only when no directory-changing command made that fallback stale.
+- **Stable run snapshot** — The directory is captured outside the JavaFX thread when the run begins. The environment probe and all commands in that run use the same snapshot even if the interactive shell changes directory later.
+- **Unknown or foreign directory** — After `cd`, `pushd`, `popd`, or `Set-Location`, an unknown directory is an error rather than a silent fallback. WSL, Git Bash, Cygwin, and custom commands remain best-effort on Windows; if their path namespace cannot be mapped to the local filesystem, korTTY stops the action instead of targeting a same-named file elsewhere.
+- **SSH directory loss** — If a tracked remote directory no longer exists, korTTY retries the probe from the SSH default directory and reports the issue.
 
 ### Typing during execution
 
@@ -216,7 +218,7 @@ For fleet-wide tasks, the [AI Swarm](ai-swarm.md#generate-multi-server-workflow)
 
 ### Current working directory
 
-The agent tracks the current remote directory for the active SSH session. Agent commands run relative to that directory, so generated files are created where you're currently working on the server.
+The agent tracks the current directory for the active SSH or local-shell session. Local runs freeze the best trusted directory once at run start and use it for the probe and every command, so generated files are created where the interactive shell was working when the run began.
 
 ### Input requirements
 
@@ -240,7 +242,7 @@ Dedicated agent and planning tabs can copy and save their transcript for later r
 
 To start an agent task:
 
-1. **At a shell prompt** in an active SSH terminal, type your agent command:
+1. **At a shell prompt** in an active SSH or local-shell terminal, type your agent command:
    ```bash
    agent show the 10 largest files in this directory
    ```
@@ -325,4 +327,4 @@ The agent can optionally use web tools when the task clearly requires current or
 Configure internet access per AI profile in **Settings > AI > Internet access**.
 
 !!! warning
-    **Web tools are withheld from local file/script review tasks** unless your prompt clearly asks for current or external information. Inspecting a local file should use SSH commands like `sed`, `cat`, `find`, or language-specific tools, not web search.
+    **Web tools are withheld from local file/script review tasks** unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like `sed`, `cat`, `find`, or language-specific tools, not web search.

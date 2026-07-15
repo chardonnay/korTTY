@@ -14,6 +14,11 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 - **Zuverlässige Windows-Artefaktvorbereitung** – Der Release-Workflow löst das jpackage-Verzeichnis explizit auf und erkennt den Windows-Launcher im generierten App-Image, bevor das tragbare Archiv erstellt wird.
 - **Abhängigkeits- und CI-Wartung** – aktualisierte CodeQL-Aktionen, Apache MINA SSHD- und Bouncy Castle-, Logback- und Apache PDFBox-Abhängigkeiten.
 
+### Lokale Terminal-Korrekturen
+
+- **Lokale Shells behalten jetzt das tatsächliche Arbeitsverzeichnis** – nach `cd`, `pushd`, `popd` oder `Set-Location` verwenden **Im Snippet-Editor öffnen** und lokale AI Agent-Ausführungen das aktuelle Verzeichnis der interaktiven Shell, einschließlich Pfaden mit Leerzeichen oder Unicode. Das Verzeichnis wird über den Shell-Prozess unter macOS/Linux oder eine absolut native PowerShell/cmd-Eingabeaufforderung unter Windows aktualisiert, und unsichere oder fremde Pfad-Fallbacks werden mit einem eindeutigen Fehler beendet, anstatt eine gleichnamige Datei im Startverzeichnis zu öffnen oder zu überschreiben.
+- **Eingefügter Text bleibt in Terminal-Agent-Anfragen erhalten** – eingegebener Text und Einfügen in die Zwischenablage teilen sich jetzt einen Eingabefilter auf Connector-Ebene für SSH und lokale Shells. Einfaches Einfügen, Einfügen in Klammern, geteilte UTF-8-Eingabe, Rücktaste und Strg+U werden korrekt verfolgt; Die vollständige Anfrage wird im Agentenverlauf gespeichert und Enter versendet sie genau einmal.
+
 ## v2.5.0
 
 ### Verpackung und Dokumentation

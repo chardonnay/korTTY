@@ -108,7 +108,7 @@ class LocalShellTtyConnectorTest {
      * directory it was spawned in. Before the fix the working directory came only from prompt
      * parsing, which yields nothing when the prompt shows just the folder basename (macOS zsh
      * default), so file loads resolved against the stale spawn directory. Also asserts the
-     * JAT-safety contract: getCurrentRemoteDirectory() serves the cached value and never forks.
+     * JAT-safety contract: getCurrentWorkingDirectory() serves the trusted cached value and never forks.
      * POSIX only — the OS query is unsupported on Windows (returns null there by design).
      */
     @Test(timeOut = 30_000)
@@ -142,6 +142,7 @@ class LocalShellTtyConnectorTest {
         try {
             // Spawn cwd is the JVM cwd; after cd the live query must report the new directory.
             connector.write("cd '" + target + "'\n");
+            assertThat(connector.hasUnresolvedWorkingDirectoryChange()).isTrue();
 
             java.nio.file.Path reported = null;
             for (int i = 0; i < 40 && reported == null; i++) {
@@ -152,10 +153,12 @@ class LocalShellTtyConnectorTest {
                 }
             }
             assertThat(reported).isEqualTo(target);
+            assertThat(connector.hasUnresolvedWorkingDirectoryChange()).isFalse();
 
-            // JAT-safety contract: after a live read, getCurrentRemoteDirectory() serves the cached
-            // value (non-blocking) — it must match what the live query just found.
-            String cached = connector.getCurrentRemoteDirectory();
+            // JAT-safety contract: after a live read, the transport-neutral getter serves the
+            // non-expiring cached value (non-blocking) — it must match the live ground truth.
+            Thread.sleep(700); // longer than the removed 500 ms cache TTL
+            String cached = connector.getCurrentWorkingDirectory();
             assertThat(cached).isNotNull();
             assertThat(java.nio.file.Path.of(cached).toRealPath()).isEqualTo(target);
         } finally {
@@ -164,7 +167,7 @@ class LocalShellTtyConnectorTest {
         }
     }
 
-    /** getCurrentRemoteDirectory() must never fork the OS query; a fresh (unread) connector reports null. */
+    /** getCurrentWorkingDirectory() must never fork the OS query; a fresh connector reports null. */
     @Test(timeOut = 30_000)
     void currentDirectoryIsNullBeforeAnyLiveReadOnPosix() throws Exception {
         boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
@@ -178,9 +181,35 @@ class LocalShellTtyConnectorTest {
         assertThat(connector.connect()).isTrue();
         try {
             // No live read yet -> cache is cold -> the JAT-safe getter returns null (no fork).
-            assertThat(connector.getCurrentRemoteDirectory()).isNull();
+            assertThat(connector.getCurrentWorkingDirectory()).isNull();
         } finally {
             connector.close();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    void trustedAbsoluteHintClearsDirtyStateButRelativeHintDoesNot() throws Exception {
+        java.nio.file.Path target = java.nio.file.Files.createTempDirectory("kortty-cwd-hint-");
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        connection.setLocalShellCommand(LocalShellTtyConnector.isWindows() ? "cmd.exe" : "/bin/sh");
+        LocalShellTtyConnector connector = new LocalShellTtyConnector(connection);
+        assertThat(connector.connect()).isTrue();
+        try {
+            connector.updateCurrentWorkingDirectoryHint(target.toString());
+            assertThat(connector.getCurrentWorkingDirectory()).isNotNull();
+            connector.write("cd somewhere\r");
+            assertThat(connector.hasUnresolvedWorkingDirectoryChange()).isTrue();
+            assertThat(connector.getCurrentWorkingDirectory()).isNull();
+            connector.updateCurrentWorkingDirectoryHint("relative/prompt/path");
+            assertThat(connector.hasUnresolvedWorkingDirectoryChange()).isTrue();
+            connector.updateCurrentRemoteDirectoryHint(target.toString());
+            assertThat(connector.hasUnresolvedWorkingDirectoryChange()).isFalse();
+            assertThat(java.nio.file.Path.of(connector.getCurrentWorkingDirectory()).toRealPath())
+                .isEqualTo(target.toRealPath());
+        } finally {
+            connector.close();
+            java.nio.file.Files.deleteIfExists(target);
         }
     }
 

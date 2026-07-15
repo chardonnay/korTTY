@@ -2781,7 +2781,7 @@
 <p>korTTY's Terminal AI Agent is a controlled automation workflow that enables safe, intelligent command execution on remote servers — and, since the execution engine was decoupled behind an <code>AgentCommandRunner</code> abstraction (SSH exec-channel and local-process backends), in <a href="connections.html#local-shell">local shells</a> on Windows, macOS and Linux too. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.</p>
 <div class="admonition note">
 <p class="admonition-title">SSH vs. local shells</p>
-<p>In local shells, commands run in the connection's shell (PowerShell via <code>-EncodedCommand</code>, <code>cmd.exe</code>, or <code>$SHELL</code>) and the environment probe and system prompt are platform-aware. Local-shell limitations: no <code>sudo</code>/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.</p>
+<p>In local shells, commands use a native local backend (PowerShell via <code>-EncodedCommand</code>, <code>cmd.exe</code>, or POSIX <code>/bin/sh</code>) and the environment probe and system prompt are platform-aware. The agent captures the interactive shell's current directory when a run starts and uses that same snapshot for its probe and every command in the run. Local-shell limitations: no <code>sudo</code>/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.</p>
 </div>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
 <h2 id="command-variants">Command variants<a class="headerlink" href="#command-variants" title="Permanent link">&para;</a></h2>
@@ -2798,11 +2798,11 @@
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>KorTTY intercepts these shortcuts locally before they reach the remote shell. User-entered agent commands remain available in the shell history.</p>
+<p>KorTTY recognizes these shortcuts in the connector input path before normal shell execution. Keyboard input and clipboard paste are assembled from the same byte stream, so pasted file names and Unicode text are included in the request, the complete prompt is saved in agent history, and one Enter produces exactly one agent run.</p>
 </div>
 <h3 id="command-purposes">Command purposes<a class="headerlink" href="#command-purposes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe SSH commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.</li>
+<li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.</li>
 <li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask AI Agent</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click <strong>Implement</strong>.</li>
 </ul>
@@ -2827,11 +2827,11 @@
 <h2 id="how-the-ai-agent-works">How the AI Agent works<a class="headerlink" href="#how-the-ai-agent-works" title="Permanent link">&para;</a></h2>
 <p>The Terminal AI Agent follows a strict, safe execution loop:</p>
 <ol>
-<li><strong>Probe the session</strong> — KorTTY probes the active SSH session with a non-interactive command and records compact context: current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.</li>
+<li><strong>Probe the session</strong> — KorTTY probes the active terminal session with a non-interactive command and records compact context: current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.</li>
 <li><strong>Send context to the model</strong> — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.</li>
 <li><strong>Model returns a JSON decision</strong> — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.</li>
 <li><strong>Validate the decision</strong> — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.</li>
-<li><strong>Execute approved commands</strong> — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory (the connection's start directory for local shells). A <code>cd</code> inside one command does not persist to the next.</li>
+<li><strong>Execute approved commands</strong> — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A <code>cd</code> inside a one-shot command does not persist to the next command, while an interactive <code>cd</code> completed before the run is included in the captured directory.</li>
 <li><strong>Iterate or conclude</strong> — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).</li>
 </ol>
 <h3 id="suitable-tasks">Suitable tasks<a class="headerlink" href="#suitable-tasks" title="Permanent link">&para;</a></h3>
@@ -2851,7 +2851,7 @@
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>For local file review tasks, name the file in your prompt. The agent should then inspect it with SSH commands such as <code>sed -n</code>, <code>cat</code>, <code>file</code>, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.</p>
+<p>For local file review tasks, name the file in your prompt. The agent should then inspect it with shell commands such as <code>sed -n</code>, <code>cat</code>, <code>file</code>, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.</p>
 </div>
 <h2 id="activity-panel">Activity panel<a class="headerlink" href="#activity-panel" title="Permanent link">&para;</a></h2>
 <p>Terminal-targeted agent runs use an inline activity panel at the bottom of the current terminal split.</p>
@@ -2954,7 +2954,7 @@
 <h3 id="command-limits">Command limits<a class="headerlink" href="#command-limits" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Per-turn limit</strong> — A maximum of 3 commands per turn prevents runaway automation.</li>
-<li><strong>Non-interactive only</strong> — The agent rejects interactive commands (like <code>vim</code>, <code>less</code>, <code>su</code>) that would hang in a non-interactive SSH exec channel.</li>
+<li><strong>Non-interactive only</strong> — The agent rejects interactive commands (like <code>vim</code>, <code>less</code>, <code>su</code>) that would hang in a non-interactive command backend.</li>
 <li><strong>Mutating-command detection</strong> — Commands that change the system (<code>chmod</code>, <code>rm</code>, <code>mv</code>, <code>mkdir</code>, etc.) are flagged for confirmation unless the agent has auto-approval bypass.</li>
 </ul>
 <h3 id="privilege-handling">Privilege handling<a class="headerlink" href="#privilege-handling" title="Permanent link">&para;</a></h3>
@@ -2974,8 +2974,10 @@
 </ul>
 <h3 id="directory-tracking">Directory tracking<a class="headerlink" href="#directory-tracking" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Active directory</strong> — Terminal shortcut runs use KorTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.</li>
-<li><strong>Directory loss</strong> — If a tracked directory no longer exists, KorTTY retries the probe from the SSH default directory and reports the issue.</li>
+<li><strong>Active directory</strong> — Terminal shortcut runs use KorTTY's tracked current directory for both SSH and local shells. For a local run, korTTY refreshes the shell process directory on macOS/Linux, accepts an existing absolute path from a native PowerShell/cmd prompt, then uses the last trusted directory or the connection's start directory only when no directory-changing command made that fallback stale.</li>
+<li><strong>Stable run snapshot</strong> — The directory is captured outside the JavaFX thread when the run begins. The environment probe and all commands in that run use the same snapshot even if the interactive shell changes directory later.</li>
+<li><strong>Unknown or foreign directory</strong> — After <code>cd</code>, <code>pushd</code>, <code>popd</code>, or <code>Set-Location</code>, an unknown directory is an error rather than a silent fallback. WSL, Git Bash, Cygwin, and custom commands remain best-effort on Windows; if their path namespace cannot be mapped to the local filesystem, korTTY stops the action instead of targeting a same-named file elsewhere.</li>
+<li><strong>SSH directory loss</strong> — If a tracked remote directory no longer exists, korTTY retries the probe from the SSH default directory and reports the issue.</li>
 </ul>
 <h3 id="typing-during-execution">Typing during execution<a class="headerlink" href="#typing-during-execution" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3012,7 +3014,7 @@
 </ul>
 <h2 id="terminal-targeted-behavior">Terminal-targeted behavior<a class="headerlink" href="#terminal-targeted-behavior" title="Permanent link">&para;</a></h2>
 <h3 id="current-working-directory">Current working directory<a class="headerlink" href="#current-working-directory" title="Permanent link">&para;</a></h3>
-<p>The agent tracks the current remote directory for the active SSH session. Agent commands run relative to that directory, so generated files are created where you're currently working on the server.</p>
+<p>The agent tracks the current directory for the active SSH or local-shell session. Local runs freeze the best trusted directory once at run start and use it for the probe and every command, so generated files are created where the interactive shell was working when the run began.</p>
 <h3 id="input-requirements">Input requirements<a class="headerlink" href="#input-requirements" title="Permanent link">&para;</a></h3>
 <p>When user input is required (sudo password or command approval):</p>
 <ul>
@@ -3030,7 +3032,7 @@
 <p>To start an agent task:</p>
 <ol>
 <li>
-<p><strong>At a shell prompt</strong> in an active SSH terminal, type your agent command:
+<p><strong>At a shell prompt</strong> in an active SSH or local-shell terminal, type your agent command:
    <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>agent<span class="w"> </span>show<span class="w"> </span>the<span class="w"> </span><span class="m">10</span><span class="w"> </span>largest<span class="w"> </span>files<span class="w"> </span><span class="k">in</span><span class="w"> </span>this<span class="w"> </span>directory
 </span></code></pre></div></p>
 </li>
@@ -3178,7 +3180,7 @@
 <p>Configure internet access per AI profile in <strong>Settings &gt; AI &gt; Internet access</strong>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><strong>Web tools are withheld from local file/script review tasks</strong> unless your prompt clearly asks for current or external information. Inspecting a local file should use SSH commands like <code>sed</code>, <code>cat</code>, <code>find</code>, or language-specific tools, not web search.</p>
+<p><strong>Web tools are withheld from local file/script review tasks</strong> unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like <code>sed</code>, <code>cat</code>, <code>find</code>, or language-specific tools, not web search.</p>
 </div>
 
 

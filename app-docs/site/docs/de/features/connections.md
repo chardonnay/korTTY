@@ -51,7 +51,7 @@ Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert jede ausführbare Dat
 
 ### Terminalfunktionen in lokalen Shells
 
-Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.
+Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.
 
 !!! note "AI Agent in lokalen Shells"
     Der **AI Agent** und **AI Planning** laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe [AI Assistant](ai-assistant.md#ai-agent-and-ai-planning).

@@ -191,14 +191,14 @@ pages:
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections.]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "4184473"
+    last_synced_ref: "90287df"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
+    owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "0225110"
+    last_synced_ref: "90287df"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -237,12 +237,12 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "64066ed"
+    last_synced_ref: "90287df"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "ccc66c9"
+    last_synced_ref: "90287df"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]

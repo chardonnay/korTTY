@@ -63,7 +63,8 @@ public final class TerminalAgentCommandSupport {
             return null;
         }
         String commandName = normalizeCommandName(configuredCommandName);
-        int patternFlags = caseInsensitiveCommandName ? Pattern.CASE_INSENSITIVE : 0;
+        int patternFlags = Pattern.DOTALL
+            | (caseInsensitiveCommandName ? Pattern.CASE_INSENSITIVE : 0);
         Matcher askMatcher = buildAskPattern(commandName, patternFlags).matcher(rawCommand.trim());
         if (askMatcher.matches()) {
             return new Invocation(InvocationKind.ASK, null, false, false, askMatcher.group(1).trim());

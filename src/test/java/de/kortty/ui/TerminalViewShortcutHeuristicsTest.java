@@ -43,6 +43,13 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void connectorInterceptionRecognizesMultilineBracketedPastePrompt() {
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut(
+            "agent explain first line\nsecond ü.txt",
+            "agent")).isTrue();
+    }
+
+    @Test
     void connectorInterceptionCanMatchAgentShortcutCaseInsensitively() {
         assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent")).isFalse();
         assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent", true)).isTrue();
@@ -153,6 +160,35 @@ class TerminalViewShortcutHeuristicsTest {
         assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
             "root@server:/etc/nginx#",
             "/root")).isEqualTo("/etc/nginx");
+    }
+
+    @Test
+    void extractsNativePowerShellWorkingDirectoryWithTypedAgentCommand() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "PS C:\\Users\\Daniel\\Projekt mit Leerzeichen> agent prüfe datei.txt",
+            null)).isEqualTo("C:\\Users\\Daniel\\Projekt mit Leerzeichen");
+    }
+
+    @Test
+    void extractsNativeCmdWorkingDirectoryWithTypedAgentCommand() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "C:\\Users\\Daniel\\Projekt mit Leerzeichen> agent prüfe datei.txt",
+            null)).isEqualTo("C:\\Users\\Daniel\\Projekt mit Leerzeichen");
+    }
+
+    @Test
+    void extractsPowerShellFileSystemProviderUncDirectory() {
+        assertThat(TerminalView.extractWorkingDirectoryFromPromptLine(
+            "PS Microsoft.PowerShell.Core\\FileSystem::\\\\server\\share\\work> agent prüfe datei.txt",
+            null)).isEqualTo("\\\\server\\share\\work");
+    }
+
+    @Test
+    void recognizesPosixDriveAndUncWorkingDirectorySyntax() {
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("/tmp/work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("C:\\work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("\\\\server\\share\\work")).isTrue();
+        assertThat(TerminalView.isAbsoluteWorkingDirectorySyntax("work")).isFalse();
     }
 
     @Test
