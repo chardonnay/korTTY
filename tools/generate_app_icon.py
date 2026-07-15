@@ -42,22 +42,20 @@ invocation is::
 
 Outputs (default: ``src/main/resources/icon/`` next to build.gradle.kts, which
 jpackage consumes directly — see ``getMacIcon``/``getWindowsIcon``):
-``kortty_icon.png`` (1024²), ``kortty_icon.icns`` (16–1024px iconset, macOS
-only — needs ``sips``+``iconutil``), ``kortty_icon.ico`` (16–256px).
+``kortty_icon.png`` (1024²), ``kortty_icon.icns`` (16–1024px iconset), and
+``kortty_icon.ico`` (16–256px).  The
+macOS icon is inset into a transparent 1024px canvas and clipped to a squircle;
+unmasked edge-to-edge artwork is rendered as an oversized square in the Dock.
 """
 from __future__ import annotations
 
 import argparse
 import random
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
-from scipy.ndimage import gaussian_filter
 
 # ---------------------------------------------------------------- render config
 N = 1024          # final icon size (px)
@@ -65,6 +63,8 @@ SS = 3            # supersampling factor for anti-aliasing
 C = N * SS
 SCALE = 1.66      # how much the mark fills the square canvas
 SEED = 7          # deterministic background sparkles
+MACOS_TILE_SIZE = 824          # Apple icon-grid body inside the 1024px canvas
+MACOS_SQUIRCLE_EXPONENT = 5.0  # continuous-corner rounded-square silhouette
 
 # ============ geometry extracted from korTTY_logo_ai.mp4 (clean frame) =========
 # (x, y, radius, (r,g,b)) in frame space; radii are stroke cores, glow re-added.
@@ -110,13 +110,6 @@ BAR = (517.0, 424.0, 641.0, 450.0)   # "_" cursor: sharp rectangle
 BARC_L = (19 / 255, 255 / 255, 255 / 255)
 BARC_R = (166 / 255, 135 / 255, 253 / 255)
 
-ICNS_ISET = [  # (px, iconset filename)
-    (16, "icon_16x16.png"), (32, "icon_16x16@2x.png"),
-    (32, "icon_32x32.png"), (64, "icon_32x32@2x.png"),
-    (128, "icon_128x128.png"), (256, "icon_128x128@2x.png"),
-    (256, "icon_256x256.png"), (512, "icon_256x256@2x.png"),
-    (512, "icon_512x512.png"), (1024, "icon_512x512@2x.png"),
-]
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 
 
@@ -130,6 +123,8 @@ def _col255(c):
 
 def render_master() -> Image.Image:
     """Render the 1024×1024 RGBA icon master (deterministic)."""
+    from scipy.ndimage import gaussian_filter
+
     random.seed(SEED)
 
     pts = [(x, y) for (x, y, _, _) in NODES] + CHEV + [(BAR[0], BAR[1]), (BAR[2], BAR[3])]
@@ -257,19 +252,45 @@ def render_master() -> Image.Image:
     return img.resize((N, N), Image.LANCZOS).convert("RGBA")
 
 
+def render_macos_master(master: Image.Image) -> Image.Image:
+    """Inset and mask the artwork to the standard macOS Dock-icon silhouette."""
+    tile = master.resize((MACOS_TILE_SIZE, MACOS_TILE_SIZE), Image.LANCZOS)
+
+    # A superellipse follows the continuous-corner macOS app-icon shape more closely
+    # than Pillow's circular-corner rounded_rectangle primitive. Render the mask at
+    # the artwork's supersampling factor so the transparent edge stays smooth.
+    mask_size = MACOS_TILE_SIZE * SS
+    coords = (np.arange(mask_size, dtype=np.float32) + 0.5) / mask_size * 2.0 - 1.0
+    xx, yy = np.meshgrid(coords, coords)
+    mask = ((np.abs(xx) ** MACOS_SQUIRCLE_EXPONENT
+             + np.abs(yy) ** MACOS_SQUIRCLE_EXPONENT) <= 1.0).astype(np.uint8) * 255
+    mask_image = Image.fromarray(mask, "L").resize((MACOS_TILE_SIZE, MACOS_TILE_SIZE), Image.LANCZOS)
+    tile.putalpha(mask_image)
+
+    canvas = Image.new("RGBA", (N, N), (0, 0, 0, 0))
+    offset = (N - MACOS_TILE_SIZE) // 2
+    canvas.alpha_composite(tile, (offset, offset))
+    return canvas
+
+
+def validate_macos_master(master: Image.Image) -> None:
+    """Guard the transparent padding that keeps the Dock icon optically balanced."""
+    if master.size != (N, N) or master.mode != "RGBA":
+        raise ValueError(f"macOS icon master must be {N}x{N} RGBA, got {master.size} {master.mode}")
+    alpha = master.getchannel("A")
+    offset = (N - MACOS_TILE_SIZE) // 2
+    expected_bbox = (offset, offset, offset + MACOS_TILE_SIZE, offset + MACOS_TILE_SIZE)
+    if alpha.getbbox() != expected_bbox:
+        raise ValueError(f"macOS icon alpha bounds must be {expected_bbox}, got {alpha.getbbox()}")
+    if any(alpha.getpixel(point) for point in ((0, 0), (N - 1, 0), (0, N - 1), (N - 1, N - 1))):
+        raise ValueError("macOS icon canvas corners must be transparent")
+
+
 def write_icns(master: Image.Image, out: Path) -> bool:
-    """Build a .icns via macOS sips+iconutil. Returns False if unavailable."""
-    if not (shutil.which("sips") and shutil.which("iconutil")):
-        return False
-    with tempfile.TemporaryDirectory() as td:
-        iconset = Path(td) / "kortty.iconset"
-        iconset.mkdir()
-        src = Path(td) / "master.png"
-        master.save(src)
-        for px, name in ICNS_ISET:
-            subprocess.run(["sips", "-z", str(px), str(px), str(src), "--out", str(iconset / name)],
-                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(out)], check=True)
+    """Build a multi-resolution .icns with Pillow's platform-independent writer."""
+    macos_master = render_macos_master(master)
+    validate_macos_master(macos_master)
+    macos_master.save(out, format="ICNS")
     return True
 
 
@@ -280,11 +301,23 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=default_out,
                     help=f"where to write kortty_icon.{{png,icns,ico}} (default: {default_out})")
     ap.add_argument("--png-only", action="store_true", help="write only the 1024px PNG master")
+    ap.add_argument("--macos-only", action="store_true",
+                    help="rebuild only the .icns from the existing 1024px PNG master")
     args = ap.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    master = render_master()
     png = args.out_dir / "kortty_icon.png"
+    if args.macos_only:
+        if not png.exists():
+            ap.error(f"--macos-only requires the existing master: {png}")
+        icns = args.out_dir / "kortty_icon.icns"
+        if write_icns(Image.open(png).convert("RGBA"), icns):
+            print(f"wrote {icns}  (iconset 16-1024px)")
+            return 0
+        print("SKIP .icns: Pillow ICNS writer unavailable", file=sys.stderr)
+        return 1
+
+    master = render_master()
     master.save(png)
     print(f"wrote {png}  ({master.size[0]}x{master.size[1]})")
 
@@ -299,7 +332,7 @@ def main() -> int:
     if write_icns(master, icns):
         print(f"wrote {icns}  (iconset 16-1024px)")
     else:
-        print("SKIP .icns: needs macOS 'sips' + 'iconutil' (not found on PATH)", file=sys.stderr)
+        print("SKIP .icns: Pillow ICNS writer unavailable", file=sys.stderr)
     return 0
 
 
