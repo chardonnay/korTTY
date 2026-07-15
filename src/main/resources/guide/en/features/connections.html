@@ -2269,7 +2269,7 @@
 </table>
 <p>A free-form <strong>Custom command</strong> field accepts any executable with arguments (e.g. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, a Git Bash path), and an optional <strong>start directory</strong> can be set. The command parser is quote-aware, so shell paths containing spaces — like <code>"C:\Program Files\Git\bin\bash.exe"</code> — launch correctly.</p>
 <h3 id="terminal-features-in-local-shells">Terminal features in local shells<a class="headerlink" href="#terminal-features-in-local-shells" title="Permanent link">&para;</a></h3>
-<p>Terminal logging and recording, plus the AI input/data hooks, work for local shells via a shared <code>ObservableTtyConnector</code> interface. Features that depend on an SSH channel stay SSH-only.</p>
+<p>Terminal logging and recording, plus the AI input/data hooks, work for local shells via a shared <code>ObservableTtyConnector</code> interface. Typed and pasted agent requests use the same byte-level input path, and terminal file actions plus local agent runs follow the interactive shell's current directory. macOS/Linux use the local process directory; native PowerShell and cmd use absolute prompt paths. WSL, Git Bash, Cygwin, and custom commands are best-effort when their shell path namespace differs from the host filesystem, and an unmappable directory produces an explicit error instead of a wrong-file fallback. Features that depend on an SSH channel stay SSH-only.</p>
 <div class="admonition note">
 <p class="admonition-title">AI Agent in local shells</p>
 <p>The <strong>AI Agent</strong> and <strong>AI Planning</strong> also run in local shells on Windows, macOS and Linux — see <a href="ai-assistant.html#ai-agent-and-ai-planning">AI assistant</a>.</p>

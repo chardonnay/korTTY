@@ -1898,6 +1898,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lokale-terminal-korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Terminal-Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2624,6 +2635,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#lokale-terminal-korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Terminal-Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3247,6 +3269,11 @@
 <li><strong>Zuverlässige Linux-Paketvalidierung</strong> – Paketgrößenprüfungen verstehen jetzt das standardmäßige Linux-JPackage-Layout <code>lib/app</code> und <code>lib/runtime</code>, sodass die Anwendungs-JAR und die gebündelte JVM validiert werden, anstatt als fehlend gemeldet zu werden.</li>
 <li><strong>Zuverlässige Windows-Artefaktvorbereitung</strong> – Der Release-Workflow löst das jpackage-Verzeichnis explizit auf und erkennt den Windows-Launcher im generierten App-Image, bevor das tragbare Archiv erstellt wird.</li>
 <li><strong>Abhängigkeits- und CI-Wartung</strong> – aktualisierte CodeQL-Aktionen, Apache MINA SSHD- und Bouncy Castle-, Logback- und Apache PDFBox-Abhängigkeiten.</li>
+</ul>
+<h3 id="lokale-terminal-korrekturen">Lokale Terminal-Korrekturen<a class="headerlink" href="#lokale-terminal-korrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Lokale Shells behalten jetzt das tatsächliche Arbeitsverzeichnis</strong> – nach <code>cd</code>, <code>pushd</code>, <code>popd</code> oder <code>Set-Location</code> verwenden <strong>Im Snippet-Editor öffnen</strong> und lokale AI Agent-Ausführungen das aktuelle Verzeichnis der interaktiven Shell, einschließlich Pfaden mit Leerzeichen oder Unicode. Das Verzeichnis wird über den Shell-Prozess unter macOS/Linux oder eine absolut native PowerShell/cmd-Eingabeaufforderung unter Windows aktualisiert, und unsichere oder fremde Pfad-Fallbacks werden mit einem eindeutigen Fehler beendet, anstatt eine gleichnamige Datei im Startverzeichnis zu öffnen oder zu überschreiben.</li>
+<li><strong>Eingefügter Text bleibt in Terminal-Agent-Anfragen erhalten</strong> – eingegebener Text und Einfügen in die Zwischenablage teilen sich jetzt einen Eingabefilter auf Connector-Ebene für SSH und lokale Shells. Einfaches Einfügen, Einfügen in Klammern, geteilte UTF-8-Eingabe, Rücktaste und Strg+U werden korrekt verfolgt; Die vollständige Anfrage wird im Agentenverlauf gespeichert und Enter versendet sie genau einmal.</li>
 </ul>
 <h2 id="v250">v2.5.0<a class="headerlink" href="#v250" title="Permanent link">&para;</a></h2>
 <h3 id="verpackung-und-dokumentation">Verpackung und Dokumentation<a class="headerlink" href="#verpackung-und-dokumentation" title="Permanent link">&para;</a></h3>
