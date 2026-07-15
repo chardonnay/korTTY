@@ -83,7 +83,7 @@ Wichtiges Verhalten:
 * LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.
 * Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.
 * Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool das Zeitlimit überschreitet, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.
-* Für die Terminal-Agent-JSON-Planung bietet korTTY Web-Tools nur dann an, wenn die Benutzeraufgabe eindeutig nach aktuellen oder externen Informationen fragt. Lokale Datei-/Skriptüberprüfungsaufgaben sollten über SSH-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht über die Websuche erledigt werden.
+* Für die Terminal-Agent-JSON-Planung bietet korTTY Web-Tools nur dann an, wenn die Benutzeraufgabe eindeutig nach aktuellen oder externen Informationen fragt. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht durch die Websuche erledigt werden.
 
 ## AI-Fähigkeiten
 
@@ -238,7 +238,7 @@ Anforderungen:
 korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
 !!! note "SSH und lokale Shells"
-    Die Befehlsausführungs-Engine des Agenten ist hinter einer `AgentCommandRunner`-Abstraktion mit zwei Backends – **SSH** (Exec-Kanal) und **local** (ein neuer lokaler Prozess) von SSH entkoppelt. Der **AI Agent** und **AI Planning** laufen daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über `-EncodedCommand`, `cmd.exe` oder `$SHELL`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. **Einschränkungen der lokalen Shell:** keine `sudo`/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses (der Agent verwendet das Startverzeichnis der Verbindung). Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
+    Die Befehlsausführungs-Engine des Agenten ist hinter einer `AgentCommandRunner`-Abstraktion mit zwei Backends – **SSH** (Exec-Kanal) und **local** (ein neuer lokaler Prozess) von SSH entkoppelt. Der **AI Agent** und **AI Planning** laufen daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#local-shell) unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. **Lokale Shell-Einschränkung:** keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 ### Der Agent wird gestartet
 
@@ -257,7 +257,7 @@ korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 * **Gleichzeitige Ausführungen** – Mehrere gleichzeitige Ausführungen pro Split werden als schließbare Registerkarten im Aktivitätsbereich angezeigt (eine Registerkarte pro Ausführung), mit einer Parallelitätsobergrenze pro Widget von 5 Ausführungen. Abgeschlossene Läufe bleiben als Tabs erhalten, bis sie geschlossen werden.
 * **Tippen während des Laufens** – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren `agent ...`-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Strg+C++ cancel the selected tab's run; ++Strg+R++ schaltet die Denkdetails dieses Laufs um.
 * **Pause und Fortsetzen** – Auf jeder Laufregisterkarte werden Schaltflächen zum Anhalten und Abbrechen angezeigt. Pause parkt den Agenten an einem sicheren Punkt zwischen den Schritten; Die Pausenzeit wird von der Laufarbeitszeit ausgeschlossen.
-* **Aktuelles Verzeichnis** – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Remote-Verzeichnis. Befehle und generierte Dateien werden relativ zu diesem Verzeichnis ausgeführt.
+* **Aktuelles Verzeichnis** – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Ein lokaler Lauf erfasst ein stabiles Verzeichnis für seine Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn des Laufs arbeitete.
 * **Genehmigungen und Sudo** – Der Agent kann vor der Befehlsausführung eine explizite Genehmigung anfordern und im Aktivitätsbereich nach einem Sudo-Passwort fragen. Die Passworteingabe ist maskiert, kann mit ++Enter++ übermittelt werden und ermöglicht bis zu drei Wiederholungsversuche mit falschem Passwort. Wenn ein Passwort zwischengespeichert wird, wird es nur für den aktuellen Agenten-/Sitzungskontext verwendet. Wenn eine Benutzereingabe (Sudo-Passwort/Befehlsgenehmigung) erforderlich ist, wird das Bedienfeld automatisch erweitert.
 * **Reduzierte Statusleiste** – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Ausführungsaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und einer Schaltfläche „Erweitern“ angezeigt. Während der Agent aktiv arbeitet, wird ein Kreissymbol angezeigt, und eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.
 * **Reduziert halten** – Verwenden Sie **Reduziert halten**, um das Panel minimiert auf die Statusleiste zu bringen.
@@ -292,13 +292,13 @@ Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Stand
 
 ### So funktioniert der AI Agent
 
-Der Terminal AI Agent ist ein kontrollierter SSH-Automatisierungsworkflow. Es führt keine beliebige Modellausgabe direkt im interaktiven Terminal aus. Stattdessen folgt jede Runde diesem Muster:
+Der Terminal AI Agent ist ein kontrollierter Terminalautomatisierungsworkflow. Es führt keine beliebige Modellausgabe direkt im interaktiven Terminal aus. Stattdessen folgt jede Runde diesem Muster:
 
-1. korTTY prüft die aktive SSH-Sitzung mit einem nicht interaktiven Befehl und zeichnet kompakten Kontext auf, z. B. aktuellen Benutzer, Host, Betriebssystem, aktives Terminal-Arbeitsverzeichnis, Sudo-Verfügbarkeit, Festplattenpfad und aktuellen Befehlsstatus.
+1. korTTY prüft die aktive SSH- oder lokale Shell-Sitzung mit einem nicht interaktiven Befehl und zeichnet kompakten Kontext wie aktuellen Benutzer, Host, Betriebssystem, aktives Terminal-Arbeitsverzeichnis, Sudo-Verfügbarkeit, Festplattenpfad und aktuellen Befehlsstatus auf.
 2. korTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Fähigkeiten und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
 3. Das Modell muss eine strikte JSON-Entscheidung zurückgeben: Befehle ausführen, Bestätigung anfordern, beenden oder blockieren.
 4. korTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Befehlsentscheidungen werden abgelehnt.
-5. korTTY führt genehmigte Befehle über SSH-Exec-Kanäle aus. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis. Ein `cd` innerhalb eines Befehls bleibt nicht bis zum nächsten Befehl bestehen.
+5. korTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Exec-Kanäle für SSH-Sitzungen oder neue lokale Prozesse für lokale Shells. Jeder Befehl startet in dem für die Ausführung erfassten Verzeichnis. Ein `cd` innerhalb eines Befehls bleibt nicht bis zum nächsten Befehl bestehen.
 6. Die Befehlsausgabe wird dem Aktivitätsbereich und der nächsten Modellrunde hinzugefügt, bis die Aufgabe abgeschlossen, blockiert, abgebrochen oder das Rundenlimit erreicht ist.
 
 ### Passende Aufgaben
@@ -328,7 +328,7 @@ agent-ask what user and directory am I currently using?
 agent-plan migrate this host from package X to package Y
 ```
 
-Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in der Aufgabe. Der Agent sollte es dann mit SSH-Befehlen wie `sed -n`, `cat`, `file` oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält korTTY Web-Tools weiterhin von diesen lokalen Dateiplanungsaufforderungen fern, es sei denn, Ihre Aufgabe fragt eindeutig nach aktuellen oder externen Informationen.
+Benennen Sie bei lokalen Dateiüberprüfungsaufgaben die Datei in der Aufgabe. Der Agent sollte es dann mit Shell-Befehlen wie `sed -n`, `cat`, `file` oder sprachspezifischen Syntaxprüfungen überprüfen. Wenn ein internetfähiges Profil aktiv ist, hält korTTY Web-Tools weiterhin von diesen lokalen Dateiplanungsaufforderungen fern, es sei denn, Ihre Aufgabe fragt eindeutig nach aktuellen oder externen Informationen.
 
 ### Aktivitätszeilensymbole
 
@@ -359,7 +359,7 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 * Befehle sind pro Runde begrenzt und dürfen nicht interaktiv sein.
 * Befehle, die das System ändern oder Berechtigungen erfordern, können abhängig von den Einstellungen und der Modellentscheidung durch eine Bestätigung weitergeleitet werden.
 * Sudo verwendet `sudo -n` und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine `sudo -S`, `su` oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.
-* Das aktuelle Remote-Verzeichnis wird anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Testergebnissen verfolgt. Wenn ein nachverfolgtes Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut aus dem SSH-Standardverzeichnis und meldet das Problem.
+* SSH-Verzeichnisse werden anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein verfolgtes Remote-Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut vom SSH-Standardverzeichnis aus und meldet das Problem. Lokale Ausführungen aktualisieren das Shell-Prozessverzeichnis oder verwenden einen absoluten nativen Eingabeaufforderungspfad, frieren das Ergebnis für die Ausführung ein und stoppen sicher, wenn ein geändertes Verzeichnis nicht ermittelt oder zugeordnet werden kann.
 * Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.
 * Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.
 * Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.

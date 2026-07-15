@@ -43,6 +43,13 @@ class TerminalViewShortcutHeuristicsTest {
     }
 
     @Test
+    void connectorInterceptionRecognizesMultilineBracketedPastePrompt() {
+        assertThat(TerminalView.canInterceptBufferedAgentShortcut(
+            "agent explain first line\nsecond ü.txt",
+            "agent")).isTrue();
+    }
+
+    @Test
     void connectorInterceptionCanMatchAgentShortcutCaseInsensitively() {
         assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent")).isFalse();
         assertThat(TerminalView.canInterceptBufferedAgentShortcut("Agent install tomcat", "agent", true)).isTrue();

@@ -22,6 +22,17 @@ class TerminalAgentCommandSupportTest {
     }
 
     @Test
+    void parseExecuteShortcutPreservesMultilineBracketedPastePrompt() {
+        TerminalAgentCommandSupport.Invocation invocation =
+            TerminalAgentCommandSupport.parseShortcut(
+                "agent explain first line\nsecond ü.txt",
+                "agent");
+
+        assertThat(invocation).isNotNull();
+        assertThat(invocation.userPrompt()).isEqualTo("explain first line\nsecond ü.txt");
+    }
+
+    @Test
     void parseAskAndPlanShortcutsRespectCustomCommandName() {
         TerminalAgentCommandSupport.Invocation askInvocation =
             TerminalAgentCommandSupport.parseShortcut("susi-ask: what failed?", "susi");

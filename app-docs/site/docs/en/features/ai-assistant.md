@@ -83,7 +83,7 @@ Important behavior:
 * LM Studio MCP requests with internet access use a longer total request timeout because the MCP server runs behind LM Studio.
 * Canceling a running request interrupts the Java HTTP request where the active provider supports interruption.
 * Tool errors are returned to the model as structured data. If the web tool times out, fails authentication, returns no results, or reaches the tool-round limit, the model is instructed to say that explicitly and not invent web facts.
-* For terminal-agent JSON planning, korTTY offers web tools only when the user task clearly asks for current or external information. Local file/script review tasks should be handled by SSH commands such as `sed`, `cat`, `find`, or test commands, not by web search.
+* For terminal-agent JSON planning, korTTY offers web tools only when the user task clearly asks for current or external information. Local file/script review tasks should be handled by shell commands such as `sed`, `cat`, `find`, or test commands, not by web search.
 
 ## AI Skills
 
@@ -238,7 +238,7 @@ Requirements:
 korTTY supports agent-style workflows for an active terminal session.
 
 !!! note "SSH and local shells"
-    The agent's command-execution engine is decoupled from SSH behind an `AgentCommandRunner` abstraction with two backends — **SSH** (exec channel) and **local** (a fresh local process). The **AI Agent** and **AI Planning** therefore run both in SSH sessions and in [local shells](connections.md#local-shell) on Windows, macOS and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware so the model generates native commands, and the same approval flow applies. **Local-shell limitations:** no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
+    The agent's command-execution engine is decoupled from SSH behind an `AgentCommandRunner` abstraction with two backends — **SSH** (exec channel) and **local** (a fresh local process). The **AI Agent** and **AI Planning** therefore run both in SSH sessions and in [local shells](connections.md#local-shell) on Windows, macOS and Linux: commands use a native local backend (PowerShell via `-EncodedCommand`, `cmd.exe`, or POSIX `/bin/sh`), the environment probe and system prompt are platform-aware so the model generates native commands, and the same approval flow applies. A local run captures the interactive shell's current directory once and uses it for the probe and every command. **Local-shell limitation:** no `sudo`/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.
 
 ### Starting the agent
 
@@ -257,7 +257,7 @@ korTTY supports agent-style workflows for an active terminal session.
 * **Concurrent runs** - Multiple concurrent runs per split are shown as closable tabs in the activity panel (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs stay as tabs until closed.
 * **Typing while running** - Typing is no longer locked while a run is active. You can continue typing in the shell prompt and launch another `agent ...` command (it opens a new concurrent tab). Only run-control keys are intercepted: ++Esc++ or ++Ctrl+C++ cancel the selected tab's run; ++Ctrl+R++ toggles that run's thinking details.
 * **Pause and Resume** - Each run tab shows pause and cancel buttons. Pause parks the agent at a safe point between steps; paused time is excluded from the run work-time.
-* **Current directory** - Terminal shortcut runs use korTTY's tracked current remote directory. Commands and generated files are executed relative to that directory.
+* **Current directory** - Terminal shortcut runs use korTTY's tracked current directory for SSH and local shells. A local run captures one stable directory for its probe and every command, so commands and generated files remain relative to where the interactive shell was working when the run began.
 * **Approvals and sudo** - The agent can request explicit approval before command execution and can ask for a sudo password in the activity panel. Password input is masked, can be submitted with ++Enter++, and allows up to three wrong-password retries. If a password is cached, it is used only for the current agent/session context. When user input (sudo password / command approval) is required, the panel auto-expands.
 * **Collapsed status bar** - When the panel is collapsed, it shows a compact status bar with the run prompt, state, pause/cancel buttons, and an expand button. A spinner appears while the agent is actively working, and a bold ✋ marker signals when user input is required.
 * **Keep collapsed** - Use **Keep collapsed** to make the panel start minimized to the status bar.
@@ -292,13 +292,13 @@ History size is configurable in **Settings > AI** (default 20, range 5–100).
 
 ### How the AI Agent works
 
-The Terminal AI Agent is a controlled SSH automation workflow. It does not run arbitrary model output directly in the interactive terminal. Instead, each turn follows this pattern:
+The Terminal AI Agent is a controlled terminal automation workflow. It does not run arbitrary model output directly in the interactive terminal. Instead, each turn follows this pattern:
 
-1. korTTY probes the active SSH session with a non-interactive command and records compact context such as current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.
+1. korTTY probes the active SSH or local-shell session with a non-interactive command and records compact context such as current user, host, operating system, active terminal working directory, sudo availability, disk path, and recent command state.
 2. korTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.
 3. The model must return a strict JSON decision: run commands, ask for confirmation, finish, or block.
 4. korTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported command decisions are rejected.
-5. korTTY runs approved commands through SSH exec channels. Each command starts in the tracked active terminal directory. A `cd` inside one command does not persist to the next command.
+5. korTTY runs approved commands through the active backend: SSH exec channels for SSH sessions or fresh local processes for local shells. Each command starts in the directory captured for the run. A `cd` inside one command does not persist to the next command.
 6. Command output is added to the activity panel and to the next model turn until the task is complete, blocked, canceled, or the turn limit is reached.
 
 ### Suitable tasks
@@ -328,7 +328,7 @@ agent-ask what user and directory am I currently using?
 agent-plan migrate this host from package X to package Y
 ```
 
-For local file review tasks, name the file in the task. The agent should then inspect it with SSH commands such as `sed -n`, `cat`, `file`, or language-specific syntax checks. If an internet-enabled profile is active, korTTY still keeps web tools away from these local file planning prompts unless your task clearly asks for current or external information.
+For local file review tasks, name the file in the task. The agent should then inspect it with shell commands such as `sed -n`, `cat`, `file`, or language-specific syntax checks. If an internet-enabled profile is active, korTTY still keeps web tools away from these local file planning prompts unless your task clearly asks for current or external information.
 
 ### Activity row icons
 
@@ -359,7 +359,7 @@ korTTY adds guardrails around agent execution:
 * Commands are limited per turn and must be non-interactive.
 * Commands that change the system or require privilege can be routed through confirmation depending on settings and model decision.
 * Sudo uses `sudo -n` and activity-panel password prompts. korTTY does not allow `sudo -S`, `su`, or commands that wait indefinitely for a terminal password prompt.
-* The current remote directory is tracked from shell hooks, terminal prompt context, and probe results. If a tracked directory no longer exists, korTTY retries the probe from the SSH default directory and reports the issue.
+* SSH directories are tracked from shell hooks, terminal prompt context, and probe results; if a tracked remote directory no longer exists, korTTY retries the probe from the SSH default directory and reports the issue. Local runs refresh the shell process directory or use an absolute native prompt path, freeze the result for the run, and stop safely when a changed directory cannot be determined or mapped.
 * While a terminal-targeted run is active, normal typing is still allowed; only run-control keys (++Esc++/++Ctrl+C++ to cancel the selected run, ++Ctrl+R++ to toggle its thinking details) are intercepted.
 * Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors.
 * If the AI response does not match the required JSON schema, korTTY asks for a repair. If repair also fails, the run is blocked with an explanation.

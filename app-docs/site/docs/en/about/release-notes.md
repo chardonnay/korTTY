@@ -14,6 +14,11 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Reliable Windows artifact preparation** — the release workflow resolves the jpackage directory explicitly and discovers the Windows launcher within the generated app image before creating the portable archive.
 - **Dependency and CI maintenance** — updated CodeQL Actions, Apache MINA SSHD and Bouncy Castle, Logback, and Apache PDFBox dependencies.
 
+### Local terminal fixes
+
+- **Local shells now keep the real working directory** — after `cd`, `pushd`, `popd`, or `Set-Location`, **Open in Snippet Editor** and local AI Agent runs use the interactive shell's current directory, including paths with spaces or Unicode. The directory is refreshed from the shell process on macOS/Linux or an absolute native PowerShell/cmd prompt on Windows, and unsafe or foreign path fallbacks stop with a clear error instead of opening or overwriting a same-named file in the start directory.
+- **Pasted text is retained in terminal agent requests** — typed text and clipboard paste now share one connector-level input filter for SSH and local shells. Plain paste, bracketed paste, split UTF-8 input, Backspace, and Ctrl+U are tracked correctly; the complete request is saved to agent history and Enter dispatches it exactly once.
+
 ## v2.5.0
 
 ### Packaging and documentation

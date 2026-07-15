@@ -6516,6 +6516,11 @@ public class MainWindow {
         if (runContext == null || runContext.connector() == null) {
             return;
         }
+        if (runContext.connector() instanceof LocalShellTtyConnector) {
+            // Local hints are validated against the filesystem and may block. The local runner
+            // receives this same run-context hint and resolves it on its worker thread instead.
+            return;
+        }
         runContext.connector().updateCurrentWorkingDirectoryHint(runContext.workingDirectory());
     }
 
