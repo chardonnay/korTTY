@@ -56,7 +56,7 @@ class GuideSearchIndexTest {
     void germanAnchorsAreLocalized() {
         GuideSearchIndex de = GuideSearchIndex.load("de");
         boolean found = de.entries().stream().anyMatch(entry ->
-            "features/ai-tools.html#so-funktioniert-der-ki-agent".equals(entry.location()));
+            "features/ai-tools.html#so-funktioniert-der-ai-agent".equals(entry.location()));
         assertWithMessage("localized DE anchor present").that(found).isTrue();
     }
 }
