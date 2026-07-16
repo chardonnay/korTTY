@@ -2196,7 +2196,7 @@ tasks.register<Exec>("configureLlamaRuntime") {
             "-DLLAMA_BUILD_SERVER=ON",
             "-DLLAMA_BUILD_TESTS=OFF",
             "-DLLAMA_BUILD_EXAMPLES=OFF",
-            "-DLLAMA_BUILD_TOOLS=ON",
+            "-DLLAMA_BUILD_TOOLS=OFF",
             "-DLLAMA_BUILD_APP=OFF",
             "-DLLAMA_CURL=OFF",
             "-DLLAMA_BUILD_UI=OFF",
@@ -2252,7 +2252,7 @@ tasks.register<Sync>("installLlamaRuntimeStaging") {
     dependsOn("buildLlamaRuntime")
     into(llamaRuntimeStageDirectory)
     from(llamaNativeBuildDirectory) {
-        include("bin/**/llama-server", "bin/**/llama-server.exe")
+        include("**/llama-server", "**/llama-server.exe")
         includeEmptyDirs = false
         eachFile {
             relativePath = org.gradle.api.file.RelativePath(true, "bin", name)
