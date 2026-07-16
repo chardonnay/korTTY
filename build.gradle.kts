@@ -2213,6 +2213,8 @@ tasks.register<Exec>("configureLlamaRuntime") {
             arguments.add(1, "Ninja")
             arguments.add(1, "-G")
             arguments += "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
+            arguments += "-DCMAKE_C_FLAGS_RELEASE=/MT"
+            arguments += "-DCMAKE_CXX_FLAGS_RELEASE=/MT"
             // Hosted Windows cannot execute the source-built UI embed helper;
             // use the signed upstream prebuilt UI asset instead.
             arguments += "-DLLAMA_USE_PREBUILT_UI=ON"
