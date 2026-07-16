@@ -179,7 +179,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libvulkan-dev glslc curl jq
+          sudo apt-get install -y cmake ninja-build libvulkan-dev glslc spirv-headers spirv-tools mesa-vulkan-drivers curl jq
 
       - name: Install native build dependencies (macOS)
         if: runner.os == 'macOS'
