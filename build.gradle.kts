@@ -501,10 +501,22 @@ tasks.register<Exec>("installSithtermfxLocal") {
     if (jdkHome != null) {
         environment("JAVA_HOME", jdkHome)
     }
+    // SithTermFX declares maven.compiler.release=17, but Maven's implicit
+    // compiler-plugin 3.1 predates that property and otherwise falls back to
+    // source/target 1.5 on a clean Maven repository. Pass the equivalent
+    // source/target values explicitly so clean JDK 21/25 CI workers are
+    // reproducible as well as developer machines with a warm ~/.m2 cache.
+    val mavenArguments = listOf(
+        "-q",
+        "-DskipTests",
+        "-Dmaven.compiler.source=17",
+        "-Dmaven.compiler.target=17",
+        "install"
+    )
     if (isWindows) {
-        commandLine("cmd", "/c", "mvn.cmd", "-q", "-DskipTests", "install")
+        commandLine(listOf("cmd", "/c", "mvn.cmd") + mavenArguments)
     } else {
-        commandLine("mvn", "-q", "-DskipTests", "install")
+        commandLine(listOf("mvn") + mavenArguments)
     }
     onlyIf {
         sithtermfxDir.asFile.resolve("pom.xml").isFile && !installedSithtermfxHasRequiredPatches()
@@ -2176,6 +2188,20 @@ tasks.register<Exec>("configureLlamaRuntime") {
         if (isMac) {
             arguments += "-DCMAKE_OSX_ARCHITECTURES=${if (llamaRuntimeArchitecture == "aarch64") "arm64" else "x86_64"}"
             arguments += "-DGGML_ACCELERATE=ON"
+        }
+        if (backend == "VULKAN" && isLinux) {
+            // Debian's SPIR-V headers package installs its config in an
+            // architecture-specific CMake directory which is not searched by
+            // all runner images.
+            arguments += "-DCMAKE_PREFIX_PATH=/usr/share/cmake/SPIRV-Headers;/usr/lib/${if (llamaRuntimeArchitecture == "aarch64") "aarch64-linux-gnu" else "x86_64-linux-gnu"}/cmake/SPIRV-Headers"
+        }
+        if (backend == "VULKAN" && isWindows) {
+            val sdk = System.getenv("VULKAN_SDK")?.takeIf { it.isNotBlank() }
+            if (sdk != null) {
+                arguments += "-DVulkan_INCLUDE_DIR=$sdk/Include"
+                arguments += "-DVulkan_LIBRARY=$sdk/Lib/vulkan-1.lib"
+                arguments += "-DVulkan_GLSLC_EXECUTABLE=$sdk/Bin/glslc.exe"
+            }
         }
         commandLine(arguments)
     }
