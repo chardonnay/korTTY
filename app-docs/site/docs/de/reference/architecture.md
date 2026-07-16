@@ -25,9 +25,9 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 
 | **Modul** | **Zweck** | **Schlüsselklassen** |
 |---|---|---|
-| **Kern** | SSH-Konnektivität, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **Kern** | SSH-Konnektivität, gemeinsamer interaktiver Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Prompt-Katalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp-Prozessleasings und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller` |
-| **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
+| **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswWissensspeicher`, `RagRuntimeService` |
 | **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalPane`, `ConnectionDialog`, `SFTPManagerDialog`, `SnippetEditor` |
 | **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `Connection`, `Credential`, `Snippet`, `JobScheduleEntry` |
 | **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobScheduler`, `JobExecutor`, `JobJournal` |
@@ -46,15 +46,17 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **OSC 8-Hyperlinks**: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` beschränkt auf lokalen Host)
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
+- **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei `line == height` während des Hyperlink-Treffertests ab und verhindert so Bereichsfehler in der unteren Zeile von `TerminalTextBuffer`
 
 ### Build-Integration
 
 Der Build-Prozess automatisch:
 
 1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
-2. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
-3. Installiert Artefakte im lokalen Maven-Repo (`mavenLocal()`)
-4. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
+2. Wendet das überprüfte `patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch` an und schlägt fehl, wenn es weder zutrifft noch bereits mit der Quelle übereinstimmt
+3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
+4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierung, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
+5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
 Nach dem Klonen ist kein Netzwerkzugriff erforderlich. Alle Build-Schritte sind deterministisch und reproduzierbar.
 
@@ -72,7 +74,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 ```
 ~/.kortty/
 ├── connections.xml              # Saved SSH/Mosh connections
-├── credentials.xml              # Stored usernames/passwords for env-specific targets
+├── credentials.xml              # Wissensspeicherd usernames/passwords for env-specific targets
 ├── ssh-keys.xml                 # SSH key references and encrypted passphrases
 ├── gpg-keys.xml                 # GPG key management for backup encryption
 ├── global-settings.xml          # Application-wide settings (theme, language, AI profiles)
@@ -86,6 +88,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 │   ├── stores.json              # Knowledge-store and source configuration
 │   └── stores/                  # Regenerable local HNSW snapshots
 ├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
@@ -120,6 +123,7 @@ Das Master-Passwort -  wird bei der ersten Anmeldung einmal gehasht und als `mas
 | **Komponente** | **Verantwortung** |
 |---|---|
 | `SSHSession` | Umschließt den Apache SSHD-Client und verwaltet den Verbindungslebenszyklus |
+| `SshHostKeyTrustManager` | Gibt normalisierte Host:Port-TOFU-Pins über interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen mit atomarer, prozessübergreifender Persistenz frei |
 | `SSHKeyManager` | Zentralisierte SSH-Schlüsselspeicherung mit verschlüsselter Passphrase-Unterstützung |
 | `Mosh4jTtyConnector` | Mosh-Protokoll-Connector unter Verwendung der mosh4j-Bibliothek (dynamisch geladen) |
 | `NativeMoshTtyConnector` | Native OS Mosh-Unterstützung (Fallback) |
@@ -158,7 +162,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | `SFTPManagerDialog` | Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen |
 | `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `LocalModelManagerPane` | Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars |
-| `RagKnowledgeStorePane` | Erstellt Wissensspeicher, zeigt Quellen in der Vorschau an, zeigt den Status der dauerhaften Indizierung an, synchronisiert sie und führt Abruftests durch |
+| `RagKnowledgeWissensspeicherPane` | Erstellt Wissensspeicher, zeigt Quellen in der Vorschau an, zeigt den Status der dauerhaften Indizierung an, synchronisiert sie und führt Abruftests durch |
 | `JobSchedulerDialog` | Joberstellung, Planung und Journalprüfung |
 | `QuickConnectDialog` | Schnelle Verbindungssuche und häufig verwendete Verbindungsverknüpfungen |
 
@@ -173,9 +177,9 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 
 ### Host-Schlüsselüberprüfung
 
-- **JobScheduler**: Erfordert angeheftete Hostschlüssel-Fingerabdrücke vor der unbeaufsichtigten Ausführung (SSH, SFTP, Rsync)
-- **Speicher**: Hostschlüssel werden in `job-scheduler.xml` mit OpenSSH-Public-Key-Material gespeichert (erforderlich für die Rsync-Integration).
-- **Override**: Überschreibung pro Job, um die Überprüfung zu deaktivieren, wenn das Risiko explizit akzeptiert wird
+- **Interaktives Terminal/SFTP/Mosh-Bootstrap**: Ein gemeinsam genutzter TOFU-Verifizierer wird durch den normalisierten Hostnamen und Port verschlüsselt. Bei der ersten Verwendung wird der OpenSSH SHA-256-Fingerabdruck mit **Nein** als Standard angezeigt; Eine genaue Übereinstimmung erfolgt stumm, während ein geänderter Schlüssel ohne erneuten Versuch hart blockiert wird.
+- **Interaktiver Speicher**: `ssh-host-keys.properties` speichert Public-Key-Material durch einen atomaren Ersatz, der sowohl durch prozessinterne als auch prozessübergreifende Sperren geschützt ist. Sein vorübergehender Begleiter `.lock` wird nicht gesichert.
+- **JobScheduler**: Unbeaufsichtigtes SSH, SFTP und Rsync verwenden separate verbindungs-ID-basierte Pins in `job-scheduler.xml`, einschließlich OpenSSH-Public-Key-Material, das von Rsync benötigt wird. Durch eine Außerkraftsetzung pro Auftrag kann diese Überprüfung nur dann deaktiviert werden, wenn das Risiko ausdrücklich akzeptiert wird.
 
 ### Anmeldeinformationsverwaltung
 
@@ -228,7 +232,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 |---|---|---|---|
 | **SSH** | Apache SSHD (Core, Common, SFTP) | 2.12.0 | SSH-Protokollimplementierung |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA-Schlüsselunterstützung |
-| **Terminal** | SithTermFX (Kern, UI) | 1.2.0 | Terminal-Emulator-Engine |
+| **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angehefteter korTTY-Grenzpatch | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.2 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0.12.25 | PTY-Zuteilung für Mosh |
 | **Daten** | Jakarta XML Bind | 4.0 | JAXB-Serialisierung |
@@ -282,6 +286,10 @@ User Input (Quick Connect)
     ↓
 Connection Manager (lookup saved or new connection)
     ↓
+Worker-thread SSH handshake + progress UI
+    ↓
+Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
+    ↓
 SSHSession (Apache SSHD or Mosh4j connector)
     ↓
 Terminal Pane (SithTermFX rendering)
@@ -328,11 +336,13 @@ Menu-bar status displays next runs / live countdown
 - **JobScheduler-Journal**: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)
 - **Terminalverlauf**: Komprimierte Sitzungsprotokolle in `~/.kortty/history/`
 - **Terminalaufzeichnung**: Optionale Wiedergabedateien in `~/.kortty/recordings/`
+- **Testisolation**: Die Test-Logback-Konfiguration schreibt nur auf ihre eigene Konsole und erstellt niemals `~/.kortty/logs` des echten Benutzers oder hängt daran an
 
 ## Thread-Modell
 
 - **UI-Thread**: Der JavaFX-Anwendungsthread übernimmt das gesamte Rendering und die Benutzerinteraktion
 - **SSH-Sitzungsthreads**: Ein Thread pro aktiver SSH-Verbindung (Apache SSHD-Pool)
+- **Split-Connection-Handshake**: Gleiche Server- und neu ausgewählte Split-Verbindungen führen die Netzwerkeinrichtung auf einem Worker durch, während ein JavaFX-Fortschrittsdialog dafür sorgt, dass Host-Tasten und interaktive Tastatureingabeaufforderungen reagieren.
 - **Job Executor Threads**: Hintergrund-Thread-Pool für die JobScheduler-Ausführung
 - **AI-Chat-Threads**: Hintergrundthreads für API-Anfragen (nicht blockierende Benutzeroberfläche)
 - **AI-Katalogaktualisierung**: Der erste Katalogkonsument erhält sofort verifizierte Cache-/Bootstrap-Daten und startet höchstens eine Hintergrundaktualisierung über den stabilen Kanal.
@@ -370,7 +380,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Master-Passwort**: Legen Sie ein sicheres, eindeutiges Passwort fest; es wird niemals übertragen oder protokolliert
 2. **SSH-Schlüssel**: Zur Einbindung von Backups in `~/.kortty/ssh-keys/` speichern; Passphrasen werden verschlüsselt
-3. **Hostschlüssel-Pinning**: Vor der unbeaufsichtigten JobScheduler-Ausführung aktivieren
+3. **Hostschlüsselüberprüfung**: Überprüfen Sie den OpenSSH SHA-256-Fingerabdruck, bevor Sie eine interaktive Aufforderung zur ersten Verwendung akzeptieren. Halten Sie die Hostschlüssel-Anheftung für die unbeaufsichtigte JobScheduler-Ausführung aktiviert
 4. **Backup-Verschlüsselung**: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung
 5. **AI-Profile**: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts
 6. **Protokollierungsgeheimnisse vermeiden**: Das JobScheduler-Journal schwärzt gespeicherte Geheimnisse vor der Persistenz

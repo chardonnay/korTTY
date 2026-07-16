@@ -48,7 +48,8 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 | API-URL | Text | – | – | (Profilfeld `apiUrl`) |
 | CLI-Anbieter | Dropdown-Liste | (registrierte Anbieter) | – | (Profilfeld `cliProviderId`) |
 | CLI-ausführbare Datei | Text | – | – | (Profilfeld `cliExecutablePath`) |
-| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte; installierte Chat-Modelle für Integrated llama.cpp) | – | (Profilfeld `model` oder `embeddedModelId`) |
+| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | – | (Profilfeld `model`) |
+| Lokales GGUF-Modell | Dropdown-Liste | Installierte Chat-Modelle; Verfügbar, wenn die Verbindung „Integriert“ ist. llama.cpp | – | (Profilfeld `embeddedModelId`) |
 | Benutzerdefiniertes Modell | Text | – | – | (Profilfeld `cliCustomModel`) |
 | Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
@@ -91,11 +92,11 @@ KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindu
 
 - **HTTP-API**: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (API-URL, Modellnamen und optionalen API-Schlüssel angeben).
 - **Lokale CLI**: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).
-- **Integrierte llama.cpp**: Erwerben Sie eine private Loopback-`llama-server`-Lease für ein installiertes GGUF-Modell; Die API-URL und der Profil-API-Schlüssel werden von korTTY verwaltet und können nicht bearbeitet werden.
+- **Integrated llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell**. korTTY erwirbt dafür einen privaten Loopback-`llama-server`-Leasing; Die API-URL und der Profil-API-Schlüssel werden von korTTY verwaltet und können nicht bearbeitet werden.
 
 Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **AI > AI Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
 
-Der AI Manager sorgt dafür, dass der geöffnete primäre Abschnitt sichtbar mit einer fetten Akzentunterstreichung markiert ist, wenn Sie mit den Steuerelementen in diesem Abschnitt interagieren.
+Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Durch erneutes Aufrufen wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
 
 ### Lokale AI-Manager-Einstellungen
 

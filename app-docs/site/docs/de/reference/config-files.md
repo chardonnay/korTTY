@@ -11,7 +11,7 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ```
 ~/.kortty/
 ├── connections.xml                    # Saved SSH connections
-├── credentials.xml                    # Stored credentials (encrypted)
+├── credentials.xml                    # Wissensspeicherd credentials (encrypted)
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
@@ -28,6 +28,8 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
 ├── master-password-hash               # Hashed master password (PBKDF2)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── kortty.log                         # Application log file
@@ -83,6 +85,12 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 
 !!! tip
     SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder zur einfachen Sicherung und Migration über die Aktion *In Benutzerverzeichnis kopieren* in der SSH-Schlüsselverwaltung nach `~/.kortty/ssh-keys/` kopiert werden.
+
+### ssh-host-keys.properties
+
+Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt.
+
+Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während `ssh-host-keys.properties.lock` separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in `job-scheduler.xml` getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.
 
 ### gpg-keys.xml
 Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.
@@ -151,7 +159,7 @@ Die atomar geschriebene, vom Eigentümer lesbare JSON-Registrierung für Wissens
 
 **Enthält:**
 
-- Store-ID/Name/Typ, lokales Snapshot-Verzeichnis oder Qdrant-Endpunkt/Sammlung, Einbettungsmodell-ID und Vektordimensionen
+- Wissensspeicher-ID/Name/Typ, lokales Snapshot-Verzeichnis oder Qdrant-Endpunkt/Sammlung, Einbettungsmodell-ID und Vektordimensionen
 - Text-, Codierungs- und autonome Nutzungszuweisungen
 - Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Einschluss-/Ausschluss-Globs, `.gitignore`-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung
 
@@ -340,6 +348,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | Master-Passwort | PBKDF2-Hashing mit 310.000 Iterationen |
 | Verbindungspasswörter | AES-256-GCM-Verschlüsselung |
 | SSH-Schlüsselpassphrasen | AES-256-GCM-Verschlüsselung |
+| Interactive Terminal/SFTP/Mosh-Hostschlüssel | Normalisierter Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung |
 | Anmeldeinformationen (Benutzername/Passwort) | AES-256-GCM-Verschlüsselung |
 | JobScheduler Sudo-Passwörter | AES-256-GCM-Verschlüsselung |
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |
@@ -365,6 +374,7 @@ Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die fol
 - `projects/` Verzeichnis
 Verzeichnis - `i18n/` (generierte Sprachdateien)
 - `ssh-keys/`-Verzeichnis (falls vorhanden)
+- `ssh-host-keys.properties` interaktiver Hostschlüssel-Truststore (nicht seine transiente `.lock`-Datei)
 - `snippets.xml` und zugehörige Snippet-Daten
 - `llm/models.xml` lokale Modellregistrierungen
 - `rag/stores.json` Wissensspeicher-/Quellenmetadaten
@@ -400,8 +410,11 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 **Beschädigte XML-Dateien:**
 - Wenn eine `.xml`-Datei beschädigt ist, stellen Sie sie aus einer Sicherung wieder her oder löschen Sie die Datei. KorTTY wird es beim nächsten Speichern mit den Standardeinstellungen neu erstellen.
 
-**Knowledge-Store-Registrierung oder Snapshot kann nicht gelesen werden:**
-- Stellen Sie `rag/stores.json` aus einem Backup wieder her oder erstellen Sie den Store im AI Manager neu. Löschen Sie nur die betroffene regenerierbare Datei `index.hnsw` und wählen Sie dann **Jetzt aktualisieren**, um sie aus den konfigurierten Quelldateien neu zu erstellen.
+**Wissensspeicher-Registrierung oder Snapshot kann nicht gelesen werden:**
+- Stellen Sie `rag/stores.json` aus einem Backup wieder her oder erstellen Sie den Wissensspeicher im AI Manager neu. Löschen Sie nur die betroffene regenerierbare Datei `index.hnsw` und wählen Sie dann **Jetzt aktualisieren**, um sie aus den konfigurierten Quelldateien neu zu erstellen.
+
+**Interaktiver SSH-Hostschlüssel geändert:**
+- Stellen Sie keine erneute Verbindung her, bis Sie den neuen OpenSSH SHA-256-Fingerabdruck beim Serveradministrator überprüft und DNS-, Routing- oder Man-in-the-Middle-Probleme ausgeschlossen haben. KorTTY blockiert absichtlich die Nichtübereinstimmung, ohne es erneut zu versuchen oder die gespeicherte PIN zu ersetzen.
 
 **Probleme beim Laden des Plugins:**
 - Überprüfen Sie `kortty.log` auf Fehlermeldungen im Zusammenhang mit dem Laden von Plugins (z. B. doppelte IDs, fehlende Dienste, Fehler beim Laden von Klassen).
