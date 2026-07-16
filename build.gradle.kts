@@ -2206,6 +2206,12 @@ tasks.register<Exec>("configureLlamaRuntime") {
             "-DGGML_METAL=${if (backend == "METAL") "ON" else "OFF"}",
             "-DGGML_VULKAN=${if (backend == "VULKAN") "ON" else "OFF"}"
         )
+        if (isWindows) {
+            // Ninja avoids Visual Studio's deeply nested Vulkan shader
+            // ExternalProject paths exceeding the hosted Windows limit.
+            arguments.add(1, "Ninja")
+            arguments.add(1, "-G")
+        }
         if (isMac) {
             arguments += "-DCMAKE_OSX_ARCHITECTURES=${if (llamaRuntimeArchitecture == "aarch64") "arm64" else "x86_64"}"
             arguments += "-DGGML_ACCELERATE=ON"

@@ -209,7 +209,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          server="$(find build/llama-runtime/stage-* -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
+          server="$(find build -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
           test -n "$server"
           "$server" --version
 
