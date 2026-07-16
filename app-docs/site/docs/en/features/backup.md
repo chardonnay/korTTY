@@ -11,7 +11,7 @@ KorTTY creates encrypted backups of all your settings, connections, credentials,
 ## Features
 
 * **Encrypted backups** — All backups are encrypted using either password-protected ZIP or GPG encryption
-* **Configuration backup** — Includes connections, credentials, SSH/GPG keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata
+* **Configuration backup** — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata
 * **Regenerable local AI data excluded** — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive
 * **Projects directory** — All saved project workspaces are included in the backup
 * **Automatic rotation** — Old backups are automatically moved to an `old-backups` subdirectory with timestamps
@@ -34,6 +34,7 @@ The backup includes:
 | Connections | All saved SSH connections and groups |
 | Credentials | Stored usernames and passwords (encrypted) |
 | SSH keys | Centrally managed SSH private keys with encrypted passphrases |
+| Trusted interactive hosts | `ssh-host-keys.properties`, shared by Terminal, SFTP, and the Mosh SSH bootstrap; the transient `.lock` companion is not included |
 | GPG keys | GPG public keys for backup encryption |
 | Settings | Global application settings, terminal configurations, themes, and AI profiles |
 | JobScheduler jobs | All scheduled jobs, host-key pins, and encrypted sudo passwords |
@@ -90,6 +91,7 @@ Both `.zip` and `.gpg` backups contain the same files:
 * `connections.xml` — All SSH connections and groups
 * `credentials.xml` — Stored credentials (still encrypted with your master password)
 * `ssh-keys.xml` — SSH key references and encrypted passphrases
+* `ssh-host-keys.properties` — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (`ssh-host-keys.properties.lock` is intentionally excluded)
 * `gpg-keys.xml` — GPG public keys
 * `global-settings.xml` — Application settings, themes, AI profiles, terminal defaults
 * `job-scheduler.xml` — JobScheduler jobs, host-key pins, encrypted sudo passwords
@@ -132,7 +134,7 @@ To keep unlimited old backups, set **Maximum Backups** to `0` in **Settings → 
    * Leave **Overwrite** unchecked unless you want to replace existing connections
    * Restart KorTTY
 
-All backed-up connections, settings, snippets, saved chats, model registrations, and knowledge-source definitions will be available on machine B. Local model weights, runtime packages, source documents, and HNSW vectors must be restored or regenerated separately.
+All backed-up connections, settings, snippets, saved chats, interactive host-key trust decisions, model registrations, and knowledge-source definitions will be available on machine B. Restored host keys are still matched by normalized host name and port, so a changed key remains blocked after migration. Local model weights, runtime packages, source documents, and HNSW vectors must be restored or regenerated separately.
 
 ## Troubleshooting
 

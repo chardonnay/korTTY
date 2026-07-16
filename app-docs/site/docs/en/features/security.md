@@ -112,6 +112,12 @@ When creating or editing a connection:
 3. Select the desired key from the **SSH Keys** dropdown.
 4. The key path and passphrase are filled in automatically.
 
+## Interactive SSH host-key trust
+
+Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.
+
+Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
+
 ## GPG Key Management
 
 Manage GPG keys for backup encryption and connection/snippet export encryption.
@@ -138,15 +144,16 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 
 GPG-encrypted backups and exports are stored as `.gpg` files and require your system's `gpg` command and a usable public key for decryption.
 
-## Stored Secrets
+## Stored security data
 
-The following data is stored encrypted in `~/.kortty/`:
+The following sensitive and security-related data is stored in `~/.kortty/`; secret values are encrypted, while public verification material is not:
 
 | File | Contents | Encryption |
 |------|----------|------------|
 | `credentials.xml` | Stored username/password credentials | AES-256-GCM |
 | `ssh-keys.xml` | SSH key paths and encrypted passphrases | AES-256-GCM |
 | `connections.xml` | Connection passwords (inline) and key passphrases (if not using SSH key management) | AES-256-GCM |
+| `ssh-host-keys.properties` | Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections | Public verification data; not encrypted |
 | `job-scheduler.xml` | Scheduler sudo passwords and archive passwords; journal entries redact KorTTY-managed secrets | AES-256-GCM |
 | `master-password-hash` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
@@ -167,10 +174,11 @@ The following data is stored encrypted in `~/.kortty/`:
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups.
 - Limit key file permissions (e.g., `chmod 600`).
+- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
 
 ### JobScheduler
 
-- **Host-key Pinning**: Host keys are pinned by default for unattended SSH/SFTP/Rsync jobs to prevent man-in-the-middle attacks.
+- **Host-key Pinning**: Host keys are pinned by default for unattended SSH/SFTP/Rsync jobs to prevent man-in-the-middle attacks. These connection-ID pins are intentionally separate from the normalized endpoint pins used by interactive Terminal/SFTP sessions.
 - **Sudo Passwords**: Scheduler sudo passwords are encrypted and stored in `~/.kortty/job-scheduler.xml`.
 - **Journal Redaction**: Job journal entries redact KorTTY-managed secrets before persistence (redacted mode is the default; full mode stores unredacted output).
 
@@ -202,6 +210,7 @@ The following data is stored encrypted in `~/.kortty/`:
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation, silent exact match, hard block on change |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
 | Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
 | GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |
@@ -234,6 +243,7 @@ All KorTTY data is stored under `~/.kortty/`. Key security-related files:
 ├── ssh-keys.xml             # SSH key paths and encrypted passphrases
 ├── gpg-keys.xml             # GPG keys for backup/export encryption
 ├── connections.xml          # Connection passwords and key passphrases
+├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
 ├── global-settings.xml      # AI API keys and other encrypted settings
 ├── llm/models.xml           # Model paths and typed launch settings (no model contents)
 ├── llm/runtime/             # Regenerable native packages; excluded from backup

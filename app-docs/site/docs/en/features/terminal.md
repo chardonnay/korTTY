@@ -25,6 +25,14 @@ Manage multiple SSH sessions with these tab operations:
 | **Reconnect** | Right-click a tab, the terminal area, or a server entry in the Dashboard. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open. |
 | **Tab Groups** | Right-click a tab to assign it to a named group for better organization |
 
+## Connecting safely
+
+Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See [SSH host-key verification](connections.md#ssh-host-key-verification).
+
+Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.
+
+KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks `TerminalTextBuffer` for the non-existent row at `line == height`.
+
 ## Multi-window support
 
 Open additional windows to organize connections by project or environment:

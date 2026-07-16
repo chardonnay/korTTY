@@ -25,7 +25,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 
 | **Module** | **Purpose** | **Key Classes** |
 |---|---|---|
-| **core** | SSH connectivity, session management, AI integration, terminal automation | `SSHSession`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **core** | SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp process leases, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller` |
 | **rag** | Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
 | **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalPane`, `ConnectionDialog`, `SFTPManagerDialog`, `SnippetEditor` |
@@ -46,15 +46,17 @@ KorTTY uses **SithTermFX 1.2.1** as its primary terminal emulator, built from so
 - **OSC 8 hyperlinks**: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` limited to local host)
 - **Session integration**: Direct JAXB marshaling of terminal state for session recording and replay
 - **Color support**: Configurable ANSI and TrueColor handling with per-connection overrides
+- **Reviewed boundary fix**: A pinned korTTY patch rejects the non-existent row at `line == height` during hyperlink hit-testing, preventing bottom-row `TerminalTextBuffer` range errors
 
 ### Build Integration
 
 The build process automatically:
 
 1. Clones SithTermFX at tag `v1.2.1` into `vendor/sithtermfx` (no GitHub token required)
-2. Builds it locally using Maven via the `installSithtermfxLocal` task
-3. Installs artifacts to the local Maven repo (`mavenLocal()`)
-4. Links SithTermFX core and UI modules into the korTTY JAR
+2. Applies the reviewed `patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch` and fails if it neither applies nor already matches the source
+3. Builds it locally using Maven via the `installSithtermfxLocal` task
+4. Installs artifacts to the local Maven repo (`mavenLocal()`), including a marker that lets Gradle reject an unpatched cached UI JAR
+5. Links SithTermFX core and UI modules into the korTTY JAR
 
 No network access is needed after cloning; all build steps are deterministic and reproducible.
 
@@ -86,6 +88,7 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 │   ├── stores.json              # Knowledge-store and source configuration
 │   └── stores/                  # Regenerable local HNSW snapshots
 ├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
@@ -120,6 +123,7 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 | **Component** | **Responsibility** |
 |---|---|
 | `SSHSession` | Wraps Apache SSHD client and manages connection lifecycle |
+| `SshHostKeyTrustManager` | Shares normalized host:port TOFU pins across interactive Terminal, SFTP, and Mosh bootstrap connections with atomic, cross-process persistence |
 | `SSHKeyManager` | Centralized SSH key storage with encrypted passphrase support |
 | `Mosh4jTtyConnector` | Mosh protocol connector using the mosh4j library (dynamically loaded) |
 | `NativeMoshTtyConnector` | Native OS Mosh support (fallback) |
@@ -173,9 +177,9 @@ The UI layer is built on JavaFX and organized into logical components:
 
 ### Host Key Verification
 
-- **JobScheduler**: Requires pinned host-key fingerprints before unattended execution (SSH, SFTP, Rsync)
-- **Storage**: Host keys are stored in `job-scheduler.xml` with OpenSSH public-key material (needed for Rsync integration)
-- **Override**: Per-job override to disable verification when risk is explicitly accepted
+- **Interactive Terminal/SFTP/Mosh bootstrap**: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with **No** as the default; an exact match is silent, while a changed key is hard-blocked without retry.
+- **Interactive storage**: `ssh-host-keys.properties` stores public-key material through an atomic replacement guarded by both in-process and cross-process locks. Its transient `.lock` companion is not backed up.
+- **JobScheduler**: Unattended SSH, SFTP, and Rsync use separate connection-ID-based pins in `job-scheduler.xml`, including OpenSSH public-key material needed by Rsync. A per-job override can disable that verification only when the risk is explicitly accepted.
 
 ### Credential Management
 
@@ -228,7 +232,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 |---|---|---|---|
 | **SSH** | Apache SSHD (core, common, sftp) | 2.12.0 | SSH protocol implementation |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA key support |
-| **Terminal** | SithTermFX (core, ui) | 1.2.0 | Terminal emulator engine |
+| **Terminal** | SithTermFX (core, ui) | 1.2.1 plus pinned korTTY boundary patch | Terminal emulator engine |
 | | Lanterna | 3.1.2 | Text-based UI components |
 | | pty4j (JetBrains) | 0.12.25 | PTY allocation for Mosh |
 | **Data** | Jakarta XML Bind | 4.0 | JAXB serialization |
@@ -282,6 +286,10 @@ User Input (Quick Connect)
     ↓
 Connection Manager (lookup saved or new connection)
     ↓
+Worker-thread SSH handshake + progress UI
+    ↓
+Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
+    ↓
 SSHSession (Apache SSHD or Mosh4j connector)
     ↓
 Terminal Pane (SithTermFX rendering)
@@ -328,11 +336,13 @@ Menu-bar status displays next runs / live countdown
 - **JobScheduler journal**: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)
 - **Terminal history**: Compressed session logs in `~/.kortty/history/`
 - **Terminal recording**: Optional replay files in `~/.kortty/recordings/`
+- **Test isolation**: The test Logback configuration writes to its own console only and never creates or appends to the real user's `~/.kortty/logs`
 
 ## Thread Model
 
 - **UI Thread**: JavaFX application thread handles all rendering and user interaction
 - **SSH Session Threads**: One thread per active SSH connection (Apache SSHD pool)
+- **Split-connection handshake**: Same-server and newly selected split connections perform network setup on a worker while a JavaFX progress dialog keeps host-key and keyboard-interactive prompts responsive.
 - **Job Executor Threads**: Background thread pool for JobScheduler execution
 - **AI Chat Threads**: Background threads for API requests (non-blocking UI)
 - **AI catalog refresh**: The first catalog consumer gets verified cache/bootstrap data immediately and starts at most one background stable-channel refresh.
@@ -370,7 +380,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Master password**: Set a strong, unique password; it is never transmitted or logged
 2. **SSH keys**: Store in `~/.kortty/ssh-keys/` for backup inclusion; passphrases are encrypted
-3. **Host key pinning**: Enable before unattended JobScheduler execution
+3. **Host key verification**: Verify the OpenSSH SHA-256 fingerprint before accepting an interactive first-use prompt; keep host-key pinning enabled for unattended JobScheduler execution
 4. **Backup encryption**: Use password-protected ZIP or GPG encryption
 5. **AI profiles**: Prefer an integrated local GGUF model for sensitive data; verify the trust and data policy of every remote endpoint
 6. **Avoid logging secrets**: JobScheduler journal redacts stored secrets before persistence

@@ -139,9 +139,9 @@ The task chain downloads only the pinned commit archive, verifies its SHA-256, e
 
 ### Candidate detection, contract tests, and promotion
 
-`.github/workflows/llama-runtime.yml` checks upstream tags daily. A change opens a candidate PR that updates the source pin but does not publish it. Pull requests and manual builds run the native matrix; every artifact must start and report its version, the Linux CPU reference job additionally verifies unauthenticated rejection, authenticated model listing, completion, sleep/wake, JSON-schema chat completion, embeddings, and two simultaneously usable sidecars, and a pinned Qdrant 1.18.2 service runs the real vector-store contract.
+`.github/workflows/llama-runtime.yml` checks upstream tags daily. A change opens a candidate PR that updates the source pin but does not publish it. Pull requests and manual builds run the native matrix; every artifact must start and report its version, the Linux CPU reference job additionally verifies unauthenticated rejection, authenticated model listing, completion, sleep/wake, JSON-schema chat completion, embeddings, and two simultaneously usable sidecars, and a pinned Qdrant 1.18.2 service runs the real vector-store contract. The korTTY repository owns only candidate detection and source-side matrix validation: it has no stable-promotion action, cross-repository release token, or runtime signing private key.
 
-Stable publication is an explicit human-dispatched `main`-branch job using `LLAMA_RUNTIME_RELEASE_TOKEN` and `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM`. It runs only after the native matrix and Qdrant contract pass and enters the `llama-runtime-signing` GitHub environment, which must have required reviewers before production secrets are configured. It verifies the previous signed index, merges the reviewed descriptors into a cumulative `runtime-index-v1.json`, preserves/adds requested revoked IDs, writes its detached signature as `runtime-index-v1.sig`, and creates a new immutable runtime-only release; an existing runtime ID is never overwritten. Regular promotion is limited to once every seven days, while an audited security or model-support reason can override that cadence. The application installer therefore stays unchanged while a compatible native runtime can be promoted or withdrawn independently.
+Stable publication belongs to the public [chardonnay/kortty-llama-runtimes](https://github.com/chardonnay/kortty-llama-runtimes) repository. Its explicit human-dispatched workflow accepts the exact reviewed korTTY source commit, rebuilds the native matrix, runs authentication, chat/completion, embeddings, JSON-schema, sleep/wake, and parallel-sidecar smoke tests on every package, and runs the pinned Qdrant contract separately. After those checks it enters the protected `llama-runtime-signing` environment, verifies that `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM` matches the published trust root, verifies and extends the cumulative signed index, and creates an immutable runtime-only release with that repository's scoped `github.token`; no cross-repository personal access token is required. An existing runtime ID is never overwritten. Regular promotion is limited to once every seven days, while an audited security or model-support reason can override that cadence. The application installer therefore stays unchanged while a compatible native runtime can be promoted or withdrawn independently.
 
 ## Publish the model and prompt catalog
 
@@ -151,30 +151,28 @@ The reviewed canonical catalog is `ai-catalog/model-prompt-catalog-v1.json`. It 
 
 ### Embed the local-AI trust roots
 
-Every application release that may install runtimes or refresh the catalog must embed both Ed25519 **public** verification keys. Supply X.509/PEM public keys through the environment variables or their Gradle-property equivalents; never provide either signing private key to an application build.
+Every application release that may install runtimes or refresh the catalog must embed both Ed25519 **public** verification keys. The runtime-channel trust root is public, auditable, and pinned in `config/trust/llama-runtime-ed25519-public.pem`, so normal local builds use the same key as official packages. The catalog trust root is supplied separately. Never provide either signing private key to an application build.
 
-| Channel | Environment variable | Gradle property |
-| --- | --- | --- |
-| llama.cpp runtime | `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY` | `kortty.llamaRuntimePublicKey` |
-| Model/prompt catalog | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
+| Channel | Source default | Environment variable | Gradle property |
+| --- | --- | --- | --- |
+| llama.cpp runtime | `config/trust/llama-runtime-ed25519-public.pem` | Optional `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY`; must match the pinned key exactly | Optional `kortty.llamaRuntimePublicKey`; must match the pinned key exactly |
+| Model/prompt catalog | None | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
 
 The generated resources store the fixed channel URLs and public trust roots with the application:
 
 === "macOS / Linux"
     ```bash
-    export KORTTY_LLAMA_RUNTIME_PUBLIC_KEY="$(cat runtime-signing-public.pem)"
     export KORTTY_AI_CATALOG_PUBLIC_KEY="$(cat ai-catalog-signing-public.pem)"
     ./gradlew generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
 === "Windows PowerShell"
     ```powershell
-    $env:KORTTY_LLAMA_RUNTIME_PUBLIC_KEY = Get-Content .\runtime-signing-public.pem -Raw
     $env:KORTTY_AI_CATALOG_PUBLIC_KEY = Get-Content .\ai-catalog-signing-public.pem -Raw
     .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
-The official application-release workflow reads both names from GitHub Actions repository variables, rejects missing values or private-key material, and lets Gradle validate the X.509 Ed25519 keys before packaging. There is deliberately no source-tree fallback. Without the runtime key, an already trusted installed runtime remains usable but network installation/update fails before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.
+The official application-release workflow reads both names from GitHub Actions repository variables, rejects missing values or private-key material, and lets Gradle validate the X.509 Ed25519 keys before packaging. The runtime variable is a redundant CI identity check and must encode the same public key as the tracked PEM; a different override fails the build instead of replacing the trust root. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation/update fails closed before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.
 
 ## macOS
 

@@ -28,6 +28,8 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
 ├── master-password-hash               # Hashed master password (PBKDF2)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── kortty.log                         # Application log file
@@ -83,6 +85,12 @@ Manages centralized SSH key storage.
 
 !!! tip
     SSH keys referenced in this file can be kept in their original location or copied to `~/.kortty/ssh-keys/` for easy backup and migration via the *Copy to User Directory* action in SSH key management.
+
+### ssh-host-keys.properties
+
+The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically.
+
+Writes use a temporary file plus atomic replacement, while `ssh-host-keys.properties.lock` coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in `job-scheduler.xml`, which are keyed by connection ID for unattended operations.
 
 ### gpg-keys.xml
 Stores GPG key information for backup encryption.
@@ -340,6 +348,7 @@ Optional directory for copied SSH keys.
 | Master password | PBKDF2 hashing with 310,000 iterations |
 | Connection passwords | AES-256-GCM encryption |
 | SSH key passphrases | AES-256-GCM encryption |
+| Interactive Terminal/SFTP/Mosh host keys | Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection |
 | Credentials (username/password) | AES-256-GCM encryption |
 | JobScheduler sudo passwords | AES-256-GCM encryption |
 | JobScheduler journal entries | Redacted secrets before persistence |
@@ -365,6 +374,7 @@ When you create a backup via *Edit > Create Backup*, the following configuration
 - `projects/` directory
 - `i18n/` directory (generated language files)
 - `ssh-keys/` directory (if present)
+- `ssh-host-keys.properties` interactive host-key trust store (not its transient `.lock` file)
 - `snippets.xml` and related snippet data
 - `llm/models.xml` local-model registrations
 - `rag/stores.json` knowledge-store/source metadata
@@ -402,6 +412,9 @@ You can edit KorTTY configuration directly by:
 
 **Knowledge-store registry or snapshot cannot be read:**
 - Restore `rag/stores.json` from a backup or recreate the store in the AI Manager. Delete only the affected regenerable `index.hnsw`, then choose **Update now** to rebuild it from the configured source files.
+
+**Interactive SSH host key changed:**
+- Do not reconnect until you have verified the new OpenSSH SHA-256 fingerprint with the server administrator and ruled out DNS, routing, or man-in-the-middle problems. KorTTY deliberately blocks the mismatch without retrying or replacing the stored pin.
 
 **Plugin loading issues:**
 - Check `kortty.log` for error messages related to plugin loading (e.g., duplicate IDs, missing services, class loading errors).
