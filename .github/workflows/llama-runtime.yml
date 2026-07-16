@@ -140,6 +140,10 @@ jobs:
             platform: windows
             arch: x86_64
             backend: CPU
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            backend: VULKAN
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
@@ -197,14 +201,27 @@ jobs:
           "VULKAN_SDK=$vulkanSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$vulkanSdk\Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Materialize short Windows build path
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path C:\k) { cmd /c rmdir C:\k }
+          New-Item -ItemType Directory -Path C:\k | Out-Null
+          robocopy $env:GITHUB_WORKSPACE C:\k /E /XD .git build .gradle
+          if ($LASTEXITCODE -gt 7) { throw "robocopy failed with exit code $LASTEXITCODE" }
+          $global:LASTEXITCODE = 0
+
       - name: Build verified runtime package and descriptor
         shell: bash
-        run: ./gradlew generateLlamaRuntimeManifest -Pllama.backend=${{ matrix.backend }} --stacktrace
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
+          ./gradlew generateLlamaRuntimeManifest -Pllama.backend=${{ matrix.backend }} --stacktrace
 
       - name: Native link smoke on every platform/backend
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
           server="$(find build -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
           test -n "$server"
           "$server" --version
@@ -215,6 +232,7 @@ jobs:
           KORTTY_RUNTIME_BACKEND: ${{ matrix.backend }}
         run: |
           set -euo pipefail
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
           chat_model=build/llama-runtime/SmolLM2-135M-Instruct-Q2_K.gguf
           embedding_model=build/llama-runtime/stories260K.gguf
           curl --fail --location --retry 3 \
@@ -289,10 +307,20 @@ jobs:
             http://127.0.0.1:18080/v1/completions | jq -e '.choices | length == 1'
 
       - name: Upload immutable candidate package
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: llama-runtime-${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.backend }}
           path: build/llama-runtime/packages/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload immutable Windows candidate package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: llama-runtime-${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.backend }}
+          path: C:/k/build/llama-runtime/packages/*
           if-no-files-found: error
           retention-days: 14
 
