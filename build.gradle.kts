@@ -501,11 +501,32 @@ tasks.register<Exec>("installSithtermfxLocal") {
     if (jdkHome != null) {
         environment("JAVA_HOME", jdkHome)
     }
-    // SithTermFX declares maven.compiler.release=17, but Maven's implicit
-    // compiler-plugin 3.1 predates that property and otherwise falls back to
-    // source/target 1.5 on a clean Maven repository. Pass the equivalent
-    // source/target values explicitly so clean JDK 21/25 CI workers are
-    // reproducible as well as developer machines with a warm ~/.m2 cache.
+    // SithTermFX's inherited compiler-plugin is too old for clean JDK 21/25
+    // workers. Add the same pinned release-17 plugin used by release CI before
+    // invoking Maven; the source/target flags remain a compatibility fallback.
+    doFirst {
+        val pom = sithtermfxDir.asFile.resolve("pom.xml")
+        if (pom.isFile) {
+            val text = pom.readText()
+            if (!text.contains("<artifactId>maven-compiler-plugin</artifactId>")) {
+                val buildBlock = """    <build>
+                  <plugins>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-compiler-plugin</artifactId>
+                          <version>3.13.0</version>
+                          <configuration>
+                              <release>17</release>
+                          </configuration>
+                      </plugin>
+                  </plugins>
+              </build>
+
+"""
+                pom.writeText(text.replace("    <profiles>\n", buildBlock + "    <profiles>\n", 1))
+            }
+        }
+    }
     val mavenArguments = listOf(
         "-q",
         "-DskipTests",

@@ -187,9 +187,19 @@ jobs:
         run: brew install cmake ninja jq
 
       - name: Install native build dependencies (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.backend == 'VULKAN'
         shell: pwsh
-        run: choco install cmake ninja vulkan-sdk jq -y --no-progress
+        run: |
+          choco install cmake ninja vulkan-sdk jq -y --no-progress
+          $vulkanSdk = [Environment]::GetEnvironmentVariable("VULKAN_SDK", "Machine")
+          if ([string]::IsNullOrWhiteSpace($vulkanSdk)) {
+            $vulkanSdk = Get-ChildItem 'C:\VulkanSDK' -Directory | Sort-Object Name | Select-Object -Last 1 -ExpandProperty FullName
+          }
+          if (-not (Test-Path "$vulkanSdk\Bin\glslc.exe")) {
+            throw "Vulkan SDK installation is incomplete: $vulkanSdk"
+          }
+          "VULKAN_SDK=$vulkanSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vulkanSdk\Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build verified runtime package and descriptor
         shell: bash
