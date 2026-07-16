@@ -12,6 +12,12 @@ public class BackupManagerTest {
     }
 
     @Test
+    public void managedBackupFilesPreserveTrustedSshHostKeys() {
+        assertThat(BackupManager.managedBackupFiles()).contains("ssh-host-keys.properties");
+        assertThat(BackupManager.managedBackupFiles()).doesNotContain("ssh-host-keys.properties.lock");
+    }
+
+    @Test
     public void managedBackupFilesIncludeOnlyRegenerableLocalAiMetadata() {
         assertThat(BackupManager.managedBackupFiles()).containsAtLeast(
             "llm/models.xml",

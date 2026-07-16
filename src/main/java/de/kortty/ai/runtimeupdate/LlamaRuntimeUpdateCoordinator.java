@@ -14,10 +14,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Application-wide asynchronous coordinator for startup checks and explicit provisioning. */
 public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
 
+    private static final Logger logger = LoggerFactory.getLogger(LlamaRuntimeUpdateCoordinator.class);
     private static final Object DEFAULT_LOCK = new Object();
     private static volatile LlamaRuntimeUpdateCoordinator defaultInstance;
     private static final long IDLE_RETRY_SECONDS = 15L;
@@ -80,6 +83,7 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
         try {
             return provisioner.activeInstallation();
         } catch (IOException e) {
+            logger.warn("Could not read the active llama.cpp runtime installation", e);
             publish(new Status(State.FAILED, message(e), null, null));
             return Optional.empty();
         }
@@ -163,10 +167,12 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             return next;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            logger.warn("llama.cpp runtime update or installation was interrupted", e);
             Status failed = failureStatus("Runtime update was interrupted.");
             publish(failed);
             return failed;
         } catch (Exception e) {
+            logger.error("llama.cpp runtime update or installation failed", e);
             Status failed = failureStatus(message(e));
             publish(failed);
             return failed;
@@ -202,6 +208,7 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
                     pendingStatus.availablePackage(),
                     active.orElse(null)));
         } catch (Exception e) {
+            logger.error("Polling pending llama.cpp runtime activation failed", e);
             publish(failureStatus(message(e)));
         }
     }
@@ -213,6 +220,7 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
                 return new Status(State.REVOKED, detail, null, null, revokedRuntime.get());
             }
         } catch (IOException blockedStateFailure) {
+            logger.warn("Could not read the quarantined llama.cpp runtime state", blockedStateFailure);
             detail = detail + " (Could not read the quarantined runtime state: "
                 + message(blockedStateFailure) + ")";
         }

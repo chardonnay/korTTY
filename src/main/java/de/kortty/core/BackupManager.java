@@ -36,6 +36,7 @@ public class BackupManager {
         "global-settings.xml",
         "job-scheduler.xml",
         "master-password-hash",
+        SshHostKeyTrustManager.STORE_FILE_NAME,
         "snippets.xml",
         "snippet-variables.xml",
         "ai-chats.xml",

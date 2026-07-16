@@ -59,11 +59,15 @@ val llamaRuntimeIndexUrl =
 val llamaRuntimeSignatureUrl =
     "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.sig"
 
-// Release builds inject the Ed25519 *public* trust root. It deliberately has no source-tree
-// fallback: a build without the key can run local runtimes already installed by a trusted build,
-// but every network update/install attempt fails closed. Never put a private key in either input.
-val llamaRuntimePublicKey = providers.gradleProperty("kortty.llamaRuntimePublicKey")
+// The Ed25519 public trust root is intentionally tracked so local and packaged builds verify the
+// same signed runtime channel. It is public, auditable material; the private signing key must never
+// enter this repository. CI may inject the public key redundantly, but an override must match the
+// pinned file exactly so a compromised build environment cannot silently replace the trust root.
+val llamaRuntimePublicKeyFile = layout.projectDirectory.file("config/trust/llama-runtime-ed25519-public.pem")
+val pinnedLlamaRuntimePublicKey = providers.fileContents(llamaRuntimePublicKeyFile).asText.map { it.trim() }
+val llamaRuntimePublicKeyOverride = providers.gradleProperty("kortty.llamaRuntimePublicKey")
     .orElse(providers.environmentVariable("KORTTY_LLAMA_RUNTIME_PUBLIC_KEY"))
+val llamaRuntimePublicKey = llamaRuntimePublicKeyOverride.orElse(pinnedLlamaRuntimePublicKey)
 val generatedLlamaRuntimeConfigDirectory = layout.buildDirectory.dir("generated/llama-runtime-config")
 val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeReleaseConfig") {
     val outputFile = generatedLlamaRuntimeConfigDirectory.map {
@@ -76,23 +80,32 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
     inputs.property("indexUrl", llamaRuntimeIndexUrl)
     inputs.property("signatureUrl", llamaRuntimeSignatureUrl)
     inputs.property("publicKey", llamaRuntimePublicKey.orElse(""))
+    inputs.file(llamaRuntimePublicKeyFile)
     outputs.file(outputFile)
     doLast {
         val configuredKey = llamaRuntimePublicKey.orNull?.trim().orEmpty()
+        val pinnedKey = pinnedLlamaRuntimePublicKey.get().trim()
+        fun normalizedPublicKey(value: String): String = value
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace(Regex("\\s+"), "")
         if (configuredKey.contains("PRIVATE KEY", ignoreCase = true)) {
             throw GradleException("kortty.llamaRuntimePublicKey must contain an Ed25519 public key, never a private key.")
         }
-        if (configuredKey.isNotEmpty()) {
-            try {
-                val encoded = configuredKey
-                    .replace("-----BEGIN PUBLIC KEY-----", "")
-                    .replace("-----END PUBLIC KEY-----", "")
-                    .replace(Regex("\\s+"), "")
-                val decoded = Base64.getDecoder().decode(encoded)
-                KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(decoded))
-            } catch (error: Exception) {
-                throw GradleException("kortty.llamaRuntimePublicKey is not a valid X.509 Ed25519 public key.", error)
-            }
+        if (configuredKey.isEmpty()) {
+            throw GradleException("The pinned llama.cpp runtime Ed25519 public key is missing.")
+        }
+        if (llamaRuntimePublicKeyOverride.isPresent
+            && normalizedPublicKey(configuredKey) != normalizedPublicKey(pinnedKey)) {
+            throw GradleException(
+                "The injected llama.cpp runtime public key does not match config/trust/llama-runtime-ed25519-public.pem."
+            )
+        }
+        try {
+            val decoded = Base64.getDecoder().decode(normalizedPublicKey(configuredKey))
+            KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(decoded))
+        } catch (error: Exception) {
+            throw GradleException("kortty.llamaRuntimePublicKey is not a valid X.509 Ed25519 public key.", error)
         }
         fun propertyValue(value: String): String = value
             .replace("\\", "\\\\")
@@ -105,9 +118,7 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
             appendLine("baseline.apiContractVersion=$llamaRuntimeApiContractVersion")
             appendLine("stable.indexUrl=${propertyValue(llamaRuntimeIndexUrl)}")
             appendLine("stable.signatureUrl=${propertyValue(llamaRuntimeSignatureUrl)}")
-            if (configuredKey.isNotEmpty()) {
-                appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
-            }
+            appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
         }
         val file = outputFile.get().asFile.toPath()
         Files.createDirectories(file.parent)
@@ -383,6 +394,11 @@ tasks.named<JavaExec>("run") {
 
 val sithtermfxVersion = "1.2.1"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
+val sithtermfxPatchFile = layout.projectDirectory.file(
+    "patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch"
+)
+val sithtermfxPatchMarkerEntry = "META-INF/kortty-patches.properties"
+val sithtermfxPatchMarker = "terminal-panel-bottom-row-hyperlink-boundary=1"
 
 tasks.register("cloneSithtermfx") {
     group = "build"
@@ -414,12 +430,69 @@ tasks.register("cloneSithtermfx") {
     }
 }
 
+val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
+    group = "build"
+    description = "Apply korTTY's reviewed patches to the pinned SithTermFX source tree."
+    dependsOn("cloneSithtermfx")
+    inputs.file(sithtermfxPatchFile)
+    // Always validate the ignored vendor tree. A manually reverted source file must not be
+    // mistaken for a successfully patched clone merely because a previous output marker exists.
+    outputs.upToDateWhen { false }
+    doLast {
+        val vendorDir = sithtermfxDir.asFile
+        val patch = sithtermfxPatchFile.asFile
+
+        fun gitApplyCheck(reverse: Boolean): Boolean {
+            val command = mutableListOf("git", "apply", "--unidiff-zero")
+            if (reverse) command.add("--reverse")
+            command.add("--check")
+            command.add(patch.absolutePath)
+            return ProcessBuilder(command)
+                .directory(vendorDir)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start()
+                .waitFor() == 0
+        }
+
+        if (gitApplyCheck(reverse = false)) {
+            val process = ProcessBuilder("git", "apply", "--unidiff-zero", patch.absolutePath)
+                .directory(vendorDir)
+                .inheritIO()
+                .start()
+            if (process.waitFor() != 0) {
+                throw GradleException("Applying the pinned SithTermFX patch failed.")
+            }
+        } else if (!gitApplyCheck(reverse = true)) {
+            throw GradleException(
+                "The pinned SithTermFX patch neither applies cleanly nor matches the source tree. " +
+                    "Verify tag v$sithtermfxVersion before building."
+            )
+        }
+    }
+}
+
 val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/$sithtermfxVersion/sithtermfx-core-$sithtermfxVersion.jar")
+val mavenLocalSithtermfxUi = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-ui/$sithtermfxVersion/sithtermfx-ui-$sithtermfxVersion.jar")
+
+fun installedSithtermfxHasRequiredPatches(): Boolean {
+    if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
+    return try {
+        ZipFile(mavenLocalSithtermfxUi).use { archive ->
+            val marker = archive.getEntry(sithtermfxPatchMarkerEntry) ?: return false
+            archive.getInputStream(marker).bufferedReader().use { reader ->
+                reader.readText().lineSequence().any { it.trim() == sithtermfxPatchMarker }
+            }
+        }
+    } catch (_: Exception) {
+        false
+    }
+}
 
 tasks.register<Exec>("installSithtermfxLocal") {
     group = "build"
     description = "Build SithTermFX from source and install to local Maven repo (requires Maven)."
-    dependsOn("cloneSithtermfx")
+    dependsOn(applySithtermfxPatches)
     workingDir(sithtermfxDir)
     // Use SITHTERMFX_JDK_HOME or -Psithtermfx.jdkHome for Maven (CI may build SithTermFX in workflow instead)
     val jdkHome = project.findProperty("sithtermfx.jdkHome")?.toString()?.takeIf { it.isNotBlank() }
@@ -434,7 +507,7 @@ tasks.register<Exec>("installSithtermfxLocal") {
         commandLine("mvn", "-q", "-DskipTests", "install")
     }
     onlyIf {
-        sithtermfxDir.asFile.resolve("pom.xml").isFile && !mavenLocalSithtermfxCore.exists()
+        sithtermfxDir.asFile.resolve("pom.xml").isFile && !installedSithtermfxHasRequiredPatches()
     }
 }
 

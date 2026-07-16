@@ -1,6 +1,12 @@
 package de.kortty.core;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.core.Appender;
+import ch.qos.logback.core.ConsoleAppender;
+import ch.qos.logback.core.FileAppender;
 import de.kortty.model.GlobalSettings;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -8,11 +14,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import static com.google.common.truth.Truth.assertThat;
 
 class LoggingConfigurationTest {
+
+    @Test
+    void testRuntimeUsesConsoleOnlyLogging() {
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        Logger root = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        List<Appender<?>> appenders = new ArrayList<>();
+        Iterator<Appender<ch.qos.logback.classic.spi.ILoggingEvent>> iterator = root.iteratorForAppenders();
+        iterator.forEachRemaining(appenders::add);
+
+        assertThat(appenders.stream().anyMatch(ConsoleAppender.class::isInstance)).isTrue();
+        assertThat(appenders.stream().anyMatch(FileAppender.class::isInstance)).isFalse();
+    }
 
     @Test
     void defaultLogDirectoryIsLogsSubdirectoryOfConfigDir() throws Exception {

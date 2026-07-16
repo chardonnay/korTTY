@@ -1,0 +1,24 @@
+diff --git a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+index 5d03dd7..fc2da7b 100644
+--- a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
++++ b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+@@ -620,3 +620 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+-        if (cell != null && cell.getColumn() >= 0 && cell.getColumn() < myTerminalTextBuffer.getWidth()
+-                && cell.getLine() >= -myTerminalTextBuffer.getHistoryLinesCount()
+-                && cell.getLine() <= myTerminalTextBuffer.getHeight()) {
++        if (isCellInsideTextBuffer(cell, myTerminalTextBuffer)) {
+@@ -630,0 +629,7 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
++    static boolean isCellInsideTextBuffer(@Nullable Cell cell, @NotNull TerminalTextBuffer terminalTextBuffer) {
++        return cell != null
++                && cell.getColumn() >= 0 && cell.getColumn() < terminalTextBuffer.getWidth()
++                && cell.getLine() >= -terminalTextBuffer.getHistoryLinesCount()
++                && cell.getLine() < terminalTextBuffer.getHeight();
++    }
++
+diff --git a/sithtermfx-ui/src/main/resources/META-INF/kortty-patches.properties b/sithtermfx-ui/src/main/resources/META-INF/kortty-patches.properties
+new file mode 100644
+index 0000000..f82c631
+--- /dev/null
++++ b/sithtermfx-ui/src/main/resources/META-INF/kortty-patches.properties
+@@ -0,0 +1 @@
++terminal-panel-bottom-row-hyperlink-boundary=1
