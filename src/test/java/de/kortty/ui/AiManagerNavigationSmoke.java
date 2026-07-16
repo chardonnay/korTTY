@@ -1,13 +1,18 @@
 package de.kortty.ui;
 
+import de.kortty.ai.huggingface.HuggingFaceDownloadProgress;
+import de.kortty.ai.huggingface.HuggingFaceModel;
+import de.kortty.ai.huggingface.HuggingFaceModelFile;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -16,6 +21,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Transform;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -25,9 +31,13 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -77,6 +87,8 @@ public final class AiManagerNavigationSmoke {
             LanguageManager.getInstance().initialize(settings);
 
             dialog = new AiManagerDialog(null);
+            check(dialog.getModality() == Modality.NONE,
+                "AI Manager must be modeless so the main window remains usable");
             dialog.show();
 
             DialogPane dialogPane = dialog.getDialogPane();
@@ -98,6 +110,7 @@ public final class AiManagerNavigationSmoke {
 
             LocalModelManagerPane modelsPane = field(dialog, "localModelManagerPane");
             TextField searchField = field(modelsPane, "hubQuery");
+            configureDownloadDemo(modelsPane);
 
             dialogPane.applyCss();
             dialogPane.layout();
@@ -120,7 +133,8 @@ public final class AiManagerNavigationSmoke {
                     Region headerAfterFocusMove = selectedHeader(navigation);
                     check(bottomBorderWidth(headerAfterFocusMove) >= 2.0,
                         "selected tab lost its visible bottom marker after focus moved");
-                    snapshot(dialogPane);
+                    snapshot(dialogPane, "ai-manager-navigation.png");
+                    snapshot(modelsPane, "local-model-download-status.png");
                 } catch (Throwable error) {
                     failure.compareAndSet(null, stack(error));
                 } finally {
@@ -160,7 +174,56 @@ public final class AiManagerNavigationSmoke {
             .orElse(0);
     }
 
-    private static void snapshot(DialogPane pane) throws Exception {
+    private static void configureDownloadDemo(LocalModelManagerPane pane) throws Exception {
+        long gib = 1024L * 1024L * 1024L;
+        String revision = "0123456789abcdef0123456789abcdef01234567";
+        HuggingFaceModelFile selectedFile = new HuggingFaceModelFile(
+            "Qwen3-4B-Q4_K_M.gguf",
+            5L * gib / 2L,
+            "0".repeat(64),
+            URI.create("https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/" + revision
+                + "/Qwen3-4B-Q4_K_M.gguf"),
+            "Q4_K_M",
+            1,
+            1);
+        HuggingFaceModel demoModel = new HuggingFaceModel(
+            "bartowski/Qwen_Qwen3-4B-GGUF",
+            "bartowski",
+            revision,
+            "apache-2.0",
+            "qwen3",
+            40_960,
+            selectedFile.size(),
+            Set.of("Q4_K_M"),
+            List.of(selectedFile),
+            Set.of("gguf", "text-generation"),
+            false,
+            false,
+            1_250_000,
+            4_200,
+            Instant.parse("2026-07-01T12:00:00Z"));
+        ObservableList<HuggingFaceModel> models = field(pane, "hubModels");
+        models.setAll(demoModel);
+        ComboBox<String> quantization = field(pane, "quantization");
+        quantization.getItems().setAll("Q4_K_M");
+        quantization.setValue("Q4_K_M");
+        TextField query = field(pane, "hubQuery");
+        query.setText("qwen3");
+
+        pane.prepareDownloadStatus(demoModel.id(), "Q4_K_M", selectedFile.size());
+        pane.showDownloadProgress(new HuggingFaceDownloadProgress(
+            HuggingFaceDownloadProgress.Phase.DOWNLOADING,
+            selectedFile.path(),
+            1,
+            1,
+            gib + 256L * 1024L * 1024L,
+            selectedFile.size(),
+            18L * 1024L * 1024L,
+            java.time.Duration.ofMinutes(1).plusSeconds(47),
+            java.time.Duration.ofMinutes(1).plusSeconds(7)));
+    }
+
+    private static void snapshot(Node pane, String fileName) throws Exception {
         SnapshotParameters parameters = new SnapshotParameters();
         parameters.setFill(Color.web("#1e1e1e"));
         parameters.setTransform(Transform.scale(2, 2));
@@ -169,7 +232,7 @@ public final class AiManagerNavigationSmoke {
         check(nonBlackPixelRatio(buffered) >= 0.20,
             "AI Manager snapshot is mostly black; JavaFX did not render the dialog content");
 
-        File output = new File("build/smoke/ai-manager-navigation.png");
+        File output = new File("build/smoke", fileName);
         File parent = output.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
             throw new IllegalStateException("Cannot create snapshot directory: " + parent);

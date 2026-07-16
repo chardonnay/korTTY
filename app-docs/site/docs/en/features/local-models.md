@@ -12,7 +12,7 @@ Open **AI > AI Manager** and use these tabs:
 - **Local AI** assigns profiles to the Text/translation and Coding roles, selects the RAG embedding model, stores an optional Hugging Face token, and records the llama.cpp runtime-update policy.
 - **Profiles** creates an **Integrated llama.cpp** profile for an installed model and controls its prompt optimization preset.
 
-![Local Models with two stopped demo GGUF registrations](../assets/screenshots/ai/local-models.png)
+![Local Models showing a GGUF download with size, progress, transfer rate, and remaining time](../assets/screenshots/ai/local-models.png)
 
 !!! note "Storage and network access"
     Model inference stays on this computer. korTTY contacts Hugging Face only when you search for or download a model that you approve. Public repositories work without a token; an optional token for private or gated repositories is encrypted with the master password. Official builds can also fetch the separately signed model/prompt catalog over HTTPS in the background; no prompt, source document, or model weight is sent with that request.
@@ -55,7 +55,7 @@ Each catalog also carries a positive monotonic sequence. During refresh, korTTY 
 
 The Hugging Face browser searches GGUF repositories and shows repository, architecture, available quantizations, license, selected-quantization size, context length, and a hardware estimate. The lightweight search response contains filenames but not dependable per-file sizes, so korTTY automatically selects the first result and shows **Loading…** while it retrieves exact metadata for that repository's immutable revision. When you select another row, korTTY repeats this lookup and then updates both **Size** and **Hardware estimate**. The chosen quantization remains selected during this refresh. Projector, quantization-matrix, and speculative-decoding helper GGUFs are excluded from the downloadable language-model choices. Results use the Hub's cursor pagination. **Load more** continues the same search without discarding earlier results. Select a repository and quantization, review its license and size, then choose **Download and install**.
 
-korTTY installs only an immutable 40-character repository revision with exact GGUF metadata. Downloads use `.part` files, free-space checks, HTTP `Range` and `If-Range`, progress, speed and ETA, SHA-256 verification, and multipart GGUF ordering. You can pause, resume, or cancel; cancellation keeps the partial data needed for a later resume. An unpinned repository or a missing file checksum is rejected instead of silently installing mutable content.
+korTTY installs only an immutable 40-character repository revision with exact GGUF metadata. After you confirm the license and download size, a fixed **Model download** panel at the bottom identifies the repository and quantization, the current GGUF file and multipart shard, transferred and total bytes, elapsed time, transfer rate, and estimated remaining time. Its full-width progress bar and **Pause**/**Resume** and **Cancel** controls remain available while you continue to review the manager. Downloads use `.part` files, free-space checks, HTTP `Range` and `If-Range`, SHA-256 verification, and multipart GGUF ordering. Cancellation, including closing the AI Manager during a transfer, keeps the partial data needed for a later resume. An unpinned repository or a missing file checksum is rejected instead of silently installing mutable content.
 
 ## Import existing GGUF files
 

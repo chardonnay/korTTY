@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 
@@ -60,6 +61,23 @@ class LocalModelManagerPanePurposeTest {
             first.downloads(), first.likes(), first.lastModified());
 
         assertThat(LocalModelManagerPane.sameHubModel(first, newer)).isFalse();
+    }
+
+    @Test
+    void transferRatesUseReadableUnitsInsteadOfRoundingSmallRatesToZero() {
+        assertThat(LocalModelManagerPane.formatTransferRate(12L * 1024L))
+            .isEqualTo("12.0 KiB/s");
+        assertThat(LocalModelManagerPane.formatTransferRate(3L * 1024L * 1024L))
+            .isEqualTo("3.0 MiB/s");
+    }
+
+    @Test
+    void elapsedAndRemainingDurationsRetainHoursForLongDownloads() {
+        assertThat(LocalModelManagerPane.formatDuration(Duration.ofMinutes(2).plusSeconds(3)))
+            .isEqualTo("02:03");
+        assertThat(LocalModelManagerPane.formatDuration(
+            Duration.ofHours(1).plusMinutes(2).plusSeconds(3)))
+            .isEqualTo("01:02:03");
     }
 
     private static LlamaModel model(String id, Path weights, LlamaModelPurpose purpose) {

@@ -216,7 +216,9 @@ Open **AI > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
 ![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
-The AI Manager combines profile, local-inference, retrieval, and saved-chat management. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls:
+The AI Manager is a modeless window: you can keep it open while you continue working in the main window. Invoking **AI Manager** again restores and focuses the same manager for that main window instead of opening a duplicate. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls.
+
+The manager combines profile, local-inference, retrieval, and saved-chat management:
 
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
 * **Local Models** - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.

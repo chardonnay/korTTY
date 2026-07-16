@@ -95,7 +95,7 @@ KorTTY stores multiple named AI profiles, each with its own model, connection me
 
 An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md).
 
-The AI Manager keeps the open primary section visibly marked with a bold accent underline when you interact with controls inside that section.
+The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.
 
 ### Local AI manager settings
 

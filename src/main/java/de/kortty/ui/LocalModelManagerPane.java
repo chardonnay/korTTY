@@ -34,6 +34,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.rag.CancellationToken;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -84,7 +85,9 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /** Installed-model table, Hugging Face browser and resumable download controls. */
@@ -108,8 +111,13 @@ final class LocalModelManagerPane extends VBox {
     private final ComboBox<String> quantization = new ComboBox<>();
     private final Label runtimeLabel = new Label();
     private final Label status = new Label();
+    private final VBox downloadStatusPanel = new VBox(6);
+    private final Label downloadModelDetails = new Label();
+    private final Label downloadFileDetails = new Label();
+    private final Label downloadAmountDetails = new Label();
+    private final Label downloadTimingDetails = new Label();
     private final ProgressBar downloadProgress = new ProgressBar(0);
-    private final Label downloadDetails = new Label();
+    private final Button downloadModel = new Button();
     private final Button pauseDownload = new Button();
     private final Button cancelDownload = new Button();
     private final Button runtimeAction = new Button();
@@ -119,6 +127,9 @@ final class LocalModelManagerPane extends VBox {
     private HuggingFaceDownloadTask activeDownload;
     private boolean hubDownloadPreparing;
     private boolean downloadPaused;
+    private volatile boolean closed;
+    private final AtomicReference<HuggingFaceDownloadProgress> pendingDownloadProgress = new AtomicReference<>();
+    private final AtomicBoolean downloadProgressUpdateScheduled = new AtomicBoolean();
     private AutoCloseable runtimeStatusSubscription;
 
     LocalModelManagerPane(KorTTYApplication app, Window owner, Runnable modelsChanged) {
@@ -141,9 +152,10 @@ final class LocalModelManagerPane extends VBox {
         configureHubTable();
         VBox installed = buildInstalledSection();
         VBox hub = buildHubSection();
+        buildDownloadStatusPanel();
         VBox.setVgrow(installedTable, Priority.ALWAYS);
         VBox.setVgrow(hubTable, Priority.ALWAYS);
-        getChildren().addAll(intro, runtimeLabel, installed, hub, status);
+        getChildren().addAll(intro, runtimeLabel, installed, hub, status, downloadStatusPanel);
         VBox.setVgrow(installed, Priority.ALWAYS);
         VBox.setVgrow(hub, Priority.ALWAYS);
         runtimeStatusSubscription = runtimeCoordinator.addListener(update -> Platform.runLater(() -> {
@@ -198,7 +210,9 @@ final class LocalModelManagerPane extends VBox {
         HBox buttons = new HBox(8, runtimeAction, wizard, importModel, configure, start, stop, remove, refreshButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(7, title, installedTable, buttons);
-        box.setMinHeight(210);
+        box.minHeightProperty().bind(Bindings.when(downloadStatusPanel.visibleProperty())
+            .then(155d)
+            .otherwise(210d));
         return box;
     }
 
@@ -216,24 +230,52 @@ final class LocalModelManagerPane extends VBox {
 
         quantization.setPromptText(I18n.get("ai.local.models.quantization"));
         quantization.setPrefWidth(160);
-        Button download = new Button(I18n.get("ai.local.models.download"));
-        download.setOnAction(event -> downloadSelected());
+        downloadModel.setText(I18n.get("ai.local.models.download"));
+        downloadModel.setOnAction(event -> downloadSelected());
         pauseDownload.setText(I18n.get("ai.local.models.pause"));
         pauseDownload.setDisable(true);
         pauseDownload.setOnAction(event -> togglePause());
         cancelDownload.setText(I18n.get("ai.local.models.cancel"));
         cancelDownload.setDisable(true);
         cancelDownload.setOnAction(event -> cancelDownload());
-        downloadProgress.setPrefWidth(220);
-        downloadProgress.setVisible(false);
-        downloadDetails.setWrapText(true);
         HBox actions = new HBox(8, new Label(I18n.get("ai.local.models.quantization")), quantization,
-            download, pauseDownload, cancelDownload, downloadProgress);
+            downloadModel);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        VBox box = new VBox(7, title, searchBox, hubTable, actions, downloadDetails);
-        box.setMinHeight(230);
+        VBox box = new VBox(7, title, searchBox, hubTable, actions);
+        box.minHeightProperty().bind(Bindings.when(downloadStatusPanel.visibleProperty())
+            .then(175d)
+            .otherwise(230d));
         return box;
+    }
+
+    private void buildDownloadStatusPanel() {
+        Label title = sectionTitle(I18n.get("ai.local.models.download.panel.title"));
+        downloadModelDetails.setWrapText(true);
+        downloadModelDetails.setStyle("-fx-font-weight: bold;");
+        downloadFileDetails.setWrapText(true);
+        downloadAmountDetails.setWrapText(true);
+        downloadTimingDetails.setWrapText(true);
+        downloadProgress.setMaxWidth(Double.MAX_VALUE);
+        downloadProgress.setPrefWidth(640);
+        downloadProgress.setMinHeight(10);
+        downloadProgress.setPrefHeight(10);
+        HBox controls = new HBox(8, pauseDownload, cancelDownload);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        downloadStatusPanel.setSpacing(5);
+        downloadStatusPanel.setPadding(new Insets(8));
+        downloadStatusPanel.setStyle(
+            "-fx-border-color: -fx-box-border; -fx-border-radius: 4; -fx-background-radius: 4;");
+        downloadStatusPanel.getChildren().addAll(
+            title,
+            downloadModelDetails,
+            downloadFileDetails,
+            downloadProgress,
+            downloadAmountDetails,
+            downloadTimingDetails,
+            controls);
+        downloadStatusPanel.setVisible(false);
+        downloadStatusPanel.managedProperty().bind(downloadStatusPanel.visibleProperty());
     }
 
     private void configureInstalledTable() {
@@ -438,6 +480,7 @@ final class LocalModelManagerPane extends VBox {
             return;
         }
         hubDownloadPreparing = true;
+        downloadModel.setDisable(true);
         hubTable.setDisable(true);
         quantization.setDisable(true);
         status.setText(I18n.get("ai.local.models.search.running"));
@@ -446,7 +489,11 @@ final class LocalModelManagerPane extends VBox {
             ? CompletableFuture.completedFuture(selected)
             : hubDetailsFuture(selected);
         details.whenComplete((detailed, error) -> Platform.runLater(() -> {
+            if (closed || generation != hubSearchGeneration) {
+                return;
+            }
             hubDownloadPreparing = false;
+            downloadModel.setDisable(false);
             hubDetailsLoading.remove(hubModelKey(selected));
             hubTable.setDisable(false);
             quantization.setDisable(false);
@@ -462,6 +509,9 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void beginVerifiedDownload(HuggingFaceModel selected, String selectedQuantization) {
+        if (closed) {
+            return;
+        }
         if (!selected.hasPinnedRevision()) {
             show(Alert.AlertType.ERROR, I18n.get("ai.local.models.download.unpinned"));
             return;
@@ -483,6 +533,9 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void startVerifiedDownload(HuggingFaceModel selected, String selectedQuantization) {
+        if (closed) {
+            return;
+        }
         Path target = llmDirectory.resolve("models")
             .resolve(safeId(selected.id() + "-" + selectedQuantization + "-" + selected.revision().substring(0, 12)));
         HuggingFaceDownloadPlan plan;
@@ -492,18 +545,33 @@ final class LocalModelManagerPane extends VBox {
             show(Alert.AlertType.ERROR, message(error));
             return;
         }
+        prepareDownloadStatus(selected, selectedQuantization, plan.totalBytes());
         activeDownload = new HuggingFaceModelDownloader(tokenProvider()).downloadAsync(plan,
-            progress -> Platform.runLater(() -> showDownloadProgress(progress)));
+            this::queueDownloadProgress);
+        downloadModel.setDisable(true);
         pauseDownload.setDisable(false);
         cancelDownload.setDisable(false);
-        downloadProgress.setVisible(true);
         downloadPaused = false;
         activeDownload.completion().whenComplete((result, error) -> Platform.runLater(() -> {
+            HuggingFaceDownloadProgress latest = pendingDownloadProgress.getAndSet(null);
+            if (latest != null) {
+                showDownloadProgress(latest);
+            }
             pauseDownload.setDisable(true);
             cancelDownload.setDisable(true);
+            downloadModel.setDisable(false);
+            downloadPaused = false;
             activeDownload = null;
             if (error != null) {
-                status.setText(I18n.get("ai.local.models.download.failed") + ": " + message(rootCause(error)));
+                Throwable cause = rootCause(error);
+                if (cause instanceof CancellationException) {
+                    downloadFileDetails.setText(I18n.get("ai.local.models.download.cancelled"));
+                    status.setText(I18n.get("ai.local.models.download.cancelled"));
+                } else {
+                    String failure = I18n.get("ai.local.models.download.failed") + ": " + message(cause);
+                    downloadFileDetails.setText(failure);
+                    status.setText(failure);
+                }
                 return;
             }
             try {
@@ -517,6 +585,33 @@ final class LocalModelManagerPane extends VBox {
                 status.setText(I18n.get("ai.local.models.download.registerFailed") + ": " + message(registrationError));
             }
         }));
+    }
+
+    private void prepareDownloadStatus(
+        HuggingFaceModel model,
+        String selectedQuantization,
+        long totalBytes
+    ) {
+        prepareDownloadStatus(model.id(), selectedQuantization, totalBytes);
+    }
+
+    void prepareDownloadStatus(String modelId, String selectedQuantization, long totalBytes) {
+        pendingDownloadProgress.set(null);
+        downloadPaused = false;
+        downloadModel.setDisable(true);
+        pauseDownload.setDisable(false);
+        cancelDownload.setDisable(false);
+        pauseDownload.setText(I18n.get("ai.local.models.pause"));
+        downloadModelDetails.setText(I18n.get(
+            "ai.local.models.download.panel.model",
+            modelId, selectedQuantization));
+        downloadFileDetails.setText(I18n.get("ai.local.models.download.panel.preparing"));
+        downloadProgress.setProgress(0);
+        downloadAmountDetails.setText(I18n.get(
+            "ai.local.models.download.panel.amount", formatBytes(0), formatBytes(totalBytes)));
+        downloadTimingDetails.setText(I18n.get(
+            "ai.local.models.download.panel.metrics", formatDuration(Duration.ZERO), "—", "—"));
+        downloadStatusPanel.setVisible(true);
     }
 
     /** Runs the final assistant step against the actual local chat or embedding route. */
@@ -660,13 +755,66 @@ final class LocalModelManagerPane extends VBox {
         }
     }
 
-    private void showDownloadProgress(HuggingFaceDownloadProgress progress) {
+    private void queueDownloadProgress(HuggingFaceDownloadProgress progress) {
+        if (closed) {
+            return;
+        }
+        pendingDownloadProgress.set(progress);
+        scheduleDownloadProgressUpdate();
+    }
+
+    private void scheduleDownloadProgressUpdate() {
+        if (!downloadProgressUpdateScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        CompletableFuture.delayedExecutor(125, TimeUnit.MILLISECONDS).execute(() -> {
+            if (closed) {
+                downloadProgressUpdateScheduled.set(false);
+                pendingDownloadProgress.set(null);
+                return;
+            }
+            try {
+                Platform.runLater(() -> {
+                    downloadProgressUpdateScheduled.set(false);
+                    HuggingFaceDownloadProgress latest = pendingDownloadProgress.getAndSet(null);
+                    if (latest != null) {
+                        showDownloadProgress(latest);
+                    }
+                    if (pendingDownloadProgress.get() != null) {
+                        scheduleDownloadProgressUpdate();
+                    }
+                });
+            } catch (IllegalStateException ignored) {
+                downloadProgressUpdateScheduled.set(false);
+                pendingDownloadProgress.set(null);
+            }
+        });
+    }
+
+    void showDownloadProgress(HuggingFaceDownloadProgress progress) {
+        downloadStatusPanel.setVisible(true);
         downloadProgress.setProgress(progress.fraction());
-        String speed = progress.bytesPerSecond() > 0 ? formatBytes(progress.bytesPerSecond()) + "/s" : "—";
+        String phase = I18n.get("ai.local.models.download.phase."
+            + progress.phase().name().toLowerCase(Locale.ROOT));
+        String speed = formatTransferRate(progress.bytesPerSecond());
+        String elapsed = progress.elapsed() != null ? formatDuration(progress.elapsed()) : "—";
         String eta = progress.estimatedRemaining() != null ? formatDuration(progress.estimatedRemaining()) : "—";
-        downloadDetails.setText(I18n.get("ai.local.models.download.progress",
-            progress.phase(), progress.file() != null ? progress.file() : "", progress.fileIndex(),
-            progress.fileCount(), formatBytes(progress.downloadedBytes()), formatBytes(progress.totalBytes()), speed, eta));
+        String file = progress.file() != null && !progress.file().isBlank() ? progress.file() : "—";
+        downloadFileDetails.setText(I18n.get(
+            "ai.local.models.download.panel.file",
+            phase, file, progress.fileIndex(), progress.fileCount()));
+        downloadAmountDetails.setText(I18n.get(
+            "ai.local.models.download.panel.amount",
+            formatBytes(progress.downloadedBytes()), formatBytes(progress.totalBytes())));
+        downloadTimingDetails.setText(I18n.get(
+            "ai.local.models.download.panel.metrics", elapsed, speed, eta));
+        if (progress.phase() == HuggingFaceDownloadProgress.Phase.PAUSED) {
+            downloadPaused = true;
+            pauseDownload.setText(I18n.get("ai.local.models.resume"));
+        } else if (progress.phase() == HuggingFaceDownloadProgress.Phase.DOWNLOADING) {
+            downloadPaused = false;
+            pauseDownload.setText(I18n.get("ai.local.models.pause"));
+        }
     }
 
     private void togglePause() {
@@ -1347,7 +1495,9 @@ final class LocalModelManagerPane extends VBox {
 
     private void ensureRuntimeAvailable(Runnable continuation) {
         if (runtimeCoordinator.activeInstallation().isPresent()) {
-            continuation.run();
+            if (!closed) {
+                continuation.run();
+            }
             return;
         }
         if (!confirm(I18n.get("ai.local.models.runtime.required.confirm"))) {
@@ -1362,6 +1512,9 @@ final class LocalModelManagerPane extends VBox {
         runtimeAction.setDisable(true);
         runtimeCoordinator.installStable(backend != null ? backend : preferredRuntimeBackend())
             .whenComplete((result, error) -> Platform.runLater(() -> {
+            if (closed) {
+                return;
+            }
             updateRuntimeLabel();
             if (error != null) {
                 status.setText(I18n.get("ai.local.models.runtime.install.failed") + ": " + message(rootCause(error)));
@@ -1440,7 +1593,13 @@ final class LocalModelManagerPane extends VBox {
     }
 
     void close() {
+        closed = true;
         hubSearchGeneration++;
+        HuggingFaceDownloadTask download = activeDownload;
+        if (download != null) {
+            download.cancel();
+        }
+        pendingDownloadProgress.set(null);
         if (runtimeStatusSubscription != null) {
             try {
                 runtimeStatusSubscription.close();
@@ -1520,9 +1679,30 @@ final class LocalModelManagerPane extends VBox {
         return String.format(Locale.ROOT, "%.1f MiB", (double) bytes / (1024 * 1024));
     }
 
-    private static String formatDuration(Duration duration) {
+    static String formatTransferRate(long bytesPerSecond) {
+        if (bytesPerSecond <= 0) {
+            return "—";
+        }
+        if (bytesPerSecond >= GIB) {
+            return String.format(Locale.ROOT, "%.1f GiB/s", (double) bytesPerSecond / GIB);
+        }
+        if (bytesPerSecond >= 1024L * 1024L) {
+            return String.format(Locale.ROOT, "%.1f MiB/s", (double) bytesPerSecond / (1024L * 1024L));
+        }
+        if (bytesPerSecond >= 1024L) {
+            return String.format(Locale.ROOT, "%.1f KiB/s", (double) bytesPerSecond / 1024L);
+        }
+        return bytesPerSecond + " B/s";
+    }
+
+    static String formatDuration(Duration duration) {
         long seconds = Math.max(0, duration.toSeconds());
-        return String.format(Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60);
+        long hours = seconds / 3600;
+        long minutes = seconds % 3600 / 60;
+        if (hours > 0) {
+            return String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds % 60);
+        }
+        return String.format(Locale.ROOT, "%02d:%02d", minutes, seconds % 60);
     }
 
     private static String fallback(String value) {

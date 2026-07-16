@@ -17,11 +17,9 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -37,6 +35,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 /** Resumable, checksum-verifying downloader for single and multipart GGUF models. */
 public final class HuggingFaceModelDownloader {
@@ -108,19 +107,19 @@ public final class HuggingFaceModelDownloader {
         Objects.requireNonNull(controller, "controller");
         Consumer<HuggingFaceDownloadProgress> progress = progressListener == null
             ? NO_PROGRESS : progressListener;
-        Instant started = Instant.now();
+        TransferMetrics metrics = new TransferMetrics(System::nanoTime);
         Files.createDirectories(plan.targetDirectory());
         Path root = plan.targetDirectory().toRealPath(LinkOption.NOFOLLOW_LINKS);
         if (Files.isSymbolicLink(root)) {
             throw new IOException("Model download directory must not be a symbolic link.");
         }
 
+        long totalBytes = plan.totalBytes();
         try (DownloadLock ignored = acquireDownloadLock(root, plan, controller)) {
-            long totalBytes = plan.totalBytes();
             progress.accept(snapshot(
                 HuggingFaceDownloadProgress.Phase.CHECKING_SPACE,
-                null, 0, plan.files().size(), 0, totalBytes, 0, null));
-            checkDiskSpace(root, remainingBytes(plan, root));
+                null, 0, plan.files().size(), 0, totalBytes, 0, null, metrics));
+            checkDiskSpace(root, remainingBytes(plan, root, controller));
 
             List<Path> installed = new ArrayList<>();
             long completedBytes = 0;
@@ -128,10 +127,11 @@ public final class HuggingFaceModelDownloader {
             long resumedBytes = 0;
             for (int index = 0; index < plan.files().size(); index++) {
                 HuggingFaceModelFile file = plan.files().get(index);
+                int fileNumber = index + 1;
+                long completedBeforeCurrentFile = completedBytes;
                 if (controller.isCancelled()) {
-                    progress.accept(snapshot(
-                        HuggingFaceDownloadProgress.Phase.CANCELLED,
-                        file.path(), index + 1, plan.files().size(), completedBytes, totalBytes, 0, null));
+                    reportCancellation(
+                        progress, metrics, file.path(), index + 1, plan.files().size(), completedBytes, totalBytes);
                     throw new CancellationException("GGUF download cancelled.");
                 }
                 Path target = safeTarget(root, file.path());
@@ -139,14 +139,35 @@ public final class HuggingFaceModelDownloader {
                 Files.createDirectories(target.getParent());
                 rejectSymlinkPath(root, target);
 
+                boolean validTarget = false;
                 if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
-                    && Files.size(target) == file.size()
-                    && file.sha256().equals(sha256(target))) {
+                    && Files.size(target) == file.size()) {
+                    progress.accept(snapshot(
+                        HuggingFaceDownloadProgress.Phase.VERIFYING,
+                        file.path(), fileNumber, plan.files().size(),
+                        completedBeforeCurrentFile + file.size(), totalBytes, 0, null, metrics));
+                    try {
+                        validTarget = file.sha256().equals(sha256(
+                            target,
+                            controller,
+                            () -> progress.accept(snapshot(
+                                HuggingFaceDownloadProgress.Phase.PAUSED,
+                                file.path(), fileNumber, plan.files().size(),
+                                completedBeforeCurrentFile + file.size(), totalBytes, 0, null, metrics))));
+                    } catch (CancellationException e) {
+                        reportCancellation(
+                            progress, metrics, file.path(), index + 1, plan.files().size(),
+                            completedBytes, totalBytes);
+                        throw e;
+                    }
+                }
+                if (validTarget) {
                     completedBytes += file.size();
                     installed.add(target);
                     progress.accept(snapshot(
                         HuggingFaceDownloadProgress.Phase.COMPLETE,
-                        file.path(), index + 1, plan.files().size(), completedBytes, totalBytes, 0, Duration.ZERO));
+                        file.path(), index + 1, plan.files().size(), completedBytes, totalBytes,
+                        0, Duration.ZERO, metrics));
                     continue;
                 }
 
@@ -159,7 +180,7 @@ public final class HuggingFaceModelDownloader {
                     totalBytes,
                     controller,
                     progress,
-                    started);
+                    metrics);
                 completedBytes += file.size();
                 downloadedBytes += transfer.downloadedBytes();
                 resumedBytes += transfer.resumedBytes();
@@ -168,12 +189,17 @@ public final class HuggingFaceModelDownloader {
             progress.accept(snapshot(
                 HuggingFaceDownloadProgress.Phase.COMPLETE,
                 installed.isEmpty() ? null : installed.get(installed.size() - 1).getFileName().toString(),
-                installed.size(), installed.size(), totalBytes, totalBytes, 0, Duration.ZERO));
+                installed.size(), installed.size(), totalBytes, totalBytes,
+                0, Duration.ZERO, metrics));
             return new HuggingFaceDownloadResult(
                 installed,
                 downloadedBytes,
                 resumedBytes,
-                Duration.between(started, Instant.now()));
+                metrics.elapsed());
+        } catch (CancellationException e) {
+            reportCancellation(
+                progress, metrics, null, 0, plan.files().size(), 0, totalBytes);
+            throw e;
         }
     }
 
@@ -186,7 +212,7 @@ public final class HuggingFaceModelDownloader {
         long totalBytes,
         HuggingFaceDownloadController controller,
         Consumer<HuggingFaceDownloadProgress> progress,
-        Instant started
+        TransferMetrics metrics
     ) throws IOException, InterruptedException {
         Path partial = target.resolveSibling(target.getFileName() + ".part");
         Path metadata = target.resolveSibling(target.getFileName() + ".part.meta");
@@ -205,7 +231,8 @@ public final class HuggingFaceModelDownloader {
         if (existing == file.size()) {
             return verifyAndActivate(
                 file, target, partial, metadata, existing, 0,
-                fileIndex, plan.files().size(), completedBeforeFile, totalBytes, progress);
+                fileIndex, plan.files().size(), completedBeforeFile, totalBytes,
+                controller, progress, metrics);
         }
 
         long requestedOffset = existing;
@@ -217,7 +244,8 @@ public final class HuggingFaceModelDownloader {
             response.body().close();
             return verifyAndActivate(
                 file, target, partial, metadata, existing, 0,
-                fileIndex, plan.files().size(), completedBeforeFile, totalBytes, progress);
+                fileIndex, plan.files().size(), completedBeforeFile, totalBytes,
+                controller, progress, metrics);
         }
         if (status < 200 || status >= 300) {
             response.body().close();
@@ -249,16 +277,15 @@ public final class HuggingFaceModelDownloader {
                         plan.files().size(),
                         completedBeforeFile + offset,
                         totalBytes,
-                        downloadedThisRun,
-                        started));
+                        metrics));
                 }
                 if (!controller.awaitPermission()) {
-                    progress.accept(snapshot(
-                        HuggingFaceDownloadProgress.Phase.CANCELLED,
-                        file.path(), fileIndex + 1, plan.files().size(),
-                        completedBeforeFile + offset, totalBytes, 0, null));
+                    reportCancellation(
+                        progress, metrics, file.path(), fileIndex + 1, plan.files().size(),
+                        completedBeforeFile + offset, totalBytes);
                     throw new CancellationException("GGUF download cancelled.");
                 }
+                long transferStartedNanos = metrics.nanoTime();
                 int count = input.read(buffer);
                 if (count < 0) {
                     break;
@@ -266,6 +293,7 @@ public final class HuggingFaceModelDownloader {
                 output.write(buffer, 0, count);
                 offset += count;
                 downloadedThisRun += count;
+                metrics.recordTransfer(count, transferStartedNanos);
                 if (offset > file.size()) {
                     throw new IOException("GGUF response exceeded the advertised file size for " + file.path() + ".");
                 }
@@ -276,8 +304,7 @@ public final class HuggingFaceModelDownloader {
                     plan.files().size(),
                     completedBeforeFile + offset,
                     totalBytes,
-                    downloadedThisRun,
-                    started));
+                    metrics));
             }
         }
         if (offset != file.size()) {
@@ -286,7 +313,8 @@ public final class HuggingFaceModelDownloader {
         }
         return verifyAndActivate(
             file, target, partial, metadata, append ? requestedOffset : 0, downloadedThisRun,
-            fileIndex, plan.files().size(), completedBeforeFile, totalBytes, progress);
+            fileIndex, plan.files().size(), completedBeforeFile, totalBytes,
+            controller, progress, metrics);
     }
 
     private TransferResult verifyAndActivate(
@@ -300,24 +328,44 @@ public final class HuggingFaceModelDownloader {
         int fileCount,
         long completedBeforeFile,
         long totalBytes,
-        Consumer<HuggingFaceDownloadProgress> progress
-    ) throws IOException {
+        HuggingFaceDownloadController controller,
+        Consumer<HuggingFaceDownloadProgress> progress,
+        TransferMetrics metrics
+    ) throws IOException, InterruptedException {
         progress.accept(snapshot(
             HuggingFaceDownloadProgress.Phase.VERIFYING,
             file.path(), fileIndex + 1, fileCount,
-            completedBeforeFile + file.size(), totalBytes, 0, null));
-        String actual = sha256(partial);
+            completedBeforeFile + file.size(), totalBytes, 0, null, metrics));
+        long completed = completedBeforeFile + file.size();
+        Runnable pausedReporter = () -> progress.accept(snapshot(
+            HuggingFaceDownloadProgress.Phase.PAUSED,
+            file.path(), fileIndex + 1, fileCount,
+            completed, totalBytes, 0, null, metrics));
+        String actual;
+        try {
+            actual = sha256(partial, controller, pausedReporter);
+        } catch (CancellationException e) {
+            reportCancellation(
+                progress, metrics, file.path(), fileIndex + 1, fileCount,
+                completed, totalBytes);
+            throw e;
+        }
         if (!file.sha256().equals(actual)) {
             Files.deleteIfExists(partial);
             Files.deleteIfExists(metadata);
             throw new IOException("SHA-256 mismatch for " + file.path() + ".");
         }
-        fileActivator.activate(partial, target);
+        if (!controller.activateIfPermitted(() -> fileActivator.activate(partial, target))) {
+            reportCancellation(
+                progress, metrics, file.path(), fileIndex + 1, fileCount,
+                completed, totalBytes);
+            throw new CancellationException("GGUF download cancelled before activation.");
+        }
         Files.deleteIfExists(metadata);
         progress.accept(snapshot(
             HuggingFaceDownloadProgress.Phase.COMPLETE,
             file.path(), fileIndex + 1, fileCount,
-            completedBeforeFile + file.size(), totalBytes, 0, Duration.ZERO));
+            completedBeforeFile + file.size(), totalBytes, 0, Duration.ZERO, metrics));
         return new TransferResult(downloadedBytes, resumedBytes);
     }
 
@@ -494,13 +542,17 @@ public final class HuggingFaceModelDownloader {
         }
     }
 
-    private static long remainingBytes(HuggingFaceDownloadPlan plan, Path root) throws IOException {
+    private static long remainingBytes(
+        HuggingFaceDownloadPlan plan,
+        Path root,
+        HuggingFaceDownloadController controller
+    ) throws IOException, InterruptedException {
         long remaining = 0;
         for (HuggingFaceModelFile file : plan.files()) {
             Path target = safeTarget(root, file.path());
             if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
                 && Files.size(target) == file.size()
-                && file.sha256().equals(sha256(target))) {
+                && file.sha256().equals(sha256(target, controller, () -> { }))) {
                 continue;
             }
             Path partial = target.resolveSibling(target.getFileName() + ".part");
@@ -551,16 +603,35 @@ public final class HuggingFaceModelDownloader {
         }
     }
 
-    private static String sha256(Path path) throws IOException {
+    private static String sha256(
+        Path path,
+        HuggingFaceDownloadController controller,
+        Runnable pausedReporter
+    ) throws IOException, InterruptedException {
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 is unavailable.", e);
         }
-        try (InputStream raw = Files.newInputStream(path);
-             DigestInputStream input = new DigestInputStream(raw, digest)) {
-            input.transferTo(OutputStream.nullOutputStream());
+        try (InputStream input = Files.newInputStream(path)) {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            while (true) {
+                if (controller.isPaused()) {
+                    pausedReporter.run();
+                }
+                if (!controller.awaitPermission()) {
+                    throw new CancellationException("GGUF download cancelled during SHA-256 verification.");
+                }
+                int count = input.read(buffer);
+                if (count < 0) {
+                    break;
+                }
+                digest.update(buffer, 0, count);
+            }
+        }
+        if (controller.isCancelled()) {
+            throw new CancellationException("GGUF download cancelled during SHA-256 verification.");
         }
         return HexFormat.of().formatHex(digest.digest()).toLowerCase(Locale.ROOT);
     }
@@ -583,15 +654,53 @@ public final class HuggingFaceModelDownloader {
         int fileCount,
         long completed,
         long total,
-        long downloadedThisRun,
-        Instant started
+        TransferMetrics metrics
     ) {
-        long elapsedMillis = Math.max(1, Duration.between(started, Instant.now()).toMillis());
-        long bytesPerSecond = downloadedThisRun <= 0 ? 0 : downloadedThisRun * 1000 / elapsedMillis;
-        Duration eta = bytesPerSecond <= 0
-            ? null : Duration.ofSeconds(Math.max(0, (total - completed) / bytesPerSecond));
+        boolean paused = phase == HuggingFaceDownloadProgress.Phase.PAUSED;
+        long bytesPerSecond = paused ? 0 : metrics.bytesPerSecond();
+        Duration eta = paused ? null : metrics.estimatedRemaining(completed, total);
         return snapshot(
-            phase, file.path(), fileIndex + 1, fileCount, completed, total, bytesPerSecond, eta);
+            phase, file.path(), fileIndex + 1, fileCount,
+            completed, total, bytesPerSecond, eta, metrics);
+    }
+
+    private static void reportCancellation(
+        Consumer<HuggingFaceDownloadProgress> progress,
+        TransferMetrics metrics,
+        String file,
+        int fileIndex,
+        int fileCount,
+        long downloaded,
+        long total
+    ) {
+        if (!metrics.markCancellationReported()) {
+            return;
+        }
+        progress.accept(snapshot(
+            HuggingFaceDownloadProgress.Phase.CANCELLED,
+            file, fileIndex, fileCount, downloaded, total, 0, null, metrics));
+    }
+
+    private static void awaitPermissionOrCancel(
+        HuggingFaceDownloadController controller,
+        Runnable pausedReporter,
+        Consumer<HuggingFaceDownloadProgress> progress,
+        TransferMetrics metrics,
+        String file,
+        int fileIndex,
+        int fileCount,
+        long downloaded,
+        long total
+    ) throws InterruptedException {
+        if (controller.isPaused()) {
+            pausedReporter.run();
+        }
+        if (controller.awaitPermission()) {
+            return;
+        }
+        reportCancellation(
+            progress, metrics, file, fileIndex, fileCount, downloaded, total);
+        throw new CancellationException("GGUF download cancelled during SHA-256 verification.");
     }
 
     private static HuggingFaceDownloadProgress snapshot(
@@ -602,13 +711,85 @@ public final class HuggingFaceModelDownloader {
         long downloaded,
         long total,
         long bytesPerSecond,
-        Duration eta
+        Duration eta,
+        TransferMetrics metrics
     ) {
         return new HuggingFaceDownloadProgress(
-            phase, file, fileIndex, fileCount, downloaded, total, bytesPerSecond, eta);
+            phase, file, fileIndex, fileCount, downloaded, total,
+            bytesPerSecond, metrics.elapsed(), eta);
     }
 
     private record TransferResult(long downloadedBytes, long resumedBytes) {
+    }
+
+    /** Cumulative transfer metrics shared by every shard in one download plan. */
+    static final class TransferMetrics {
+        private static final long NANOS_PER_SECOND = Duration.ofSeconds(1).toNanos();
+
+        private final LongSupplier nanoTime;
+        private final long startedNanos;
+        private long activeTransferNanos;
+        private long transferredBytes;
+        private boolean cancellationReported;
+
+        TransferMetrics(LongSupplier nanoTime) {
+            this.nanoTime = Objects.requireNonNull(nanoTime, "nanoTime");
+            this.startedNanos = nanoTime.getAsLong();
+        }
+
+        long nanoTime() {
+            return nanoTime.getAsLong();
+        }
+
+        void recordTransfer(long bytes, long transferStartedNanos) {
+            if (bytes <= 0) {
+                return;
+            }
+            long activeNanos = Math.max(1L, nanoTime() - transferStartedNanos);
+            transferredBytes = saturatedAdd(transferredBytes, bytes);
+            activeTransferNanos = saturatedAdd(activeTransferNanos, activeNanos);
+        }
+
+        Duration elapsed() {
+            return Duration.ofNanos(Math.max(0L, nanoTime() - startedNanos));
+        }
+
+        long bytesPerSecond() {
+            if (transferredBytes <= 0 || activeTransferNanos <= 0) {
+                return 0;
+            }
+            double rate = (double) transferredBytes * NANOS_PER_SECOND / activeTransferNanos;
+            return rate >= Long.MAX_VALUE ? Long.MAX_VALUE : Math.max(1L, (long) rate);
+        }
+
+        Duration estimatedRemaining(long completedBytes, long totalBytes) {
+            long speed = bytesPerSecond();
+            long remainingBytes = Math.max(0L, totalBytes - completedBytes);
+            if (speed <= 0) {
+                return null;
+            }
+            long seconds = remainingBytes / speed;
+            if (remainingBytes % speed != 0) {
+                seconds++;
+            }
+            return Duration.ofSeconds(seconds);
+        }
+
+        boolean markCancellationReported() {
+            if (cancellationReported) {
+                return false;
+            }
+            cancellationReported = true;
+            return true;
+        }
+
+        private static long saturatedAdd(long left, long right) {
+            try {
+                return Math.addExact(left, right);
+            } catch (ArithmeticException ignored) {
+                return Long.MAX_VALUE;
+            }
+        }
     }
 
     @FunctionalInterface

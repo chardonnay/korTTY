@@ -2300,6 +2300,14 @@ tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
+    group = "verification"
+    description = "Renders synthetic local-model download progress and verifies the fixed bottom status panel."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LocalModelDownloadStatusSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("guideAskPanelSmoke") {
     group = "verification"
     description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png."

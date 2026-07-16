@@ -1,5 +1,6 @@
 package de.kortty.ai.huggingface;
 
+import java.io.IOException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -71,5 +72,31 @@ public final class HuggingFaceDownloadController {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Runs the irreversible activation step only if cancellation has not won the race.
+     * Cancellation and activation are linearized under the same lock: once activation begins,
+     * completion wins and a concurrent cancellation applies only to subsequent work.
+     */
+    boolean activateIfPermitted(Activation activation) throws IOException, InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            while (paused && !cancelled) {
+                changed.await();
+            }
+            if (cancelled) {
+                return false;
+            }
+            activation.run();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @FunctionalInterface
+    interface Activation {
+        void run() throws IOException;
     }
 }

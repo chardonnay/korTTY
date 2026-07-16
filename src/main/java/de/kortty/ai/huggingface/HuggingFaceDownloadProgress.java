@@ -11,6 +11,7 @@ public record HuggingFaceDownloadProgress(
     long downloadedBytes,
     long totalBytes,
     long bytesPerSecond,
+    Duration elapsed,
     Duration estimatedRemaining
 ) {
     public enum Phase {

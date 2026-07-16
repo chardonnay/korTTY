@@ -262,6 +262,7 @@ public class MainWindow {
 
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
     private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
+    private AiManagerDialog aiManagerDialog;
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -7642,12 +7643,41 @@ public class MainWindow {
             return;
         }
         try {
+            if (aiManagerDialog != null) {
+                if (aiManagerDialog.isShowing()) {
+                    bringAiManagerToFront(aiManagerDialog);
+                    return;
+                }
+                aiManagerDialog = null;
+            }
+
             AiManagerDialog dialog = new AiManagerDialog(this);
             dialog.initOwner(stage);
-            dialog.showAndWait();
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                if (aiManagerDialog == dialog) {
+                    aiManagerDialog = null;
+                }
+            });
+            aiManagerDialog = dialog;
+            dialog.show();
+            bringAiManagerToFront(dialog);
         } catch (Exception e) {
+            if (aiManagerDialog != null && !aiManagerDialog.isShowing()) {
+                aiManagerDialog = null;
+            }
             logger.error("Failed to open AI Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private static void bringAiManagerToFront(AiManagerDialog dialog) {
+        Window window = dialog.getDialogPane().getScene() != null
+            ? dialog.getDialogPane().getScene().getWindow()
+            : null;
+        if (window instanceof Stage managerStage) {
+            managerStage.setIconified(false);
+            managerStage.toFront();
+            managerStage.requestFocus();
         }
     }
 

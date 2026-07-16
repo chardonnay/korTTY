@@ -67,6 +67,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -148,6 +149,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     public AiManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
         this.app = KorTTYApplication.getInstance();
+        initModality(Modality.NONE);
         setTitle(I18n.get("ai.manager.title"));
         setHeaderText(I18n.get("ai.manager.header"));
         setResizable(true);
