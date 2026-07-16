@@ -14,7 +14,7 @@ hide:
 
 # korTTY-Anleitung
 
-<p class="kt-tagline"> Die vollständige Referenz für korTTY – ein moderner, plattformübergreifender JavaFX-SSH-Client mit Tab-Terminals, SFTP-Tools, einem Hintergrund-Job-Scheduler, Snippet-Management, Terminal-Effekt-Plugins und OpenAI-kompatibler KI-Unterstützung. Alle Funktionen, Einstellungen und Tools werden ausführlich erklärt.
+<p class="kt-tagline"> Die vollständige Referenz für korTTY – ein moderner, plattformübergreifender JavaFX-SSH-Client mit Tab-Terminals, SFTP-Tools, einem Hintergrund-Job-Scheduler, Snippet-Management, Terminal-Effekt-Plugins, integrierter lokaler GGUF-Inferenz und OpenAI-kompatibler KI-Unterstützung. Alle Funktionen, Einstellungen und Tools werden ausführlich erklärt.
 </p>
 
 <span class="kt-badge">Drücken Sie F1 in korTTY, um diese Anleitung zu öffnen</span>
@@ -51,7 +51,19 @@ hide:
 
     Profile, Fähigkeiten, der KI-Manager und die Tools des Terminal-KI-Agenten.
 
-    [:octicons-arrow-right-24: Verbindungen & AI](features/connections.md)
+    [:octicons-arrow-right-24: KI-Assistent](features/ai-assistant.md)
+
+-   :material-brain: __Lokale Modelle__
+
+    Installieren, importieren, leiten und führen Sie private GGUF-Modelle mit integriertem llama.cpp aus.
+
+    [:octicons-arrow-right-24: Lokale Modelle](features/local-models.md)
+
+-   :material-database-search: __RAG Wissensspeicher__
+
+    Überprüfen Sie Dateien oder Ordner, erstellen Sie einen sicheren lokalen HNSW-Index und fügen Sie zitierten Kontext zu KI-Profilen hinzu.
+
+    [:octicons-arrow-right-24: Wissensspeicher](features/rag.md)
 
 -   :material-history: __Was ist neu__
 

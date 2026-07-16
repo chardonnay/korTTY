@@ -127,6 +127,7 @@ final class ThemeCssSupport {
             ".tab:selected { -fx-background-color: " + bg + "; }",
             ".tab .tab-label { -fx-text-fill: " + fg + "; }",
             ".tab:selected .tab-label { -fx-text-fill: " + fgBright + "; }",
+            ".ai-manager-primary-tab:selected { -fx-border-color: " + accent + "; -fx-border-width: 0 0 3 0; }",
             ".tab-close-button { -fx-background-color: " + border + "; }",
             ".scroll-pane { -fx-background-color: " + bg + "; -fx-background: " + bg + "; }",
             ".scroll-pane .viewport { -fx-background-color: " + bg + "; }",

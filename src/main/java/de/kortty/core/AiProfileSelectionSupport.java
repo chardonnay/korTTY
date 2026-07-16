@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiWorkload;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,59 @@ public final class AiProfileSelectionSupport {
         }
         AiProfile configuredDefault = findById(profiles, defaultProfileId);
         return configuredDefault != null ? configuredDefault : profiles.getFirst();
+    }
+
+    /**
+     * Resolves the configured role profile and falls back to the normal default. Explicit and
+     * connection-specific selections are handled by callers before invoking this method.
+     */
+    public static AiProfile workloadProfile(
+        List<AiProfile> profiles,
+        AiWorkload workload,
+        String textProfileId,
+        String codingProfileId,
+        String defaultProfileId) {
+
+        String roleProfileId = workload == AiWorkload.CODING ? codingProfileId : textProfileId;
+        AiProfile roleProfile = findById(profiles, roleProfileId);
+        return roleProfile != null ? roleProfile : defaultProfile(profiles, defaultProfileId);
+    }
+
+    /**
+     * Applies the complete per-action routing order used by interactive snippet tools: explicit
+     * selection, dedicated security profile, connection profile, workload role, then default.
+     */
+    public static AiProfile actionProfile(
+        List<AiProfile> profiles,
+        String explicitProfileId,
+        boolean securityAction,
+        String securityProfileId,
+        String connectionProfileId,
+        AiWorkload workload,
+        String textProfileId,
+        String codingProfileId,
+        String defaultProfileId) {
+
+        AiProfile selected = findById(profiles, explicitProfileId);
+        if (selected != null) {
+            return selected;
+        }
+        if (securityAction) {
+            selected = findById(profiles, securityProfileId);
+            if (selected != null) {
+                return selected;
+            }
+        }
+        selected = findById(profiles, connectionProfileId);
+        if (selected != null) {
+            return selected;
+        }
+        return workloadProfile(
+            profiles,
+            workload != null ? workload : AiWorkload.TEXT,
+            textProfileId,
+            codingProfileId,
+            defaultProfileId);
     }
 
     public static List<AiProfile> reorderByRequestedOrDefault(

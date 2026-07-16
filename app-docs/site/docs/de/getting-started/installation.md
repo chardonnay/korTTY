@@ -24,6 +24,20 @@ Einige Funktionen rufen externe Programme nur auf, wenn Sie sie verwenden:
 | JobScheduler Rsync | Lokal `rsync` und `ssh` in `PATH` oder ein konfigurierter `rsync` Binärpfad |
 | Terminal-Videoexport | Lokal `ffmpeg` in `PATH` oder ein in **Tools → Video Manager** konfigurierter Pfad |
 
+## Optional integrierte lokale KI
+
+Das Basispaket korTTY enthält bewusst weder Modellgewichte noch eine native llama.cpp-Laufzeit. Wenn Sie integrierte lokale KI aktivieren, werden verifizierte Laufzeitpakete unabhängig unter `~/.kortty/llm/runtime/` installiert und GGUF-Modelle werden unter `~/.kortty/llm/models/` heruntergeladen oder importiert (oder von einem von Ihnen gewählten Pfad referenziert). Dadurch bleibt das normale SSH-Client-Installationsprogramm klein und llama.cpp erhält kompatible stabile Updates, ohne die gesamte Anwendung zu ersetzen.
+
+| Plattform | Laufzeitpakete |
+| --- | --- |
+| macOS arm64 / x86_64 | CPU und Metal |
+| Windows x86_64 | CPU und Vulkan |
+| Linux x86_64 / arm64 | CPU und Vulkan |
+
+CUDA ist nicht Teil der ersten Laufzeitmatrix. Wählen Sie unter **AI Manager > Lokale KI** das bevorzugte Laufzeit-Backend aus: Auto/CPU/Metal unter macOS oder Auto/CPU/Vulkan unter Windows/Linux. Automatisch wählt Metal bei einer ersten macOS-Installation und CPU an anderer Stelle aus und behält dann das aktive Backend für Updates bei. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Möglichkeit, das passende signierte Paket zu installieren. Laufzeit- und Modell-Downloads können mehrere Gigabyte groß sein. Überprüfen Sie daher vor der Installation den freien Speicherplatz und den verfügbaren RAM/VRAM.
+
+Öffnen Sie nach der Installation von korTTY **AI > AI Manager > Lokale Modelle > Einrichtungsassistent**. Es überprüft den Datenschutz, erkennt Speicher, empfiehlt Text-/Codierungs-/Einbettungs-GGUF-Modelle, zeigt die Repository-Lizenz und die genaue Größe an, überprüft den unveränderlichen Download, weist Rollen zu und führt einen echten lokalen Chat oder Einbettungsfunktionstest durch. Wenn keine Laufzeit aktiv ist, akzeptieren Sie die Installationsaufforderung für die signierte Laufzeit oder wählen Sie **Laufzeit installieren** auf derselben Registerkarte aus, bevor Sie einen GGUF importieren. Die Kontextlänge des Hubs bleibt sichtbar, während neue Modelle konservativ bei 4.096 Laufzeittokens beginnen, bis Sie **Konfigurieren > Kontextgröße** ändern. Offizielle Pakete können Empfehlungen und Zuordnungen von Eingabeaufforderungsfamilien aus einem separaten signierten Katalog aktualisieren; Ein Build ohne dieses Katalog-Trust-Root bleibt mit seinem Offline-Bootstrap vollständig nutzbar. Sehen [Lokale Modelle mit llama.cpp](../features/local-models.md) Und [RAG-Wissensspeicher](../features/rag.md).
+
 ## Erstellen Sie Ihr eigenes Paket
 
 Für die Erstellung aus dem Quellcode sind ein vollständiges JDK und Plattform-Paketierungstools erforderlich. Der spezielle Anleitung behandelt die Thin JAR-, Java ZIP/TAR-Distributionen, eigenständige tragbare App-Images und native Installationsprogramme für jedes unterstützte Betriebssystem, einschließlich Intel macOS-Builds, Signierung und Beglaubigung.

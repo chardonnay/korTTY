@@ -24,6 +24,20 @@ Some features call external programs only when you use them:
 | JobScheduler Rsync | Local `rsync` and `ssh` in `PATH`, or a configured `rsync` binary path |
 | Terminal video export | Local `ffmpeg` in `PATH`, or a path configured in **Tools → Video Manager** |
 
+## Optional integrated local AI
+
+The base korTTY package deliberately contains neither model weights nor a native llama.cpp runtime. When you enable integrated local AI, verified runtime packages are installed independently under `~/.kortty/llm/runtime/` and GGUF models are downloaded or imported under `~/.kortty/llm/models/` (or referenced from a path you choose). This keeps the normal SSH client installer small and lets llama.cpp receive compatible stable updates without replacing the whole application.
+
+| Platform | Runtime packages |
+| --- | --- |
+| macOS arm64 / x86_64 | CPU and Metal |
+| Windows x86_64 | CPU and Vulkan |
+| Linux x86_64 / arm64 | CPU and Vulkan |
+
+CUDA is not part of the first runtime matrix. Under **AI Manager > Local AI**, choose the preferred runtime backend: Auto/CPU/Metal on macOS or Auto/CPU/Vulkan on Windows/Linux. Auto selects Metal on a first macOS installation and CPU elsewhere, then keeps the active backend for updates. Starting a model configured for another supported GPU backend offers to install the matching signed package. Runtime and model downloads can be several gigabytes, so verify free disk space and available RAM/VRAM before installation.
+
+After installing korTTY, open **AI > AI Manager > Local Models > Setup assistant**. It reviews privacy, detects memory, recommends Text/Coding/embedding GGUF models, shows the repository license and exact size, verifies the immutable download, assigns roles, and runs a real local chat or embedding function test. If no runtime is active, accept the signed-runtime installation prompt, or choose **Install runtime** in the same tab before importing a GGUF. The Hub's context length remains visible, while new models start conservatively at 4,096 runtime tokens until you change **Configure > Context size**. Official packages can refresh recommendations and prompt-family mappings from a separate signed catalog; a build without that catalog trust root stays fully usable with its offline bootstrap. See [Local models with llama.cpp](../features/local-models.md) and [RAG knowledge stores](../features/rag.md).
+
 ## Build your own package
 
 Building from source requires a complete JDK and platform packaging tools. The dedicated guide covers the thin JAR, Java ZIP/TAR distributions, self-contained portable app images and native installers for every supported operating system, including Intel macOS builds, signing and notarization.

@@ -38,7 +38,9 @@ public class BackupManager {
         "master-password-hash",
         "snippets.xml",
         "snippet-variables.xml",
-        "ai-chats.xml");
+        "ai-chats.xml",
+        "llm/models.xml",
+        "rag/stores.json");
     
     private final Path configDir;
     private final GlobalSettings settings;
@@ -135,7 +137,7 @@ public class BackupManager {
         
         // Add all config files
         for (String fileName : MANAGED_BACKUP_FILES) {
-            addFileToPasswordZip(zipFile, configDir.resolve(fileName), zipParameters);
+            addFileToPasswordZip(zipFile, configDir.resolve(fileName), fileName, zipParameters);
         }
         
         // Add projects directory if exists
@@ -147,10 +149,17 @@ public class BackupManager {
         logger.info("Created password-protected backup");
     }
     
-    private void addFileToPasswordZip(ZipFile zipFile, Path file, ZipParameters parameters) throws Exception {
+    private void addFileToPasswordZip(
+        ZipFile zipFile,
+        Path file,
+        String entryName,
+        ZipParameters parameters
+    ) throws Exception {
         if (Files.exists(file)) {
-            zipFile.addFile(file.toFile(), parameters);
-            logger.debug("Added to backup: {}", file.getFileName());
+            ZipParameters fileParameters = new ZipParameters(parameters);
+            fileParameters.setFileNameInZip(entryName.replace('\\', '/'));
+            zipFile.addFile(file.toFile(), fileParameters);
+            logger.debug("Added to backup: {}", entryName);
         }
     }
     

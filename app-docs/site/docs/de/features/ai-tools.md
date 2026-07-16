@@ -12,6 +12,9 @@ Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
 
+!!! important "RAG ist explizit für autonomes Arbeiten "
+    Wissensspeicher, die normalen Text-/Codierungsanfragen zugewiesen sind, erweitern nicht automatisch den Kontext des Terminal AI Agent, der Planung, des Schwarms oder des geplanten Jobs. Diese autonomen Flüsse erfordern ein explizites RAG-Opt-in; siehe [RAG Wissensspeicher](rag.md). Dadurch wird verhindert, dass ein Hintergrundworkflow indizierte lokale Quellen liest, nur weil dasselbe Modellprofil für den interaktiven Chat verwendet wird.
+
 ## Befehlsvarianten
 
 Der Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter **Einstellungen > AI** aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:
@@ -101,7 +104,7 @@ Auf Terminals ausgerichtete Agentenausführungen verwenden ein Inline-Aktivität
 - **AI-Profilzeile** – Jedes Laufprotokoll beginnt mit einem `AI profile: <name> (<model>)`-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.
 - **Modellbegründung** – Durch Erweitern einer 💭-Denkzeile wird die vollständige Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (Anthropisches erweitertes Denken, wenn der Begründungsaufwand des Profils aktiviert ist, OpenAI-kompatibles `reasoning_content`, LM Studio-Begründungsausgabe oder `<think>`-Blöcke von lokalen CLI-Modellen). Modelle ohne offengelegte Begründung behalten die kurze Entscheidungszusammenfassung bei.
 - **Statusleiste** – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Ausführungsaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und der Schaltfläche „Erweitern“ angezeigt. Während der Agent arbeitet, wird ein Spinner angezeigt. Eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.
-- **Reduziert halten** – Verwenden Sie **Reduziert halten**, um das Bedienfeld minimiert zu starten und minimiert zu halten, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.
+- **Reduziert bleiben** – Verwenden Sie **Reduziert halten**, damit das Panel minimiert startet und minimiert bleibt, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.
 - **Größenänderung** – Ziehen Sie den Größenänderungsgriff, um die Panelhöhe zu ändern. Aktivieren Sie **Größe merken**, um Höhe und Schriftgröße bei Anwendungsneustarts beizubehalten.
 - **Parallele Splits** – Verschiedene Splits können ihre eigenen Agentenaufgaben parallel ausführen; Jeder Split verfügt über ein eigenes Aktivitätsfenster.
 - **Schriftartsteuerung** – Verwenden Sie **A−** und **A+**, um die Schriftgröße der Aktivität zu ändern.

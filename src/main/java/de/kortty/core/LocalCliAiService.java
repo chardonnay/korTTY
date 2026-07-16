@@ -71,6 +71,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         String systemPrompt = skillPromptSupport.appendChatSkills(
             AiPromptBuilder.buildSystemPrompt(request),
             request);
+        systemPrompt = AiPromptPipeline.appendAfterSkills(systemPrompt, request);
         return executePromptInternal(systemPrompt, AiPromptBuilder.buildUserPrompt(request), requestTimeout);
     }
 

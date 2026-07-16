@@ -777,6 +777,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             AiPromptBuilder.buildSystemPrompt(request),
             request,
             skillClassifier);
+        systemPrompt = AiPromptPipeline.appendAfterSkills(systemPrompt, request);
         system.addProperty("content", includeInternetRules ? AiInternetPromptSupport.appendRules(systemPrompt) : systemPrompt);
         messages.add(system);
 

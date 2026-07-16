@@ -11,7 +11,7 @@ Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Systemsprache | Text | — | Systemgebietsschema | — |
-| Übersetzungs-API | Dropdown | Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate | Google Translate | `translationApiProvider` |
+| Übersetzungs-API | Dropdown-Liste | Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, lokales AI-Textprofil | Google Translate | `translationApiProvider` |
 | API-Schlüssel | Text | — | — | `encryptedTranslationApiKey` |
 | API-URL (optional) | Text | — | — (null = Anbieterstandard verwenden) | `translationApiUrl` |
 | API-Verbindung testen | Schaltfläche | — | — | — |
@@ -27,5 +27,9 @@ Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY
 !!! note
     **Generierte Sprachen:** In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.
 
+## Lokale Übersetzung
+
+Wählen Sie **Lokales AI-Textprofil**, um über das eingebettete llama.cpp-Profil zu übersetzen, das der Text-/Übersetzungsrolle in **AI > AI Manager > Lokale KI** zugewiesen ist. API-URL und API-Schlüssel sind für diesen Anbieter deaktiviert, da der authentifizierte Loopback-Endpunkt von korTTY verwaltet wird. Das lokale Modell muss ein striktes JSON `translations`-Array mit der gleichen Anzahl und Reihenfolge der Eingabezeichenfolgen zurückgeben; Eine ungültige Ausgabe stoppt die Generierung, anstatt UI-Beschriftungen stillschweigend falsch auszurichten.
+
 !!! warning
-    **API-Schlüssel erforderlich:** Um die Verbindung zu testen oder eine Sprachdatei zu generieren, muss ein API-Schlüssel für den von Ihnen gewählten Übersetzungsanbieter eingegeben werden. Mit der Schaltfläche „API-Verbindung testen“ wird überprüft, ob Anbieter und Schlüssel korrekt sind, bevor versucht wird, eine Datei zu generieren.
+    **Anmeldeinformationen:** Externe Anbieter benötigen ihren normalen API-Schlüssel, mit Ausnahme eines LibreTranslate-Endpunkts, der explizit ohne diesen konfiguriert ist. Lokale KI erfordert keinen Übersetzungsanbieterschlüssel, aber ihr GGUF-Modell und die llama.cpp-Laufzeit müssen installiert sein und der Master-Passwort-Tresor muss entsperrt werden, wenn das ausgewählte AI-Profil ein verschlüsseltes Geheimnis benötigt.

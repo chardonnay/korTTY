@@ -26,6 +26,8 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **Module** | **Purpose** | **Key Classes** |
 |---|---|---|
 | **core** | SSH connectivity, session management, AI integration, terminal automation | `SSHSession`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp process leases, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller` |
+| **rag** | Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
 | **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalPane`, `ConnectionDialog`, `SFTPManagerDialog`, `SnippetEditor` |
 | **model** | Domain objects for connections, credentials, snippets, jobs | `Connection`, `Credential`, `Snippet`, `JobScheduleEntry` |
 | **jobscheduler** | Background job scheduling and execution | `JobScheduler`, `JobExecutor`, `JobJournal` |
@@ -58,12 +60,12 @@ No network access is needed after cloning; all build steps are deterministic and
 
 ## Persistence and Configuration
 
-KorTTY stores all configuration, credentials, and session state in XML files under `~/.kortty/` using JAXB (Jakarta XML Binding). This approach ensures:
+KorTTY stores its main configuration, credentials, and session state under `~/.kortty/`, primarily as JAXB XML. Local-model registration also uses JAXB XML, while knowledge-store configuration is strict JSON and the local vector graph is a regenerable binary snapshot. This approach ensures:
 
 - **Portability**: Easy manual inspection and migration across systems
 - **Encryption**: Sensitive data (passwords, SSH key passphrases, master password hash) is encrypted with AES-256-GCM
 - **Atomic writes**: File updates use temporary files and atomic rename to prevent corruption on crash
-- **No database**: Self-contained; no separate database server or migration overhead
+- **No required database**: Local HNSW is self-contained; Qdrant is an optional second vector backend
 
 ### Configuration File Structure
 
@@ -74,6 +76,15 @@ KorTTY stores all configuration, credentials, and session state in XML files und
 ├── ssh-keys.xml                 # SSH key references and encrypted passphrases
 ├── gpg-keys.xml                 # GPG key management for backup encryption
 ├── global-settings.xml          # Application-wide settings (theme, language, AI profiles)
+├── llm/
+│   ├── models.xml               # Local GGUF registrations and typed launch settings
+│   ├── models/                  # Managed GGUF weights (regenerable; excluded from backup)
+│   ├── runtime/                 # Versioned native llama.cpp packages
+│   ├── catalog/                 # Regenerable signature-verified catalog cache
+│   └── run/                     # Temporary sidecar key files and logs
+├── rag/
+│   ├── stores.json              # Knowledge-store and source configuration
+│   └── stores/                  # Regenerable local HNSW snapshots
 ├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
@@ -119,7 +130,10 @@ KorTTY stores all configuration, credentials, and session state in XML files und
 | **Component** | **Responsibility** |
 |---|---|
 | `AiChatManager` | Manages AI chat sessions and conversation history |
-| `AiCliProviderRegistry` | Maps AI profile configurations to provider endpoints (OpenAI, Anthropic, LM Studio) |
+| `AiServiceFactory` | Maps a profile to HTTP, Anthropic, local CLI, or embedded llama.cpp transport, then adds prompt presets and optional RAG |
+| `AiCatalogService` | Returns a reverified cache/bootstrap immediately and schedules one signed stable-channel refresh for recommendations and preset-family mappings |
+| `LlamaRuntimeManager` | Shares one isolated authenticated sidecar per compatible GGUF configuration and grants reference-counted request leases |
+| `RagAugmentedAiService` | Retrieves bounded excerpts for ordinary AI actions and adds the untrusted context before the model preset |
 | `TerminalAgentService` | Executes agent workflows: probes SSH session, sends task to model, validates/executes commands |
 | `AiInternetAccessConfiguration` | Configures web tools (Tavily, Brave Search, SearXNG, etc.) per profile |
 | `AiChatExportService` | Exports AI chats to Markdown, PDF, YAML, JSON, XML, Asciidoctor |
@@ -143,6 +157,8 @@ The UI layer is built on JavaFX and organized into logical components:
 | `ConnectionDialog` | Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.) |
 | `SFTPManagerDialog` | Dual-panel file manager for local and remote file operations |
 | `SnippetEditor` | Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts |
+| `LocalModelManagerPane` | Searches/downloads/imports GGUF files and controls concurrent llama.cpp sidecars |
+| `RagKnowledgeStorePane` | Creates knowledge stores, previews sources, displays persisted indexing state, synchronizes them, and runs retrieval tests |
 | `JobSchedulerDialog` | Job creation, scheduling, and journal inspection |
 | `QuickConnectDialog` | Fast connection search and frequently-used connection shortcuts |
 
@@ -166,6 +182,18 @@ The UI layer is built on JavaFX and organized into logical components:
 - **Environment-specific**: Credentials can be scoped to Production, Development, Test, or Staging
 - **Glob patterns**: Server patterns like `*.example.com` or `10.0.0.*` automatically match connections
 - **Stored encrypted**: All credential passwords use AES-256-GCM
+
+### Embedded AI and RAG isolation
+
+- Each embedded model process binds only to `127.0.0.1` on a random port and requires a generated API key stored in an owner-only temporary file.
+- The fixed llama.cpp launch command enables offline mode and disables the web UI, agent, UI MCP proxy, and slots endpoint; inherited `LLAMA_ARG_*` and Hugging Face token variables are removed.
+- Hugging Face tokens and AI profile API keys are encrypted with the master password. Model downloads are pinned to an immutable revision and verified with SHA-256.
+- RAG accepts only centrally allowlisted, content-validated text. Retrieved excerpts are bounded and wrapped as explicitly untrusted data so indexed instructions cannot replace korTTY's system/action contract.
+- Runtime update indexes are verified as exact bytes with Ed25519 before package URLs are parsed; packages also have signed size/SHA-256 metadata and safe ZIP extraction limits.
+- Runtime withdrawals are persisted before process shutdown through a runtime-root denylist plus package marker. Active pointers and unsafe rollback-history entries are removed, registered models are rebound to a non-executable quarantine marker, and the launch path rechecks the marker so stale registry state cannot revive a withdrawn binary.
+- A package that passes the lightweight version health check remains pending until its first real GGUF-backed authenticated API start. `LlamaRuntimeFirstLaunchRecovery` confirms it on readiness or restores the newest healthy non-revoked installation and model bindings after a start failure.
+- The independent model/prompt catalog has its own Ed25519 trust root and strict schema. Its cache is reverified before use; a missing key disables both cache trust and network refresh and selects the compiled bootstrap.
+- Remote Qdrant uses HTTPS, with plain HTTP restricted to a loopback test/local service.
 
 ## Plugin System
 
@@ -217,12 +245,15 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | zxcvbn | 1.9.0 | Password strength (offline) |
 | **Logging** | SLF4J / Logback | 2.0.9 / 1.4.14 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
+| **Local AI** | llama.cpp `llama-server` | Source-pinned runtime package | Local GGUF chat-completions and embeddings sidecar |
 
 ### Dynamic Dependencies
 
 - **mosh4j**: Its five SHA-256-pinned, architecture-specific release JARs and protobuf are bundled in native builds and dynamically loaded only when Mosh is needed. The child loader reuses Bouncy Castle from the application parent instead of shipping a second copy.
 - **rsync / ssh**: External commands used by JobScheduler Rsync jobs
 - **ffmpeg**: Optional; used for terminal recording video export
+- **llama.cpp runtime**: Downloaded independently under `~/.kortty/llm/runtime/`; CPU packages cover every supported platform, Metal is available on macOS, and Vulkan is available for supported Windows/Linux targets. It is never folded into the base installer.
+- **Qdrant**: Optional external vector service. Remote endpoints require HTTPS; HTTP is loopback-only. Local HNSW is dependency-free and remains the default knowledge-store backend.
 
 ## Build Process
 
@@ -233,6 +264,8 @@ KorTTY relies on carefully curated, production-tested dependencies:
 3. **External formatter payload**: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.
 4. **Clean native staging**: `prepareJpackage` uses a final Gradle `Sync`, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.
 5. **Native packaging and gates**: The selected Gradle JDK 25 toolchain supplies `jpackage` for .app/.dmg, .exe/.msi, .deb and .rpm output. `scripts/package-size-report.py` emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.
+6. **llama.cpp runtime packaging**: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only `llama-server` plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The daily runtime workflow opens candidate PRs; every platform/backend runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected `llama-runtime-signing` environment with required reviewers gates manual stable promotion from `main`.
+7. **Model/prompt catalog promotion**: A separate manual `main`-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected `ai-catalog-signing` environment without a preview channel.
 
 ### Classpath and Module Path
 
@@ -261,11 +294,13 @@ Dashboard (status display, job monitor)
 ```
 Selected Terminal Text
     ↓
-AI Action (Summarize / Solve Problem / Ask)
+AI Action + deterministic Text/Coding role
     ↓
-AiChatManager (prepare request with profile/model)
+AI profile (HTTP / CLI / embedded GGUF)
     ↓
-AiCliProviderRegistry (map to endpoint: OpenAI, Claude, LM Studio, etc.)
+Action contract → AI Skills → optional bounded RAG → model preset
+    ↓
+AiServiceFactory (remote provider, local CLI, or runtime lease)
     ↓
 AI Response Tab (render with follow-up composer)
     ↓
@@ -300,6 +335,11 @@ Menu-bar status displays next runs / live countdown
 - **SSH Session Threads**: One thread per active SSH connection (Apache SSHD pool)
 - **Job Executor Threads**: Background thread pool for JobScheduler execution
 - **AI Chat Threads**: Background threads for API requests (non-blocking UI)
+- **AI catalog refresh**: The first catalog consumer gets verified cache/bootstrap data immediately and starts at most one background stable-channel refresh.
+- **Local-model provisioning**: Setup-assistant metadata inspection, signed runtime installation, resumable GGUF download/verification, registration, and real chat/embedding tests run on background futures; JavaFX receives only progress and final state updates. Text/Coding/RAG assignments are persisted after every selected model passes.
+- **llama.cpp sidecars**: One native process per compatible loaded GGUF configuration; different models can load and generate concurrently, while leases keep active requests from being stopped. Runtime-configuration saves first request an idle stop and are rejected while a lease is busy.
+- **RAG workers**: Source previews, extraction, embedding batches, and HNSW candidate builds run outside the JavaFX thread; a daemon WatchService thread debounces automatic source changes. The pane permits only one active scan/index operation and returns the reviewed preview to JavaFX before configuration or indexing changes.
+- **RAG coordinator**: One serialized worker and watcher per store prevents overlapping writes, reconciles Automatic sources during application startup independently of credential/JobScheduler startup, persists source hashes/counts/status, and reloads UI state after completion.
 - **File I/O Threads**: Async writes for history, journal, and recordings
 - **Web formatter requests**: Background callers are serialized with one total timeout; creation, loading and invocation of the lazy Prettier/SQL WebView remain confined to the JavaFX application thread, and failures discard the engine generation.
 - **Mermaid render requests**: Background callers receive `CompletableFuture` results while all access to the single lazy renderer WebView stays on the JavaFX application thread. Requests are serialized; cancellation, a 30-second timeout, or a WebEngine error discards the engine generation, and idle cleanup releases the hidden WebView.
@@ -332,5 +372,5 @@ Menu-bar status displays next runs / live countdown
 2. **SSH keys**: Store in `~/.kortty/ssh-keys/` for backup inclusion; passphrases are encrypted
 3. **Host key pinning**: Enable before unattended JobScheduler execution
 4. **Backup encryption**: Use password-protected ZIP or GPG encryption
-5. **AI profiles**: Prefer local LM Studio endpoints for sensitive data; verify trust of remote endpoints
+5. **AI profiles**: Prefer an integrated local GGUF model for sensitive data; verify the trust and data policy of every remote endpoint
 6. **Avoid logging secrets**: JobScheduler journal redacts stored secrets before persistence

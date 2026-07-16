@@ -29,10 +29,12 @@ import de.kortty.core.LocalLmModelResolver;
 import de.kortty.core.AiSkillMarkdownCodec;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.AiPromptService;
 import de.kortty.core.FailingAiService;
 import de.kortty.core.GoogleTranslationService;
 import de.kortty.core.DeepLTranslationService;
 import de.kortty.core.LibreTranslateTranslationService;
+import de.kortty.core.LocalAiTranslationService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.YandexTranslationService;
@@ -1271,7 +1273,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             TranslationApiProvider.DEEPL,
             TranslationApiProvider.LIBRETRANSLATE,
             TranslationApiProvider.MICROSOFT,
-            TranslationApiProvider.YANDEX
+            TranslationApiProvider.YANDEX,
+            TranslationApiProvider.LOCAL_AI_PROFILE
         );
         translationProviderCombo.setConverter(new javafx.util.StringConverter<TranslationApiProvider>() {
             @Override
@@ -1283,6 +1286,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     case LIBRETRANSLATE: return I18n.get("settings.translation.provider.libretranslate");
                     case MICROSOFT: return I18n.get("settings.translation.provider.microsoft");
                     case YANDEX: return I18n.get("settings.translation.provider.yandex");
+                    case LOCAL_AI_PROFILE: return I18n.get("settings.translation.provider.localAi");
                     default: return p.name();
                 }
             }
@@ -1308,6 +1312,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             translationApiUrlField.setText(globalSettings.getTranslationApiUrl());
         }
         translationGrid.add(translationApiUrlField, 1, transRow++);
+        translationProviderCombo.valueProperty().addListener((obs, oldProvider, newProvider) -> {
+            boolean localAi = newProvider == TranslationApiProvider.LOCAL_AI_PROFILE;
+            translationApiKeyField.setDisable(localAi);
+            translationApiUrlField.setDisable(localAi);
+        });
+        boolean localAiTranslation = translationProviderCombo.getValue() == TranslationApiProvider.LOCAL_AI_PROFILE;
+        translationApiKeyField.setDisable(localAiTranslation);
+        translationApiUrlField.setDisable(localAiTranslation);
         Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
         testConnectionButton.setOnAction(e -> testTranslationConnection());
         translationGrid.add(testConnectionButton, 1, transRow++);
@@ -3691,9 +3703,34 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             case YANDEX:
                 if (key == null || key.isEmpty()) return null;
                 return new YandexTranslationService(key, urlTrimmed);
+            case LOCAL_AI_PROFILE:
+                return createLocalAiTranslationService();
             default:
                 return key != null && !key.isEmpty() ? new GoogleTranslationService(key, urlTrimmed) : null;
         }
+    }
+
+    private TranslationService createLocalAiTranslationService() {
+        if (globalSettings == null) {
+            return null;
+        }
+        AiProfile profile = AiProfileSelectionSupport.workloadProfile(
+            globalSettings.getAiProfiles(),
+            de.kortty.model.AiWorkload.TEXT,
+            globalSettings.getTextAiProfileId(),
+            globalSettings.getCodingAiProfileId(),
+            globalSettings.getDefaultAiProfileId());
+        if (profile == null || profile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            return null;
+        }
+        AiService service = AiServiceFactory.create(
+            profile,
+            null,
+            AiInternetAccessConfiguration.disabled(),
+            AiSkillPromptSupport.disabled());
+        return service instanceof AiPromptService promptService
+            ? new LocalAiTranslationService(promptService)
+            : null;
     }
 
     private String getTranslationApiKeyPlain() {
@@ -3713,7 +3750,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void testTranslationConnection() {
         TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
         String key = getTranslationApiKeyPlain();
         if (!keyOptional && (key == null || key.isEmpty())) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
@@ -5323,7 +5361,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void generateTranslationFile(Button generateButton) {
         TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
         String key = getTranslationApiKeyPlain();
         if (!keyOptional && (key == null || key.isEmpty())) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();

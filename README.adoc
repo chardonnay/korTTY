@@ -44,7 +44,12 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Dashboard State Storage*: Automatic restoration of dashboard state
 * *Backup & Restore*: Create encrypted backups (password or GPG) and import them
 * *Multilanguage Support*: Built-in languages (English, German, Italian, Spanish, Portuguese, French, Croatian, Dutch) plus *dynamic translation*: generate language files for any language via translation APIs (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex) in Settings → Translation
-* *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* via OpenAI-compatible chat-completions APIs, including local tools such as *LM Studio*
+* *AI Terminal Actions*: Right-click selected terminal text and choose *Summarize*, *Solve Problem*, or *Ask* through a remote OpenAI-compatible endpoint, local CLI, LM Studio, or korTTY's integrated llama.cpp runtime
+* *Integrated Local GGUF Models*: Run private chat and embedding models without LM Studio or Ollama. The Local Models manager installs the preferred signed CPU/Metal/Vulkan `llama-server` runtime, starts one authenticated loopback-only process per compatible model configuration, shares it through request leases, runs several different models concurrently, and unloads model tensors after a configurable idle period
+* *Hugging Face Model Manager & Setup Assistant*: Search cursor-paginated GGUF repositories with architecture, quantization, license, selected-quantization size, context and hardware estimates, then use *Load more* without losing earlier results; download immutable revisions with pause/resume, `.part` files, Range/If-Range, free-space and SHA-256 checks; or import existing GGUF files as managed copies/external references. The beginner assistant offers optional Text, Coding and embedding slots, verifies each pinned revision/license/exact size, installs asynchronously, starts from a conservative 4,096-token runtime context, runs a real local chat or embedding test, and persists roles only after every selected model passes
+* *Signed Model/Prompt Catalog*: Refresh model recommendations and automatic preset-family mappings independently through immutable JSON plus a detached Ed25519 signature. A monotonic sequence rejects signed older replays and sequence/version collisions; invalid or unavailable catalog data preserves the last verified cache, while builds without the separate trust root use the built-in offline bootstrap without network or cache trust
+* *AI Role Routing & Prompt Presets*: Assign different profiles to Text/translation and Coding actions, keep explicit/security/connection selections more specific, and optimize strict prompts for Llama, Qwen, Mistral, Gemma, DeepSeek, Phi and GPT-OSS model families
+* *Local RAG Knowledge Stores*: Add individual files or recursive folders through a cancellable asynchronous allowlist preview before indexing them in a local HNSW store, synchronize each source automatically or manually, test retrieval, and assign bounded `[R1]`-cited untrusted context to Text, Coding, or explicitly opted-in autonomous work. The complete store is never sent to a chat model, but retrieved excerpts leave the computer when explicitly assigned to a cloud profile. Qdrant remains an optional second backend
 * *AI Profiles, Defaults, Reasoning, Internet Access, and Quotas*: Manage multiple named AI profiles with per-profile endpoint/model/API key, editable model selection pre-filled with common models for known cloud providers (plus live model lists via refresh), LM Studio local-model auto mode, optional reasoning effort where supported by the configured API/model (including Anthropic extended thinking), optional internet mode, default profile selection, tokenizer strategy, token budgets, warning thresholds, reset cycles, and code-text language defaults
 * *AI Profile Setup Wizard*: A guided wizard creates AI profiles — choose connection type (local LM Studio vs a cloud provider), pick a cloud provider with key/model/reasoning, or pick a loaded LM Studio model. Native Anthropic (Claude) API support is included alongside OpenAI-compatible endpoints.
 * *AI Result Tabs*: Continue with follow-up prompts, switch profile and response language per chat, retry or cancel requests, save named chats, save generated scripts as snippets, share/export to PDF/Markdown/Text, copy detected code blocks and markdown tables/columns/cells, and persist the AI tab font size across sessions
@@ -70,7 +75,13 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 
 == AI Integration Overview
 
-KorTTY keeps profile selection, quota tracking, AI Skills, internet-tool configuration, and result handling local while sending only the reviewed terminal selection, prompt, or agent context to the configured AI endpoint. Selection-based AI actions use OpenAI-compatible chat-completions endpoints. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell. In split terminal layouts, terminal-targeted agent state and activity output stay scoped to the split where the run was started.
+KorTTY keeps profile selection, Text/Coding role routing, quota tracking, AI Skills, optional RAG retrieval, internet-tool configuration, and result handling local while sending only the reviewed terminal selection, prompt, agent context, and any explicitly enabled bounded source excerpts to the chosen AI service. Selection-based AI actions use OpenAI-compatible chat-completions endpoints; an integrated profile acquires its own local llama.cpp sidecar transparently. Terminal-agent runs send the agent goal together with a compact SSH-session snapshot, including the active remote working directory captured from the shell. In split terminal layouts, terminal-targeted agent state and activity output stay scoped to the split where the run was started.
+
+Integrated llama.cpp sidecars listen only on `127.0.0.1` at a random port, require a generated API key, and run offline with web UI, agent, UI MCP proxy and slot endpoint disabled. GGUF downloads are pinned to immutable Hugging Face revisions and verified with SHA-256. Native runtime packages are source-pinned, built separately from the application installer, selected through a detached-Ed25519-signed cumulative index, and installed side-by-side. Verified withdrawals persist a denylist and package marker before stopping/rebinding affected sidecars; a new package is promoted only after its first real GGUF-backed authenticated API start, otherwise korTTY restores a healthy non-revoked predecessor. The Local Models manager offers direct installation and stable-update actions, switches to a matching signed Metal/Vulkan package only after confirmation, and supports disabled, notification-only, or automatic promoted-stable updates.
+
+Model recommendations and automatic prompt-family mappings use a separate strict-schema catalog and Ed25519 trust root. Every bundled bootstrap recommendation pins a concrete 40-character Hugging Face commit. A monotonic sequence rejects signed older replays and equal-sequence version collisions before the atomic cache high-water mark advances. The verified cache is available immediately and refreshes once in the background; without the key, korTTY makes no catalog request and uses only its compiled bootstrap.
+
+Local knowledge stores accept only allowlisted, content-validated UTF-8/text-PDF sources after an asynchronous preview. Changed files are chunked and embedded incrementally; a candidate HNSW snapshot is atomically activated so cancellation or processing failure leaves the previous index intact, while a source root that was actually deleted atomically removes its stale chunks and becomes *MISSING*. Retrieval sends only the current bounded excerpts—at most six, no more than two per source and no more than 4,000 tokens or 25% of the model context—wrapped as explicitly untrusted `<retrieved_context>`, never the complete store. These excerpts remain local for integrated/loopback profiles and leave the computer for an explicitly assigned cloud profile; the store role/profile assignment is the disclosure authorization. Agent, Planning, Swarm and scheduled autonomous prompts require explicit RAG opt-in. Optional remote Qdrant stores require HTTPS; HTTP is loopback-only.
 
 Internet access is optional per AI profile and is disabled by default. The direct KorTTY Tavily mode uses chat-completions tool calls and Tavily search. LM Studio MCP modes use LM Studio's native `/api/v1/chat` integration payload. Snippet AI and text-correction functions do not use internet access, even when the default AI profile has web tools enabled. Snippet AI can use enabled AI Skills that target Chat/Functions or Both; the Snippet Editor's right-click *AI Assistant* dialog lets the user disable skill inclusion for that request. Code changes are applied only through preview/diff dialogs. If a web tool times out, fails authentication, returns no results, or reaches KorTTY's tool-round limit, KorTTY returns that tool failure to the model and the model is instructed to state the failure instead of making up web facts.
 
@@ -233,6 +244,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | | zxcvbn (password strength) | 1.9.0
 | *Logging* | SLF4J / Logback | 2.0.9 / 1.4.14
 | *Optional (runtime)* | mosh4j (Mosh support, loaded dynamically) | 2.0.2
+| *Optional local AI* | llama.cpp `llama-server` (downloaded separately) | source-pinned
 | *Optional system tools* | rsync + ssh for JobScheduler Rsync jobs | external
 |===
 
@@ -288,6 +300,10 @@ The system `java` may be newer, but Gradle must list a matching Temurin JDK 25 f
 Run `./gradlew clean build` (or `gradlew.bat clean build`) before the packaging task. On Windows and Linux, distribute the whole application-image directory or archive it as ZIP/TAR; copying only `korTTY.exe` or `bin/korTTY` omits required libraries and the bundled runtime.
 
 The release workflow publishes Windows x86_64 packages. Windows on ARM runs that package through Windows emulation; the former mislabeled ARM archive is no longer built because the pinned OpenJFX line has no native Windows ARM artifacts.
+
+The optional llama.cpp runtime is a separate release surface and never enters the base installer. Build one current-platform/backend package and descriptor with `./gradlew generateLlamaRuntimeManifest -Pllama.backend=CPU` (or `METAL` on macOS / `VULKAN` where supported). Gradle verifies the pinned tag, full commit and source-archive SHA-256 before CMake builds `llama-server`. The daily runtime workflow builds the full platform matrix, runs a native-link smoke everywhere plus authenticated chat/embedding/JSON/sleep/concurrency and pinned-Qdrant contracts, and requires an explicit human promotion through the reviewer-protected `llama-runtime-signing` environment before signing a cumulative `runtime-index-v1.json` and publishing immutable ZIPs.
+
+The reviewed recommendation/preset catalog lives at `ai-catalog/model-prompt-catalog-v1.json`. Its separate `main`-only manual workflow requires a sequence greater than the latest release, validates the strict schema and trust chain, and enters the reviewer-protected `ai-catalog-signing` environment before checking the signing key against the application public trust root, signing the exact JSON bytes, and publishing immutable `model-prompt-catalog-v1.json` plus `.sig` assets without a preview or automatic promotion channel.
 
 Node.js is downloaded only as an isolated Monaco build tool and never enters the installer. Prettier Standalone (Babel, Estree, TypeScript, HTML and PostCSS plugins) and sql-formatter run offline in a lazy JavaFX WebView. The final `prepareJpackage` Sync removes stale dependency versions and old Mosh architectures, reuses the application's Bouncy Castle JAR, and repacks JNA/pty4j with only target-platform native binaries.
 
@@ -433,6 +449,12 @@ All configuration files are stored under `~/.kortty/`:
 ├── ssh-keys.xml        # SSH key management
 ├── gpg-keys.xml        # GPG keys for backup encryption
 ├── global-settings.xml # Global application settings
+├── llm/                # GGUF registry, managed models, runtimes, temporary sidecars
+│   ├── models.xml      # Model paths and typed runtime settings
+│   └── catalog/        # Regenerable signature-verified catalog cache
+├── rag/
+│   ├── stores.json     # Knowledge-store and source configuration
+│   └── stores/         # Regenerable local HNSW snapshots
 ├── job-scheduler.xml   # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin ids
 ├── master-password-hash # Master password hash
@@ -568,7 +590,8 @@ image::app-docs/diagrams/backup-restore.svg[Backup and restore flow,align=center
 === Features
 
 * *Encrypted Backups*: All backups are encrypted (password-protected ZIP or GPG-encrypted)
-* *Complete Backup*: Includes all connections, credentials, GPG keys, SSH keys, and settings
+* *Configuration Backup*: Includes all connections, credentials, GPG keys, SSH keys, settings, local-model registrations, and knowledge-store/source metadata
+* *Large Regenerable Assets Excluded*: GGUF weights, native llama.cpp runtime packages, signed-catalog cache, temporary sidecar data, source documents, and HNSW snapshots are restored/downloaded or rebuilt separately
 * *Backup Import*: Restore from previously created backups
 * *Automatic Rotation*: Old backups are automatically rotated when creating new ones
 * *Configurable Retention*: Set maximum number of backups to keep (0 = unlimited)
@@ -998,6 +1021,11 @@ For distraction-free terminal work, *F12* toggles *View → Terminal-only Fullsc
 * JobScheduler unattended SSH/SFTP/Rsync execution requires pinned host keys by default
 * Passwords are never stored in plain text
 * SSH keys can optionally be copied to user directory (included in backups)
+* Integrated llama.cpp servers are loopback-only, use generated API keys, run offline with UI/agent/MCP/slot features disabled, and reject inherited server-option overrides
+* GGUF downloads use immutable revisions and SHA-256 verification; runtime indexes use detached Ed25519 signatures, signed package metadata, side-by-side activation, and rollback
+* The separate model/prompt catalog uses its own Ed25519 trust root, strict schema, monotonic anti-replay sequence, reverified cache, protected human promotion, and offline bootstrap fallback
+* RAG scans only reviewed allowlisted text, does not follow symbolic links, activates HNSW snapshots atomically, and inserts only bounded excerpts as explicitly untrusted context; assigning a cloud profile authorizes those excerpts to leave the computer
+* Remote Qdrant knowledge stores require HTTPS; plain HTTP is accepted only for loopback
 * *Automated security scanning*: Dependabot, CodeQL, and CodeRabbit (with Gitleaks, Semgrep, and OSV Scanner) automatically surface dependency vulnerabilities and security issues in every pull request; merged security-labeled fixes trigger automated patch releases
 
 == Privacy & Anonymous Analytics

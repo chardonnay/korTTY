@@ -196,7 +196,7 @@ public final class AiSkillPromptSupport {
         if (block.isBlank()) {
             return base;
         }
-        return base.isBlank() ? block : block + "\n\n" + base;
+        return AiPromptPipeline.insertSkills(base, block);
     }
 
     private static boolean includeChatSkills(AiRequest request) {

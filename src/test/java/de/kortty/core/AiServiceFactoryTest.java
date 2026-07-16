@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.ai.llama.EmbeddedLlamaAiService;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
@@ -14,6 +15,77 @@ import static com.google.common.truth.Truth.assertThat;
 
 
 class AiServiceFactoryTest {
+
+    @Test
+    void automaticRagStoresStayLocalWhileExplicitAssignmentsRemainAvailableEverywhere() {
+        AiProfile embedded = new AiProfile();
+        embedded.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        embedded.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(embedded, List.of("automatic")))
+            .containsExactly("explicit", "automatic").inOrder();
+
+        AiProfile loopback = new AiProfile();
+        loopback.setApiUrl("http://127.0.0.42:1234/v1/chat/completions");
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(loopback, List.of("automatic")))
+            .containsExactly("automatic");
+
+        AiProfile cloud = new AiProfile();
+        cloud.setApiUrl("https://api.example.com/v1/chat/completions");
+        cloud.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(cloud, List.of("automatic")))
+            .containsExactly("explicit");
+
+        AiProfile cli = new AiProfile();
+        cli.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        cli.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(cli, List.of("automatic")))
+            .containsExactly("explicit");
+    }
+
+    @Test
+    void automaticRagStoreLocalityCheckRejectsLanAndHostnameLookalikes() {
+        AiProfile localhost = new AiProfile();
+        localhost.setApiUrl("http://localhost:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(localhost)).isTrue();
+
+        AiProfile ipv6 = new AiProfile();
+        ipv6.setApiUrl("http://[::1]:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(ipv6)).isTrue();
+
+        AiProfile lan = new AiProfile();
+        lan.setApiUrl("http://192.168.1.8:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(lan)).isFalse();
+
+        AiProfile lookalike = new AiProfile();
+        lookalike.setApiUrl("https://localhost.example.com/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(lookalike)).isFalse();
+    }
+
+    @Test
+    void createBuildsEmbeddedLlamaServiceWithoutApiUrlOrExternalApiKey() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        profile.setEmbeddedModelId("qwen-local");
+
+        AiService service = AiServiceFactory.create(profile, "must-not-be-used", AiInternetAccessConfiguration.disabled());
+
+        assertThat(service).isInstanceOf(AiPromptPresetService.class);
+        AiPromptPresetService optimized = (AiPromptPresetService) service;
+        assertThat(optimized.delegate()).isInstanceOf(EmbeddedLlamaAiService.class);
+        assertThat(((EmbeddedLlamaAiService) optimized.delegate()).getModelId()).isEqualTo("qwen-local");
+    }
+
+    @Test
+    void createRejectsEmbeddedLlamaProfileWithoutRegisteredModelSelection() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+
+        IllegalStateException error = org.testng.Assert.expectThrows(
+            IllegalStateException.class,
+            () -> AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
+
+        assertThat(error).hasMessageThat().contains("local GGUF model");
+    }
 
     @Test
     void createNormalizesOpenAiCompatibleBaseUrlToChatCompletionsEndpoint() {

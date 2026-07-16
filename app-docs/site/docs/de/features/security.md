@@ -13,10 +13,10 @@ KorTTY schützt Ihre sensiblen Daten mit branchenüblicher Verschlüsselung und 
 
 Beim ersten Start werden Sie aufgefordert, ein Master-Passwort (mindestens 6 Zeichen) zu erstellen, das alle gespeicherten Geheimnisse verschlüsselt.
 
-### Aufstellen
+### Setup
 
 1. Geben Sie ein Passwort ein (der Feldrand wird grün, wenn die Länge ausreichend ist, rot, wenn die Länge zu kurz ist).
-2. Ein Stärkeindikator zeigt die Passwortqualität an; Bei schwachen oder gebräuchlichen Passwörtern wird eine Warnung angezeigt, die Sie bei Bedarf jedoch bestätigen können.
+Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder gebräuchlichen Passwörtern wird eine Warnung angezeigt, die Sie bei Bedarf jedoch bestätigen können.
 3. Bestätigen Sie das Passwort.
 4. Klicken Sie auf **Setup**.
 
@@ -35,7 +35,7 @@ Alle vertraulichen Daten im Ruhezustand werden mit **AES-256-GCM** verschlüssel
 
 - **Algorithmus**: AES-256-GCM (Galois/Counter-Modus)
 - **Schlüsselableitung**: PBKDF2WithHmacSHA256 mit 310.000 Iterationen
-- **IV-Länge**: 12 Bytes (zufällig pro Verschlüsselung)
+- **IV Länge**: 12 Bytes (zufällig pro Verschlüsselung)
 - **Authentifizierungs-Tag**: 128 Bit (integrierte Integritätsüberprüfung)
 - **Salt-Länge**: 32 Bytes (zufällig pro Master-Passwort-Einrichtung)
 
@@ -52,8 +52,8 @@ Speichern Sie zentralisierte Benutzernamen-/Passwort-Anmeldeinformationen, die �
 ### Anmeldeinformationen hinzufügen
 
 1. Klicken Sie auf **Hinzufügen**.
-2. Füllen Sie aus:
-   - **Name** – Beschreibende Kennung
+2. Ausfüllen:
+   - **Name** – Beschreibender Bezeichner
    - **Benutzername** – Login-Benutzername
    - **Passwort** – Mit AES-256-GCM verschlüsselt gespeichert
    - **Umgebung** – Produktion, Entwicklung, Test oder Staging
@@ -66,21 +66,21 @@ Speichern Sie zentralisierte Benutzernamen-/Passwort-Anmeldeinformationen, die �
 Beim Erstellen oder Bearbeiten einer Verbindung:
 
 1. Gehen Sie zur Registerkarte **Verbindung**.
-2. Wählen Sie einen gespeicherten Berechtigungsnachweis aus der Dropdown-Liste **Anmeldeinformationen** aus.
+2. Wählen Sie im Dropdown-Menü **Anmeldeinformationen** eine gespeicherte Anmeldeinformation aus.
 3. Benutzername und Passwort werden automatisch ausgefüllt.
 
 Das folgende Diagramm zeigt, wie Anmeldeinformationen und SSH-Schlüssel vom verschlüsselten Speicher zu aktiven Verbindungen fließen:
 
 ![Credential & encryption flow](../assets/diagrams/credential-flow.svg)
 
-### Merkmale
+### Eigenschaften
 
 - **Umgebungsspezifisch** – Anmeldeinformationen nach Bereitstellungsumgebung organisieren
-- **Server-Pattern-Matching** – Anmeldeinformationen automatisch passenden Servern zuweisen
+- **Server Pattern Matching** – Anmeldeinformationen automatisch passenden Servern zuweisen
 - **Verschlüsselter Speicher** – Passwörter werden mit AES-256-GCM verschlüsselt
 - **Automatische Nutzung** – Wählen Sie Anmeldeinformationen direkt in den Verbindungseinstellungen aus
 
-## SSH-Schlüsselverwaltung
+## SSH Schlüsselverwaltung
 
 Zentralisierte Verwaltung privater SSH-Schlüssel mit verschlüsselten Passphrasen.
 
@@ -92,18 +92,18 @@ Zentralisierte Verwaltung privater SSH-Schlüssel mit verschlüsselten Passphras
 
 1. Klicken Sie auf **Hinzufügen**.
 2. Wählen Sie den Pfad zu Ihrer privaten SSH-Schlüsseldatei.
-3. (Optional) Geben Sie die Passphrase ein – sie wird verschlüsselt und gespeichert.
+3.  (Optional) Geben Sie die Passphrase ein – sie wird verschlüsselt und gespeichert.
 4. Klicken Sie auf **OK**.
 
 ### Hauptmerkmale
 
 - **Zentralisierte Verwaltung** – Verwalten Sie alle SSH-Schlüssel an einem Ort
 - **Verschlüsselte Passphrasen** – Schlüsselpassphrasen werden mit AES-256-GCM verschlüsselt gespeichert
-- **Kopieren von Schlüsseln** – Verwenden Sie **In Benutzerverzeichnis kopieren**, um Schlüssel nach `~/.kortty/ssh-keys/` zu kopieren (zur einfachen Migration in Backups enthalten)
+- **Schlüsselkopie** – Verwenden Sie **In Benutzerverzeichnis kopieren**, um Schlüssel nach `~/.kortty/ssh-keys/` zu kopieren (in Backups zur einfachen Migration enthalten)
 - **Platzhaltersuche** – Schnelle Suche nach Schlüsseln mithilfe von `*`-Mustern
 - **Automatische Nutzung** – Wählen Sie Schlüssel direkt in den Verbindungseinstellungen aus
 
-### Verwendung von Schlüsseln in Verbindungen
+### Verwenden von Schlüsseln in Verbindungen
 
 Beim Erstellen oder Bearbeiten einer Verbindung:
 
@@ -112,7 +112,7 @@ Beim Erstellen oder Bearbeiten einer Verbindung:
 3. Wählen Sie den gewünschten Schlüssel aus der Dropdown-Liste **SSH-Schlüssel** aus.
 4. Der Schlüsselpfad und die Passphrase werden automatisch ausgefüllt.
 
-## GPG-Schlüsselverwaltung
+## GPG Schlüsselverwaltung
 
 Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindungs-/Snippet-Exportverschlüsselung.
 
@@ -130,10 +130,10 @@ Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindung
 1. Wählen Sie einen Schlüssel aus der Liste aus.
 2. Klicken Sie auf **Bearbeiten**, um Details zu ändern, oder auf **Löschen**, um sie zu entfernen.
 
-### Verwendung von Schlüsseln zur Sicherung
+### Verwenden von Schlüsseln für die Sicherung
 
 1. Öffnen Sie **Einstellungen > Backup**.
-2. Wählen Sie **GPG-Verschlüsselung** als Verschlüsselungstyp.
+2. Wählen Sie **GPG-Verschlüsselung** als Verschlüsselungstyp aus.
 3. Wählen Sie den GPG-Schlüssel aus, der für die Verschlüsselung verwendet werden soll.
 
 GPG-verschlüsselte Backups und Exporte werden als `.gpg`-Dateien gespeichert und erfordern den `gpg`-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.
@@ -146,27 +146,27 @@ Folgende Daten werden verschlüsselt in `~/.kortty/` gespeichert:
 |------|----------|------------|
 | `credentials.xml` | Gespeicherte Benutzername/Passwort-Anmeldeinformationen | AES-256-GCM |
 | `ssh-keys.xml` | SSH-Schlüsselpfade und verschlüsselte Passphrasen | AES-256-GCM |
-| `connections.xml` | Verbindungskennwörter (inline) und Schlüsselpassphrasen (falls keine SSH-Schlüsselverwaltung verwendet wird) | AES-256-GCM |
-| `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Tagebucheinträge redigieren von KorTTY verwaltete Geheimnisse | AES-256-GCM |
-| `master-password-hash` | Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt | Nur PBKDF2-Hash |
-| `global-settings.xml` | AI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel | AES-256-GCM |
+| `connections.xml` | Verbindungskennwörter (inline) und Schlüsselpassphrasen (wenn keine SSH-Schlüsselverwaltung verwendet wird) | AES-256-GCM |
+| `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge redigieren von KorTTY verwaltete Geheimnisse | AES-256-GCM |
+| `master-password-hash` | Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt | PBKDF2-Hash nur |
+| `global-settings.xml` | AI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
 
 ## Best Practices für die Sicherheit
 
 !!! warning
-    Ausgewählter Terminaltext, der an KI-Endpunkte gesendet wird, kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie **LM Studio** oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden.
+    Ausgewählter Terminaltext, der an KI-Dienste gesendet wird, kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten ein integriertes lokales GGUF-Modell oder stellen Sie sicher, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden.
 
 ### Master-Passwort
 
 - Verwenden Sie ein sicheres, eindeutiges Master-Passwort (mindestens 12 Zeichen, eine Mischung aus Groß-/Kleinbuchstaben, Zahlen und Symbolen).
 - Geben Sie niemals Ihr Master-Passwort weiter.
-- Bewahren Sie es sicher auf (Passwort-Manager empfohlen).
+- Speichern Sie es sicher (Passwort-Manager empfohlen).
 
 ### SSH-Schlüssel
 
 - Schützen Sie private Schlüsseldateien mit einer Passphrase.
 - Kopieren Sie Schlüssel nach `~/.kortty/ssh-keys/`, um sie in verschlüsselte Backups aufzunehmen.
-- Beschränken Sie die Berechtigungen für Schlüsseldateien (z. B. `chmod 600`).
+- Schlüsseldateiberechtigungen einschränken (z. B. `chmod 600`).
 
 ### JobScheduler
 
@@ -180,25 +180,38 @@ Folgende Daten werden verschlüsselt in `~/.kortty/` gespeichert:
 - Speichern Sie Sicherungsdateien an einem sicheren Ort.
 - Testen Sie die Wiederherstellungsverfahren regelmäßig, um sicherzustellen, dass Backups verwendbar sind.
 
-### KI-Integration
+### AI-Integration
 
 - API-Schlüssel für KI-Endpunkte werden mit Ihrem Master-Passwort verschlüsselt.
-- Die AI-Profilkonfiguration wird lokal gespeichert. Nur Ihre überprüfte Terminalauswahl oder Eingabeaufforderung wird an den Endpunkt gesendet.
-- Der Internetzugang ist für AI-Profile standardmäßig deaktiviert. nur bei Bedarf aktivieren.
+- Das optionale Hugging Face-Token ist mit dem Master-Passwort verschlüsselt und wird nur für genehmigte Modellsuch-/Downloadanfragen an den vertrauenswürdigen Hugging Face-Host verwendet.
+- Jeder integrierte `llama-server` bindet nur an `127.0.0.1` an einem zufälligen Port und erfordert einen generierten lokalen API-Schlüssel. Der Offline-Modus ist obligatorisch; Web-UI-, Agent-, UI-MCP-Proxy-, Slot-Endpunkt- und geerbte Serveroptionsüberschreibungen sind deaktiviert.
+- GGUF-Downloads erfordern eine unveränderliche Repository-Revision und genaue SHA-256-Metadaten. Laufzeitindizes erfordern eine Ed25519-Signatur, und jede Laufzeit-ZIP-Datei wird vor der sicheren Extraktion anhand ihrer signierten Größe und SHA-256 überprüft. Offizielle Anwendungs-Builds betten nur das Vertrauensstammverzeichnis des öffentlichen Laufzeitkanals ein. Ein fehlender oder ungültiger Schlüssel schlägt fehl, bevor eine Aktualisierungsanforderung erfolgt, während der signierende private Schlüssel im vom Menschen gesendeten Promotion-Workflow isoliert bleibt.
+- Signierte Laufzeitabhebungen sind dauerhaft und werden nicht geschlossen. Ein verifizierter Index fügt zurückgezogene Laufzeit- und Installations-IDs zu `llm/runtime/revoked-v1` hinzu, markiert jedes installierte Paket, löscht einen passenden aktiven Zeiger, stoppt seine Sidecars, entfernt es aus dem fehlerfreien Rollback-Verlauf und stellt betroffene Modellbindungen unter Quarantäne. Sowohl das Installationsprogramm als auch der Prozessstarter lehnen diese Pakete ab, auch nach einem unterbrochenen Update. Überprüfungen, bei denen nur eine Benachrichtigung erfolgt, erzwingen eine Auszahlung, ohne dass der angebotene Ersatz stillschweigend installiert wird. **Off** stellt keine Indexanfrage und erfährt daher bis zu einer expliziten oder aktivierten Prüfung keine neue Entnahme.
+- Eine neu aktivierte Laufzeit wird nicht in den fehlerfreien Verlauf hochgestuft, nur weil die begrenzte `--version`-Prüfung bestanden wurde. Es bleibt ausstehend, bis der erste echte GGUF-gestützte authentifizierte API-Start erfolgreich ist; Wenn dieser Start fehlschlägt, wird der Kandidat entfernt und das neueste fehlerfreie, nicht widerrufene Paket wiederhergestellt bzw. erneut gebunden, sofern eines vorhanden ist.
+- -Modellempfehlungen und die automatische Erkennung von Eingabeaufforderungsfamilien können aus einem separaten Ed25519-signierten HTTPS-Katalog aktualisiert werden. Der letzte gültige Cache wird vor der Verwendung erneut überprüft, und eine monotone Sequenz lehnt signierte ältere Wiedergaben oder Versionskollisionen gleicher Sequenz vor einem atomaren Hochwasser-Update ab. Ohne den unabhängigen öffentlichen Katalogschlüssel vertraut korTTY weder Netzwerk- noch Cache-Daten und greift auf den integrierten Bootstrap zurück. Das Signieren von Produktionskatalogen und Laufzeiten ist auf die durch Prüfer geschützten GitHub-Umgebungen im Hauptzweig beschränkt. Anwendungsbuilds erhalten nur die öffentlichen Vertrauenswurzeln.
+Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Terminalauswahl oder Eingabeaufforderung wird an den ausgewählten Dienst gesendet. Die eingebettete Inferenz bleibt auf diesem Computer.
+- Wissensspeicher-Scanning folgt einer festen Text-Zulassungsliste, validiert Inhalte, lehnt symbolische Links ab und zeigt eine Vorschau an. Nur begrenzte abgerufene Auszüge, nicht der gesamte Wissensspeicher, werden in die Modellaufforderung eingegeben. Diese Auszüge bleiben für integrierte/Loopback-Profile lokal, verlassen jedoch den Computer, wenn ein explizit zugewiesenes Cloud-Profil die Anfrage verarbeitet. Wissensspeicherrollen und persistente Profilzuweisungen sind die Offenlegungsberechtigung des Benutzers.
+- Remote-Qdrant-Wissensspeicher erfordern HTTPS; Einfaches HTTP wird nur für Loopback akzeptiert und der optionale API-Schlüssel bleibt durch den Tresor geschützt.
+- Der Internetzugriff ist für AI-Profile standardmäßig deaktiviert. nur bei Bedarf aktivieren.
 - Snippet-KI-Aktionen nutzen niemals den Internetzugang, selbst wenn dieser im Profil aktiviert ist.
 
 ## Sicherheitsübersicht
 
-| Funktion | Umsetzung |
+| Funktion | Implementierung |
 |---------|-----------------|
 | Master-Passwort-Hashing | PBKDF2 mit 310.000 Iterationen |
 | Anmeldeinformationsverschlüsselung | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | AI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
-| Backup-Verschlüsselung | Passwortgeschützt ZIP oder GPG-verschlüsselt |
+| Eingebetteter llama.cpp | Nur-Loopback-zufälliger Port, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing |
+| GGUF/Laufzeit-Lieferkette | Unveränderliche Revisionen, SHA-256-Verifizierung, signierter Laufzeitindex, dauerhafte Sperrquarantäne, Rollback nach fehlgeschlagener Integritätsprüfung oder erstem echten API-Start |
+| Modell-/Prompt-Katalog | Unabhängiger Ed25519 Trust Root, striktes Schema, monotone Anti-Replay-Sequenz, erneut verifizierter Atomcache, geschützte menschliche Förderung, Bootstrap-Fallback |
+| RAG-Quellenaufnahme | Zentrale Zulassungsliste, UTF-8/PDF-Inhaltsprüfungen, kein Symlink-Traversal, überprüfte Vorschau |
+| RAG-Eingabeaufforderungskontext | Feste Abrufgrenzen, stabile Quellmarkierungen, explizit nicht vertrauenswürdiger Wrapper, explizite profilbasierte lokale/Cloud-Offenlegung |
+| Backup-Verschlüsselung | Passwortgeschützte ZIP- oder GPG-Verschlüsselung |
 | JobScheduler-Geheimnisse | Sudo- und Archivkennwörter verschlüsselt; Journal-Schwärzung standardmäßig aktiviert |
-| JobScheduler-Hostschlüssel | Für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs ist standardmäßig das Anheften des Host-Schlüssels erforderlich |
-| Anmeldeinformationen | Nie im Klartext gespeichert |
+| JobScheduler-Hostschlüssel | Hostschlüssel-Pinning standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs erforderlich |
+| Anmeldeinformationen | Niemals im Klartext gespeichert |
 
 ## Ändern des Master-Passworts
 
@@ -210,7 +223,7 @@ So ändern Sie Ihr Master-Passwort (wodurch alle gespeicherten Geheimnisse mit e
 4. Geben Sie das neue Master-Passwort zweimal ein.
 5. Alle gespeicherten Passwörter, Passphrasen und Anmeldeinformationen werden automatisch mit dem neuen Schlüssel neu verschlüsselt.
 
-## Referenz zu Konfigurationsdateien
+## Konfigurationsdateien-Referenz
 
 Alle KorTTY-Daten werden unter `~/.kortty/` gespeichert. Wichtige sicherheitsrelevante Dateien:
 
@@ -222,6 +235,12 @@ Alle KorTTY-Daten werden unter `~/.kortty/` gespeichert. Wichtige sicherheitsrel
 ├── gpg-keys.xml             # GPG keys for backup/export encryption
 ├── connections.xml          # Connection passwords and key passphrases
 ├── global-settings.xml      # AI API keys and other encrypted settings
+├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+├── llm/runtime/             # Regenerable native packages; excluded from backup
+├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+├── rag/stores.json          # Knowledge-store/source configuration
+├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
 ├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
 ├── kortty.log               # Application log
 └── history/                 # Compressed terminal session history

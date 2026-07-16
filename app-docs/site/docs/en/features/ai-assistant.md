@@ -4,24 +4,24 @@ title: AI assistant
 
 # AI assistant
 
-KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.
+KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint, an integrated local llama.cpp model, or a configured local CLI and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.
 
 When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, korTTY keeps the computer awake while an AI API, local-model, web-tool, or local AI CLI request is waiting for a result. The assertion is released after the last concurrent AI request finishes; if no terminal is connected and no future or running Scheduler job exists, the computer may then sleep normally. Display sleep remains available.
 
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
 !!! warning "Data Security"
-    Selected terminal text is transmitted to the configured AI endpoint for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, prefer a trusted local endpoint such as **LM Studio**, or verify that you trust the remote endpoint before sending anything. If you provide an **API Key**, korTTY stores it encrypted with your master password.
+    Selected terminal text is transmitted to the configured AI service for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, use an [integrated local GGUF model](local-models.md) or another endpoint you trust. Embedded inference uses an authenticated loopback-only server; remote providers receive the reviewed request over the network. If you provide an **API Key**, korTTY stores it encrypted with your master password.
 
 ## Setup
 
 1. Open **Edit > Global Settings**.
 2. Go to **AI**.
-3. Create one or more AI profiles and enter the **API URL** for each profile you want to use. You can manage profiles in **Settings > AI** or in **Tools > AI Manager > Profiles**.
-4. Optionally enter **Model** and **API Key**. The editable model selector supports manual model names; for known cloud providers (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) it is pre-filled with common model names, and for local LM Studio endpoints it offers an **Auto** option plus the currently loaded local LLMs. The **API Key** is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.
-5. Optionally configure **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured API URL and model; profiles without a supported reasoning mode stay disabled.
+3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, or **Integrated llama.cpp** as the connection mode.
+4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no GGUF is installed.
+5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; profiles without a supported reasoning mode stay disabled.
 6. Click **Test AI Connection**.
-7. Optionally choose a **Default profile** for terminal AI actions and follow-up chats that do not explicitly select another profile.
+7. Optionally choose a **Default profile**, then assign separate Text/translation and Coding roles under **AI Manager > Local AI**. An empty role uses the default profile.
 8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
 9. Optionally configure the terminal-agent input-history size (default 20, range 5–100), the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for **AI Agent** and **AI Planning**.
 10. Optionally disable the confirmation dialog for **Summarize** and **Solve Problem** if you want a faster workflow. **Ask** always opens the prompt dialog.
@@ -45,6 +45,8 @@ The wizard guides you through:
 
 Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.
 
+For fully integrated GGUF inference, use the separate **AI Manager > Local Models > Setup assistant**. It checks hardware, recommends Text/Coding/embedding models, reviews license and exact size, verifies the immutable download, creates an embedded profile, assigns the selected role, and runs a real local chat or embedding function test. See [Local models with llama.cpp](local-models.md).
+
 ## Model selection
 
 The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is editable:
@@ -53,6 +55,13 @@ The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is
 * A listed model stores that model as the manual selection.
 * A typed model name is stored as a manual selection so any OpenAI-compatible endpoint works.
 * **Auto** is offered only for local LM Studio endpoints, where korTTY can actually detect the loaded model. Cloud profiles need a concrete model; if none is selected, requests stop with an explicit "select a specific AI model" error.
+* An **Integrated llama.cpp** profile lists installed model IDs from `~/.kortty/llm/models.xml`; it does not use the HTTP URL or manual cloud-model field.
+
+## Role routing, RAG, and prompt order
+
+korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, and prose descriptions use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.
+
+When matching knowledge stores are assigned to the request's Text or Coding role, an ordinary AI request is assembled in this order: korTTY's action/output contract, selected AI Skills, bounded untrusted RAG context with `[R1]` source markers, the resolved model-family preset, and finally the provider transport. Only retrieved excerpts are added, not the complete knowledge store; choosing a cloud profile sends those excerpts to that provider, so the knowledge-store role/profile assignment is the explicit disclosure decision. Strict JSON and code-payload rules remain authoritative. Autonomous Agent, Planning, Swarm, and scheduled prompts require explicit RAG opt-in. See [RAG knowledge stores](rag.md) for the retrieval and privacy details.
 
 ### Local LM Studio model selection
 
@@ -203,16 +212,19 @@ $$a^2 + b^2 = c^2$$
 
 ## AI Manager
 
-Open **Tools > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
+Open **AI > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
-![AI Manager](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
-The AI Manager has two working areas:
+The AI Manager combines profile, local-inference, retrieval, and saved-chat management. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls:
 
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
+* **Local Models** - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.
+* **Local AI** - Assign Text/translation and Coding profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.
+* **Knowledge Stores** - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.
 * **Saved Chats** - Open, rename, refresh, or delete previously saved AI conversations. Saved [AI Swarm](ai-swarm.md) conversations appear in their own **Swarm Chats** section, including those produced by scheduled swarm jobs.
 
-Use **Settings > AI** for the global defaults and behavior switches, and **AI Manager** for day-to-day profile/chat management.
+Use **Settings > AI** for global behavior switches and **AI Manager** for day-to-day profile, model, knowledge-store, and chat management.
 
 ## Ask the manual (AI docs search)
 

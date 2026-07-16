@@ -12,7 +12,7 @@ import static com.google.common.truth.Truth.assertThat;
 class AiSkillPromptSupportTest {
 
     @Test
-    void appendsEnabledChatSkillsBeforeSystemPrompt() {
+    void appendsEnabledChatSkillsAfterTheActionContract() {
         AiSkill skill = skill("Shell Style", true, AiSkillTarget.CHAT, "Use short shell examples.");
 
         String prompt = new AiSkillPromptSupport(true, List.of(skill)).appendChatSkills("Task rules.");
@@ -20,7 +20,8 @@ class AiSkillPromptSupportTest {
         assertThat(prompt).contains("User-defined KorTTY AI skills");
         assertThat(prompt).contains("<kortty_ai_skill name=\"Shell Style\" target=\"CHAT\">");
         assertThat(prompt).contains("Use short shell examples.");
-        assertThat(prompt).endsWith("Task rules.");
+        assertThat(prompt).startsWith("Task rules.");
+        assertThat(prompt.indexOf("Task rules.")).isLessThan(prompt.indexOf("User-defined KorTTY AI skills"));
     }
 
     @Test

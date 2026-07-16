@@ -4786,13 +4786,18 @@ public class MainWindow {
         }
         AiProfile effectiveProfile = profile != null
             ? profile
-            : resolveAiProfileForConnection(terminalTab != null ? terminalTab.getConnection() : null);
+            : resolveAiProfileForConnection(
+                terminalTab != null ? terminalTab.getConnection() : null,
+                action.workload());
         int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
         if (selectedText.length() > maxSelectionChars) {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
-        String effectiveModel = effectiveProfile != null ? effectiveProfile.getModel() : null;
+        String effectiveModel = effectiveProfile != null
+            && effectiveProfile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP
+            ? effectiveProfile.getEmbeddedModelId()
+            : effectiveProfile != null ? effectiveProfile.getModel() : null;
         if (effectiveProfile != null
             && requiresModelForAiProfile(effectiveProfile)
             && (effectiveModel == null || effectiveModel.isBlank())) {
@@ -4893,6 +4898,9 @@ public class MainWindow {
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
         }
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            return true;
+        }
         return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
     }
 
@@ -4921,7 +4929,7 @@ public class MainWindow {
             return null;
         }
         String apiKey = getAiApiKeyPlain(profile);
-        if (profile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
+        if (profile.getConnectionMode() == AiConnectionMode.HTTP_API
             && (profile.getApiUrl() == null || profile.getApiUrl().isBlank())) {
             return null;
         }
@@ -5228,6 +5236,12 @@ public class MainWindow {
             return "";
         }
         String model = profile.getModel() != null ? profile.getModel() : "";
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            String embedded = profile.getEmbeddedModelId();
+            return embedded != null && !embedded.isBlank()
+                ? embedded
+                : I18n.get("settings.ai.connectionMode.embedded_llama_cpp");
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String provider = de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())
                 .map(de.kortty.core.AiCliProviderDescriptor::displayName)
@@ -5720,7 +5734,8 @@ public class MainWindow {
         List<String> categoryNames = snippetManager.getAllCategories().stream()
             .map(SnippetCategory::getName)
             .toList();
-        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(this, getConnectionDisplayName(terminalTab));
+        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(
+            this, terminalTab != null ? terminalTab.getConnection() : null);
         SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
         dialog.initOwner(stage);
         dialog.showNonBlocking(null);
@@ -6091,7 +6106,7 @@ public class MainWindow {
                 ? findAiProfileByLookup(requestedProfileName)
                 : null;
             if (resolvedProfile == null) {
-                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection());
+                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection(), AiWorkload.CODING);
             }
             if (resolvedProfile == null) {
                 showAiManager();
@@ -6183,7 +6198,7 @@ public class MainWindow {
         String preferredProfileId = connection != null
             && AiProfileSelectionSupport.findById(profiles, connection.getAiProfileId()) != null
             ? connection.getAiProfileId()
-            : getDefaultAiProfileId();
+            : getConfiguredWorkloadProfileId(AiWorkload.CODING);
         return AiProfileSelectionSupport.reorderByRequestedOrDefault(
             profiles,
             requestedProfileName,
@@ -6553,7 +6568,8 @@ public class MainWindow {
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
         AiProfile currentProfile = resolveAiProfileForConnection(
-            terminalTab != null ? terminalTab.getConnection() : null);
+            terminalTab != null ? terminalTab.getConnection() : null,
+            AiWorkload.CODING);
         TerminalAgentModels.Request refreshedRequest = currentProfile != null
             ? withTerminalAgentProfileId(request, currentProfile.getId())
             : request;
@@ -6768,6 +6784,29 @@ public class MainWindow {
         return AiProfileSelectionSupport.defaultProfile(getAvailableAiProfiles(), getDefaultAiProfileId());
     }
 
+    AiProfile getAiProfileForWorkload(AiWorkload workload) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return AiProfileSelectionSupport.workloadProfile(
+            getAvailableAiProfiles(),
+            workload != null ? workload : AiWorkload.TEXT,
+            settings != null ? settings.getTextAiProfileId() : null,
+            settings != null ? settings.getCodingAiProfileId() : null,
+            settings != null ? settings.getDefaultAiProfileId() : null);
+    }
+
+    private String getConfiguredWorkloadProfileId(AiWorkload workload) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return null;
+        }
+        String roleId = workload == AiWorkload.CODING
+            ? settings.getCodingAiProfileId()
+            : settings.getTextAiProfileId();
+        return AiProfileSelectionSupport.findById(getAvailableAiProfiles(), roleId) != null
+            ? roleId
+            : settings.getDefaultAiProfileId();
+    }
+
     String getSecurityCheckAiProfileId() {
         refreshGlobalSettingsIfChangedBeforeAiProfileResolution();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
@@ -6794,13 +6833,39 @@ public class MainWindow {
      * available, otherwise the default profile (until the fixed profile is available again).
      */
     AiProfile resolveAiProfileForConnection(ServerConnection connection) {
+        return resolveAiProfileForConnection(connection, AiWorkload.TEXT);
+    }
+
+    AiProfile resolveAiProfileForConnection(ServerConnection connection, AiWorkload workload) {
         if (connection != null) {
             AiProfile fixedProfile = findAiProfileById(connection.getAiProfileId());
             if (fixedProfile != null) {
                 return fixedProfile;
             }
         }
-        return getDefaultAiProfile();
+        return getAiProfileForWorkload(workload);
+    }
+
+    AiProfile resolveAiProfileForAction(
+        ServerConnection connection,
+        AiAction action,
+        String explicitProfileId) {
+
+        List<AiProfile> profiles = getAvailableAiProfiles();
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return null;
+        }
+        return AiProfileSelectionSupport.actionProfile(
+            profiles,
+            explicitProfileId,
+            action != null && action.isSecurityAction(),
+            settings.getSecurityCheckAiProfileId(),
+            connection != null ? connection.getAiProfileId() : null,
+            action != null ? action.workload() : AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     AiProfile findAiProfileById(String profileId) {
@@ -6943,6 +7008,14 @@ public class MainWindow {
 
     AiService createAiServiceForProfile(AiProfile profile, ServerConnection connection) {
         return createAiService(profile, connection);
+    }
+
+    AiService createAiServiceForProfile(
+        AiProfile profile,
+        ServerConnection connection,
+        java.util.Collection<String> forcedSkillIds) {
+
+        return createAiService(profile, connection, forcedSkillIds);
     }
 
     void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {
@@ -7253,6 +7326,41 @@ public class MainWindow {
         if (window != null) {
             window.showUpdateAvailableDialog(update, false);
         }
+    }
+
+    /** Shows the NOTIFY-policy result after the signed stable runtime index was verified. */
+    public static void showLlamaRuntimeUpdateAvailable(String runtimeId, boolean runtimeMissing) {
+        MainWindow window = getFocusedOrLastOpenWindow();
+        if (window == null) {
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(window.getStage());
+        alert.setTitle(I18n.get("ai.local.models.runtime.notification.title"));
+        alert.setHeaderText(I18n.get("ai.local.models.runtime.notification.header", runtimeId));
+        alert.setContentText(I18n.get(runtimeMissing
+            ? "ai.local.models.runtime.notification.missing"
+            : "ai.local.models.runtime.notification.update"));
+        alert.show();
+    }
+
+    /** Warns that a signed withdrawal has already quarantined and stopped the local runtime. */
+    public static void showLlamaRuntimeRevoked(String revokedRuntimeId, String replacementRuntimeId) {
+        MainWindow window = getFocusedOrLastOpenWindow();
+        if (window == null) {
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(window.getStage());
+        alert.setTitle(I18n.get("ai.local.models.runtime.revoked.notification.title"));
+        alert.setHeaderText(I18n.get(
+            "ai.local.models.runtime.revoked.notification.header", revokedRuntimeId));
+        alert.setContentText(replacementRuntimeId != null
+            ? I18n.get("ai.local.models.runtime.revoked.notification.replacement", replacementRuntimeId)
+            : I18n.get("ai.local.models.runtime.revoked.notification.unavailable"));
+        alert.show();
     }
     
     public Stage getStage() {

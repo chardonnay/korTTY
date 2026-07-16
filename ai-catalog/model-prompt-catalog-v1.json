@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "sequence": 1,
+  "catalogVersion": "bootstrap-v1",
+  "recommendations": [
+    {
+      "id": "qwen3-1.7b-q4",
+      "modelId": "unsloth/Qwen3-1.7B-GGUF",
+      "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+      "quantization": "Q4_K_M",
+      "roles": [
+        "TEXT",
+        "CODING"
+      ],
+      "minimumSystemMemoryBytes": 0,
+      "preference": 10
+    },
+    {
+      "id": "qwen3-4b-q4",
+      "modelId": "Qwen/Qwen3-4B-GGUF",
+      "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+      "quantization": "Q4_K_M",
+      "roles": [
+        "TEXT"
+      ],
+      "minimumSystemMemoryBytes": 17179869184,
+      "preference": 20
+    },
+    {
+      "id": "qwen3-8b-q4",
+      "modelId": "Qwen/Qwen3-8B-GGUF",
+      "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+      "quantization": "Q4_K_M",
+      "roles": [
+        "TEXT"
+      ],
+      "minimumSystemMemoryBytes": 25769803776,
+      "preference": 30
+    },
+    {
+      "id": "qwen2.5-coder-7b-q4",
+      "modelId": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+      "revision": "13fb94bfda8c8cf22497dc57b78f391a9acb426a",
+      "quantization": "Q4_K_M",
+      "roles": [
+        "CODING"
+      ],
+      "minimumSystemMemoryBytes": 17179869184,
+      "preference": 30
+    },
+    {
+      "id": "qwen3-embedding-0.6b-q8",
+      "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
+      "quantization": "Q8_0",
+      "roles": [
+        "EMBEDDING"
+      ],
+      "minimumSystemMemoryBytes": 0,
+      "preference": 100
+    }
+  ],
+  "promptFamilies": [
+    {
+      "id": "qwen",
+      "preset": "QWEN",
+      "modelNameContains": [
+        "qwen"
+      ],
+      "priority": 100
+    },
+    {
+      "id": "deepseek",
+      "preset": "DEEPSEEK",
+      "modelNameContains": [
+        "deepseek"
+      ],
+      "priority": 90
+    },
+    {
+      "id": "mistral",
+      "preset": "MISTRAL",
+      "modelNameContains": [
+        "mistral",
+        "mixtral"
+      ],
+      "priority": 80
+    },
+    {
+      "id": "gemma",
+      "preset": "GEMMA",
+      "modelNameContains": [
+        "gemma"
+      ],
+      "priority": 70
+    },
+    {
+      "id": "phi",
+      "preset": "PHI",
+      "modelNameContains": [
+        "phi-3",
+        "phi3",
+        "phi-4",
+        "phi4"
+      ],
+      "priority": 60
+    },
+    {
+      "id": "gpt-oss",
+      "preset": "GPT_OSS",
+      "modelNameContains": [
+        "gpt-oss",
+        "gpt_oss"
+      ],
+      "priority": 50
+    },
+    {
+      "id": "llama",
+      "preset": "LLAMA",
+      "modelNameContains": [
+        "llama"
+      ],
+      "priority": 40
+    }
+  ]
+}

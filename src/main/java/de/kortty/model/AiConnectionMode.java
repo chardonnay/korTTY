@@ -5,5 +5,6 @@ package de.kortty.model;
  */
 public enum AiConnectionMode {
     HTTP_API,
-    LOCAL_CLI
+    LOCAL_CLI,
+    EMBEDDED_LLAMA_CPP
 }

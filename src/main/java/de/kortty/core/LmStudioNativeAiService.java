@@ -157,6 +157,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             AiPromptBuilder.buildSystemPrompt(request),
             request,
             this::classifyRelevantSkills);
+        systemPrompt = AiPromptPipeline.appendAfterSkills(systemPrompt, request);
         if (includeInternet) {
             systemPrompt = AiInternetPromptSupport.appendRules(systemPrompt);
         }

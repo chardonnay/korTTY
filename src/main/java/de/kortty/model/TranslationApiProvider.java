@@ -14,5 +14,6 @@ public enum TranslationApiProvider {
     @XmlEnumValue("DEEPL") DEEPL,
     @XmlEnumValue("LIBRETRANSLATE") LIBRETRANSLATE,
     @XmlEnumValue("MICROSOFT") MICROSOFT,
-    @XmlEnumValue("YANDEX") YANDEX
+    @XmlEnumValue("YANDEX") YANDEX,
+    @XmlEnumValue("LOCAL_AI_PROFILE") LOCAL_AI_PROFILE
 }

@@ -40,6 +40,11 @@ jobs:
 
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      # Public verification keys only. Keep signing private keys exclusively in their dedicated
+      # runtime/catalog promotion repositories and workflows.
+      KORTTY_LLAMA_RUNTIME_PUBLIC_KEY: ${{ vars.KORTTY_LLAMA_RUNTIME_PUBLIC_KEY }}
+      KORTTY_AI_CATALOG_PUBLIC_KEY: ${{ vars.KORTTY_AI_CATALOG_PUBLIC_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -145,6 +150,29 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
+
+      - name: Validate local AI release trust roots
+        shell: bash
+        run: |
+          if [ -z "${KORTTY_LLAMA_RUNTIME_PUBLIC_KEY:-}" ]; then
+            echo "::error::Repository variable KORTTY_LLAMA_RUNTIME_PUBLIC_KEY is required for release builds."
+            exit 1
+          fi
+          if printf '%s' "$KORTTY_LLAMA_RUNTIME_PUBLIC_KEY" | grep -qi 'PRIVATE KEY'; then
+            echo "::error::KORTTY_LLAMA_RUNTIME_PUBLIC_KEY must never contain private key material."
+            exit 1
+          fi
+          if [ -z "${KORTTY_AI_CATALOG_PUBLIC_KEY:-}" ]; then
+            echo "::error::Repository variable KORTTY_AI_CATALOG_PUBLIC_KEY is required for release builds."
+            exit 1
+          fi
+          if printf '%s' "$KORTTY_AI_CATALOG_PUBLIC_KEY" | grep -qi 'PRIVATE KEY'; then
+            echo "::error::KORTTY_AI_CATALOG_PUBLIC_KEY must never contain private key material."
+            exit 1
+          fi
+          # The Gradle resource generator performs the authoritative X.509 Ed25519 decode and
+          # therefore fails the release before any unsigned/updatable application is packaged.
+          ./gradlew generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig
 
       - name: Validate macOS JDK and architecture
         if: matrix.platform == 'macos'

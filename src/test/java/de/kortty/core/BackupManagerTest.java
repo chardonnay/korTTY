@@ -10,4 +10,14 @@ public class BackupManagerTest {
     public void managedBackupFilesIncludeSavedAiChats() {
         assertThat(BackupManager.managedBackupFiles()).contains("ai-chats.xml");
     }
+
+    @Test
+    public void managedBackupFilesIncludeOnlyRegenerableLocalAiMetadata() {
+        assertThat(BackupManager.managedBackupFiles()).containsAtLeast(
+            "llm/models.xml",
+            "rag/stores.json");
+        assertThat(BackupManager.managedBackupFiles()).doesNotContain("llm/runtime");
+        assertThat(BackupManager.managedBackupFiles()).doesNotContain("llm/models");
+        assertThat(BackupManager.managedBackupFiles()).doesNotContain("rag/index");
+    }
 }

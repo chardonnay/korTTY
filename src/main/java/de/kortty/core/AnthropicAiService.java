@@ -79,6 +79,7 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
         String effectiveSystem = request != null && request.includeAiSkills()
             ? skillPromptSupport.appendChatSkills(systemPrompt, request)
             : normalize(systemPrompt);
+        effectiveSystem = AiPromptPipeline.appendAfterSkills(effectiveSystem, request);
         return send(effectiveSystem, userPrompt, REQUEST_TIMEOUT);
     }
 

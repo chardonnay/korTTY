@@ -91,7 +91,7 @@ python3 scripts/package-size-report.py \
   --output-markdown build/package-size/local.md
 ```
 
-Bevor ein Windows-Archiv erstellt wird, erfordert der Release-Workflow außerdem eine Anwendungs-JAR, `jvm.dll`, mindestens 100 MiB plausiblen Inhalts und x86_64 PE-Header für Launcher und JVM. Die Linux-RPM-Größendurchsetzung wird nach `rpmsign` ausgeführt, sodass die gemessene Datei diejenige ist, die verteilt wird.
+Bevor ein Windows-Archiv erstellt wird, löst der Release-Workflow das generierte App-Image auf und erfordert eine Anwendungs-JAR, `jvm.dll`, mindestens 100 MiB plausiblen Inhalts und x86_64 PE-Header für Launcher und JVM. Die Linux-RPM-Größendurchsetzung wird nach `rpmsign` ausgeführt, sodass die gemessene Datei diejenige ist, die verteilt wird.
 
 ### Erstellen Sie die Java-Artefakte
 
@@ -110,6 +110,71 @@ Verwenden Sie den folgenden Plattformbefehl, um das Thin JAR sowie die Java ZIP-
     ```
 
 Das Thin-JAR enthält korTTY-Klassen und -Ressourcen, jedoch keine Laufzeitabhängigkeiten und stellt selbst nicht die vollständige Bereitstellung bereit. Für ein Java-basiertes tragbares Layout extrahieren Sie die generierte ZIP- oder TAR-Datei und starten Sie `bin/korTTY` unter macOS/Linux oder `bin\korTTY.bat` unter Windows; Das Ziel benötigt weiterhin JDK 25. Diese Distributionen enthalten auch die nativen JavaFX-Abhängigkeiten, die auf dem Build-Host ausgewählt wurden. Erstellen Sie sie also auf demselben Betriebssystem und derselben Architektur, auf der sie ausgeführt werden.
+
+## Erstellen Sie ein separates llama.cpp-Laufzeitpaket
+
+Die integrierte lokale KI verwendet ein natives Artefakt, das absichtlich von jedem `jpackage`-App-Image und -Installationsprogramm getrennt ist. `build.gradle.kts` ist der einzelne Build-Vertrag für das Upstream-Tag, das vollständige Commit, das Quellarchiv SHA-256, die korTTY-Laufzeitrevision und die API-Vertragsversion. `verifyLlamaCppPin` kann nicht geschlossen werden, wenn diese Werte oder das angeforderte Backend ungültig sind.
+
+Installieren Sie CMake und eine native C/C++-Toolchain. Ein Vulkan-Paket benötigt zusätzlich die Vulkan-Header, den Loader und den Shader-Compiler; Metal ist nur auf macOS mit den Apple-Entwicklungstools verfügbar. Erstellen Sie dann das Paket für die aktuelle Maschine:
+
+=== "CPU"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=CPU
+    ```
+
+=== "macOS Metal"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=METAL
+    ```
+
+=== "Windows/Linux Vulkan"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=VULKAN
+    ```
+
+Die Task-Kette lädt nur das angeheftete Commit-Archiv herunter, überprüft dessen SHA-256, extrahiert es, konfiguriert einen Release-Build mit deaktiviertem Curl, RPC, Tests, Beispielen, Tools und Server-Web-UI, erstellt `llama-server`, stellt die erforderlichen Bibliotheken und Lizenzen bereit und erstellt einen reproduzierbaren ZIP- und JSON-Deskriptor unter `build/llama-runtime/packages/`. Der Deskriptor zeichnet die unveränderliche Laufzeit-ID, das Tag/Commit, die API-Vertragsversion, die korTTY-Mindestversion, die Plattform, die Architektur, das konkrete Backend, die Paketgröße/SHA-256, den Platzhalter für die Veröffentlichungs-URL, den Einstiegspunkt und das Widerrufsflag auf.
+
+!!! important "Ein Build-Host kann nicht die gesamte Matrix erstellen"
+    Native llama.cpp-Artefakte folgen der gleichen Zielplattformregel wie `jpackage`: Erstellen Sie jede Kombination aus Betriebssystem, Architektur und Backend auf einem passenden Host. Der Laufzeitworkflow umfasst macOS arm64/x86_64 CPU+Metal, Windows x86_64 CPU+Vulkan, Linux x86_64/arm64 CPU+Vulkan. CUDA ist nicht in der ersten Matrix.
+
+### Kandidatenerkennung, Vertragstests und Beförderung
+
+`.github/workflows/llama-runtime.yml` überprüft täglich Upstream-Tags. Eine Änderung öffnet einen Kandidaten-PR, der den Quell-Pin aktualisiert, ihn aber nicht veröffentlicht. Pull-Requests und manuelle Builds führen die native Matrix aus; Jedes Artefakt muss starten und seine Version melden, der Linux-CPU-Referenzjob überprüft außerdem nicht authentifizierte Ablehnung, authentifizierte Modellauflistung, Abschluss, Schlaf/Wach, JSON-Schema-Chat-Vervollständigung, Einbettungen und zwei gleichzeitig verwendbare Sidecars, und ein angehefteter Qdrant 1.18.2-Dienst führt den echten Vektorspeichervertrag aus.
+
+Bei der stabilen Veröffentlichung handelt es sich um einen expliziten, von Menschen ausgeführten `main`-Zweigjob unter Verwendung von `LLAMA_RUNTIME_RELEASE_TOKEN` und `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM`. Es wird erst ausgeführt, nachdem die native Matrix und der Qdrant-Vertrag bestanden wurden, und gelangt in die GitHub-Umgebung `llama-runtime-signing`, die über erforderliche Prüfer verfügen muss, bevor Produktionsgeheimnisse konfiguriert werden. Es überprüft den vorherigen signierten Index, führt die überprüften Deskriptoren zu einem kumulativen `runtime-index-v1.json` zusammen, behält/fügt angeforderte widerrufene IDs bei, schreibt seine abgetrennte Signatur als `runtime-index-v1.sig` und erstellt eine neue unveränderliche Nur-Laufzeit-Version; Eine bestehende Laufzeit-ID wird niemals überschrieben. Die reguläre Werbung ist auf einmal alle sieben Tage beschränkt, wobei ein geprüfter Sicherheits- oder Modellunterstützungsgrund diesen Rhythmus außer Kraft setzen kann. Das Anwendungsinstallationsprogramm bleibt daher unverändert, während eine kompatible native Laufzeit unabhängig hochgestuft oder zurückgezogen werden kann.
+
+## Veröffentlichen Sie den Modell- und Eingabeaufforderungskatalog
+
+Der überprüfte kanonische Katalog ist `ai-catalog/model-prompt-catalog-v1.json`. Es verwendet das strikte Schema v1 für Empfehlungen für lokale Modelle und Zuordnungen von Modellnamen zu Voreinstellungen. Anwendungscode und Prompt-Vertragstext sind nicht Teil dieser unabhängig veröffentlichten Nutzlast.
+
+`.github/workflows/ai-catalog-release.yml` ist nur manuell, akzeptiert Sendungen nur von `main` und verfügt über keine Vorschau oder einen automatischen Promotion-Pfad. Für den Versand sind genau das überprüfte `catalogVersion` und ein Release-Repository erforderlich, standardmäßig `chardonnay/kortty-ai-catalog`. Vor dem Signieren wird überprüft, ob die positive Katalogsequenz unbedingt größer als die zuletzt veröffentlichte Sequenz ist, und es werden die autorisierenden Java-Schema-/Vertrauenskettentests ausgeführt. Die `ai-catalog-signing`-GitHub-Umgebung muss über erforderliche Prüfer verfügen, bevor Produktionsgeheimnisse konfiguriert werden. Darin prüft der Workflow, ob `KORTTY_AI_CATALOG_PUBLIC_KEY` mit dem privaten Signaturgeheimnis Ed25519 übereinstimmt, signiert die unveränderten JSON-Bytes, überprüft die Signatur und veröffentlicht unveränderliches `model-prompt-catalog-v1.json` plus `model-prompt-catalog-v1.sig`. Ein vorhandenes Versions-Tag oder Release wird abgelehnt. Konfigurieren Sie `AI_CATALOG_ED25519_PRIVATE_KEY_PEM` und `AI_CATALOG_RELEASE_TOKEN` nur als umgebungsbezogene Hochstufungsgeheimnisse.
+
+### Betten Sie die lokalen KI-Vertrauenswurzeln ein
+
+Jede Anwendungsversion, die Laufzeiten installieren oder den Katalog aktualisieren kann, muss beide Ed25519 **öffentlichen** Verifizierungsschlüssel einbetten. Stellen Sie öffentliche X.509/PEM-Schlüssel über die Umgebungsvariablen oder deren Gradle-Eigenschaftsäquivalente bereit. Geben Sie niemals einen der signierenden privaten Schlüssel für einen Anwendungsbuild an.
+
+| Kanal | Umgebungsvariable | Gradle-Eigenschaft |
+| --- | --- | --- |
+| llama.cpp-Laufzeit | `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY` | `kortty.llamaRuntimePublicKey` |
+| Modell-/Sofortkatalog | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
+
+Die generierten Ressourcen speichern die festen Kanal-URLs und öffentlichen Vertrauensstämme mit der Anwendung:
+
+=== "macOS / Linux"
+    ```bash
+    export KORTTY_LLAMA_RUNTIME_PUBLIC_KEY="$(cat runtime-signing-public.pem)"
+    export KORTTY_AI_CATALOG_PUBLIC_KEY="$(cat ai-catalog-signing-public.pem)"
+    ./gradlew generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
+    ```
+
+=== "Windows PowerShell"
+    ```powershell
+    $env:KORTTY_LLAMA_RUNTIME_PUBLIC_KEY = Get-Content .\runtime-signing-public.pem -Raw
+    $env:KORTTY_AI_CATALOG_PUBLIC_KEY = Get-Content .\ai-catalog-signing-public.pem -Raw
+    .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
+    ```
+
+Der offizielle Anwendungsfreigabe-Workflow liest beide Namen aus GitHub Actions-Repository-Variablen, lehnt fehlende Werte oder privates Schlüsselmaterial ab und lässt Gradle die X.509 Ed25519-Schlüssel vor dem Verpacken validieren. Auf einen Source-Tree-Fallback wird bewusst verzichtet. Ohne den Laufzeitschlüssel bleibt eine bereits vertrauenswürdige installierte Laufzeit verwendbar, aber die Netzwerkinstallation/-aktualisierung schlägt vor dem Abrufen des Index fehl. Ohne den Katalogschlüssel stellt korTTY keine Kataloganfrage, ignoriert etwaige Caches und verwendet seinen integrierten Bootstrap.
 
 ## macOS
 
@@ -188,7 +253,7 @@ Konfigurieren Sie diese Repository-Geheimnisse, bevor Sie den Workflow ausführe
 Öffnen Sie **Aktionen → Release-Binärdateien erstellen → Workflow ausführen**, wählen Sie den Zweig oder das Tag in `ref` aus und geben Sie die numerische Anwendungsversion ein. Ein Branch-Lauf lädt die macOS-Build-Artefakte zur Überprüfung hoch; Ein veröffentlichtes GitHub-Release oder eine manuelle Ausführung, deren `ref` ein Release-Tag ist, speist auch den endgültigen Release-Upload-Job. Die Intel-Artefakte heißen `korTTY-macOS-<version>-x86_64.zip` und `korTTY-macOS-<version>-x86_64.dmg`.
 
 !!! warning "Rosetta ist ein nicht verifizierter fortgeschrittener Pfad"
-    Ein Apple Silicon-Host kann versuchsweise ein x86_64 JDK 25 unter Rosetta ausführen, dies ist jedoch nicht der verifizierte Release-Pfad des Repositorys. Installieren Sie Rosetta, wählen Sie ein Intel JDK für `JAVA_HOME` und `PATH` aus, stoppen Sie vorhandene Gradle-Daemons, führen Sie den kompletten Build in einer x86_64-Shell aus und bestätigen Sie den Launcher mit `lipo`. Testen Sie das Ergebnis vor der Verteilung auf echter Intel-Hardware; Verwenden Sie `macos-15-intel`, wenn ein reproduzierbares Release-Artefakt erforderlich ist.
+    Ein Apple Silicon-Host kann versuchsweise ein x86_64 JDK 25 unter Rosetta ausführen, dies ist jedoch nicht der verifizierte Release-Pfad des Repositorys. Installieren Sie Rosetta, wählen Sie ein Intel JDK für `JAVA_HOME` und `PATH` aus, stoppen Sie vorhandene Gradle-Daemons, führen Sie den kompletten Build in einer x86_64-Shell aus und bestätigen Sie den Launcher mit `lipo`. Testen Sie das Ergebnis vor der Verteilung auf echter Intel-Hardware. Verwenden Sie `macos-15-intel`, wenn ein reproduzierbares Release-Artefakt erforderlich ist.
 
 ```bash
 softwareupdate --install-rosetta --agree-to-license
@@ -280,7 +345,7 @@ lipo -archs build/jpackage/korTTY.app/Contents/MacOS/korTTY
 
 ### Zusätzliche Software
 
-Für die App-Image-Aufgabe sind die allgemeinen Voraussetzungen erforderlich. Für die DEB-Erstellung ist `fakeroot` erforderlich; Für die RPM-Erstellung sind die RPM-Build-Tools erforderlich. `zip` wird nur benötigt, wenn Sie zusätzlich zum TAR.GZ-Archiv das portable ZIP benötigen.
+Für die App-Image-Aufgabe sind die allgemeinen Voraussetzungen erforderlich. Für die DEB-Erstellung ist `fakeroot` erforderlich. Für die RPM-Erstellung sind die RPM-Build-Tools erforderlich. `zip` wird nur benötigt, wenn Sie zusätzlich zum TAR.GZ-Archiv das portable ZIP benötigen.
 
 === "Debian / Ubuntu"
     ```bash

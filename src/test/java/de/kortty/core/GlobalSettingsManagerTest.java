@@ -12,6 +12,8 @@ import de.kortty.model.AiTokenizerType;
 import de.kortty.model.AppDesign;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.LlamaRuntimeUpdatePolicy;
+import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalRecordingFormat;
@@ -116,6 +118,12 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setTerminalAgentExecutionEnabled(false);
             manager.getSettings().setTerminalAgentConfirmMutatingCommandSets(true);
             manager.getSettings().setDefaultAiProfileId("profile-1");
+            manager.getSettings().setTextAiProfileId("profile-1");
+            manager.getSettings().setCodingAiProfileId("profile-1");
+            manager.getSettings().setRagEmbeddingModelId("qwen3-embedding");
+            manager.getSettings().setEncryptedHuggingFaceToken("encrypted-hf-token");
+            manager.getSettings().setLlamaRuntimeUpdatePolicy(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE);
+            manager.getSettings().setPreferredLlamaRuntimeBackend(LlamaBackend.VULKAN);
             manager.getSettings().setDefaultPromptHookEnabled(false);
             manager.getSettings().setTerminalAgentShowDebugMessages(true);
             manager.getSettings().setTerminalAgentShowRuntimeMessages(true);
@@ -178,6 +186,14 @@ class GlobalSettingsManagerTest {
             assertThat(reloaded.getSettings().getAiSearxngMcpPluginId()).isEqualTo("plugin/searxng");
             assertThat(reloaded.getSettings().getAiLmStudioToolpackMcpPluginId()).isEqualTo("plugin/toolpack");
             assertThat(reloaded.getSettings().getDefaultAiProfileId()).isEqualTo("profile-1");
+            assertThat(reloaded.getSettings().getTextAiProfileId()).isEqualTo("profile-1");
+            assertThat(reloaded.getSettings().getCodingAiProfileId()).isEqualTo("profile-1");
+            assertThat(reloaded.getSettings().getRagEmbeddingModelId()).isEqualTo("qwen3-embedding");
+            assertThat(reloaded.getSettings().getEncryptedHuggingFaceToken()).isEqualTo("encrypted-hf-token");
+            assertThat(reloaded.getSettings().getLlamaRuntimeUpdatePolicy())
+                .isEqualTo(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE);
+            assertThat(reloaded.getSettings().getPreferredLlamaRuntimeBackend())
+                .isEqualTo(LlamaBackend.VULKAN);
             assertThat(reloaded.getSettings().isDefaultPromptHookEnabled()).isFalse();
             assertThat(reloaded.getSettings().isTerminalAgentShowDebugMessages()).isTrue();
             assertThat(reloaded.getSettings().isTerminalAgentShowRuntimeMessages()).isTrue();

@@ -27,12 +27,14 @@ Each per-tab page lists settings as a table:
 | [Security](security.md) | Master-password prompt, change master password, temporary SSH keys |
 | [Privacy](../../about/anonymous-data.md) | Opt-in for anonymous usage statistics (Aptabase, EU/GDPR) |
 | [Language](language.md) | UI language selection (8 built-in) + auto-detect |
-| [Translation](translation.md) | Dynamic-translation provider, API key, target language, generate language file |
+| [Translation](translation.md) | External or local-AI translation provider, credentials, target language, generate language file |
 | [Video](video.md) | Terminal recording / `ffmpeg` video export |
-| [AI](ai.md) | AI features, agent execution, profiles, reasoning effort, token quota, internet tools |
+| [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, quota, internet tools |
 | [AI Skills](ai-skills.md) | Skill definitions, auto-detection, import/export |
 
 The settings dialog also exposes **SFTP Manager**, **Editor** and **Snippet Editor** tabs, which set file-manager and Monaco-editor defaults (font, colors, cursor) for those tools.
+
+Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, and knowledge-source synchronization live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
 
 !!! info "Completeness"
     The per-tab pages enumerate every individual setting. Coverage is verified automatically against the application's setting keys, so no setting is left undocumented.
@@ -58,7 +60,7 @@ A few of the configuration tabs (the per-tab pages show each in detail):
 
 ![Backup settings tab](../../assets/screenshots/settings/backup.png)
 
-**AI** — agent execution, profiles, internet tools
+**AI** — agent execution, profiles, prompt settings, internet tools
 { .grid-caption }
 
 ![AI settings tab](../../assets/screenshots/settings/ai.png)

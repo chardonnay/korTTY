@@ -12,6 +12,9 @@ korTTY's Terminal AI Agent is a controlled automation workflow that enables safe
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
 
+!!! important "RAG is explicit for autonomous work"
+    Knowledge stores assigned to normal Text/Coding requests do not automatically expand the Terminal AI Agent, Planning, Swarm, or scheduled job context. Those autonomous flows require an explicit RAG opt-in; see [RAG knowledge stores](rag.md). This prevents a background workflow from reading indexed local sources merely because the same model profile is used for interactive chat.
+
 ## Command variants
 
 The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in **Settings > AI**, KorTTY intercepts these commands locally instead of sending them to the server:

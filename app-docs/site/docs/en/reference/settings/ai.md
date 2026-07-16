@@ -44,12 +44,13 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Profile name | text | — | AI Profile | (profile `name` field) |
-| Connection | dropdown | HTTP API, Local CLI | HTTP API | (profile `connectionMode` field) |
+| Connection | dropdown | HTTP API, Local CLI, Integrated llama.cpp | HTTP API | (profile `connectionMode` field) |
 | API URL | text | — | — | (profile `apiUrl` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
-| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
+| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints; installed chat models for Integrated llama.cpp) | — | (profile `model` or `embeddedModelId` field) |
 | Custom model | text | — | — | (profile `cliCustomModel` field) |
+| Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
 | Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Disabled | (profile `internetAccessMode` field) |
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
@@ -86,12 +87,36 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 
 ### AI Profiles
 
-KorTTY stores multiple named AI profiles, each with its own model, API endpoint, connection method, and reasoning settings. Each profile tracks its own token usage separately. Profiles support two connection modes:
+KorTTY stores multiple named AI profiles, each with its own model, connection method, reasoning settings, prompt preset, and optional knowledge stores. Each profile tracks its own token usage separately. Profiles support three connection modes:
 
 - **HTTP API**: Direct connection to an OpenAI-compatible REST endpoint (specify API URL, model name, and optional API key).
 - **Local CLI**: Execute a local command-line AI client (configure CLI provider, custom executable, arguments template, and custom model name).
+- **Integrated llama.cpp**: Acquire a private loopback `llama-server` lease for one installed GGUF model; the API URL and profile API key are managed by korTTY and are not editable.
 
-The **Default profile** is used by terminal AI actions and the terminal AI Agent when no explicit profile is selected.
+An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md).
+
+The AI Manager keeps the open primary section visibly marked with a bold accent underline when you interact with controls inside that section.
+
+### Local AI manager settings
+
+| Setting | Values | Default | Stored as |
+| --- | --- | --- | --- |
+| Text and translation profile | Configured AI profile, or use default | Use default | `textAiProfileId` |
+| Coding profile | Configured AI profile, or use default | Use default | `codingAiProfileId` |
+| RAG embedding model ID | Installed local embedding model | — | `ragEmbeddingModelId` |
+| llama.cpp runtime updates | Off, Notify me, Install stable updates automatically | Notify me | `llamaRuntimeUpdatePolicy` |
+| Preferred runtime backend | Auto/CPU/Metal on macOS; Auto/CPU/Vulkan on Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
+| Hugging Face token | Optional encrypted token for gated/private repositories | — | `encryptedHuggingFaceToken` |
+
+**Automatic (keep active backend)** retains the active runtime package backend for updates. With no installed package, Auto initially selects Metal on macOS and CPU elsewhere. Starting a model configured for another supported GPU backend offers to install the matching signed package.
+
+The **Local Models > Setup assistant** exposes optional Text, Coding, and RAG-embedding slots. It verifies every selected fixed revision, quantization, license, and exact size before starting its asynchronous runtime/model installation, runs a real chat or embedding test for each installed GGUF, and saves the resulting role assignments only after all tests succeed. The Text and Coding slots may share one model. **Configure** refuses to replace a model's persisted runtime settings while that model is serving an active request.
+
+Knowledge stores assigned to the Text/Coding roles add only bounded, cited excerpts to matching normal terminal and snippet AI requests, never the complete knowledge store. A cloud Text/Coding profile receives those excerpts over its configured provider connection, so assigning the knowledge store to that role/profile is explicit permission for that disclosure. Agent, Planning, Swarm, and scheduled autonomous prompts remain a separate opt-in; see [RAG knowledge stores](../../features/rag.md).
+
+### Prompt optimization presets
+
+**Auto (model detection)** resolves common Llama, Qwen, Mistral/Mixtral, Gemma, DeepSeek, Phi, and GPT-OSS names. A family preset adds concise compatibility guidance while leaving korTTY's strict JSON/code contracts authoritative; **Generic** adds no family-specific guidance. llama.cpp still applies the GGUF's native chat template.
 
 ### Reasoning Effort Levels
 

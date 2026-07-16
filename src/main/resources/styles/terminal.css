@@ -37,6 +37,16 @@
     -fx-text-fill: #ffffff;
 }
 
+/* The AI Manager's primary section stays identifiable after focus moves into its content. */
+.ai-manager-primary-tab:selected {
+    -fx-border-color: -fx-focus-color;
+    -fx-border-width: 0 0 3 0;
+}
+
+.ai-manager-primary-tab:selected .tab-label {
+    -fx-font-weight: bold;
+}
+
 .terminal-only-fullscreen .tab-pane .tab-header-area {
     visibility: hidden;
     -fx-pref-height: 0;

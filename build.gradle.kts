@@ -9,6 +9,9 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.security.KeyFactory
+import java.security.spec.X509EncodedKeySpec
+import java.util.Base64
 import java.util.zip.ZipFile
 
 group = "de.kortty"
@@ -40,6 +43,134 @@ val osName = System.getProperty("os.name").lowercase()
 val isWindows = osName.contains("windows")
 val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
+
+// llama.cpp is deliberately source-pinned. Runtime packages are built separately from the
+// application installer and are installed below ~/.kortty/llm/runtime at run time. Keep the tag,
+// full commit and GitHub source-archive digest in lockstep; downloadLlamaCppSource fails closed on
+// any upstream/archive mismatch.
+val llamaCppTag = "b10025"
+val llamaCppCommit = "a3e5b96ac5e278c390df429df0b68efcee3ee1b5"
+val llamaCppSourceSha256 = "c51807b434fe3bc5dfef826da4f03b12b6e9b909abd8188eacb27a6f8176ad8a"
+val llamaRuntimeRevision = "kortty1"
+val llamaRuntimeApiContractVersion = 1
+val llamaRuntimeId = "llama-$llamaCppTag-$llamaRuntimeRevision"
+val llamaRuntimeIndexUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.json"
+val llamaRuntimeSignatureUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.sig"
+
+// Release builds inject the Ed25519 *public* trust root. It deliberately has no source-tree
+// fallback: a build without the key can run local runtimes already installed by a trusted build,
+// but every network update/install attempt fails closed. Never put a private key in either input.
+val llamaRuntimePublicKey = providers.gradleProperty("kortty.llamaRuntimePublicKey")
+    .orElse(providers.environmentVariable("KORTTY_LLAMA_RUNTIME_PUBLIC_KEY"))
+val generatedLlamaRuntimeConfigDirectory = layout.buildDirectory.dir("generated/llama-runtime-config")
+val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeReleaseConfig") {
+    val outputFile = generatedLlamaRuntimeConfigDirectory.map {
+        it.file("de/kortty/ai/runtimeupdate/llama-runtime-release.properties")
+    }
+    inputs.property("runtimeId", llamaRuntimeId)
+    inputs.property("tag", llamaCppTag)
+    inputs.property("commit", llamaCppCommit)
+    inputs.property("apiContractVersion", llamaRuntimeApiContractVersion)
+    inputs.property("indexUrl", llamaRuntimeIndexUrl)
+    inputs.property("signatureUrl", llamaRuntimeSignatureUrl)
+    inputs.property("publicKey", llamaRuntimePublicKey.orElse(""))
+    outputs.file(outputFile)
+    doLast {
+        val configuredKey = llamaRuntimePublicKey.orNull?.trim().orEmpty()
+        if (configuredKey.contains("PRIVATE KEY", ignoreCase = true)) {
+            throw GradleException("kortty.llamaRuntimePublicKey must contain an Ed25519 public key, never a private key.")
+        }
+        if (configuredKey.isNotEmpty()) {
+            try {
+                val encoded = configuredKey
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replace(Regex("\\s+"), "")
+                val decoded = Base64.getDecoder().decode(encoded)
+                KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(decoded))
+            } catch (error: Exception) {
+                throw GradleException("kortty.llamaRuntimePublicKey is not a valid X.509 Ed25519 public key.", error)
+            }
+        }
+        fun propertyValue(value: String): String = value
+            .replace("\\", "\\\\")
+            .replace("\r", "")
+            .replace("\n", "\\n")
+        val content = buildString {
+            appendLine("baseline.runtimeId=${propertyValue(llamaRuntimeId)}")
+            appendLine("baseline.tag=${propertyValue(llamaCppTag)}")
+            appendLine("baseline.commit=${propertyValue(llamaCppCommit)}")
+            appendLine("baseline.apiContractVersion=$llamaRuntimeApiContractVersion")
+            appendLine("stable.indexUrl=${propertyValue(llamaRuntimeIndexUrl)}")
+            appendLine("stable.signatureUrl=${propertyValue(llamaRuntimeSignatureUrl)}")
+            if (configuredKey.isNotEmpty()) {
+                appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
+            }
+        }
+        val file = outputFile.get().asFile.toPath()
+        Files.createDirectories(file.parent)
+        Files.writeString(file, content)
+    }
+}
+
+// Model recommendations and prompt-family mappings use a separate signed release channel and
+// trust root from the native runtime index. Local/dev builds without this public key stay fully
+// functional on the built-in bootstrap catalog, but never construct the remote catalog client.
+val aiCatalogUrl =
+    "https://github.com/chardonnay/kortty-ai-catalog/releases/latest/download/model-prompt-catalog-v1.json"
+val aiCatalogSignatureUrl =
+    "https://github.com/chardonnay/kortty-ai-catalog/releases/latest/download/model-prompt-catalog-v1.sig"
+val aiCatalogPublicKey = providers.gradleProperty("kortty.aiCatalogPublicKey")
+    .orElse(providers.environmentVariable("KORTTY_AI_CATALOG_PUBLIC_KEY"))
+val generatedAiCatalogConfigDirectory = layout.buildDirectory.dir("generated/ai-catalog-config")
+val generateAiCatalogReleaseConfig = tasks.register("generateAiCatalogReleaseConfig") {
+    val outputFile = generatedAiCatalogConfigDirectory.map {
+        it.file("de/kortty/ai/catalog/ai-catalog-release.properties")
+    }
+    inputs.property("catalogUrl", aiCatalogUrl)
+    inputs.property("signatureUrl", aiCatalogSignatureUrl)
+    inputs.property("publicKey", aiCatalogPublicKey.orElse(""))
+    outputs.file(outputFile)
+    doLast {
+        val configuredKey = aiCatalogPublicKey.orNull?.trim().orEmpty()
+        if (configuredKey.contains("PRIVATE KEY", ignoreCase = true)) {
+            throw GradleException("kortty.aiCatalogPublicKey must contain an Ed25519 public key, never a private key.")
+        }
+        if (configuredKey.isNotEmpty()) {
+            try {
+                val encoded = configuredKey
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replace(Regex("\\s+"), "")
+                val decoded = Base64.getDecoder().decode(encoded)
+                KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(decoded))
+            } catch (error: Exception) {
+                throw GradleException("kortty.aiCatalogPublicKey is not a valid X.509 Ed25519 public key.", error)
+            }
+        }
+        fun propertyValue(value: String): String = value
+            .replace("\\", "\\\\")
+            .replace("\r", "")
+            .replace("\n", "\\n")
+        val content = buildString {
+            appendLine("stable.catalogUrl=${propertyValue(aiCatalogUrl)}")
+            appendLine("stable.signatureUrl=${propertyValue(aiCatalogSignatureUrl)}")
+            if (configuredKey.isNotEmpty()) {
+                appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
+            }
+        }
+        val file = outputFile.get().asFile.toPath()
+        Files.createDirectories(file.parent)
+        Files.writeString(file, content)
+    }
+}
+
+sourceSets.named("main") {
+    resources.srcDir(generatedLlamaRuntimeConfigDirectory)
+    resources.srcDir(generatedAiCatalogConfigDirectory)
+}
 
 // Packaging must use the same JDK generation as compilation. Calling the bare
 // `jpackage` from PATH is not reproducible and breaks as soon as a newer system
@@ -134,6 +265,8 @@ val effectPackPluginJar = tasks.register<Jar>("effectPackPluginJar") {
 }
 
 tasks.named<ProcessResources>("processResources") {
+    dependsOn(generateLlamaRuntimeReleaseConfig)
+    dependsOn(generateAiCatalogReleaseConfig)
     dependsOn(motherTerminalEffectPluginJar)
     from(motherTerminalEffectPluginJar.flatMap { it.archiveFile }) {
         into("bundled-plugins/terminal-effects")
@@ -1834,6 +1967,239 @@ tasks.named<JavaExec>("run") {
     environment("TEST_MODE_KORTTY", providers.environmentVariable("TEST_MODE_KORTTY").getOrElse(""))
 }
 
+// ==================== Isolated llama.cpp runtime packages ====================
+
+val llamaRuntimePlatform = when {
+    isMac -> "macos"
+    isWindows -> "windows"
+    isLinux -> "linux"
+    else -> throw GradleException("Unsupported llama.cpp runtime platform: $osName")
+}
+val llamaRuntimeArchitecture = when (System.getProperty("os.arch", "").lowercase()) {
+    "aarch64", "arm64" -> "aarch64"
+    "amd64", "x86_64", "x64" -> "x86_64"
+    else -> throw GradleException("Unsupported llama.cpp runtime architecture: ${System.getProperty("os.arch")}")
+}
+val requestedLlamaBackend = providers.gradleProperty("llama.backend")
+    .orElse(if (isMac) "METAL" else "CPU")
+    .map { it.uppercase() }
+val llamaBuildJobs = providers.gradleProperty("llama.jobs")
+    .map { value -> value.toIntOrNull()?.coerceIn(1, 32)
+        ?: throw GradleException("-Pllama.jobs must be an integer between 1 and 32.") }
+    .orElse(Runtime.getRuntime().availableProcessors().coerceIn(1, 8))
+val llamaSourceArchive = layout.buildDirectory.file("llama-runtime/downloads/llama.cpp-$llamaCppCommit.tar.gz")
+val llamaSourceArchiveRoot = layout.buildDirectory.dir("llama-runtime/source-archive")
+val llamaSourceDirectory = llamaSourceArchiveRoot.map { it.dir("llama.cpp-$llamaCppCommit") }
+val llamaNativeBuildDirectory = layout.buildDirectory.dir(
+    requestedLlamaBackend.map { "llama-runtime/native-$llamaRuntimePlatform-$llamaRuntimeArchitecture-${it.lowercase()}" })
+val llamaRuntimeStageDirectory = layout.buildDirectory.dir(
+    requestedLlamaBackend.map { "llama-runtime/stage-$llamaRuntimePlatform-$llamaRuntimeArchitecture-${it.lowercase()}" })
+val llamaRuntimePackageDirectory = layout.buildDirectory.dir("llama-runtime/packages")
+
+tasks.register("verifyLlamaCppPin") {
+    group = "verification"
+    description = "Validates the immutable llama.cpp tag/commit/source SHA pin."
+    doLast {
+        check(llamaCppTag.matches(Regex("b[0-9]+"))) { "llama.cpp tag must use the bNNNN release form." }
+        check(llamaCppCommit.matches(Regex("[0-9a-f]{40}"))) { "llama.cpp commit must be a full SHA-1." }
+        check(llamaCppTag != "b10025" || llamaCppCommit.startsWith("a3e5b96ac")) {
+            "llama.cpp b10025 must resolve to a3e5b96ac."
+        }
+        check(llamaCppSourceSha256.matches(Regex("[0-9a-f]{64}"))) { "llama.cpp source SHA-256 is invalid." }
+        check(llamaRuntimeRevision.matches(Regex("kortty[1-9][0-9]*"))) { "Runtime revision must be immutable (korttyN)." }
+        check(requestedLlamaBackend.get() in setOf("CPU", "METAL", "VULKAN")) {
+            "-Pllama.backend must be CPU, METAL, or VULKAN."
+        }
+        check(requestedLlamaBackend.get() != "METAL" || isMac) { "The Metal backend is available only on macOS." }
+    }
+}
+
+tasks.register("downloadLlamaCppSource") {
+    group = "llama runtime"
+    description = "Downloads and SHA-256 verifies the pinned llama.cpp source archive."
+    dependsOn("verifyLlamaCppPin")
+    outputs.file(llamaSourceArchive)
+    doLast {
+        val destination = llamaSourceArchive.get().asFile.toPath()
+        Files.createDirectories(destination.parent)
+
+        fun sha256(path: java.nio.file.Path): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            Files.newInputStream(path).use { input ->
+                val buffer = ByteArray(128 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    digest.update(buffer, 0, count)
+                }
+            }
+            return digest.digest().joinToString("") { "%02x".format(it) }
+        }
+
+        if (Files.isRegularFile(destination) && sha256(destination) == llamaCppSourceSha256) {
+            logger.lifecycle("Using verified cached llama.cpp source archive: $destination")
+            return@doLast
+        }
+        Files.deleteIfExists(destination)
+        val partial = destination.resolveSibling(destination.fileName.toString() + ".part")
+        Files.deleteIfExists(partial)
+        val sourceUri = URI("https://github.com/ggml-org/llama.cpp/archive/$llamaCppCommit.tar.gz")
+        val connection = sourceUri.toURL().openConnection().apply {
+            connectTimeout = 15_000
+            readTimeout = 120_000
+            setRequestProperty("User-Agent", "korTTY-llama-runtime-builder/$version")
+        }
+        try {
+            connection.getInputStream().use { input -> Files.copy(input, partial) }
+            val actual = sha256(partial)
+            if (actual != llamaCppSourceSha256) {
+                throw GradleException("llama.cpp source SHA-256 mismatch: expected $llamaCppSourceSha256, got $actual")
+            }
+            Files.move(partial, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            Files.deleteIfExists(partial)
+        }
+    }
+}
+
+tasks.register<Sync>("extractLlamaCppSource") {
+    group = "llama runtime"
+    description = "Extracts the verified llama.cpp source archive."
+    dependsOn("downloadLlamaCppSource")
+    from(llamaSourceArchive.map { tarTree(resources.gzip(it.asFile)) })
+    into(llamaSourceArchiveRoot)
+    doFirst { delete(llamaSourceArchiveRoot) }
+}
+
+tasks.register<Exec>("configureLlamaRuntime") {
+    group = "llama runtime"
+    description = "Configures a hardened standalone llama-server build."
+    dependsOn("extractLlamaCppSource")
+    inputs.dir(llamaSourceDirectory)
+    outputs.dir(llamaNativeBuildDirectory)
+    doFirst {
+        val backend = requestedLlamaBackend.get()
+        val arguments = mutableListOf(
+            "cmake",
+            "-S", llamaSourceDirectory.get().asFile.absolutePath,
+            "-B", llamaNativeBuildDirectory.get().asFile.absolutePath,
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DLLAMA_BUILD_NUMBER=${llamaCppTag.removePrefix("b")}",
+            "-DLLAMA_BUILD_COMMIT=$llamaCppCommit",
+            "-DBUILD_SHARED_LIBS=OFF",
+            "-DLLAMA_BUILD_SERVER=ON",
+            "-DLLAMA_BUILD_TESTS=OFF",
+            "-DLLAMA_BUILD_EXAMPLES=OFF",
+            "-DLLAMA_BUILD_TOOLS=ON",
+            "-DLLAMA_BUILD_APP=OFF",
+            "-DLLAMA_CURL=OFF",
+            "-DLLAMA_BUILD_UI=OFF",
+            "-DLLAMA_USE_PREBUILT_UI=OFF",
+            "-DGGML_RPC=OFF",
+            "-DGGML_NATIVE=OFF",
+            "-DGGML_METAL=${if (backend == "METAL") "ON" else "OFF"}",
+            "-DGGML_VULKAN=${if (backend == "VULKAN") "ON" else "OFF"}"
+        )
+        if (isMac) {
+            arguments += "-DCMAKE_OSX_ARCHITECTURES=${if (llamaRuntimeArchitecture == "aarch64") "arm64" else "x86_64"}"
+            arguments += "-DGGML_ACCELERATE=ON"
+        }
+        commandLine(arguments)
+    }
+}
+
+tasks.register<Exec>("buildLlamaRuntime") {
+    group = "llama runtime"
+    description = "Builds the pinned static llama-server target."
+    dependsOn("configureLlamaRuntime")
+    inputs.dir(llamaNativeBuildDirectory)
+    doFirst {
+        commandLine(
+            "cmake", "--build", llamaNativeBuildDirectory.get().asFile.absolutePath,
+            "--config", "Release", "--target", "llama-server", "--parallel", llamaBuildJobs.get().toString())
+    }
+}
+
+tasks.register<Sync>("installLlamaRuntimeStaging") {
+    group = "llama runtime"
+    description = "Stages llama-server separately from korTTY's application packaging inputs."
+    dependsOn("buildLlamaRuntime")
+    into(llamaRuntimeStageDirectory)
+    from(llamaNativeBuildDirectory) {
+        include("bin/**/llama-server", "bin/**/llama-server.exe")
+        includeEmptyDirs = false
+        eachFile {
+            relativePath = org.gradle.api.file.RelativePath(true, "bin", name)
+        }
+    }
+}
+
+val packageLlamaRuntime = tasks.register<Zip>("packageLlamaRuntime") {
+    group = "llama runtime"
+    description = "Creates an immutable, independently downloadable llama.cpp runtime package."
+    dependsOn("installLlamaRuntimeStaging")
+    isReproducibleFileOrder = true
+    isPreserveFileTimestamps = false
+    destinationDirectory.set(llamaRuntimePackageDirectory)
+    archiveFileName.set(requestedLlamaBackend.map {
+        "$llamaRuntimeId-$llamaRuntimePlatform-$llamaRuntimeArchitecture-${it.lowercase()}.zip"
+    })
+    from(llamaRuntimeStageDirectory) {
+        exclude("include/**", "lib/cmake/**", "share/**")
+    }
+    from(llamaSourceDirectory.map { it.file("LICENSE") }) {
+        into("licenses")
+        rename { "llama.cpp-LICENSE" }
+    }
+}
+
+tasks.register("generateLlamaRuntimeManifest") {
+    group = "llama runtime"
+    description = "Writes the signed-index package descriptor input for the built runtime."
+    dependsOn(packageLlamaRuntime)
+    val manifestFile = requestedLlamaBackend.map {
+        llamaRuntimePackageDirectory.get().file(
+            "$llamaRuntimeId-$llamaRuntimePlatform-$llamaRuntimeArchitecture-${it.lowercase()}.json").asFile
+    }
+    outputs.file(manifestFile)
+    doLast {
+        val archive = packageLlamaRuntime.get().archiveFile.get().asFile.toPath()
+        val digest = MessageDigest.getInstance("SHA-256")
+        Files.newInputStream(archive).use { input ->
+            val buffer = ByteArray(128 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
+        val backend = requestedLlamaBackend.get().lowercase()
+        val entrypoint = if (isWindows) "bin/llama-server.exe" else "bin/llama-server"
+        val json = """{
+  "runtimeId": "$llamaRuntimeId",
+  "llamaTag": "$llamaCppTag",
+  "commit": "$llamaCppCommit",
+  "apiContractVersion": $llamaRuntimeApiContractVersion,
+  "minimumKorttyVersion": "$version",
+  "platform": "$llamaRuntimePlatform",
+  "architecture": "$llamaRuntimeArchitecture",
+  "backend": "$backend",
+  "size": ${Files.size(archive)},
+  "sha256": "$sha256",
+  "downloadUrl": "__PUBLISH_URL__/${archive.fileName}",
+  "entrypoint": "$entrypoint",
+  "revoked": false
+}
+"""
+        val output = manifestFile.get().toPath()
+        Files.createDirectories(output.parent)
+        Files.writeString(output, json)
+        logger.lifecycle("Runtime package: $archive")
+        logger.lifecycle("Runtime descriptor: $output")
+    }
+}
+
 tasks.test {
     dependsOn("copyMosh4jBundled")
     useTestNG()
@@ -1923,6 +2289,14 @@ tasks.register<JavaExec>("aiManagerModelComboSmoke") {
     description = "Selects a model in the real AI Manager model picker to verify the choice sticks."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiManagerModelComboSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiManagerNavigationSmoke") {
+    group = "verification"
+    description = "Moves focus into AI Manager content and verifies the selected primary tab remains visibly marked."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerNavigationSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

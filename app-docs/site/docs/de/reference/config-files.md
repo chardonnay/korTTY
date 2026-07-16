@@ -15,6 +15,15 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
+├── llm/
+│   ├── models.xml                     # Local GGUF registrations/settings
+│   ├── models/                        # Managed GGUF weights
+│   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
+│   ├── catalog/                       # Verified model/prompt catalog cache
+│   └── run/                           # Temporary sidecar state
+├── rag/
+│   ├── stores.json                    # Knowledge stores and source configuration
+│   └── stores/                        # Local HNSW snapshots
 ├── ai-chats.xml                       # Saved AI conversations
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
@@ -30,9 +39,9 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 └── ssh-keys/                          # Optional copied SSH keys (included in backups)
 ```
 
-## Kernkonfigurationsdateien
+## Core-Konfigurationsdateien
 
-### Verbindungen.xml
+### connections.xml
 Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 
 **Beinhaltet:**
@@ -42,7 +51,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - SSH-Tunnel und Jump-Server-Konfiguration
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
-- Einstellungen für die Fenstergeometrie
+- Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
@@ -50,13 +59,13 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 !!! note
     Wenn ein Verbindungskennwort verschlüsselt ist, wird es in einem Hash-/verschlüsselten Format gespeichert und kann nicht als Klartext angezeigt werden. Wenn Sie eine gespeicherte Verbindung öffnen, wird das Passwort automatisch mit Ihrem Master-Passwort entschlüsselt.
 
-### Anmeldeinformationen.xml
+### credentials.xml
 Zentralisierte Speicherung von Anmeldeinformationen für Benutzername/Passwort-Paare.
 
 **Beinhaltet:**
 - Anmeldename, Benutzername, Passwort
-- Umgebung (Produktion, Entwicklung, Test, Staging)
-- Servermuster (Globmuster wie `*.example.com` oder `10.0.0.*`)
+- Environment (Produktion, Entwicklung, Test, Staging)
+- Server-Muster (Glob-Muster wie `*.example.com` oder `10.0.0.*`)
 - Automatische Zuweisung zu Verbindungen, die dem Muster entsprechen
 
 **Sicherheit:** Alle Passwörter werden mit AES-256-GCM verschlüsselt.
@@ -82,27 +91,71 @@ Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.
 - GPG-Schlüssel-ID
 - Schlüssel-E-Mail-Adresse
 - Optionaler Fingerabdruck
-- Quelle importieren (Systemschlüsselbund oder manuelle Eingabe)
+- Importquelle (Systemschlüsselbund oder manuelle Eingabe)
 
 ### global-settings.xml
 Globale Anwendungseinstellungen und Standardeinstellungen.
 
 **Enthält:**
-- Einstellungen für UI-Design und Erscheinungsbild
+- UI-Design- und Darstellungseinstellungen
 - Schriftfamilie und Standardgröße
-- Konfiguration der Terminalfarbe
+- Terminal-Farbkonfiguration
 - Fenstergeometrie und -status (Position, Größe, maximierter Status)
-- Sichtbarkeitsstatus des Dashboards
+- Dashboard-Sichtbarkeitsstatus
 - Präferenz für die Sichtbarkeit der Menüleiste
-- AI-Profilstandards und -konfiguration
+- AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
+- RAG-Einbettungsmodell-ID und bevorzugte Laufzeit-Backend-/Update-Richtlinie für llama.cpp
+- Optional verschlüsseltes Hugging Face-Token
 - Übersetzungs-API-Einstellungen
 - Video-/Aufnahmeeinstellungen
 - Standardeinstellungen für die Terminalprotokollierung
-- SSH-Keepalive-Einstellungen
-- Voreinstellung für die JobScheduler-Statusanzeige
-- Standardeinstellungen für Terminaleffekt-Plugins
+- SSH Keep-Alive-Einstellungen
+- JobScheduler-Statusanzeigeeinstellung
+- Standardeinstellungen für das Terminaleffekt-Plugin
 - Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
-- Standardeinstellungen für Verbindungszeitlimit und Wiederholungsversuche
+- Verbindungszeitlimit und Standardwerte für Wiederholungsversuche
+
+### llm/models.xml
+
+Die atomar geschriebene JAXB-Registrierung für lokal installierte oder referenzierte GGUF-Modelle.
+
+**Enthält:**
+
+- Stabile Modell-ID und Anzeigename
+- GGUF-Pfad und kompatibler `llama-server`-Ausführungspfad
+- Backend (`AUTO`, `CPU`, `METAL` oder `VULKAN`)
+- Kontextgröße, CPU-Threads, GPU-Ebenen und Leerlauf-Entlademinuten
+
+Die Registrierung enthält Pfade und Einstellungen, keine Modellgewichtungen oder API-Schlüssel. `llm/models/` enthält verwaltete GGUF-Kopien, `llm/runtime/` enthält unabhängig aktualisierte native Pakete und `llm/run/` enthält temporäre Prozessverzeichnisse, Protokolle und nur vom Eigentümer generierte Schlüsseldateien. Temporäre Schlüssel werden entfernt, wenn der Beiwagen anhält.
+
+### llm/runtime/
+
+Der regenerierbare native Laufzeitbereich enthält unveränderliche Paketverzeichnisse sowie kleine atomare Statusdateien:
+
+- `active-v1` zeigt auf die aktuell ausgewählte Installation.
+- `pending-first-launch-v1` zeichnet einen Kandidaten und seine Rollback-Basis auf, bis ein echter GGUF-gestützter authentifizierter API-Start erfolgreich ist.
+- `healthy-history-v1` behält höchstens die beiden neuesten bestätigten, nicht widerrufenen Installationen.
+- `revoked-v1` ist die dauerhafte Denylist, die aus verifizierten signierten Indizes gelernt wurde. Ein widerrufenes Paket enthält auch `.kortty-runtime-revoked`.
+- `blocked-active-v1` merkt sich die Laufzeit-ID, die durch eine Auszahlung aus der aktiven Nutzung entfernt wurde, sodass die Benutzeroberfläche erklären kann, warum die lokale KI blockiert bleibt.
+- `packages/` enthält extrahierte verifizierte Installationen, während `downloads/` ein temporäres Staging ist, das durch die Updater-Sperre geschützt ist.
+
+Bearbeiten oder löschen Sie die Sperrlisten-/Quarantänemarkierungen nicht, um ein Paket erneut zu aktivieren. Laufzeitstarts erzwingen sie unabhängig voneinander, und stattdessen muss ein kompatibler signierter Ersatz installiert werden. Das gesamte Verzeichnis ist von der Sicherung ausgeschlossen, da Pakete und Status aus dem signierten stabilen Kanal neu erstellt werden können.
+
+### llm/catalog/last-valid-catalog-v1.json
+
+Ein atomarer Cache-Umschlag, der die letzte Nutzlast des Modell-/Prompt-Katalogs und die zugehörige abgetrennte Signatur enthält. korTTY überprüft die Signatur und das strikte Schema vor jeder Cache-Nutzung erneut. Wenn die Anwendung über kein gültiges öffentliches Vertrauensstammverzeichnis für den Katalog verfügt, wird diese Datei ignoriert und der integrierte Bootstrap wird ohne Netzwerkaktualisierung verwendet. Der Cache ist regenerierbar und wird nicht in Backups einbezogen.
+
+### rag/stores.json
+
+Die atomar geschriebene, vom Eigentümer lesbare JSON-Registrierung für Wissensspeicher und deren Quellen.
+
+**Enthält:**
+
+- Store-ID/Name/Typ, lokales Snapshot-Verzeichnis oder Qdrant-Endpunkt/Sammlung, Einbettungsmodell-ID und Vektordimensionen
+- Text-, Codierungs- und autonome Nutzungszuweisungen
+- Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Einschluss-/Ausschluss-Globs, `.gitignore`-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung
+
+Das Unterverzeichnis `rag/stores/` enthält regenerierbare `index.hnsw`-Snapshots. Ein v2-Snapshot bettet seine Formatversion, Vektordimensionen, Einbettungsmodell-ID, hierarchische Diagrammparameter, Einstiegspunkt, Chunk-Metadaten, Vektoren, Knotenebenen und Nachbarn pro Ebene ein; Eine Nichtübereinstimmung wird abgelehnt und erfordert einen Neuaufbau. Ein gültiger Single-Layer-V1-Snapshot der Legacy-Version wird beim Öffnen neu erstellt und atomar migriert.
 
 ### job-scheduler.xml
 Alle JobScheduler-Jobs und zugehörige Daten.
@@ -114,7 +167,7 @@ Alle JobScheduler-Jobs und zugehörige Daten.
 - Host-Key-Pins (OpenSSH-Public-Key-Material für unbeaufsichtigte Ausführung)
 - Sudo-Passwörter für Server und Gruppen (verschlüsselt)
 - Journaleinträge mit Zeitstempeln, Exit-Codes und redigierter Ausgabe
-- Einstellungen zur Journalaufbewahrung (Einträge, die älter als 14 Tage sind, werden standardmäßig automatisch gelöscht)
+- Journal-Aufbewahrungseinstellungen (Einträge, die älter als 14 Tage sind, standardmäßig automatisch löschen)
 
 **Sicherheit:**
 - Host-Key-Pinning ist standardmäßig für die unbeaufsichtigte SSH/SFTP/Rsync-Ausführung erforderlich
@@ -131,8 +184,8 @@ Gespeicherte KI-Gespräche und Chat-Verlauf.
 **Beinhaltet:**
 - Chat-Titel und Erstellungszeitstempel
 - Konversationsnachrichten und Antworten
-- Zugehöriges KI-Profil, das für den Chat verwendet wird
-- Verlauf der Folgeaufforderungen (für den Kontext)
+- Zugehöriges AI-Profil, das für den Chat verwendet wird
+- Follow-up-Eingabeaufforderungsverlauf (für Kontext)
 
 **Hinweis:** AI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.
 
@@ -141,18 +194,18 @@ Codeausschnitte, Skripte und Vorlagen.
 
 **Beinhaltet:**
 - Snippet-Name, Beschreibung, Sprache
-- Codeinhalte mit Metadaten zur Syntaxhervorhebung
+- Codeinhalt mit Metadaten zur Syntaxhervorhebung
 - Kategorie-/Ordnerorganisation
 - Tags und Metadaten
-- Zielsystem (Spalte Betriebssystem: Linux, macOS, Windows, etc.)
+- Zielsystem (Spalte Betriebssystem: Linux, macOS, Windows usw.)
 - Import-/Exportverlauf
 
 **Merkmale:**
 - Unterstützung für JSON/XML/YAML-Import/Export
 - Export von Nur-Text-Skripten
 - ZIP-Archive mit optionaler Passwort- oder GPG-Verschlüsselung
-- Hervorhebung der lokalen Syntax mit dem Monaco-Editor
-- KI-gestützte Bearbeitung und Codegenerierung
+- Lokale Syntaxhervorhebung mit dem Monaco-Editor
+- AI-unterstützte Bearbeitung und Codegenerierung
 - Persistierte Mermaid-Flussdiagramme mit stabilen Code-Referenz-Knoten-IDs
 - Einzeiliger Export mit optionalen Skriptargumenten
 
@@ -161,10 +214,10 @@ Speichert Variablendefinitionen zur Verwendung in Snippets.
 
 **Beinhaltet:**
 - Variablenname, Wert, Typ
-- Geltungsbereich (lokal oder gemeinsam genutzt)
+- Scope (lokal oder gemeinsam genutzt)
 - Standardwerte und Validierungsregeln
 
-### Master-Passwort-Hash
+### master-password-hash
 Binärdatei, die das gehashte Master-Passwort enthält.
 
 **Format:** PBKDF2-Hash mit 310.000 Iterationen
@@ -197,7 +250,7 @@ Anwendungsprotokolldatei.
 
 ## Verzeichnisse
 
-### Geschichte/
+### history/
 Komprimierter Terminalsitzungsverlauf.
 
 **Format:** GZIP-komprimierte Textdateien, eine pro Terminalsitzung
@@ -211,7 +264,7 @@ Komprimierter Terminalsitzungsverlauf.
 !!! note
     In diesem Verzeichnis wird der Verlauf nur gespeichert, wenn Sie beim Erstellen oder Bearbeiten einer Verbindung explizit *Terminalprotokollierung* für eine Verbindung auf der Registerkarte *Terminalprotokollierung* aktivieren.
 
-### Plugins/
+### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.
 
 **Zweck:** Externe Terminal-Effekt-Plugins, die Sie über *Plugins > Terminal-Effekte > Importieren* importieren.
@@ -221,7 +274,7 @@ Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.
 **Bereinigung:** Wenn Sie ein Plugin aus diesem Verzeichnis löschen, ist es in KorTTY nicht mehr verfügbar. Deaktivierte Plugins bleiben in diesem Verzeichnis, werden aber in `terminal-effect-plugins.disabled` aufgeführt.
 
 !!! warning
-    Plugin-Abhängigkeiten müssen in der Plugin-JAR schattiert werden. Benachbarte Abhängigkeits-JARs werden nicht automatisch geladen. Verpackungsrichtlinien finden Sie unter [Terminal Effect Plugins](../features/terminal-effect-plugins.md)].
+    Plugin-Abhängigkeiten müssen in der Plugin-JAR schattiert werden. Benachbarte Abhängigkeits-JARs werden nicht automatisch geladen. Verpackungsrichtlinien finden Sie unter [Terminaleffekt-Plugins](../features/terminal-effect-plugins.md).
 
 ### bundled-plugins/
 Laufzeitkopien der gebündelten exportierbaren Terminal-Effekt-Plugin-JARs.
@@ -240,7 +293,7 @@ Projektdateien zum Speichern und Laden von Verbindungssätzen.
 **Benennung:** Benutzerdefinierte Projektnamen mit der Erweiterung `.kortty` (z. B. `production.kortty`, `development.kortty`)
 
 **Enthält:**
-- Liste der offenen Verbindungen/Registerkarten beim Speichern des Projekts
+- Liste der offenen Verbindungen/Registerkarten zum Projektspeicherzeitpunkt
 - Fensterstatus (Registerkarten, Größen, aktive Registerkarte)
 - Dashboard-Status
 - Projektmetadaten und Erstellungszeitstempel
@@ -280,7 +333,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 - Einfache Migration auf neue Maschinen
 - In verschlüsselten Backups enthalten
 
-## Sicherheitszusammenfassung
+## Sicherheitsübersicht
 
 | Artikel | Sicherheitsmethode |
 |------|-----------------|
@@ -289,10 +342,10 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | SSH-Schlüsselpassphrasen | AES-256-GCM-Verschlüsselung |
 | Anmeldeinformationen (Benutzername/Passwort) | AES-256-GCM-Verschlüsselung |
 | JobScheduler Sudo-Passwörter | AES-256-GCM-Verschlüsselung |
-| JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor der Persistenz |
+| JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |
 | Sicherungsdateien | Passwortgeschützte ZIP- oder GPG-Verschlüsselung |
-| API-Schlüssel (KI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
-| Terminaleffekt-Plugins | Nicht verschlüsselt; Vertrauenswürdiger lokaler Code, nicht in einer Sandbox |
+| API-Schlüssel (AI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
+| Terminaleffekt-Plugins | Nicht verschlüsselt; Vertrauenswürdiger lokaler Code, kein Sandbox-Code |
 
 ## Dateispeicherorte nach Plattform
 
@@ -304,15 +357,19 @@ Alle Dateien werden plattformübergreifend im selben `~/.kortty/`-Verzeichnis ge
 
 ## Sicherung und Wiederherstellung
 
-Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, sind die folgenden Dateien und Verzeichnisse enthalten:
+Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die folgende Konfiguration enthalten:
 
 - Alle `.xml`-Konfigurationsdateien
 - `master-password-hash`
-- `history/`-Verzeichnis
-- `projects/`-Verzeichnis
-- `i18n/`-Verzeichnis (generierte Sprachdateien)
+- `history/` Verzeichnis
+- `projects/` Verzeichnis
+Verzeichnis - `i18n/` (generierte Sprachdateien)
 - `ssh-keys/`-Verzeichnis (falls vorhanden)
 - `snippets.xml` und zugehörige Snippet-Daten
+- `llm/models.xml` lokale Modellregistrierungen
+- `rag/stores.json` Wissensspeicher-/Quellenmetadaten
+
+Verwaltete GGUF-Gewichte, native Laufzeitpakete, temporäre Sidecar-Daten, Originalquelldokumente und HNSW-Snapshots sind ausgeschlossen, da sie groß oder regenerierbar sind.
 
 Das Backup wird verschlüsselt (passwortgeschütztes ZIP oder GPG) und an einem von Ihnen angegebenen Ort gespeichert.
 
@@ -325,11 +382,11 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 
 1. KorTTY vollständig schließen
 2. Öffnen Sie `~/.kortty/` in Ihrem Dateimanager oder Terminal
-3. Bearbeiten der XML-Dateien mit einem Texteditor
-4. Starten Sie KorTTY neu, um die Änderungen zu laden
+3. Bearbeiten der XML- oder JSON-Datei mit einem Texteditor
+4. KorTTY wird neu gestartet, um die Änderungen zu laden
 
 !!! warning
-    Das direkte Bearbeiten von XML-Dateien kann Ihre Daten beschädigen, wenn es nicht sorgfältig durchgeführt wird. Erstellen Sie vor der manuellen Bearbeitung immer ein Backup. Verwenden Sie für die meisten Konfigurationsaufgaben stattdessen die KorTTY-Benutzeroberfläche – sie verarbeitet Verschlüsselung, Validierung und Dateiformat korrekt.
+    Das direkte Bearbeiten von XML/JSON-Dateien kann Ihre Daten beschädigen, wenn es nicht sorgfältig durchgeführt wird. Bearbeiten Sie niemals einen binären `index.hnsw`-Snapshot. Erstellen Sie vor der manuellen Bearbeitung immer ein Backup. Verwenden Sie für die meisten Konfigurationsaufgaben stattdessen die KorTTY-Benutzeroberfläche – sie verarbeitet Verschlüsselung, Validierung und Dateiformat korrekt.
 
 ## Fehlerbehebung
 
@@ -343,8 +400,11 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 **Beschädigte XML-Dateien:**
 - Wenn eine `.xml`-Datei beschädigt ist, stellen Sie sie aus einer Sicherung wieder her oder löschen Sie die Datei. KorTTY wird es beim nächsten Speichern mit den Standardeinstellungen neu erstellen.
 
+**Knowledge-Store-Registrierung oder Snapshot kann nicht gelesen werden:**
+- Stellen Sie `rag/stores.json` aus einem Backup wieder her oder erstellen Sie den Store im AI Manager neu. Löschen Sie nur die betroffene regenerierbare Datei `index.hnsw` und wählen Sie dann **Jetzt aktualisieren**, um sie aus den konfigurierten Quelldateien neu zu erstellen.
+
 **Probleme beim Laden des Plugins:**
-- Überprüfen Sie `kortty.log` auf Fehlermeldungen im Zusammenhang mit dem Laden des Plugins (z. B. doppelte IDs, fehlende Dienste, Fehler beim Laden von Klassen).
+- Überprüfen Sie `kortty.log` auf Fehlermeldungen im Zusammenhang mit dem Laden von Plugins (z. B. doppelte IDs, fehlende Dienste, Fehler beim Laden von Klassen).
 - Stellen Sie sicher, dass sich die Plugin-JAR in `~/.kortty/plugins/` befindet und `META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin` enthält.
 - Verwenden Sie *Plugins > Terminaleffekte > Neu laden*, um die Plugin-Liste zu aktualisieren.
 

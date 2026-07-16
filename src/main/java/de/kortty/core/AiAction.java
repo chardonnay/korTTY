@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.AiWorkload;
+
 /**
  * Supported AI actions for terminal selections.
  */
@@ -25,6 +27,22 @@ public enum AiAction {
     APPLY_SNIPPET_SECURITY_FIXES,
     GENERATE_SNIPPET_ONE_LINER,
     GENERATE_SNIPPET_MERMAID;
+
+    /** Deterministic role routing; no model call is needed to classify the action. */
+    public AiWorkload workload() {
+        return switch (this) {
+            case SUMMARIZE, SOLVE_PROBLEM, ASK, GENERATE_CHAT_TITLE,
+                 CORRECT_SNIPPET_DESCRIPTION, CORRECT_SNIPPET_SELECTION_TEXT,
+                 TRANSLATE_SNIPPET_SELECTION_TEXT, DESCRIBE_SNIPPET_SELECTION,
+                 DESCRIBE_SNIPPET_FULL -> AiWorkload.TEXT;
+            default -> AiWorkload.CODING;
+        };
+    }
+
+    /** True for actions that should prefer the dedicated security-review profile. */
+    public boolean isSecurityAction() {
+        return this == SECURITY_REVIEW_SNIPPET_CODE || this == APPLY_SNIPPET_SECURITY_FIXES;
+    }
 
     /**
      * Whether this action requires a strict machine-parsed reply — a single JSON object of a fixed

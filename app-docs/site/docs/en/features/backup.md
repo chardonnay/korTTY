@@ -11,7 +11,8 @@ KorTTY creates encrypted backups of all your settings, connections, credentials,
 ## Features
 
 * **Encrypted backups** — All backups are encrypted using either password-protected ZIP or GPG encryption
-* **Complete backup** — Includes connections, credentials, SSH keys, GPG keys, global settings, JobScheduler configuration, snippets, and AI chat history
+* **Configuration backup** — Includes connections, credentials, SSH/GPG keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata
+* **Regenerable local AI data excluded** — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive
 * **Projects directory** — All saved project workspaces are included in the backup
 * **Automatic rotation** — Old backups are automatically moved to an `old-backups` subdirectory with timestamps
 * **Configurable retention** — Set a maximum number of backups to keep (0 = unlimited; oldest backups are deleted automatically)
@@ -39,6 +40,8 @@ The backup includes:
 | Snippets | Code snippets and script templates with metadata |
 | Snippet variables | Custom variables for snippet substitution |
 | AI chats | Saved AI conversation histories and profiles |
+| Local AI configuration | Local GGUF registrations and typed launch settings, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token |
+| Knowledge-store configuration | Store metadata and source paths, filters, sync modes, and embedding configuration; not the HNSW vectors |
 | Projects | All `.kortty` project workspace files |
 
 ## Backup encryption
@@ -94,10 +97,15 @@ Both `.zip` and `.gpg` backups contain the same files:
 * `snippet-variables.xml` — Custom snippet variables
 * `ai-chats.xml` — Saved AI conversations
 * `master-password-hash` — Hash of your master password (for verification on import)
+* `llm/models.xml` — Local GGUF registrations and runtime settings (model weights are not included)
+* `rag/stores.json` — Knowledge-store and source configuration (vector snapshots are not included)
 * `projects/` — All saved project workspace files (`.kortty`)
 
 !!! note
     All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials.
+
+!!! important "Rebuild local AI assets after a restore"
+    The backup excludes `llm/models/`, `llm/runtime/`, `llm/catalog/`, `llm/run/`, and local `index.hnsw` snapshots. After moving to another computer, restore or download the GGUF files and a compatible runtime, reconnect any external model/source paths, then run **Update now** in each knowledge store to regenerate its index. The signed catalog cache refreshes automatically or falls back to the bootstrap. Original source documents and external Qdrant data are not part of a korTTY configuration backup.
 
 ## Backup retention and cleanup
 
@@ -124,7 +132,7 @@ To keep unlimited old backups, set **Maximum Backups** to `0` in **Settings → 
    * Leave **Overwrite** unchecked unless you want to replace existing connections
    * Restart KorTTY
 
-All your connections, settings, snippets, and saved chats will be available on machine B.
+All backed-up connections, settings, snippets, saved chats, model registrations, and knowledge-source definitions will be available on machine B. Local model weights, runtime packages, source documents, and HNSW vectors must be restored or regenerated separately.
 
 ## Troubleshooting
 
@@ -144,4 +152,4 @@ All your connections, settings, snippets, and saved chats will be available on m
 : Restart KorTTY for imported settings to become active. If you imported credentials, you may also need to unlock the master password after restart.
 
 **Backup file is larger than expected**
-: Large backups can occur if you have many saved AI chats, large terminal history files, or a large projects directory. Older projects or chats can be deleted from the import before using them.
+: Large backups can occur if you have many saved AI chats or a large projects directory. GGUF weights, llama.cpp runtime packages, and HNSW snapshots are excluded and cannot be the cause.
