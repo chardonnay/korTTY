@@ -17,7 +17,7 @@ class LlamaRuntimeReleaseConfigurationTest {
             KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());
         LlamaRuntimeReleaseConfiguration configuration = configuration(publicKey);
 
-        assertThat(configuration.baselineRuntimeId()).isEqualTo("llama-b10025-kortty1");
+        assertThat(configuration.baselineRuntimeId()).isEqualTo("llama-b10025-kortty2");
         assertThat(configuration.baselineTag()).isEqualTo("b10025");
         assertThat(configuration.baselineCommit())
             .isEqualTo("a3e5b96ac5e278c390df429df0b68efcee3ee1b5");
