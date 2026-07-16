@@ -523,7 +523,7 @@ tasks.register<Exec>("installSithtermfxLocal") {
               </build>
 
 """
-                pom.writeText(text.replace("    <profiles>\n", buildBlock + "    <profiles>\n", 1))
+                pom.writeText(text.replaceFirst("    <profiles>\\n".toRegex(), buildBlock + "    <profiles>\n"))
             }
         }
     }
