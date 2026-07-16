@@ -177,10 +177,10 @@ pages:
     last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/ai.png
-    last_synced_ref: "800e0db"
+    last_synced_ref: "ba4262a"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/core]

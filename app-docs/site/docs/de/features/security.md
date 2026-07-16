@@ -112,6 +112,12 @@ Beim Erstellen oder Bearbeiten einer Verbindung:
 3. Wählen Sie den gewünschten Schlüssel aus der Dropdown-Liste **SSH-Schlüssel** aus.
 4. Der Schlüsselpfad und die Passphrase werden automatisch ausgefüllt.
 
+## Interaktive SSH-Hostschlüssel-Vertrauensstellung
+
+Terminal- und SFTP-Verbindungen, einschließlich des von Mosh verwendeten SSH-Bootstraps, nutzen einen TOFU-Verifizierer (Trust-on-First-Use), der durch normalisierten Hostnamen und Port verschlüsselt ist. Bei der ersten Verwendung zeigt korTTY den Serverschlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an; Überprüfen Sie vor der Annahme, dass es außerhalb des Bandes liegt. Die Bestätigung lautet standardmäßig **Nein**. Ein zuvor vertrauenswürdiger passender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit den erwarteten und angebotenen Fingerabdrücken fest blockiert wird und nie automatisch erneut versucht wird.
+
+Interaktive Pins werden atomar in `~/.kortty/ssh-host-keys.properties` geschrieben; Eine Companion-Sperre koordiniert gleichzeitige korTTY-Prozesse. Dieser Speicher unterscheidet sich von den verbindungs-ID-basierten Hostschlüssel-Pins des JobScheduler in `job-scheduler.xml`, die die unbeaufsichtigte SSH-, SFTP- und Rsync-Ausführung schützen.
+
 ## GPG Schlüsselverwaltung
 
 Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindungs-/Snippet-Exportverschlüsselung.
@@ -138,15 +144,16 @@ Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindung
 
 GPG-verschlüsselte Backups und Exporte werden als `.gpg`-Dateien gespeichert und erfordern den `gpg`-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.
 
-## Gespeicherte Geheimnisse
+## Gespeicherte Sicherheitsdaten
 
-Folgende Daten werden verschlüsselt in `~/.kortty/` gespeichert:
+Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` gespeichert; Geheime Werte werden verschlüsselt, während öffentliches Verifizierungsmaterial nicht verschlüsselt ist:
 
 | Datei | Inhalt | Verschlüsselung |
 |------|----------|------------|
 | `credentials.xml` | Gespeicherte Benutzername/Passwort-Anmeldeinformationen | AES-256-GCM |
 | `ssh-keys.xml` | SSH-Schlüsselpfade und verschlüsselte Passphrasen | AES-256-GCM |
 | `connections.xml` | Verbindungskennwörter (inline) und Schlüsselpassphrasen (wenn keine SSH-Schlüsselverwaltung verwendet wird) | AES-256-GCM |
+| `ssh-host-keys.properties` | Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen | Öffentliche Verifizierungsdaten; nicht verschlüsselt |
 | `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge redigieren von KorTTY verwaltete Geheimnisse | AES-256-GCM |
 | `master-password-hash` | Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt | PBKDF2-Hash nur |
 | `global-settings.xml` | AI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
@@ -167,10 +174,11 @@ Folgende Daten werden verschlüsselt in `~/.kortty/` gespeichert:
 - Schützen Sie private Schlüsseldateien mit einer Passphrase.
 - Kopieren Sie Schlüssel nach `~/.kortty/ssh-keys/`, um sie in verschlüsselte Backups aufzunehmen.
 - Schlüsseldateiberechtigungen einschränken (z. B. `chmod 600`).
+- Überprüfen Sie den Fingerabdruck eines Hostschlüssels bei der ersten Verwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung bezüglich eines geänderten Schlüssels als einen möglichen Serverneuaufbau, einen DNS-Fehler oder einen Man-in-the-Middle-Angriff und untersuchen Sie ihn, anstatt die Verbindung wiederholt wiederherzustellen.
 
 ### JobScheduler
 
-- **Host-Schlüssel-Pinning**: Host-Schlüssel werden standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs gepinnt, um Man-in-the-Middle-Angriffe zu verhindern.
+- **Host-Schlüssel-Pinning**: Host-Schlüssel werden standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs gepinnt, um Man-in-the-Middle-Angriffe zu verhindern. Diese Verbindungs-ID-Pins sind absichtlich von den normalisierten Endpunkt-Pins getrennt, die von interaktiven Terminal-/SFTP-Sitzungen verwendet werden.
 - **Sudo-Passwörter**: Scheduler-Sudo-Passwörter werden verschlüsselt und in `~/.kortty/job-scheduler.xml` gespeichert.
 - **Journal-Redaktion**: Job-Journaleinträge redigieren von KorTTY verwaltete Geheimnisse vor der Persistenz (der redigierte Modus ist die Standardeinstellung; der vollständige Modus speichert nicht redigierte Ausgaben).
 
@@ -202,6 +210,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 | Master-Passwort-Hashing | PBKDF2 mit 310.000 Iterationen |
 | Anmeldeinformationsverschlüsselung | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | Verschlüsselt mit AES-256-GCM und Master-Passwort |
+| Interaktive SSH/SFTP/Mosh-Hostschlüssel | Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung, stille exakte Übereinstimmung, harte Blockierung bei Änderung |
 | AI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | Eingebetteter llama.cpp | Nur-Loopback-zufälliger Port, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing |
 | GGUF/Laufzeit-Lieferkette | Unveränderliche Revisionen, SHA-256-Verifizierung, signierter Laufzeitindex, dauerhafte Sperrquarantäne, Rollback nach fehlgeschlagener Integritätsprüfung oder erstem echten API-Start |
@@ -234,6 +243,7 @@ Alle KorTTY-Daten werden unter `~/.kortty/` gespeichert. Wichtige sicherheitsrel
 ├── ssh-keys.xml             # SSH key paths and encrypted passphrases
 ├── gpg-keys.xml             # GPG keys for backup/export encryption
 ├── connections.xml          # Connection passwords and key passphrases
+├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
 ├── global-settings.xml      # AI API keys and other encrypted settings
 ├── llm/models.xml           # Model paths and typed launch settings (no model contents)
 ├── llm/runtime/             # Regenerable native packages; excluded from backup

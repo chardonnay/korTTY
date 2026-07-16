@@ -139,9 +139,9 @@ Die Task-Kette lädt nur das angeheftete Commit-Archiv herunter, überprüft des
 
 ### Kandidatenerkennung, Vertragstests und Beförderung
 
-`.github/workflows/llama-runtime.yml` überprüft täglich Upstream-Tags. Eine Änderung öffnet einen Kandidaten-PR, der den Quell-Pin aktualisiert, ihn aber nicht veröffentlicht. Pull-Requests und manuelle Builds führen die native Matrix aus; Jedes Artefakt muss starten und seine Version melden, der Linux-CPU-Referenzjob überprüft außerdem nicht authentifizierte Ablehnung, authentifizierte Modellauflistung, Abschluss, Schlaf/Wach, JSON-Schema-Chat-Vervollständigung, Einbettungen und zwei gleichzeitig verwendbare Sidecars, und ein angehefteter Qdrant 1.18.2-Dienst führt den echten Vektorspeichervertrag aus.
+`.github/workflows/llama-runtime.yml` überprüft täglich Upstream-Tags. Eine Änderung öffnet einen Kandidaten-PR, der den Quell-Pin aktualisiert, ihn aber nicht veröffentlicht. Pull-Requests und manuelle Builds führen die native Matrix aus; Jedes Artefakt muss starten und seine Version melden, der Linux-CPU-Referenzjob überprüft außerdem nicht authentifizierte Ablehnung, authentifizierte Modellauflistung, Abschluss, Schlaf/Wach, JSON-Schema-Chat-Vervollständigung, Einbettungen und zwei gleichzeitig verwendbare Sidecars, und ein angehefteter Qdrant 1.18.2-Dienst führt den echten Vektorspeichervertrag aus. Das korTTY-Repository verfügt nur über Kandidatenerkennung und quellseitige Matrixvalidierung: Es verfügt über keine Stable-Promotion-Aktion, kein Repository-übergreifendes Freigabetoken und keinen privaten Signaturschlüssel zur Laufzeit.
 
-Bei der stabilen Veröffentlichung handelt es sich um einen expliziten, von Menschen ausgeführten `main`-Zweigjob unter Verwendung von `LLAMA_RUNTIME_RELEASE_TOKEN` und `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM`. Es wird erst ausgeführt, nachdem die native Matrix und der Qdrant-Vertrag bestanden wurden, und gelangt in die GitHub-Umgebung `llama-runtime-signing`, die über erforderliche Prüfer verfügen muss, bevor Produktionsgeheimnisse konfiguriert werden. Es überprüft den vorherigen signierten Index, führt die überprüften Deskriptoren zu einem kumulativen `runtime-index-v1.json` zusammen, behält/fügt angeforderte widerrufene IDs bei, schreibt seine abgetrennte Signatur als `runtime-index-v1.sig` und erstellt eine neue unveränderliche Nur-Laufzeit-Version; Eine bestehende Laufzeit-ID wird niemals überschrieben. Die reguläre Werbung ist auf einmal alle sieben Tage beschränkt, wobei ein geprüfter Sicherheits- oder Modellunterstützungsgrund diesen Rhythmus außer Kraft setzen kann. Das Anwendungsinstallationsprogramm bleibt daher unverändert, während eine kompatible native Laufzeit unabhängig hochgestuft oder zurückgezogen werden kann.
+Die stabile Veröffentlichung gehört zum öffentlichen Repository [chardonnay/kortty-llama-runtimes](https://github.com/chardonnay/kortty-llama-runtimes). Sein expliziter, von Menschen gesteuerter Workflow akzeptiert das exakt überprüfte korTTY-Quell-Commit, baut die native Matrix neu auf, führt Authentifizierung, Chat/Vervollständigung, Einbettungen, JSON-Schema, Sleep/Wake und Parallel-Sidecar-Rauchtests für jedes Paket aus und führt den angehefteten Qdrant-Vertrag separat aus. Nach diesen Prüfungen gelangt es in die geschützte `llama-runtime-signing`-Umgebung, überprüft, ob `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM` mit dem veröffentlichten Vertrauensstamm übereinstimmt, überprüft und erweitert den kumulativen signierten Index und erstellt eine unveränderliche Nur-Laufzeit-Version mit dem bereichsbezogenen `github.token` dieses Repositorys; Es ist kein Repository-übergreifendes persönliches Zugriffstoken erforderlich. Eine bestehende Laufzeit-ID wird niemals überschrieben. Die reguläre Werbung ist auf einmal alle sieben Tage beschränkt, wobei ein geprüfter Sicherheits- oder Modellunterstützungsgrund diesen Rhythmus außer Kraft setzen kann. Das Anwendungsinstallationsprogramm bleibt daher unverändert, während eine kompatible native Laufzeit unabhängig hochgestuft oder zurückgezogen werden kann.
 
 ## Veröffentlichen Sie den Modell- und Eingabeaufforderungskatalog
 
@@ -151,30 +151,28 @@ Der überprüfte kanonische Katalog ist `ai-catalog/model-prompt-catalog-v1.json
 
 ### Betten Sie die lokalen KI-Vertrauenswurzeln ein
 
-Jede Anwendungsversion, die Laufzeiten installieren oder den Katalog aktualisieren kann, muss beide Ed25519 **öffentlichen** Verifizierungsschlüssel einbetten. Stellen Sie öffentliche X.509/PEM-Schlüssel über die Umgebungsvariablen oder deren Gradle-Eigenschaftsäquivalente bereit. Geben Sie niemals einen der signierenden privaten Schlüssel für einen Anwendungsbuild an.
+Jede Anwendungsversion, die Laufzeiten installieren oder den Katalog aktualisieren kann, muss beide Ed25519 **öffentlichen** Verifizierungsschlüssel einbetten. Der Vertrauensstamm des Laufzeitkanals ist öffentlich, überprüfbar und in `config/trust/llama-runtime-ed25519-public.pem` verankert, sodass normale lokale Builds denselben Schlüssel wie offizielle Pakete verwenden. Der Katalogvertrauensstamm wird separat bereitgestellt. Geben Sie niemals einen der signierenden privaten Schlüssel für einen Anwendungsbuild an.
 
-| Kanal | Umgebungsvariable | Gradle-Eigenschaft |
-| --- | --- | --- |
-| llama.cpp-Laufzeit | `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY` | `kortty.llamaRuntimePublicKey` |
-| Modell-/Sofortkatalog | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
+| Kanal | Quellstandard | Umgebungsvariable | Gradle-Eigenschaft |
+| --- | --- | --- | --- |
+| llama.cpp Laufzeit | `config/trust/llama-runtime-ed25519-public.pem` | Optional `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY`; muss genau mit dem angepinnten Schlüssel übereinstimmen | Optional `kortty.llamaRuntimePublicKey`; muss genau mit dem angepinnten Schlüssel | übereinstimmen
+| Modell-/Sofortkatalog | Keine | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
 
 Die generierten Ressourcen speichern die festen Kanal-URLs und öffentlichen Vertrauensstämme mit der Anwendung:
 
 === "macOS / Linux"
     ```bash
-    export KORTTY_LLAMA_RUNTIME_PUBLIC_KEY="$(cat runtime-signing-public.pem)"
     export KORTTY_AI_CATALOG_PUBLIC_KEY="$(cat ai-catalog-signing-public.pem)"
     ./gradlew generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
 === "Windows PowerShell"
     ```powershell
-    $env:KORTTY_LLAMA_RUNTIME_PUBLIC_KEY = Get-Content .\runtime-signing-public.pem -Raw
     $env:KORTTY_AI_CATALOG_PUBLIC_KEY = Get-Content .\ai-catalog-signing-public.pem -Raw
     .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
-Der offizielle Anwendungsfreigabe-Workflow liest beide Namen aus GitHub Actions-Repository-Variablen, lehnt fehlende Werte oder privates Schlüsselmaterial ab und lässt Gradle die X.509 Ed25519-Schlüssel vor dem Verpacken validieren. Auf einen Source-Tree-Fallback wird bewusst verzichtet. Ohne den Laufzeitschlüssel bleibt eine bereits vertrauenswürdige installierte Laufzeit verwendbar, aber die Netzwerkinstallation/-aktualisierung schlägt vor dem Abrufen des Index fehl. Ohne den Katalogschlüssel stellt korTTY keine Kataloganfrage, ignoriert etwaige Caches und verwendet seinen integrierten Bootstrap.
+Der offizielle Anwendungsfreigabe-Workflow liest beide Namen aus GitHub Actions-Repository-Variablen, lehnt fehlende Werte oder privates Schlüsselmaterial ab und lässt Gradle die X.509 Ed25519-Schlüssel vor dem Verpacken validieren. Die Laufzeitvariable ist eine redundante CI-Identitätsprüfung und muss denselben öffentlichen Schlüssel wie das verfolgte PEM kodieren. Eine andere Überschreibung lässt den Build fehlschlagen, anstatt den Vertrauensstamm zu ersetzen. Wenn der angeheftete Laufzeitschlüssel oder die generierte Release-Konfiguration fehlt oder fehlerhaft ist, schlägt die Installation/Aktualisierung der Laufzeit vor dem Abrufen des Index fehl. Ohne den Katalogschlüssel stellt korTTY keine Kataloganfrage, ignoriert etwaige Caches und verwendet seinen integrierten Bootstrap.
 
 ## macOS
 
@@ -190,7 +188,7 @@ xcrun --find stapler
 command -v hdiutil ditto
 ```
 
-Führen Sie `xcode-select --install` aus, wenn die Befehlszeilentools nicht vorhanden sind. Eine für andere Benutzer bestimmte Veröffentlichung erfordert außerdem ein Apple Developer-Konto, ein **Developer ID Application**-Zertifikat und App Store Connect API-Anmeldeinformationen für die Beglaubigung; Bei einem nicht signierten lokalen Build ist dies nicht der Fall.
+Führen Sie `xcode-select --install` aus, wenn die Befehlszeilentools nicht vorhanden sind. Eine für andere Benutzer bestimmte Veröffentlichung erfordert außerdem ein Apple Developer-Konto, ein **Developer ID Application**-Zertifikat und App Wissensspeicher Connect API-Anmeldeinformationen für die Beglaubigung; Bei einem nicht signierten lokalen Build ist dies nicht der Fall.
 
 ### Erstellen Sie ein unsigniertes App-Image, eine tragbare ZIP- und DMG-Datei
 
@@ -246,8 +244,8 @@ Konfigurieren Sie diese Repository-Geheimnisse, bevor Sie den Workflow ausführe
 | `APPLE_SIGNING_CERT_P12_BASE64` | Base64-codiertes Entwickler-ID-Anwendungszertifikat und privater Schlüssel im P12-Formular |
 | `APPLE_SIGNING_CERT_PASSWORD` | Passwort zum Schutz der P12-Datei |
 | `APPLE_SIGNING_IDENTITY` | Exakte Entwickler-ID Anwendungsidentität angezeigt durch `security find-identity` |
-| `APPLE_API_KEY_ID` | App Store Connect API-Schlüssel-ID |
-| `APPLE_ISSUER_ID` | App Store Connect-Aussteller-ID |
+| `APPLE_API_KEY_ID` | App Wissensspeicher Connect API-Schlüssel-ID |
+| `APPLE_ISSUER_ID` | App Wissensspeicher Connect-Aussteller-ID |
 | `APPLE_API_KEY` | Vollständiger Inhalt des privaten API-Schlüssels |
 
 Öffnen Sie **Aktionen → Release-Binärdateien erstellen → Workflow ausführen**, wählen Sie den Zweig oder das Tag in `ref` aus und geben Sie die numerische Anwendungsversion ein. Ein Branch-Lauf lädt die macOS-Build-Artefakte zur Überprüfung hoch; Ein veröffentlichtes GitHub-Release oder eine manuelle Ausführung, deren `ref` ein Release-Tag ist, speist auch den endgültigen Release-Upload-Job. Die Intel-Artefakte heißen `korTTY-macOS-<version>-x86_64.zip` und `korTTY-macOS-<version>-x86_64.dmg`.
@@ -290,7 +288,7 @@ Wenn die Identität in einem nicht standardmäßigen Schlüsselbund gespeichert 
 
 ### Notariell beglaubigen und vor Ort heften
 
-Der Release-Workflow ist die kanonische automatisierte Implementierung. Um die Beglaubigungsphase lokal zu spiegeln, speichern Sie die App Store Connect API-Anmeldeinformationen in einem Schlüsselbundprofil, übermitteln Sie eine ZIP-Datei des signierten `.app`, heften Sie das akzeptierte Ticket zusammen und übermitteln und heften Sie dann das signierte DMG.
+Der Release-Workflow ist die kanonische automatisierte Implementierung. Um die Beglaubigungsphase lokal zu spiegeln, speichern Sie die App Wissensspeicher Connect API-Anmeldeinformationen in einem Schlüsselbundprofil, übermitteln Sie eine ZIP-Datei des signierten `.app`, heften Sie das akzeptierte Ticket zusammen und übermitteln und heften Sie dann das signierte DMG.
 
 ```bash
 export APPLE_API_KEY_ID="<key-id>"

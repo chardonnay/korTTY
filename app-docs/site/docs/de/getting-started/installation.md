@@ -26,7 +26,7 @@ Einige Funktionen rufen externe Programme nur auf, wenn Sie sie verwenden:
 
 ## Optional integrierte lokale KI
 
-Das Basispaket korTTY enthält bewusst weder Modellgewichte noch eine native llama.cpp-Laufzeit. Wenn Sie integrierte lokale KI aktivieren, werden verifizierte Laufzeitpakete unabhängig unter `~/.kortty/llm/runtime/` installiert und GGUF-Modelle werden unter `~/.kortty/llm/models/` heruntergeladen oder importiert (oder von einem von Ihnen gewählten Pfad referenziert). Dadurch bleibt das normale SSH-Client-Installationsprogramm klein und llama.cpp erhält kompatible stabile Updates, ohne die gesamte Anwendung zu ersetzen.
+Das Basispaket korTTY enthält bewusst weder Modellgewichte noch eine native llama.cpp-Laufzeit. Wenn Sie die integrierte lokale KI aktivieren, werden verifizierte Laufzeitpakete aus dem öffentlichen Laufzeitkanal [korTTY llama.cpp ](https://github.com/chardonnay/kortty-llama-runtimes) unabhängig unter `~/.kortty/llm/runtime/` installiert und GGUF-Modelle werden unter `~/.kortty/llm/models/` heruntergeladen oder importiert (oder von einem von Ihnen gewählten Pfad referenziert). Jeder Laufzeitindex und jedes Laufzeitpaket wird mit dem öffentlichen Ed25519-Vertrauensstammverzeichnis verglichen, das in der korTTY-Quelle angeheftet ist. Dadurch bleibt das normale SSH-Client-Installationsprogramm klein und llama.cpp erhält kompatible stabile Updates, ohne die gesamte Anwendung zu ersetzen.
 
 | Plattform | Laufzeitpakete |
 | --- | --- |

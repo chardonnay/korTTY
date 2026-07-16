@@ -48,7 +48,8 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 | API URL | text | — | — | (profile `apiUrl` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
-| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints; installed chat models for Integrated llama.cpp) | — | (profile `model` or `embeddedModelId` field) |
+| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
+| Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
 | Custom model | text | — | — | (profile `cliCustomModel` field) |
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
@@ -91,7 +92,7 @@ KorTTY stores multiple named AI profiles, each with its own model, connection me
 
 - **HTTP API**: Direct connection to an OpenAI-compatible REST endpoint (specify API URL, model name, and optional API key).
 - **Local CLI**: Execute a local command-line AI client (configure CLI provider, custom executable, arguments template, and custom model name).
-- **Integrated llama.cpp**: Acquire a private loopback `llama-server` lease for one installed GGUF model; the API URL and profile API key are managed by korTTY and are not editable.
+- **Integrated llama.cpp**: Choose the installed chat GGUF in **Local GGUF model**. korTTY acquires a private loopback `llama-server` lease for it; the API URL and profile API key are managed by korTTY and are not editable.
 
 An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md).
 

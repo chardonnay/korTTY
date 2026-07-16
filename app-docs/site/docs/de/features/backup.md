@@ -11,7 +11,7 @@ KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen,
 ## Eigenschaften
 
 * **Verschlüsselte Backups** – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt
-* **Konfigurationssicherung** – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Metadaten der Wissensspeicherquelle
+* **Konfigurationssicherung** – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Metadaten der Wissensspeicherquelle
 * **Regenerierbare lokale KI-Daten ausgeschlossen** – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert
 * **Projektverzeichnis** – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten
 * **Automatische Rotation** – Alte Backups werden automatisch mit Zeitstempeln in ein `old-backups`-Unterverzeichnis verschoben
@@ -34,6 +34,7 @@ Das Backup umfasst:
 | Verbindungen | Alle gespeicherten SSH-Verbindungen und Gruppen |
 | Anmeldeinformationen | Gespeicherte Benutzernamen und Passwörter (verschlüsselt) |
 | SSH-Schlüssel | Zentral verwaltete private SSH-Schlüssel mit verschlüsselten Passphrasen |
+| Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; Der vorübergehende Begleiter `.lock` ist nicht im Lieferumfang enthalten (|).
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
 | Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile |
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |
@@ -90,6 +91,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `connections.xml` – Alle SSH-Verbindungen und -Gruppen
 * `credentials.xml` – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)
 * `ssh-keys.xml` – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen
+* `ssh-host-keys.properties` – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (`ssh-host-keys.properties.lock` ist absichtlich ausgeschlossen)
 * `gpg-keys.xml` – öffentliche GPG-Schlüssel
 * `global-settings.xml` – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen
 * `job-scheduler.xml` – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter
@@ -132,7 +134,7 @@ Um unbegrenzt alte Backups aufzubewahren, stellen Sie **Maximale Backups** unter
    * Lassen Sie **Überschreiben** deaktiviert, es sei denn, Sie möchten vorhandene Verbindungen ersetzen
    * KorTTY neu starten
 
-Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, Modellregistrierungen und Wissensquellendefinitionen sind auf Maschine B verfügbar. Lokale Modellgewichte, Laufzeitpakete, Quelldokumente und HNSW-Vektoren müssen separat wiederhergestellt oder neu generiert werden.
+Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, interaktive Hostschlüssel-Vertrauensentscheidungen, Modellregistrierungen und Wissensquellendefinitionen sind auf Maschine B verfügbar. Wiederhergestellte Hostschlüssel werden weiterhin mit normalisiertem Hostnamen und Port abgeglichen, sodass ein geänderter Schlüssel nach der Migration blockiert bleibt. Lokale Modellgewichte, Laufzeitpakete, Quelldokumente und HNSW-Vektoren müssen separat wiederhergestellt oder neu generiert werden.
 
 ## Fehlerbehebung
 
