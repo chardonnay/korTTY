@@ -2208,12 +2208,7 @@ tasks.register<Exec>("configureLlamaRuntime") {
             "-DGGML_VULKAN=${if (backend == "VULKAN") "ON" else "OFF"}"
         )
         if (isWindows) {
-            // Ninja avoids Visual Studio's deeply nested Vulkan shader
-            // ExternalProject paths exceeding the hosted Windows limit.
-            arguments.add(1, "Ninja")
-            arguments.add(1, "-G")
-            arguments += "-DCMAKE_C_FLAGS_RELEASE=-static -static-libgcc"
-            arguments += "-DCMAKE_CXX_FLAGS_RELEASE=-static -static-libgcc -static-libstdc++"
+            arguments += "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
             // Hosted Windows cannot execute the source-built UI embed helper;
             // use the signed upstream prebuilt UI asset instead.
             arguments += "-DLLAMA_USE_PREBUILT_UI=ON"
