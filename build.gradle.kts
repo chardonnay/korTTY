@@ -2199,6 +2199,7 @@ tasks.register<Exec>("configureLlamaRuntime") {
             "-DLLAMA_BUILD_TOOLS=ON",
             "-DLLAMA_BUILD_APP=OFF",
             "-DLLAMA_CURL=OFF",
+            "-DLLAMA_BUILD_UI=OFF",
             "-DLLAMA_BUILD_WEBUI=OFF",
             "-DLLAMA_USE_PREBUILT_UI=OFF",
             "-DGGML_RPC=OFF",
@@ -2211,6 +2212,7 @@ tasks.register<Exec>("configureLlamaRuntime") {
             // ExternalProject paths exceeding the hosted Windows limit.
             arguments.add(1, "Ninja")
             arguments.add(1, "-G")
+            arguments += "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
         }
         if (isMac) {
             arguments += "-DCMAKE_OSX_ARCHITECTURES=${if (llamaRuntimeArchitecture == "aarch64") "arm64" else "x86_64"}"
