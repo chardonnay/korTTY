@@ -43,6 +43,8 @@ import de.kortty.core.LoggingConfiguration;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
+import de.kortty.ai.llama.LlamaModel;
+import de.kortty.ai.llama.LlamaModelRegistry;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
@@ -223,6 +225,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiConnectionMode> aiConnectionModeCombo;
     private final TextField aiApiUrlField;
     private final ComboBox<String> aiModelCombo;
+    private final ComboBox<LlamaModel> aiEmbeddedModelCombo;
     private final TextField aiCliCustomModelField;
     private final Button aiRefreshModelsButton;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
@@ -1791,6 +1794,23 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox aiModelBox = new HBox(6, aiModelCombo, aiRefreshModelsButton);
         HBox.setHgrow(aiModelCombo, Priority.ALWAYS);
         aiEditorGrid.add(aiModelBox, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.embeddedModel")), 0, aiRow);
+        aiEmbeddedModelCombo = new ComboBox<>();
+        aiEmbeddedModelCombo.setPrefWidth(320);
+        aiEmbeddedModelCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(LlamaModel model) {
+                return model == null ? "" : model.getDisplayName() + " (" + model.getId() + ")";
+            }
+
+            @Override
+            public LlamaModel fromString(String string) {
+                return null;
+            }
+        });
+        aiEmbeddedModelCombo.setPromptText(I18n.get("settings.ai.embeddedModel.empty"));
+        aiEditorGrid.add(aiEmbeddedModelCombo, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.cli.customModel")), 0, aiRow);
         aiCliCustomModelField = new TextField();
@@ -4383,6 +4403,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private void loadAiModelSelection(AiProfile profile) {
+        refreshEmbeddedModelSelection(profile);
         if (profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             loadAiCliModelSelection(profile);
             return;
@@ -4405,7 +4426,33 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    private void refreshEmbeddedModelSelection(AiProfile profile) {
+        if (aiEmbeddedModelCombo == null) {
+            return;
+        }
+        List<LlamaModel> models = LlamaModelRegistry
+            .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+            .list()
+            .stream()
+            .filter(model -> model.getPurpose() == de.kortty.ai.llama.LlamaModelPurpose.CHAT)
+            .sorted(Comparator.comparing(LlamaModel::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+        aiEmbeddedModelCombo.getItems().setAll(models);
+        String selectedId = profile != null ? profile.getEmbeddedModelId() : null;
+        aiEmbeddedModelCombo.setValue(models.stream()
+            .filter(model -> model.getId().equals(selectedId))
+            .findFirst()
+            .orElse(null));
+    }
+
     private void snapshotAiModelSelection(AiProfile profile) {
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            LlamaModel model = aiEmbeddedModelCombo != null ? aiEmbeddedModelCombo.getValue() : null;
+            profile.setEmbeddedModelId(model != null ? model.getId() : null);
+            profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+            profile.setModel(model != null ? model.getDisplayName() : null);
+            return;
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String editorText = trimToNull(aiModelEditorText());
             if (AI_MODEL_DEFAULT_LABEL.equals(editorText)) {
@@ -4717,17 +4764,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void updateAiConnectionModeUi() {
         boolean cliMode = isAiCliModeSelected();
-        aiApiUrlField.setDisable(cliMode);
-        aiApiKeyField.setDisable(cliMode);
-        aiClearApiKeyCheck.setDisable(cliMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
-        aiInternetAccessModeCombo.setDisable(cliMode);
-        aiRefreshModelsButton.setDisable(cliMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
+        boolean embeddedMode = aiConnectionModeCombo != null
+            && aiConnectionModeCombo.getValue() == AiConnectionMode.EMBEDDED_LLAMA_CPP;
+        boolean localMode = cliMode || embeddedMode;
+        aiApiUrlField.setDisable(localMode);
+        aiApiKeyField.setDisable(localMode);
+        aiClearApiKeyCheck.setDisable(localMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
+        aiInternetAccessModeCombo.setDisable(localMode);
+        aiRefreshModelsButton.setDisable(localMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
         aiRefreshReasoningButton.setDisable(selectedAiProfile == null);
         aiCliProviderCombo.setDisable(!cliMode);
         aiCliExecutableField.setDisable(!cliMode);
         aiCliArgumentsTemplateArea.setDisable(!cliMode);
         aiCliCustomModelField.setDisable(!cliMode);
         aiRefreshCliStatusButton.setDisable(!cliMode);
+        aiEmbeddedModelCombo.setDisable(!embeddedMode);
+        aiModelCombo.setDisable(embeddedMode);
         if (cliMode) {
             refreshAiCliStatus();
         } else {
@@ -4812,6 +4864,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiCliStatusLabel.setText("");
             aiModelCombo.getItems().setAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
             aiModelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
+            aiEmbeddedModelCombo.getItems().clear();
+            aiEmbeddedModelCombo.setValue(null);
             refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
             aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             aiApiKeyField.clear();
