@@ -273,7 +273,10 @@ class SshHostKeyTrustManagerTest {
 
     private static PublicKey newKey() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(1024);
+        // 2048-bit keeps the fixture above CodeQL's minimum recommended size; the trust
+        // manager only treats this PublicKey as an opaque fingerprint blob, so key strength
+        // does not affect the store/reload/mismatch behaviour under test.
+        generator.initialize(2048);
         return generator.generateKeyPair().getPublic();
     }
 
