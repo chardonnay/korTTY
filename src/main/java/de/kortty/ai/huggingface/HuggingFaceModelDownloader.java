@@ -381,6 +381,10 @@ public final class HuggingFaceModelDownloader {
             throw new IOException("GGUF model download lock must not be a symbolic link.");
         }
         ReentrantLock jvmLock = JVM_DOWNLOAD_LOCKS.computeIfAbsent(lockPath, ignored -> new ReentrantLock(true));
+        // Acquired exactly once here. Ownership then transfers to the returned DownloadLock,
+        // whose close() releases it in a finally (used via try-with-resources by the caller);
+        // on any failure before that hand-off the catch below unlocks it. So it is released on
+        // every path exactly once. (CodeQL FP: it cannot follow the lock through AutoCloseable.)
         while (!jvmLock.tryLock(100, TimeUnit.MILLISECONDS)) {
             if (controller.isCancelled()) {
                 throw new CancellationException("GGUF download cancelled while waiting for another installer.");
@@ -628,6 +632,11 @@ public final class HuggingFaceModelDownloader {
     ) throws IOException, InterruptedException {
         MessageDigest digest;
         try {
+            // SHA-1 is mandated by git's blob-object format, not chosen for security: this
+            // digest only has to equal the git blobId Hugging Face advertises for non-LFS
+            // files (LFS files take the SHA-256 path in contentDigest/expectedDigest). The
+            // check needs second-preimage resistance, which SHA-1 still provides; switching
+            // to SHA-256 here would never match the advertised blobId. (CodeQL FP: weak-crypto)
             digest = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-1 is unavailable.", e);
