@@ -604,12 +604,14 @@ final class LocalModelManagerPane extends VBox {
      * The lightweight search listing omits per-file sizes for most multi-quantization
      * repositories, but the usability filter needs sizes to decide. Fetch the missing repository
      * details in the background with bounded parallelism; each resolved row either appears in the
-     * table (fits this machine) or stays hidden.
+     * table (fits this machine) or stays hidden. Repositories whose details are already cached
+     * must still be queued: a new search (e.g. after switching the format filter) starts from
+     * fresh size-less rows, and only the completed cached future re-applies the known details —
+     * skipping them would hide previously visible repositories forever.
      */
     private void prefetchHubDetails(long generation) {
         Deque<HuggingFaceModel> queue = hubModels.stream()
             .filter(model -> model.smallestQuantizationBytes() <= 0)
-            .filter(model -> !hubDetailRequests.containsKey(hubModelKey(model)))
             .collect(Collectors.toCollection(ArrayDeque::new));
         for (int worker = 0; worker < HUB_PREFETCH_PARALLELISM && !queue.isEmpty(); worker++) {
             prefetchNextHubDetail(queue, generation);
