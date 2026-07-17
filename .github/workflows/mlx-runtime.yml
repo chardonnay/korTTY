@@ -25,7 +25,9 @@ concurrency:
 
 env:
   MLX_LM_VERSION: "0.31.3"
-  MLX_RUNTIME_REVISION: kortty1
+  # kortty2: zip packaging with followed symlinks so korTTY's existing java.util.zip-based
+  # installer can extract MLX packages without a zstd dependency.
+  MLX_RUNTIME_REVISION: kortty2
   # Pinned relocatable CPython (astral-sh/python-build-standalone). URL and SHA-256 must always
   # change together; the download step fails closed on any mismatch.
   PYTHON_STANDALONE_URL: "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-aarch64-apple-darwin-install_only.tar.gz"
@@ -197,9 +199,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/mlx-runtime/dist
-          tar -C build/mlx-runtime/packages -cf - "$INSTALL_ID" \
-            | zstd -19 -T0 -o "build/mlx-runtime/dist/$INSTALL_ID.tar.zst"
-          (cd build/mlx-runtime/dist && shasum -a 256 "$INSTALL_ID.tar.zst" > "$INSTALL_ID.tar.zst.sha256")
+          # zip WITHOUT -y deliberately follows symlinks: korTTY extracts runtime packages with
+          # java.util.zip, which cannot restore symbolic links. The duplicated interpreter bytes
+          # are the price for a dependency-free, in-app verifiable install.
+          (cd build/mlx-runtime/packages && zip -qr "../dist/$INSTALL_ID.zip" "$INSTALL_ID")
+          (cd build/mlx-runtime/dist && shasum -a 256 "$INSTALL_ID.zip" > "$INSTALL_ID.zip.sha256")
           cp build/mlx-runtime/requirements.lock "build/mlx-runtime/dist/$INSTALL_ID.requirements.lock"
           ls -la build/mlx-runtime/dist
 
