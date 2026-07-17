@@ -7329,8 +7329,11 @@ public class MainWindow {
         }
     }
 
-    /** Shows the NOTIFY-policy result after the signed stable runtime index was verified. */
-    public static void showLlamaRuntimeUpdateAvailable(String runtimeId, boolean runtimeMissing) {
+    /**
+     * Shows the NOTIFY-policy result after the signed stable runtime index was verified. Only
+     * called for updates to an installed runtime; users without one are never notified.
+     */
+    public static void showLlamaRuntimeUpdateAvailable(String runtimeId) {
         MainWindow window = getFocusedOrLastOpenWindow();
         if (window == null) {
             return;
@@ -7340,9 +7343,7 @@ public class MainWindow {
         alert.initOwner(window.getStage());
         alert.setTitle(I18n.get("ai.local.models.runtime.notification.title"));
         alert.setHeaderText(I18n.get("ai.local.models.runtime.notification.header", runtimeId));
-        alert.setContentText(I18n.get(runtimeMissing
-            ? "ai.local.models.runtime.notification.missing"
-            : "ai.local.models.runtime.notification.update"));
+        alert.setContentText(I18n.get("ai.local.models.runtime.notification.update"));
         alert.show();
     }
 

@@ -696,13 +696,18 @@ public class KorTTYApplication extends Application {
                 || update.availablePackage() == null) {
                 return;
             }
+            // Notify only users who actually run the local runtime: without an installed (and
+            // not removed) llama.cpp installation the popup would advertise a feature that was
+            // never opted into. The AI Manager still lists the available runtime for install.
+            if (update.activeInstallation() == null) {
+                return;
+            }
             String runtimeId = update.availablePackage().runtimeId();
             if (runtimeId.equals(lastNotifiedLlamaRuntimeId)) {
                 return;
             }
             lastNotifiedLlamaRuntimeId = runtimeId;
-            boolean runtimeMissing = update.activeInstallation() == null;
-            Platform.runLater(() -> MainWindow.showLlamaRuntimeUpdateAvailable(runtimeId, runtimeMissing));
+            Platform.runLater(() -> MainWindow.showLlamaRuntimeUpdateAvailable(runtimeId));
         });
         coordinator.start(
             globalSettingsManager.getSettings().getLlamaRuntimeUpdatePolicy(),
