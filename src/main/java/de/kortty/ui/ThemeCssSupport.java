@@ -379,7 +379,11 @@ final class ThemeCssSupport {
             ".ai-chat-search-field:focused { -fx-border-color: " + accent + "; }",
             ".ai-chat-search-count { -fx-text-fill: " + muted + "; }",
             ".ai-chat-hit { -fx-border-color: " + border + "; -fx-border-radius: 12; -fx-border-width: 1; }",
-            ".ai-chat-hit-current { -fx-border-color: " + accent + "; -fx-border-radius: 12; -fx-border-width: 2; -fx-background-color: " + hitFill + "; -fx-background-radius: 12; }"
+            ".ai-chat-hit-current { -fx-border-color: " + accent + "; -fx-border-radius: 12; -fx-border-width: 2; -fx-background-color: " + hitFill + "; -fx-background-radius: 12; }",
+            ".ai-chat-reasoning-toggle { -fx-background-color: transparent; -fx-text-fill: " + muted + "; -fx-padding: 2 4 2 0; -fx-border-width: 0; -fx-cursor: hand; }",
+            ".ai-chat-reasoning-toggle:hover { -fx-text-fill: " + accent + "; }",
+            ".ai-chat-reasoning { -fx-background-color: " + codeBg + "; -fx-background-radius: 8; -fx-border-color: " + border + "; -fx-border-radius: 8; -fx-padding: 8; }",
+            ".ai-chat-reasoning .ai-chat-text { -fx-text-fill: " + muted + "; }"
         );
     }
 

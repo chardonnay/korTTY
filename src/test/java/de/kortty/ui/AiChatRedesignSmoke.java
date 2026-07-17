@@ -48,6 +48,9 @@ public final class AiChatRedesignSmoke {
     private static final String ASSISTANT_MD_2 =
         "Öffne die Suche oben rechts (Cmd/Strg+F), tippe „pipeline\" und jede Fundstelle wird "
             + "hervorgehoben und ins Bild gescrollt.";
+    private static final String REASONING_MD =
+        "Der Nutzer fragt nach der Pipeline-Semantik. Ich erkläre zuerst das Fehlen des Barriers "
+            + "und zeige dann ein knappes Codebeispiel, das genau eine Stufe pro Element durchläuft.";
 
     private AiChatRedesignSmoke() {
     }
@@ -94,9 +97,9 @@ public final class AiChatRedesignSmoke {
         messagesBox.setFillWidth(true);
         messagesBox.setPadding(new Insets(14, 16, 14, 16));
 
-        messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD, false));
+        messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD, false, REASONING_MD));
         messagesBox.getChildren().add(userRow(true));
-        messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD_2, false));
+        messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD_2, false, null));
 
         ScrollPane scroll = new ScrollPane(messagesBox);
         scroll.getStyleClass().add("ai-chat-scroll");
@@ -120,7 +123,7 @@ public final class AiChatRedesignSmoke {
     }
 
     /** Full-width assistant turn; {@code highlight} marks it as the current search hit. */
-    private static VBox assistantBlock(String markdown, boolean highlight) {
+    private static VBox assistantBlock(String markdown, boolean highlight, String reasoning) {
         VBox block = new VBox(6);
         block.setFillWidth(true);
         block.getStyleClass().add("ai-chat-assistant");
@@ -132,7 +135,27 @@ public final class AiChatRedesignSmoke {
         role.setStyle("-fx-font-weight: bold;");
         block.getChildren().add(role);
         AiChatRenderSupport.renderInto(block, true, markdown, FONT);
+        if (reasoning != null && !reasoning.isBlank()) {
+            appendReasoningDisclosure(block, reasoning);
+        }
         return block;
+    }
+
+    /**
+     * Mirrors {@code AiResultTab.appendReasoningDisclosure}: a toggle bar plus a collapsible body, both
+     * carrying the production {@code ai-chat-reasoning*} style classes so every profile snapshot exercises
+     * the separated-reasoning theming. Rendered expanded here so the muted body colour is visible.
+     */
+    private static void appendReasoningDisclosure(VBox target, String reasoning) {
+        Label body = new Label(reasoning.trim());
+        body.getStyleClass().add("ai-chat-text");
+        body.setWrapText(true);
+        VBox bodyBox = new VBox(body);
+        bodyBox.getStyleClass().add("ai-chat-reasoning");
+        javafx.scene.control.Button toggle = new javafx.scene.control.Button("▾ Gedankengang");
+        toggle.getStyleClass().add("ai-chat-reasoning-toggle");
+        toggle.setFocusTraversable(false);
+        target.getChildren().addAll(toggle, bodyBox);
     }
 
     /** Right-indented user bubble; {@code highlight} outlines just the bubble as the current hit. */
