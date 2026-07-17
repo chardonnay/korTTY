@@ -14,6 +14,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -287,6 +291,77 @@ class MlxRuntimeManagerTest {
         Files.createDirectories(runtimeRoot);
         Files.writeString(runtimeRoot.resolve("active"), installationId + System.lineSeparator());
         return runtimeRoot;
+    }
+
+    @Test
+    void isIdleReturnsPromptlyWhileASlotIsMidColdStartWithoutDeadlockingShutdown() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-idle-nonblocking-");
+        Path runtimeRoot = createRuntimePackage(directory, "mlx-0.31.3-kortty1");
+        MlxModelRegistry registry = MlxModelRegistry.inDirectory(directory);
+        Path modelDirectory = Files.createDirectories(directory.resolve("model"));
+        Files.writeString(modelDirectory.resolve("config.json"), "{}");
+        registry.register(new MlxModel("test-model", "Test Model", modelDirectory));
+
+        CountDownLatch probeEntered = new CountDownLatch(1);
+        CountDownLatch releaseProbe = new CountDownLatch(1);
+        List<FakeProcess> processes = new CopyOnWriteArrayList<>();
+        MlxRuntimeManager manager = new MlxRuntimeManager(
+            registry,
+            new MlxRuntimeLocator(runtimeRoot),
+            directory.resolve("run"),
+            Duration.ofSeconds(30),
+            (command, environment, workingDirectory, logFile) -> {
+                FakeProcess process = new FakeProcess();
+                processes.add(process);
+                return process;
+            },
+            (process, healthEndpoint, timeout) -> {
+                // Block inside start() while the slot monitor is held, simulating a cold start.
+                probeEntered.countDown();
+                releaseProbe.await();
+            },
+            () -> 24100);
+        ExecutorService background = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> acquirer = background.submit(() -> {
+                try (MlxRuntimeManager.RuntimeLease ignored = manager.acquire("test-model")) {
+                    // Lease acquired only after the probe is released.
+                }
+            });
+            assertThat(probeEntered.await(5, TimeUnit.SECONDS)).isTrue();
+
+            // isIdle() must not block on the slot monitor held by the in-progress start().
+            Future<Boolean> idle = background.submit(manager::isIdle);
+            assertThat(idle.get(2, TimeUnit.SECONDS)).isFalse();
+
+            releaseProbe.countDown();
+            acquirer.get(10, TimeUnit.SECONDS);
+        } finally {
+            releaseProbe.countDown();
+            background.shutdownNow();
+            manager.close();
+        }
+    }
+
+    @Test
+    void deniedActiveRuntimeIsUnavailableToLocatorAndLeasePath() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-denied-lease-");
+        String installationId = "mlx-0.31.3-kortty1";
+        Path runtimeRoot = createRuntimePackage(directory, installationId);
+        // A signed withdrawal denylisted the currently active installation id.
+        Files.writeString(runtimeRoot.resolve(MlxRuntimeLocator.REVOKED_LIST_FILE),
+            installationId + System.lineSeparator());
+        MlxModelRegistry registry = MlxModelRegistry.inDirectory(directory);
+        Path modelDirectory = Files.createDirectories(directory.resolve("model"));
+        Files.writeString(modelDirectory.resolve("config.json"), "{}");
+        registry.register(new MlxModel("test-model", "Test Model", modelDirectory));
+        MlxRuntimeLocator locator = new MlxRuntimeLocator(runtimeRoot);
+        try (MlxRuntimeManager manager = new MlxRuntimeManager(registry, locator, directory.resolve("run"))) {
+            assertThat(locator.locateActive()).isEmpty();
+            MlxRuntimeException error = expectThrows(
+                MlxRuntimeException.class, () -> manager.acquire("test-model"));
+            assertThat(error).hasMessageThat().contains("No MLX runtime is installed");
+        }
     }
 
     private static void awaitState(

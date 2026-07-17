@@ -154,9 +154,14 @@ final class AiLocalPreferencesPane extends VBox {
         }
         try {
             app.getGlobalSettingsManager().save();
+            LlamaRuntimeUpdatePolicy policy = settings.getLlamaRuntimeUpdatePolicy();
             de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator.getDefault().start(
-                settings.getLlamaRuntimeUpdatePolicy(),
-                settings.getPreferredLlamaRuntimeBackend());
+                policy, settings.getPreferredLlamaRuntimeBackend());
+            // The same policy governs the MLX runtime; its notification listener is registered
+            // once at application start (Apple Silicon only), so re-applying only re-runs the check.
+            if (de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+                de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.getDefault().start(policy);
+            }
             huggingFaceToken.clear();
             clearHuggingFaceToken.setSelected(false);
             status.setText(I18n.get("ai.local.preferences.save.success"));

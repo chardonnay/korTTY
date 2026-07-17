@@ -72,6 +72,8 @@ public class KorTTYApplication extends Application {
     private static KorTTYApplication instance;
     private AutoCloseable llamaRuntimeStatusSubscription;
     private volatile String lastNotifiedLlamaRuntimeId;
+    private AutoCloseable mlxRuntimeStatusSubscription;
+    private volatile String lastNotifiedMlxRuntimeId;
     
     private ConfigurationManager configManager;
     private SessionManager sessionManager;
@@ -464,8 +466,14 @@ public class KorTTYApplication extends Application {
             shutdownStep("remove llama.cpp runtime update listener", llamaRuntimeStatusSubscription::close);
             llamaRuntimeStatusSubscription = null;
         }
+        if (mlxRuntimeStatusSubscription != null) {
+            shutdownStep("remove MLX runtime update listener", mlxRuntimeStatusSubscription::close);
+            mlxRuntimeStatusSubscription = null;
+        }
         shutdownStep("stop llama.cpp runtime update coordination",
             de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator::shutdownDefault);
+        shutdownStep("stop MLX runtime update coordination",
+            de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator::shutdownDefault);
         // The application terminates with Runtime.halt(), so sidecar cleanup cannot rely on JVM
         // shutdown hooks. Stop every embedded llama.cpp and mlx-lm process explicitly before the
         // hard halt.
@@ -691,7 +699,7 @@ public class KorTTYApplication extends Application {
                 lastNotifiedLlamaRuntimeId = notificationId;
                 String replacementId = update.availablePackage() != null
                     ? update.availablePackage().runtimeId() : null;
-                Platform.runLater(() -> MainWindow.showLlamaRuntimeRevoked(
+                Platform.runLater(() -> MainWindow.showRuntimeRevoked(
                     update.revokedRuntimeId(), replacementId));
                 return;
             }
@@ -710,11 +718,57 @@ public class KorTTYApplication extends Application {
                 return;
             }
             lastNotifiedLlamaRuntimeId = runtimeId;
-            Platform.runLater(() -> MainWindow.showLlamaRuntimeUpdateAvailable(runtimeId));
+            Platform.runLater(() -> MainWindow.showRuntimeUpdateAvailable(runtimeId));
         });
+        de.kortty.model.LlamaRuntimeUpdatePolicy policy =
+            globalSettingsManager.getSettings().getLlamaRuntimeUpdatePolicy();
         coordinator.start(
-            globalSettingsManager.getSettings().getLlamaRuntimeUpdatePolicy(),
+            policy,
             globalSettingsManager.getSettings().getPreferredLlamaRuntimeBackend());
+        startMlxRuntimeUpdateCoordinator(policy);
+    }
+
+    /** Applies the same update policy to the embedded MLX runtime (Apple Silicon only). */
+    private void startMlxRuntimeUpdateCoordinator(de.kortty.model.LlamaRuntimeUpdatePolicy policy) {
+        if (!de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+            return;
+        }
+        de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator coordinator =
+            de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.getDefault();
+        if (mlxRuntimeStatusSubscription != null) {
+            try {
+                mlxRuntimeStatusSubscription.close();
+            } catch (Exception e) {
+                logger.debug("Could not replace MLX runtime update listener", e);
+            }
+        }
+        mlxRuntimeStatusSubscription = coordinator.addListener(update -> {
+            if (update.state() == de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.State.REVOKED
+                && update.revokedRuntimeId() != null) {
+                String notificationId = "revoked:" + update.revokedRuntimeId();
+                if (notificationId.equals(lastNotifiedMlxRuntimeId)) {
+                    return;
+                }
+                lastNotifiedMlxRuntimeId = notificationId;
+                String replacementId = update.availablePackage() != null
+                    ? update.availablePackage().runtimeId() : null;
+                Platform.runLater(() -> MainWindow.showRuntimeRevoked(
+                    update.revokedRuntimeId(), replacementId));
+                return;
+            }
+            if (update.state() != de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.State.UPDATE_AVAILABLE
+                || update.availablePackage() == null
+                || update.activeInstallation() == null) {
+                return;
+            }
+            String runtimeId = update.availablePackage().runtimeId();
+            if (runtimeId.equals(lastNotifiedMlxRuntimeId)) {
+                return;
+            }
+            lastNotifiedMlxRuntimeId = runtimeId;
+            Platform.runLater(() -> MainWindow.showRuntimeUpdateAvailable(runtimeId));
+        });
+        coordinator.start(policy);
     }
 
     public void restartUpdateCheckService() {

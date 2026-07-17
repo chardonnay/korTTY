@@ -22,7 +22,9 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -181,11 +183,14 @@ class MlxRuntimePackageInstallerTest {
         Fixture fixture = Fixture.withSignedIndex(runtimeRoot, index(entry(archive, false)));
         fixture.tamperIndex();
         try (fixture; MlxRuntimeManager manager = fixture.idleManager(directory)) {
-            IOException error = expectThrows(
+            // A flipped base64 character can decode either to a valid-length signature that simply
+            // fails verification (verify == false) or to a malformed Ed25519 point that raises a
+            // SignatureException. Both are correct fail-closed outcomes, so assert only that the
+            // install is refused with an IOException and no runtime is ever activated.
+            expectThrows(
                 IOException.class,
                 () -> fixture.installer.installFromLocalPackage(manager, archiveFile));
 
-            assertThat(error).hasMessageThat().contains("signature verification failed");
             assertThat(fixture.installer.active()).isEmpty();
         }
     }
@@ -246,6 +251,72 @@ class MlxRuntimePackageInstallerTest {
             assertThat(error).hasMessageThat().contains("sanity");
             assertThat(fixture.installer.active().orElseThrow().id()).isEqualTo(OLD_INSTALLATION_ID);
         }
+    }
+
+    @Test
+    void applyRevocationsRecordsADurableDenylistThatFailsTheActivePointerClosed() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-denylist-roundtrip-");
+        Path runtimeRoot = createOldInstallation(directory);
+        MlxRuntimePackageInstaller installer = bareInstaller(runtimeRoot);
+
+        // The signed index withdraws the currently active installation id.
+        installer.applyRevocations(new MlxRuntimeIndex(
+            1, Instant.now(), List.of(), Set.of(OLD_INSTALLATION_ID)));
+
+        assertThat(installer.active()).isEmpty();
+        assertThat(Files.exists(runtimeRoot.resolve("active"))).isFalse();
+        assertThat(installer.blockedActiveRuntimeId()).hasValue(OLD_INSTALLATION_ID);
+
+        // The denylist and blocked-active marker are durable: a fresh installer over the same root
+        // keeps failing closed, mirroring the llama.cpp denylist that survives an uninstall.
+        MlxRuntimePackageInstaller reopened = bareInstaller(runtimeRoot);
+        assertThat(reopened.active()).isEmpty();
+        assertThat(reopened.blockedActiveRuntimeId()).hasValue(OLD_INSTALLATION_ID);
+    }
+
+    @Test
+    void revokedActivePackageIsBlockedAndCanNeverBeReinstalled() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-block-reinstall-");
+        Path runtimeRoot = directory.resolve("mlx").resolve("runtime");
+        byte[] archive = runtimeZip();
+        Path archiveFile = Files.write(directory.resolve("mlx-runtime.zip"), archive);
+        Fixture fixture = Fixture.withSignedIndex(runtimeRoot, index(entry(archive, false)), archive);
+        try (fixture; MlxRuntimeManager manager = fixture.idleManager(directory)) {
+            MlxRuntimeLocator.MlxRuntimeInstallation installed =
+                fixture.installer.installFromLocalPackage(manager, archiveFile);
+            assertThat(installed.id()).isEqualTo(NEW_INSTALLATION_ID);
+
+            // A later signed index revokes the active package; enforce it fail-closed.
+            MlxRuntimeIndex revokedIndex = new MlxRuntimeIndex(
+                1, Instant.now(), List.of(), Set.of(NEW_INSTALLATION_ID));
+            fixture.installer.blockRevokedActive(manager, revokedIndex, installed);
+
+            assertThat(fixture.installer.active()).isEmpty();
+            assertThat(fixture.installer.blockedActiveRuntimeId()).hasValue(NEW_INSTALLATION_ID);
+
+            // The withdrawn id is refused on every subsequent install path.
+            IOException local = expectThrows(
+                IOException.class,
+                () -> fixture.installer.installFromLocalPackage(manager, archiveFile));
+            IOException channel = expectThrows(
+                IOException.class, () -> fixture.installer.installFromIndex(manager));
+            assertThat(local).hasMessageThat().contains("revoked");
+            assertThat(channel).hasMessageThat().contains("no compatible runtime package");
+            assertThat(fixture.installer.active()).isEmpty();
+        }
+    }
+
+    private static MlxRuntimePackageInstaller bareInstaller(Path runtimeRoot) {
+        return new MlxRuntimePackageInstaller(
+            runtimeRoot,
+            () -> {
+                throw new AssertionError("A denylist round-trip must not fetch the signed index.");
+            },
+            uri -> {
+                throw new AssertionError("A denylist round-trip must not download packages.");
+            },
+            (packageDirectory, pythonExecutable) -> { },
+            () -> true);
     }
 
     private static JsonObject entry(byte[] archive, boolean revoked) throws Exception {

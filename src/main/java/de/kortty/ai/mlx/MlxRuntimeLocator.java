@@ -23,8 +23,13 @@ public final class MlxRuntimeLocator {
     public static final String ACTIVE_POINTER_FILE = "active";
     public static final String PACKAGES_DIRECTORY = "packages";
     public static final String LAUNCHER_SCRIPT_NAME = "kortty_mlx_server.py";
+    /** Durable revocation denylist maintained by {@link MlxRuntimePackageInstaller}. */
+    public static final String REVOKED_LIST_FILE = "revoked-runtime-ids-v1";
+    /** Marker naming the installation id most recently blocked by a signed withdrawal. */
+    public static final String BLOCKED_ACTIVE_FILE = "blocked-active-v1";
 
     private static final long MAX_POINTER_BYTES = 1024;
+    private static final long MAX_DENYLIST_BYTES = 256L * 1024;
     private static final Pattern SAFE_INSTALLATION_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
 
     private final Path runtimeRoot;
@@ -62,6 +67,12 @@ public final class MlxRuntimeLocator {
             if (!SAFE_INSTALLATION_ID.matcher(installationId).matches()) {
                 return Optional.empty();
             }
+            // Fail closed on the lease path too: a signed withdrawal that denylisted the active id
+            // (or blocked it) must prevent acquire()/the pane from ever launching a revoked runtime,
+            // closing the window where the active pointer is still present during blockRevokedActive.
+            if (isRevoked(installationId)) {
+                return Optional.empty();
+            }
             Path directory = packagesDirectory.resolve(installationId).normalize();
             if (!directory.startsWith(packagesDirectory)
                 || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
@@ -82,6 +93,31 @@ public final class MlxRuntimeLocator {
         } catch (IOException ignored) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * True when the installation id is on the durable revocation denylist or matches the
+     * blocked-active marker. Reads the same sibling files that {@link MlxRuntimePackageInstaller}
+     * maintains, so the lease path and the installer agree on what has been withdrawn.
+     */
+    private boolean isRevoked(String installationId) throws IOException {
+        Path blocked = runtimeRoot.resolve(BLOCKED_ACTIVE_FILE);
+        if (Files.isRegularFile(blocked, LinkOption.NOFOLLOW_LINKS)
+            && Files.size(blocked) <= MAX_POINTER_BYTES
+            && Files.readString(blocked, StandardCharsets.UTF_8).trim().equals(installationId)) {
+            return true;
+        }
+        Path denylist = runtimeRoot.resolve(REVOKED_LIST_FILE);
+        if (!Files.isRegularFile(denylist, LinkOption.NOFOLLOW_LINKS)
+            || Files.size(denylist) > MAX_DENYLIST_BYTES) {
+            return false;
+        }
+        for (String line : Files.readAllLines(denylist, StandardCharsets.UTF_8)) {
+            if (line.trim().equals(installationId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Validated active MLX runtime package on local disk. */

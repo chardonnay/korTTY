@@ -33,6 +33,7 @@ import de.kortty.ai.mlx.MlxRuntimeLocator;
 import de.kortty.ai.mlx.MlxRuntimeManager;
 import de.kortty.ai.mlx.MlxRuntimePackageInstaller;
 import de.kortty.ai.mlx.MlxRuntimeState;
+import de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeInstallation;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeProvisioner;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator;
@@ -170,6 +171,7 @@ final class LocalModelManagerPane extends VBox {
     private final AtomicReference<HuggingFaceDownloadProgress> pendingDownloadProgress = new AtomicReference<>();
     private final AtomicBoolean downloadProgressUpdateScheduled = new AtomicBoolean();
     private AutoCloseable runtimeStatusSubscription;
+    private AutoCloseable mlxRuntimeStatusSubscription;
 
     LocalModelManagerPane(KorTTYApplication app, Window owner, Runnable modelsChanged) {
         this.app = app;
@@ -214,6 +216,24 @@ final class LocalModelManagerPane extends VBox {
                 }
             }
         }));
+        if (MlxPlatform.isSupported()) {
+            // The shared update policy can revoke or update the MLX runtime in the background;
+            // reflect it in the Runtimes table exactly like the llama.cpp status.
+            mlxRuntimeStatusSubscription = MlxRuntimeUpdateCoordinator.getDefault()
+                .addListener(update -> Platform.runLater(() -> {
+                    updateRuntimeLabel();
+                    if (update.state() == MlxRuntimeUpdateCoordinator.State.READY
+                        || update.state() == MlxRuntimeUpdateCoordinator.State.REVOKED) {
+                        try {
+                            reloadInstalledModels();
+                            installedTable.refresh();
+                            modelsChanged.run();
+                        } catch (RuntimeException error) {
+                            status.setText(message(error));
+                        }
+                    }
+                }));
+        }
         refresh();
     }
 
@@ -313,25 +333,25 @@ final class LocalModelManagerPane extends VBox {
         }
         status.setText(I18n.get("ai.local.models.runtime.mlx.installing"));
         setRuntimeActionsDisabled(true);
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                return MlxRuntimePackageInstaller.createDefault()
-                    .installFromIndex(MlxRuntimeManager.getDefault());
-            } catch (Exception error) {
-                throw new CompletionException(error);
-            }
-        }).whenComplete((installation, error) -> Platform.runLater(() -> {
-            setRuntimeActionsDisabled(false);
-            if (error != null) {
-                status.setText(I18n.get("ai.local.models.runtime.install.failed")
-                    + ": " + message(rootCause(error)));
-            } else {
-                status.setText(I18n.get("ai.local.models.runtime.import.success",
-                    RuntimeKind.MLX.label(), installation.id()));
-            }
-            refresh();
-            modelsChanged.run();
-        }));
+        // Route through the coordinator so the install shares the same status, dedupe, and
+        // background-revocation handling as the shared update policy.
+        MlxRuntimeUpdateCoordinator.getDefault().installStable()
+            .whenComplete((result, error) -> Platform.runLater(() -> {
+                setRuntimeActionsDisabled(false);
+                if (error != null) {
+                    status.setText(I18n.get("ai.local.models.runtime.install.failed")
+                        + ": " + message(rootCause(error)));
+                } else if (result.state() == MlxRuntimeUpdateCoordinator.State.READY) {
+                    status.setText(I18n.get("ai.local.models.runtime.import.success",
+                        RuntimeKind.MLX.label(),
+                        result.activeInstallation() != null ? result.activeInstallation().id() : ""));
+                } else if (result.state() == MlxRuntimeUpdateCoordinator.State.FAILED) {
+                    status.setText(I18n.get("ai.local.models.runtime.install.failed")
+                        + (result.detail() != null ? ": " + result.detail() : ""));
+                }
+                refresh();
+                modelsChanged.run();
+            }));
     }
 
     private void importLocalRuntimePackage() {
@@ -2124,13 +2144,18 @@ final class LocalModelManagerPane extends VBox {
             llamaState));
         if (MlxPlatform.isSupported()) {
             Optional<MlxRuntimeLocator.MlxRuntimeInstallation> mlx = mlxRuntimeLocator.locateActive();
+            boolean mlxRevoked = !mlx.isPresent()
+                && MlxRuntimeUpdateCoordinator.getDefault().status().state()
+                    == MlxRuntimeUpdateCoordinator.State.REVOKED;
             rows.add(new RuntimeRow(
                 RuntimeKind.MLX,
                 mlx.map(MlxRuntimeLocator.MlxRuntimeInstallation::id).orElse("—"),
                 "MLX",
                 mlx.isPresent()
                     ? I18n.get("ai.local.models.runtime.state.ready")
-                    : I18n.get("ai.local.models.runtime.state.missing")));
+                    : mlxRevoked
+                        ? I18n.get("ai.local.models.runtime.state.revoked")
+                        : I18n.get("ai.local.models.runtime.state.missing")));
         }
         RuntimeKind selectedKind = selectedRuntimeKind();
         runtimeRows.setAll(rows);
@@ -2285,6 +2310,14 @@ final class LocalModelManagerPane extends VBox {
                 // The coordinator owns no pane resources; listener removal is best effort.
             }
             runtimeStatusSubscription = null;
+        }
+        if (mlxRuntimeStatusSubscription != null) {
+            try {
+                mlxRuntimeStatusSubscription.close();
+            } catch (Exception ignored) {
+                // Best effort, like the llama.cpp subscription above.
+            }
+            mlxRuntimeStatusSubscription = null;
         }
     }
 

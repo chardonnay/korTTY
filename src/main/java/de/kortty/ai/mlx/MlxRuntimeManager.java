@@ -135,6 +135,36 @@ public final class MlxRuntimeManager implements AutoCloseable {
         }
     }
 
+    /** True when the application-wide manager has no busy sidecar (all slots idle or none running). */
+    public static boolean isDefaultIdle() {
+        // Snapshot the singleton under DEFAULT_LOCK, then release it before probing idleness. Holding
+        // DEFAULT_LOCK across the idle check could otherwise block on a slot monitor held by an
+        // in-progress cold start, and shutdownDefault() also needs DEFAULT_LOCK — a shutdown stall.
+        MlxRuntimeManager current;
+        synchronized (DEFAULT_LOCK) {
+            current = defaultInstance;
+        }
+        return current == null || current.isIdle();
+    }
+
+    /**
+     * True when no slot is currently running or leased. Reads only a non-blocking volatile snapshot
+     * of each slot's state and lease count; it never acquires a slot monitor, so an idle check can
+     * never block on an in-progress {@code acquire()}/{@code start()} that holds its monitor inside
+     * {@code awaitReady()}.
+     */
+    public boolean isIdle() {
+        if (closed.get()) {
+            return true;
+        }
+        for (RuntimeSlot slot : modelSlots.values()) {
+            if (slot.isRunningOrLeased()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Acquires a reference-counted lease, starting and health-checking the sidecar if necessary. */
     public RuntimeLease acquire(String modelId) {
         ensureOpen();
@@ -381,9 +411,12 @@ public final class MlxRuntimeManager implements AutoCloseable {
         private Path apiKeyFile;
         private Path logFile;
         private Path sessionDirectory;
-        private MlxRuntimeState state = MlxRuntimeState.STOPPED;
+        // state and leases are mutated only under the slot monitor, but are declared volatile so the
+        // non-blocking isRunningOrLeased() snapshot (used by isIdle()) can read them without ever
+        // acquiring that monitor, which a cold start holds for the whole startup timeout.
+        private volatile MlxRuntimeState state = MlxRuntimeState.STOPPED;
         private String lastError;
-        private int leases;
+        private volatile int leases;
         private boolean stopping;
         private boolean retired;
 
@@ -497,6 +530,21 @@ public final class MlxRuntimeManager implements AutoCloseable {
                 cleanupExitedProcess(process, false);
             }
             return new RuntimeStatus(requestedModelId, state, leases, endpoint, lastError);
+        }
+
+        /**
+         * Non-blocking idleness snapshot for {@link MlxRuntimeManager#isIdle()}. Deliberately not
+         * synchronized: it reads only the volatile state and lease count so it can never wait on a
+         * slot monitor held by an in-progress cold start.
+         */
+        boolean isRunningOrLeased() {
+            if (leases > 0) {
+                return true;
+            }
+            MlxRuntimeState snapshot = state;
+            return snapshot == MlxRuntimeState.STARTING
+                || snapshot == MlxRuntimeState.LOADING
+                || snapshot == MlxRuntimeState.BUSY;
         }
 
         synchronized boolean retireIfIdle() {

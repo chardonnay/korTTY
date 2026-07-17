@@ -2483,7 +2483,8 @@
 <p>The update format uses the detached Ed25519 signature <code>runtime-index-v1.sig</code> over the exact bytes of <code>runtime-index-v1.json</code>. Each entry binds the runtime ID, upstream tag and commit, API-contract version, minimum korTTY version, platform, architecture, backend, compressed size, SHA-256, HTTPS URL, executable path, and revocation status. The public verification key is auditable at <code>config/trust/llama-runtime-ed25519-public.pem</code> and embedded in normal local and release builds; an optional CI or Gradle override must match that pinned identity exactly. A missing or invalid trust root, mismatched override, index signature, package size, or package hash stops the operation before untrusted code is activated.</p>
 <p>A package is installed beside the active version and checked locally with a bounded <code>llama-server --version</code> launch before activation. Activation and the atomic rebinding of registered models occur only while all local inference is idle. The candidate then remains <strong>pending first launch</strong> until a real GGUF-backed server reaches its authenticated API: success promotes it into the healthy history, while that first real startup failing restores the newest non-revoked previous runtime, rebinds affected models, removes the failed package, and restarts runtime management. The two newest healthy installations are retained, and a package staged during active work is retried after the requests finish. Release CI performs the deeper authenticated chat, embedding, JSON-schema, sleep/wake, and parallel-sidecar contract tests before publication.</p>
 <p>A verified index withdrawal is enforced immediately for <strong>Notify me</strong> and <strong>Install stable updates automatically</strong> checks. korTTY first persists the revoked runtime/installation IDs in a durable denylist and writes a package-local quarantine marker, then clears the active pointer, stops its sidecars, removes revoked versions from rollback history, and replaces affected model bindings with a non-executable marker. Both the runtime installer and every new process launch consult those guards, so an interrupted cleanup or stale <code>models.xml</code> entry cannot restart the withdrawn executable. Local AI remains blocked until a compatible signed replacement is installed; the main window and Local Models status identify the revoked runtime and whether a verified replacement is available. <strong>Off</strong> performs no network check, so it cannot learn about a newly published withdrawal until the user explicitly checks or enables signed-index checks.</p>
-<p>The <strong>llama.cpp runtime updates</strong> choice controls the automatic check started with korTTY and whenever the preference is saved:</p>
+<p>The MLX runtime (Apple Silicon) has no per-model quarantine marker because MLX models bind to a model directory rather than to the runtime; its enforcement clears the active pointer, stops every MLX sidecar, and records the withdrawn id in a durable denylist so it can never be reinstalled or reactivated. Registered MLX models stay registered but cannot start until a non-revoked MLX runtime is installed.</p>
+<p>The single <strong>Runtime updates (llama.cpp &amp; MLX)</strong> choice controls the automatic check started with korTTY and whenever the preference is saved, and applies to <strong>both</strong> embedded runtimes:</p>
 <table>
 <thead>
 <tr>
@@ -2494,15 +2495,15 @@
 <tbody>
 <tr>
 <td><strong>Off</strong></td>
-<td>Performs no runtime-update network request. A non-revoked installed runtime remains usable, while every withdrawal already persisted locally stays enforced.</td>
+<td>Performs no runtime-update network request for either runtime. Non-revoked installed runtimes remain usable, while every withdrawal already persisted locally stays enforced.</td>
 </tr>
 <tr>
 <td><strong>Notify me</strong> (default)</td>
-<td>Verifies the signed stable index and shows a notification when a compatible update for an <strong>installed</strong> runtime is available, without automatically installing it. Without an installed runtime no popup appears; the available package is still listed in Local Models. A verified withdrawal is enforced immediately and blocks the active package.</td>
+<td>Verifies each installed runtime's signed stable index and shows a notification when a compatible update for an <strong>installed</strong> runtime is available (llama.cpp and, on Apple Silicon, MLX), without automatically installing it. Without an installed runtime no popup appears; the available package is still listed in Local Models. A verified withdrawal of either runtime is enforced immediately.</td>
 </tr>
 <tr>
 <td><strong>Install stable updates automatically</strong></td>
-<td>Downloads, verifies, installs, and activates a compatible stable package, including a safe replacement for a withdrawn active version; active inference delays normal activation instead of being interrupted.</td>
+<td>Downloads, verifies, installs, and activates a compatible stable package for each runtime, including a safe replacement for a withdrawn active version; a busy runtime defers its update instead of interrupting an active request.</td>
 </tr>
 </tbody>
 </table>

@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -57,6 +59,15 @@ public final class MlxRuntimePackageInstaller {
     private static final int MAX_ZIP_ENTRIES = 60_000;
     private static final long MAX_EXTRACTED_BYTES = 8L * 1024 * 1024 * 1024;
     private static final Duration SANITY_LAUNCH_TIMEOUT = Duration.ofSeconds(90);
+    // A revoked MLX package binds to no per-model quarantine marker (MLX models bind to a model
+    // directory, never to the runtime), so revocation enforcement is durable-denylist based: the
+    // active pointer is cleared, sidecars are stopped, and the withdrawn id can never be reinstalled.
+    // Shared with MlxRuntimeLocator so the lease path and the installer read the same files.
+    private static final String BLOCKED_ACTIVE_FILE = MlxRuntimeLocator.BLOCKED_ACTIVE_FILE;
+    private static final String REVOKED_LIST_FILE = MlxRuntimeLocator.REVOKED_LIST_FILE;
+    private static final long MAX_POINTER_BYTES = 1024;
+    private static final long MAX_DENYLIST_BYTES = 256L * 1024;
+    private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
     private static final ConcurrentHashMap<Path, ReentrantLock> JVM_UPDATE_LOCKS = new ConcurrentHashMap<>();
 
     @FunctionalInterface
@@ -130,9 +141,107 @@ public final class MlxRuntimePackageInstaller {
         this.jvmUpdateLock = JVM_UPDATE_LOCKS.computeIfAbsent(this.runtimeRoot, ignored -> new ReentrantLock());
     }
 
-    /** Currently active, layout-validated MLX runtime installation, if any. */
-    public Optional<MlxRuntimeInstallation> active() {
-        return locator.locateActive();
+    /**
+     * Currently active, layout-validated MLX runtime installation, if any. Fails closed: when the
+     * located installation is on the durable revocation denylist, its active pointer is cleared, the
+     * blocked-active marker is written, and empty is returned so a revoked runtime can never run.
+     */
+    public Optional<MlxRuntimeInstallation> active() throws IOException {
+        Optional<MlxRuntimeInstallation> located = locator.locateActive();
+        if (located.isPresent()) {
+            // The locator already fails closed on the denylist, so a present result is never revoked.
+            return located;
+        }
+        // The locator returns empty for a denylisted (or otherwise invalid) pointer without side
+        // effects. When the on-disk pointer still names a denylisted id, persist the durable block
+        // (blocked-active marker + pointer clear) so the withdrawal survives independently.
+        String activeId = readRawActivePointer();
+        if (activeId == null || !readDenylist().contains(activeId)) {
+            return Optional.empty();
+        }
+        return withUpdateLock(() -> {
+            String current = readRawActivePointer();
+            if (current != null && readDenylist().contains(current)) {
+                writeAtomically(BLOCKED_ACTIVE_FILE, current);
+                Files.deleteIfExists(runtimeRoot.resolve(MlxRuntimeLocator.ACTIVE_POINTER_FILE));
+            }
+            return Optional.empty();
+        });
+    }
+
+    private String readRawActivePointer() throws IOException {
+        Path pointer = runtimeRoot.resolve(MlxRuntimeLocator.ACTIVE_POINTER_FILE);
+        if (!Files.isRegularFile(pointer, LinkOption.NOFOLLOW_LINKS) || Files.size(pointer) > MAX_POINTER_BYTES) {
+            return null;
+        }
+        String value = Files.readString(pointer, StandardCharsets.UTF_8).trim();
+        return isSafeIdentifier(value) ? value : null;
+    }
+
+    /** Installation id most recently removed from the active pointer by a signed withdrawal. */
+    public Optional<String> blockedActiveRuntimeId() throws IOException {
+        Path file = runtimeRoot.resolve(BLOCKED_ACTIVE_FILE);
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || Files.size(file) > MAX_POINTER_BYTES) {
+            return Optional.empty();
+        }
+        String value = Files.readString(file, StandardCharsets.UTF_8).trim();
+        return isSafeIdentifier(value) ? Optional.of(value) : Optional.empty();
+    }
+
+    /**
+     * Appends every withdrawal from a verified signed index to the durable revocation denylist below
+     * the runtime root. Both the {@code runtimeId} and the {@code installationId} of a revoked entry
+     * are recorded so a denylisted package can be matched by either key on a later install or an
+     * active-pointer check. The denylist is cumulative and deliberately survives an uninstall.
+     */
+    public void applyRevocations(MlxRuntimeIndex index) throws IOException {
+        Objects.requireNonNull(index, "index");
+        withUpdateLock(() -> {
+            writeDenylist(collectRevocations(index, readDenylist()));
+            return null;
+        });
+    }
+
+    /**
+     * Fails closed as soon as the signed index withdraws the active package: persists the withdrawal
+     * denylist, stops every idle MLX sidecar, clears the active pointer and records the blocked id.
+     * Errors are accumulated and rethrown so a partial failure still leaves the runtime blocked.
+     */
+    public void blockRevokedActive(
+        MlxRuntimeManager manager,
+        MlxRuntimeIndex index,
+        MlxRuntimeInstallation revoked
+    ) throws IOException {
+        Objects.requireNonNull(manager, "manager");
+        Objects.requireNonNull(index, "index");
+        Objects.requireNonNull(revoked, "revoked");
+        IOException failure = null;
+        try {
+            applyRevocations(index);
+        } catch (IOException e) {
+            failure = e;
+        }
+        try {
+            withUpdateLock(() -> {
+                // Persist the block BEFORE stopping sidecars and BEFORE deleting the active pointer,
+                // and keep the stop + pointer delete in one critical section. Once the denylist and
+                // blocked-active marker are written, MlxRuntimeLocator.locateActive() fails closed,
+                // so no concurrent acquire() can launch a fresh sidecar of the revoked runtime in
+                // the window between stopping the running ones and clearing the pointer.
+                Set<String> denylist = new LinkedHashSet<>(readDenylist());
+                denylist.add(revoked.id());
+                writeDenylist(denylist);
+                writeAtomically(BLOCKED_ACTIVE_FILE, revoked.id());
+                stopAllSidecars(manager);
+                Files.deleteIfExists(runtimeRoot.resolve(MlxRuntimeLocator.ACTIVE_POINTER_FILE));
+                return null;
+            });
+        } catch (IOException e) {
+            failure = accumulate(failure, e);
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     /**
@@ -171,7 +280,7 @@ public final class MlxRuntimePackageInstaller {
             .findFirst()
             .orElseThrow(() -> new IOException(
                 "This archive was not published by the signed stable MLX channel and cannot be installed."));
-        if (index.isRevoked(entry)) {
+        if (index.isRevoked(entry) || isDenylisted(entry, readDenylist())) {
             throw new IOException(
                 "This MLX runtime package was revoked by the signed stable channel and cannot be installed.");
         }
@@ -191,9 +300,11 @@ public final class MlxRuntimePackageInstaller {
         Objects.requireNonNull(manager, "manager");
         requireSupportedPlatform();
         MlxRuntimeIndex index = indexProvider.fetch();
+        Set<String> denylist = readDenylist();
         MlxRuntimePackageDescriptor entry = index.packages().stream()
             .filter(MlxRuntimePackageDescriptor::matchesCurrentPlatform)
             .filter(descriptor -> !index.isRevoked(descriptor))
+            .filter(descriptor -> !isDenylisted(descriptor, denylist))
             .max(Comparator.comparingLong(MlxRuntimePackageInstaller::versionSortKey)
                 .thenComparing(MlxRuntimePackageDescriptor::runtimeId))
             .orElseThrow(() -> new IOException(
@@ -315,16 +426,81 @@ public final class MlxRuntimePackageInstaller {
     }
 
     private void writePointer(String installationId) throws IOException {
-        Path target = runtimeRoot.resolve(MlxRuntimeLocator.ACTIVE_POINTER_FILE);
+        writeAtomically(MlxRuntimeLocator.ACTIVE_POINTER_FILE, installationId);
+    }
+
+    private void writeAtomically(String fileName, String content) throws IOException {
+        Path target = runtimeRoot.resolve(fileName);
         Path partial = target.resolveSibling(target.getFileName() + ".part");
         Files.writeString(
-            partial, installationId + System.lineSeparator(), StandardCharsets.UTF_8,
+            partial, content + System.lineSeparator(), StandardCharsets.UTF_8,
             StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
         try {
             Files.move(partial, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (AtomicMoveNotSupportedException ignored) {
             Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private Set<String> readDenylist() throws IOException {
+        Path file = runtimeRoot.resolve(REVOKED_LIST_FILE);
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            return Set.of();
+        }
+        if (Files.size(file) > MAX_DENYLIST_BYTES) {
+            throw new IOException("The MLX runtime revocation list is unexpectedly large.");
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+            String value = line.trim();
+            if (isSafeIdentifier(value)) {
+                result.add(value);
+            }
+        }
+        return result;
+    }
+
+    private void writeDenylist(Set<String> values) throws IOException {
+        List<String> sorted = values.stream()
+            .filter(MlxRuntimePackageInstaller::isSafeIdentifier)
+            .sorted()
+            .toList();
+        if (sorted.isEmpty()) {
+            return;
+        }
+        writeAtomically(REVOKED_LIST_FILE, String.join(System.lineSeparator(), sorted));
+    }
+
+    private static Set<String> collectRevocations(MlxRuntimeIndex index, Set<String> existing) {
+        LinkedHashSet<String> revoked = new LinkedHashSet<>(existing);
+        for (String id : index.revokedRuntimeIds()) {
+            if (isSafeIdentifier(id)) {
+                revoked.add(id);
+            }
+        }
+        for (MlxRuntimePackageDescriptor descriptor : index.packages()) {
+            if (index.isRevoked(descriptor)) {
+                revoked.add(descriptor.runtimeId());
+                revoked.add(descriptor.installationId());
+            }
+        }
+        return revoked;
+    }
+
+    private static boolean isDenylisted(MlxRuntimePackageDescriptor descriptor, Set<String> denylist) {
+        return denylist.contains(descriptor.runtimeId()) || denylist.contains(descriptor.installationId());
+    }
+
+    private static boolean isSafeIdentifier(String value) {
+        return value != null && SAFE_IDENTIFIER.matcher(value).matches();
+    }
+
+    private static IOException accumulate(IOException failure, IOException next) {
+        if (failure == null) {
+            return next;
+        }
+        failure.addSuppressed(next);
+        return failure;
     }
 
     private void deleteInstalledPackages(String keepInstallationId) throws IOException {
@@ -452,7 +628,7 @@ public final class MlxRuntimePackageInstaller {
         }
     }
 
-    private static long versionSortKey(MlxRuntimePackageDescriptor descriptor) {
+    static long versionSortKey(MlxRuntimePackageDescriptor descriptor) {
         // Newest mlx-lm version wins; unparsable versions sort last but stay installable when they
         // are the only entry. Ties fall back to the runtime id comparison of the caller.
         String[] parts = descriptor.mlxLmVersion().split("[.+-]");

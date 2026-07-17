@@ -7332,9 +7332,10 @@ public class MainWindow {
 
     /**
      * Shows the NOTIFY-policy result after the signed stable runtime index was verified. Only
-     * called for updates to an installed runtime; users without one are never notified.
+     * called for updates to an installed runtime; users without one are never notified. Serves
+     * both embedded runtimes — the runtime id already identifies llama.cpp vs MLX.
      */
-    public static void showLlamaRuntimeUpdateAvailable(String runtimeId) {
+    public static void showRuntimeUpdateAvailable(String runtimeId) {
         MainWindow window = getFocusedOrLastOpenWindow();
         if (window == null) {
             return;
@@ -7349,7 +7350,7 @@ public class MainWindow {
     }
 
     /** Warns that a signed withdrawal has already quarantined and stopped the local runtime. */
-    public static void showLlamaRuntimeRevoked(String revokedRuntimeId, String replacementRuntimeId) {
+    public static void showRuntimeRevoked(String revokedRuntimeId, String replacementRuntimeId) {
         MainWindow window = getFocusedOrLastOpenWindow();
         if (window == null) {
             return;
