@@ -645,7 +645,7 @@ public final class LlamaRuntimeManager implements AutoCloseable {
                 }
                 startupListener.onReady(executable);
                 state = LlamaRuntimeState.READY;
-                logger.info("Started embedded llama.cpp model {} on loopback port {}", modelId, port);
+                logger.info("Loaded embedded llama.cpp model {} (ready on loopback port {}).", modelId, port);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 failStart(startedProcess, resolvedExecutable, runtimeLaunchAttempted,
@@ -713,6 +713,8 @@ public final class LlamaRuntimeManager implements AutoCloseable {
             idleTransition = null;
             if (leases == 0 && process != null && process.isAlive()) {
                 state = LlamaRuntimeState.SLEEPING;
+                logger.info("Unloaded embedded llama.cpp model {} tensors after idle timeout (sleeping); "
+                    + "it reloads on the next request.", modelId);
             }
         }
 
@@ -757,6 +759,9 @@ public final class LlamaRuntimeManager implements AutoCloseable {
             apiKey = null;
             runningConfiguration = null;
             state = LlamaRuntimeState.STOPPED;
+            if (stoppedProcess != null) {
+                logger.info("Unloaded embedded llama.cpp model {} — sidecar stopped.", modelId);
+            }
         }
 
         private synchronized void onProcessExit(Process exitedProcess) {
@@ -785,6 +790,7 @@ public final class LlamaRuntimeManager implements AutoCloseable {
                 if (lastError == null || lastError.isBlank()) {
                     lastError = "llama-server exited unexpectedly." + tail;
                 }
+                logger.warn("Embedded llama.cpp model {} exited unexpectedly — model unloaded.", modelId);
             }
         }
 

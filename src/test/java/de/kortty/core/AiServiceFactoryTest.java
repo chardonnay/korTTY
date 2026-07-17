@@ -16,6 +16,11 @@ import static com.google.common.truth.Truth.assertThat;
 
 class AiServiceFactoryTest {
 
+    /** Sees through the outermost {@link LoggingAiService} decorator the factory now always applies. */
+    private static AiService unwrap(AiService service) {
+        return service instanceof LoggingAiService logging ? logging.delegate() : service;
+    }
+
     @Test
     void automaticRagStoresStayLocalWhileExplicitAssignmentsRemainAvailableEverywhere() {
         AiProfile embedded = new AiProfile();
@@ -67,7 +72,7 @@ class AiServiceFactoryTest {
         profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
         profile.setEmbeddedModelId("qwen-local");
 
-        AiService service = AiServiceFactory.create(profile, "must-not-be-used", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "must-not-be-used", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(AiPromptPresetService.class);
         AiPromptPresetService optimized = (AiPromptPresetService) service;
@@ -93,7 +98,7 @@ class AiServiceFactoryTest {
         profile.setApiUrl("https://api.minimax.io/v1");
         profile.setModel("MiniMax-M2.7");
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -109,7 +114,7 @@ class AiServiceFactoryTest {
         profile.setApiUrl("https://api.minimax.io/v1/chat/completions");
         profile.setModel("MiniMax-M2.7");
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -155,7 +160,7 @@ class AiServiceFactoryTest {
         profile.setModel("stale-model");
         profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
@@ -177,7 +182,7 @@ class AiServiceFactoryTest {
         profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
         profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
         OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
 
         String body = openAiService.buildRequestBody(new AiRequest(AiAction.SUMMARIZE, "sample", "source", "en"));
@@ -190,7 +195,7 @@ class AiServiceFactoryTest {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234/v1");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
     }
@@ -200,7 +205,7 @@ class AiServiceFactoryTest {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -265,7 +270,7 @@ class AiServiceFactoryTest {
                 null,
                 null));
 
-        assertThat(service).isInstanceOf(LmStudioNativeAiService.class);
+        assertThat(unwrap(service)).isInstanceOf(LmStudioNativeAiService.class);
     }
 
     @Test
@@ -333,7 +338,7 @@ class AiServiceFactoryTest {
         profile.setCliArgumentsTemplate("{promptFile}");
         profile.setModel("custom-model");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(LocalCliAiService.class);
     }
@@ -345,7 +350,7 @@ class AiServiceFactoryTest {
         profile.setCliProviderId("claude-code");
         profile.setCliArgumentsTemplate("{promptFile}");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(LocalCliAiService.class);
     }

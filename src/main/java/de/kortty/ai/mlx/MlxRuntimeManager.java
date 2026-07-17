@@ -486,7 +486,7 @@ public final class MlxRuntimeManager implements AutoCloseable {
                     throw new IOException("MLX sidecar exited before becoming ready." + logTail(newLogFile));
                 }
                 state = MlxRuntimeState.READY;
-                logger.info("Started embedded MLX model {} on loopback port {}", modelId, port);
+                logger.info("Loaded embedded MLX model {} (ready on loopback port {}).", modelId, port);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 failStart(startedProcess, "Interrupted while loading local MLX model " + modelId + ".", e);
@@ -580,6 +580,9 @@ public final class MlxRuntimeManager implements AutoCloseable {
             apiKey = null;
             runningConfiguration = null;
             state = MlxRuntimeState.STOPPED;
+            if (stoppedProcess != null) {
+                logger.info("Unloaded embedded MLX model {} — sidecar stopped.", modelId);
+            }
         }
 
         private synchronized void onProcessExit(Process exitedProcess) {
@@ -609,11 +612,14 @@ public final class MlxRuntimeManager implements AutoCloseable {
                 // instead. An exit without active leases is that expected self-exit; the next
                 // acquire relaunches the sidecar with a fresh key.
                 state = MlxRuntimeState.SLEEPING;
+                logger.info("Unloaded embedded MLX model {} after idle timeout (sidecar self-exit, sleeping); "
+                    + "it relaunches on the next request.", modelId);
             } else {
                 state = MlxRuntimeState.FAILED;
                 if (lastError == null || lastError.isBlank()) {
                     lastError = "MLX sidecar exited unexpectedly." + tail;
                 }
+                logger.warn("Embedded MLX model {} sidecar exited unexpectedly — model unloaded.", modelId);
             }
         }
 

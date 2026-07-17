@@ -253,16 +253,21 @@ public final class AiServiceFactory {
         AiService optimized = resolved == AiPromptPreset.GENERIC
             ? service
             : new AiPromptPresetService(service, resolved);
+        AiService composed;
         if (profile == null) {
-            return optimized;
+            composed = optimized;
+        } else {
+            List<String> automaticStores = automaticallyAssignedRagStoresAllowed(profile)
+                ? new RagRuntimeService().configuredStoreIds()
+                : List.of();
+            List<String> storeIds = ragStoreIdsForProfile(profile, automaticStores);
+            composed = storeIds.isEmpty()
+                ? optimized
+                : new RagAugmentedAiService(optimized, storeIds, modelContextTokens(profile));
         }
-        List<String> automaticStores = automaticallyAssignedRagStoresAllowed(profile)
-            ? new RagRuntimeService().configuredStoreIds()
-            : List.of();
-        List<String> storeIds = ragStoreIdsForProfile(profile, automaticStores);
-        return storeIds.isEmpty()
-            ? optimized
-            : new RagAugmentedAiService(optimized, storeIds, modelContextTokens(profile));
+        // Outermost wrapper: logs request submit/complete/fail (metadata only) so the whole request
+        // lifecycle — including any RAG retrieval and preset optimization above — is timed as one.
+        return LoggingAiService.wrap(composed, profile, modelName);
     }
 
     /**

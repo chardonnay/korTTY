@@ -114,6 +114,8 @@ If a selected Metal or Vulkan model requires a different package from the active
 
 After the configured idle time, llama.cpp releases the model tensors from RAM/VRAM and korTTY marks the model as sleeping while retaining the lightweight process. The next request acquires a runtime lease and wakes the model automatically. **Stop selected** terminates only idle sidecars; an active generation is never interrupted by model removal or a normal stop request.
 
+To make this activity visible, korTTY records the request and model lifecycle in `kortty.log` (under the log directory configured in **Configuration > Global Settings > Logging**, default `~/.kortty/logs`). Every AI request logs one `AI request sent` line and a matching `AI request done` / `AI request failed` line with the action, provider, model, approximate input size, duration and token count — metadata only, never the prompt or response text. Local models additionally log when a model is `Loaded`, `Unloaded … (sleeping)` after the idle timeout, or `Unloaded … sidecar stopped`, for both the llama.cpp and MLX runtimes. All of these are `INFO` lines, so they appear with the default log level.
+
 ## Text, coding, translation, and embedding roles
 
 In **AI Manager > Local AI**, choose separate profiles for **Text and translation** and **Coding**. Leaving either choice at **Use default AI profile** preserves the normal fallback. Terminal summarization, problem solving, questions, descriptions, and translation use the Text role; snippet generation, completion, analysis, security fixes, and workflow generation use the Coding role.
