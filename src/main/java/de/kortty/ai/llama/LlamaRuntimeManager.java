@@ -400,6 +400,16 @@ public final class LlamaRuntimeManager implements AutoCloseable {
             command.add("--embedding");
             command.add("--pooling");
             command.add("mean");
+        } else {
+            // The pinned server validates chat output against a PEG grammar derived from the
+            // model's template and answers a final parse failure with HTTP 500 ("... does not
+            // match the expected peg-native format"), e.g. when generation truncates inside a
+            // <think> block. Leave thoughts unparsed instead of requiring the strict reasoning
+            // structure; EmbeddedLlamaAiService#separateInlineReasoning moves the inline
+            // chain-of-thought back into AiExecutionResult.reasoning() so consumers keep getting
+            // clean content. Tool-call parsing for the web-search tool is unaffected.
+            command.add("--reasoning-format");
+            command.add("none");
         }
         // These flags are explicitly supported by the pinned b10025/a3e5b96ac runtime. Keep them
         // explicit even where the upstream default is currently disabled: a runtime update must

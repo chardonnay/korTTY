@@ -75,6 +75,7 @@ class LlamaRuntimeManagerTest {
                 "--model", runtime.gguf.toRealPath().toString(),
                 "--alias", "test-model",
                 "--parallel", "1",
+                "--reasoning-format", "none",
                 "--offline",
                 "--no-ui",
                 "--no-agent",
@@ -104,6 +105,35 @@ class LlamaRuntimeManagerTest {
         }
         assertThat(runtime.process.isAlive()).isFalse();
         assertThat(Files.exists(runtime.keyFile())).isFalse();
+    }
+
+    @Test
+    void buildCommandLeavesReasoningUnparsedOnlyForChatModels() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-llama-command-");
+        Path gguf = Files.writeString(directory.resolve("model.gguf"), "GGUF");
+        Path executable = Files.writeString(directory.resolve("llama-server"), "test executable");
+        assertThat(executable.toFile().setExecutable(true)).isTrue();
+        LlamaModel chat = new LlamaModel("chat-model", "Chat", gguf, executable);
+        LlamaModel embedding = new LlamaModel(
+            "embedding-model",
+            "Embedding",
+            gguf,
+            executable,
+            LlamaBackend.CPU,
+            LlamaModelPurpose.EMBEDDING,
+            4096,
+            0,
+            0,
+            0);
+
+        List<String> chatCommand = LlamaRuntimeManager.buildCommand(
+            chat, executable, gguf, 18080, directory.resolve("key"));
+        List<String> embeddingCommand = LlamaRuntimeManager.buildCommand(
+            embedding, executable, gguf, 18081, directory.resolve("key"));
+
+        assertThat(chatCommand).containsAtLeast("--reasoning-format", "none");
+        assertThat(embeddingCommand).doesNotContain("--reasoning-format");
+        assertThat(embeddingCommand).containsAtLeast("--embedding", "--pooling", "mean");
     }
 
     @Test
