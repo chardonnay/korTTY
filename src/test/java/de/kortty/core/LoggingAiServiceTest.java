@@ -72,6 +72,109 @@ public class LoggingAiServiceTest {
         };
     }
 
+    /**
+     * A full {@link AiPromptService} + {@link AiSkillUsageTracker} delegate, mirroring every concrete
+     * AI service. Records the last prompts so tests can assert delegation, and returns a fixed result
+     * and skill-usage list.
+     */
+    private static final class PromptTrackingService implements AiPromptService, AiSkillUsageTracker {
+        private final AiExecutionResult result;
+        private final List<AiSkillPromptSupport.SkillUsage> usages;
+        private String lastSystemPrompt;
+        private String lastUserPrompt;
+
+        PromptTrackingService(AiExecutionResult result, List<AiSkillPromptSupport.SkillUsage> usages) {
+            this.result = result;
+            this.usages = usages;
+        }
+
+        @Override
+        public AiExecutionResult execute(AiRequest request) {
+            return result;
+        }
+
+        @Override
+        public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
+            lastSystemPrompt = systemPrompt;
+            lastUserPrompt = userPrompt;
+            return result;
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) {
+            lastSystemPrompt = systemPrompt;
+            lastUserPrompt = userPrompt;
+            return result;
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+
+        @Override
+        public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
+            return usages;
+        }
+    }
+
+    @Test
+    public void wrappedPromptServiceStaysAiPromptServiceAndSkillTracker() {
+        AiService wrapped = LoggingAiService.wrap(
+            new PromptTrackingService(new AiExecutionResult("ok", null), List.of()),
+            profile(), "qwen2.5-coder-7b");
+
+        // Regression guard: the terminal agent, planning, workflow, guide, and job-scheduler paths all
+        // check `instanceof AiPromptService`, and skill tracking checks `instanceof AiSkillUsageTracker`.
+        // A decorator missing either interface makes the agent show a spurious "no AI profile" prompt.
+        assertThat(wrapped).isInstanceOf(AiPromptService.class);
+        assertThat(wrapped).isInstanceOf(AiSkillUsageTracker.class);
+    }
+
+    @Test
+    public void logsExecuteJsonPromptMetadataAndDelegatesWithoutLeakingContent() throws Exception {
+        AiExecutionResult expected = new AiExecutionResult("{\"ok\":true}", new AiTokenUsage(30, 10, 40), null);
+        PromptTrackingService inner = new PromptTrackingService(expected, List.of());
+        AiPromptService service = (AiPromptService) LoggingAiService.wrap(inner, profile(), "qwen2.5-coder-7b");
+
+        AiExecutionResult actual =
+            service.executeJsonPrompt("SYSTEM-" + SECRET_PROMPT, "USER-" + SECRET_PROMPT);
+
+        assertThat(actual).isSameInstanceAs(expected);
+        // The prompts reached the delegate intact...
+        assertThat(inner.lastUserPrompt).contains(SECRET_PROMPT);
+        // ...but only metadata was logged, never the prompt text.
+        assertThat(appender.list).hasSize(2);
+        assertThat(appender.list.get(0).getFormattedMessage()).contains("AI request sent");
+        assertThat(appender.list.get(0).getFormattedMessage()).contains("action=json-prompt");
+        assertThat(appender.list.get(1).getFormattedMessage()).contains("tokens=40");
+        for (ILoggingEvent event : appender.list) {
+            assertThat(event.getFormattedMessage()).doesNotContain(SECRET_PROMPT);
+        }
+    }
+
+    @Test
+    public void logsExecutePromptOnce() throws Exception {
+        AiExecutionResult expected = new AiExecutionResult("answer", null);
+        AiPromptService service = (AiPromptService) LoggingAiService.wrap(
+            new PromptTrackingService(expected, List.of()), profile(), "qwen2.5-coder-7b");
+
+        service.executePrompt("sys", "user");
+
+        assertThat(appender.list).hasSize(2);
+        assertThat(appender.list.get(0).getFormattedMessage()).contains("action=prompt");
+    }
+
+    @Test
+    public void drainSkillUsagesDelegatesToWrappedTracker() {
+        List<AiSkillPromptSupport.SkillUsage> sentinel = new java.util.ArrayList<>();
+        AiSkillUsageTracker tracker = (AiSkillUsageTracker) LoggingAiService.wrap(
+            new PromptTrackingService(new AiExecutionResult("ok", null), sentinel),
+            profile(), "qwen2.5-coder-7b");
+
+        assertThat(tracker.drainSkillUsages()).isSameInstanceAs(sentinel);
+    }
+
     @Test
     public void logsSubmitAndCompletionMetadataAndReturnsDelegateResult() throws Exception {
         AiExecutionResult expected =
