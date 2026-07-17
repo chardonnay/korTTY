@@ -44,12 +44,13 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Profile name | text | — | AI Profile | (profile `name` field) |
-| Connection | dropdown | HTTP API, Local CLI, Integrated llama.cpp | HTTP API | (profile `connectionMode` field) |
+| Connection | dropdown | HTTP API, Local CLI, Integrated llama.cpp, Integrated MLX (Apple Silicon; offered on Apple Silicon Macs only) | HTTP API | (profile `connectionMode` field) |
 | API URL | text | — | — | (profile `apiUrl` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
 | Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
 | Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
+| Local MLX model | dropdown | Installed MLX models; available when Connection is Integrated MLX (Apple Silicon) | — | (profile `embeddedModelId` field) |
 | Custom model | text | — | — | (profile `cliCustomModel` field) |
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |

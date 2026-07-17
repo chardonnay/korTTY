@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1337,6 +1341,17 @@
     <span class="md-ellipsis">
       
         Working with tabs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting safely
       
     </span>
   </a>
@@ -1788,6 +1803,62 @@
   
   
     <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ai-tools.html" class="md-nav__link">
         
   
@@ -2212,6 +2283,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#connecting-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting safely
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multi-window-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2474,6 +2556,10 @@
 </tr>
 </tbody>
 </table>
+<h2 id="connecting-safely">Connecting safely<a class="headerlink" href="#connecting-safely" title="Permanent link">&para;</a></h2>
+<p>Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with <strong>No</strong> selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See <a href="connections.html#ssh-host-key-verification">SSH host-key verification</a>.</p>
+<p>Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.</p>
+<p>KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks <code>TerminalTextBuffer</code> for the non-existent row at <code>line == height</code>.</p>
 <h2 id="multi-window-support">Multi-window support<a class="headerlink" href="#multi-window-support" title="Permanent link">&para;</a></h2>
 <p>Open additional windows to organize connections by project or environment:</p>
 <ul>

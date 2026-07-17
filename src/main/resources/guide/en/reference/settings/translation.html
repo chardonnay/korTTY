@@ -1028,6 +1028,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="translation.html" class="md-nav__link md-nav__link--active">
         
   
@@ -1044,6 +1062,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#local-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local translation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1157,6 +1205,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -1506,6 +1558,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -1921,6 +2029,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#local-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local translation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1960,7 +2087,7 @@
 <tr>
 <td>Translation API</td>
 <td>dropdown</td>
-<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate</td>
+<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, Local AI text profile</td>
 <td>Google Translate</td>
 <td><code>translationApiProvider</code></td>
 </tr>
@@ -2030,9 +2157,11 @@
 <p class="admonition-title">Note</p>
 <p><strong>Generated languages:</strong> The "Generated languages" list displays language files that have been created via the Generate Language File button. Each generated file corresponds to a dynamically translated UI in that target language. Use the Delete button to remove a language file, or use Regenerate outdated to update files created with an older app version to include newly added translation keys.</p>
 </div>
+<h2 id="local-translation">Local translation<a class="headerlink" href="#local-translation" title="Permanent link">&para;</a></h2>
+<p>Choose <strong>Local AI text profile</strong> to translate through the embedded llama.cpp profile assigned to the Text/translation role in <strong>AI &gt; AI Manager &gt; Local AI</strong>. API URL and API Key are disabled for this provider because the authenticated loopback endpoint is managed by korTTY. The local model must return one strict JSON <code>translations</code> array with the same number and order of input strings; invalid output stops generation instead of silently misaligning UI labels.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><strong>API key required:</strong> To test the connection or generate a language file, an API key for your chosen translation provider must be entered. The Test API Connection button validates that the provider and key are correct before attempting to generate a file.</p>
+<p><strong>Credentials:</strong> External providers require their normal API key, except a LibreTranslate endpoint that is explicitly configured without one. Local AI requires no translation-provider key, but its GGUF model and llama.cpp runtime must be installed and the master-password vault must be unlocked when the selected AI profile needs any encrypted secret.</p>
 </div>
 
 

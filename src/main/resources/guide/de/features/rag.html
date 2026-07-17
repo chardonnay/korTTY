@@ -1,0 +1,2447 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/features/rag.html">
+      
+      
+        <link rel="prev" href="local-models.html">
+      
+      
+        <link rel="next" href="ai-tools.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>RAG-Wissensspeicher - korTTY Anleitung</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rag-wissensspeicher" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../index.html" title="korTTY Anleitung" class="md-header__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Anleitung
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RAG-Wissensspeicher
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../en/features/rag.html"
+     title="English" hreflang="en">
+    <span class="kt-lang-code">EN</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Teilen" aria-label="Teilen" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Anleitung" class="md-nav__button md-logo" aria-label="korTTY Anleitung" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    korTTY Anleitung
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KorTTY-Pakete erstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erster Start – Master-Passwort
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht über das Hauptfenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menüreferenz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tastaturkürzel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architektur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfigurationsdateien
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Härtemöglichkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aussehen, Themen und Schriftart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Farben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fenster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ressourcen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalsitzungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH-Tunnel (Portweiterleitung)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump-Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte (Arbeitsbereiche)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamarbeit (gemeinsame Verbindungen)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="rag.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erstellen-sie-einen-lokalen-wissensspeicher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie einen lokalen Wissensspeicher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unterstutzte-formate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unterstützte Formate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sicheres-scannen-von-ordnern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicheres Scannen von Ordnern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automatische-und-manuelle-synchronisierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatische und manuelle Synchronisierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indizierung-und-ausfallsicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indizierung und Ausfallsicherheit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verwenden-sie-einen-wissensspeicher-mit-einem-ai-profil" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verwenden Sie einen Wissensspeicher mit einem AI-Profil
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testabruf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testabruf
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dateien-und-sicherungsverhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateien und Sicherungsverhalten
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal-KI-Agent und -Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-Schwarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sichern und wiederherstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII-Kunstbanner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminaleffekt-Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sprachen und dynamische Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versionshinweise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback und Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anonyme Daten zur Applikationsoptimierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erstellen-sie-einen-lokalen-wissensspeicher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie einen lokalen Wissensspeicher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unterstutzte-formate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unterstützte Formate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sicheres-scannen-von-ordnern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sicheres Scannen von Ordnern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automatische-und-manuelle-synchronisierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatische und manuelle Synchronisierung
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indizierung-und-ausfallsicherheit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indizierung und Ausfallsicherheit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verwenden-sie-einen-wissensspeicher-mit-einem-ai-profil" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verwenden Sie einen Wissensspeicher mit einem AI-Profil
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testabruf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testabruf
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dateien-und-sicherungsverhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateien und Sicherungsverhalten
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="rag-wissensspeicher">RAG Wissensspeicher<a class="headerlink" href="#rag-wissensspeicher" title="Permanent link">&para;</a></h1>
+<p>Ein <strong>Wissensspeicher</strong> ermöglicht es einem KI-Profil, mit relevanten Auszügen aus lokalen Dateien zu antworten, ohne die vollständige Quellsammlung an das Modell zu senden. Der Standardspeicher verwendet einen lokalen Kosinus-Ähnlichkeits-HNSW-Snapshot; Als optionaler zweiter Speichertyp steht ein vorhandener Qdrant-Dienst zur Verfügung.</p>
+<p><img alt="Knowledge-store indexing and retrieval pipeline" src="../assets/diagrams/rag-knowledge-pipeline.svg" /></p>
+<h2 id="erstellen-sie-einen-lokalen-wissensspeicher">Erstellen Sie einen lokalen Wissensspeicher<a class="headerlink" href="#erstellen-sie-einen-lokalen-wissensspeicher" title="Permanent link">&para;</a></h2>
+<p>Öffnen Sie <strong>AI &gt; AI Manager &gt; Wissensspeicher</strong> und wählen Sie <strong>Erstellen</strong>. Der Anfänger-Flow benötigt einen Namen, ein installiertes Einbettungsmodell, Rollenzuweisungen und mindestens eine überprüfte Quelle. Speichertyp, Vektordimensionen und optionale Qdrant-Verbindungsfelder bleiben unter <strong>Erweitert</strong> ausgeblendet; korTTY verwaltet die lokalen HNSW-Graphparameter intern, sodass bei normaler Verwendung keine Vektorindexoptimierung erforderlich ist.</p>
+<p><img alt="Wissensspeicher with a local HNSW demo store and one manual folder source" src="../assets/screenshots/ai/knowledge-stores.png" /></p>
+<p>Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten <a href="local-models.html">local-model </a> mit vorausgewählter Einbettungsrolle. Installieren Sie das empfohlene Modell Qwen3-Embedding 0.6B <code>Q8_0</code> und kehren Sie dann zu <strong>Erstellen</strong> zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.</p>
+<p>So fügen Sie Inhalte hinzu:</p>
+<ol>
+<li>Wählen Sie <strong>Dateien hinzufügen</strong> für eine oder mehrere einzelne Dateien oder <strong>Ordner hinzufügen</strong> für eine rekursive Verzeichnisquelle.</li>
+<li>Während korTTY die Auswahl auf einem Hintergrund-Worker scannt, bleibt die Registerkarte „Wissensspeicher“ reaktionsfähig und meldet <strong>Ausgewählte Dateien und Ordner werden überprüft…</strong>. Sie können diesen Scan abbrechen, bevor das Überprüfungsdialogfeld geöffnet wird.</li>
+<li>Überprüfen Sie die Vorschautabelle. In jeder Zeile werden Pfad, Format, Größe, Status und beim Überspringen eine Erklärung angezeigt. Die Zusammenfassung unterscheidet unveränderte Dateien von Dateien, die indiziert werden, und gruppiert erkannte Formate.</li>
+<li>Bestätigen Sie erst, nachdem die Vorschau mit dem übereinstimmt, was Sie indizieren wollten.</li>
+<li>Warten Sie, bis die Textextraktion, das Chunking, die Einbettungen und die Snapshot-Aktivierung abgeschlossen sind. Sie können den Vorgang vor der Aktivierung abbrechen, ohne den vorherigen Snapshot zu beschädigen.</li>
+</ol>
+<p><img alt="Real review preview with unchanged, changed, and skipped demo files" src="../assets/screenshots/ai/rag-preview.png" /></p>
+<p>Die Quelltabelle zeigt den Pfad, den Quelltyp, den Synchronisierungsmodus, den Status, die Anzahl der Dateien/Chunks, die Anzahl der Probleme und den letzten erfolgreichen Index. Diese Werte bleiben über Neustarts hinweg bestehen. Zu den verfügbaren Aktionen gehören <strong>Dateien hinzufügen</strong>, <strong>Ordner hinzufügen</strong>, <strong>Jetzt aktualisieren</strong>, <strong>Deaktivieren/Aktivieren</strong>, <strong>Entfernen</strong> und <strong>Suche testen</strong>.</p>
+<div class="admonition important">
+<p class="admonition-title">Ein Ordner wird immer zuerst überprüft</p>
+<p>Das Hinzufügen eines Verzeichnisses bedeutet niemals „jede Datei senden“. korTTY scannt, ohne symbolischen Links zu folgen, wendet die zentrale Format-Zulassungsliste und Ausschlüsse sicherer Verzeichnisse an, validiert den Dateiinhalt in einem Hintergrund-Worker und präsentiert den akzeptierten und übersprungenen Satz, bevor die Indizierung beginnt. Die Quelle wird nicht gespeichert und die Indizierung beginnt erst, wenn Sie diese Vorschau bestätigen.</p>
+</div>
+<h2 id="unterstutzte-formate">Unterstützte Formate<a class="headerlink" href="#unterstutzte-formate" title="Permanent link">&para;</a></h2>
+<p>Beim Dateinamenabgleich wird die Groß-/Kleinschreibung nicht beachtet. Ein anerkanntes Suffix ist notwendig, aber nicht ausreichend: Nicht-PDF-Dateien müssen gültigen UTF-8-Text ohne binäre NUL-/Kontrollbytes enthalten, und PDFs müssen lesbar sein und extrahierbaren Text enthalten.</p>
+<table>
+<thead>
+<tr>
+<th>Kategorie</th>
+<th>Unterstützte Dateien</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dokumente</td>
+<td><code>.txt</code>, <code>.md</code>, <code>.markdown</code>, <code>.adoc</code>, <code>.asciidoc</code>, <code>.rst</code>, textbasiert <code>.pdf</code></td>
+</tr>
+<tr>
+<td>Strukturierte Daten</td>
+<td><code>.json</code>, <code>.jsonl</code>, <code>.xml</code>, <code>.yaml</code>, <code>.yml</code>, <code>.toml</code>, <code>.ini</code>, <code>.cfg</code>, <code>.conf</code>, <code>.properties</code>, <code>.csv</code>, <code>.tsv</code></td>
+</tr>
+<tr>
+<td>Shell und Skripte</td>
+<td><code>.sh</code>, <code>.bash</code>, <code>.zsh</code>, <code>.fish</code>, <code>.bat</code>, <code>.cmd</code>, <code>.awk</code>, <code>.ps1</code>, <code>.psm1</code>, <code>.psd1</code>, <code>.py</code>, <code>.pyw</code>, <code>.pyi</code>, <code>.rb</code>, <code>.pl</code>, <code>.php</code>, <code>.lua</code></td>
+</tr>
+<tr>
+<td>JVM und .NET</td>
+<td><code>.java</code>, <code>.kt</code>, <code>.kts</code>, <code>.groovy</code>, <code>.gradle</code>, <code>.gvy</code>, <code>.gy</code>, <code>.gsh</code>, <code>.scala</code>, <code>.sc</code>, <code>.cs</code></td>
+</tr>
+<tr>
+<td>JavaScript und Web</td>
+<td><code>.js</code>, <code>.jsx</code>, <code>.mjs</code>, <code>.cjs</code>, <code>.ts</code>, <code>.tsx</code>, <code>.mts</code>, <code>.cts</code>, <code>.html</code>, <code>.htm</code>, <code>.css</code>, <code>.scss</code>, <code>.sass</code>, <code>.less</code>, <code>.vue</code>, <code>.svelte</code></td>
+</tr>
+<tr>
+<td>Systeme und Datencode</td>
+<td><code>.c</code>, <code>.h</code>, <code>.cc</code>, <code>.cpp</code>, <code>.cxx</code>, <code>.hpp</code>, <code>.hxx</code>, <code>.hh</code>, <code>.inl</code>, <code>.go</code>, <code>.rs</code>, <code>.swift</code>, <code>.sql</code></td>
+</tr>
+<tr>
+<td>Bekannte Dateien ohne Erweiterung</td>
+<td><code>README</code>, <code>LICENSE</code>, <code>Dockerfile</code>, <code>Makefile</code></td>
+</tr>
+</tbody>
+</table>
+<p>Folgendes wird in Version 1 nicht indiziert: Office-Dokumente, Bilder oder OCR, Archive, Datenbanken, Audio, Video und beliebige Binärformate. Passwortgeschützte PDFs und PDFs ohne extrahierbaren Text werden als übersprungen gemeldet.</p>
+<p>Das Standardlimit beträgt 50 MiB pro Datei. Eine Quelle kann es unter <strong>Erweitert</strong> von 1 MiB auf 1 GiB festlegen, aber benutzerdefinierte Include-Globs können die zentrale Zulassungsliste nur eingrenzen; Sie können ein nicht unterstütztes oder binäres Format nicht in eine akzeptierte Quelle umwandeln. Eine Vorschau ist außerdem auf 5.000 besuchte Dateien, 500 MiB akzeptierter Quelldaten und 100 MiB extrahierter Zeichen beschränkt.</p>
+<h2 id="sicheres-scannen-von-ordnern">Sicheres Scannen von Ordnern<a class="headerlink" href="#sicheres-scannen-von-ordnern" title="Permanent link">&para;</a></h2>
+<p>Ordnerquellen sind standardmäßig rekursiv. korTTY folgt keinen symbolischen Links und schließt versteckte Pfade sowie allgemeine Metadaten-, Abhängigkeits-, Build-, Cache- und IDE-Verzeichnisse aus:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>.git  .hg  .svn  .gradle  .idea  .vscode  .venv  venv
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>node_modules  vendor  build  target  dist  out  coverage  __pycache__
+</span></code></pre></div>
+<p>Optionale Einschluss-/Ausschluss-Globs und <code>.gitignore</code>-Behandlung sind unter <strong>Erweitert</strong> verfügbar. Einschlussregeln werden nach der Zulassungsliste für das feste Format ausgewertet. Eine einzelne Datei, die bereits von einer Ordnerquelle abgedeckt wird, wird kein zweites Mal hinzugefügt und identische oder überlappende Ordnerquellen werden mit dem Pfad der vorhandenen Quelle abgelehnt.</p>
+<h2 id="automatische-und-manuelle-synchronisierung">Automatische und manuelle Synchronisierung<a class="headerlink" href="#automatische-und-manuelle-synchronisierung" title="Permanent link">&para;</a></h2>
+<p>Jede Datei oder jeder Ordner verfügt über einen eigenen Synchronisierungsmodus:</p>
+<table>
+<thead>
+<tr>
+<th>Modus</th>
+<th>Verhalten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Automatisch</strong></td>
+<td>Standard. korTTY überwacht die Datei oder das Verzeichnis während der Ausführung, gruppiert Änderungsstöße für drei Sekunden und führt dann eine inkrementelle Synchronisierung durch. Beim Start der Anwendung gleicht es auch aktivierte automatische Quellen unabhängig von Anmeldeinformationen oder JobScheduler-Start ab und fängt Änderungen ab, die während des Schließens von korTTY vorgenommen wurden.</td>
+</tr>
+<tr>
+<td><strong>Manuell</strong></td>
+<td>Die Quelle ändert sich nur, wenn Sie <strong>Jetzt aktualisieren</strong> wählen.</td>
+</tr>
+</tbody>
+</table>
+<p>Die Überwachung des Dateisystems ist plattformabhängig. Wenn eine Quelle nicht zuverlässig beobachtet werden kann, bleibt sie nutzbar und manuell aktualisierbar; Verwenden Sie <strong>Jetzt aktualisieren</strong>, wenn der Manager eine eingeschränkte Überwachung meldet.</p>
+<p>Bei der Synchronisierung wird die gesamte akzeptierte Datei gehasht. <strong>Jetzt aktualisieren</strong> führt denselben abbrechbaren Hintergrundscan durch und zeigt dieselbe Überprüfungstabelle an, bevor mit der Arbeit begonnen wird. Ein zweiter Scan- oder Indexierungsvorgang wird abgelehnt, während einer bereits aktiv ist, wodurch überlappende Vorschau-/Indexierungsaufträge für den Bereich verhindert werden. Unveränderte Dateien behalten ihre vorhandenen Blöcke und Vektoren; Neue oder geänderte Dateien werden extrahiert, in Chunks aufgeteilt und erneut eingebettet. Gelöschte Dateien entfernen ihre Blöcke bei der nächsten Synchronisierung und eine Umbenennung wird als eine Löschung plus eine Hinzufügung verarbeitet.</p>
+<p><strong>Deaktivieren</strong> behält die Quellkonfiguration und die indizierten Blöcke bei, schließt sie jedoch vom Abruf aus. <strong>Entfernen</strong> fragt nach einer Bestätigung und löscht die Blöcke dieser Quelle. Durch das Entfernen einer Quelle werden niemals die Originaldateien gelöscht. Durch das Löschen eines gesamten lokalen Speichers wird auch sein bestätigtes Indexverzeichnis unter <code>~/.kortty/rag/stores/</code> entfernt, die konfigurierten Quelldokumente werden jedoch nie berührt. Durch das Löschen einer Qdrant-Speicherdefinition werden zunächst die Vektoren für die konfigurierten Quellen entfernt, der externe Qdrant-Dienst selbst wird jedoch nicht gelöscht.</p>
+<h2 id="indizierung-und-ausfallsicherheit">Indizierung und Ausfallsicherheit<a class="headerlink" href="#indizierung-und-ausfallsicherheit" title="Permanent link">&para;</a></h2>
+<p>Der Text ist in deterministische Blöcke von etwa 800 Token mit einer Überlappung von 120 Token unterteilt. PDF-Blöcke behalten ihre Seitenzahl für Zitate. Einbettungen werden vom ausgewählten authentifizierten lokalen llama.cpp-Modell in Stapeln von 32 angefordert.</p>
+<p>Für einen lokalen Speicher erstellt korTTY im Speicher ein deterministisches hierarchisches HNSW-Graph mit Kosinusähnlichkeit. Exponentiell verteilte obere Schichten ermöglichen eine gierige Einstiegsnavigation, während die Konstruktion und die begrenzte Suche die internen Standardeinstellungen <code>M</code>, <code>efConstruction</code> und <code>efSearch</code> verwenden. korTTY schreibt den Kandidaten in einen temporären <code>index.hnsw</code>-Snapshot, leert ihn und aktiviert ihn dann mit einer atomaren Umbenennung, sofern dies unterstützt wird. Bei Abbruch, Extraktionsfehlern, Einbettungsfehlern oder einem Stromausfall vor der Aktivierung bleibt der zuvor aktive Snapshot unberührt. Ein älterer Single-Layer-v1-Snapshot wird neu erstellt und beim ersten Öffnen atomar in das hierarchische v2-Format hochgestuft.</p>
+<p>Während der Indizierung meldet die Statuszeile den aktuellen Quellstatus, Dokumente, Chunks, Probleme und Prozentsätze. Die Vervollständigung fasst neu indizierte, unveränderte, entfernte und übersprungene Dokumente zusammen. Die Quelltabelle behält den Status, die Datei-/Chunk-/Problemanzahl und die Abschlusszeit bei, während die Quellkonfiguration die für den nächsten Vergleich verwendeten Inhalts-Hashes beibehält. Unveränderte Dokument-Hashes verwenden ihre Vektoren wieder, während geänderte, neue und gelöschte Dokumente den Ersatz-Snapshot aktualisieren.</p>
+<p>Ein konfigurierter Datei- oder Ordnerstamm, der tatsächlich gelöscht wurde, wird als inkrementelle Löschung behandelt: korTTY ersetzt diese Quelle atomar ohne Blöcke, meldet die Anzahl der entfernten Dokumente, behält leere Hashes/Zählungen bei und markiert die Quelle als <strong>FEHLEND</strong>, um zu verhindern, dass veraltete Auszüge weiterhin abrufbar bleiben. Andere schwerwiegende Scanfehler, wie z. B. eine Typinkongruenz, ein Berechtigungs-/Extraktionsfehler oder ein symbolischer Link-Root, melden <strong>FEHLER</strong> und behalten den vorherigen aktiven Snapshot bei, anstatt bekanntermaßen funktionierende Vektoren zu löschen. Lesbare Dateien können weiterhin indiziert werden, wenn nicht verwandte Einträge mit Warnungen übersprungen wurden.</p>
+<p>Der optionale Qdrant-Adapter erstellt oder validiert eine Cosinus-Sammlung, speichert dieselben Chunk-Metadaten und aktualisiert jeweils eine Quelle über die REST-API. Remote-Endpunkte müssen HTTPS verwenden; Einfaches HTTP wird nur für eine Loopback-Qdrant-Instanz akzeptiert. Der konfigurierte Endpunkt und der durch den Tresor geschützte API-Schlüssel gehören zu diesem Qdrant-Speicher. Für lokales HNSW ist kein Datenbankdienst erforderlich.</p>
+<h2 id="verwenden-sie-einen-wissensspeicher-mit-einem-ai-profil">Verwenden Sie einen Wissensspeicher mit einem AI-Profil<a class="headerlink" href="#verwenden-sie-einen-wissensspeicher-mit-einem-ai-profil" title="Permanent link">&para;</a></h2>
+<p>Wählen Sie beim Erstellen oder Konfigurieren eines Wissensspeichers <strong>Text</strong>, <strong>Coding</strong> oder beide Rollen aus. korTTY verknüpft den Wissensspeicher mit den Profilen, die diesen Rollen derzeit zugewiesen sind. Aktivieren Sie <strong>Autonome Workflows</strong> nur dann separat, wenn Hintergrundaufforderungen im Agentenstil aus diesem Wissensspeicher abgerufen werden können.</p>
+<div class="admonition warning">
+<p class="admonition-title">Cloud-Profile erhalten abgerufene Auszüge</p>
+<p>korTTY sendet niemals die vollständige Quellsammlung, das HNSW-Graph oder die Qdrant-Sammlung an ein Chat-Modell. Es werden nur die begrenzten Auszüge gesendet, die für die aktuelle Anfrage abgerufen wurden. Diese Auszüge verbleiben auf diesem Computer mit einem integrierten llama.cpp- oder nachweislich Loopback-HTTP-Profil, verlassen jedoch den Computer, wenn das ausgewählte Text-/Codierungsprofil einen Cloud-Endpunkt verwendet. Die Auswahl einer Wissensspeicherrolle zeichnet diesen Wissensspeicher in dem Profil auf, das der Rolle aktuell zugewiesen ist, und stellt daher eine ausdrückliche Berechtigung dar, passende Auszüge zu diesem Profil offenzulegen. Die Service Factory kann andere berechtigte Wissensspeicher mit Rollenzuweisung automatisch nur zu integrierten Profilen oder Loopback-Profilen hinzufügen; Cloud-, LAN-, Hostname-Lookalike- und CLI-Profile verwenden nur ihre persistenten expliziten Wissensspeicherzuweisungen.</p>
+</div>
+<p>Bei gewöhnlichen korTTY-KI-Aktionen verwendet der Abruf die Eingabeaufforderung des Benutzers oder den ausgewählten Terminal-/Snippet-Text, wenn keine separate Eingabeaufforderung vorhanden ist. Die Abfrage ist in das Modell des Wissensspeichers eingebettet, durchsucht nur aktivierte Quellen und wendet die folgenden festen Grenzen an:</p>
+<ul>
+<li>Höchstens sechs Auszüge insgesamt.</li>
+<li>Höchstens zwei Auszüge aus einer Quelle.</li>
+<li>Höchstens 4.000 Token und nie mehr als 25 % des Kontextfensters des Zielmodells.</li>
+</ul>
+<p>Das Ergebnis wird nach dem Aktionsvertrag und den KI-Fähigkeiten von korTTY und vor der Eingabeaufforderungsvoreinstellung für die Modellfamilie eingefügt. Es ist in <code>&lt;retrieved_context&gt;</code> verpackt und explizit als nicht vertrauenswürdige Daten und nicht als Anweisungen gekennzeichnet. Quellstandorte erhalten stabile Markierungen wie <code>[R1]</code>; Immer wenn eine Antwort auf einem Auszug basiert, muss das Modell genau diesen Marker zitieren. Text innerhalb einer Quelle kann keine Systemregeln außer Kraft setzen, keine Tools anfordern, keine Geheimnisse preisgeben oder den Wrapper für den abgerufenen Kontext schließen.</p>
+<p>Terminal-KI-Agent-, Planungs-, Swarm- und geplante Agent-Eingabeaufforderungen erhalten keinen RAG-Kontext, nur weil einem normalen Profil Wissensspeicher zugeordnet sind. Diese autonomen Abläufe erfordern ihr eigenes explizites RAG-Opt-in, sodass die Hintergrundautomatisierung ihren lokalen Datenumfang niemals stillschweigend erweitert.</p>
+<h2 id="testabruf">Testabruf<a class="headerlink" href="#testabruf" title="Permanent link">&para;</a></h2>
+<p>Wählen Sie einen Wissensspeicher aus und wählen Sie <strong>Suche testen</strong>. Geben Sie eine Frage oder einen Suchbegriff ein. Das Ergebnisdialogfeld zeigt den begrenzten abgerufenen Kontextblock mit geordneten <code>[R1]</code>-Quellmarkierungen, Quellpfaden und PDF-Seiten, sofern verfügbar. Bei einer Testsuche wird nur der Abruf ausgeführt und die Auszüge werden nicht an ein Chat-Modell gesendet. Dies macht sie nützlich für die Überprüfung von Chunking und Quellenabdeckung, bevor der Wissensspeicher einer Rolle zugewiesen wird.</p>
+<p>Bei schwachen Ergebnissen:</p>
+<ul>
+<li>Bestätigen Sie, dass die erwartete Quelle aktiviert und erfolgreich synchronisiert ist.</li>
+<li>Verwenden Sie Begriffe, die in den Dokumenten vorkommen, und vergleichen Sie sie dann mit einer Frage in natürlicher Sprache.</li>
+<li>Überprüfen Sie den Scanbericht auf nicht unterstützte, binäre, nicht UTF-8-fähige, übergroße, geschützte oder reine Bilddateien.</li>
+<li>Neuaufbau nach Änderung des Einbettungsmodells oder der Abmessungen; Ein durch eine andere Einbettungskonfiguration erstellter Index wird abgelehnt.</li>
+</ul>
+<h2 id="dateien-und-sicherungsverhalten">Dateien und Sicherungsverhalten<a class="headerlink" href="#dateien-und-sicherungsverhalten" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Pfad</th>
+<th>Zweck</th>
+<th>In einem korTTY-Backup enthalten?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.kortty/rag/stores.json</code></td>
+<td>Speicherdefinitionen, Einbettungskonfiguration, Rollen-/autonome Zuweisungen, Quellpfade/Filter/Synchronisierungsmodi, Dokument-Hashes, Status/Zähler und Zeitstempel für den letzten Erfolg</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>Speicherverzeichnis wie <code>~/.kortty/rag/stores/&lt;id&gt;/index.hnsw</code></td>
+<td>Regenerierbare Vektoren, Chunks und HNSW-Graph</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>Originalquelldateien und -ordner</td>
+<td>Wissensdokumente im Besitz des Benutzers</td>
+<td>Nein; Sichern Sie sie mit ihrem normalen Speicher-Workflow</td>
+</tr>
+</tbody>
+</table>
+<p>Stellen Sie nach der Wiederherstellung auf einem anderen Computer die ursprünglichen Quellpfade wieder her oder verbinden Sie sie erneut, installieren Sie das Einbettungsmodell neu und führen Sie <strong>Jetzt aktualisieren</strong> aus, um den lokalen Snapshot neu zu erstellen. Qdrant-Daten bleiben in der Verantwortung der Qdrant-Bereitstellung.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.5.2</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

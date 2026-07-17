@@ -1,18 +1,20 @@
 ---
-title: Lokale Modelle mit llama.cpp
+title: Lokale Modelle (llama.cpp und MLX)
 ---
 
-# Lokale Modelle mit llama.cpp
+# Lokale Modelle (llama.cpp und MLX)
 
-korTTY kann GGUF-Sprachmodelle direkt über einen integrierten, modellspezifischen `llama-server` ausführen. Sie benötigen weder LM Studio, Ollama noch ein Cloud-Inferenzkonto für lokale Chat-, Text-, Codierungs-, Übersetzungs- und Einbettungs-Workloads.
+korTTY kann lokale Sprachmodelle direkt über integrierte, modellspezifische Sidecar-Server ausführen: [GGUF](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) Modelle durch die angehefteten [lama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server` auf jeder Plattform und – auf Apple Silicon Macs – [MLX](https://github.com/ml-explore/mlx) Modelle durch die offizielle [mlx-lm](https://github.com/ml-explore/mlx-lm) Server. Sie benötigen weder LM Studio, Ollama noch ein Cloud-Inferenzkonto für lokale Chat-, Text-, Codierungs-, Übersetzungs- und Einbettungs-Workloads.
 
 Öffnen Sie **AI > AI Manager** und verwenden Sie diese Registerkarten:
 
-- **Local Models** installiert, importiert, konfiguriert, startet, stoppt und entfernt GGUF-Registrierungen.
+- **Local Models** installiert, importiert, konfiguriert, startet, stoppt und entfernt lokale Modellregistrierungen (GGUF überall, zusätzlich MLX auf Apple Silicon).
 - **Lokale KI** weist Profile den Rollen Text/Übersetzung und Codierung zu, wählt das RAG-Einbettungsmodell aus, speichert ein optionales Hugging Face-Token und zeichnet die Laufzeitaktualisierungsrichtlinie llama.cpp auf.
-- **Profiles** erstellt ein **Integrated llama.cpp**-Profil für ein installiertes Modell und steuert dessen Prompt-Optimierungsvoreinstellung.
+- **Profiles** erstellt ein **Integrated llama.cpp**- oder **Integrated MLX (Apple Silicon)**-Profil für ein installiertes Modell und steuert dessen Prompt-Optimierungsvoreinstellung.
 
-![Local Models showing a GGUF download with size, progress, transfer rate, and remaining time](../assets/screenshots/ai/local-models.png)
+Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.
+
+![Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress](../assets/screenshots/ai/local-models.png)
 
 !!! note "Speicher- und Netzwerkzugriff"
     Die Modellinferenz bleibt auf diesem Computer. korTTY kontaktiert Hugging Face nur, wenn Sie nach einem von Ihnen genehmigten Modell suchen oder es herunterladen. Öffentliche Repositories funktionieren ohne Token; Ein optionales Token für private oder geschlossene Repositorys wird mit dem Master-Passwort verschlüsselt. Offizielle Builds können den separat signierten Modell-/Prompt-Katalog auch über HTTPS im Hintergrund abrufen; Mit dieser Anfrage wird keine Eingabeaufforderung, kein Quelldokument oder Modellgewicht gesendet.
@@ -51,11 +53,27 @@ Die genauen Katalogbytes werden vor der strikten Schema-v1-Analyse überprüft u
 
 Jeder Katalog trägt auch eine positive monotone Folge. Während der Aktualisierung lehnt korTTY einen signierten Katalog ab, dessen Sequenz älter als der zuletzt akzeptierte Cache oder Bootstrap ist, und lehnt einen Katalog gleicher Sequenz mit einer anderen Version ab. Ein neu akzeptierter Katalog mit der höchsten Sequenz muss in den Atomcache geschrieben werden, bevor er aktiv wird; Der geschützte Promotion-Workflow erfordert separat, dass jede offizielle Sequenz streng größer als die Sequenz in der neuesten veröffentlichten Version sein muss, wodurch verhindert wird, dass ein korrekt signierter älterer Katalog veraltete Empfehlungen wiedergibt.
 
-## Suchen und Herunterladen von GGUF-Modellen
+## Modelle finden und herunterladen
 
-Der Hugging Face-Browser durchsucht GGUF-Repositories und zeigt Repository, Architektur, verfügbare Quantisierungen, Lizenz, ausgewählte Quantisierungsgröße, Kontextlänge und eine Hardwareschätzung an. Die leichtgewichtige Suchantwort enthält Dateinamen, aber keine verlässlichen Dateigrößen, sodass korTTY automatisch das erste Ergebnis auswählt und **Wird ermittelt…** anzeigt, während es genaue Metadaten für die unveränderliche Revision dieses Repositorys abruft. Wenn Sie eine andere Zeile auswählen, wiederholt korTTY diese Suche und aktualisiert dann sowohl **Größe** als auch **Hardwareschätzung**. Die gewählte Quantisierung bleibt während dieser Aktualisierung ausgewählt. Projektor-, Quantisierungsmatrix- und spekulative Dekodierungshilfs-GGUFs sind von den herunterladbaren Sprachmodelloptionen ausgeschlossen. Die Ergebnisse verwenden die Cursor-Paginierung des Hubs. **Weitere laden** setzt die gleiche Suche fort, ohne frühere Ergebnisse zu verwerfen. Wählen Sie ein Repository und eine Quantisierung aus, überprüfen Sie dessen Lizenz und Größe und wählen Sie dann **Herunterladen und installieren**.
+Der Browser [Hugging Face](https://huggingface.co/docs/hub/index) durchsucht Modellrepositorys und zeigt Repository, Format, Architektur, verfügbare Quantisierungen, Lizenz, ausgewählte Quantisierungsgröße, Kontextlänge und eine Hardwareschätzung an. Auf Apple Silicon wechselt ein **Format**-Selektor neben dem Suchfeld zwischen **GGUF + MLX** (Standard), **GGUF** und **MLX**; Jedes aktivierte Format behält seine eigene Cursor-Paginierung und die Spalte **Format** identifiziert jede Zeile. Andere Plattformen durchsuchen nur GGUF.
 
-korTTY installiert nur eine unveränderliche 40-Zeichen-Repository-Revision mit genauen GGUF-Metadaten. Für Downloads werden `.part`-Dateien, Freiraumprüfungen, HTTP `Range` und `If-Range`, Fortschritt, Geschwindigkeit und ETA, SHA-256-Verifizierung und mehrteilige GGUF-Reihenfolge verwendet. Sie können den Vorgang anhalten, fortsetzen oder abbrechen. Bei einer Stornierung bleiben die Teildaten erhalten, die für einen späteren Lebenslauf benötigt werden. Ein nicht angeheftetes Repository oder eine fehlende Dateiprüfsumme werden abgelehnt, anstatt veränderbare Inhalte stillschweigend zu installieren.
+Klicken Sie auf eine Spaltenüberschrift, um die Ergebnisse nach dieser Spalte zu sortieren. Ein zweiter Klick kehrt die Richtung um und in der Überschrift wird der aktive Sortierpfeil angezeigt. Größe und Kontext werden numerisch sortiert, und die Hardwareschätzung wird von der besten zur schlechtesten Anpassung sortiert. Die gewählte Reihenfolge bleibt bestehen, während das Laden der Hintergrundmetadaten abgeschlossen ist.
+
+Es werden nur Repositorys angezeigt, die dieser Computer tatsächlich ausführen kann: korTTY vervollständigt die kompakte Suchliste mit genauen Metadaten pro Datei im Hintergrund und blendet Zeilen aus, deren Größe unbekannt ist oder deren kleinste Quantisierung den erkannten Speicher überschreitet. In der Statuszeile wird angezeigt, wie viele nutzbare Repositories angezeigt und wie viele ausgeblendet wurden. Wenn Sie eine Zeile auswählen, werden genaue Metadaten für die unveränderliche Revision dieses Repositorys geladen und **Laden...** angezeigt, während **Größe** und **Hardwareschätzung** aktualisiert werden. die gewählte Quantisierung bleibt ausgewählt. Projektor-, Quantisierungsmatrix- und spekulative Dekodierungshilfs-GGUFs sind von den herunterladbaren Sprachmodelloptionen ausgeschlossen. **Weitere laden** setzt die gleiche Suche fort, ohne frühere Ergebnisse zu verwerfen. Wählen Sie ein Repository und eine Quantisierung aus, überprüfen Sie dessen Lizenz und Größe und wählen Sie dann **Herunterladen und installieren**.
+
+korTTY installiert nur eine unveränderliche 40-Zeichen-Repository-Revision mit genauen Dateimetadaten. Nachdem Sie die Lizenz und die Downloadgröße bestätigt haben, werden unten in einem festen **Modell-Download**-Bereich das Repository und die Quantisierung, die aktuelle Datei und der Multipart-Shard, die übertragenen und gesamten Bytes, die verstrichene Zeit, die Übertragungsrate und die geschätzte verbleibende Zeit identifiziert. Der Fortschrittsbalken in voller Breite sowie die Steuerelemente **Pause**/**Fortsetzen** und **Abbrechen** bleiben verfügbar, während Sie den Manager weiterhin überprüfen. Für Downloads werden `.part`-Dateien, Freiraumprüfungen, HTTP `Range` und `If-Range`, Content-Digest-Überprüfung (SHA-256 für LFS-Dateien, der Git-Blob-Hash für kleine In-Tree-Dateien) und mehrteilige Shard-Reihenfolge verwendet. Bei einer Stornierung, einschließlich der Schließung des AI Managers während einer Übertragung, bleiben die Teildaten erhalten, die für einen späteren Lebenslauf benötigt werden. Ein nicht angeheftetes Repository oder ein fehlender Datei-Digest wird abgelehnt, anstatt veränderbare Inhalte stillschweigend zu installieren.
+
+Ein MLX-Repository wird als ein vollständiges Verzeichnis heruntergeladen (Safetensor-Gewichte, Tokenizer und Konfigurationsdateien); Seine Quantisierung ist eine Eigenschaft auf Repository-Ebene wie `4BIT` oder `8BIT`, daher zeigt der Quantisierungsselektor genau einen Eintrag an. Wenn noch keine MLX-Runtime installiert ist, fragt korTTY, ob das Modell trotzdem heruntergeladen und registriert werden soll – es kann gestartet werden, sobald die Runtime installiert ist.
+
+## MLX-Modelle auf Apple Silicon
+
+Auf Apple Silicon Macs (macOS 14 oder neuer) läuft korTTY zusätzlich [MLX](https://github.com/ml-explore/mlx) models – Apples Array-Framework für maschinelles Lernen auf Apple-GPUs – durch den Beamten [mlx-lm](https://github.com/ml-explore/mlx-lm) Server. Der [mlx-Community](https://huggingface.co/mlx-community) Die Organisation Hugging Face veröffentlicht Tausende fertig konvertierter Modelle.
+
+- **Registrierung und Lebenszyklus** spiegeln GGUF-Modelle wider: Installierte MLX-Modelle werden in derselben Tabelle mit Backend **MLX** angezeigt, unterstützen **Auswahl starten**, **Auswahl stoppen**, **Entfernen** und **Konfigurieren** (Anzeigename und Entladen nach Leerlaufzeit) und melden dieselben Laufzeitzustände.
+- **Isolation** spiegelt llama.cpp wider: Jedes Modell läuft als sein eigener reiner Loopback-Sidecar mit einem zufälligen Port und einem pro Prozess generierten API-Schlüssel. korTTY verpackt `mlx_lm.server` – das über keine eigene Authentifizierung verfügt – in einen eigenen Launcher, der jede nicht authentifizierte Anfrage außer der lokalen Gesundheitsprüfung ablehnt, den Offline-Zugriff auf Hugging Face erzwingt, geerbte Python- und Token-Umgebungsüberschreibungen entfernt und nach der konfigurierten Leerlaufzeit beendet.
+- **Das MLX-Laufzeitpaket** ist sowohl vom Anwendungsinstallationsprogramm als auch von der llama.cpp-Laufzeit getrennt: ein angehefteter verschiebbarer CPython plus ein Hash-gesperrter `mlx-lm`-Radsatz, integriert in CI und veröffentlicht über denselben Ed25519-signierten Indexmechanismus wie die llama.cpp-Pakete. Ohne installierte MLX-Laufzeit bleiben MLX-Modelle registriert, können aber nicht gestartet werden.
+- **Profile**: Wählen Sie **Integriertes MLX (Apple Silicon)** als Profilverbindung und wählen Sie das installierte Modell aus der Liste **Lokales MLX-Modell** aus. LM-Studio-MCP-Internetmodi sind für eingebettete Profile nicht verfügbar; Das korTTY-Websuchtool funktioniert normal.
+- **Begründungsmodelle** (z. B. Qwen3-Konvertierungen) werden wie ihre GGUF-Gegenstücke behandelt: korTTY trennt die Inline-Gedankenkette von der Antwort und wiederholt automatisch eine Antwort, die nur Begründungen enthält.
 
 ## Vorhandene GGUF-Dateien importieren
 
@@ -80,7 +98,7 @@ Wählen Sie ein installiertes Modell aus und wählen Sie **Konfigurieren**. Die 
 | GPU-Schichten | -1–10.000; `-1` bedeutet automatisch | automatisch |
 | Entladen nach | 1–1.440 Minuten oder **Niemals** | 10 Minuten |
 
-Das Backend pro Modell beschreibt, wie dieses Modell ausgeführt werden soll. In **AI Manager > Local AI** steuert **Bevorzugtes Laufzeit-Backend**, welches signierte native Paket installiert und aktualisiert wird: macOS bietet Auto, CPU und Metal; Windows/Linux bieten Auto, CPU und Vulkan. **Automatisch (aktives Backend beibehalten)** behält das bereits aktive Backend während Aktualisierungen bei; Für eine Erstinstallation wählt es Metal auf macOS und CPU woanders aus.
+Das Backend pro Modell beschreibt, wie dieses Modell ausgeführt werden soll. In **AI Manager > Local AI** steuert **Bevorzugtes Laufzeit-Backend**, welches signierte native Paket installiert und aktualisiert wird: macOS bietet Auto, CPU und Metal; Windows/Linux bieten Auto, CPU und Vulkan. **Automatisch (aktives Backend beibehalten)** behält das bereits aktive Backend bei Aktualisierungen bei. Bei einer Erstinstallation bevorzugt Auto Metal und greift unter macOS auf CPU zurück; unter Windows und Linux bevorzugt es die CPU und greift nur dann auf Vulkan zurück, wenn kein kompatibles CPU-Paket veröffentlicht wird. Ein explizit ausgewähltes Backend erfordert ein genau kompatibles Paket und wechselt niemals stillschweigend zu einem anderen Backend.
 
 Verwenden Sie die Mehrfachauswahl und **Auswahl starten**, um mehrere verschiedene Modelle gleichzeitig zu laden. Profile, die auf dasselbe installierte Modell und dieselbe Laufzeitkonfiguration verweisen, teilen sich einen authentifizierten Sidecar. Die Tabelle meldet `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING` oder `FAILED`.
 
@@ -108,6 +126,8 @@ Voreinstellungen fügen kurze Kompatibilitätsanweisungen nach dem Aktionsvertra
 
 Jede geladene Konfiguration startet `llama-server` auf `127.0.0.1` mit einem zufälligen Port und einem pro Prozess generierten API-Schlüssel. korTTY übergibt einen festen Modellpfad, entfernt geerbte `LLAMA_ARG_*`- und Hugging Face-Token-Überschreibungen und startet den angehefteten Server im Offline-Modus sowie deaktivierter Web-Benutzeroberfläche, Agent, UI-MCP-Proxy und Slot-Endpunkt. Chat und Einbettungen verwenden authentifizierte OpenAI-kompatible lokale Routen.
 
+Chat-Sidecars werden auch mit deaktivierter Analyse des Argumentationsformats ausgeführt: korTTY konsumiert die Antwort als einfachen Inhalt und trennt die Inline-Gedankenkette eines Argumentationsmodells selbst, wodurch verhindert wird, dass der strikte Chatformat-Parser des angehefteten Servers eine ganze Antwort fehlschlägt (ein HTTP 500 „entspricht nicht dem erwarteten … Format“), wenn die Generierung innerhalb eines Denkblocks stoppt. Ein lokaler Serverfehler, eine leere Antwort oder eine reine Begründungsantwort wird einmal automatisch wiederholt, bevor sie gemeldet wird.
+
 Der Laufzeit-Build ist unabhängig vom Anwendungsinstallationsprogramm. `build.gradle.kts` pinnt das Upstream-Tag llama.cpp, das vollständige Commit, das Quellarchiv SHA-256, die API-Vertragsversion und die korTTY-Paketrevision. Das korTTY-Repository erkennt Kandidaten und validiert seine quellseitige native Matrix, enthält jedoch kein Veröffentlichungstoken oder Laufzeitsignaturschlüssel. Der öffentliche [korTTY llama.cpp-Laufzeitkanal ](https://github.com/chardonnay/kortty-llama-runtimes) besitzt eine explizite, von Menschen gesendete stabile Veröffentlichung: Er erstellt den überprüften Quell-Commit neu, führt Authentifizierung, Chat/Vervollständigung, Einbettungen, JSON-Schema, Sleep/Wake und Parallel-Sidecar-Rauchtests für jedes Paket sowie einen separaten Qdrant-Vertrag aus und veröffentlicht unveränderliche Deskriptoren mit seinem eigenen `github.token` mit eigenem Gültigkeitsbereich erst nach Eintritt in die geschützte Signaturumgebung. CUDA ist kein v1-Backend.
 
 Das Aktualisierungsformat verwendet die getrennte Ed25519-Signatur `runtime-index-v1.sig` über die exakten Bytes von `runtime-index-v1.json`. Jeder Eintrag bindet die Laufzeit-ID, das Upstream-Tag und den Commit, die API-Vertragsversion, die korTTY-Mindestversion, die Plattform, die Architektur, das Backend, die komprimierte Größe, SHA-256, die HTTPS-URL, den ausführbaren Pfad und den Sperrstatus. Der öffentliche Verifizierungsschlüssel ist bei `config/trust/llama-runtime-ed25519-public.pem` überprüfbar und in normale lokale und Release-Builds eingebettet. Eine optionale CI- oder Gradle-Überschreibung muss genau mit dieser angehefteten Identität übereinstimmen. Ein fehlender oder ungültiger Vertrauensstamm, eine nicht übereinstimmende Überschreibung, Indexsignatur, Paketgröße oder ein Paket-Hash stoppen den Vorgang, bevor nicht vertrauenswürdiger Code aktiviert wird.
@@ -121,7 +141,7 @@ Die Option **llama.cpp-Laufzeitaktualisierungen** steuert die automatische Prüf
 | Richtlinie | Startverhalten |
 | --- | --- |
 | **Aus** | Führt keine Netzwerkanforderung zur Laufzeitaktualisierung durch. Eine nicht widerrufene installierte Laufzeit bleibt nutzbar, während jede bereits lokal persistente Entnahme erzwungen bleibt. |
-| **Benachrichtigen** (Standard) | Überprüft den signierten stabilen Index und zeigt eine Benachrichtigung an, wenn ein kompatibles Paket verfügbar ist, ohne es automatisch zu installieren. Eine verifizierte Auszahlung wird sofort erzwungen und blockiert das aktive Paket. |
+| **Benachrichtigen** (Standard) | Überprüft den signierten stabilen Index und zeigt eine Benachrichtigung an, wenn ein kompatibles Update für eine **installierte** Laufzeit verfügbar ist, ohne es automatisch zu installieren. Ohne installierte Laufzeit erscheint kein Popup; Das verfügbare Paket wird weiterhin unter „Lokale Modelle“ aufgeführt. Eine verifizierte Auszahlung wird sofort erzwungen und blockiert das aktive Paket. |
 | **Stabile Updates automatisch installieren** | Lädt ein kompatibles stabiles Paket herunter, überprüft, installiert und aktiviert es, einschließlich eines sicheren Ersatzes für eine zurückgezogene aktive Version; Aktive Inferenz verzögert die normale Aktivierung, anstatt unterbrochen zu werden. |
 
 Die Laufzeitzeile in **Lokale Modelle** zeigt den aktuellen Update- oder Installationsstatus. Die Aktion lautet **Runtime installieren**, wenn kein verifiziertes Paket aktiv ist, andernfalls **Runtime-Update prüfen/installieren**. Diese explizite Aktion prüft und installiert den stabilen Kanal, selbst wenn die gespeicherte automatische Richtlinie **Aus** oder **Benachrichtigen** ist. Laufzeitkandidaten werden durch einen täglichen Workflow entdeckt, die Heraufstufung bleibt jedoch eine bewusste, überprüfte Release-Aktion, anstatt jedes Upstream-Tag automatisch zu übernehmen.
@@ -131,8 +151,11 @@ Die Laufzeitzeile in **Lokale Modelle** zeigt den aktuellen Update- oder Install
 | Pfad | Zweck | In einem korTTY-Backup enthalten? |
 | --- | --- | --- |
 | `~/.kortty/global-settings.xml` | Eingebettete Profile, Text-/Codierungszuweisungen, Einbettungsmodell-ID, Laufzeit-Backend/Update-Richtlinie, verschlüsseltes Hugging Face-Token | Ja |
-| `~/.kortty/llm/models.xml` | Lokale Modellregistrierungen und typisierte Laufzeiteinstellungen | Ja |
+| `~/.kortty/llm/models.xml` | Lokale GGUF-Modellregistrierungen und typisierte Laufzeiteinstellungen | Ja |
+| `~/.kortty/llm/mlx-models.json` | Lokale MLX-Modellregistrierungen (Apple Silicon) | Ja |
 | `~/.kortty/llm/models/` | Verwaltete GGUF-Gewichte | Nein; Laden Sie sie herunter oder kopieren Sie sie erneut |
+| `~/.kortty/llm/mlx/models/` | Verwaltete MLX-Modellverzeichnisse | Nein; Laden Sie sie erneut herunter |
+| `~/.kortty/llm/mlx/runtime/` | Regenerierbare MLX-Laufzeitpakete (gepinnt CPython + mlx-lm) | Nein; Installieren Sie ein kompatibles Paket | neu
 | `~/.kortty/llm/runtime/` | Regenerierbare llama.cpp-Pakete und aktive Paketmetadaten | Nein; Installieren Sie ein kompatibles Paket | neu
 | `~/.kortty/llm/catalog/last-valid-catalog-v1.json` | Regenerierbarer, signaturverifizierter Modell-/Prompt-Katalog-Cache | Nein; korTTY kehrt zum Bootstrap zurück und aktualisiert ihn erneut |
 | `~/.kortty/llm/run/` | Temporäre Beiwagenschlüssel und Protokolle | Nein |
@@ -154,6 +177,9 @@ Die Laufzeitzeile in **Lokale Modelle** zeigt den aktuellen Update- oder Install
 **Ein Modell verbleibt in `FAILED`**
 : Stellen Sie sicher, dass GGUF und die ausführbare Datei noch vorhanden sind, dass die ausführbare Datei ausführbar ist und dass das ausgewählte Backend auf diesem Computer verfügbar ist. Reduzieren Sie die Kontextgröße oder gleichzeitige Modelle, wenn der System- oder GPU-Speicher nicht ausreicht.
 
+**Ein MLX-Modell kann nicht gestartet werden**
+: MLX erfordert einen Apple Silicon Mac mit macOS 14 oder neuer und ein installiertes korTTY MLX-Laufzeitpaket unter `~/.kortty/llm/mlx/runtime/`. Registrierte MLX-Modelle bleiben ohne Laufzeit aufgelistet, melden jedoch beim Start die Meldung „fehlende Laufzeit“. Das Laufzeitpaket wird über den signierten Laufzeitkanal veröffentlicht; Entwickler können mit `scripts/build-mlx-runtime-local.sh` ein unsigniertes lokales Paket erstellen.
+
 **Der Setup-Funktionstest schlägt nach der Installation fehl**
 : Der GGUF bleibt registriert, sodass Sie ihn einsehen können. Bestätigen Sie, dass das passende signierte Laufzeit-Backend aktiv ist, reduzieren Sie den Modellkontext oder die GPU-Ebenen, wenn der Speicher knapp ist, und versuchen Sie es erneut, indem Sie das Modell starten. Einbettungstests erfordern zusätzlich lesbare GGUF-Einbettungsdimensionsmetadaten.
 
@@ -162,3 +188,10 @@ Die Laufzeitzeile in **Lokale Modelle** zeigt den aktuellen Update- oder Install
 
 **Ein Download kann nicht fortgesetzt werden**
 : Wenn sich das ETag oder die unveränderlichen Dateimetadaten des Repositorys geändert haben, startet korTTY diese Datei neu, anstatt inkompatible Bytes anzuhängen. Bei einer Prüfsummenabweichung wird die ungültige Teildatei gelöscht.
+
+## Weiterführende Literatur
+
+- [lama.cpp](https://github.com/ggml-org/llama.cpp) – die Inferenz-Engine hinter den GGUF-Beiwagen von korTTY, einschließlich der [`llama-server` Dokumentation](https://github.com/ggml-org/llama.cpp/tree/master/tools/server).
+- [Spezifikation des GGUF-Formats](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) – das Einzeldatei-Modellformat, das von llama.cpp und llama.cpp verwendet wird [Quantisierungsübersicht](https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md) Erläutern von Etiketten wie z `Q4_K_M`.
+- [Apple MLX](https://github.com/ml-explore/mlx) Und [mlx-lm](https://github.com/ml-explore/mlx-lm) – Apples Framework für maschinelles Lernen für Apple Silicon und sein offizieller Sprachmodellserver, der von den MLX-Sidecars von korTTY verwendet wird.
+- [Hugging Face Hub-Dokumentation](https://huggingface.co/docs/hub/index) – Repositorys, Revisionen, Gated-Modelle und Zugriffstokens; MLX-Konvertierungen werden unten gesammelt [mlx-Community](https://huggingface.co/mlx-community).

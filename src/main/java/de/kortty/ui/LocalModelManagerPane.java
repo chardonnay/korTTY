@@ -6,11 +6,13 @@ import de.kortty.ai.huggingface.HuggingFaceDownloadPlan;
 import de.kortty.ai.huggingface.HuggingFaceDownloadProgress;
 import de.kortty.ai.huggingface.HuggingFaceDownloadResult;
 import de.kortty.ai.huggingface.HuggingFaceDownloadTask;
+import de.kortty.ai.huggingface.HuggingFaceHardwareEstimate;
 import de.kortty.ai.huggingface.HuggingFaceHardwareEstimator;
 import de.kortty.ai.huggingface.HuggingFaceModel;
 import de.kortty.ai.huggingface.HuggingFaceModelCatalog;
 import de.kortty.ai.huggingface.HuggingFaceModelDownloader;
 import de.kortty.ai.huggingface.HuggingFaceModelFile;
+import de.kortty.ai.huggingface.HuggingFaceModelFormat;
 import de.kortty.ai.huggingface.HuggingFaceTokenProvider;
 import de.kortty.ai.llama.EmbeddedLlamaAiService;
 import de.kortty.ai.llama.EmbeddedLlamaEmbeddingService;
@@ -23,6 +25,13 @@ import de.kortty.ai.llama.LlamaModelRegistry;
 import de.kortty.ai.llama.LlamaRuntimeManager;
 import de.kortty.ai.llama.LlamaRuntimeBackendCompatibility;
 import de.kortty.ai.llama.LlamaRuntimeState;
+import de.kortty.ai.mlx.EmbeddedMlxAiService;
+import de.kortty.ai.mlx.MlxModel;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.ai.mlx.MlxPlatform;
+import de.kortty.ai.mlx.MlxRuntimeLocator;
+import de.kortty.ai.mlx.MlxRuntimeManager;
+import de.kortty.ai.mlx.MlxRuntimeState;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeInstallation;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator;
 import de.kortty.core.AiSkillPromptSupport;
@@ -35,9 +44,14 @@ import de.kortty.rag.CancellationToken;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -52,6 +66,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -71,8 +86,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -89,26 +108,40 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Installed-model table, Hugging Face browser and resumable download controls. */
 final class LocalModelManagerPane extends VBox {
 
     private static final long GIB = 1024L * 1024L * 1024L;
+    /** Concurrent Hugging Face detail requests while completing search results with sizes. */
+    private static final int HUB_PREFETCH_PARALLELISM = 4;
 
     private final KorTTYApplication app;
     private final Window owner;
     private final Runnable modelsChanged;
     private final Path llmDirectory;
     private final LlamaModelRegistry registry;
+    private final MlxModelRegistry mlxRegistry;
+    private final MlxRuntimeLocator mlxRuntimeLocator;
     private final LlamaRuntimeUpdateCoordinator runtimeCoordinator;
-    private final ObservableList<LlamaModel> installedModels = FXCollections.observableArrayList();
+    private final ObservableList<InstalledModel> installedModels = FXCollections.observableArrayList();
     private final ObservableList<HuggingFaceModel> hubModels = FXCollections.observableArrayList();
+    // Only repositories that this machine can actually run are shown: the FilteredList hides
+    // rows without a usable size or beyond the detected RAM, the SortedList follows the table's
+    // header sort so clicking a column keeps working across background row updates.
+    private final FilteredList<HuggingFaceModel> visibleHubModels =
+        new FilteredList<>(hubModels, this::isUsableOnThisMachine);
+    private final SortedList<HuggingFaceModel> sortedHubModels = new SortedList<>(visibleHubModels);
     private final Map<String, CompletableFuture<HuggingFaceModel>> hubDetailRequests = new ConcurrentHashMap<>();
     private final Set<String> hubDetailsLoading = ConcurrentHashMap.newKeySet();
-    private final TableView<LlamaModel> installedTable = new TableView<>(installedModels);
-    private final TableView<HuggingFaceModel> hubTable = new TableView<>(hubModels);
+    private final TableView<InstalledModel> installedTable = new TableView<>(installedModels);
+    private final TableView<HuggingFaceModel> hubTable = new TableView<>(sortedHubModels);
     private final TextField hubQuery = new TextField();
     private final ComboBox<String> quantization = new ComboBox<>();
+    private final ComboBox<HubFormatFilter> hubFormat = new ComboBox<>();
+    private final Map<HuggingFaceModelFormat, URI> hubNextPages = new EnumMap<>(HuggingFaceModelFormat.class);
     private final Label runtimeLabel = new Label();
     private final Label status = new Label();
     private final VBox downloadStatusPanel = new VBox(6);
@@ -122,8 +155,8 @@ final class LocalModelManagerPane extends VBox {
     private final Button cancelDownload = new Button();
     private final Button runtimeAction = new Button();
     private final Button loadMoreHubResults = new Button();
-    private URI hubNextPage;
     private long hubSearchGeneration;
+    private boolean hubSearchFailed;
     private HuggingFaceDownloadTask activeDownload;
     private boolean hubDownloadPreparing;
     private boolean downloadPaused;
@@ -138,6 +171,8 @@ final class LocalModelManagerPane extends VBox {
         this.modelsChanged = modelsChanged != null ? modelsChanged : () -> { };
         this.llmDirectory = KorTTYApplication.getConfigDirectory().resolve("llm");
         this.registry = LlamaModelRegistry.inDirectory(llmDirectory);
+        this.mlxRegistry = MlxModelRegistry.inDirectory(llmDirectory);
+        this.mlxRuntimeLocator = MlxRuntimeLocator.inLlmDirectory(llmDirectory);
         this.runtimeCoordinator = LlamaRuntimeUpdateCoordinator.getDefault();
 
         setSpacing(10);
@@ -165,8 +200,7 @@ final class LocalModelManagerPane extends VBox {
                 || update.state() == LlamaRuntimeUpdateCoordinator.State.PENDING_FIRST_LAUNCH
                 || update.state() == LlamaRuntimeUpdateCoordinator.State.REVOKED) {
                 try {
-                    registry.reload();
-                    installedModels.setAll(registry.list());
+                    reloadInstalledModels();
                     installedTable.refresh();
                     modelsChanged.run();
                 } catch (RuntimeException error) {
@@ -179,8 +213,7 @@ final class LocalModelManagerPane extends VBox {
 
     void refresh() {
         try {
-            registry.reload();
-            installedModels.setAll(registry.list());
+            reloadInstalledModels();
             updateRuntimeLabel();
             installedTable.refresh();
             renderRuntimeStatus(runtimeCoordinator.status());
@@ -189,24 +222,43 @@ final class LocalModelManagerPane extends VBox {
         }
     }
 
+    private void reloadInstalledModels() {
+        registry.reload();
+        List<InstalledModel> rows = new ArrayList<>(
+            registry.list().stream().map(InstalledModel::of).toList());
+        if (MlxPlatform.isSupported()) {
+            mlxRegistry.reload();
+            mlxRegistry.list().stream().map(InstalledModel::of).forEach(rows::add);
+        }
+        installedModels.setAll(rows);
+    }
+
     private VBox buildInstalledSection() {
         Label title = sectionTitle(I18n.get("ai.local.models.installed"));
         runtimeAction.setText(I18n.get("ai.local.models.runtime.install"));
         runtimeAction.setOnAction(event -> installOrUpdateRuntime());
+        ButtonIcons.apply(runtimeAction, ButtonIcons.DOWNLOAD);
         Button wizard = new Button(I18n.get("ai.local.models.setupWizard"));
         wizard.setOnAction(event -> openSetupWizard());
+        ButtonIcons.apply(wizard, ButtonIcons.WIZARD);
         Button importModel = new Button(I18n.get("ai.local.models.import"));
         importModel.setOnAction(event -> importGguf());
+        ButtonIcons.apply(importModel, ButtonIcons.FOLDER);
         Button configure = new Button(I18n.get("ai.local.models.configure"));
         configure.setOnAction(event -> configureSelected());
+        ButtonIcons.apply(configure, ButtonIcons.GEAR);
         Button start = new Button(I18n.get("ai.local.models.start"));
         start.setOnAction(event -> startSelected());
+        ButtonIcons.apply(start, ButtonIcons.PLAY);
         Button stop = new Button(I18n.get("ai.local.models.stop"));
         stop.setOnAction(event -> stopSelected());
+        ButtonIcons.apply(stop, ButtonIcons.STOP);
         Button remove = new Button(I18n.get("ai.local.models.remove"));
         remove.setOnAction(event -> removeSelected());
+        ButtonIcons.apply(remove, ButtonIcons.DELETE);
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refresh());
+        ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
         HBox buttons = new HBox(8, runtimeAction, wizard, importModel, configure, start, stop, remove, refreshButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(7, title, installedTable, buttons);
@@ -222,22 +274,43 @@ final class LocalModelManagerPane extends VBox {
         hubQuery.setOnAction(event -> searchHub());
         Button search = new Button(I18n.get("ai.local.models.search"));
         search.setOnAction(event -> searchHub());
+        ButtonIcons.apply(search, ButtonIcons.SEARCH);
         loadMoreHubResults.setText(I18n.get("ai.local.models.search.more"));
         loadMoreHubResults.setDisable(true);
         loadMoreHubResults.setOnAction(event -> loadHubPage(true));
-        HBox searchBox = new HBox(8, hubQuery, search, loadMoreHubResults);
+        ButtonIcons.apply(loadMoreHubResults, ButtonIcons.MORE);
+        hubFormat.getItems().setAll(HubFormatFilter.values());
+        hubFormat.setValue(HubFormatFilter.ALL);
+        hubFormat.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(HubFormatFilter value) {
+                return value == null ? "" : I18n.get("ai.local.models.format." + value.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public HubFormatFilter fromString(String value) {
+                return null;
+            }
+        });
+        hubFormat.setOnAction(event -> searchHub());
+        // MLX repositories only run on Apple Silicon; everywhere else the search stays GGUF-only.
+        hubFormat.setVisible(MlxPlatform.isSupported());
+        hubFormat.setManaged(MlxPlatform.isSupported());
+        HBox searchBox = new HBox(8, hubQuery, hubFormat, search, loadMoreHubResults);
         HBox.setHgrow(hubQuery, Priority.ALWAYS);
 
         quantization.setPromptText(I18n.get("ai.local.models.quantization"));
         quantization.setPrefWidth(160);
         downloadModel.setText(I18n.get("ai.local.models.download"));
         downloadModel.setOnAction(event -> downloadSelected());
-        pauseDownload.setText(I18n.get("ai.local.models.pause"));
+        ButtonIcons.apply(downloadModel, ButtonIcons.DOWNLOAD);
+        updatePauseButton(false);
         pauseDownload.setDisable(true);
         pauseDownload.setOnAction(event -> togglePause());
         cancelDownload.setText(I18n.get("ai.local.models.cancel"));
         cancelDownload.setDisable(true);
         cancelDownload.setOnAction(event -> cancelDownload());
+        ButtonIcons.apply(cancelDownload, ButtonIcons.CANCEL);
         HBox actions = new HBox(8, new Label(I18n.get("ai.local.models.quantization")), quantization,
             downloadModel);
         actions.setAlignment(Pos.CENTER_LEFT);
@@ -283,28 +356,72 @@ final class LocalModelManagerPane extends VBox {
         installedTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         installedTable.setPlaceholder(new Label(I18n.get("ai.local.models.empty")));
 
-        TableColumn<LlamaModel, String> name = column(I18n.get("ai.local.models.column.name"),
-            model -> model.getDisplayName());
-        TableColumn<LlamaModel, String> file = column(I18n.get("ai.local.models.column.file"),
-            model -> model.getModelPath().getFileName().toString());
-        TableColumn<LlamaModel, String> backend = column(I18n.get("ai.local.models.column.backend"),
-            model -> model.getBackend().name());
-        TableColumn<LlamaModel, String> purpose = column(I18n.get("ai.local.models.column.purpose"),
-            model -> I18n.get("ai.local.models.purpose." + model.getPurpose().name().toLowerCase(Locale.ROOT)));
-        TableColumn<LlamaModel, String> idle = column(I18n.get("ai.local.models.column.idle"),
-            model -> model.getIdleTimeoutMinutes() == 0
+        TableColumn<InstalledModel, String> name = column(I18n.get("ai.local.models.column.name"),
+            InstalledModel::displayName);
+        TableColumn<InstalledModel, String> file = column(I18n.get("ai.local.models.column.file"),
+            InstalledModel::fileName);
+        TableColumn<InstalledModel, String> backend = column(I18n.get("ai.local.models.column.backend"),
+            model -> model.isMlx() ? "MLX" : model.llama().getBackend().name());
+        TableColumn<InstalledModel, String> purpose = column(I18n.get("ai.local.models.column.purpose"),
+            model -> I18n.get("ai.local.models.purpose." + (model.isMlx()
+                ? LlamaModelPurpose.CHAT
+                : model.llama().getPurpose()).name().toLowerCase(Locale.ROOT)));
+        TableColumn<InstalledModel, String> idle = column(I18n.get("ai.local.models.column.idle"),
+            model -> model.idleTimeoutMinutes() == 0
                 ? I18n.get("ai.local.models.never")
-                : I18n.get("ai.local.models.minutes", model.getIdleTimeoutMinutes()));
-        TableColumn<LlamaModel, String> state = column(I18n.get("ai.local.models.column.state"), this::runtimeState);
+                : I18n.get("ai.local.models.minutes", model.idleTimeoutMinutes()));
+        TableColumn<InstalledModel, String> state = column(I18n.get("ai.local.models.column.state"), this::runtimeState);
         name.setMinWidth(170);
         file.setMinWidth(180);
         installedTable.getColumns().addAll(List.of(name, file, purpose, backend, idle, state));
+    }
+
+    /** One installed local model row; exactly one of the two embedded runtimes backs it. */
+    record InstalledModel(LlamaModel llama, MlxModel mlx) {
+
+        static InstalledModel of(LlamaModel model) {
+            return new InstalledModel(model, null);
+        }
+
+        static InstalledModel of(MlxModel model) {
+            return new InstalledModel(null, model);
+        }
+
+        boolean isMlx() {
+            return mlx != null;
+        }
+
+        String id() {
+            return isMlx() ? mlx.getId() : llama.getId();
+        }
+
+        String displayName() {
+            return isMlx() ? mlx.getDisplayName() : llama.getDisplayName();
+        }
+
+        String fileName() {
+            return isMlx()
+                ? mlx.getModelDirectory().getFileName().toString()
+                : llama.getModelPath().getFileName().toString();
+        }
+
+        int idleTimeoutMinutes() {
+            return isMlx() ? mlx.getIdleTimeoutMinutes() : llama.getIdleTimeoutMinutes();
+        }
     }
 
     private void configureHubTable() {
         hubTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         hubTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         hubTable.setPlaceholder(new Label(I18n.get("ai.local.models.search.empty")));
+        // Header clicks sort the view; the bound comparator keeps the order (and the header's
+        // ascending/descending arrow) intact while background detail loads replace rows.
+        sortedHubModels.comparatorProperty().bind(hubTable.comparatorProperty());
+        sortedHubModels.addListener((ListChangeListener<HuggingFaceModel>) change -> {
+            if (hubTable.getSelectionModel().getSelectedItem() == null && !sortedHubModels.isEmpty()) {
+                hubTable.getSelectionModel().selectFirst();
+            }
+        });
         hubTable.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, model) -> {
             String preferred = sameHubModel(oldValue, model) ? quantization.getValue() : null;
             updateHubQuantizations(model, preferred);
@@ -314,75 +431,230 @@ final class LocalModelManagerPane extends VBox {
         quantization.valueProperty().addListener((obs, oldValue, value) -> hubTable.refresh());
 
         TableColumn<HuggingFaceModel, String> model = column(I18n.get("ai.local.models.column.model"), HuggingFaceModel::id);
+        model.setComparator(String.CASE_INSENSITIVE_ORDER);
+        TableColumn<HuggingFaceModel, String> format = column(I18n.get("ai.local.models.column.format"),
+            value -> value.format().name());
         TableColumn<HuggingFaceModel, String> architecture = column(I18n.get("ai.local.models.column.architecture"),
             value -> fallback(value.architecture()));
+        architecture.setComparator(String.CASE_INSENSITIVE_ORDER);
         TableColumn<HuggingFaceModel, String> quants = column(I18n.get("ai.local.models.column.quantizations"),
             value -> String.join(", ", value.quantizations()));
         TableColumn<HuggingFaceModel, String> license = column(I18n.get("ai.local.models.column.license"),
             value -> fallback(value.license()));
-        TableColumn<HuggingFaceModel, String> size = column(I18n.get("ai.local.models.column.size"),
-            value -> hubDetailsLoading.contains(hubModelKey(value))
-                ? I18n.get("ai.local.models.details.loading")
-                : formatBytes(displayQuantizationBytes(value)));
-        TableColumn<HuggingFaceModel, String> context = column(I18n.get("ai.local.models.column.context"),
-            value -> value.contextLength() > 0 ? Long.toString(value.contextLength()) : "—");
-        TableColumn<HuggingFaceModel, String> fit = column(I18n.get("ai.local.models.column.hardware"),
-            value -> hubDetailsLoading.contains(hubModelKey(value))
-                ? I18n.get("ai.local.models.details.loading")
-                : I18n.get("ai.local.models.hardware." + HuggingFaceHardwareEstimator
-                    .estimate(displayQuantizationBytes(value), detectedMemory()).suitability()
-                    .name().toLowerCase(Locale.ROOT)));
+        license.setComparator(String.CASE_INSENSITIVE_ORDER);
+        TableColumn<HuggingFaceModel, Number> size = new TableColumn<>(I18n.get("ai.local.models.column.size"));
+        size.setCellValueFactory(data -> new SimpleLongProperty(displayQuantizationBytes(data.getValue())));
+        size.setCellFactory(ignored -> hubCell(bytes -> formatBytes(bytes.longValue())));
+        TableColumn<HuggingFaceModel, Number> context = new TableColumn<>(I18n.get("ai.local.models.column.context"));
+        context.setCellValueFactory(data -> new SimpleLongProperty(data.getValue().contextLength()));
+        context.setCellFactory(ignored -> hubCell(length ->
+            length.longValue() > 0 ? Long.toString(length.longValue()) : "—"));
+        TableColumn<HuggingFaceModel, HuggingFaceHardwareEstimate.Suitability> fit =
+            new TableColumn<>(I18n.get("ai.local.models.column.hardware"));
+        fit.setCellValueFactory(data -> new SimpleObjectProperty<>(HuggingFaceHardwareEstimator
+            .estimate(displayQuantizationBytes(data.getValue()), detectedMemory()).suitability()));
+        fit.setCellFactory(ignored -> hubCell(suitability ->
+            I18n.get("ai.local.models.hardware." + suitability.name().toLowerCase(Locale.ROOT))));
         model.setMinWidth(235);
         quants.setMinWidth(150);
-        hubTable.getColumns().addAll(List.of(model, architecture, quants, license, size, context, fit));
+        hubTable.getColumns().add(model);
+        if (MlxPlatform.isSupported()) {
+            hubTable.getColumns().add(format);
+        }
+        hubTable.getColumns().addAll(List.of(architecture, quants, license, size, context, fit));
+    }
+
+    /** Which repository formats the Hugging Face search fetches. */
+    enum HubFormatFilter {
+        ALL(EnumSet.allOf(HuggingFaceModelFormat.class)),
+        GGUF(EnumSet.of(HuggingFaceModelFormat.GGUF)),
+        MLX(EnumSet.of(HuggingFaceModelFormat.MLX));
+
+        private final Set<HuggingFaceModelFormat> formats;
+
+        HubFormatFilter(Set<HuggingFaceModelFormat> formats) {
+            this.formats = formats;
+        }
+
+        Set<HuggingFaceModelFormat> formats() {
+            return formats;
+        }
+    }
+
+    /** Cell that shows the per-row loading hint while its repository details are being fetched. */
+    private <T> TableCell<HuggingFaceModel, T> hubCell(Function<T, String> format) {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(T value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
+                    setText(null);
+                    return;
+                }
+                HuggingFaceModel row = getTableRow() != null ? getTableRow().getItem() : null;
+                setText(row != null && hubDetailsLoading.contains(hubModelKey(row))
+                    ? I18n.get("ai.local.models.details.loading")
+                    : format.apply(value));
+            }
+        };
+    }
+
+    /**
+     * A repository earns a row only when its metadata proves it fits this machine: at least one
+     * quantization with a known size that the detected RAM can hold. Rows without any usable size
+     * stay hidden — background detail loads reveal them as soon as their sizes arrive.
+     */
+    private boolean isUsableOnThisMachine(HuggingFaceModel model) {
+        return usableOnThisMachine(model, detectedMemory());
+    }
+
+    static boolean usableOnThisMachine(HuggingFaceModel model, long availableMemoryBytes) {
+        long smallest = model.smallestQuantizationBytes();
+        if (smallest <= 0) {
+            return false;
+        }
+        return HuggingFaceHardwareEstimator.estimate(smallest, availableMemoryBytes).suitability()
+            != HuggingFaceHardwareEstimate.Suitability.TOO_LARGE;
     }
 
     private void searchHub() {
         hubSearchGeneration++;
-        hubNextPage = null;
+        hubNextPages.clear();
         hubModels.clear();
         loadHubPage(false);
     }
 
+    private Set<HuggingFaceModelFormat> enabledHubFormats() {
+        if (!MlxPlatform.isSupported() || hubFormat.getValue() == null) {
+            return EnumSet.of(HuggingFaceModelFormat.GGUF);
+        }
+        return hubFormat.getValue().formats();
+    }
+
+    private record HubPage(HuggingFaceModelFormat format, HuggingFaceClient.SearchPage page) {
+    }
+
     private void loadHubPage(boolean continuation) {
         long generation = hubSearchGeneration;
-        URI next = continuation ? hubNextPage : null;
-        if (continuation && next == null) {
+        Set<HuggingFaceModelFormat> formats = enabledHubFormats();
+        if (continuation && formats.stream().allMatch(format -> hubNextPages.get(format) == null)) {
             return;
         }
+        hubSearchFailed = false;
         status.setText(I18n.get("ai.local.models.search.running"));
         hubTable.setDisable(true);
         loadMoreHubResults.setDisable(true);
         HuggingFaceClient client = new HuggingFaceClient(tokenProvider());
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                return next != null
-                    ? client.continueGgufModelSearch(next)
-                    : client.searchGgufModelsPage(hubQuery.getText(), 50);
-            } catch (Exception error) {
-                throw new RuntimeException(error);
+        String query = hubQuery.getText();
+        List<CompletableFuture<HubPage>> requests = new ArrayList<>();
+        for (HuggingFaceModelFormat format : formats) {
+            URI next = continuation ? hubNextPages.get(format) : null;
+            if (continuation && next == null) {
+                continue;
             }
-        }).whenComplete((page, error) -> Platform.runLater(() -> {
-            if (generation != hubSearchGeneration) {
+            requests.add(CompletableFuture.supplyAsync(() -> {
+                try {
+                    HuggingFaceClient.SearchPage page = next != null
+                        ? client.continueGgufModelSearch(next)
+                        : format == HuggingFaceModelFormat.MLX
+                            ? client.searchMlxModelsPage(query, 50)
+                            : client.searchGgufModelsPage(query, 50);
+                    return new HubPage(format, page);
+                } catch (Exception error) {
+                    throw new CompletionException(error);
+                }
+            }));
+        }
+        CompletableFuture.allOf(requests.toArray(CompletableFuture[]::new))
+            .handle((ignored, ignoredError) -> null)
+            .thenRun(() -> Platform.runLater(() -> {
+                if (generation != hubSearchGeneration) {
+                    return;
+                }
+                hubTable.setDisable(false);
+                Throwable failure = null;
+                LinkedHashMap<String, HuggingFaceModel> merged = new LinkedHashMap<>();
+                hubModels.forEach(model -> merged.put(model.id(), model));
+                for (CompletableFuture<HubPage> request : requests) {
+                    if (request.isCompletedExceptionally()) {
+                        failure = request.exceptionNow();
+                        continue;
+                    }
+                    HubPage result = request.resultNow();
+                    result.page().models().forEach(model -> merged.putIfAbsent(model.id(), model));
+                    hubNextPages.put(result.format(), result.page().nextPage().orElse(null));
+                }
+                hubModels.setAll(merged.values());
+                loadMoreHubResults.setDisable(
+                    formats.stream().allMatch(format -> hubNextPages.get(format) == null));
+                if (failure != null) {
+                    hubSearchFailed = true;
+                    status.setText(I18n.get("ai.local.models.search.failed") + ": " + message(rootCause(failure)));
+                } else {
+                    updateHubResultCount();
+                }
+                if (!continuation && !sortedHubModels.isEmpty()) {
+                    hubTable.getSelectionModel().selectFirst();
+                }
+                prefetchHubDetails(generation);
+            }));
+    }
+
+    /**
+     * The lightweight search listing omits per-file sizes for most multi-quantization
+     * repositories, but the usability filter needs sizes to decide. Fetch the missing repository
+     * details in the background with bounded parallelism; each resolved row either appears in the
+     * table (fits this machine) or stays hidden.
+     */
+    private void prefetchHubDetails(long generation) {
+        Deque<HuggingFaceModel> queue = hubModels.stream()
+            .filter(model -> model.smallestQuantizationBytes() <= 0)
+            .filter(model -> !hubDetailRequests.containsKey(hubModelKey(model)))
+            .collect(Collectors.toCollection(ArrayDeque::new));
+        for (int worker = 0; worker < HUB_PREFETCH_PARALLELISM && !queue.isEmpty(); worker++) {
+            prefetchNextHubDetail(queue, generation);
+        }
+    }
+
+    /** Runs on the FX thread only; the queue is drained one head per free worker slot. */
+    private void prefetchNextHubDetail(Deque<HuggingFaceModel> queue, long generation) {
+        if (closed || generation != hubSearchGeneration) {
+            return;
+        }
+        HuggingFaceModel next = queue.poll();
+        if (next == null) {
+            updateHubResultCount();
+            return;
+        }
+        String key = hubModelKey(next);
+        CompletableFuture<HuggingFaceModel> request = hubDetailsFuture(next);
+        request.whenComplete((detailed, error) -> Platform.runLater(() -> {
+            hubDetailsLoading.remove(key);
+            // A stale completion from a superseded search must not touch rows or the status line.
+            if (closed || generation != hubSearchGeneration) {
+                hubDetailRequests.remove(key, request);
                 return;
             }
-            hubTable.setDisable(false);
             if (error != null) {
-                status.setText(I18n.get("ai.local.models.search.failed") + ": " + message(rootCause(error)));
-                loadMoreHubResults.setDisable(hubNextPage == null);
-                return;
+                hubDetailRequests.remove(key, request);
+            } else {
+                applyHubDetails(next, detailed, generation, null);
             }
-            LinkedHashMap<String, HuggingFaceModel> merged = new LinkedHashMap<>();
-            hubModels.forEach(model -> merged.put(model.id(), model));
-            page.models().forEach(model -> merged.putIfAbsent(model.id(), model));
-            hubModels.setAll(merged.values());
-            hubNextPage = page.nextPage().orElse(null);
-            loadMoreHubResults.setDisable(hubNextPage == null);
-            status.setText(I18n.get("ai.local.models.search.results", hubModels.size()));
-            if (!continuation && !hubModels.isEmpty()) {
-                hubTable.getSelectionModel().selectFirst();
-            }
+            updateHubResultCount();
+            prefetchNextHubDetail(queue, generation);
         }));
+    }
+
+    private void updateHubResultCount() {
+        // A partial page failure stays visible; the count would silently swallow it.
+        if (hubSearchFailed) {
+            return;
+        }
+        int visible = visibleHubModels.size();
+        int hidden = hubModels.size() - visible;
+        status.setText(hidden > 0
+            ? I18n.get("ai.local.models.search.filtered", visible, hidden)
+            : I18n.get("ai.local.models.search.results", visible));
     }
 
     private void updateHubQuantizations(HuggingFaceModel model, String preferred) {
@@ -463,7 +735,9 @@ final class LocalModelManagerPane extends VBox {
             : preferredQuantization;
         hubModels.set(index, detailed);
         if (selected) {
-            hubTable.getSelectionModel().select(index);
+            // Select by item, not by index: the table shows a filtered and sorted view whose row
+            // positions do not match the source list.
+            hubTable.getSelectionModel().select(detailed);
             updateHubQuantizations(detailed, quantizationToKeep);
         }
         hubTable.refresh();
@@ -529,6 +803,16 @@ final class LocalModelManagerPane extends VBox {
             formatBytes(downloadBytes)))) {
             return;
         }
+        if (selected.format() == HuggingFaceModelFormat.MLX) {
+            // The MLX runtime package cannot be auto-installed yet; a missing runtime only blocks
+            // starting the model, so the verified download may proceed after an explicit choice.
+            if (mlxRuntimeLocator.locateActive().isEmpty()
+                && !confirm(I18n.get("ai.local.models.mlx.runtime.confirmDownload"))) {
+                return;
+            }
+            startVerifiedDownload(selected, selectedQuantization);
+            return;
+        }
         ensureRuntimeAvailable(() -> startVerifiedDownload(selected, selectedQuantization));
     }
 
@@ -536,7 +820,8 @@ final class LocalModelManagerPane extends VBox {
         if (closed) {
             return;
         }
-        Path target = llmDirectory.resolve("models")
+        boolean mlxDownload = selected.format() == HuggingFaceModelFormat.MLX;
+        Path target = (mlxDownload ? llmDirectory.resolve("mlx").resolve("models") : llmDirectory.resolve("models"))
             .resolve(safeId(selected.id() + "-" + selectedQuantization + "-" + selected.revision().substring(0, 12)));
         HuggingFaceDownloadPlan plan;
         try {
@@ -575,6 +860,13 @@ final class LocalModelManagerPane extends VBox {
                 return;
             }
             try {
+                if (mlxDownload) {
+                    MlxModel model = registerDownloadedMlxModel(selected, selectedQuantization, target);
+                    refresh();
+                    modelsChanged.run();
+                    runMlxFunctionTest(model);
+                    return;
+                }
                 Path server = requireRuntimeExecutable();
                 LlamaModel model = registerDownloadedModel(
                     selected, selectedQuantization, result, server, Set.of());
@@ -583,6 +875,76 @@ final class LocalModelManagerPane extends VBox {
                 runFunctionTest(model);
             } catch (Exception registrationError) {
                 status.setText(I18n.get("ai.local.models.download.registerFailed") + ": " + message(registrationError));
+            }
+        }));
+    }
+
+    private MlxModel registerDownloadedMlxModel(
+        HuggingFaceModel selected,
+        String quantizationLabel,
+        Path modelDirectory
+    ) {
+        // Re-downloading the same repository revision resolves to the same verified directory;
+        // reuse its registration instead of accumulating duplicate rows over one directory.
+        Path normalizedDirectory = modelDirectory.toAbsolutePath().normalize();
+        Optional<MlxModel> existing = mlxRegistry.list().stream()
+            .filter(model -> model.getModelDirectory().toAbsolutePath().normalize().equals(normalizedDirectory))
+            .findFirst();
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        String id = uniqueMlxModelId(safeId(selected.id() + "-" + quantizationLabel));
+        MlxModel model = new MlxModel(
+            id,
+            selected.id() + " " + quantizationLabel,
+            modelDirectory,
+            0,
+            10,
+            quantizationLabel);
+        mlxRegistry.register(model);
+        return model;
+    }
+
+    private String uniqueMlxModelId(String suggested) {
+        String candidate = suggested;
+        int suffix = 2;
+        while (mlxRegistry.find(candidate).isPresent()) {
+            candidate = suggested + "-" + suffix++;
+        }
+        return candidate;
+    }
+
+    /** The MLX function test needs the runtime; without it the model stays registered but idle. */
+    private void runMlxFunctionTest(MlxModel model) {
+        if (mlxRuntimeLocator.locateActive().isEmpty()) {
+            status.setText(I18n.get("ai.local.models.mlx.runtime.missing"));
+            return;
+        }
+        status.setText(I18n.get("ai.local.models.functionTest.running", model.getDisplayName()));
+        CompletableFuture.runAsync(() -> {
+            try {
+                EmbeddedMlxAiService service = new EmbeddedMlxAiService(
+                    model.getId(),
+                    AiReasoningEffort.DISABLED,
+                    null,
+                    AiSkillPromptSupport.disabled(),
+                    MlxRuntimeManager.getDefault());
+                var reply = service.executePrompt(
+                    "You are a concise assistant.",
+                    "Reply with the single word OK.");
+                if (reply == null || reply.content() == null || reply.content().isBlank()) {
+                    throw new IllegalStateException("The MLX model returned an empty reply.");
+                }
+            } catch (Exception error) {
+                throw new RuntimeException(error);
+            }
+        }).whenComplete((ignored, error) -> Platform.runLater(() -> {
+            installedTable.refresh();
+            if (error == null) {
+                status.setText(I18n.get("ai.local.models.functionTest.passed", model.getDisplayName()));
+            } else {
+                status.setText(I18n.get("ai.local.models.functionTest.failed",
+                    model.getDisplayName(), message(rootCause(error))));
             }
         }));
     }
@@ -601,7 +963,7 @@ final class LocalModelManagerPane extends VBox {
         downloadModel.setDisable(true);
         pauseDownload.setDisable(false);
         cancelDownload.setDisable(false);
-        pauseDownload.setText(I18n.get("ai.local.models.pause"));
+        updatePauseButton(false);
         downloadModelDetails.setText(I18n.get(
             "ai.local.models.download.panel.model",
             modelId, selectedQuantization));
@@ -810,10 +1172,10 @@ final class LocalModelManagerPane extends VBox {
             "ai.local.models.download.panel.metrics", elapsed, speed, eta));
         if (progress.phase() == HuggingFaceDownloadProgress.Phase.PAUSED) {
             downloadPaused = true;
-            pauseDownload.setText(I18n.get("ai.local.models.resume"));
+            updatePauseButton(true);
         } else if (progress.phase() == HuggingFaceDownloadProgress.Phase.DOWNLOADING) {
             downloadPaused = false;
-            pauseDownload.setText(I18n.get("ai.local.models.pause"));
+            updatePauseButton(false);
         }
     }
 
@@ -824,11 +1186,16 @@ final class LocalModelManagerPane extends VBox {
         downloadPaused = !downloadPaused;
         if (downloadPaused) {
             activeDownload.pause();
-            pauseDownload.setText(I18n.get("ai.local.models.resume"));
         } else {
             activeDownload.resume();
-            pauseDownload.setText(I18n.get("ai.local.models.pause"));
         }
+        updatePauseButton(downloadPaused);
+    }
+
+    /** Keeps the pause button's label and glyph in lockstep with the paused state. */
+    private void updatePauseButton(boolean paused) {
+        pauseDownload.setText(I18n.get(paused ? "ai.local.models.resume" : "ai.local.models.pause"));
+        ButtonIcons.apply(pauseDownload, paused ? ButtonIcons.PLAY : ButtonIcons.PAUSE);
     }
 
     private void cancelDownload() {
@@ -931,18 +1298,72 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void configureSelected() {
-        LlamaModel selected = installedTable.getSelectionModel().getSelectedItem();
+        InstalledModel selected = installedTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
             return;
         }
-        LlamaModel edited = editModel(selected);
+        if (selected.isMlx()) {
+            configureMlxModel(selected.mlx());
+            return;
+        }
+        LlamaModel edited = editModel(selected.llama());
         if (edited != null) {
             try {
-                if (!LlamaRuntimeManager.getDefault().stop(selected.getId())) {
+                if (!LlamaRuntimeManager.getDefault().stop(selected.id())) {
                     throw new IllegalStateException(
-                        I18n.get("ai.local.models.configure.busy", selected.getDisplayName()));
+                        I18n.get("ai.local.models.configure.busy", selected.displayName()));
                 }
                 registry.register(edited);
+                refresh();
+                modelsChanged.run();
+            } catch (RuntimeException error) {
+                show(Alert.AlertType.ERROR, message(error));
+            }
+        }
+    }
+
+    private void configureMlxModel(MlxModel original) {
+        Dialog<MlxModel> dialog = new Dialog<>();
+        dialog.initOwner(owner);
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.setTitle(I18n.get("ai.local.models.configure"));
+        dialog.setHeaderText(I18n.get("ai.local.models.configure.header"));
+        ButtonType save = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+
+        TextField name = new TextField(original.getDisplayName());
+        CheckBox never = new CheckBox(I18n.get("ai.local.models.never"));
+        never.setSelected(original.getIdleTimeoutMinutes() == 0);
+        Spinner<Integer> idleMinutes = new Spinner<>(1, 1440,
+            original.getIdleTimeoutMinutes() > 0 ? original.getIdleTimeoutMinutes() : 10);
+        idleMinutes.setEditable(true);
+        idleMinutes.disableProperty().bind(never.selectedProperty());
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(9);
+        grid.setPadding(new Insets(8));
+        int row = 0;
+        grid.add(new Label(I18n.get("ai.local.models.column.name")), 0, row);
+        grid.add(name, 1, row++);
+        grid.add(new Label(I18n.get("ai.local.models.column.file")), 0, row);
+        grid.add(new Label(original.getModelDirectory().toString()), 1, row++);
+        grid.add(new Label(I18n.get("ai.local.models.column.backend")), 0, row);
+        grid.add(new Label("MLX"), 1, row++);
+        grid.add(new Label(I18n.get("ai.local.models.unloadAfter")), 0, row);
+        grid.add(new HBox(8, idleMinutes, new Label(I18n.get("ai.local.models.minuteUnit")), never), 1, row);
+        dialog.getDialogPane().setContent(grid);
+        dialog.setResultConverter(button -> button == save ? new MlxModel(
+            original.getId(), name.getText(), original.getModelDirectory(), original.getContextSize(),
+            never.isSelected() ? 0 : idleMinutes.getValue(), original.getQuantizationLabel()) : null);
+        MlxModel edited = dialog.showAndWait().orElse(null);
+        if (edited != null) {
+            try {
+                if (!MlxRuntimeManager.getDefault().stop(original.getId())) {
+                    throw new IllegalStateException(
+                        I18n.get("ai.local.models.configure.busy", original.getDisplayName()));
+                }
+                mlxRegistry.register(edited);
                 refresh();
                 modelsChanged.run();
             } catch (RuntimeException error) {
@@ -1009,7 +1430,14 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void startSelected() {
-        List<LlamaModel> selected = List.copyOf(installedTable.getSelectionModel().getSelectedItems());
+        List<InstalledModel> selectedRows = List.copyOf(installedTable.getSelectionModel().getSelectedItems());
+        List<MlxModel> selectedMlx = selectedRows.stream()
+            .filter(InstalledModel::isMlx).map(InstalledModel::mlx).toList();
+        if (!selectedMlx.isEmpty()) {
+            startMlxModels(selectedMlx);
+        }
+        List<LlamaModel> selected = selectedRows.stream()
+            .filter(row -> !row.isMlx()).map(InstalledModel::llama).toList();
         if (selected.isEmpty()) {
             return;
         }
@@ -1079,10 +1507,32 @@ final class LocalModelManagerPane extends VBox {
         }));
     }
 
+    /** Warm-starts MLX sidecars; releasing the readiness lease begins the idle countdown. */
+    private void startMlxModels(List<MlxModel> selected) {
+        if (mlxRuntimeLocator.locateActive().isEmpty()) {
+            show(Alert.AlertType.WARNING, I18n.get("ai.local.models.mlx.runtime.missing"));
+            return;
+        }
+        status.setText(I18n.get("ai.local.models.starting", selected.size()));
+        CompletableFuture.allOf(selected.stream().map(model -> CompletableFuture.runAsync(() -> {
+            try (MlxRuntimeManager.RuntimeLease ignored = MlxRuntimeManager.getDefault().acquire(model.getId())) {
+                // Releasing after readiness starts the configured idle countdown without killing the sidecar.
+            }
+        })).toArray(CompletableFuture[]::new)).whenComplete((ignored, error) -> Platform.runLater(() -> {
+            installedTable.refresh();
+            status.setText(error == null
+                ? I18n.get("ai.local.models.started", selected.size())
+                : I18n.get("ai.local.models.start.failed") + ": " + message(rootCause(error)));
+        }));
+    }
+
     private void stopSelected() {
         int stopped = 0;
-        for (LlamaModel model : List.copyOf(installedTable.getSelectionModel().getSelectedItems())) {
-            if (LlamaRuntimeManager.getDefault().stop(model.getId())) {
+        for (InstalledModel model : List.copyOf(installedTable.getSelectionModel().getSelectedItems())) {
+            boolean result = model.isMlx()
+                ? MlxRuntimeManager.getDefault().stop(model.id())
+                : LlamaRuntimeManager.getDefault().stop(model.id());
+            if (result) {
                 stopped++;
             }
         }
@@ -1091,16 +1541,23 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void removeSelected() {
-        List<LlamaModel> selected = List.copyOf(installedTable.getSelectionModel().getSelectedItems());
+        List<InstalledModel> selected = List.copyOf(installedTable.getSelectionModel().getSelectedItems());
         if (selected.isEmpty() || !confirm(I18n.get("ai.local.models.remove.confirm", selected.size()))) {
             return;
         }
         try {
-            for (LlamaModel model : selected) {
-                if (!LlamaRuntimeManager.getDefault().stop(model.getId())) {
-                    throw new IllegalStateException(I18n.get("ai.local.models.remove.busy", model.getDisplayName()));
+            for (InstalledModel model : selected) {
+                boolean idle = model.isMlx()
+                    ? MlxRuntimeManager.getDefault().stop(model.id())
+                    : LlamaRuntimeManager.getDefault().stop(model.id());
+                if (!idle) {
+                    throw new IllegalStateException(I18n.get("ai.local.models.remove.busy", model.displayName()));
                 }
-                registry.remove(model.getId());
+                if (model.isMlx()) {
+                    mlxRegistry.remove(model.id());
+                } else {
+                    registry.remove(model.id());
+                }
             }
             refresh();
             modelsChanged.run();
@@ -1585,8 +2042,14 @@ final class LocalModelManagerPane extends VBox {
         };
     }
 
-    private String runtimeState(LlamaModel model) {
-        return LlamaRuntimeManager.getDefault().status(model.getId())
+    private String runtimeState(InstalledModel model) {
+        if (model.isMlx()) {
+            return MlxRuntimeManager.getDefault().status(model.id())
+                .map(MlxRuntimeManager.RuntimeStatus::state)
+                .orElse(MlxRuntimeState.STOPPED)
+                .name();
+        }
+        return LlamaRuntimeManager.getDefault().status(model.id())
             .map(LlamaRuntimeManager.RuntimeStatus::state)
             .orElse(LlamaRuntimeState.STOPPED)
             .name();

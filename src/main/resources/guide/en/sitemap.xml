@@ -2,186 +2,194 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/index.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/about/anonymous-data.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/about/feedback.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/about/release-notes.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/ai-assistant.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/ai-swarm.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/ai-tools.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/ascii-art.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/backup.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/connections.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/i18n.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/jobscheduler.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/jump-server.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://chardonnay.github.io/korTTY/en/features/local-models.html</loc>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/projects.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
+    </url>
+    <url>
+         <loc>https://chardonnay.github.io/korTTY/en/features/rag.html</loc>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/recording.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/security.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/sftp.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/snippets.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/teamwork.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/terminal-effect-plugins.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/terminal.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/features/tunnels.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/getting-started/building-packages.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/getting-started/first-launch.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/getting-started/installation.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/getting-started/main-window.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/architecture.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/config-files.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/hardening-options.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/keyboard-shortcuts.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/menu.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/index.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/ai-skills.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/ai.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/appearance.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/backup.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/colors.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/language.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/logging.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/resources.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/security.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/terminal.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/translation.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/updates.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/video.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
     <url>
          <loc>https://chardonnay.github.io/korTTY/en/reference/settings/window.html</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-17</lastmod>
     </url>
 </urlset>

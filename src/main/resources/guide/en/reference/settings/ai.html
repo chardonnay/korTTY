@@ -1230,6 +1230,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#local-ai-manager-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local AI manager settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-optimization-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt optimization presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#reasoning-effort-levels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1327,6 +1349,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -1676,6 +1702,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -2193,6 +2275,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#local-ai-manager-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local AI manager settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-optimization-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt optimization presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#reasoning-effort-levels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2413,7 +2517,7 @@
 <tr>
 <td>Connection</td>
 <td>dropdown</td>
-<td>HTTP API, Local CLI</td>
+<td>HTTP API, Local CLI, Integrated llama.cpp, Integrated MLX (Apple Silicon; offered on Apple Silicon Macs only)</td>
 <td>HTTP API</td>
 <td>(profile <code>connectionMode</code> field)</td>
 </tr>
@@ -2446,11 +2550,32 @@
 <td>(profile <code>model</code> field)</td>
 </tr>
 <tr>
+<td>Local GGUF model</td>
+<td>dropdown</td>
+<td>Installed chat models; available when Connection is Integrated llama.cpp</td>
+<td>—</td>
+<td>(profile <code>embeddedModelId</code> field)</td>
+</tr>
+<tr>
+<td>Local MLX model</td>
+<td>dropdown</td>
+<td>Installed MLX models; available when Connection is Integrated MLX (Apple Silicon)</td>
+<td>—</td>
+<td>(profile <code>embeddedModelId</code> field)</td>
+</tr>
+<tr>
 <td>Custom model</td>
 <td>text</td>
 <td>—</td>
 <td>—</td>
 <td>(profile <code>cliCustomModel</code> field)</td>
+</tr>
+<tr>
+<td>Prompt optimization</td>
+<td>dropdown</td>
+<td>Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS</td>
+<td>Auto</td>
+<td>(profile <code>promptPreset</code> field)</td>
 </tr>
 <tr>
 <td>Reasoning</td>
@@ -2631,12 +2756,68 @@
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <h3 id="ai-profiles_1">AI Profiles<a class="headerlink" href="#ai-profiles_1" title="Permanent link">&para;</a></h3>
-<p>KorTTY stores multiple named AI profiles, each with its own model, API endpoint, connection method, and reasoning settings. Each profile tracks its own token usage separately. Profiles support two connection modes:</p>
+<p>KorTTY stores multiple named AI profiles, each with its own model, connection method, reasoning settings, prompt preset, and optional knowledge stores. Each profile tracks its own token usage separately. Profiles support three connection modes:</p>
 <ul>
 <li><strong>HTTP API</strong>: Direct connection to an OpenAI-compatible REST endpoint (specify API URL, model name, and optional API key).</li>
 <li><strong>Local CLI</strong>: Execute a local command-line AI client (configure CLI provider, custom executable, arguments template, and custom model name).</li>
+<li><strong>Integrated llama.cpp</strong>: Choose the installed chat GGUF in <strong>Local GGUF model</strong>. korTTY acquires a private loopback <code>llama-server</code> lease for it; the API URL and profile API key are managed by korTTY and are not editable.</li>
 </ul>
-<p>The <strong>Default profile</strong> is used by terminal AI actions and the terminal AI Agent when no explicit profile is selected.</p>
+<p>An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the <strong>Default profile</strong>. Configure those roles and the local runtime under <strong>AI &gt; AI Manager &gt; Local AI</strong>; see <a href="../../features/local-models.html">Local models with llama.cpp</a>.</p>
+<p>The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.</p>
+<h3 id="local-ai-manager-settings">Local AI manager settings<a class="headerlink" href="#local-ai-manager-settings" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Values</th>
+<th>Default</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text and translation profile</td>
+<td>Configured AI profile, or use default</td>
+<td>Use default</td>
+<td><code>textAiProfileId</code></td>
+</tr>
+<tr>
+<td>Coding profile</td>
+<td>Configured AI profile, or use default</td>
+<td>Use default</td>
+<td><code>codingAiProfileId</code></td>
+</tr>
+<tr>
+<td>RAG embedding model ID</td>
+<td>Installed local embedding model</td>
+<td>—</td>
+<td><code>ragEmbeddingModelId</code></td>
+</tr>
+<tr>
+<td>llama.cpp runtime updates</td>
+<td>Off, Notify me, Install stable updates automatically</td>
+<td>Notify me</td>
+<td><code>llamaRuntimeUpdatePolicy</code></td>
+</tr>
+<tr>
+<td>Preferred runtime backend</td>
+<td>Auto/CPU/Metal on macOS; Auto/CPU/Vulkan on Windows/Linux</td>
+<td>Auto</td>
+<td><code>preferredLlamaRuntimeBackend</code></td>
+</tr>
+<tr>
+<td>Hugging Face token</td>
+<td>Optional encrypted token for gated/private repositories</td>
+<td>—</td>
+<td><code>encryptedHuggingFaceToken</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Automatic (keep active backend)</strong> retains the active runtime package backend for updates. With no installed package, Auto initially selects Metal on macOS and CPU elsewhere. Starting a model configured for another supported GPU backend offers to install the matching signed package.</p>
+<p>The <strong>Local Models &gt; Setup assistant</strong> exposes optional Text, Coding, and RAG-embedding slots. It verifies every selected fixed revision, quantization, license, and exact size before starting its asynchronous runtime/model installation, runs a real chat or embedding test for each installed GGUF, and saves the resulting role assignments only after all tests succeed. The Text and Coding slots may share one model. <strong>Configure</strong> refuses to replace a model's persisted runtime settings while that model is serving an active request.</p>
+<p>Knowledge stores assigned to the Text/Coding roles add only bounded, cited excerpts to matching normal terminal and snippet AI requests, never the complete knowledge store. A cloud Text/Coding profile receives those excerpts over its configured provider connection, so assigning the knowledge store to that role/profile is explicit permission for that disclosure. Agent, Planning, Swarm, and scheduled autonomous prompts remain a separate opt-in; see <a href="../../features/rag.html">RAG knowledge stores</a>.</p>
+<h3 id="prompt-optimization-presets">Prompt optimization presets<a class="headerlink" href="#prompt-optimization-presets" title="Permanent link">&para;</a></h3>
+<p><strong>Auto (model detection)</strong> resolves common Llama, Qwen, Mistral/Mixtral, Gemma, DeepSeek, Phi, and GPT-OSS names. A family preset adds concise compatibility guidance while leaving korTTY's strict JSON/code contracts authoritative; <strong>Generic</strong> adds no family-specific guidance. llama.cpp still applies the GGUF's native chat template.</p>
 <h3 id="reasoning-effort-levels">Reasoning Effort Levels<a class="headerlink" href="#reasoning-effort-levels" title="Permanent link">&para;</a></h3>
 <p>Reasoning effort configures how deeply the AI thinks before responding. Available levels depend on the model and endpoint:</p>
 <ul>

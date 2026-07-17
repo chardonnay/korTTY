@@ -832,6 +832,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#embedded-ai-and-rag-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded AI and RAG isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1696,6 +1707,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2008,6 +2023,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -2641,6 +2712,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#embedded-ai-and-rag-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded AI and RAG isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2934,8 +3016,18 @@
 <tbody>
 <tr>
 <td><strong>core</strong></td>
-<td>SSH connectivity, session management, AI integration, terminal automation</td>
-<td><code>SSHSession</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
+<td>SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation</td>
+<td><code>SSHSession</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
+</tr>
+<tr>
+<td><strong>ai</strong></td>
+<td>Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp process leases, and signed runtime packages</td>
+<td><code>AiCatalogService</code>, <code>HuggingFaceClient</code>, <code>LlamaRuntimeManager</code>, <code>LlamaRuntimePackageInstaller</code></td>
+</tr>
+<tr>
+<td><strong>rag</strong></td>
+<td>Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval</td>
+<td><code>RagSourceScanner</code>, <code>RagSourceSynchronizer</code>, <code>LocalHnswStore</code>, <code>RagRuntimeService</code></td>
 </tr>
 <tr>
 <td><strong>ui</strong></td>
@@ -2991,23 +3083,25 @@
 <li><strong>OSC 8 hyperlinks</strong>: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> limited to local host)</li>
 <li><strong>Session integration</strong>: Direct JAXB marshaling of terminal state for session recording and replay</li>
 <li><strong>Color support</strong>: Configurable ANSI and TrueColor handling with per-connection overrides</li>
+<li><strong>Reviewed boundary fix</strong>: A pinned korTTY patch rejects the non-existent row at <code>line == height</code> during hyperlink hit-testing, preventing bottom-row <code>TerminalTextBuffer</code> range errors</li>
 </ul>
 <h3 id="build-integration">Build Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>The build process automatically:</p>
 <ol>
 <li>Clones SithTermFX at tag <code>v1.2.1</code> into <code>vendor/sithtermfx</code> (no GitHub token required)</li>
+<li>Applies the reviewed <code>patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch</code> and fails if it neither applies nor already matches the source</li>
 <li>Builds it locally using Maven via the <code>installSithtermfxLocal</code> task</li>
-<li>Installs artifacts to the local Maven repo (<code>mavenLocal()</code>)</li>
+<li>Installs artifacts to the local Maven repo (<code>mavenLocal()</code>), including a marker that lets Gradle reject an unpatched cached UI JAR</li>
 <li>Links SithTermFX core and UI modules into the korTTY JAR</li>
 </ol>
 <p>No network access is needed after cloning; all build steps are deterministic and reproducible.</p>
 <h2 id="persistence-and-configuration">Persistence and Configuration<a class="headerlink" href="#persistence-and-configuration" title="Permanent link">&para;</a></h2>
-<p>KorTTY stores all configuration, credentials, and session state in XML files under <code>~/.kortty/</code> using JAXB (Jakarta XML Binding). This approach ensures:</p>
+<p>KorTTY stores its main configuration, credentials, and session state under <code>~/.kortty/</code>, primarily as JAXB XML. Local-model registration also uses JAXB XML, while knowledge-store configuration is strict JSON and the local vector graph is a regenerable binary snapshot. This approach ensures:</p>
 <ul>
 <li><strong>Portability</strong>: Easy manual inspection and migration across systems</li>
 <li><strong>Encryption</strong>: Sensitive data (passwords, SSH key passphrases, master password hash) is encrypted with AES-256-GCM</li>
 <li><strong>Atomic writes</strong>: File updates use temporary files and atomic rename to prevent corruption on crash</li>
-<li><strong>No database</strong>: Self-contained; no separate database server or migration overhead</li>
+<li><strong>No required database</strong>: Local HNSW is self-contained; Qdrant is an optional second vector backend</li>
 </ul>
 <h3 id="configuration-file-structure">Configuration File Structure<a class="headerlink" href="#configuration-file-structure" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
@@ -3016,16 +3110,26 @@
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml                 # SSH key references and encrypted passphrases
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml                 # GPG key management for backup encryption
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── global-settings.xml          # Application-wide settings (theme, language, AI profiles)
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── kortty.log                   # Application log file
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── history/                     # Compressed terminal session logs
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── projects/                    # Project files (connection sets with saved layout)
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── i18n/                        # Dynamically generated language property files
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── llm/
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── models.xml               # Local GGUF registrations and typed launch settings
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── models/                  # Managed GGUF weights (regenerable; excluded from backup)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── runtime/                 # Versioned native llama.cpp packages
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── catalog/                 # Regenerable signature-verified catalog cache
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   └── run/                     # Temporary sidecar key files and logs
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── rag/
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── stores.json              # Knowledge-store and source configuration
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   └── stores/                  # Regenerable local HNSW snapshots
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Compressed terminal session logs
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── projects/                    # Project files (connection sets with saved layout)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── i18n/                        # Dynamically generated language property files
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
 </span></code></pre></div>
 <h3 id="serialization-and-encryption">Serialization and Encryption<a class="headerlink" href="#serialization-and-encryption" title="Permanent link">&para;</a></h3>
 <p><strong>JAXB Marshaling</strong> converts domain objects to/from XML with automatic schema validation. Key repositories include:</p>
@@ -3055,6 +3159,10 @@
 <tr>
 <td><code>SSHSession</code></td>
 <td>Wraps Apache SSHD client and manages connection lifecycle</td>
+</tr>
+<tr>
+<td><code>SshHostKeyTrustManager</code></td>
+<td>Shares normalized host:port TOFU pins across interactive Terminal, SFTP, and Mosh bootstrap connections with atomic, cross-process persistence</td>
 </tr>
 <tr>
 <td><code>SSHKeyManager</code></td>
@@ -3088,8 +3196,20 @@
 <td>Manages AI chat sessions and conversation history</td>
 </tr>
 <tr>
-<td><code>AiCliProviderRegistry</code></td>
-<td>Maps AI profile configurations to provider endpoints (OpenAI, Anthropic, LM Studio)</td>
+<td><code>AiServiceFactory</code></td>
+<td>Maps a profile to HTTP, Anthropic, local CLI, or embedded llama.cpp transport, then adds prompt presets and optional RAG</td>
+</tr>
+<tr>
+<td><code>AiCatalogService</code></td>
+<td>Returns a reverified cache/bootstrap immediately and schedules one signed stable-channel refresh for recommendations and preset-family mappings</td>
+</tr>
+<tr>
+<td><code>LlamaRuntimeManager</code></td>
+<td>Shares one isolated authenticated sidecar per compatible GGUF configuration and grants reference-counted request leases</td>
+</tr>
+<tr>
+<td><code>RagAugmentedAiService</code></td>
+<td>Retrieves bounded excerpts for ordinary AI actions and adds the untrusted context before the model preset</td>
 </tr>
 <tr>
 <td><code>TerminalAgentService</code></td>
@@ -3159,6 +3279,14 @@
 <td>Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts</td>
 </tr>
 <tr>
+<td><code>LocalModelManagerPane</code></td>
+<td>Searches/downloads/imports GGUF files and controls concurrent llama.cpp sidecars</td>
+</tr>
+<tr>
+<td><code>RagKnowledgeStorePane</code></td>
+<td>Creates knowledge stores, previews sources, displays persisted indexing state, synchronizes them, and runs retrieval tests</td>
+</tr>
+<tr>
 <td><code>JobSchedulerDialog</code></td>
 <td>Job creation, scheduling, and journal inspection</td>
 </tr>
@@ -3178,15 +3306,27 @@
 </ol>
 <h3 id="host-key-verification">Host Key Verification<a class="headerlink" href="#host-key-verification" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>JobScheduler</strong>: Requires pinned host-key fingerprints before unattended execution (SSH, SFTP, Rsync)</li>
-<li><strong>Storage</strong>: Host keys are stored in <code>job-scheduler.xml</code> with OpenSSH public-key material (needed for Rsync integration)</li>
-<li><strong>Override</strong>: Per-job override to disable verification when risk is explicitly accepted</li>
+<li><strong>Interactive Terminal/SFTP/Mosh bootstrap</strong>: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with <strong>No</strong> as the default; an exact match is silent, while a changed key is hard-blocked without retry.</li>
+<li><strong>Interactive storage</strong>: <code>ssh-host-keys.properties</code> stores public-key material through an atomic replacement guarded by both in-process and cross-process locks. Its transient <code>.lock</code> companion is not backed up.</li>
+<li><strong>JobScheduler</strong>: Unattended SSH, SFTP, and Rsync use separate connection-ID-based pins in <code>job-scheduler.xml</code>, including OpenSSH public-key material needed by Rsync. A per-job override can disable that verification only when the risk is explicitly accepted.</li>
 </ul>
 <h3 id="credential-management">Credential Management<a class="headerlink" href="#credential-management" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Environment-specific</strong>: Credentials can be scoped to Production, Development, Test, or Staging</li>
 <li><strong>Glob patterns</strong>: Server patterns like <code>*.example.com</code> or <code>10.0.0.*</code> automatically match connections</li>
 <li><strong>Stored encrypted</strong>: All credential passwords use AES-256-GCM</li>
+</ul>
+<h3 id="embedded-ai-and-rag-isolation">Embedded AI and RAG isolation<a class="headerlink" href="#embedded-ai-and-rag-isolation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Each embedded model process binds only to <code>127.0.0.1</code> on a random port and requires a generated API key stored in an owner-only temporary file.</li>
+<li>The fixed llama.cpp launch command enables offline mode and disables the web UI, agent, UI MCP proxy, and slots endpoint; inherited <code>LLAMA_ARG_*</code> and Hugging Face token variables are removed.</li>
+<li>Hugging Face tokens and AI profile API keys are encrypted with the master password. Model downloads are pinned to an immutable revision and verified with SHA-256.</li>
+<li>RAG accepts only centrally allowlisted, content-validated text. Retrieved excerpts are bounded and wrapped as explicitly untrusted data so indexed instructions cannot replace korTTY's system/action contract.</li>
+<li>Runtime update indexes are verified as exact bytes with Ed25519 before package URLs are parsed; packages also have signed size/SHA-256 metadata and safe ZIP extraction limits.</li>
+<li>Runtime withdrawals are persisted before process shutdown through a runtime-root denylist plus package marker. Active pointers and unsafe rollback-history entries are removed, registered models are rebound to a non-executable quarantine marker, and the launch path rechecks the marker so stale registry state cannot revive a withdrawn binary.</li>
+<li>A package that passes the lightweight version health check remains pending until its first real GGUF-backed authenticated API start. <code>LlamaRuntimeFirstLaunchRecovery</code> confirms it on readiness or restores the newest healthy non-revoked installation and model bindings after a start failure.</li>
+<li>The independent model/prompt catalog has its own Ed25519 trust root and strict schema. Its cache is reverified before use; a missing key disables both cache trust and network refresh and selects the compiled bootstrap.</li>
+<li>Remote Qdrant uses HTTPS, with plain HTTP restricted to a loopback test/local service.</li>
 </ul>
 <h2 id="plugin-system">Plugin System<a class="headerlink" href="#plugin-system" title="Permanent link">&para;</a></h2>
 <p>KorTTY supports <strong>terminal effect plugins</strong> via Java <code>ServiceLoader</code> for customizing terminal appearance and behavior.</p>
@@ -3257,7 +3397,7 @@
 <tr>
 <td><strong>Terminal</strong></td>
 <td>SithTermFX (core, ui)</td>
-<td>1.2.0</td>
+<td>1.2.1 plus pinned korTTY boundary patch</td>
 <td>Terminal emulator engine</td>
 </tr>
 <tr>
@@ -3356,6 +3496,12 @@
 <td>2.0.2</td>
 <td>Mosh protocol (dynamically loaded)</td>
 </tr>
+<tr>
+<td><strong>Local AI</strong></td>
+<td>llama.cpp <code>llama-server</code></td>
+<td>Source-pinned runtime package</td>
+<td>Local GGUF chat-completions and embeddings sidecar</td>
+</tr>
 </tbody>
 </table>
 <h3 id="dynamic-dependencies">Dynamic Dependencies<a class="headerlink" href="#dynamic-dependencies" title="Permanent link">&para;</a></h3>
@@ -3363,6 +3509,8 @@
 <li><strong>mosh4j</strong>: Its five SHA-256-pinned, architecture-specific release JARs and protobuf are bundled in native builds and dynamically loaded only when Mosh is needed. The child loader reuses Bouncy Castle from the application parent instead of shipping a second copy.</li>
 <li><strong>rsync / ssh</strong>: External commands used by JobScheduler Rsync jobs</li>
 <li><strong>ffmpeg</strong>: Optional; used for terminal recording video export</li>
+<li><strong>llama.cpp runtime</strong>: Downloaded independently under <code>~/.kortty/llm/runtime/</code>; CPU packages cover every supported platform, Metal is available on macOS, and Vulkan is available for supported Windows/Linux targets. It is never folded into the base installer.</li>
+<li><strong>Qdrant</strong>: Optional external vector service. Remote endpoints require HTTPS; HTTP is loopback-only. Local HNSW is dependency-free and remains the default knowledge-store backend.</li>
 </ul>
 <h2 id="build-process">Build Process<a class="headerlink" href="#build-process" title="Permanent link">&para;</a></h2>
 <h3 id="compilation-and-packaging">Compilation and Packaging<a class="headerlink" href="#compilation-and-packaging" title="Permanent link">&para;</a></h3>
@@ -3372,6 +3520,8 @@
 <li><strong>External formatter payload</strong>: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.</li>
 <li><strong>Clean native staging</strong>: <code>prepareJpackage</code> uses a final Gradle <code>Sync</code>, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.</li>
 <li><strong>Native packaging and gates</strong>: The selected Gradle JDK 25 toolchain supplies <code>jpackage</code> for .app/.dmg, .exe/.msi, .deb and .rpm output. <code>scripts/package-size-report.py</code> emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.</li>
+<li><strong>llama.cpp runtime packaging</strong>: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only <code>llama-server</code> plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The daily runtime workflow opens candidate PRs; every platform/backend runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected <code>llama-runtime-signing</code> environment with required reviewers gates manual stable promotion from <code>main</code>.</li>
+<li><strong>Model/prompt catalog promotion</strong>: A separate manual <code>main</code>-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected <code>ai-catalog-signing</code> environment without a preview channel.</li>
 </ol>
 <h3 id="classpath-and-module-path">Classpath and Module Path<a class="headerlink" href="#classpath-and-module-path" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3385,24 +3535,30 @@
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    ↓
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Connection Manager (lookup saved or new connection)
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    ↓
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>SSHSession (Apache SSHD or Mosh4j connector)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>Worker-thread SSH handshake + progress UI
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    ↓
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>Terminal Pane (SithTermFX rendering)
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    ↓
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>Dashboard (status display, job monitor)
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>SSHSession (Apache SSHD or Mosh4j connector)
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    ↓
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>Terminal Pane (SithTermFX rendering)
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ↓
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>Dashboard (status display, job monitor)
 </span></code></pre></div>
 <h3 id="ai-integration-flow">AI Integration Flow<a class="headerlink" href="#ai-integration-flow" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Selected Terminal Text
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    ↓
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>AI Action (Summarize / Solve Problem / Ask)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>AI Action + deterministic Text/Coding role
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    ↓
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>AiChatManager (prepare request with profile/model)
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>AI profile (HTTP / CLI / embedded GGUF)
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    ↓
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>AiCliProviderRegistry (map to endpoint: OpenAI, Claude, LM Studio, etc.)
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>Action contract → AI Skills → optional bounded RAG → model preset
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    ↓
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>AI Response Tab (render with follow-up composer)
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>AiServiceFactory (remote provider, local CLI, or runtime lease)
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    ↓
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>Persistence (saved chats stored in global-settings.xml)
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>AI Response Tab (render with follow-up composer)
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    ↓
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>Persistence (saved chats stored in global-settings.xml)
 </span></code></pre></div>
 <h3 id="job-scheduling-flow">Job Scheduling Flow<a class="headerlink" href="#job-scheduling-flow" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>User creates scheduled job
@@ -3422,13 +3578,20 @@
 <li><strong>JobScheduler journal</strong>: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)</li>
 <li><strong>Terminal history</strong>: Compressed session logs in <code>~/.kortty/history/</code></li>
 <li><strong>Terminal recording</strong>: Optional replay files in <code>~/.kortty/recordings/</code></li>
+<li><strong>Test isolation</strong>: The test Logback configuration writes to its own console only and never creates or appends to the real user's <code>~/.kortty/logs</code></li>
 </ul>
 <h2 id="thread-model">Thread Model<a class="headerlink" href="#thread-model" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>UI Thread</strong>: JavaFX application thread handles all rendering and user interaction</li>
 <li><strong>SSH Session Threads</strong>: One thread per active SSH connection (Apache SSHD pool)</li>
+<li><strong>Split-connection handshake</strong>: Same-server and newly selected split connections perform network setup on a worker while a JavaFX progress dialog keeps host-key and keyboard-interactive prompts responsive.</li>
 <li><strong>Job Executor Threads</strong>: Background thread pool for JobScheduler execution</li>
 <li><strong>AI Chat Threads</strong>: Background threads for API requests (non-blocking UI)</li>
+<li><strong>AI catalog refresh</strong>: The first catalog consumer gets verified cache/bootstrap data immediately and starts at most one background stable-channel refresh.</li>
+<li><strong>Local-model provisioning</strong>: Setup-assistant metadata inspection, signed runtime installation, resumable GGUF download/verification, registration, and real chat/embedding tests run on background futures; JavaFX receives only progress and final state updates. Text/Coding/RAG assignments are persisted after every selected model passes.</li>
+<li><strong>llama.cpp sidecars</strong>: One native process per compatible loaded GGUF configuration; different models can load and generate concurrently, while leases keep active requests from being stopped. Runtime-configuration saves first request an idle stop and are rejected while a lease is busy.</li>
+<li><strong>RAG workers</strong>: Source previews, extraction, embedding batches, and HNSW candidate builds run outside the JavaFX thread; a daemon WatchService thread debounces automatic source changes. The pane permits only one active scan/index operation and returns the reviewed preview to JavaFX before configuration or indexing changes.</li>
+<li><strong>RAG coordinator</strong>: One serialized worker and watcher per store prevents overlapping writes, reconciles Automatic sources during application startup independently of credential/JobScheduler startup, persists source hashes/counts/status, and reloads UI state after completion.</li>
 <li><strong>File I/O Threads</strong>: Async writes for history, journal, and recordings</li>
 <li><strong>Web formatter requests</strong>: Background callers are serialized with one total timeout; creation, loading and invocation of the lazy Prettier/SQL WebView remain confined to the JavaFX application thread, and failures discard the engine generation.</li>
 <li><strong>Mermaid render requests</strong>: Background callers receive <code>CompletableFuture</code> results while all access to the single lazy renderer WebView stays on the JavaFX application thread. Requests are serialized; cancellation, a 30-second timeout, or a WebEngine error discards the engine generation, and idle cleanup releases the hidden WebView.</li>
@@ -3458,9 +3621,9 @@
 <ol>
 <li><strong>Master password</strong>: Set a strong, unique password; it is never transmitted or logged</li>
 <li><strong>SSH keys</strong>: Store in <code>~/.kortty/ssh-keys/</code> for backup inclusion; passphrases are encrypted</li>
-<li><strong>Host key pinning</strong>: Enable before unattended JobScheduler execution</li>
+<li><strong>Host key verification</strong>: Verify the OpenSSH SHA-256 fingerprint before accepting an interactive first-use prompt; keep host-key pinning enabled for unattended JobScheduler execution</li>
 <li><strong>Backup encryption</strong>: Use password-protected ZIP or GPG encryption</li>
-<li><strong>AI profiles</strong>: Prefer local LM Studio endpoints for sensitive data; verify trust of remote endpoints</li>
+<li><strong>AI profiles</strong>: Prefer an integrated local GGUF model for sensitive data; verify the trust and data policy of every remote endpoint</li>
 <li><strong>Avoid logging secrets</strong>: JobScheduler journal redacts stored secrets before persistence</li>
 </ol>
 

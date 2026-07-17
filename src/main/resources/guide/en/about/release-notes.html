@@ -1180,6 +1180,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1492,6 +1496,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -1881,6 +1941,39 @@
     <span class="md-ellipsis">
       
         Power management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrated-local-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrated local AI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-knowledge-stores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG knowledge stores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-ai-runtime-and-backup-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local-AI runtime and backup lifecycle
       
     </span>
   </a>
@@ -2625,6 +2718,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#integrated-local-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrated local AI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-knowledge-stores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG knowledge stores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-ai-runtime-and-backup-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local-AI runtime and backup lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#release-and-packaging" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3263,6 +3389,33 @@
 <h3 id="power-management">Power management<a class="headerlink" href="#power-management" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Activity-based power management</strong> — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate <code>caffeinate</code> helper so the korTTY process remains eligible for App Nap. On macOS and Windows, <strong>Configuration &gt; Prevent System Sleep</strong> keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.</li>
+</ul>
+<h3 id="integrated-local-ai">Integrated local AI<a class="headerlink" href="#integrated-local-ai" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>MLX models on Apple Silicon</strong> — on Apple Silicon Macs, the Local Models manager additionally searches, downloads, registers, and runs <a href="https://github.com/ml-explore/mlx">MLX</a> models through the official <code>mlx_lm.server</code>, wrapped in korTTY's own authenticated loopback-only launcher with offline Hugging Face access, sanitized process environment, and idle self-exit. A new <strong>Integrated MLX (Apple Silicon)</strong> profile connection selects the installed model; the runtime ships as a separately signed package (pinned relocatable CPython plus hash-locked mlx-lm wheels) built by a new CI pipeline, with a developer script for unsigned local packages. MLX repositories download as complete verified directories — SHA-256 for LFS files and the git blob hash for small in-tree files — and reasoning models get the same inline chain-of-thought separation as GGUF models.</li>
+<li><strong>Sortable, hardware-filtered Hugging Face browser</strong> — every column of the model search sorts ascending/descending with a header arrow (sizes and context numerically, hardware estimate from best to worst), and results are limited to repositories this computer can actually run: rows without size metadata or beyond the detected memory stay hidden while korTTY completes the listing with exact per-repository metadata in the background, and the status line reports the shown/hidden counts. On Apple Silicon a format selector switches between GGUF, MLX, and both, with a Format column identifying each row.</li>
+<li><strong>Action-bar icons</strong> — every button in Local Models (install, setup assistant, import, configure, start, stop, remove, refresh, search, load more, download, pause/resume, cancel) now carries a matching glyph, consistent with the other AI Manager tabs.</li>
+<li><strong>Robust local reasoning replies</strong> — chat sidecars run with reasoning-format parsing disabled and korTTY separates a reasoning model's inline chain-of-thought itself, preventing the pinned llama.cpp server's strict chat-format parser from failing whole replies (HTTP 500 “does not match the expected peg-native format”, e.g. from the snippet code-analysis actions) when generation stops inside a thinking block. Local server errors, empty replies, and reasoning-only replies are retried once automatically.</li>
+<li><strong>Runtime-update notification only when installed</strong> — the startup notification about an available llama.cpp runtime appears only when a runtime is actually installed; without one (never installed or removed), the available package is listed in Local Models without a popup.</li>
+<li><strong>Private GGUF inference without LM Studio or Ollama</strong> — AI profiles can use an installed <strong>Integrated llama.cpp</strong> model. korTTY launches one authenticated loopback-only sidecar per compatible GGUF configuration, shares it through request leases, supports several different models concurrently, reports the complete loading/busy/sleep/failure lifecycle, and unloads tensors after a configurable 1–1,440 minute idle period (10 minutes by default) or never.</li>
+<li><strong>Direct local-profile selection</strong> — choosing <strong>Integrated llama.cpp</strong> in an AI profile now shows a dedicated <strong>Local GGUF model</strong> selector. It lists installed chat models and persists the selected registry ID, so no local API URL or manually entered model name is required.</li>
+<li><strong>Hugging Face model manager and beginner assistant</strong> — <strong>AI &gt; AI Manager &gt; Local Models</strong> searches GGUF repositories with architecture, quantization, license, selected-quantization size, context and hardware estimates; cursor pagination keeps earlier matches when <strong>Load more</strong> is selected. Selecting a result loads exact file metadata on demand at its immutable revision, preserves the chosen quantization while refreshing the size and hardware estimate, and excludes projector, quantization-matrix and speculative-decoding helper GGUFs from language-model downloads. After the license/size confirmation, a fixed bottom panel identifies the repository, quantization, file/shard and transferred bytes, and reports elapsed time, adaptive transfer rate and remaining time beside pause/resume/cancel controls. Immutable downloads retain resumable <code>.part</code> data on cancellation or manager close and use Range/If-Range, free-space, multipart and SHA-256 checks; imports use managed copies or external references; and new registrations start with a conservative 4,096-token runtime context. The six-step beginner flow offers independently optional Text, Coding, and embedding slots, asynchronously verifies the fixed revision/quantization/license/exact size, installs the runtime and GGUFs without freezing JavaFX, runs a real chat or embedding test for every model, and persists the role assignments only after all tests pass.</li>
+<li><strong>Text/Coding roles and model prompt presets</strong> — separate Text/translation and Coding profile assignments fall back safely through explicit/security/connection choices to the default. Auto or forced Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS presets improve small/local-model format compliance without weakening strict JSON, code-payload or safety contracts. Dynamic interface translation can use the local Text profile without a translation-provider API key.</li>
+<li><strong>Separately signed recommendation and preset catalog</strong> — a strict-schema model/prompt catalog is promoted manually from a reviewer-protected signing environment as immutable JSON plus detached Ed25519 signature. A monotonic sequence blocks signed older replays and sequence/version collisions in the application and must increase across official promotions. The five bootstrap recommendations include concrete 40-character Hugging Face commits rather than mutable heads. The last valid cache is reverified and refreshed once in the background; a missing trust root disables network and cache trust and keeps the built-in bootstrap available offline.</li>
+<li><strong>Modeless AI Manager with persistent navigation</strong> — the manager can remain open while the main window stays usable, and invoking it again restores and focuses the same instance instead of opening a duplicate. A bold accent underline continues to mark the open section—Profiles, Local Models, Knowledge Stores, Local AI, Saved Chats, or Swarm Chats—after focus moves into a table, search field, or action button.</li>
+</ul>
+<h3 id="rag-knowledge-stores">RAG knowledge stores<a class="headerlink" href="#rag-knowledge-stores" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Reviewed files and folders instead of HNSW configuration</strong> — the Knowledge Stores tab creates a local cosine HNSW store and scans individual files or recursive directories asynchronously against a fixed text allowlist before showing a confirmable preview. It counts accepted/unchanged/changed files, lists skipped entries with reasons, supports per-source Automatic/Manual synchronization, and provides cancel/disable/remove/update/test-search actions while rejecting overlapping scan/index jobs. Binary/non-UTF-8 data, protected or image-only PDFs, unsupported formats, symbolic links, hidden/build/dependency paths and overlapping sources are rejected or skipped explicitly.</li>
+<li><strong>Incremental, failure-safe hierarchical indexing</strong> — only content-hash changes are re-chunked into approximately 800-token excerpts with 120-token overlap and embedded through the selected local model. Candidate multi-layer HNSW v2 snapshots are flushed and atomically activated; legacy v1 snapshots migrate on open, and cancellation or a fatal scan/embedding error preserves the previous graph. A source root that was actually deleted instead atomically removes its stale chunks and becomes <strong>MISSING</strong>. Startup reconciliation catches Automatic-source changes made while korTTY was closed, while persisted status, hash, file/chunk/problem counts and completion summaries keep the UI informative across restarts. Qdrant is available as an optional second backend.</li>
+<li><strong>Bounded untrusted retrieval with citations</strong> — role-matched stores contribute at most six excerpts, two per source, 4,000 tokens and 25% of the model context. Excerpts are escaped inside <code>&lt;retrieved_context&gt;</code> with stable <code>[R1]</code> source markers after action/skill instructions and before the model preset; the full store is never sent, but explicitly assigning a cloud profile permits those retrieved excerpts to leave the computer. Agent, Planning, Swarm and scheduled autonomous flows require explicit opt-in.</li>
+</ul>
+<h3 id="local-ai-runtime-and-backup-lifecycle">Local-AI runtime and backup lifecycle<a class="headerlink" href="#local-ai-runtime-and-backup-lifecycle" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Independently updated, revocation- and rollback-safe llama.cpp packages</strong> — korTTY CI detects candidate pins while the public <a href="https://github.com/chardonnay/kortty-llama-runtimes">llama.cpp runtime repository</a> rebuilds the exact reviewed commit, runs the complete CPU/Metal/Vulkan platform matrix plus authenticated chat, embeddings, JSON schema, sleep/wake, parallel-sidecar and pinned-Qdrant smokes, and signs only after protected human promotion. The public Ed25519 trust root is pinned in the application source. The Local Models manager installs or updates the preferred backend (Metal first on macOS, CPU first elsewhere with Vulkan fallback), while startup policy supports Off/Notify/Automatic Stable. Verified withdrawals persist a denylist and package quarantine marker, stop/rebind affected sidecars and remove unsafe rollback candidates; new packages activate only while idle and remain pending until the first real GGUF/API start, whose failure restores the newest healthy non-revoked version. The two newest confirmed healthy versions remain available.</li>
+<li><strong>Interactive SSH/SFTP/Mosh host-key trust</strong> — a shared <code>~/.kortty/ssh-host-keys.properties</code> store pins each normalized host and port with an OpenSSH SHA-256 fingerprint. First use is denied until the user confirms the fingerprint; a changed key is hard-blocked without an authentication retry. The store is atomically merged across processes and included in encrypted backups, while JobScheduler's separate unattended host-key pins remain unchanged.</li>
+<li><strong>Terminal and diagnostics hardening</strong> — the SithTermFX bottom-row hyperlink boundary is patched and regression-tested, split handshakes stay off the JavaFX thread, and test logging no longer writes negative-case stack traces into a developer's live <code>~/.kortty/logs</code> directory. Runtime-install failures now retain complete causes and stack traces in <code>kortty.log</code>.</li>
+<li><strong>Portable configuration without giant backups</strong> — encrypted backups include local-model registrations, Text/Coding/RAG settings, and knowledge-source metadata, while excluding GGUF weights, native runtimes, temporary sidecars, original documents and regenerable HNSW snapshots. The guide adds complete local-model, RAG, security, installation, packaging and recovery documentation plus a new indexing/retrieval diagram.</li>
 </ul>
 <h3 id="release-and-packaging">Release and packaging<a class="headerlink" href="#release-and-packaging" title="Permanent link">&para;</a></h3>
 <ul>

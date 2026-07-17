@@ -64,6 +64,26 @@ class LocalModelManagerPanePurposeTest {
     }
 
     @Test
+    void hidesRepositoriesWithoutSizesOrBeyondTheDetectedMemory() {
+        long eightGiB = 8L * 1024 * 1024 * 1024;
+        HuggingFaceModel unknownSize = hubModel(List.of(
+            hubFile("model-Q4_K_M.gguf", -1, null, null),
+            hubFile("model-Q8_0.gguf", -1, null, null)));
+        HuggingFaceModel fitsWithSmallestQuant = hubModel(List.of(
+            hubFile("model-Q4_K_M.gguf", 3L * 1024 * 1024 * 1024, sha('a'), URI.create("https://example.test/q4")),
+            hubFile("model-Q8_0.gguf", 60L * 1024 * 1024 * 1024, sha('b'), URI.create("https://example.test/q8"))));
+        HuggingFaceModel tooLarge = hubModel(List.of(
+            hubFile("model-Q4_K_M.gguf", 60L * 1024 * 1024 * 1024, sha('c'), URI.create("https://example.test/large"))));
+
+        assertThat(LocalModelManagerPane.usableOnThisMachine(unknownSize, eightGiB)).isFalse();
+        assertThat(LocalModelManagerPane.usableOnThisMachine(fitsWithSmallestQuant, eightGiB)).isTrue();
+        assertThat(LocalModelManagerPane.usableOnThisMachine(tooLarge, eightGiB)).isFalse();
+        assertThat(fitsWithSmallestQuant.smallestQuantizationBytes())
+            .isEqualTo(3L * 1024 * 1024 * 1024);
+        assertThat(unknownSize.smallestQuantizationBytes()).isEqualTo(-1);
+    }
+
+    @Test
     void transferRatesUseReadableUnitsInsteadOfRoundingSmallRatesToZero() {
         assertThat(LocalModelManagerPane.formatTransferRate(12L * 1024L))
             .isEqualTo("12.0 KiB/s");

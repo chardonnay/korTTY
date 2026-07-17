@@ -44,12 +44,13 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Profilname | Text | – | AI-Profil | (Feld `name` des Profils) |
-| Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integrierte llama.cpp | HTTP-API | (Profilfeld `connectionMode`) |
+| Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integriertes llama.cpp, integriertes MLX (Apple Silicon; nur auf Apple Silicon Macs verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
 | API-URL | Text | – | – | (Profilfeld `apiUrl`) |
 | CLI-Anbieter | Dropdown-Liste | (registrierte Anbieter) | – | (Profilfeld `cliProviderId`) |
 | CLI-ausführbare Datei | Text | – | – | (Profilfeld `cliExecutablePath`) |
 | Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | – | (Profilfeld `model`) |
 | Lokales GGUF-Modell | Dropdown-Liste | Installierte Chat-Modelle; Verfügbar, wenn die Verbindung „Integriert“ ist. llama.cpp | – | (Profilfeld `embeddedModelId`) |
+| Lokales MLX-Modell | Dropdown-Liste | Installierte MLX-Modelle; Verfügbar, wenn die Verbindung „Integrated MLX“ (Apple Silicon) ist. | – | (Profilfeld `embeddedModelId`) |
 | Benutzerdefiniertes Modell | Text | – | – | (Profilfeld `cliCustomModel`) |
 | Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |

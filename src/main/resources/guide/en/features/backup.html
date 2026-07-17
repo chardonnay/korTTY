@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1494,6 +1498,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -2217,7 +2277,8 @@
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Encrypted backups</strong> — All backups are encrypted using either password-protected ZIP or GPG encryption</li>
-<li><strong>Complete backup</strong> — Includes connections, credentials, SSH keys, GPG keys, global settings, JobScheduler configuration, snippets, and AI chat history</li>
+<li><strong>Configuration backup</strong> — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata</li>
+<li><strong>Regenerable local AI data excluded</strong> — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive</li>
 <li><strong>Projects directory</strong> — All saved project workspaces are included in the backup</li>
 <li><strong>Automatic rotation</strong> — Old backups are automatically moved to an <code>old-backups</code> subdirectory with timestamps</li>
 <li><strong>Configurable retention</strong> — Set a maximum number of backups to keep (0 = unlimited; oldest backups are deleted automatically)</li>
@@ -2253,6 +2314,10 @@
 <td>Centrally managed SSH private keys with encrypted passphrases</td>
 </tr>
 <tr>
+<td>Trusted interactive hosts</td>
+<td><code>ssh-host-keys.properties</code>, shared by Terminal, SFTP, and the Mosh SSH bootstrap; the transient <code>.lock</code> companion is not included</td>
+</tr>
+<tr>
 <td>GPG keys</td>
 <td>GPG public keys for backup encryption</td>
 </tr>
@@ -2275,6 +2340,14 @@
 <tr>
 <td>AI chats</td>
 <td>Saved AI conversation histories and profiles</td>
+</tr>
+<tr>
+<td>Local AI configuration</td>
+<td>Local GGUF registrations and typed launch settings, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token</td>
+</tr>
+<tr>
+<td>Knowledge-store configuration</td>
+<td>Store metadata and source paths, filters, sync modes, and embedding configuration; not the HNSW vectors</td>
 </tr>
 <tr>
 <td>Projects</td>
@@ -2326,6 +2399,7 @@
 <li><code>connections.xml</code> — All SSH connections and groups</li>
 <li><code>credentials.xml</code> — Stored credentials (still encrypted with your master password)</li>
 <li><code>ssh-keys.xml</code> — SSH key references and encrypted passphrases</li>
+<li><code>ssh-host-keys.properties</code> — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (<code>ssh-host-keys.properties.lock</code> is intentionally excluded)</li>
 <li><code>gpg-keys.xml</code> — GPG public keys</li>
 <li><code>global-settings.xml</code> — Application settings, themes, AI profiles, terminal defaults</li>
 <li><code>job-scheduler.xml</code> — JobScheduler jobs, host-key pins, encrypted sudo passwords</li>
@@ -2333,11 +2407,17 @@
 <li><code>snippet-variables.xml</code> — Custom snippet variables</li>
 <li><code>ai-chats.xml</code> — Saved AI conversations</li>
 <li><code>master-password-hash</code> — Hash of your master password (for verification on import)</li>
+<li><code>llm/models.xml</code> — Local GGUF registrations and runtime settings (model weights are not included)</li>
+<li><code>rag/stores.json</code> — Knowledge-store and source configuration (vector snapshots are not included)</li>
 <li><code>projects/</code> — All saved project workspace files (<code>.kortty</code>)</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Rebuild local AI assets after a restore</p>
+<p>The backup excludes <code>llm/models/</code>, <code>llm/runtime/</code>, <code>llm/catalog/</code>, <code>llm/run/</code>, and local <code>index.hnsw</code> snapshots. After moving to another computer, restore or download the GGUF files and a compatible runtime, reconnect any external model/source paths, then run <strong>Update now</strong> in each knowledge store to regenerate its index. The signed catalog cache refreshes automatically or falls back to the bootstrap. Original source documents and external Qdrant data are not part of a korTTY configuration backup.</p>
 </div>
 <h2 id="backup-retention-and-cleanup">Backup retention and cleanup<a class="headerlink" href="#backup-retention-and-cleanup" title="Permanent link">&para;</a></h2>
 <p>When you create a new backup in a directory that already contains one, KorTTY:</p>
@@ -2368,7 +2448,7 @@
 <li>Leave <strong>Overwrite</strong> unchecked unless you want to replace existing connections</li>
 <li>Restart KorTTY</li>
 </ol>
-<p>All your connections, settings, snippets, and saved chats will be available on machine B.</p>
+<p>All backed-up connections, settings, snippets, saved chats, interactive host-key trust decisions, model registrations, and knowledge-source definitions will be available on machine B. Restored host keys are still matched by normalized host name and port, so a changed key remains blocked after migration. Local model weights, runtime packages, source documents, and HNSW vectors must be restored or regenerated separately.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <dl>
 <dt><strong>"Backup file not found"</strong></dt>
@@ -2382,7 +2462,7 @@
 <dt><strong>Import succeeded but changes did not take effect</strong></dt>
 <dd>Restart KorTTY for imported settings to become active. If you imported credentials, you may also need to unlock the master password after restart.</dd>
 <dt><strong>Backup file is larger than expected</strong></dt>
-<dd>Large backups can occur if you have many saved AI chats, large terminal history files, or a large projects directory. Older projects or chats can be deleted from the import before using them.</dd>
+<dd>Large backups can occur if you have many saved AI chats or a large projects directory. GGUF weights, llama.cpp runtime packages, and HNSW snapshots are excluded and cannot be the cause.</dd>
 </dl>
 
 

@@ -180,7 +180,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/ai.png
-    last_synced_ref: "ba4262a"
+    last_synced_ref: "297cc4f"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/core]
@@ -243,7 +243,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
     diagrams: []
     screenshots: [ai/local-models.png]
-    last_synced_ref: "604540f"
+    last_synced_ref: "297cc4f"
   - path: app-docs/site/docs/en/features/rag.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/rag, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/ui/RagKnowledgeStorePane.java, src/main/java/de/kortty/ui/RagKnowledgeStorePresentation.java, src/main/java/de/kortty/model/AiProfile.java]
