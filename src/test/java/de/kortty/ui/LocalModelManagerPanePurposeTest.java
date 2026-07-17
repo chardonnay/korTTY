@@ -100,6 +100,22 @@ class LocalModelManagerPanePurposeTest {
             .isEqualTo("01:02:03");
     }
 
+    @Test
+    void defaultModelIsMatchedByIdAndStarredInTheNameColumn() {
+        LocalModelManagerPane.InstalledModel gptOss = LocalModelManagerPane.InstalledModel.of(
+            model("gpt-oss", Path.of("/tmp/a.gguf"), LlamaModelPurpose.CHAT));
+        LocalModelManagerPane.InstalledModel qwen = LocalModelManagerPane.InstalledModel.of(
+            model("qwen", Path.of("/tmp/b.gguf"), LlamaModelPurpose.CHAT));
+
+        assertThat(LocalModelManagerPane.isDefaultModel(gptOss, "gpt-oss")).isTrue();
+        assertThat(LocalModelManagerPane.isDefaultModel(qwen, "gpt-oss")).isFalse();
+        assertThat(LocalModelManagerPane.isDefaultModel(gptOss, null)).isFalse();
+
+        assertThat(LocalModelManagerPane.installedDisplayLabel(gptOss, "gpt-oss")).isEqualTo("★ gpt-oss");
+        assertThat(LocalModelManagerPane.installedDisplayLabel(qwen, "gpt-oss")).isEqualTo("qwen");
+        assertThat(LocalModelManagerPane.installedDisplayLabel(gptOss, null)).isEqualTo("gpt-oss");
+    }
+
     private static LlamaModel model(String id, Path weights, LlamaModelPurpose purpose) {
         return new LlamaModel(
             id, id, weights, Path.of("/tmp/llama-server"), LlamaBackend.CPU, purpose,

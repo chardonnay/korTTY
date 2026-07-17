@@ -12,7 +12,7 @@ Open **AI > AI Manager** and use these tabs:
 - **Local AI** assigns profiles to the Text/translation and Coding roles, selects the RAG embedding model, stores an optional Hugging Face token, and records the llama.cpp runtime-update policy.
 - **Profiles** creates an **Integrated llama.cpp** or **Integrated MLX (Apple Silicon)** profile for an installed model and controls its prompt optimization preset.
 
-Every action button in the tab carries a matching glyph (install, wizard, import, configure, start, stop, remove, refresh, search, load more, download, pause, cancel), and the pause control switches between pause and resume glyphs during a download.
+Every action button in the tab carries a matching glyph (install, wizard, import, configure, set as default, start, stop, remove, refresh, search, load more, download, pause, cancel), and the pause control switches between pause and resume glyphs during a download.
 
 ![Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress](../assets/screenshots/ai/local-models.png)
 
@@ -109,6 +109,8 @@ Select an installed model and choose **Configure**. The available settings are d
 The per-model backend describes how that model should run. In **AI Manager > Local AI**, **Preferred runtime backend** controls which signed native package is installed and updated: macOS offers Auto, CPU, and Metal; Windows/Linux offer Auto, CPU, and Vulkan. **Automatic (keep active backend)** preserves the already active backend during updates. For a first installation, Auto prefers Metal and falls back to CPU on macOS; on Windows and Linux it prefers CPU and falls back to Vulkan only when no compatible CPU package is published. An explicitly selected backend requires an exact compatible package and never changes to another backend silently.
 
 Use multi-selection and **Start selected** to load several different models concurrently. Profiles that point to the same installed model and runtime configuration share one authenticated sidecar. The table reports `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING`, or `FAILED`.
+
+You can mark one installed model as the **default** with **Set as default** in the action bar or the table's right-click menu; **Clear default** in the same menu removes the mark. The default model is shown with a leading ★ in the Name column and is pre-selected when the manager opens, so the Start/Configure/Stop actions target it by default. This is a convenience marker for the manager only — it does not change which AI profile the agent, chat, or other AI features use; those continue to follow the AI profile configuration.
 
 If a selected Metal or Vulkan model requires a different package from the active runtime, korTTY offers to download, verify, and activate the matching signed package without interrupting current requests. Models that require incompatible GPU runtimes must be started separately with the matching preferred backend.
 

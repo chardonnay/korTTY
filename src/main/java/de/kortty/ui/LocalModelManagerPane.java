@@ -68,6 +68,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TableCell;
@@ -257,6 +259,28 @@ final class LocalModelManagerPane extends VBox {
             mlxRegistry.list().stream().map(InstalledModel::of).forEach(rows::add);
         }
         installedModels.setAll(rows);
+        preselectDefaultModel();
+    }
+
+    /**
+     * Selects the default/start model when the table has no current selection, so the default row is
+     * the one the Start/Configure/Stop actions target after the manager opens. A live selection is
+     * left untouched so refreshes triggered by actions never steal the user's choice.
+     */
+    private void preselectDefaultModel() {
+        if (installedTable.getSelectionModel().getSelectedItem() != null) {
+            return;
+        }
+        String defaultId = defaultLocalModelId();
+        if (defaultId == null) {
+            return;
+        }
+        for (InstalledModel model : installedModels) {
+            if (defaultId.equals(model.id())) {
+                installedTable.getSelectionModel().select(model);
+                return;
+            }
+        }
     }
 
     /** One embedded runtime kind with its installed version, backend and state. */
@@ -446,6 +470,9 @@ final class LocalModelManagerPane extends VBox {
         Button configure = new Button(I18n.get("ai.local.models.configure"));
         configure.setOnAction(event -> configureSelected());
         ButtonIcons.apply(configure, ButtonIcons.GEAR);
+        Button makeDefault = new Button(I18n.get("ai.local.models.setDefault"));
+        makeDefault.setOnAction(event -> markSelectedAsDefault());
+        ButtonIcons.apply(makeDefault, ButtonIcons.STAR);
         Button start = new Button(I18n.get("ai.local.models.start"));
         start.setOnAction(event -> startSelected());
         ButtonIcons.apply(start, ButtonIcons.PLAY);
@@ -458,7 +485,7 @@ final class LocalModelManagerPane extends VBox {
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refresh());
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
-        HBox buttons = new HBox(8, wizard, importModel, configure, start, stop, remove, refreshButton);
+        HBox buttons = new HBox(8, wizard, importModel, configure, makeDefault, start, stop, remove, refreshButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(7, title, installedTable, buttons);
         box.minHeightProperty().bind(Bindings.when(downloadStatusPanel.visibleProperty())
@@ -556,7 +583,7 @@ final class LocalModelManagerPane extends VBox {
         installedTable.setPlaceholder(new Label(I18n.get("ai.local.models.empty")));
 
         TableColumn<InstalledModel, String> name = column(I18n.get("ai.local.models.column.name"),
-            InstalledModel::displayName);
+            model -> installedDisplayLabel(model, defaultLocalModelId()));
         TableColumn<InstalledModel, String> file = column(I18n.get("ai.local.models.column.file"),
             InstalledModel::fileName);
         TableColumn<InstalledModel, String> backend = column(I18n.get("ai.local.models.column.backend"),
@@ -573,6 +600,22 @@ final class LocalModelManagerPane extends VBox {
         name.setMinWidth(170);
         file.setMinWidth(180);
         installedTable.getColumns().addAll(List.of(name, file, purpose, backend, idle, state));
+        installDefaultContextMenu();
+    }
+
+    /** Right-click menu on the installed-models table to mark or clear the default/start model. */
+    private void installDefaultContextMenu() {
+        MenuItem setDefault = new MenuItem(I18n.get("ai.local.models.setDefault"));
+        setDefault.setOnAction(event -> markSelectedAsDefault());
+        MenuItem clearDefault = new MenuItem(I18n.get("ai.local.models.clearDefault"));
+        clearDefault.setOnAction(event -> clearDefaultModel());
+        ContextMenu menu = new ContextMenu(setDefault, clearDefault);
+        menu.setOnShowing(event -> {
+            InstalledModel selected = installedTable.getSelectionModel().getSelectedItem();
+            setDefault.setDisable(selected == null || isDefaultModel(selected));
+            clearDefault.setDisable(defaultLocalModelId() == null);
+        });
+        installedTable.setContextMenu(menu);
     }
 
     /** One installed local model row; exactly one of the two embedded runtimes backs it. */
@@ -1496,6 +1539,61 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private record PreparedImport(Path modelPath, String baseName, Path server, boolean managedCopy) {
+    }
+
+    /** The installed-model id marked as the default/start model, or {@code null} when none is set. */
+    private String defaultLocalModelId() {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getDefaultLocalModelId() : null;
+    }
+
+    private boolean isDefaultModel(InstalledModel model) {
+        return isDefaultModel(model, defaultLocalModelId());
+    }
+
+    /** True when {@code model} is the installed model marked as default. */
+    static boolean isDefaultModel(InstalledModel model, String defaultModelId) {
+        return model != null && defaultModelId != null && defaultModelId.equals(model.id());
+    }
+
+    /** The name-column label: the default model is prefixed with a star so it is visible at a glance. */
+    static String installedDisplayLabel(InstalledModel model, String defaultModelId) {
+        if (model == null) {
+            return "";
+        }
+        return isDefaultModel(model, defaultModelId) ? "★ " + model.displayName() : model.displayName();
+    }
+
+    private void markSelectedAsDefault() {
+        InstalledModel selected = installedTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            show(Alert.AlertType.INFORMATION, I18n.get("ai.local.models.setDefault.none"));
+            return;
+        }
+        persistDefaultLocalModelId(selected.id());
+    }
+
+    private void clearDefaultModel() {
+        persistDefaultLocalModelId(null);
+    }
+
+    private void persistDefaultLocalModelId(String modelId) {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        if (settings == null) {
+            return;
+        }
+        settings.setDefaultLocalModelId(modelId);
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception error) {
+            show(Alert.AlertType.ERROR, message(error));
+            return;
+        }
+        installedTable.refresh();
     }
 
     private void configureSelected() {

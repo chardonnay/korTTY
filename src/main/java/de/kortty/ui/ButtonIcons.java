@@ -56,6 +56,9 @@ final class ButtonIcons {
     static final String CANCEL =
         "M19 6.41 L17.59 5 L12 10.59 L6.41 5 L5 6.41 L10.59 12 L5 17.59 L6.41 19 L12 13.41 "
         + "L17.59 19 L19 17.59 L13.41 12 Z";
+    static final String STAR =
+        "M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 "
+        + "L2 9.27 L8.91 8.26 Z";
 
     private ButtonIcons() {
     }

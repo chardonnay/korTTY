@@ -65,6 +65,27 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesDefaultLocalModelId() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setDefaultLocalModelId("lmstudio-community-gpt-oss-20b-GGUF-MXFP4");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getDefaultLocalModelId())
+                .isEqualTo("lmstudio-community-gpt-oss-20b-GGUF-MXFP4");
+
+            reloaded.getSettings().setDefaultLocalModelId("   ");
+            assertThat(reloaded.getSettings().getDefaultLocalModelId()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesAiProfiles() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

@@ -245,6 +245,10 @@ public class GlobalSettings {
     @XmlElement
     private String defaultAiProfileId;
 
+    /** Installed local model marked as the default/start model in the Local Models manager. */
+    @XmlElement
+    private String defaultLocalModelId;
+
     /** AI profile dedicated to snippet security checks. When null the default profile is used. */
     @XmlElement
     private String securityCheckAiProfileId;
@@ -1256,6 +1260,16 @@ public class GlobalSettings {
             ? defaultAiProfileId.trim()
             : null;
         normalizeAiProfiles();
+    }
+
+    public String getDefaultLocalModelId() {
+        return defaultLocalModelId;
+    }
+
+    public void setDefaultLocalModelId(String defaultLocalModelId) {
+        this.defaultLocalModelId = defaultLocalModelId != null && !defaultLocalModelId.isBlank()
+            ? defaultLocalModelId.trim()
+            : null;
     }
 
     public String getSecurityCheckAiProfileId() {

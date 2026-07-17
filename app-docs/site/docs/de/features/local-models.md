@@ -12,7 +12,7 @@ korTTY kann lokale Sprachmodelle direkt über integrierte, modellspezifische Sid
 - **Lokale KI** weist Profile den Rollen Text/Übersetzung und Codierung zu, wählt das RAG-Einbettungsmodell aus, speichert ein optionales Hugging Face-Token und zeichnet die Laufzeitaktualisierungsrichtlinie llama.cpp auf.
 - **Profiles** erstellt ein **Integrated llama.cpp**- oder **Integrated MLX (Apple Silicon)**-Profil für ein installiertes Modell und steuert dessen Prompt-Optimierungsvoreinstellung.
 
-Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.
+Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Als Standard festlegen, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.
 
 ![Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress](../assets/screenshots/ai/local-models.png)
 
@@ -109,6 +109,8 @@ Wählen Sie ein installiertes Modell aus und wählen Sie **Konfigurieren**. Die 
 Das Backend pro Modell beschreibt, wie dieses Modell ausgeführt werden soll. In **AI Manager > Local AI** steuert **Bevorzugtes Laufzeit-Backend**, welches signierte native Paket installiert und aktualisiert wird: macOS bietet Auto, CPU und Metal; Windows/Linux bieten Auto, CPU und Vulkan. **Automatisch (aktives Backend beibehalten)** behält das bereits aktive Backend bei Aktualisierungen bei. Bei einer Erstinstallation bevorzugt Auto Metal und greift unter macOS auf CPU zurück; unter Windows und Linux bevorzugt es die CPU und greift nur dann auf Vulkan zurück, wenn kein kompatibles CPU-Paket veröffentlicht wird. Ein explizit ausgewähltes Backend erfordert ein genau kompatibles Paket und wechselt niemals stillschweigend zu einem anderen Backend.
 
 Verwenden Sie die Mehrfachauswahl und **Auswahl starten**, um mehrere verschiedene Modelle gleichzeitig zu laden. Profile, die auf dasselbe installierte Modell und dieselbe Laufzeitkonfiguration verweisen, teilen sich einen authentifizierten Sidecar. Die Tabelle meldet `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING` oder `FAILED`.
+
+Sie können ein installiertes Modell mit **Als Standard festlegen** in der Aktionsleiste oder im Rechtsklickmenü der Tabelle als **Standardmodell** markieren. **Standard löschen** im selben Menü entfernt die Markierung. Das Standardmodell wird mit einem führenden ★ in der Spalte „Name“ angezeigt und ist beim Öffnen des Managers vorab ausgewählt, sodass die Aktionen „Starten/Konfigurieren/Stoppen“ standardmäßig darauf abzielen. Dies ist nur eine praktische Markierung für den Manager – es ändert nichts daran, welches KI-Profil der Agent, Chat oder andere KI-Funktionen verwendet; diese folgen weiterhin der AI-Profilkonfiguration.
 
 Wenn ein ausgewähltes Metal- oder Vulkan-Modell ein anderes Paket als die aktive Laufzeit erfordert, bietet korTTY an, das passende signierte Paket herunterzuladen, zu überprüfen und zu aktivieren, ohne aktuelle Anfragen zu unterbrechen. Modelle, die inkompatible GPU-Laufzeiten erfordern, müssen separat mit dem passenden bevorzugten Backend gestartet werden.
 
