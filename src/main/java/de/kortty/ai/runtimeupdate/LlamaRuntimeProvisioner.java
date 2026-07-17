@@ -7,7 +7,14 @@ import de.kortty.ai.llama.LlamaRuntimeManager;
 import de.kortty.ai.llama.LlamaRuntimeTrustGuard;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +37,7 @@ public final class LlamaRuntimeProvisioner {
     private final ActivationGate activationGate;
     private final LlamaRuntimePackageInstaller.RuntimeHealthCheck healthCheck;
     private final UpdateOperation updateOperation;
+    private final LlamaRuntimeUpdateService.IndexProvider indexProvider;
 
     public static LlamaRuntimeProvisioner createDefault() {
         Path llamaDirectory = KorTTYApplication.getConfigDirectory().resolve("llm");
@@ -92,6 +100,24 @@ public final class LlamaRuntimeProvisioner {
         LlamaRuntimePackageInstaller.RuntimeHealthCheck healthCheck,
         UpdateOperation updateOperation
     ) {
+        this(releaseConfiguration, installer, registry, currentVersion, runtimeIsIdle,
+            shutdownRuntimeManager, initializeRuntimeManager, activationGate, healthCheck,
+            updateOperation, null);
+    }
+
+    LlamaRuntimeProvisioner(
+        LlamaRuntimeReleaseConfiguration releaseConfiguration,
+        LlamaRuntimePackageInstaller installer,
+        LlamaModelRegistry registry,
+        Supplier<String> currentVersion,
+        BooleanSupplier runtimeIsIdle,
+        Runnable shutdownRuntimeManager,
+        Runnable initializeRuntimeManager,
+        ActivationGate activationGate,
+        LlamaRuntimePackageInstaller.RuntimeHealthCheck healthCheck,
+        UpdateOperation updateOperation,
+        LlamaRuntimeUpdateService.IndexProvider indexProvider
+    ) {
         this.releaseConfiguration = Objects.requireNonNull(releaseConfiguration, "releaseConfiguration");
         this.installer = Objects.requireNonNull(installer, "installer");
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -102,6 +128,7 @@ public final class LlamaRuntimeProvisioner {
         this.activationGate = Objects.requireNonNull(activationGate, "activationGate");
         this.healthCheck = Objects.requireNonNull(healthCheck, "healthCheck");
         this.updateOperation = updateOperation;
+        this.indexProvider = indexProvider;
     }
 
     public Optional<LlamaRuntimeInstallation> activeInstallation() throws IOException {
@@ -172,6 +199,130 @@ public final class LlamaRuntimeProvisioner {
         }
         return installer.active().orElseThrow(() -> new IOException(
             "The signed stable index contains no compatible llama.cpp runtime for this platform and backend."));
+    }
+
+    /**
+     * Explicit user action: removes the managed runtime completely. The signed revocation denylist
+     * and the blocked-active marker survive so a withdrawn package stays blocked after a
+     * reinstall. Registered models keep their (now dangling) executable bindings; the next install
+     * rebinds them through the regular activation path.
+     */
+    public synchronized void uninstall() throws IOException {
+        // The exclusive scope blocks new leases while the manager is shut down and the packages
+        // are removed, exactly like an activation switch.
+        try (ActivationScope ignored = activationGate.block()) {
+            if (!runtimeIsIdle.getAsBoolean()) {
+                throw new LlamaRuntimeBusyException(
+                    "The embedded llama.cpp runtime cannot be removed while a local AI request is running.");
+            }
+            shutdownRuntimeManager.run();
+            try {
+                installer.uninstallAll();
+            } finally {
+                initializeRuntimeManager.run();
+            }
+        }
+    }
+
+    /**
+     * Explicit user action: installs a locally provided runtime archive, but only when its exact
+     * SHA-256 is published by the signed stable index for the current platform, architecture and
+     * korTTY build. Installation, health check, idle-only activation, pending-first-launch and
+     * registry rebinding are identical to a downloaded update.
+     */
+    public synchronized LlamaRuntimeUpdateResult installFromLocalPackage(Path archive)
+        throws IOException, InterruptedException {
+        Objects.requireNonNull(archive, "archive");
+        if (!Files.isRegularFile(archive, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("The selected llama.cpp runtime archive does not exist.");
+        }
+        LlamaRuntimeIndex index = fetchVerifiedStableIndex();
+        // A verified index always enforces withdrawals first, exactly like the update service.
+        Optional<LlamaRuntimeInstallation> activeBefore = installer.active();
+        Optional<LlamaRuntimeInstallation> newlyRevokedActive = activeBefore
+            .filter(installation -> index.isRevoked(installation.descriptor()));
+        if (newlyRevokedActive.isPresent()) {
+            blockRevokedRuntime(index, newlyRevokedActive.get());
+        } else {
+            installer.applyRevocations(index);
+        }
+        String archiveSha256 = sha256(archive);
+        LlamaRuntimePackageDescriptor entry = index.packages().stream()
+            .filter(descriptor -> descriptor.sha256().equals(archiveSha256))
+            .findFirst()
+            .orElseThrow(() -> new IOException(
+                "This archive was not published by the signed stable llama.cpp channel and cannot be installed."));
+        if (index.isRevoked(entry)) {
+            throw new IOException(
+                "This llama.cpp runtime package was revoked by the signed stable channel and cannot be installed.");
+        }
+        LlamaRuntimeSelector selector = new LlamaRuntimeSelector();
+        if (!selector.isCompatible(
+            index,
+            entry,
+            LlamaRuntimePlatform.current(),
+            LlamaRuntimePackageDescriptor.currentArchitecture(),
+            releaseConfiguration.apiContractVersion(),
+            currentVersion.get())) {
+            throw new IOException(
+                "This llama.cpp runtime package is not compatible with this korTTY build, platform or architecture.");
+        }
+        if (Files.size(archive) != entry.size()) {
+            throw new IOException("The archive size does not match its signed package entry.");
+        }
+        // Same install-and-activate machinery as a download; only the bytes come from the local
+        // file, and strictly for the one verified download URI of the matched entry.
+        LlamaRuntimePackageInstaller localInstaller = installer.withContentProvider(uri -> {
+            if (!entry.downloadUri().equals(uri)) {
+                throw new IOException("A local runtime installation must not download remote packages.");
+            }
+            return Files.newInputStream(archive);
+        });
+        LlamaRuntimeActivationResult activation = localInstaller.installAndActivate(
+            entry, runtimeIsIdle, healthCheck);
+        LlamaRuntimeUpdateResult.Status status = switch (activation.status()) {
+            case ACTIVATED -> LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH;
+            case ALREADY_ACTIVE -> installer.pendingActivation().isPresent()
+                ? LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH
+                : LlamaRuntimeUpdateResult.Status.ACTIVATED;
+            case STAGED_UNTIL_IDLE -> LlamaRuntimeUpdateResult.Status.STAGED_UNTIL_IDLE;
+            case ROLLED_BACK -> LlamaRuntimeUpdateResult.Status.ROLLED_BACK;
+        };
+        if (status == LlamaRuntimeUpdateResult.Status.ACTIVATED
+            || status == LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH) {
+            activateForRegisteredModels(activation.installation());
+        }
+        return new LlamaRuntimeUpdateResult(status, entry, activation);
+    }
+
+    /** Fetches and Ed25519-verifies the signed stable index using the pinned trust root. */
+    LlamaRuntimeIndex fetchVerifiedStableIndex() throws IOException, InterruptedException {
+        if (indexProvider != null) {
+            return indexProvider.fetch();
+        }
+        LlamaRuntimeIndexVerifier verifier = new LlamaRuntimeIndexVerifier(
+            releaseConfiguration.requireTrustedPublicKey());
+        return new LlamaRuntimeIndexClient(
+            releaseConfiguration.stableIndexUri(),
+            releaseConfiguration.stableSignatureUri(),
+            verifier).fetch();
+    }
+
+    private static String sha256(Path file) throws IOException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 is unavailable.", e);
+        }
+        try (InputStream input = Files.newInputStream(file)) {
+            byte[] buffer = new byte[64 * 1024];
+            int count;
+            while ((count = input.read(buffer)) >= 0) {
+                digest.update(buffer, 0, count);
+            }
+        }
+        return HexFormat.of().formatHex(digest.digest()).toLowerCase(Locale.ROOT);
     }
 
     public synchronized Optional<LlamaRuntimeInstallation> reconcileActiveRuntimeIfIdle() throws IOException {

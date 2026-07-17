@@ -24,17 +24,8 @@ public final class LlamaRuntimeSelector {
         if (index == null || platform == null || requestedBackend == null) {
             throw new IllegalArgumentException("Runtime selection parameters are required.");
         }
-        String normalizedArchitecture = LlamaRuntimePackageDescriptor.normalizeArchitecture(architecture);
-        UpdateVersion currentVersion = UpdateVersion.parse(currentKorttyVersion)
-            .orElseThrow(() -> new IllegalArgumentException("Current korTTY version is invalid."));
-        Predicate<LlamaRuntimePackageDescriptor> compatible = descriptor ->
-            !index.isRevoked(descriptor)
-                && descriptor.platform() == platform
-                && descriptor.architecture().equals(normalizedArchitecture)
-                && descriptor.apiContractVersion() == supportedApiContractVersion
-                && UpdateVersion.parse(descriptor.minimumKorttyVersion())
-                    .map(minimum -> currentVersion.compareTo(minimum) >= 0)
-                    .orElse(false);
+        Predicate<LlamaRuntimePackageDescriptor> compatible = descriptor -> isCompatible(
+            index, descriptor, platform, architecture, supportedApiContractVersion, currentKorttyVersion);
 
         if (requestedBackend != LlamaBackend.AUTO) {
             return selectBackend(index, compatible, requestedBackend);
@@ -55,6 +46,30 @@ public final class LlamaRuntimeSelector {
         return preferred.isPresent()
             ? preferred
             : selectBackend(index, compatible, fallbackBackend);
+    }
+
+    /** Shared compatibility gate for automatic selection and explicit local-archive installation. */
+    public boolean isCompatible(
+        LlamaRuntimeIndex index,
+        LlamaRuntimePackageDescriptor descriptor,
+        LlamaRuntimePlatform platform,
+        String architecture,
+        int supportedApiContractVersion,
+        String currentKorttyVersion
+    ) {
+        if (index == null || descriptor == null || platform == null) {
+            throw new IllegalArgumentException("Runtime compatibility parameters are required.");
+        }
+        String normalizedArchitecture = LlamaRuntimePackageDescriptor.normalizeArchitecture(architecture);
+        UpdateVersion currentVersion = UpdateVersion.parse(currentKorttyVersion)
+            .orElseThrow(() -> new IllegalArgumentException("Current korTTY version is invalid."));
+        return !index.isRevoked(descriptor)
+            && descriptor.platform() == platform
+            && descriptor.architecture().equals(normalizedArchitecture)
+            && descriptor.apiContractVersion() == supportedApiContractVersion
+            && UpdateVersion.parse(descriptor.minimumKorttyVersion())
+                .map(minimum -> currentVersion.compareTo(minimum) >= 0)
+                .orElse(false);
     }
 
     private static Optional<LlamaRuntimePackageDescriptor> selectBackend(

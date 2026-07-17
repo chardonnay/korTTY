@@ -59,6 +59,13 @@ val llamaRuntimeIndexUrl =
 val llamaRuntimeSignatureUrl =
     "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.sig"
 
+// The MLX channel is published from the same repository as a rolling `mlx-stable` release whose
+// cumulative index is signed with the same Ed25519 release key as the llama.cpp channel.
+val mlxRuntimeIndexUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/download/mlx-stable/mlx-runtime-index-v1.json"
+val mlxRuntimeSignatureUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/download/mlx-stable/mlx-runtime-index-v1.sig"
+
 // The Ed25519 public trust root is intentionally tracked so local and packaged builds verify the
 // same signed runtime channel. It is public, auditable material; the private signing key must never
 // enter this repository. CI may inject the public key redundantly, but an override must match the
@@ -79,6 +86,8 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
     inputs.property("apiContractVersion", llamaRuntimeApiContractVersion)
     inputs.property("indexUrl", llamaRuntimeIndexUrl)
     inputs.property("signatureUrl", llamaRuntimeSignatureUrl)
+    inputs.property("mlxIndexUrl", mlxRuntimeIndexUrl)
+    inputs.property("mlxSignatureUrl", mlxRuntimeSignatureUrl)
     inputs.property("publicKey", llamaRuntimePublicKey.orElse(""))
     inputs.file(llamaRuntimePublicKeyFile)
     outputs.file(outputFile)
@@ -118,6 +127,8 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
             appendLine("baseline.apiContractVersion=$llamaRuntimeApiContractVersion")
             appendLine("stable.indexUrl=${propertyValue(llamaRuntimeIndexUrl)}")
             appendLine("stable.signatureUrl=${propertyValue(llamaRuntimeSignatureUrl)}")
+            appendLine("mlx.stable.index.uri=${propertyValue(mlxRuntimeIndexUrl)}")
+            appendLine("mlx.stable.signature.uri=${propertyValue(mlxRuntimeSignatureUrl)}")
             appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
         }
         val file = outputFile.get().asFile.toPath()

@@ -91,6 +91,43 @@ public final class LlamaRuntimePackageInstaller {
         return Path.of(System.getProperty("user.home"), ".kortty", "llm", "runtime");
     }
 
+    /** Same runtime root and locks, but package bytes served by the given provider. */
+    public LlamaRuntimePackageInstaller withContentProvider(PackageContentProvider provider) {
+        return new LlamaRuntimePackageInstaller(runtimeRoot, provider);
+    }
+
+    /**
+     * Removes the active pointer, the pending-first-launch state, the healthy history and every
+     * installed package directory. The signed revocation denylist and the blocked-active marker
+     * deliberately survive an uninstall so a withdrawn package stays blocked after reinstalling.
+     */
+    public void uninstallAll() throws IOException {
+        Files.createDirectories(runtimeRoot);
+        jvmUpdateLock.lock();
+        try {
+            try (FileChannel channel = FileChannel.open(
+                    runtimeRoot.resolve("update.lock"),
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                 FileLock ignored = channel.lock()) {
+                // Pointers first: even if a package directory cannot be deleted, no state is left
+                // that would let the runtime manager launch it again.
+                Files.deleteIfExists(runtimeRoot.resolve(ACTIVE_FILE));
+                Files.deleteIfExists(runtimeRoot.resolve(PENDING_FIRST_LAUNCH_FILE));
+                Files.deleteIfExists(runtimeRoot.resolve(HISTORY_FILE));
+                if (Files.isDirectory(packagesDirectory)) {
+                    try (var stream = Files.list(packagesDirectory)) {
+                        for (Path candidate : stream.toList()) {
+                            deleteTree(candidate);
+                        }
+                    }
+                }
+                deleteTreeQuietly(downloadsDirectory);
+            }
+        } finally {
+            jvmUpdateLock.unlock();
+        }
+    }
+
     /** Installs and verifies a package beside the current version without changing active runtime state. */
     public LlamaRuntimeInstallation install(LlamaRuntimePackageDescriptor descriptor)
         throws IOException, InterruptedException {
@@ -867,6 +904,17 @@ public final class LlamaRuntimePackageInstaller {
 
     private void deleteInstallationQuietly(LlamaRuntimeInstallation installation) {
         deleteTreeQuietly(installation.directory());
+    }
+
+    private static void deleteTree(Path root) throws IOException {
+        if (root == null || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        try (var paths = Files.walk(root)) {
+            for (Path path : paths.sorted((first, second) -> second.compareTo(first)).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
     }
 
     private static void deleteTreeQuietly(Path root) {

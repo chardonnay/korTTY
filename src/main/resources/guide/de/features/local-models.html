@@ -1578,6 +1578,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#laufzeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Laufzeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schneller-einrichtungsassistent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2155,6 +2166,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#laufzeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Laufzeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schneller-einrichtungsassistent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2313,6 +2335,13 @@
 </ul>
 <p>Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.</p>
 <p><img alt="Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress" src="../assets/screenshots/ai/local-models.png" /></p>
+<h2 id="laufzeiten">Laufzeiten<a class="headerlink" href="#laufzeiten" title="Permanent link">&para;</a></h2>
+<p>In der Tabelle <strong>Laufzeiten</strong> oben unter „Lokale Modelle“ werden beide eingebetteten Laufzeiten mit ihrer installierten Version, ihrem Backend und ihrem Status („Bereit“, „Nicht installiert“ oder „Revoked“) aufgelistet: die Laufzeit llama.cpp (jede Plattform) und auf Apple Silicon die Laufzeit MLX. Drei Aktionen wirken sich auf die ausgewählte Zeile aus:</p>
+<ul>
+<li><strong>Install Runtime / Check-Install Runtime Update</strong> lädt das neueste kompatible Paket vom signierten stabilen Kanal herunter, überprüft und aktiviert es – den llama.cpp-Index für die Lama-Zeile, den <code>mlx-stable</code>-Index für die MLX-Zeile.</li>
+<li><strong>Lokales Paket importieren…</strong> installiert eine Laufzeitpaketdatei (<code>.zip</code>), ohne sie herunterzuladen, beispielsweise auf einem Air-Gap-Computer. Die Datei wird nur akzeptiert, wenn ihr SHA-256 mit einem nicht widerrufenen Eintrag des Ed25519-signierten stabilen Index für die aktuelle Plattform übereinstimmt; Alles, was nicht vom signierten Kanal veröffentlicht wird, wird abgelehnt. Das verifizierte Paket durchläuft dann genau die gleichen Installationsmechanismen wie ein Download (Extraktionshärtung, Integritätsprüfung, Aktivierung nur im Leerlauf).</li>
+<li><strong>Remove</strong> löscht die ausgewählte Laufzeit nach Bestätigung. Beiwagen müssen im Leerlauf sein; Installierte Modelle bleiben registriert, können jedoch erst gestartet werden, wenn eine Laufzeit erneut installiert wird, und die Sperrliste überlebt die Entfernung, sodass ein zurückgezogenes Paket auch bei Neuinstallationen blockiert bleibt.</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Speicher- und Netzwerkzugriff</p>
 <p>Die Modellinferenz bleibt auf diesem Computer. korTTY kontaktiert Hugging Face nur, wenn Sie nach einem von Ihnen genehmigten Modell suchen oder es herunterladen. Öffentliche Repositories funktionieren ohne Token; Ein optionales Token für private oder geschlossene Repositorys wird mit dem Master-Passwort verschlüsselt. Offizielle Builds können den separat signierten Modell-/Prompt-Katalog auch über HTTPS im Hintergrund abrufen; Mit dieser Anfrage wird keine Eingabeaufforderung, kein Quelldokument oder Modellgewicht gesendet.</p>
@@ -2372,7 +2401,7 @@
 <ul>
 <li><strong>Registrierung und Lebenszyklus</strong> spiegeln GGUF-Modelle wider: Installierte MLX-Modelle werden in derselben Tabelle mit Backend <strong>MLX</strong> angezeigt, unterstützen <strong>Auswahl starten</strong>, <strong>Auswahl stoppen</strong>, <strong>Entfernen</strong> und <strong>Konfigurieren</strong> (Anzeigename und Entladen nach Leerlaufzeit) und melden dieselben Laufzeitzustände.</li>
 <li><strong>Isolation</strong> spiegelt llama.cpp wider: Jedes Modell läuft als sein eigener reiner Loopback-Sidecar mit einem zufälligen Port und einem pro Prozess generierten API-Schlüssel. korTTY verpackt <code>mlx_lm.server</code> – das über keine eigene Authentifizierung verfügt – in einen eigenen Launcher, der jede nicht authentifizierte Anfrage außer der lokalen Gesundheitsprüfung ablehnt, den Offline-Zugriff auf Hugging Face erzwingt, geerbte Python- und Token-Umgebungsüberschreibungen entfernt und nach der konfigurierten Leerlaufzeit beendet.</li>
-<li><strong>Das MLX-Laufzeitpaket</strong> ist sowohl vom Anwendungsinstallationsprogramm als auch von der llama.cpp-Laufzeit getrennt: ein angehefteter verschiebbarer CPython plus ein Hash-gesperrter <code>mlx-lm</code>-Radsatz, integriert in CI und veröffentlicht über denselben Ed25519-signierten Indexmechanismus wie die llama.cpp-Pakete. Ohne installierte MLX-Laufzeit bleiben MLX-Modelle registriert, können aber nicht gestartet werden.</li>
+<li><strong>Das MLX-Laufzeitpaket</strong> ist sowohl vom Anwendungsinstallationsprogramm als auch von der llama.cpp-Laufzeit getrennt: ein angehefteter verschiebbarer CPython plus ein Hash-gesperrter <code>mlx-lm</code>-Radsatz, integriert in CI und veröffentlicht über denselben Ed25519-signierten Indexmechanismus wie die llama.cpp-Pakete (rollender <code>mlx-stable</code>-Index). Installieren, aktualisieren, lokal importieren oder in der Tabelle <strong>Laufzeiten</strong> entfernen; Ohne installierte MLX-Laufzeit bleiben MLX-Modelle registriert, können aber nicht gestartet werden.</li>
 <li><strong>Profile</strong>: Wählen Sie <strong>Integriertes MLX (Apple Silicon)</strong> als Profilverbindung und wählen Sie das installierte Modell aus der Liste <strong>Lokales MLX-Modell</strong> aus. LM-Studio-MCP-Internetmodi sind für eingebettete Profile nicht verfügbar; Das korTTY-Websuchtool funktioniert normal.</li>
 <li><strong>Begründungsmodelle</strong> (z. B. Qwen3-Konvertierungen) werden wie ihre GGUF-Gegenstücke behandelt: korTTY trennt die Inline-Gedankenkette von der Antwort und wiederholt automatisch eine Antwort, die nur Begründungen enthält.</li>
 </ul>
@@ -2477,7 +2506,7 @@
 </tr>
 </tbody>
 </table>
-<p>Die Laufzeitzeile in <strong>Lokale Modelle</strong> zeigt den aktuellen Update- oder Installationsstatus. Die Aktion lautet <strong>Runtime installieren</strong>, wenn kein verifiziertes Paket aktiv ist, andernfalls <strong>Runtime-Update prüfen/installieren</strong>. Diese explizite Aktion prüft und installiert den stabilen Kanal, selbst wenn die gespeicherte automatische Richtlinie <strong>Aus</strong> oder <strong>Benachrichtigen</strong> ist. Laufzeitkandidaten werden durch einen täglichen Workflow entdeckt, die Heraufstufung bleibt jedoch eine bewusste, überprüfte Release-Aktion, anstatt jedes Upstream-Tag automatisch zu übernehmen.</p>
+<p>Die Tabelle <strong>Laufzeiten</strong> in <strong>Lokale Modelle</strong> zeigt die installierte Version und den Status pro Laufzeit. Die Aktionsschaltfläche lautet <strong>Runtime installieren</strong>, wenn die ausgewählte Runtime kein verifiziertes Paket hat, andernfalls <strong>Runtime-Update prüfen/installieren</strong> und prüft/installiert den stabilen Kanal, selbst wenn die gespeicherte automatische Richtlinie <strong>Aus</strong> oder <strong>Benachrichtigen</strong> ist. Laufzeitkandidaten werden durch einen täglichen Workflow entdeckt, die Heraufstufung bleibt jedoch eine bewusste, überprüfte Release-Aktion, anstatt jedes Upstream-Tag automatisch zu übernehmen.</p>
 <h2 id="dateien-und-sicherungsverhalten">Dateien und Sicherungsverhalten<a class="headerlink" href="#dateien-und-sicherungsverhalten" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

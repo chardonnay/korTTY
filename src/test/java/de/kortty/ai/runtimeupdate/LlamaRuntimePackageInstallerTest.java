@@ -276,6 +276,36 @@ class LlamaRuntimePackageInstallerTest {
         }
     }
 
+    @Test
+    void uninstallAllRemovesRuntimeStateButPreservesRevocationEvidence() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-uninstall");
+        byte[] archive = runtimeZip("uninstall");
+        LlamaRuntimePackageDescriptor descriptor = descriptor("llama-b10025-kortty1", archive);
+        LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+            root, uri -> new ByteArrayInputStream(archive));
+        try {
+            installer.installAndActivate(descriptor, () -> true, installation -> true);
+            installer.applyRevocations(new LlamaRuntimeIndex(
+                1, Instant.now(), List.of(descriptor), Set.of(descriptor.runtimeId())));
+
+            installer.uninstallAll();
+
+            assertThat(installer.active()).isEmpty();
+            assertThat(installer.installed()).isEmpty();
+            assertThat(installer.pendingActivation()).isEmpty();
+            assertThat(Files.exists(root.resolve("active-v1"))).isFalse();
+            assertThat(Files.exists(root.resolve("pending-first-launch-v1"))).isFalse();
+            // Fail-closed evidence survives the uninstall: the denylist and the blocked-active
+            // marker keep a withdrawn package blocked even after reinstalling.
+            assertThat(Files.exists(root.resolve(LlamaRuntimeTrustGuard.REVOCATION_LIST_FILE))).isTrue();
+            assertThat(installer.blockedActiveRuntimeId()).hasValue(descriptor.runtimeId());
+            IOException rejected = expectThrows(IOException.class, () -> installer.install(descriptor));
+            assertThat(rejected).hasMessageThat().contains("revoked");
+        } finally {
+            deleteTree(root);
+        }
+    }
+
     private static LlamaRuntimePackageDescriptor descriptor(String id, byte[] archive) throws Exception {
         String tag = id.substring("llama-".length(), id.indexOf("-kortty"));
         String executable = LlamaRuntimePlatform.current() == LlamaRuntimePlatform.WINDOWS

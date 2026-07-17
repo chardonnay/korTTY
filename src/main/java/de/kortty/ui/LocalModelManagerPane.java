@@ -31,9 +31,12 @@ import de.kortty.ai.mlx.MlxModelRegistry;
 import de.kortty.ai.mlx.MlxPlatform;
 import de.kortty.ai.mlx.MlxRuntimeLocator;
 import de.kortty.ai.mlx.MlxRuntimeManager;
+import de.kortty.ai.mlx.MlxRuntimePackageInstaller;
 import de.kortty.ai.mlx.MlxRuntimeState;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeInstallation;
+import de.kortty.ai.runtimeupdate.LlamaRuntimeProvisioner;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator;
+import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateResult;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
@@ -142,7 +145,10 @@ final class LocalModelManagerPane extends VBox {
     private final ComboBox<String> quantization = new ComboBox<>();
     private final ComboBox<HubFormatFilter> hubFormat = new ComboBox<>();
     private final Map<HuggingFaceModelFormat, URI> hubNextPages = new EnumMap<>(HuggingFaceModelFormat.class);
-    private final Label runtimeLabel = new Label();
+    private final ObservableList<RuntimeRow> runtimeRows = FXCollections.observableArrayList();
+    private final TableView<RuntimeRow> runtimeTable = new TableView<>(runtimeRows);
+    private final Button runtimeImport = new Button();
+    private final Button runtimeRemove = new Button();
     private final Label status = new Label();
     private final VBox downloadStatusPanel = new VBox(6);
     private final Label downloadModelDetails = new Label();
@@ -179,18 +185,18 @@ final class LocalModelManagerPane extends VBox {
         setPadding(new Insets(8));
         Label intro = new Label(I18n.get("ai.local.models.intro"));
         intro.setWrapText(true);
-        runtimeLabel.setWrapText(true);
         status.setWrapText(true);
         status.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
 
         configureInstalledTable();
         configureHubTable();
+        VBox runtimes = buildRuntimeSection();
         VBox installed = buildInstalledSection();
         VBox hub = buildHubSection();
         buildDownloadStatusPanel();
         VBox.setVgrow(installedTable, Priority.ALWAYS);
         VBox.setVgrow(hubTable, Priority.ALWAYS);
-        getChildren().addAll(intro, runtimeLabel, installed, hub, status, downloadStatusPanel);
+        getChildren().addAll(intro, runtimes, installed, hub, status, downloadStatusPanel);
         VBox.setVgrow(installed, Priority.ALWAYS);
         VBox.setVgrow(hub, Priority.ALWAYS);
         runtimeStatusSubscription = runtimeCoordinator.addListener(update -> Platform.runLater(() -> {
@@ -233,11 +239,184 @@ final class LocalModelManagerPane extends VBox {
         installedModels.setAll(rows);
     }
 
+    /** One embedded runtime kind with its installed version, backend and state. */
+    record RuntimeRow(RuntimeKind kind, String version, String backend, String state) {
+    }
+
+    enum RuntimeKind {
+        LLAMA("llama.cpp"),
+        MLX("MLX");
+
+        private final String label;
+
+        RuntimeKind(String label) {
+            this.label = label;
+        }
+
+        String label() {
+            return label;
+        }
+    }
+
+    private VBox buildRuntimeSection() {
+        Label title = sectionTitle(I18n.get("ai.local.models.runtimes"));
+        runtimeTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        runtimeTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        TableColumn<RuntimeRow, String> runtime = column(I18n.get("ai.local.models.column.runtime"),
+            row -> row.kind().label());
+        TableColumn<RuntimeRow, String> version = column(I18n.get("ai.local.models.column.version"),
+            RuntimeRow::version);
+        TableColumn<RuntimeRow, String> backend = column(I18n.get("ai.local.models.column.backend"),
+            RuntimeRow::backend);
+        TableColumn<RuntimeRow, String> state = column(I18n.get("ai.local.models.column.state"),
+            RuntimeRow::state);
+        version.setMinWidth(220);
+        runtimeTable.getColumns().addAll(List.of(runtime, version, backend, state));
+        // Two fixed rows (one per runtime kind); the table must not grab vertical space from the
+        // model tables below.
+        runtimeTable.setPrefHeight(MlxPlatform.isSupported() ? 96 : 68);
+        runtimeTable.setMinHeight(runtimeTable.getPrefHeight());
+        runtimeTable.setMaxHeight(runtimeTable.getPrefHeight());
+        runtimeTable.getSelectionModel().selectedItemProperty()
+            .addListener((obs, oldValue, row) -> updateRuntimeActionState());
+
+        runtimeAction.setText(I18n.get("ai.local.models.runtime.install"));
+        runtimeAction.setOnAction(event -> installOrUpdateSelectedRuntime());
+        ButtonIcons.apply(runtimeAction, ButtonIcons.DOWNLOAD);
+        runtimeImport.setText(I18n.get("ai.local.models.runtime.importLocal"));
+        runtimeImport.setOnAction(event -> importLocalRuntimePackage());
+        ButtonIcons.apply(runtimeImport, ButtonIcons.FOLDER);
+        runtimeRemove.setText(I18n.get("ai.local.models.runtime.remove"));
+        runtimeRemove.setOnAction(event -> removeSelectedRuntime());
+        ButtonIcons.apply(runtimeRemove, ButtonIcons.DELETE);
+        HBox buttons = new HBox(8, runtimeAction, runtimeImport, runtimeRemove);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+        return new VBox(7, title, runtimeTable, buttons);
+    }
+
+    private RuntimeKind selectedRuntimeKind() {
+        RuntimeRow row = runtimeTable.getSelectionModel().getSelectedItem();
+        return row != null ? row.kind() : RuntimeKind.LLAMA;
+    }
+
+    private void installOrUpdateSelectedRuntime() {
+        if (selectedRuntimeKind() == RuntimeKind.MLX) {
+            installMlxRuntimeFromIndex();
+            return;
+        }
+        installOrUpdateRuntime();
+    }
+
+    private void installMlxRuntimeFromIndex() {
+        if (!confirm(I18n.get("ai.local.models.runtime.install.confirm"))) {
+            return;
+        }
+        status.setText(I18n.get("ai.local.models.runtime.mlx.installing"));
+        setRuntimeActionsDisabled(true);
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return MlxRuntimePackageInstaller.createDefault()
+                    .installFromIndex(MlxRuntimeManager.getDefault());
+            } catch (Exception error) {
+                throw new CompletionException(error);
+            }
+        }).whenComplete((installation, error) -> Platform.runLater(() -> {
+            setRuntimeActionsDisabled(false);
+            if (error != null) {
+                status.setText(I18n.get("ai.local.models.runtime.install.failed")
+                    + ": " + message(rootCause(error)));
+            } else {
+                status.setText(I18n.get("ai.local.models.runtime.import.success",
+                    RuntimeKind.MLX.label(), installation.id()));
+            }
+            refresh();
+            modelsChanged.run();
+        }));
+    }
+
+    private void importLocalRuntimePackage() {
+        RuntimeKind kind = selectedRuntimeKind();
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("ai.local.models.runtime.import.title"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Runtime (*.zip)", "*.zip"));
+        java.io.File selected = chooser.showOpenDialog(owner);
+        if (selected == null) {
+            return;
+        }
+        Path archive = selected.toPath();
+        status.setText(I18n.get("ai.local.models.runtime.import.running"));
+        setRuntimeActionsDisabled(true);
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                if (kind == RuntimeKind.MLX) {
+                    return MlxRuntimePackageInstaller.createDefault()
+                        .installFromLocalPackage(MlxRuntimeManager.getDefault(), archive)
+                        .id();
+                }
+                LlamaRuntimeUpdateResult result =
+                    LlamaRuntimeProvisioner.createDefault().installFromLocalPackage(archive);
+                return result.availablePackage() != null
+                    ? result.availablePackage().runtimeId()
+                    : "";
+            } catch (Exception error) {
+                throw new CompletionException(error);
+            }
+        }).whenComplete((runtimeId, error) -> Platform.runLater(() -> {
+            setRuntimeActionsDisabled(false);
+            if (error != null) {
+                status.setText(I18n.get("ai.local.models.runtime.import.failed")
+                    + ": " + message(rootCause(error)));
+            } else {
+                status.setText(I18n.get("ai.local.models.runtime.import.success",
+                    kind.label(), runtimeId));
+            }
+            refresh();
+            modelsChanged.run();
+        }));
+    }
+
+    private void removeSelectedRuntime() {
+        RuntimeKind kind = selectedRuntimeKind();
+        if (!confirm(I18n.get("ai.local.models.runtime.remove.confirm", kind.label()))) {
+            return;
+        }
+        status.setText(I18n.get("ai.local.models.search.running"));
+        setRuntimeActionsDisabled(true);
+        CompletableFuture.runAsync(() -> {
+            try {
+                if (kind == RuntimeKind.MLX) {
+                    MlxRuntimePackageInstaller.createDefault().uninstall(MlxRuntimeManager.getDefault());
+                } else {
+                    LlamaRuntimeProvisioner.createDefault().uninstall();
+                }
+            } catch (Exception error) {
+                throw new CompletionException(error);
+            }
+        }).whenComplete((ignored, error) -> Platform.runLater(() -> {
+            setRuntimeActionsDisabled(false);
+            if (error != null) {
+                Throwable cause = rootCause(error);
+                boolean busy = cause instanceof LlamaRuntimeProvisioner.LlamaRuntimeBusyException
+                    || cause instanceof MlxRuntimePackageInstaller.MlxRuntimeBusyException;
+                status.setText(busy
+                    ? I18n.get("ai.local.models.runtime.busy")
+                    : I18n.get("ai.local.models.runtime.remove.failed") + ": " + message(cause));
+            } else {
+                status.setText(I18n.get("ai.local.models.runtime.removed", kind.label()));
+            }
+            refresh();
+            modelsChanged.run();
+        }));
+    }
+
+    private void setRuntimeActionsDisabled(boolean disabled) {
+        runtimeAction.setDisable(disabled);
+        runtimeImport.setDisable(disabled);
+        runtimeRemove.setDisable(disabled);
+    }
+
     private VBox buildInstalledSection() {
         Label title = sectionTitle(I18n.get("ai.local.models.installed"));
-        runtimeAction.setText(I18n.get("ai.local.models.runtime.install"));
-        runtimeAction.setOnAction(event -> installOrUpdateRuntime());
-        ButtonIcons.apply(runtimeAction, ButtonIcons.DOWNLOAD);
         Button wizard = new Button(I18n.get("ai.local.models.setupWizard"));
         wizard.setOnAction(event -> openSetupWizard());
         ButtonIcons.apply(wizard, ButtonIcons.WIZARD);
@@ -259,7 +438,7 @@ final class LocalModelManagerPane extends VBox {
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refresh());
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
-        HBox buttons = new HBox(8, runtimeAction, wizard, importModel, configure, start, stop, remove, refreshButton);
+        HBox buttons = new HBox(8, wizard, importModel, configure, start, stop, remove, refreshButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(7, title, installedTable, buttons);
         box.minHeightProperty().bind(Bindings.when(downloadStatusPanel.visibleProperty())
@@ -1930,15 +2109,49 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void updateRuntimeLabel() {
-        Optional<Path> runtime = findRuntimeExecutable();
-        runtimeLabel.setText(runtime.map(path -> I18n.get("ai.local.models.runtime.ready", path))
-            .orElseGet(() -> I18n.get("ai.local.models.runtime.missing")));
-        runtimeAction.setText(runtime.isPresent()
+        Optional<LlamaRuntimeInstallation> llama = runtimeCoordinator.activeInstallation();
+        LlamaRuntimeUpdateCoordinator.State llamaCoordinatorState = runtimeCoordinator.status().state();
+        String llamaState = llama.isPresent()
+            ? I18n.get("ai.local.models.runtime.state.ready")
+            : llamaCoordinatorState == LlamaRuntimeUpdateCoordinator.State.REVOKED
+                ? I18n.get("ai.local.models.runtime.state.revoked")
+                : I18n.get("ai.local.models.runtime.state.missing");
+        List<RuntimeRow> rows = new ArrayList<>();
+        rows.add(new RuntimeRow(
+            RuntimeKind.LLAMA,
+            llama.map(installation -> installation.descriptor().runtimeId()).orElse("—"),
+            llama.map(installation -> installation.descriptor().backend().name()).orElse("—"),
+            llamaState));
+        if (MlxPlatform.isSupported()) {
+            Optional<MlxRuntimeLocator.MlxRuntimeInstallation> mlx = mlxRuntimeLocator.locateActive();
+            rows.add(new RuntimeRow(
+                RuntimeKind.MLX,
+                mlx.map(MlxRuntimeLocator.MlxRuntimeInstallation::id).orElse("—"),
+                "MLX",
+                mlx.isPresent()
+                    ? I18n.get("ai.local.models.runtime.state.ready")
+                    : I18n.get("ai.local.models.runtime.state.missing")));
+        }
+        RuntimeKind selectedKind = selectedRuntimeKind();
+        runtimeRows.setAll(rows);
+        runtimeRows.stream().filter(row -> row.kind() == selectedKind).findFirst()
+            .ifPresentOrElse(
+                row -> runtimeTable.getSelectionModel().select(row),
+                () -> runtimeTable.getSelectionModel().selectFirst());
+        updateRuntimeActionState();
+    }
+
+    private void updateRuntimeActionState() {
+        RuntimeRow row = runtimeTable.getSelectionModel().getSelectedItem();
+        boolean installed = row != null && !"—".equals(row.version());
+        runtimeAction.setText(installed
             ? I18n.get("ai.local.models.runtime.update")
             : I18n.get("ai.local.models.runtime.install"));
         LlamaRuntimeUpdateCoordinator.State state = runtimeCoordinator.status().state();
-        runtimeAction.setDisable(state == LlamaRuntimeUpdateCoordinator.State.CHECKING
-            || state == LlamaRuntimeUpdateCoordinator.State.INSTALLING);
+        boolean llamaBusy = state == LlamaRuntimeUpdateCoordinator.State.CHECKING
+            || state == LlamaRuntimeUpdateCoordinator.State.INSTALLING;
+        runtimeAction.setDisable(row != null && row.kind() == RuntimeKind.LLAMA && llamaBusy);
+        runtimeRemove.setDisable(!installed);
     }
 
     private void installOrUpdateRuntime() {

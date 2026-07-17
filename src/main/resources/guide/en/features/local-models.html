@@ -1578,6 +1578,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quick-setup-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2155,6 +2166,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quick-setup-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2313,6 +2335,13 @@
 </ul>
 <p>Every action button in the tab carries a matching glyph (install, wizard, import, configure, start, stop, remove, refresh, search, load more, download, pause, cancel), and the pause control switches between pause and resume glyphs during a download.</p>
 <p><img alt="Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress" src="../assets/screenshots/ai/local-models.png" /></p>
+<h2 id="runtimes">Runtimes<a class="headerlink" href="#runtimes" title="Permanent link">&para;</a></h2>
+<p>The <strong>Runtimes</strong> table at the top of Local Models lists both embedded runtimes with their installed version, backend, and state (<strong>Ready</strong>, <strong>Not installed</strong>, or <strong>Revoked</strong>): the llama.cpp runtime (every platform) and, on Apple Silicon, the MLX runtime. Three actions operate on the selected row:</p>
+<ul>
+<li><strong>Install runtime / Check-install runtime update</strong> downloads, verifies, and activates the newest compatible package from the signed stable channel — the llama.cpp index for the llama row, the <code>mlx-stable</code> index for the MLX row.</li>
+<li><strong>Import local package…</strong> installs a runtime package file (<code>.zip</code>) without downloading it, for example on an air-gapped machine. The file is accepted only when its SHA-256 matches a non-revoked entry of the Ed25519-signed stable index for the current platform; anything not published by the signed channel is refused. The verified package then runs through exactly the same installation machinery as a download (extraction hardening, health/sanity check, idle-only activation).</li>
+<li><strong>Remove</strong> deletes the selected runtime after confirmation. Sidecars must be idle; installed models stay registered but cannot start until a runtime is installed again, and the revocation denylist survives removal so a withdrawn package remains blocked even across reinstalls.</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Storage and network access</p>
 <p>Model inference stays on this computer. korTTY contacts Hugging Face only when you search for or download a model that you approve. Public repositories work without a token; an optional token for private or gated repositories is encrypted with the master password. Official builds can also fetch the separately signed model/prompt catalog over HTTPS in the background; no prompt, source document, or model weight is sent with that request.</p>
@@ -2372,7 +2401,7 @@
 <ul>
 <li><strong>Registration and lifecycle</strong> mirror GGUF models: installed MLX models appear in the same table with backend <strong>MLX</strong>, support <strong>Start selected</strong>, <strong>Stop selected</strong>, <strong>Remove</strong>, and <strong>Configure</strong> (display name and unload-after idle time), and report the same runtime states.</li>
 <li><strong>Isolation</strong> mirrors llama.cpp: every model runs as its own loopback-only sidecar with a random port and a generated per-process API key. korTTY wraps <code>mlx_lm.server</code> — which has no authentication of its own — in its own launcher that rejects every unauthenticated request except the local health probe, forces offline Hugging Face access, strips inherited Python and token environment overrides, and exits after the configured idle time.</li>
-<li><strong>The MLX runtime package</strong> is separate from both the application installer and the llama.cpp runtime: a pinned relocatable CPython plus a hash-locked <code>mlx-lm</code> wheel set, built in CI and published through the same Ed25519-signed index mechanism as the llama.cpp packages. Without an installed MLX runtime, MLX models stay registered but cannot start.</li>
+<li><strong>The MLX runtime package</strong> is separate from both the application installer and the llama.cpp runtime: a pinned relocatable CPython plus a hash-locked <code>mlx-lm</code> wheel set, built in CI and published through the same Ed25519-signed index mechanism as the llama.cpp packages (rolling <code>mlx-stable</code> index). Install, update, locally import, or remove it in the <strong>Runtimes</strong> table; without an installed MLX runtime, MLX models stay registered but cannot start.</li>
 <li><strong>Profiles</strong>: choose <strong>Integrated MLX (Apple Silicon)</strong> as the profile connection and select the installed model from the <strong>Local MLX model</strong> list. LM-Studio-MCP internet modes are not available for embedded profiles; the korTTY web-search tool works normally.</li>
 <li><strong>Reasoning models</strong> (for example Qwen3 conversions) are handled like their GGUF counterparts: korTTY separates the inline chain-of-thought from the answer and retries a reply that contains only reasoning once automatically.</li>
 </ul>
@@ -2477,7 +2506,7 @@
 </tr>
 </tbody>
 </table>
-<p>The runtime row in <strong>Local Models</strong> shows the current update or installation state. Its action is <strong>Install runtime</strong> when no verified package is active and <strong>Check/install runtime update</strong> otherwise. This explicit action checks and installs the stable channel even when the stored automatic policy is <strong>Off</strong> or <strong>Notify me</strong>. Runtime candidates are discovered by a daily workflow, but promotion remains a deliberate, reviewed release action rather than adopting every upstream tag automatically.</p>
+<p>The <strong>Runtimes</strong> table in <strong>Local Models</strong> shows the installed version and state per runtime. The action button reads <strong>Install runtime</strong> when the selected runtime has no verified package and <strong>Check/install runtime update</strong> otherwise, and checks/installs the stable channel even when the stored automatic policy is <strong>Off</strong> or <strong>Notify me</strong>. Runtime candidates are discovered by a daily workflow, but promotion remains a deliberate, reviewed release action rather than adopting every upstream tag automatically.</p>
 <h2 id="files-and-backup-behavior">Files and backup behavior<a class="headerlink" href="#files-and-backup-behavior" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

@@ -25,6 +25,7 @@ import java.util.zip.ZipOutputStream;
 import org.testng.annotations.Test;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class LlamaRuntimeProvisionerTest {
 
@@ -186,6 +187,120 @@ class LlamaRuntimeProvisionerTest {
             .isEqualTo(LlamaBackend.VULKAN);
         assertThat(LlamaRuntimeProvisioner.effectiveBackend(LlamaBackend.CPU, java.util.Optional.of(active)))
             .isEqualTo(LlamaBackend.CPU);
+    }
+
+    @Test
+    void uninstallRefusesWhileALocalRequestIsRunning() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-uninstall-busy-");
+        byte[] archive = runtimeZip();
+        LlamaRuntimePackageDescriptor descriptor = descriptor(archive);
+        LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+            root.resolve("runtime"), uri -> new ByteArrayInputStream(archive));
+        installer.installAndActivate(descriptor, () -> true, installation -> true);
+        AtomicInteger shutdowns = new AtomicInteger();
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(), installer, LlamaModelRegistry.inDirectory(root.resolve("llm")),
+            () -> "2.5.2", () -> false, shutdowns::incrementAndGet, () -> { },
+            installation -> true);
+
+        expectThrows(
+            LlamaRuntimeProvisioner.LlamaRuntimeBusyException.class,
+            provisioner::uninstall);
+
+        assertThat(shutdowns.get()).isEqualTo(0);
+        assertThat(installer.active()).isPresent();
+    }
+
+    @Test
+    void uninstallStopsManagerRemovesRuntimeAndRestartsManagement() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-uninstall-");
+        Path llamaDirectory = root.resolve("llm");
+        byte[] archive = runtimeZip();
+        LlamaRuntimePackageDescriptor descriptor = descriptor(archive);
+        LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+            llamaDirectory.resolve("runtime"), uri -> new ByteArrayInputStream(archive));
+        LlamaRuntimeInstallation installation = installer.installAndActivate(
+            descriptor, () -> true, candidate -> true).installation();
+        LlamaModelRegistry registry = LlamaModelRegistry.inDirectory(llamaDirectory);
+        registry.register(new LlamaModel(
+            "text", "Text", root.resolve("text.gguf"), installation.executable()));
+        AtomicInteger shutdowns = new AtomicInteger();
+        AtomicInteger initializations = new AtomicInteger();
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(), installer, registry, () -> "2.5.2", () -> true,
+            shutdowns::incrementAndGet, initializations::incrementAndGet, installation2 -> true);
+
+        provisioner.uninstall();
+
+        assertThat(installer.active()).isEmpty();
+        assertThat(installer.installed()).isEmpty();
+        assertThat(shutdowns.get()).isEqualTo(1);
+        assertThat(initializations.get()).isEqualTo(1);
+        // Registered models keep their now-dangling binding; the next install rebinds them.
+        assertThat(LlamaModelRegistry.inDirectory(llamaDirectory).find("text").orElseThrow()
+            .getServerExecutable()).isEqualTo(installation.executable().toAbsolutePath().normalize());
+    }
+
+    @Test
+    void localArchiveInstallRunsTheFullDownloadMachineryAndRebindsModels() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-local-install-");
+        Path llamaDirectory = root.resolve("llm");
+        byte[] archive = runtimeZip();
+        LlamaRuntimePackageDescriptor descriptor = descriptor(archive);
+        Path localArchive = root.resolve("llama-runtime-local.zip");
+        Files.write(localArchive, archive);
+        LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+            llamaDirectory.resolve("runtime"), uri -> {
+                throw new AssertionError("A local archive install must never download packages.");
+            });
+        LlamaModelRegistry registry = LlamaModelRegistry.inDirectory(llamaDirectory);
+        registry.register(new LlamaModel(
+            "text", "Text", root.resolve("text.gguf"), root.resolve("manual-server")));
+        LlamaRuntimeIndex index = new LlamaRuntimeIndex(
+            1, Instant.now(), List.of(descriptor), Set.of());
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(), installer, registry, () -> "2.5.2", () -> true,
+            () -> { }, () -> { }, () -> () -> { }, installation -> true, null, () -> index);
+
+        LlamaRuntimeUpdateResult result = provisioner.installFromLocalPackage(localArchive);
+
+        assertThat(result.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH);
+        assertThat(result.availablePackage()).isEqualTo(descriptor);
+        Path activeExecutable = installer.active().orElseThrow().executable();
+        assertThat(installer.pendingActivation()).isPresent();
+        assertThat(registry.list().stream().map(LlamaModel::getServerExecutable).distinct().toList())
+            .containsExactly(activeExecutable.toAbsolutePath().normalize());
+    }
+
+    @Test
+    void localArchiveInstallRejectsUnpublishedAndRevokedArchives() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-local-reject-");
+        byte[] archive = runtimeZip();
+        LlamaRuntimePackageDescriptor descriptor = descriptor(archive);
+        Path unknownArchive = root.resolve("unknown.zip");
+        Files.write(unknownArchive, "not a published runtime".getBytes(StandardCharsets.UTF_8));
+        Path revokedArchive = root.resolve("revoked.zip");
+        Files.write(revokedArchive, archive);
+        LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+            root.resolve("runtime"), uri -> {
+                throw new AssertionError("A rejected local archive must never trigger downloads.");
+            });
+        LlamaRuntimeIndex revokedIndex = new LlamaRuntimeIndex(
+            1, Instant.now(), List.of(descriptor), Set.of(descriptor.runtimeId()));
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(), installer, LlamaModelRegistry.inDirectory(root.resolve("llm")),
+            () -> "2.5.2", () -> true, () -> { }, () -> { }, () -> () -> { },
+            installation -> true, null, () -> revokedIndex);
+
+        java.io.IOException unpublished = expectThrows(
+            java.io.IOException.class, () -> provisioner.installFromLocalPackage(unknownArchive));
+        java.io.IOException revoked = expectThrows(
+            java.io.IOException.class, () -> provisioner.installFromLocalPackage(revokedArchive));
+
+        assertThat(unpublished).hasMessageThat().contains("not published by the signed stable");
+        assertThat(revoked).hasMessageThat().contains("revoked");
+        assertThat(installer.active()).isEmpty();
+        assertThat(installer.installed()).isEmpty();
     }
 
     private static LlamaRuntimeReleaseConfiguration configuration() throws Exception {
