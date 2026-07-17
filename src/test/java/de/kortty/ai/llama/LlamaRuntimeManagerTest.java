@@ -75,7 +75,6 @@ class LlamaRuntimeManagerTest {
                 "--model", runtime.gguf.toRealPath().toString(),
                 "--alias", "test-model",
                 "--parallel", "1",
-                "--reasoning-format", "none",
                 "--offline",
                 "--no-ui",
                 "--no-agent",
@@ -108,7 +107,7 @@ class LlamaRuntimeManagerTest {
     }
 
     @Test
-    void buildCommandLeavesReasoningUnparsedOnlyForChatModels() throws Exception {
+    void buildCommandKeepsDefaultReasoningParsingForChatAndEmbeddingOnlyForEmbeddings() throws Exception {
         Path directory = Files.createTempDirectory("kortty-llama-command-");
         Path gguf = Files.writeString(directory.resolve("model.gguf"), "GGUF");
         Path executable = Files.writeString(directory.resolve("llama-server"), "test executable");
@@ -131,8 +130,10 @@ class LlamaRuntimeManagerTest {
         List<String> embeddingCommand = LlamaRuntimeManager.buildCommand(
             embedding, executable, gguf, 18081, directory.resolve("key"));
 
-        assertThat(chatCommand).containsAtLeast("--reasoning-format", "none");
-        assertThat(embeddingCommand).doesNotContain("--reasoning-format");
+        // The server's default reasoning parsing is required for harmony models (gpt-oss) to emit
+        // a final answer; forcing --reasoning-format none would break them.
+        assertThat(chatCommand).doesNotContain("--reasoning-format");
+        assertThat(chatCommand).doesNotContain("--embedding");
         assertThat(embeddingCommand).containsAtLeast("--embedding", "--pooling", "mean");
     }
 

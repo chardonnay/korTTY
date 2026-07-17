@@ -26,6 +26,17 @@ public final class AiResponseSanitizer {
     private static final Pattern LEADING_ORPHAN_CLOSER_PATTERN =
         Pattern.compile("(?is)^(.*?)</think\\s*>\\s*");
 
+    // gpt-oss and other harmony-format models emit their turn as channel segments —
+    // <|channel|>analysis<|message|>…<|end|><|start|>assistant<|channel|>final<|message|>…<|return|>.
+    // With the sidecar's --reasoning-format none the raw markers stay inline in the content, so the
+    // analysis/commentary channels are reasoning and only the final channel is the answer.
+    private static final Pattern HARMONY_CHANNEL_HEADER =
+        Pattern.compile("(?is)<\\|channel\\|>\\s*([a-z_]+)\\s*(?:<\\|constrain\\|>[^<]*)?<\\|message\\|>");
+    private static final Pattern HARMONY_CONTROL_TOKEN =
+        Pattern.compile("(?is)<\\|(?:end|return|start|channel|call)\\|>");
+    private static final Pattern HARMONY_ANY_TOKEN =
+        Pattern.compile("(?is)<\\|[a-z_/]+\\|>");
+
     private AiResponseSanitizer() {
     }
 
@@ -33,10 +44,15 @@ public final class AiResponseSanitizer {
         if (content == null || content.isEmpty()) {
             return "";
         }
-        String withoutThink = THINK_BLOCK_PATTERN.matcher(content).replaceAll("");
-        withoutThink = DANGLING_THINK_BLOCK_PATTERN.matcher(withoutThink).replaceAll("");
-        withoutThink = ORPHAN_CLOSING_THINK_PREFIX_PATTERN.matcher(withoutThink).replaceFirst("");
-        String normalized = withoutThink.replace("\r\n", "\n").replace('\r', '\n').trim();
+        String stripped;
+        if (looksLikeHarmony(content)) {
+            stripped = extractHarmonyReasoning(content).content();
+        } else {
+            stripped = THINK_BLOCK_PATTERN.matcher(content).replaceAll("");
+            stripped = DANGLING_THINK_BLOCK_PATTERN.matcher(stripped).replaceAll("");
+            stripped = ORPHAN_CLOSING_THINK_PREFIX_PATTERN.matcher(stripped).replaceFirst("");
+        }
+        String normalized = stripped.replace("\r\n", "\n").replace('\r', '\n').trim();
         return EXCESSIVE_BLANK_LINES_PATTERN.matcher(normalized).replaceAll("\n\n");
     }
 
@@ -62,6 +78,9 @@ public final class AiResponseSanitizer {
     public static InlineReasoning extractInlineReasoning(String content) {
         if (content == null || content.isEmpty()) {
             return new InlineReasoning("", null);
+        }
+        if (looksLikeHarmony(content)) {
+            return extractHarmonyReasoning(content);
         }
         StringBuilder thoughts = new StringBuilder();
         int index = 0;
@@ -96,6 +115,48 @@ public final class AiResponseSanitizer {
             return new InlineReasoning(content.trim(), null);
         }
         return new InlineReasoning(content.substring(index).trim(), thoughts.toString().trim());
+    }
+
+    /** Recognizes a gpt-oss harmony turn by its two defining markers, absent from normal prose. */
+    private static boolean looksLikeHarmony(String content) {
+        return content.contains("<|channel|>") && content.contains("<|message|>");
+    }
+
+    /**
+     * Splits a harmony turn into the {@code final} channel (the answer) and every other channel
+     * (analysis/commentary reasoning), stripping the control tokens. A turn truncated before its
+     * final channel yields empty content plus the reasoning, so callers treat it as reasoning-only
+     * and retry. A malformed turn falls back to stripping the tokens rather than dropping content.
+     */
+    private static InlineReasoning extractHarmonyReasoning(String content) {
+        StringBuilder answer = new StringBuilder();
+        StringBuilder reasoning = new StringBuilder();
+        Matcher header = HARMONY_CHANNEL_HEADER.matcher(content);
+        boolean matchedAny = false;
+        while (header.find()) {
+            matchedAny = true;
+            String channel = header.group(1).toLowerCase(Locale.ROOT);
+            int bodyStart = header.end();
+            Matcher control = HARMONY_CONTROL_TOKEN.matcher(content).region(bodyStart, content.length());
+            int bodyEnd = control.find() ? control.start() : content.length();
+            String body = content.substring(bodyStart, bodyEnd).trim();
+            if ("final".equals(channel)) {
+                if (!body.isEmpty()) {
+                    if (answer.length() > 0) {
+                        answer.append("\n\n");
+                    }
+                    answer.append(body);
+                }
+            } else {
+                appendThought(reasoning, body);
+            }
+        }
+        if (!matchedAny) {
+            // The markers are present but not in the expected shape; never lose the content.
+            return new InlineReasoning(HARMONY_ANY_TOKEN.matcher(content).replaceAll("").trim(), null);
+        }
+        String thoughts = reasoning.toString().trim();
+        return new InlineReasoning(answer.toString().trim(), thoughts.isEmpty() ? null : thoughts);
     }
 
     /** Structured payloads (JSON, fenced code) can legitimately contain a bare closing marker. */

@@ -268,7 +268,6 @@ jobs:
 
           "$server" --host 127.0.0.1 --port 18080 --model "$chat_model" --api-key "$key" \
             --offline --no-ui --no-agent --no-ui-mcp-proxy --no-slots --n-gpu-layers "$gpu_layers" \
-            --reasoning-format none \
             --sleep-idle-seconds 1 \
             >build/llama-runtime/server-chat.log 2>&1 &
           for _ in $(seq 1 120); do

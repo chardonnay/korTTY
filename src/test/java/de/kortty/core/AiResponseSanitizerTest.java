@@ -146,4 +146,48 @@ class AiResponseSanitizerTest {
         assertThat(split.content()).isEqualTo(answer);
         assertThat(split.reasoning()).isNull();
     }
+
+    @Test
+    void extractInlineReasoningSeparatesHarmonyChannelsIntoAnswerAndReasoning() {
+        String harmony = "<|channel|>analysis<|message|>The user wants the file translated; I must read it first."
+            + "<|end|><|start|>assistant<|channel|>final<|message|>"
+            + "{\"status\":\"run_commands\",\"commands\":[{\"command\":\"cat 'x.pl'\"}]}<|return|>";
+
+        AiResponseSanitizer.InlineReasoning split = AiResponseSanitizer.extractInlineReasoning(harmony);
+
+        assertThat(split.content())
+            .isEqualTo("{\"status\":\"run_commands\",\"commands\":[{\"command\":\"cat 'x.pl'\"}]}");
+        assertThat(split.reasoning()).isEqualTo("The user wants the file translated; I must read it first.");
+    }
+
+    @Test
+    void extractInlineReasoningFlagsHarmonyRepliesTruncatedBeforeTheFinalChannel() {
+        String harmony = "<|channel|>analysis<|message|>Let me plan the migration step by step and";
+
+        AiResponseSanitizer.InlineReasoning split = AiResponseSanitizer.extractInlineReasoning(harmony);
+
+        assertThat(split.content()).isEmpty();
+        assertThat(split.reasoning()).isEqualTo("Let me plan the migration step by step and");
+        assertThat(split.reasoningOnly()).isTrue();
+    }
+
+    @Test
+    void extractInlineReasoningMergesMultipleHarmonyReasoningChannels() {
+        String harmony = "<|channel|>analysis<|message|>First thought.<|end|>"
+            + "<|start|>assistant<|channel|>commentary<|message|>Calling a tool.<|end|>"
+            + "<|start|>assistant<|channel|>final<|message|>Done.<|return|>";
+
+        AiResponseSanitizer.InlineReasoning split = AiResponseSanitizer.extractInlineReasoning(harmony);
+
+        assertThat(split.content()).isEqualTo("Done.");
+        assertThat(split.reasoning()).isEqualTo("First thought.\n\nCalling a tool.");
+    }
+
+    @Test
+    void sanitizeForDisplayStripsHarmonyMarkersAndShowsOnlyTheFinalChannel() {
+        String harmony = "<|channel|>analysis<|message|>hidden reasoning"
+            + "<|end|><|start|>assistant<|channel|>final<|message|>Visible answer.<|return|>";
+
+        assertThat(AiResponseSanitizer.sanitizeForDisplay(harmony)).isEqualTo("Visible answer.");
+    }
 }
