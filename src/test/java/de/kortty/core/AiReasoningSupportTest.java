@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
@@ -93,5 +94,36 @@ class AiReasoningSupportTest {
         profile.setApiUrl("https://api.example.test/v1/chat/completions");
 
         assertThat(AiReasoningSupport.discoveryKey(profile)).isNotEmpty();
+    }
+
+    @Test
+    void embeddedProfileKeepsDiscoveredReasoningLevelDespiteStaleDiscoveryKey() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        profile.setEmbeddedModelId("lmstudio-community-gpt-oss-20b-GGUF-MXFP4");
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL, AiReasoningEffort.LOW,
+            AiReasoningEffort.MEDIUM, AiReasoningEffort.HIGH, AiReasoningEffort.XHIGH));
+        // A discovery ran, but the stored key is the old embedded form full of unused apiUrl/CLI
+        // placeholders that no longer matches the recomputed key. Embedded discovery must survive it,
+        // otherwise the user's chosen reasoning level is silently reset to Disabled on save/reload.
+        profile.setReasoningDiscoveryKey(
+            "EMBEDDED_LLAMA_CPP|https://api.openai.com/v1/chat/completions|MANUAL||claude-code||");
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+
+        assertThat(AiReasoningSupport.availableEfforts(profile)).contains(AiReasoningEffort.MINIMAL);
+        assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.MINIMAL);
+    }
+
+    @Test
+    void embeddedProfileWithoutDiscoveryDoesNotTrustStoredEfforts() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        profile.setEmbeddedModelId("some-embedded-model");
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
+        // No discovery key means no discovery has run: the stored efforts must not be trusted.
+        profile.setReasoningEffort(AiReasoningEffort.HIGH);
+
+        assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.DISABLED);
     }
 }
