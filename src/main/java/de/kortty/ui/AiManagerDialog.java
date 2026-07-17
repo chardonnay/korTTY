@@ -457,6 +457,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
 
         connectionModeCombo.getItems().setAll(AiConnectionMode.values());
+        if (!de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+            // MLX runs exclusively on Apple-Silicon macOS; do not offer the mode elsewhere.
+            // Existing EMBEDDED_MLX profiles still render via the converter's unavailable hint.
+            connectionModeCombo.getItems().remove(AiConnectionMode.EMBEDDED_MLX);
+        }
         connectionModeCombo.setConverter(createConnectionModeConverter());
         connectionModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedProfile != null) {
@@ -1218,6 +1223,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 if (object == null) {
                     return "";
                 }
+                if (object == AiConnectionMode.EMBEDDED_MLX && !de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+                    return I18n.get("settings.ai.connectionMode.embedded_mlx.unavailable");
+                }
                 return I18n.get("settings.ai.connectionMode." + object.name().toLowerCase(Locale.ROOT));
             }
 
@@ -1273,8 +1281,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void loadModelSelection(AiProfile profile) {
-        if (profile != null && profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
-            List<String> ids = localEmbeddedModelIds();
+        if (profile != null && profile.getConnectionMode().isEmbedded()) {
+            List<String> ids = localEmbeddedModelIds(profile.getConnectionMode());
             String configured = trimToNull(profile.getEmbeddedModelId());
             if (configured != null && !ids.contains(configured)) {
                 ids = new ArrayList<>(ids);
@@ -1307,7 +1315,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void snapshotModelSelection(AiProfile profile) {
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             profile.setEmbeddedModelId(trimToNull(modelEditorText()));
             profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
             profile.setModel(null);
@@ -1346,7 +1354,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         if (isEmbeddedModeSelected()) {
-            List<String> ids = localEmbeddedModelIds();
+            List<String> ids = localEmbeddedModelIds(selectedConnectionMode());
             String selected = trimToNull(modelEditorText());
             modelCombo.getItems().setAll(ids);
             if (selected != null) {
@@ -1440,7 +1448,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void applyModelEditorSelection(AiProfile profile) {
         String editorText = trimToNull(modelEditorText());
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             profile.setEmbeddedModelId(editorText);
             profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
             profile.setModel(null);
@@ -1478,7 +1486,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         if (selectedProfile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
-            && selectedProfile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP
+            && !selectedProfile.getConnectionMode().isEmbedded()
             && trimToNull(selectedProfile.getApiUrl()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
@@ -1582,24 +1590,33 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private boolean isCliModeSelected() {
-        AiConnectionMode mode = connectionModeCombo != null ? connectionModeCombo.getValue() : null;
-        if (mode != null) {
-            return mode == AiConnectionMode.LOCAL_CLI;
-        }
-        return selectedProfile != null && selectedProfile.getConnectionMode() == AiConnectionMode.LOCAL_CLI;
+        return selectedConnectionMode() == AiConnectionMode.LOCAL_CLI;
     }
 
     private boolean isEmbeddedModeSelected() {
-        AiConnectionMode mode = connectionModeCombo != null ? connectionModeCombo.getValue() : null;
-        if (mode != null) {
-            return mode == AiConnectionMode.EMBEDDED_LLAMA_CPP;
-        }
-        return selectedProfile != null
-            && selectedProfile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP;
+        AiConnectionMode mode = selectedConnectionMode();
+        return mode != null && mode.isEmbedded();
     }
 
-    private List<String> localEmbeddedModelIds() {
+    /** Mode from the editor combo, falling back to the selected profile while no editor value exists. */
+    private AiConnectionMode selectedConnectionMode() {
+        AiConnectionMode mode = connectionModeCombo != null ? connectionModeCombo.getValue() : null;
+        if (mode != null) {
+            return mode;
+        }
+        return selectedProfile != null ? selectedProfile.getConnectionMode() : null;
+    }
+
+    private List<String> localEmbeddedModelIds(AiConnectionMode mode) {
         try {
+            if (mode == AiConnectionMode.EMBEDDED_MLX) {
+                return de.kortty.ai.mlx.MlxModelRegistry
+                    .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .list().stream()
+                    .map(de.kortty.ai.mlx.MlxModel::getId)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+            }
             return de.kortty.ai.llama.LlamaModelRegistry
                 .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
                 .list().stream()
@@ -1908,7 +1925,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         if (selectedProfile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
-            && selectedProfile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP
+            && !selectedProfile.getConnectionMode().isEmbedded()
             && trimToNull(selectedProfile.getApiUrl()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
@@ -1974,21 +1991,21 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
         }
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             return true;
         }
         return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
     }
 
     private boolean hasConfiguredTestModel(AiProfile profile) {
-        return profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP
+        return profile.getConnectionMode().isEmbedded()
             ? trimToNull(profile.getEmbeddedModelId()) != null
             : trimToNull(profile.getModel()) != null;
     }
 
     private AiService createAiService(AiProfile profile) {
         if (profile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
-            && profile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP
+            && !profile.getConnectionMode().isEmbedded()
             && trimToNull(profile.getApiUrl()) == null) {
             return null;
         }

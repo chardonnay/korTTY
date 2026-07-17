@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** A GGUF file from a model repository, pinned to the model's immutable commit. */
+/** A model repository file, pinned to the repository's immutable commit. */
 public record HuggingFaceModelFile(
     String path,
     long size,
@@ -13,7 +13,8 @@ public record HuggingFaceModelFile(
     URI downloadUri,
     String quantization,
     int shardIndex,
-    int shardCount
+    int shardCount,
+    String gitBlobSha1
 ) {
 
     private static final Pattern SHARD_PATTERN = Pattern.compile(
@@ -23,16 +24,22 @@ public record HuggingFaceModelFile(
 
     public HuggingFaceModelFile {
         if (path == null || path.isBlank()) {
-            throw new IllegalArgumentException("GGUF path is required.");
+            throw new IllegalArgumentException("Model file path is required.");
         }
         path = path.replace('\\', '/');
         if (size < -1) {
-            throw new IllegalArgumentException("GGUF size must be positive or unknown (-1).");
+            throw new IllegalArgumentException("Model file size must be positive or unknown (-1).");
         }
         if (sha256 != null) {
             sha256 = sha256.trim().toLowerCase(Locale.ROOT);
             if (!sha256.matches("[0-9a-f]{64}")) {
-                throw new IllegalArgumentException("GGUF SHA-256 must contain 64 hexadecimal characters.");
+                throw new IllegalArgumentException("Model file SHA-256 must contain 64 hexadecimal characters.");
+            }
+        }
+        if (gitBlobSha1 != null) {
+            gitBlobSha1 = gitBlobSha1.trim().toLowerCase(Locale.ROOT);
+            if (!gitBlobSha1.matches("[0-9a-f]{40}")) {
+                throw new IllegalArgumentException("Git blob SHA-1 must contain 40 hexadecimal characters.");
             }
         }
         quantization = quantization == null || quantization.isBlank()
@@ -42,8 +49,21 @@ public record HuggingFaceModelFile(
             shardIndex = 1;
             shardCount = 1;
         } else if (shardIndex <= 0 || shardIndex > shardCount) {
-            throw new IllegalArgumentException("Invalid GGUF shard position.");
+            throw new IllegalArgumentException("Invalid model file shard position.");
         }
+    }
+
+    /** LFS files carry a content SHA-256; small in-tree files (MLX configs) only a git blob SHA-1. */
+    public HuggingFaceModelFile(
+        String path,
+        long size,
+        String sha256,
+        URI downloadUri,
+        String quantization,
+        int shardIndex,
+        int shardCount
+    ) {
+        this(path, size, sha256, downloadUri, quantization, shardIndex, shardCount, null);
     }
 
     public boolean multipart() {
@@ -51,7 +71,7 @@ public record HuggingFaceModelFile(
     }
 
     public boolean downloadableAndVerifiable() {
-        return size > 0 && sha256 != null && downloadUri != null;
+        return size > 0 && (sha256 != null || gitBlobSha1 != null) && downloadUri != null;
     }
 
     static int[] detectShard(String path) {

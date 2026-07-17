@@ -32,7 +32,7 @@ public record HuggingFaceDownloadPlan(
         for (HuggingFaceModelFile file : files) {
             if (!file.downloadableAndVerifiable()) {
                 throw new IllegalArgumentException(
-                    "GGUF file requires a size, immutable download URL and LFS SHA-256: " + file.path());
+                    "Model file requires a size, immutable download URL and content digest: " + file.path());
             }
             if (!paths.add(file.path())) {
                 throw new IllegalArgumentException("Duplicate GGUF path: " + file.path());
@@ -69,18 +69,23 @@ public record HuggingFaceDownloadPlan(
     }
 
     private static void validateShardSet(List<HuggingFaceModelFile> files) {
-        int shardCount = files.stream().mapToInt(HuggingFaceModelFile::shardCount).max().orElse(1);
-        if (shardCount <= 1) {
+        // Only the multipart weight files form a shard set; an MLX plan legitimately mixes them
+        // with single-part tokenizer/config files that must not count against the shard total.
+        List<HuggingFaceModelFile> shards = files.stream()
+            .filter(HuggingFaceModelFile::multipart)
+            .toList();
+        if (shards.isEmpty()) {
             return;
         }
-        if (files.size() != shardCount || files.stream().anyMatch(file -> file.shardCount() != shardCount)) {
-            throw new IllegalArgumentException("All shards of the selected GGUF quantization are required.");
+        int shardCount = shards.getFirst().shardCount();
+        if (shards.size() != shardCount || shards.stream().anyMatch(file -> file.shardCount() != shardCount)) {
+            throw new IllegalArgumentException("All shards of the selected model weights are required.");
         }
         Set<Integer> indexes = new HashSet<>();
-        files.forEach(file -> indexes.add(file.shardIndex()));
+        shards.forEach(file -> indexes.add(file.shardIndex()));
         for (int index = 1; index <= shardCount; index++) {
             if (!indexes.contains(index)) {
-                throw new IllegalArgumentException("GGUF shard " + index + " of " + shardCount + " is missing.");
+                throw new IllegalArgumentException("Model shard " + index + " of " + shardCount + " is missing.");
             }
         }
     }

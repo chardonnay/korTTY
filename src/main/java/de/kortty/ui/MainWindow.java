@@ -4796,7 +4796,7 @@ public class MainWindow {
             return;
         }
         String effectiveModel = effectiveProfile != null
-            && effectiveProfile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP
+            && effectiveProfile.getConnectionMode().isEmbedded()
             ? effectiveProfile.getEmbeddedModelId()
             : effectiveProfile != null ? effectiveProfile.getModel() : null;
         if (effectiveProfile != null
@@ -4899,7 +4899,7 @@ public class MainWindow {
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
         }
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             return true;
         }
         return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
@@ -5237,11 +5237,12 @@ public class MainWindow {
             return "";
         }
         String model = profile.getModel() != null ? profile.getModel() : "";
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             String embedded = profile.getEmbeddedModelId();
             return embedded != null && !embedded.isBlank()
                 ? embedded
-                : I18n.get("settings.ai.connectionMode.embedded_llama_cpp");
+                : I18n.get("settings.ai.connectionMode."
+                    + profile.getConnectionMode().name().toLowerCase(Locale.ROOT));
         }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String provider = de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())

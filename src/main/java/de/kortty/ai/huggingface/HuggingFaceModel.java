@@ -58,6 +58,19 @@ public record HuggingFaceModel(
         return revision != null && revision.matches("[0-9a-fA-F]{40}");
     }
 
+    /**
+     * The repository's distribution format. GGUF repositories are recognized by their weight
+     * files; everything else counts as MLX only when the Hub tagged it so.
+     */
+    public HuggingFaceModelFormat format() {
+        boolean hasGguf = files.stream()
+            .anyMatch(file -> file.path().toLowerCase(Locale.ROOT).endsWith(".gguf"));
+        if (!hasGguf && tags.contains("mlx")) {
+            return HuggingFaceModelFormat.MLX;
+        }
+        return HuggingFaceModelFormat.GGUF;
+    }
+
     /** Returns every shard for one quantization in deterministic download order. */
     public List<HuggingFaceModelFile> filesForQuantization(String quantization) {
         if (quantization == null || quantization.isBlank()) {
@@ -69,6 +82,11 @@ public record HuggingFaceModel(
             .sorted(Comparator.comparingInt(HuggingFaceModelFile::shardIndex)
                 .thenComparing(HuggingFaceModelFile::path))
             .toList();
+        if (format() == HuggingFaceModelFormat.MLX) {
+            // An MLX repository is one artifact: every payload file (weights, tokenizer, config)
+            // is required, so alternatives never exist and nothing may be dropped.
+            return candidates;
+        }
         // Some repositories publish both one complete GGUF and an alternative sharded copy under
         // the same quantization. They are alternatives, not three parts of one model.
         List<HuggingFaceModelFile> completeFiles = candidates.stream()
@@ -107,6 +125,23 @@ public record HuggingFaceModel(
     public boolean hasExactFileSizes(String quantization) {
         List<HuggingFaceModelFile> selected = filesForQuantization(quantization);
         return !selected.isEmpty() && selected.stream().allMatch(file -> file.size() > 0);
+    }
+
+    /**
+     * Smallest known download size across all published quantizations, or {@code -1} when the
+     * repository metadata carries no usable size at all. This is the size a user could get away
+     * with by picking the smallest quantization, so it decides whether the repository is usable
+     * on this machine at all.
+     */
+    public long smallestQuantizationBytes() {
+        long smallest = -1;
+        for (String quantization : quantizations) {
+            long bytes = bytesForQuantization(quantization);
+            if (bytes > 0 && (smallest < 0 || bytes < smallest)) {
+                smallest = bytes;
+            }
+        }
+        return smallest;
     }
 
     private static String blankToNull(String value) {

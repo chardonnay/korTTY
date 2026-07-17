@@ -95,7 +95,35 @@ public final class HuggingFaceClient {
         return fetchSearchPage(baseUri.resolve(relative.toString()));
     }
 
-    /** Continues a page returned by {@link #searchGgufModelsPage(String, int)}. */
+    /**
+     * Starts one cursor-paginated search over MLX text-generation repositories (Apple Silicon).
+     * Sizes arrive with {@code blobs=true} on selection just like GGUF; the listing's config
+     * expansion supplies the architecture column.
+     */
+    public SearchPage searchMlxModelsPage(String query, int limit)
+        throws IOException, InterruptedException {
+        if (limit < 1 || limit > MAX_SEARCH_RESULTS) {
+            throw new IllegalArgumentException("Search limit must be between 1 and 100.");
+        }
+        StringBuilder relative = new StringBuilder("api/models?filter=mlx&pipeline_tag=text-generation")
+            .append("&expand%5B%5D=author")
+            .append("&expand%5B%5D=sha")
+            .append("&expand%5B%5D=downloads")
+            .append("&expand%5B%5D=likes")
+            .append("&expand%5B%5D=lastModified")
+            .append("&expand%5B%5D=tags")
+            .append("&expand%5B%5D=private")
+            .append("&expand%5B%5D=gated")
+            .append("&expand%5B%5D=siblings")
+            .append("&expand%5B%5D=config")
+            .append("&sort=downloads&direction=-1&limit=").append(limit);
+        if (query != null && !query.isBlank()) {
+            relative.append("&search=").append(queryValue(query.trim()));
+        }
+        return fetchSearchPage(baseUri.resolve(relative.toString()));
+    }
+
+    /** Continues a page returned by {@link #searchGgufModelsPage} or {@link #searchMlxModelsPage}. */
     public SearchPage continueGgufModelSearch(URI continuation)
         throws IOException, InterruptedException {
         return fetchSearchPage(requireHubSearchContinuation(continuation));
@@ -260,6 +288,9 @@ public final class HuggingFaceClient {
             contextLength = longValue(gguf, "context_length");
         }
         List<HuggingFaceModelFile> files = parseFiles(root, id, revision, baseUri);
+        if (files.isEmpty() && tags.contains("mlx")) {
+            files = parseMlxFiles(root, id, revision, baseUri, mlxQuantizationLabel(id, tags));
+        }
         long totalBytes = files.stream().mapToLong(file -> Math.max(0, file.size())).sum();
         if (totalBytes == 0) {
             totalBytes = longValue(gguf, "totalFileSize");
@@ -302,37 +333,129 @@ public final class HuggingFaceClient {
             if (path == null || !path.toLowerCase(Locale.ROOT).endsWith(".gguf")) {
                 continue;
             }
-            JsonObject lfs = object(sibling.get("lfs"));
-            long size = longValue(lfs, "size");
-            if (size <= 0) {
-                size = longValue(sibling, "size");
-            }
-            if (size <= 0) {
-                size = -1;
-            }
-            String sha256 = firstString(lfs, "sha256", "oid");
-            if (sha256 != null && sha256.startsWith("sha256:")) {
-                sha256 = sha256.substring("sha256:".length());
-            }
-            if (sha256 != null && !sha256.matches("(?i)[0-9a-f]{64}")) {
-                sha256 = null;
-            }
-            URI downloadUri = revision != null && revision.matches("(?i)[0-9a-f]{40}")
-                ? baseUri.resolve(pathValue(modelId) + "/resolve/" + revision + "/" + pathValue(path) + "?download=true")
-                : null;
             int[] shard = HuggingFaceModelFile.detectShard(path);
-            files.add(new HuggingFaceModelFile(
-                path,
-                size,
-                sha256,
-                downloadUri,
-                HuggingFaceModelFile.detectQuantization(path),
-                shard[0],
-                shard[1]));
+            files.add(siblingFile(
+                sibling, path, modelId, revision, baseUri,
+                HuggingFaceModelFile.detectQuantization(path), shard));
         }
         return files.stream()
             .filter(file -> !isAuxiliaryGguf(file.path()))
             .toList();
+    }
+
+    /**
+     * An MLX repository is a transformers-style directory whose every payload file (safetensors
+     * shards, tokenizer, config) belongs to one quantization — the whole repository. Only
+     * documentation and media files are skipped.
+     */
+    private static List<HuggingFaceModelFile> parseMlxFiles(
+        JsonObject root,
+        String modelId,
+        String revision,
+        URI baseUri,
+        String quantizationLabel
+    ) {
+        JsonElement siblingsElement = root.get("siblings");
+        if (siblingsElement == null || !siblingsElement.isJsonArray()) {
+            return List.of();
+        }
+        List<HuggingFaceModelFile> files = new ArrayList<>();
+        for (JsonElement item : siblingsElement.getAsJsonArray()) {
+            JsonObject sibling = object(item);
+            String path = firstString(sibling, "rfilename", "path");
+            if (path == null || !isMlxPayloadFile(path)) {
+                continue;
+            }
+            files.add(siblingFile(
+                sibling, path, modelId, revision, baseUri, quantizationLabel, detectMlxShard(path)));
+        }
+        return List.copyOf(files);
+    }
+
+    private static HuggingFaceModelFile siblingFile(
+        JsonObject sibling,
+        String path,
+        String modelId,
+        String revision,
+        URI baseUri,
+        String quantization,
+        int[] shard
+    ) {
+        JsonObject lfs = object(sibling.get("lfs"));
+        long size = longValue(lfs, "size");
+        if (size <= 0) {
+            size = longValue(sibling, "size");
+        }
+        if (size <= 0) {
+            size = -1;
+        }
+        String sha256 = firstString(lfs, "sha256", "oid");
+        if (sha256 != null && sha256.startsWith("sha256:")) {
+            sha256 = sha256.substring("sha256:".length());
+        }
+        if (sha256 != null && !sha256.matches("(?i)[0-9a-f]{64}")) {
+            sha256 = null;
+        }
+        // Non-LFS files carry no content SHA-256; their git blob id still pins the content. For
+        // LFS files the blob id would hash the pointer file, not the payload, so it is ignored.
+        String gitBlobSha1 = null;
+        if (lfs == null) {
+            gitBlobSha1 = firstString(sibling, "blobId", "oid");
+            if (gitBlobSha1 != null && !gitBlobSha1.matches("(?i)[0-9a-f]{40}")) {
+                gitBlobSha1 = null;
+            }
+        }
+        URI downloadUri = revision != null && revision.matches("(?i)[0-9a-f]{40}")
+            ? baseUri.resolve(pathValue(modelId) + "/resolve/" + revision + "/" + pathValue(path) + "?download=true")
+            : null;
+        return new HuggingFaceModelFile(path, size, sha256, downloadUri, quantization, shard[0], shard[1], gitBlobSha1);
+    }
+
+    /** Documentation and media never influence sizes and are not downloaded with an MLX model. */
+    static boolean isMlxPayloadFile(String path) {
+        String normalized = path == null ? "" : path.replace('\\', '/').toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || normalized.startsWith(".") || normalized.contains("/.")) {
+            return false;
+        }
+        return !normalized.endsWith(".md")
+            && !normalized.endsWith(".pdf")
+            && !normalized.endsWith(".png")
+            && !normalized.endsWith(".jpg")
+            && !normalized.endsWith(".jpeg")
+            && !normalized.endsWith(".gif")
+            && !normalized.endsWith(".svg")
+            && !normalized.endsWith(".webp");
+    }
+
+    private static final Pattern MLX_SHARD_PATTERN = Pattern.compile(
+        "(?i).*[-_.](\\d{5})-of-(\\d{5})\\.safetensors$");
+    private static final Pattern MLX_QUANT_SUFFIX = Pattern.compile(
+        "(?i)-(\\d+bit(?:-[a-z0-9]+)?|bf16|fp16|f16|f32|mxfp4)$");
+
+    private static int[] detectMlxShard(String path) {
+        Matcher matcher = MLX_SHARD_PATTERN.matcher(path);
+        if (!matcher.matches()) {
+            return new int[] {1, 1};
+        }
+        return new int[] {Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))};
+    }
+
+    /**
+     * MLX quantization is a repository-level property, conventionally expressed as a repo-name
+     * suffix ({@code -4bit}, {@code -8bit-DWQ}, {@code -bf16}) and mirrored in Hub tags such as
+     * {@code 4-bit}. Falls back to a plain {@code MLX} label when neither is present.
+     */
+    static String mlxQuantizationLabel(String id, Set<String> tags) {
+        String name = id.substring(id.lastIndexOf('/') + 1);
+        Matcher matcher = MLX_QUANT_SUFFIX.matcher(name);
+        if (matcher.find()) {
+            return matcher.group(1).toUpperCase(Locale.ROOT);
+        }
+        return tags.stream()
+            .filter(tag -> tag.matches("(?i)\\d+-bit"))
+            .map(tag -> tag.replace("-", "").toUpperCase(Locale.ROOT))
+            .findFirst()
+            .orElse("MLX");
     }
 
     /**

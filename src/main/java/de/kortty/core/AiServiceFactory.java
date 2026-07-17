@@ -4,6 +4,10 @@ import de.kortty.ai.llama.EmbeddedLlamaAiService;
 import de.kortty.ai.llama.LlamaModel;
 import de.kortty.ai.llama.LlamaModelPurpose;
 import de.kortty.ai.llama.LlamaModelRegistry;
+import de.kortty.ai.mlx.EmbeddedMlxAiService;
+import de.kortty.ai.mlx.MlxModel;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.ai.mlx.MlxPlatform;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
@@ -111,6 +115,38 @@ public final class AiServiceFactory {
                 webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
             }
             return decorate(profile, embeddedModelId, new EmbeddedLlamaAiService(
+                embeddedModelId,
+                effectiveReasoningEffort(profile, reasoningEffortOverride),
+                webSearchTool,
+                effectiveSkillSupport));
+        }
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX) {
+            if (!MlxPlatform.isSupported()) {
+                throw new IllegalStateException("Embedded MLX profiles require an Apple Silicon Mac.");
+            }
+            String embeddedModelId = trimToNull(profile.getEmbeddedModelId());
+            if (embeddedModelId == null) {
+                throw new IllegalStateException("Select a local MLX model for the embedded MLX profile.");
+            }
+            AiInternetAccessMode mode = profile.getInternetAccessMode();
+            if (mode == null) {
+                throw new IllegalStateException("AI internet access mode must be configured.");
+            }
+            if (mode.usesLmStudioMcp()) {
+                throw new IllegalStateException("LM Studio MCP internet modes are not available for embedded MLX profiles.");
+            }
+            AiInternetAccessConfiguration effectiveConfig = internetConfig != null
+                ? internetConfig
+                : AiInternetAccessConfiguration.disabled();
+            TavilyWebSearchTool webSearchTool = null;
+            if (mode.usesKorTTYTool()) {
+                String tavilyApiKey = trimToNull(effectiveConfig.tavilyApiKey());
+                if (tavilyApiKey == null) {
+                    throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
+                }
+                webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+            }
+            return decorate(profile, embeddedModelId, new EmbeddedMlxAiService(
                 embeddedModelId,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
                 webSearchTool,
@@ -254,7 +290,7 @@ public final class AiServiceFactory {
         if (profile == null) {
             return false;
         }
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile.getConnectionMode().isEmbedded()) {
             return true;
         }
         if (profile.getConnectionMode() != AiConnectionMode.HTTP_API) {
@@ -301,18 +337,25 @@ public final class AiServiceFactory {
     }
 
     private static int modelContextTokens(AiProfile profile) {
-        if (profile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP) {
-            return 16_000;
-        }
         try {
-            return LlamaModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
-                .find(profile.getEmbeddedModelId())
-                .map(LlamaModel::getContextSize)
-                .filter(value -> value > 0)
-                .orElse(16_000);
+            if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+                return LlamaModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .find(profile.getEmbeddedModelId())
+                    .map(LlamaModel::getContextSize)
+                    .filter(value -> value > 0)
+                    .orElse(16_000);
+            }
+            if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX) {
+                return MlxModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .find(profile.getEmbeddedModelId())
+                    .map(MlxModel::getContextSize)
+                    .filter(value -> value > 0)
+                    .orElse(16_000);
+            }
         } catch (RuntimeException ignored) {
             return 16_000;
         }
+        return 16_000;
     }
 
     private static AiProfile profileWithReasoning(AiProfile profile, AiReasoningEffort reasoningEffortOverride) {

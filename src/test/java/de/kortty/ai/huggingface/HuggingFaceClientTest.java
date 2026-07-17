@@ -67,6 +67,85 @@ class HuggingFaceClientTest {
     }
 
     @Test
+    void parsesMlxRepositoryAsSingleQuantizationDirectory() throws Exception {
+        String json = """
+            {
+              "id": "mlx-community/Qwen3-4B-4bit",
+              "sha": "%s",
+              "author": "mlx-community",
+              "gated": false,
+              "private": false,
+              "tags": ["mlx", "4-bit", "license:apache-2.0"],
+              "config": {"model_type": "qwen3"},
+              "siblings": [
+                {"rfilename": "config.json", "size": 937},
+                {"rfilename": "model-00001-of-00002.safetensors",
+                 "lfs": {"size": 1200, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+                {"rfilename": "model-00002-of-00002.safetensors",
+                 "lfs": {"size": 800, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+                {"rfilename": "model.safetensors.index.json", "size": 40},
+                {"rfilename": "tokenizer.json",
+                 "lfs": {"size": 500, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}},
+                {"rfilename": "tokenizer_config.json", "size": 60},
+                {"rfilename": "README.md", "size": 10},
+                {"rfilename": ".gitattributes", "size": 5}
+              ]
+            }
+            """.formatted(REVISION);
+
+        HuggingFaceModel model = HuggingFaceClient.parseModel(
+            JsonParser.parseString(json).getAsJsonObject(), URI.create("https://huggingface.co/"));
+
+        assertThat(model.format()).isEqualTo(HuggingFaceModelFormat.MLX);
+        assertThat(model.architecture()).isEqualTo("qwen3");
+        assertThat(model.quantizations()).containsExactly("4BIT");
+        assertThat(model.files()).hasSize(6);
+        assertThat(model.filesForQuantization("4BIT")).hasSize(6);
+        assertThat(model.bytesForQuantization("4BIT")).isEqualTo(937 + 1200 + 800 + 40 + 500 + 60);
+        assertThat(model.smallestQuantizationBytes()).isEqualTo(937 + 1200 + 800 + 40 + 500 + 60);
+        assertThat(model.files().stream()
+            .filter(file -> file.path().equals("model-00002-of-00002.safetensors"))
+            .findFirst().orElseThrow().shardIndex()).isEqualTo(2);
+    }
+
+    @Test
+    void mlxQuantizationLabelPrefersRepoNameSuffixOverTags() {
+        assertThat(HuggingFaceClient.mlxQuantizationLabel(
+            "mlx-community/Qwen3-4B-4bit", java.util.Set.of("mlx"))).isEqualTo("4BIT");
+        assertThat(HuggingFaceClient.mlxQuantizationLabel(
+            "mlx-community/Llama-3.3-70B-8bit-DWQ", java.util.Set.of("mlx"))).isEqualTo("8BIT-DWQ");
+        assertThat(HuggingFaceClient.mlxQuantizationLabel(
+            "mlx-community/SomeModel-bf16", java.util.Set.of("mlx"))).isEqualTo("BF16");
+        assertThat(HuggingFaceClient.mlxQuantizationLabel(
+            "mlx-community/NoSuffixModel", java.util.Set.of("mlx", "4-bit"))).isEqualTo("4BIT");
+        assertThat(HuggingFaceClient.mlxQuantizationLabel(
+            "mlx-community/NoSuffixModel", java.util.Set.of("mlx"))).isEqualTo("MLX");
+    }
+
+    @Test
+    void ggufRepositoriesStayGgufEvenWithMlxTag() throws Exception {
+        String json = """
+            {
+              "id": "owner/DualModel",
+              "sha": "%s",
+              "gated": false,
+              "private": false,
+              "tags": ["gguf", "mlx"],
+              "siblings": [
+                {"rfilename": "model-Q4_K_M.gguf",
+                 "lfs": {"size": 100, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+              ]
+            }
+            """.formatted(REVISION);
+
+        HuggingFaceModel model = HuggingFaceClient.parseModel(
+            JsonParser.parseString(json).getAsJsonObject(), URI.create("https://huggingface.co/"));
+
+        assertThat(model.format()).isEqualTo(HuggingFaceModelFormat.GGUF);
+        assertThat(model.quantizations()).containsExactly("Q4_K_M");
+    }
+
+    @Test
     void quantizationSelectionKeepsShardOrder() {
         HuggingFaceModel model = new HuggingFaceModel(
             "owner/model", "owner", REVISION, "mit", "test", 4096, 3,

@@ -312,6 +312,96 @@ class HuggingFaceModelDownloaderTest {
     }
 
     @Test
+    void mlxPlanAcceptsSinglePartConfigFilesNextToCompleteShardSet() {
+        HuggingFaceModelFile config = new HuggingFaceModelFile(
+            "config.json", 12, null, URI.create("https://example.test/config"), "4BIT", 1, 1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        HuggingFaceModelFile firstShard = new HuggingFaceModelFile(
+            "model-00001-of-00002.safetensors", 10,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            URI.create("https://example.test/s1"), "4BIT", 1, 2);
+        HuggingFaceModelFile secondShard = new HuggingFaceModelFile(
+            "model-00002-of-00002.safetensors", 10,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            URI.create("https://example.test/s2"), "4BIT", 2, 2);
+
+        HuggingFaceDownloadPlan plan = new HuggingFaceDownloadPlan(
+            "mlx-community/model-4bit", REVISION, Path.of("build/model"),
+            List.of(config, firstShard, secondShard));
+        assertThat(plan.totalBytes()).isEqualTo(32);
+
+        expectThrows(IllegalArgumentException.class, () -> new HuggingFaceDownloadPlan(
+            "mlx-community/model-4bit", REVISION, Path.of("build/model"),
+            List.of(config, firstShard)));
+    }
+
+    @Test
+    void verifiesNonLfsFilesAgainstTheirGitBlobSha1() throws Exception {
+        byte[] content = "{\"model_type\":\"qwen3\"}".getBytes(StandardCharsets.UTF_8);
+        String blobSha1 = gitBlobSha1(content);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/config.json", exchange ->
+            serveRange(exchange, content, new ArrayList<>(), new ArrayList<>()));
+        server.start();
+        Path directory = Files.createTempDirectory("kortty-hf-blob-sha1");
+        try {
+            URI uri = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/config.json");
+            HuggingFaceModelFile file = new HuggingFaceModelFile(
+                "config.json", content.length, null, uri, "4BIT", 1, 1, blobSha1);
+            HuggingFaceDownloadPlan plan = new HuggingFaceDownloadPlan(
+                "mlx-community/model-4bit", REVISION, directory, List.of(file));
+
+            HuggingFaceDownloadResult result = new HuggingFaceModelDownloader(
+                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build(),
+                HuggingFaceTokenProvider.fixed(null),
+                Runnable::run)
+                .download(plan, new HuggingFaceDownloadController(), progress -> { });
+
+            assertThat(Files.readAllBytes(result.files().get(0))).isEqualTo(content);
+        } finally {
+            server.stop(0);
+            deleteTree(directory);
+        }
+    }
+
+    @Test
+    void rejectsNonLfsFileWhoseGitBlobSha1DoesNotMatch() throws Exception {
+        byte[] content = "tampered".getBytes(StandardCharsets.UTF_8);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/config.json", exchange ->
+            serveRange(exchange, content, new ArrayList<>(), new ArrayList<>()));
+        server.start();
+        Path directory = Files.createTempDirectory("kortty-hf-blob-sha1-mismatch");
+        try {
+            URI uri = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/config.json");
+            HuggingFaceModelFile file = new HuggingFaceModelFile(
+                "config.json", content.length, null, uri, "4BIT", 1, 1,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+            HuggingFaceDownloadPlan plan = new HuggingFaceDownloadPlan(
+                "mlx-community/model-4bit", REVISION, directory, List.of(file));
+
+            Exception failure = expectThrows(IOException.class, () -> new HuggingFaceModelDownloader(
+                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build(),
+                HuggingFaceTokenProvider.fixed(null),
+                Runnable::run)
+                .download(plan, new HuggingFaceDownloadController(), progress -> { }));
+
+            assertThat(failure).hasMessageThat().contains("digest mismatch");
+            assertThat(Files.exists(directory.resolve("config.json"))).isFalse();
+        } finally {
+            server.stop(0);
+            deleteTree(directory);
+        }
+    }
+
+    private static String gitBlobSha1(byte[] content) throws Exception {
+        var digest = java.security.MessageDigest.getInstance("SHA-1");
+        digest.update(("blob " + content.length + "\0").getBytes(StandardCharsets.US_ASCII));
+        digest.update(content);
+        return java.util.HexFormat.of().formatHex(digest.digest());
+    }
+
+    @Test
     void failedAtomicActivationPreservesPreviousModelAndVerifiedPartial() throws Exception {
         byte[] content = "new verified GGUF".getBytes(StandardCharsets.UTF_8);
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

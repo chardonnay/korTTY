@@ -147,7 +147,8 @@ public final class HuggingFaceModelDownloader {
                         file.path(), fileNumber, plan.files().size(),
                         completedBeforeCurrentFile + file.size(), totalBytes, 0, null, metrics));
                     try {
-                        validTarget = file.sha256().equals(sha256(
+                        validTarget = expectedDigest(file).equals(contentDigest(
+                            file,
                             target,
                             controller,
                             () -> progress.accept(snapshot(
@@ -343,17 +344,17 @@ public final class HuggingFaceModelDownloader {
             completed, totalBytes, 0, null, metrics));
         String actual;
         try {
-            actual = sha256(partial, controller, pausedReporter);
+            actual = contentDigest(file, partial, controller, pausedReporter);
         } catch (CancellationException e) {
             reportCancellation(
                 progress, metrics, file.path(), fileIndex + 1, fileCount,
                 completed, totalBytes);
             throw e;
         }
-        if (!file.sha256().equals(actual)) {
+        if (!expectedDigest(file).equals(actual)) {
             Files.deleteIfExists(partial);
             Files.deleteIfExists(metadata);
-            throw new IOException("SHA-256 mismatch for " + file.path() + ".");
+            throw new IOException("Content digest mismatch for " + file.path() + ".");
         }
         if (!controller.activateIfPermitted(() -> fileActivator.activate(partial, target))) {
             reportCancellation(
@@ -552,7 +553,7 @@ public final class HuggingFaceModelDownloader {
             Path target = safeTarget(root, file.path());
             if (Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
                 && Files.size(target) == file.size()
-                && file.sha256().equals(sha256(target, controller, () -> { }))) {
+                && expectedDigest(file).equals(contentDigest(file, target, controller, () -> { }))) {
                 continue;
             }
             Path partial = target.resolveSibling(target.getFileName() + ".part");
@@ -603,6 +604,39 @@ public final class HuggingFaceModelDownloader {
         }
     }
 
+    /** The digest that pins a file's content: LFS SHA-256 when present, else the git blob SHA-1. */
+    private static String expectedDigest(HuggingFaceModelFile file) {
+        return file.sha256() != null ? file.sha256() : file.gitBlobSha1();
+    }
+
+    private static String contentDigest(
+        HuggingFaceModelFile file,
+        Path path,
+        HuggingFaceDownloadController controller,
+        Runnable pausedReporter
+    ) throws IOException, InterruptedException {
+        return file.sha256() != null
+            ? sha256(path, controller, pausedReporter)
+            : gitBlobSha1(path, controller, pausedReporter);
+    }
+
+    /** Git hashes blobs as SHA-1 over {@code "blob <size>\0"} followed by the raw content. */
+    private static String gitBlobSha1(
+        Path path,
+        HuggingFaceDownloadController controller,
+        Runnable pausedReporter
+    ) throws IOException, InterruptedException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-1 is unavailable.", e);
+        }
+        digest.update(("blob " + Files.size(path) + "\0")
+            .getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        return streamDigest(digest, path, controller, pausedReporter);
+    }
+
     private static String sha256(
         Path path,
         HuggingFaceDownloadController controller,
@@ -614,6 +648,15 @@ public final class HuggingFaceModelDownloader {
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 is unavailable.", e);
         }
+        return streamDigest(digest, path, controller, pausedReporter);
+    }
+
+    private static String streamDigest(
+        MessageDigest digest,
+        Path path,
+        HuggingFaceDownloadController controller,
+        Runnable pausedReporter
+    ) throws IOException, InterruptedException {
         try (InputStream input = Files.newInputStream(path)) {
             byte[] buffer = new byte[BUFFER_SIZE];
             while (true) {
@@ -866,8 +909,10 @@ public final class HuggingFaceModelDownloader {
             HuggingFaceModelFile file,
             String etag
         ) {
+            // The stored digest is whichever one pins this file (LFS SHA-256 or git blob SHA-1);
+            // the legacy property name is kept so existing GGUF resume files stay valid.
             return new ResumeMetadata(
-                plan.modelId(), plan.revision(), file.path(), file.size(), file.sha256(),
+                plan.modelId(), plan.revision(), file.path(), file.size(), expectedDigest(file),
                 file.downloadUri().toString(), etag);
         }
 
@@ -876,7 +921,7 @@ public final class HuggingFaceModelDownloader {
                 && Objects.equals(revision, plan.revision())
                 && Objects.equals(path, file.path())
                 && size == file.size()
-                && Objects.equals(sha256, file.sha256())
+                && Objects.equals(sha256, expectedDigest(file))
                 && Objects.equals(uri, file.downloadUri().toString());
         }
     }

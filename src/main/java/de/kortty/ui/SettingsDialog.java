@@ -45,6 +45,9 @@ import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
 import de.kortty.ai.llama.LlamaModel;
 import de.kortty.ai.llama.LlamaModelRegistry;
+import de.kortty.ai.mlx.MlxModel;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.ai.mlx.MlxPlatform;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
@@ -225,7 +228,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiConnectionMode> aiConnectionModeCombo;
     private final TextField aiApiUrlField;
     private final ComboBox<String> aiModelCombo;
-    private final ComboBox<LlamaModel> aiEmbeddedModelCombo;
+    private final Label aiEmbeddedModelLabel;
+    private final ComboBox<EmbeddedModelChoice> aiEmbeddedModelCombo;
     private final TextField aiCliCustomModelField;
     private final Button aiRefreshModelsButton;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
@@ -1736,6 +1740,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(new Label(I18n.get("settings.ai.connectionMode")), 0, aiRow);
         aiConnectionModeCombo = new ComboBox<>();
         aiConnectionModeCombo.getItems().setAll(AiConnectionMode.values());
+        if (!MlxPlatform.isSupported()) {
+            // MLX runs exclusively on Apple-Silicon macOS; do not offer the mode elsewhere.
+            // Existing EMBEDDED_MLX profiles still render via the converter's unavailable hint.
+            aiConnectionModeCombo.getItems().remove(AiConnectionMode.EMBEDDED_MLX);
+        }
         aiConnectionModeCombo.setPrefWidth(220);
         aiConnectionModeCombo.setConverter(createAiConnectionModeConverter());
         aiConnectionModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -1795,17 +1804,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox.setHgrow(aiModelCombo, Priority.ALWAYS);
         aiEditorGrid.add(aiModelBox, 1, aiRow++);
 
-        aiEditorGrid.add(new Label(I18n.get("settings.ai.embeddedModel")), 0, aiRow);
+        aiEmbeddedModelLabel = new Label(I18n.get("settings.ai.embeddedModel"));
+        aiEditorGrid.add(aiEmbeddedModelLabel, 0, aiRow);
         aiEmbeddedModelCombo = new ComboBox<>();
         aiEmbeddedModelCombo.setPrefWidth(320);
         aiEmbeddedModelCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
-            public String toString(LlamaModel model) {
-                return model == null ? "" : model.getDisplayName() + " (" + model.getId() + ")";
+            public String toString(EmbeddedModelChoice model) {
+                return model == null ? "" : model.displayName() + " (" + model.id() + ")";
             }
 
             @Override
-            public LlamaModel fromString(String string) {
+            public EmbeddedModelChoice fromString(String string) {
                 return null;
             }
         });
@@ -3740,14 +3750,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.getTextAiProfileId(),
             globalSettings.getCodingAiProfileId(),
             globalSettings.getDefaultAiProfileId());
-        if (profile == null || profile.getConnectionMode() != AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+        if (profile == null || !profile.getConnectionMode().isEmbedded()) {
             return null;
         }
-        AiService service = AiServiceFactory.create(
-            profile,
-            null,
-            AiInternetAccessConfiguration.disabled(),
-            AiSkillPromptSupport.disabled());
+        // Translation never needs web search, and this call passes a disabled internet
+        // configuration; keep the profile's mode from tripping the factory's Tavily-key check.
+        // Disabling the mode on a copy is safe for embedded profiles (the LM-Studio-MCP
+        // mis-routing trap applies only to native LM Studio endpoints).
+        AiProfile translationProfile = new AiProfile(profile);
+        translationProfile.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.DISABLED);
+        AiService service;
+        try {
+            service = AiServiceFactory.create(
+                translationProfile,
+                null,
+                AiInternetAccessConfiguration.disabled(),
+                AiSkillPromptSupport.disabled());
+        } catch (IllegalStateException e) {
+            // E.g. no embedded model selected yet, or an EMBEDDED_MLX profile on a non-Apple-Silicon
+            // machine: surface the generic "test failed" path instead of an uncaught exception.
+            return null;
+        }
         return service instanceof AiPromptService promptService
             ? new LocalAiTranslationService(promptService)
             : null;
@@ -4337,6 +4360,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 if (object == null) {
                     return "";
                 }
+                if (object == AiConnectionMode.EMBEDDED_MLX && !MlxPlatform.isSupported()) {
+                    return I18n.get("settings.ai.connectionMode.embedded_mlx.unavailable");
+                }
                 return I18n.get("settings.ai.connectionMode." + object.name().toLowerCase(Locale.ROOT));
             }
 
@@ -4426,31 +4452,57 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    /** Mode-independent embedded model entry (llama.cpp GGUF or MLX) for the profile editor combo. */
+    private record EmbeddedModelChoice(String id, String displayName) {
+    }
+
     private void refreshEmbeddedModelSelection(AiProfile profile) {
         if (aiEmbeddedModelCombo == null) {
             return;
         }
-        List<LlamaModel> models = LlamaModelRegistry
+        boolean mlx = profile != null && profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX;
+        if (aiEmbeddedModelLabel != null) {
+            aiEmbeddedModelLabel.setText(I18n.get(mlx ? "settings.ai.embeddedModel.mlx" : "settings.ai.embeddedModel"));
+        }
+        aiEmbeddedModelCombo.setPromptText(I18n.get(mlx
+            ? "settings.ai.embeddedModel.mlx.empty"
+            : "settings.ai.embeddedModel.empty"));
+        List<EmbeddedModelChoice> models = mlx ? listMlxEmbeddedModels() : listLlamaEmbeddedModels();
+        aiEmbeddedModelCombo.getItems().setAll(models);
+        String selectedId = profile != null ? profile.getEmbeddedModelId() : null;
+        aiEmbeddedModelCombo.setValue(models.stream()
+            .filter(model -> model.id().equals(selectedId))
+            .findFirst()
+            .orElse(null));
+    }
+
+    private List<EmbeddedModelChoice> listLlamaEmbeddedModels() {
+        return LlamaModelRegistry
             .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
             .list()
             .stream()
             .filter(model -> model.getPurpose() == de.kortty.ai.llama.LlamaModelPurpose.CHAT)
             .sorted(Comparator.comparing(LlamaModel::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+            .map(model -> new EmbeddedModelChoice(model.getId(), model.getDisplayName()))
             .toList();
-        aiEmbeddedModelCombo.getItems().setAll(models);
-        String selectedId = profile != null ? profile.getEmbeddedModelId() : null;
-        aiEmbeddedModelCombo.setValue(models.stream()
-            .filter(model -> model.getId().equals(selectedId))
-            .findFirst()
-            .orElse(null));
+    }
+
+    private List<EmbeddedModelChoice> listMlxEmbeddedModels() {
+        return MlxModelRegistry
+            .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+            .list()
+            .stream()
+            .sorted(Comparator.comparing(MlxModel::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+            .map(model -> new EmbeddedModelChoice(model.getId(), model.getDisplayName()))
+            .toList();
     }
 
     private void snapshotAiModelSelection(AiProfile profile) {
-        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
-            LlamaModel model = aiEmbeddedModelCombo != null ? aiEmbeddedModelCombo.getValue() : null;
-            profile.setEmbeddedModelId(model != null ? model.getId() : null);
+        if (profile.getConnectionMode().isEmbedded()) {
+            EmbeddedModelChoice model = aiEmbeddedModelCombo != null ? aiEmbeddedModelCombo.getValue() : null;
+            profile.setEmbeddedModelId(model != null ? model.id() : null);
             profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
-            profile.setModel(model != null ? model.getDisplayName() : null);
+            profile.setModel(model != null ? model.displayName() : null);
             return;
         }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
@@ -4765,7 +4817,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private void updateAiConnectionModeUi() {
         boolean cliMode = isAiCliModeSelected();
         boolean embeddedMode = aiConnectionModeCombo != null
-            && aiConnectionModeCombo.getValue() == AiConnectionMode.EMBEDDED_LLAMA_CPP;
+            && aiConnectionModeCombo.getValue() != null
+            && aiConnectionModeCombo.getValue().isEmbedded();
         boolean localMode = cliMode || embeddedMode;
         aiApiUrlField.setDisable(localMode);
         aiApiKeyField.setDisable(localMode);

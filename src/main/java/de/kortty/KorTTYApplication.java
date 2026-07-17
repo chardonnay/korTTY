@@ -467,9 +467,12 @@ public class KorTTYApplication extends Application {
         shutdownStep("stop llama.cpp runtime update coordination",
             de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator::shutdownDefault);
         // The application terminates with Runtime.halt(), so sidecar cleanup cannot rely on JVM
-        // shutdown hooks. Stop every embedded llama.cpp process explicitly before the hard halt.
+        // shutdown hooks. Stop every embedded llama.cpp and mlx-lm process explicitly before the
+        // hard halt.
         shutdownStep("stop embedded llama.cpp runtimes",
             de.kortty.ai.llama.LlamaRuntimeManager::shutdownDefault);
+        shutdownStep("stop embedded MLX runtimes",
+            de.kortty.ai.mlx.MlxRuntimeManager::shutdownDefault);
         if (powerManagementCoordinator != null) {
             shutdownStep("release power-management assertions", powerManagementCoordinator::close);
             powerManagementCoordinator = null;
