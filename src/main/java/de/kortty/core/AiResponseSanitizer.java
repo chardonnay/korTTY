@@ -28,8 +28,9 @@ public final class AiResponseSanitizer {
 
     // gpt-oss and other harmony-format models emit their turn as channel segments —
     // <|channel|>analysis<|message|>…<|end|><|start|>assistant<|channel|>final<|message|>…<|return|>.
-    // With the sidecar's --reasoning-format none the raw markers stay inline in the content, so the
-    // analysis/commentary channels are reasoning and only the final channel is the answer.
+    // The sidecar's default reasoning parsing normally separates these, but when the raw markers leak
+    // inline into the content the analysis/commentary channels are reasoning and only the final
+    // channel is the answer.
     private static final Pattern HARMONY_CHANNEL_HEADER =
         Pattern.compile("(?is)<\\|channel\\|>\\s*([a-z_]+)\\s*(?:<\\|constrain\\|>[^<]*)?<\\|message\\|>");
     private static final Pattern HARMONY_CONTROL_TOKEN =

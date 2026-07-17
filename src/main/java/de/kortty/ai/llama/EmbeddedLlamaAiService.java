@@ -178,9 +178,11 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
     }
 
     /**
-     * The sidecar runs with {@code --reasoning-format none} (see LlamaRuntimeManager.buildCommand),
-     * so a reasoning model's chain-of-thought arrives inline in the content; the shared support
-     * restores the transport contract (thoughts in {@link AiExecutionResult#reasoning()}).
+     * Chat sidecars keep the llama-server default reasoning parsing (see LlamaRuntimeManager.buildCommand),
+     * which normally splits a reasoning model's chain-of-thought out of the answer. Any thoughts that
+     * still leak inline — {@code <think>} blocks or gpt-oss harmony channels — are re-extracted
+     * defensively here so the transport contract holds (thoughts in {@link AiExecutionResult#reasoning()},
+     * clean content).
      */
     private static AiExecutionResult separateInlineReasoning(AiExecutionResult result) throws IOException {
         return LocalAiReplySupport.separateInlineReasoning(result);
