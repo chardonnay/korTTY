@@ -225,6 +225,7 @@ class AiI18nCoverageTest {
         "ai.agent.prompt.label",
         "ai.agent.showDebug",
         "ai.agent.showRuntime",
+        "ai.agent.mirrorToTerminal",
         "ai.agent.ask.title",
         "ai.agent.ask.header",
         "ai.agent.ask.start",

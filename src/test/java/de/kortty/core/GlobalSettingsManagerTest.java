@@ -65,6 +65,26 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void terminalAgentMirrorFinalAnswerDefaultsToTrueAndRoundTrips() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            // Historical behavior — the final answer is mirrored into the terminal by default.
+            assertThat(manager.getSettings().isTerminalAgentMirrorFinalAnswerToTerminal()).isTrue();
+
+            manager.getSettings().setTerminalAgentMirrorFinalAnswerToTerminal(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().isTerminalAgentMirrorFinalAnswerToTerminal()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesDefaultLocalModelId() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

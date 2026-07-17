@@ -36,7 +36,7 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 
 ### Command purposes
 
-- **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.
+- **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and (by default) writes the final answer back to the terminal. The run dialog offers a **Show final answer in the terminal too** option: leave it on to mirror the answer into the terminal, or turn it off so the answer stays only in the AI agent activity panel. Either way the commands still run and their output and any files they create remain on the server; only the display of the final answer text changes. The last choice is remembered as the default.
 - **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask AI Agent**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
 - **`agent-plan <task>` / `agent -plan <task>`** — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click **Implement**.
 

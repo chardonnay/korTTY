@@ -28,6 +28,7 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
     private final TextArea promptArea;
     private final CheckBox showDebugMessagesCheck;
     private final CheckBox showRuntimeMessagesCheck;
+    private final CheckBox mirrorFinalAnswerCheck;
 
     public AiAgentDialog(
         Window owner,
@@ -36,6 +37,7 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
         TerminalAgentExecutionTarget executionTarget,
         boolean showDebugMessages,
         boolean showRuntimeMessages,
+        boolean mirrorFinalAnswerToTerminal,
         boolean queryOnly,
         String initialPrompt) {
         initOwner(owner);
@@ -94,6 +96,13 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
         showRuntimeMessagesCheck.setSelected(showRuntimeMessages);
         showRuntimeMessagesCheck.setDisable(queryOnly);
 
+        // Mirroring the final answer into the terminal only applies to an executing run shown in the
+        // terminal window; the ask/chat-window paths have no terminal to write to.
+        boolean mirrorApplies = !queryOnly && executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW;
+        mirrorFinalAnswerCheck = new CheckBox(I18n.get("ai.agent.mirrorToTerminal"));
+        mirrorFinalAnswerCheck.setSelected(mirrorFinalAnswerToTerminal);
+        mirrorFinalAnswerCheck.setDisable(!mirrorApplies);
+
         VBox content = new VBox(
             10,
             new Label(I18n.get("ai.agent.profile")),
@@ -103,7 +112,8 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
             new Label(I18n.get(queryOnly ? "ai.agent.ask.prompt.label" : "ai.agent.prompt.label")),
             promptArea,
             showDebugMessagesCheck,
-            showRuntimeMessagesCheck);
+            showRuntimeMessagesCheck,
+            mirrorFinalAnswerCheck);
         content.setPadding(new Insets(8, 0, 0, 0));
         VBox.setVgrow(promptArea, Priority.ALWAYS);
 
@@ -138,7 +148,8 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
                 false,
                 false,
                 false,
-                queryOnly);
+                queryOnly,
+                mirrorFinalAnswerCheck.isSelected());
         });
     }
 

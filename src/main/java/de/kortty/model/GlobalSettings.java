@@ -385,6 +385,10 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalAgentShowRuntimeMessages = false;
 
+    /** Also print the terminal agent's final answer into the terminal (not only the AI agent panel). */
+    @XmlElement
+    private boolean terminalAgentMirrorFinalAnswerToTerminal = true;
+
     /** Show the terminal-agent setup dialog before starting prompt-based terminal commands. */
     @XmlElement
     private boolean terminalAgentShowRunDialog = true;
@@ -1561,6 +1565,14 @@ public class GlobalSettings {
 
     public boolean isTerminalAgentShowRuntimeMessages() {
         return terminalAgentShowRuntimeMessages;
+    }
+
+    public boolean isTerminalAgentMirrorFinalAnswerToTerminal() {
+        return terminalAgentMirrorFinalAnswerToTerminal;
+    }
+
+    public void setTerminalAgentMirrorFinalAnswerToTerminal(boolean terminalAgentMirrorFinalAnswerToTerminal) {
+        this.terminalAgentMirrorFinalAnswerToTerminal = terminalAgentMirrorFinalAnswerToTerminal;
     }
 
     public void setTerminalAgentShowRuntimeMessages(boolean terminalAgentShowRuntimeMessages) {

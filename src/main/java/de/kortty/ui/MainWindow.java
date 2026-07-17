@@ -6007,6 +6007,24 @@ public class MainWindow {
         return settings != null && settings.isTerminalAgentShowRuntimeMessages();
     }
 
+    private boolean shouldMirrorTerminalAgentFinalAnswer() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings == null || settings.isTerminalAgentMirrorFinalAnswerToTerminal();
+    }
+
+    private void rememberTerminalAgentMirrorFinalAnswer(boolean mirror) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null || settings.isTerminalAgentMirrorFinalAnswerToTerminal() == mirror) {
+            return;
+        }
+        settings.setTerminalAgentMirrorFinalAnswerToTerminal(mirror);
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist terminal-agent terminal-mirror preference: {}", e.getMessage());
+        }
+    }
+
     private String getConnectionDisplayName(TerminalTab terminalTab) {
         return terminalTab.getConnection() != null
             ? terminalTab.getConnection().getDisplayName()
@@ -6127,7 +6145,8 @@ public class MainWindow {
                 askConfirmationBeforeEveryCommand,
                 autoApproveRootCommands,
                 !queryOnly && shouldConfirmTerminalAgentMutatingCommandSets(),
-                queryOnly);
+                queryOnly,
+                shouldMirrorTerminalAgentFinalAnswer());
             launchTerminalAgent(terminalTab, directRequest, runContext, askSelectedText);
             return;
         }
@@ -6140,9 +6159,11 @@ public class MainWindow {
             getTerminalAgentExecutionTarget(),
             shouldShowTerminalAgentDebugMessages(),
             shouldShowTerminalAgentRuntimeMessages(),
+            shouldMirrorTerminalAgentFinalAnswer(),
             queryOnly,
             initialPrompt);
         dialog.showAndWait().ifPresent(request -> {
+            rememberTerminalAgentMirrorFinalAnswer(request.mirrorFinalAnswerToTerminal());
             TerminalAgentModels.Request enrichedRequest = new TerminalAgentModels.Request(
                 terminalTab.getAiSessionId(),
                 request.profileId(),
@@ -6155,7 +6176,8 @@ public class MainWindow {
                 askConfirmationBeforeEveryCommand || request.askConfirmationBeforeEveryCommand(),
                 autoApproveRootCommands || request.autoApproveRootCommands(),
                 !request.queryOnly() && shouldConfirmTerminalAgentMutatingCommandSets(),
-                request.queryOnly());
+                request.queryOnly(),
+                request.mirrorFinalAnswerToTerminal());
             launchTerminalAgent(terminalTab, enrichedRequest, runContext, askSelectedText);
         });
     }
@@ -6407,7 +6429,8 @@ public class MainWindow {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
-                        if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                        if (state != null && isTerminalAgentFinalPhase(state.phase())
+                            && scopedRequest.mirrorFinalAnswerToTerminal()) {
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
                                 terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
@@ -6556,7 +6579,8 @@ public class MainWindow {
             request.askConfirmationBeforeEveryCommand(),
             request.autoApproveRootCommands(),
             request.confirmMutatingCommandSets(),
-            request.queryOnly());
+            request.queryOnly(),
+            request.mirrorFinalAnswerToTerminal());
     }
 
     /**
