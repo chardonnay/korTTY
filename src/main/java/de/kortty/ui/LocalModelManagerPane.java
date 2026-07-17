@@ -75,6 +75,7 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.GridPane;
@@ -578,7 +579,9 @@ final class LocalModelManagerPane extends VBox {
     }
 
     private void configureInstalledTable() {
-        installedTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        // ALL_COLUMNS (not FLEX_LAST) so the long Name/GGUF-file columns absorb the free width; the
+        // short metadata columns below are capped so they no longer stretch across the whole row.
+        installedTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         installedTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         installedTable.setPlaceholder(new Label(I18n.get("ai.local.models.empty")));
 
@@ -598,7 +601,15 @@ final class LocalModelManagerPane extends VBox {
                 : I18n.get("ai.local.models.minutes", model.idleTimeoutMinutes()));
         TableColumn<InstalledModel, String> state = column(I18n.get("ai.local.models.column.state"), this::runtimeState);
         name.setMinWidth(170);
+        name.setPrefWidth(260);
         file.setMinWidth(180);
+        file.setPrefWidth(260);
+        // Short metadata columns size to their content and never exceed ~30 characters, so they stop
+        // eating horizontal space; anything longer is revealed by the hover tooltip.
+        purpose.setMaxWidth(190);
+        backend.setMaxWidth(100);
+        idle.setMaxWidth(130);
+        state.setMaxWidth(120);
         installedTable.getColumns().addAll(List.of(name, file, purpose, backend, idle, state));
         installDefaultContextMenu();
     }
@@ -725,20 +736,27 @@ final class LocalModelManagerPane extends VBox {
 
     /** Cell that shows the per-row loading hint while its repository details are being fetched. */
     private <T> TableCell<HuggingFaceModel, T> hubCell(Function<T, String> format) {
-        return new TableCell<>() {
+        Tooltip tooltip = new Tooltip();
+        tooltip.setWrapText(true);
+        tooltip.setMaxWidth(520);
+        TableCell<HuggingFaceModel, T> cell = new TableCell<>() {
             @Override
             protected void updateItem(T value, boolean empty) {
                 super.updateItem(value, empty);
                 if (empty || value == null) {
                     setText(null);
+                    refreshOverflowTooltip(this, tooltip);
                     return;
                 }
                 HuggingFaceModel row = getTableRow() != null ? getTableRow().getItem() : null;
                 setText(row != null && hubDetailsLoading.contains(hubModelKey(row))
                     ? I18n.get("ai.local.models.details.loading")
                     : format.apply(value));
+                refreshOverflowTooltip(this, tooltip);
             }
         };
+        cell.widthProperty().addListener((obs, old, width) -> refreshOverflowTooltip(cell, tooltip));
+        return cell;
     }
 
     /**
@@ -2431,7 +2449,46 @@ final class LocalModelManagerPane extends VBox {
     private static <T> TableColumn<T, String> column(String title, java.util.function.Function<T, String> value) {
         TableColumn<T, String> column = new TableColumn<>(title);
         column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+        column.setCellFactory(ignored -> overflowTooltipCell());
         return column;
+    }
+
+    /** A text cell that reveals the full value in a tooltip on hover only when the column clips it. */
+    private static <T> TableCell<T, String> overflowTooltipCell() {
+        Tooltip tooltip = new Tooltip();
+        tooltip.setWrapText(true);
+        tooltip.setMaxWidth(520);
+        TableCell<T, String> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+                refreshOverflowTooltip(this, tooltip);
+            }
+        };
+        cell.widthProperty().addListener((obs, old, width) -> refreshOverflowTooltip(cell, tooltip));
+        return cell;
+    }
+
+    /**
+     * Shows {@code tooltip} with the cell's full text only when that text is wider than the cell, so a
+     * hover reveals values the column truncates while readable cells stay tooltip-free.
+     */
+    private static void refreshOverflowTooltip(TableCell<?, ?> cell, Tooltip tooltip) {
+        String text = cell.getText();
+        if (text == null || text.isBlank()) {
+            cell.setTooltip(null);
+            return;
+        }
+        double available = cell.getWidth() - cell.getInsets().getLeft() - cell.getInsets().getRight();
+        javafx.scene.text.Text measure = new javafx.scene.text.Text(text);
+        measure.setFont(cell.getFont());
+        if (available > 0 && measure.getLayoutBounds().getWidth() > available + 1) {
+            tooltip.setText(text);
+            cell.setTooltip(tooltip);
+        } else {
+            cell.setTooltip(null);
+        }
     }
 
     private static Label sectionTitle(String text) {
