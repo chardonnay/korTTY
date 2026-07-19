@@ -240,7 +240,11 @@ public class Mosh4jTtyConnector implements TtyConnector {
                     Thread.sleep(40);
                 }
             }
-            String outputStr = output.toString();
+            // A partial (regex-unmatched) "MOSH CONNECT <port> <key>" line may sit in the buffered
+            // output at timeout. Redact the session key before the text reaches the debug log or
+            // the exception message, which callers log as well.
+            String outputStr = output.toString()
+                .replaceAll("MOSH CONNECT\\s+(\\d+)\\s+\\S+", "MOSH CONNECT $1 ***");
             if (logger.isDebugEnabled()) {
                 logger.debug("Mosh handshake timeout after {} s. Partial server output ({} chars): {}", timeoutSec, outputStr.length(), outputStr);
             }

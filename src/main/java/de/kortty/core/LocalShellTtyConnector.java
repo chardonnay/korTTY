@@ -102,7 +102,10 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             unresolvedWorkingDirectoryChange.set(false);
             directoryChangeTracker.reset();
 
-            logger.info("Starting local shell ({}x{}) cmd={}", cols, rows, String.join(" ", command));
+            // Log only the executable: the user-configured command line is free-form and may embed
+            // credentials in its arguments (e.g. sshpass -p, mysql -p) — CodeQL java/sensitive-log.
+            logger.info("Starting local shell ({}x{}) cmd={}", cols, rows,
+                command.isEmpty() ? "<none>" : command.get(0));
             ptyProcess = builder.start();
             inputStream = ptyProcess.getInputStream();
             outputStream = ptyProcess.getOutputStream();

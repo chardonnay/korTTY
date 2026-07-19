@@ -2036,8 +2036,13 @@ public class SFTPManagerTab extends Tab {
             try {
                 // Build the archive command based on format
                 String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
-                
-                logger.info("Executing remote archive command: {}", archiveCommand.replaceAll("-P '[^']*'", "-P '***'").replaceAll("-p'[^']*'", "-p'***'"));
+
+                // Build the logged command with a placeholder password instead of regex-masking the
+                // real one: quote-escaping ('\'') let passwords containing quotes leak past the old
+                // "[^']*" masks (CodeQL java/sensitive-log).
+                logger.info("Executing remote archive command: {}", buildArchiveCommand(
+                    filesToArchive, archivePath, format, compression,
+                    password != null && !password.isEmpty() ? "***" : password, excludePatterns));
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
@@ -3084,21 +3089,27 @@ public class SFTPManagerTab extends Tab {
         
         cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
         
+        String passwordFragment = null;
         if (password != null && !password.isEmpty()) {
-            cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
+            passwordFragment = " -p'" + password.replace("'", "'\\''") + "' -mhe=on";
+            cmd.append(passwordFragment);
         }
-        
+
         for (String pattern : exclude) {
             cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
         }
-        
+
         cmd.append(" '").append(archivePath.replace("'", "'\\''")).append("' ");
-        
+
         for (Path file : files) {
             cmd.append("'").append(file.toAbsolutePath().toString().replace("'", "'\\''")).append("' ");
         }
-        
-        logger.info("Executing local 7z command: {}", cmd);
+
+        // Never log the archive password: replace the exact appended fragment with a placeholder
+        // (CodeQL java/sensitive-log — the command previously went to the log unmasked).
+        logger.info("Executing local 7z command: {}", passwordFragment == null
+            ? cmd.toString()
+            : cmd.toString().replace(passwordFragment, " -p'***' -mhe=on"));
         
         // Execute command
         Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd.toString()});
