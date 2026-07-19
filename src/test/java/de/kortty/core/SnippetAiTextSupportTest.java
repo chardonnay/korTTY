@@ -43,6 +43,31 @@ class SnippetAiTextSupportTest {
     }
 
     @Test
+    void pathLikeStringsStayExcludedAfterRegexReplacement() {
+        List<SnippetAiTextSupport.EditableTextSegment> segments =
+            SnippetAiTextSupport.extractEditableSegments(
+                "cp \"~/backups/logs/archive\" \"/usr/local/share\"\necho \"Backup done\"\n",
+                "bash");
+
+        // Both path literals are code-only; only the human-readable text remains editable.
+        assertThat(segments).hasSize(1);
+        assertThat(segments.get(0).coreText()).isEqualTo("Backup done");
+    }
+
+    @Test
+    void adversarialPathLikeStringCompletesQuickly() {
+        // The former regex (overlapping '/' classes with nested quantifiers) showed catastrophic
+        // backtracking on this shape: many valid segments with a final rejected character.
+        String hostile = "\"" + "aaaa/".repeat(1600) + "!" + "\"";
+        long start = System.nanoTime();
+
+        SnippetAiTextSupport.extractEditableSegments("echo " + hostile + "\n", "bash");
+
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+        assertThat(elapsedMillis).isLessThan(2_000L);
+    }
+
+    @Test
     void extractEditableSegmentsStillRejectsCodeOnlySelection() {
         String snippet = "echo \"Sicherung abgeschlossen\"\n";
 

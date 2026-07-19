@@ -73,9 +73,12 @@ public final class SnippetAiTextSupport {
 
     private static final Pattern C_STYLE_BLOCK_COMMENT_PATTERN = Pattern.compile("(?s)/\\*(.*?)\\*/");
     private static final Pattern XML_COMMENT_PATTERN = Pattern.compile("(?s)<!--(.*?)-->");
-    private static final Pattern DOUBLE_QUOTED_PATTERN = Pattern.compile("\"((?:[^\"\\\\]|\\\\.)*)\"");
-    private static final Pattern SINGLE_QUOTED_PATTERN = Pattern.compile("'((?:[^'\\\\]|\\\\.)*)'");
-    private static final Pattern BACKTICK_QUOTED_PATTERN = Pattern.compile("`((?:[^`\\\\]|\\\\.)*)`");
+    // Unrolled-loop form of (?:[^X\\]|\\.)* — same language, but plain characters are consumed by
+    // a single possessive class instead of one recursive alternation step per character, which kept
+    // very long string literals from overflowing the regex engine's stack.
+    private static final Pattern DOUBLE_QUOTED_PATTERN = Pattern.compile("\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\"");
+    private static final Pattern SINGLE_QUOTED_PATTERN = Pattern.compile("'([^'\\\\]*+(?:\\\\.[^'\\\\]*+)*+)'");
+    private static final Pattern BACKTICK_QUOTED_PATTERN = Pattern.compile("`([^`\\\\]*+(?:\\\\.[^`\\\\]*+)*+)`");
     private static final Pattern PYTHON_TRIPLE_DOUBLE_PATTERN = Pattern.compile("(?s)\"\"\"(.*?)\"\"\"");
     private static final Pattern PYTHON_TRIPLE_SINGLE_PATTERN = Pattern.compile("(?s)'''(.*?)'''");
 
@@ -418,7 +421,31 @@ public final class SnippetAiTextSupport {
         if (coreText.contains("$") || coreText.contains("${") || coreText.contains("%")) {
             return true;
         }
-        return coreText.matches("^[~./A-Za-z0-9_-]+(/[~./A-Za-z0-9_.-]+)+$");
+        return looksLikeFilesystemPath(coreText);
+    }
+
+    /**
+     * Path heuristic ("~/backups/logs", "/usr/local/bin"): only path characters and at least two
+     * segments. A linear scan replaces the earlier regex, whose overlapping character classes
+     * (both containing {@code /}) allowed catastrophic backtracking on adversarial snippet text
+     * (CodeQL java/redos).
+     */
+    private static boolean looksLikeFilesystemPath(String text) {
+        boolean separatorSeen = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            boolean allowed = c == '~' || c == '.' || c == '/' || c == '_' || c == '-'
+                || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+            if (!allowed) {
+                return false;
+            }
+            // The first character may open an absolute path; a separator only counts once a
+            // first segment exists, mirroring the old "prefix + (/segment)+" shape.
+            if (c == '/' && i > 0) {
+                separatorSeen = true;
+            }
+        }
+        return separatorSeen;
     }
 
     private static CommentFormat commentFormat(String normalizedLanguage) {
