@@ -243,13 +243,13 @@ pages:
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
     diagrams: []
     screenshots: [ai/local-models.png]
-    last_synced_ref: "297cc4f"
+    last_synced_ref: "5919b09"
   - path: app-docs/site/docs/en/features/rag.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/rag, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/ui/RagKnowledgeStorePane.java, src/main/java/de/kortty/ui/RagKnowledgeStorePresentation.java, src/main/java/de/kortty/model/AiProfile.java]
     diagrams: [rag-knowledge-pipeline.svg]
     screenshots: [ai/knowledge-stores.png, ai/rag-preview.png]
-    last_synced_ref: "61e7ec4"
+    last_synced_ref: "5919b09"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]

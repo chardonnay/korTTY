@@ -31,15 +31,17 @@ In der Tabelle **Laufzeiten** oben unter „Lokale Modelle“ werden beide einge
 
 Wählen Sie **AI > AI Manager > Lokale Modelle > Einrichtungsassistent**. Der sechsstufige Assistent umfasst Datenschutz, erkannten Systemspeicher und Backend-Anleitung, optionale rollenspezifische Empfehlungen, Lizenz- und genaue Überprüfung der Downloadgröße, verifizierte Installation und eine abschließende Zusammenfassung der Bereitschaft.
 
-Aktivieren Sie unter **Modelle für optionale Rollen auswählen** eine beliebige Kombination aus **Text und Übersetzung**, **Codierung** und **RAG-Einbettungen**. Jeder aktivierte Slot verfügt über einen eigenen Empfehlungsselektor. deaktivierte Slots bleiben unverändert. Text und Codierung teilen möglicherweise absichtlich eine kompatible Empfehlung. In diesem Fall lädt korTTY diesen GGUF nur einmal herunter und registriert ihn. Wenn Sie den Assistenten über eine Warnung wegen fehlender Einbettung öffnen, wird nur der RAG-Einbettungsslot vorab ausgewählt.
+Aktivieren Sie unter **Modelle für optionale Rollen auswählen** eine beliebige Kombination aus **Text und Übersetzung**, **Codierung** und **RAG-Einbettungen**. Jeder aktivierte Steckplatz verfügt über einen eigenen Empfehlungsselektor, der alle Katalogmodelle auflistet, die der erkannte Speicher für diese Rolle unterstützt, sortiert nach Präferenz, wobei der bevorzugte Standard vorab ausgewählt ist – eine echte Auswahl, kein einziger fester Vorschlag. Deaktivierte Slots bleiben unverändert. Text und Codierung teilen möglicherweise absichtlich eine kompatible Empfehlung. In diesem Fall lädt korTTY diesen GGUF nur einmal herunter und registriert ihn. Wenn Sie den Assistenten über eine Warnung wegen fehlender Einbettung öffnen, wird nur der RAG-Einbettungsslot vorab ausgewählt.
 
-Der integrierte Bootstrap-Katalog verwendet konservative RAM-Stufen:
+Der integrierte Bootstrap-Katalog verwendet konservative RAM-Stufen. Die Tabelle zeigt den vorausgewählten Standard pro Rolle; Der Selektor eines aktivierten Steckplatzes bietet zusätzlich jedes andere Katalogmodell an, dessen Speicherbedarf die erkannte Stufe erfüllt:
 
 | Erkannter Speicher | Textempfehlung | Codierungsempfehlung | RAG-Einbettungen |
 | --- | --- | --- | --- |
 | Weniger als 16 GiB | Qwen3 1.7B, `Q4_K_M` | Qwen3 1.7B, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 | 16–23 GiB | Qwen3 4B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 | 24 GiB oder mehr | Qwen3 8B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
+
+Für den RAG-Embeddings-Slot bleibt Qwen3-Embedding 0.6B `Q8_0` der vorab ausgewählte Standard auf jeder Ebene; Der Selektor bietet außerdem Qwen3-Embedding 4B `Q4_K_M` (ab 16 GiB), Qwen3-Embedding 8B `Q4_K_M` (ab 24 GiB) und – ohne Mindestspeicherbedarf – den mehrsprachigen BGE-M3 `Q8_0` und den sehr kleinen, schnellen Nomic Embed Text v1.5 `Q8_0`.
 
 Empfehlungen sind Ausgangspunkte, keine Hardwaregarantien. Die Modelltabelle kennzeichnet die geschätzte Passform als **Bequem**, **Möglich**, **Zu groß** oder **Unbekannt**; Kontextgröße und gleichzeitige Modelle wirken sich auch auf die Speichernutzung aus.
 
@@ -53,7 +55,7 @@ Nachdem jeder ausgewählte GGUF heruntergeladen und registriert wurde, sendet de
 
 ## Signiertes Modell und prompter Katalog
 
-korTTY enthält immer einen kleinen Bootstrap-Katalog mit den Empfehlungen zur Speicherschicht und der Erkennung der Eingabeaufforderungsfamilie, die für die Offline-Einrichtung erforderlich sind. Alle fünf gebündelten Modellempfehlungen enthalten einen konkreten Hugging Face-Commit mit 40 Zeichen, sodass selbst der Bootstrap nie einen veränderlichen Repository-Kopf auflöst, wenn der Assistent später Metadaten oder GGUF-Dateien abruft. Offizielle Builds können diese Daten unabhängig von der Anwendung über `model-prompt-catalog-v1.json` und die separate Ed25519-Signatur `model-prompt-catalog-v1.sig` aktualisieren.
+korTTY enthält immer einen kleinen Bootstrap-Katalog mit den Empfehlungen zur Speicherschicht und der Erkennung der Eingabeaufforderungsfamilie, die für die Offline-Einrichtung erforderlich sind. Alle neun gebündelten Modellempfehlungen enthalten einen konkreten Hugging Face-Commit mit 40 Zeichen, sodass selbst der Bootstrap niemals einen veränderlichen Repository-Kopf auflöst, wenn der Assistent später Metadaten oder GGUF-Dateien abruft. Offizielle Builds können diese Daten unabhängig von der Anwendung über `model-prompt-catalog-v1.json` und die separate Ed25519-Signatur `model-prompt-catalog-v1.sig` aktualisieren.
 
 Bei der ersten Verwendung von Empfehlungen oder der automatischen Eingabeaufforderungserkennung lädt korTTY sofort den letzten signaturverifizierten Cache und führt höchstens eine Hintergrundaktualisierung über den festen HTTPS-Stabilkanal durch. Der Katalog kann empfohlene Modell-IDs, feste Revisionen, Quantisierungen, Rollen, RAM-Schwellenwerte und Reihenfolge sowie die Zuordnung von Modellnamen-Tokens zu integrierten Eingabeaufforderungsvoreinstellungen aktualisieren. Es kann keinen beliebigen ausführbaren Code einschleusen oder die integrierten Aktions-, Sicherheits-, JSON- oder Codeausgabeverträge von korTTY ersetzen.
 
@@ -192,7 +194,7 @@ Die Tabelle **Laufzeiten** in **Lokale Modelle** zeigt die installierte Version 
 : Stellen Sie sicher, dass GGUF und die ausführbare Datei noch vorhanden sind, dass die ausführbare Datei ausführbar ist und dass das ausgewählte Backend auf diesem Computer verfügbar ist. Reduzieren Sie die Kontextgröße oder gleichzeitige Modelle, wenn der System- oder GPU-Speicher nicht ausreicht.
 
 **Ein MLX-Modell kann nicht gestartet werden**
-: MLX erfordert einen Apple Silicon Mac mit macOS 14 oder neuer und ein installiertes korTTY MLX-Laufzeitpaket unter `~/.kortty/llm/mlx/runtime/`. Registrierte MLX-Modelle bleiben ohne Laufzeit aufgelistet, melden jedoch beim Start die Meldung „fehlende Laufzeit“. Das Laufzeitpaket wird über den signierten Laufzeitkanal veröffentlicht; Entwickler können mit `scripts/build-mlx-runtime-local.sh` ein unsigniertes lokales Paket erstellen.
+: MLX erfordert einen Apple Silicon Mac mit macOS 14 oder neuer und ein installiertes korTTY MLX-Laufzeitpaket unter `~/.kortty/llm/mlx/runtime/`. Registrierte MLX-Modelle bleiben ohne Laufzeit aufgelistet, melden jedoch beim Start die Meldung „fehlende Laufzeit“. Das Laufzeitpaket wird über den signierten Laufzeitkanal veröffentlicht. Entwickler können mit `scripts/build-mlx-runtime-local.sh` ein unsigniertes lokales Paket erstellen.
 
 **Der Setup-Funktionstest schlägt nach der Installation fehl**
 : Der GGUF bleibt registriert, sodass Sie ihn einsehen können. Bestätigen Sie, dass das passende signierte Laufzeit-Backend aktiv ist, reduzieren Sie den Modellkontext oder die GPU-Ebenen, wenn der Speicher knapp ist, und versuchen Sie es erneut, indem Sie das Modell starten. Einbettungstests erfordern zusätzlich lesbare GGUF-Einbettungsdimensionsmetadaten.

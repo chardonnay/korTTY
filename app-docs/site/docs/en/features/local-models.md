@@ -31,15 +31,17 @@ The **Runtimes** table at the top of Local Models lists both embedded runtimes w
 
 Select **AI > AI Manager > Local Models > Setup assistant**. The six-step assistant covers privacy, detected system memory and backend guidance, optional role-specific recommendations, license and exact download-size review, verified installation, and a final readiness summary.
 
-On **Choose models for optional roles**, enable any combination of **Text and translation**, **Coding**, and **RAG embeddings**. Every enabled slot has its own recommendation selector; disabled slots are left unchanged. Text and Coding may deliberately share one compatible recommendation, in which case korTTY downloads and registers that GGUF only once. Opening the assistant from a missing-embedding warning preselects only the RAG-embedding slot.
+On **Choose models for optional roles**, enable any combination of **Text and translation**, **Coding**, and **RAG embeddings**. Every enabled slot has its own recommendation selector that lists every catalog model the detected memory supports for that role, ordered by preference with the preferred default preselected — a real choice, not a single fixed suggestion. Disabled slots are left unchanged. Text and Coding may deliberately share one compatible recommendation, in which case korTTY downloads and registers that GGUF only once. Opening the assistant from a missing-embedding warning preselects only the RAG-embedding slot.
 
-The built-in bootstrap catalog uses conservative RAM tiers:
+The built-in bootstrap catalog uses conservative RAM tiers. The table shows the preselected default per role; the selector of an enabled slot additionally offers every other catalog model whose memory requirement the detected tier meets:
 
 | Detected memory | Text recommendation | Coding recommendation | RAG embeddings |
 | --- | --- | --- | --- |
 | Less than 16 GiB | Qwen3 1.7B, `Q4_K_M` | Qwen3 1.7B, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 | 16–23 GiB | Qwen3 4B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 | 24 GiB or more | Qwen3 8B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
+
+For the RAG-embeddings slot, Qwen3-Embedding 0.6B `Q8_0` remains the preselected default on every tier; the selector also offers Qwen3-Embedding 4B `Q4_K_M` (from 16 GiB), Qwen3-Embedding 8B `Q4_K_M` (from 24 GiB), and — without a minimum memory requirement — the multilingual BGE-M3 `Q8_0` and the very small, fast Nomic Embed Text v1.5 `Q8_0`.
 
 Recommendations are starting points, not hardware guarantees. The model table labels the estimated fit as **Comfortable**, **Possible**, **Too large**, or **Unknown**; context size and simultaneous models also affect memory use.
 
@@ -53,7 +55,7 @@ After every selected GGUF is downloaded and registered, the assistant sends a re
 
 ## Signed model and prompt catalog
 
-korTTY always contains a small bootstrap catalog with the memory-tier recommendations and prompt-family detection needed for offline setup. All five bundled model recommendations carry a concrete 40-character Hugging Face commit, so even the bootstrap never resolves a mutable repository head when the assistant later fetches metadata or GGUF files. Official builds can update those data independently from the application through `model-prompt-catalog-v1.json` and its detached Ed25519 signature `model-prompt-catalog-v1.sig`.
+korTTY always contains a small bootstrap catalog with the memory-tier recommendations and prompt-family detection needed for offline setup. All nine bundled model recommendations carry a concrete 40-character Hugging Face commit, so even the bootstrap never resolves a mutable repository head when the assistant later fetches metadata or GGUF files. Official builds can update those data independently from the application through `model-prompt-catalog-v1.json` and its detached Ed25519 signature `model-prompt-catalog-v1.sig`.
 
 On the first use of recommendations or automatic prompt detection, korTTY immediately loads the last signature-verified cache and performs at most one background refresh from the fixed HTTPS stable channel. The catalog can update recommended model IDs, fixed revisions, quantizations, roles, RAM thresholds and ordering, plus the mapping from model-name tokens to built-in prompt presets. It cannot inject arbitrary executable code or replace korTTY's built-in action, safety, JSON, or code-output contracts.
 

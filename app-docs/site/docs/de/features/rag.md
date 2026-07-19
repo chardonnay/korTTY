@@ -14,7 +14,7 @@ Ein **Wissensspeicher** ermöglicht es einem KI-Profil, mit relevanten Auszügen
 
 ![Wissensspeicher with a local HNSW demo store and one manual folder source](../assets/screenshots/ai/knowledge-stores.png)
 
-Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten [local-model ](local-models.md) mit vorausgewählter Einbettungsrolle. Installieren Sie das empfohlene Modell Qwen3-Embedding 0.6B `Q8_0` und kehren Sie dann zu **Erstellen** zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.
+Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten [local-model ](local-models.md) mit vorausgewählter Einbettungsrolle. Installieren Sie das vorausgewählte Modell Qwen3-Embedding 0.6B `Q8_0` oder wählen Sie eine der Katalogalternativen aus, die der Assistent für den Speicher dieses Computers anbietet – Qwen3-Embedding 4B oder 8B `Q4_K_M` auf Computern mit mindestens 16 oder 24 GiB, das mehrsprachige BGE-M3 `Q8_0` oder das sehr kleine und schnelle Nomic Embed Text v1.5 `Q8_0` – Kehren Sie dann zu **Erstellen** zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.
 
 So fügen Sie Inhalte hinzu:
 

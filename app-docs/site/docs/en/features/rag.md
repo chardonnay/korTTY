@@ -14,7 +14,7 @@ Open **AI > AI Manager > Knowledge Stores** and choose **Create**. The beginner 
 
 ![Knowledge Stores with a local HNSW demo store and one manual folder source](../assets/screenshots/ai/knowledge-stores.png)
 
-If no embedding model is installed, the same flow opens the [local-model setup assistant](local-models.md) with the embedding role preselected. Install the recommended Qwen3-Embedding 0.6B `Q8_0` model, then return to **Create**. An index is tied to that exact embedding model and dimension count; changing either requires rebuilding it.
+If no embedding model is installed, the same flow opens the [local-model setup assistant](local-models.md) with the embedding role preselected. Install the preselected Qwen3-Embedding 0.6B `Q8_0` model, or pick one of the catalog alternatives the assistant offers for this computer's memory — Qwen3-Embedding 4B or 8B `Q4_K_M` on machines with at least 16 or 24 GiB, the multilingual BGE-M3 `Q8_0`, or the very small and fast Nomic Embed Text v1.5 `Q8_0` — then return to **Create**. An index is tied to that exact embedding model and dimension count; changing either requires rebuilding it.
 
 To add content:
 
