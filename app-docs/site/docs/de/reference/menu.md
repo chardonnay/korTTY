@@ -77,6 +77,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Artikel | Beschreibung |
 | --- | --- |
 | AI Manager… | Verwalten Sie AI-Profile, integrierte GGUF-Modelle, Text-/Codierungsrollen, RAG-Wissensspeicher und gespeicherte Chats |
+| Gespeicherte Chats… | Öffnen Sie die gespeicherten AI-Chat-Konversationen direkt in einem eigenen Fenster; ein erneuter Aufruf bringt das vorhandene Fenster in den Vordergrund |
 | AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Übertragen Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++Strg+Alt+S++) |

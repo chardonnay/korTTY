@@ -77,6 +77,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Item | Description |
 | --- | --- |
 | AI Manager… | Manage AI profiles, integrated GGUF models, Text/Coding roles, RAG knowledge stores, and saved chats |
+| Saved Chats… | Open the saved AI chat conversations directly in their own window; invoking it again brings the existing window to the front |
 | AI Agent… | Open the terminal AI agent |
 | AI Planning… | Open the AI planning workflow |
 | AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
