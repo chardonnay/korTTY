@@ -137,6 +137,32 @@ class AiCatalogTrustChainTest {
     }
 
     @Test
+    void prefersNewerBootstrapOverStaleSignedCache() throws Exception {
+        Path root = Files.createTempDirectory("kortty-ai-catalog-stale-cache-");
+        try {
+            KeyPair keys = keyPair();
+            AiCatalogCache cache = new AiCatalogCache(root);
+            // Validly signed, but older than the bootstrap an application update ships.
+            long staleSequence = AiCatalogBootstrap.catalog().sequence() - 1;
+            cache.write(signed(
+                catalogJson(1, staleSequence, "stale-cache").getBytes(StandardCharsets.UTF_8), keys));
+            AiCatalogRepository repository = new AiCatalogRepository(
+                null,
+                cache,
+                new AiCatalogSignatureVerifier(keys.getPublic()),
+                AiCatalogBootstrap.catalog());
+
+            AiCatalogRepository.LoadResult result = repository.loadCachedOrBootstrap();
+
+            assertThat(result.source()).isEqualTo(AiCatalogRepository.Source.BOOTSTRAP);
+            assertThat(result.catalog()).isSameInstanceAs(AiCatalogBootstrap.catalog());
+            assertThat(result.failures().getFirst()).contains("superseded by newer built-in catalog");
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    @Test
     void neverAcceptsCacheSignedByAnotherKey() throws Exception {
         Path root = Files.createTempDirectory("kortty-ai-catalog-untrusted-cache-");
         try {

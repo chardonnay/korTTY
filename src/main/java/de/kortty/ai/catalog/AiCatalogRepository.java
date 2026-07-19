@@ -63,7 +63,16 @@ public final class AiCatalogRepository {
         try {
             Optional<AiCatalogSource.SignedPayload> cached = cache.read();
             if (cached.isPresent()) {
-                return new LoadResult(verifier.verifyAndParse(cached.get()), Source.CACHE, failures);
+                AiModelPromptCatalog catalog = verifier.verifyAndParse(cached.get());
+                // An application update may ship a bootstrap that is newer than the last signed
+                // catalog this installation cached. The monotonic sequence decides, exactly as in
+                // rejectReplay: otherwise the stale cache would hide new bootstrap entries until
+                // the remote channel publishes a newer signed catalog.
+                if (catalog.sequence() >= bootstrap.sequence()) {
+                    return new LoadResult(catalog, Source.CACHE, failures);
+                }
+                failures.add("cache: superseded by newer built-in catalog (signed sequence "
+                    + catalog.sequence() + " < bootstrap sequence " + bootstrap.sequence() + ")");
             }
         } catch (IOException | RuntimeException e) {
             failures.add(message("cache", e));
