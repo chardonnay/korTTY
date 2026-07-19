@@ -52,19 +52,19 @@ pages:
     owns_code: []
     diagrams: []
     screenshots: []
-    last_synced_ref: "93470d6"
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/getting-started/installation.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, .github/workflows/build-release.yml]
+    owns_code: [build.gradle.kts, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml]
     diagrams: []
     screenshots: []
-    last_synced_ref: "2a5397f"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/getting-started/building-packages.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, scripts/package-size-report.py, package/size-baselines.json]
+    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, package/size-baselines.json]
     diagrams: []
     screenshots: []
-    last_synced_ref: "2a5397f"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/getting-started/first-launch.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/MasterPasswordManager.java]
@@ -80,12 +80,12 @@ pages:
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
     owns_i18n: ["menu."]
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/AiManagerDialog.java]
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "64066ed"
+    last_synced_ref: "800e0db"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
@@ -102,7 +102,7 @@ pages:
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "4c5af99"
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java]
@@ -144,7 +144,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
     screenshots:
       - settings/backup.png
-    last_synced_ref: "8250396"
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/reference/settings/updates.md
     owns_i18n: [settings.updates.]
     owns_code: [src/main/java/de/kortty/update/UpdateCheckService.java]
@@ -165,10 +165,10 @@ pages:
     last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/translation.md
     owns_i18n: [settings.translation.]
-    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java]
+    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/translation.png
-    last_synced_ref: "8250396"
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/reference/settings/video.md
     owns_i18n: [settings.video.]
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
@@ -177,10 +177,10 @@ pages:
     last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/ai.png
-    last_synced_ref: "139b879"
+    last_synced_ref: "297cc4f"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/core]
@@ -191,14 +191,14 @@ pages:
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections.]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "90287df"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "90287df"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]
@@ -234,15 +234,27 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/ai-assistant.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
+    owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "90287df"
+    last_synced_ref: "800e0db"
+  - path: app-docs/site/docs/en/features/local-models.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
+    diagrams: []
+    screenshots: [ai/local-models.png]
+    last_synced_ref: "297cc4f"
+  - path: app-docs/site/docs/en/features/rag.md
+    owns_i18n: []
+    owns_code: [src/main/java/de/kortty/rag, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/ui/RagKnowledgeStorePane.java, src/main/java/de/kortty/ui/RagKnowledgeStorePresentation.java, src/main/java/de/kortty/model/AiProfile.java]
+    diagrams: [rag-knowledge-pipeline.svg]
+    screenshots: [ai/knowledge-stores.png, ai/rag-preview.png]
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "90287df"
+    last_synced_ref: "61e7ec4"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
@@ -251,14 +263,14 @@ pages:
     last_synced_ref: "0d15d06"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/security]
+    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java]
     diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/features/backup.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
     diagrams: [backup-restore.svg]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/features/recording.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui]
@@ -282,11 +294,11 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty, src/mermaid, build.gradle.kts]
     diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
-    last_synced_ref: "2a5397f"
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java]
-    last_synced_ref: "ccc66c9"
+    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
+    last_synced_ref: "604540f"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]

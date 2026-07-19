@@ -405,8 +405,12 @@ public class AiResultTab extends Tab {
     }
 
     public void showResult(String content) {
+        showResult(content, null);
+    }
+
+    public void showResult(String content, String reasoning) {
         stopWaiting();
-        appendAssistantMessage(content);
+        appendAssistantMessage(content, reasoning);
         statusLabel.setText(I18n.get("ai.result.ready"));
         updateSendAvailability();
     }
@@ -688,16 +692,26 @@ public class AiResultTab extends Tab {
     }
 
     private void appendAssistantMessage(String content) {
+        appendAssistantMessage(content, null);
+    }
+
+    private void appendAssistantMessage(String content, String reasoning) {
         AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
         appendConversationMessage(
             SavedAiChatMessage.ROLE_ASSISTANT,
             AiResponseSanitizer.sanitizeForDisplay(content),
             profile != null ? profile.getId() : activeProfileId,
             profile != null ? getAiProfileDisplayName(profile) : activeProfileName,
+            reasoning,
             true);
     }
 
     private void appendConversationMessage(String role, String content, String profileId, String profileName, boolean scrollToEnd) {
+        appendConversationMessage(role, content, profileId, profileName, null, scrollToEnd);
+    }
+
+    private void appendConversationMessage(
+        String role, String content, String profileId, String profileName, String reasoning, boolean scrollToEnd) {
         if (content == null || content.isBlank()) {
             return;
         }
@@ -706,6 +720,7 @@ public class AiResultTab extends Tab {
         message.setContent(content.trim());
         message.setAiProfileId(profileId);
         message.setAiProfileName(profileName);
+        message.setReasoning(reasoning);
         messageEntries.add(message);
         appendToPlainTranscript(message);
         renderMessage(message);
@@ -775,7 +790,8 @@ public class AiResultTab extends Tab {
         };
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
-            appendAssistantMessage(result != null ? result.content() : "");
+            appendAssistantMessage(
+                result != null ? result.content() : "", result != null ? result.reasoning() : null);
             if (result != null) {
                 ownerWindow.recordAiUsageForProfile(selectedProfile, request, result);
                 refreshAvailableProfiles(selectedProfile);
@@ -1059,6 +1075,7 @@ public class AiResultTab extends Tab {
             block.getChildren().add(roleLabel);
 
             appendAssistantContent(block, entry);
+            appendReasoningDisclosure(block, entry);
             topNode = block;
             highlightTarget = block;
         } else {
@@ -1086,6 +1103,39 @@ public class AiResultTab extends Tab {
         messagesBox.getChildren().add(topNode);
         messageNodes.add(topNode);
         highlightNodes.add(highlightTarget);
+    }
+
+    /**
+     * Adds a collapsible chain-of-thought disclosure below an assistant reply when the model
+     * produced separated reasoning. Collapsed by default; the toggle mirrors the agent panel's
+     * pull-open detail row so both AI surfaces feel the same.
+     */
+    private void appendReasoningDisclosure(VBox target, SavedAiChatMessage entry) {
+        String reasoning = entry.getReasoning();
+        if (reasoning == null || reasoning.isBlank()) {
+            return;
+        }
+        TextArea body = createSelectableTextBlock(reasoning.trim());
+        VBox bodyBox = new VBox(body);
+        bodyBox.getStyleClass().add("ai-chat-reasoning");
+        bodyBox.setVisible(false);
+        bodyBox.setManaged(false);
+
+        Button toggle = new Button(reasoningToggleText(false));
+        toggle.getStyleClass().add("ai-chat-reasoning-toggle");
+        toggle.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        toggle.setFocusTraversable(false);
+        toggle.setOnAction(event -> {
+            boolean show = !bodyBox.isVisible();
+            bodyBox.setVisible(show);
+            bodyBox.setManaged(show);
+            toggle.setText(reasoningToggleText(show));
+        });
+        target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    private static String reasoningToggleText(boolean expanded) {
+        return (expanded ? "▾ " : "▸ ") + I18n.get("ai.result.reasoning.label");
     }
 
     /** Appends the rendered assistant content (text, code, tables, images, diagrams, math) into {@code target}. */

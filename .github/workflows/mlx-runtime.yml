@@ -1,0 +1,216 @@
+name: MLX runtime candidates
+
+# Candidate building and source-side validation live with korTTY. Human-approved signing and
+# immutable stable publication run in chardonnay/kortty-llama-runtimes, which publishes the MLX
+# channel as a separate mlx-stable index signed with the same Ed25519 release key as the llama.cpp
+# channel, so no cross-repository release token or private signing key is exposed to this
+# repository's pull-request workflows.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mlx-runtime.yml"
+      - "mlx-runtime/**"
+      - "scripts/build-mlx-runtime-local.sh"
+      - "src/main/java/de/kortty/ai/mlx/**"
+      - "src/main/resources/mlx/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mlx-runtime-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  MLX_LM_VERSION: "0.31.3"
+  # kortty2: zip packaging with followed symlinks so korTTY's existing java.util.zip-based
+  # installer can extract MLX packages without a zstd dependency.
+  MLX_RUNTIME_REVISION: kortty2
+  # Pinned relocatable CPython (astral-sh/python-build-standalone). URL and SHA-256 must always
+  # change together; the download step fails closed on any mismatch.
+  PYTHON_STANDALONE_URL: "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-aarch64-apple-darwin-install_only.tar.gz"
+  PYTHON_STANDALONE_SHA256: "3724aa4dafb5f7b6c2cf98e89914e4248dc6bd2fe40407df4a2d73de99615f16"
+  PYTHON_STANDALONE_VERSION: "3.12"
+  # mlx wheels only exist for macOS 14 or newer; the deployment target keeps uv's resolution
+  # aligned with the macos-14 builder and the supported install floor.
+  MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+jobs:
+  build-runtime:
+    # MLX only exists on Apple silicon; macos-14 is the oldest supported arm64 target.
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install build tools
+        shell: bash
+        run: brew install jq zstd uv
+
+      - name: Resolve immutable installation id
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "INSTALL_ID=mlx-${MLX_LM_VERSION}-${MLX_RUNTIME_REVISION}-macos-aarch64" >> "$GITHUB_ENV"
+
+      - name: Download and verify pinned relocatable CPython
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "build/mlx-runtime/packages/$INSTALL_ID"
+          curl --fail --location --retry 3 "$PYTHON_STANDALONE_URL" -o build/mlx-runtime/python.tar.gz
+          echo "$PYTHON_STANDALONE_SHA256  build/mlx-runtime/python.tar.gz" | shasum -a 256 -c -
+          # The install_only archive extracts to python/, which is exactly the package layout
+          # MlxRuntimeLocator validates (packages/<id>/python/bin/python3).
+          tar -xzf build/mlx-runtime/python.tar.gz -C "build/mlx-runtime/packages/$INSTALL_ID"
+          test -x "build/mlx-runtime/packages/$INSTALL_ID/python/bin/python3"
+
+      - name: Resolve hash-locked requirements
+        id: lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The committed mlx-runtime/requirements.lock is authoritative. Generating here only
+          # bootstraps a first lock (or a review artifact for a dependency-update PR); a human
+          # must review and commit the uploaded artifact before any stable promotion.
+          if [ -f mlx-runtime/requirements.lock ]; then
+            cp mlx-runtime/requirements.lock build/mlx-runtime/requirements.lock
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+          else
+            uv pip compile \
+              --generate-hashes \
+              --python-platform aarch64-apple-darwin \
+              --python-version "$PYTHON_STANDALONE_VERSION" \
+              mlx-runtime/requirements.in \
+              -o build/mlx-runtime/requirements.lock
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload bootstrapped lock for human review
+        if: steps.lock.outputs.generated == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: mlx-runtime-requirements-lock
+          path: build/mlx-runtime/requirements.lock
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Install hash-locked wheelhouse into the relocatable CPython
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Wheels only: --no-build refuses sdists, --require-hashes refuses anything that is not
+          # byte-identical to the reviewed lock.
+          uv pip install \
+            --python "build/mlx-runtime/packages/$INSTALL_ID/python/bin/python3" \
+            --require-hashes \
+            --no-build \
+            -r build/mlx-runtime/requirements.lock
+          "build/mlx-runtime/packages/$INSTALL_ID/python/bin/python3" - <<PY
+          import mlx_lm
+          import os
+          expected = os.environ["MLX_LM_VERSION"]
+          actual = getattr(mlx_lm, "__version__", "unknown")
+          if actual != expected:
+              raise SystemExit(f"pinned mlx-lm {expected} expected but {actual} was installed")
+          print(f"staged mlx-lm {actual}")
+          PY
+
+      - name: Stage authenticated launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp src/main/resources/mlx/kortty_mlx_server.py "build/mlx-runtime/packages/$INSTALL_ID/kortty_mlx_server.py"
+          "build/mlx-runtime/packages/$INSTALL_ID/python/bin/python3" -m py_compile \
+            "build/mlx-runtime/packages/$INSTALL_ID/kortty_mlx_server.py"
+
+      - name: Full authenticated API contract smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3_bin="build/mlx-runtime/packages/$INSTALL_ID/python/bin/python3"
+          launcher="build/mlx-runtime/packages/$INSTALL_ID/kortty_mlx_server.py"
+          model_dir=build/mlx-runtime/smoke-model
+          # huggingface_hub is part of the locked wheelhouse (transitive via transformers), so the
+          # download itself already exercises the staged interpreter.
+          "$python3_bin" - <<PY
+          from huggingface_hub import snapshot_download
+          snapshot_download("mlx-community/Qwen3-0.6B-4bit", local_dir="$model_dir")
+          PY
+          key="$("$python3_bin" -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          umask 177
+          printf '%s\n' "$key" > build/mlx-runtime/smoke-api-key
+          umask 022
+          cleanup() {
+            for pid in $(jobs -p); do
+              kill "$pid" >/dev/null 2>&1 || true
+            done
+          }
+          trap cleanup EXIT
+
+          "$python3_bin" "$launcher" \
+            --model "$model_dir" \
+            --host 127.0.0.1 \
+            --port 18090 \
+            --api-key-file build/mlx-runtime/smoke-api-key \
+            --max-idle-seconds 20 \
+            >build/mlx-runtime/server-smoke.log 2>&1 &
+          server_pid=$!
+          for _ in $(seq 1 120); do
+            curl --silent --fail http://127.0.0.1:18090/health >/dev/null && break
+            sleep 1
+          done
+          grep -q "KORTTY-MLX-READY 18090" build/mlx-runtime/server-smoke.log
+          # /health answers without credentials; every /v1 route must reject a missing or wrong key.
+          curl --fail --silent http://127.0.0.1:18090/health | jq -e '.status == "ok"'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data '{"messages":[{"role":"user","content":"blocked"}],"max_tokens":1}' \
+            http://127.0.0.1:18090/v1/chat/completions)" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header 'Authorization: Bearer wrong-key-0000000000' \
+            --header 'Content-Type: application/json' \
+            --data '{"messages":[{"role":"user","content":"blocked"}],"max_tokens":1}' \
+            http://127.0.0.1:18090/v1/chat/completions)" = 401
+          # The first authenticated request loads the model; allow it generous time.
+          curl --fail --max-time 600 --header "Authorization: Bearer $key" \
+            --header 'Content-Type: application/json' \
+            --data '{"messages":[{"role":"user","content":"Reply with one word."}],"max_tokens":16}' \
+            http://127.0.0.1:18090/v1/chat/completions | jq -e '.choices | length == 1'
+          # The launcher must self-exit cleanly after --max-idle-seconds without /v1 traffic.
+          for _ in $(seq 1 120); do
+            kill -0 "$server_pid" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$server_pid" 2>/dev/null; then
+            echo "MLX sidecar did not self-exit after its idle window."
+            exit 1
+          fi
+          wait "$server_pid"
+          grep -q "idle for" build/mlx-runtime/server-smoke.log
+
+      - name: Package immutable candidate archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/mlx-runtime/dist
+          # zip WITHOUT -y deliberately follows symlinks: korTTY extracts runtime packages with
+          # java.util.zip, which cannot restore symbolic links. The duplicated interpreter bytes
+          # are the price for a dependency-free, in-app verifiable install.
+          (cd build/mlx-runtime/packages && zip -qr "../dist/$INSTALL_ID.zip" "$INSTALL_ID")
+          (cd build/mlx-runtime/dist && shasum -a 256 "$INSTALL_ID.zip" > "$INSTALL_ID.zip.sha256")
+          cp build/mlx-runtime/requirements.lock "build/mlx-runtime/dist/$INSTALL_ID.requirements.lock"
+          ls -la build/mlx-runtime/dist
+
+      - name: Upload immutable candidate package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: mlx-runtime-macos-aarch64
+          path: build/mlx-runtime/dist/*
+          if-no-files-found: error
+          retention-days: 14

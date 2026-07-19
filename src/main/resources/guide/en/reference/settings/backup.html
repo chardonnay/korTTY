@@ -1194,6 +1194,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1506,6 +1510,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -1995,6 +2055,8 @@
 <p class="admonition-title">Note</p>
 <p><strong>Maximum Backups:</strong> Set to <code>0</code> to keep backups indefinitely; any other value (1–100) will automatically delete the oldest backups once the limit is reached. When using password-based encryption, select a credential from the management system. When using GPG encryption, select an available GPG key. The encryption type is stored in the global settings and determines which credential or key ID is used for future backups.</p>
 </div>
+<p>Backups include <code>ssh-host-keys.properties</code>, so normalized host:port trust decisions shared by interactive Terminal, SFTP, and Mosh bootstrap connections survive restore; the transient cross-process <code>.lock</code> file is not included. JobScheduler host-key pins remain separately stored in <code>job-scheduler.xml</code>.</p>
+<p>Local-AI backups include <code>llm/models.xml</code> and <code>rag/stores.json</code> so model registrations, role assignments, and knowledge-source definitions can be restored. They exclude GGUF weights, llama.cpp runtime packages, temporary sidecar data, source documents, and regenerable HNSW snapshots; see <a href="../../features/backup.html">Backup &amp; restore</a>.</p>
 
 
 

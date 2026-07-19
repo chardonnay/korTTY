@@ -1028,6 +1028,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersetzung
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="translation.html" class="md-nav__link md-nav__link--active">
         
   
@@ -1044,6 +1062,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lokale-ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Übersetzung
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1157,6 +1205,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -1506,6 +1558,62 @@
     
   
     KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
   
 
     
@@ -1921,6 +2029,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lokale-ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lokale Übersetzung
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1959,8 +2086,8 @@
 </tr>
 <tr>
 <td>Übersetzungs-API</td>
-<td>Dropdown</td>
-<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate</td>
+<td>Dropdown-Liste</td>
+<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, lokales AI-Textprofil</td>
 <td>Google Translate</td>
 <td><code>translationApiProvider</code></td>
 </tr>
@@ -2030,9 +2157,11 @@
 <p class="admonition-title">Note</p>
 <p><strong>Generierte Sprachen:</strong> In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.</p>
 </div>
+<h2 id="lokale-ubersetzung">Lokale Übersetzung<a class="headerlink" href="#lokale-ubersetzung" title="Permanent link">&para;</a></h2>
+<p>Wählen Sie <strong>Lokales AI-Textprofil</strong>, um über das eingebettete llama.cpp-Profil zu übersetzen, das der Text-/Übersetzungsrolle in <strong>AI &gt; AI Manager &gt; Lokale KI</strong> zugewiesen ist. API-URL und API-Schlüssel sind für diesen Anbieter deaktiviert, da der authentifizierte Loopback-Endpunkt von korTTY verwaltet wird. Das lokale Modell muss ein striktes JSON <code>translations</code>-Array mit der gleichen Anzahl und Reihenfolge der Eingabezeichenfolgen zurückgeben; Eine ungültige Ausgabe stoppt die Generierung, anstatt UI-Beschriftungen stillschweigend falsch auszurichten.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><strong>API-Schlüssel erforderlich:</strong> Um die Verbindung zu testen oder eine Sprachdatei zu generieren, muss ein API-Schlüssel für den von Ihnen gewählten Übersetzungsanbieter eingegeben werden. Mit der Schaltfläche „API-Verbindung testen“ wird überprüft, ob Anbieter und Schlüssel korrekt sind, bevor versucht wird, eine Datei zu generieren.</p>
+<p><strong>Anmeldeinformationen:</strong> Externe Anbieter benötigen ihren normalen API-Schlüssel, mit Ausnahme eines LibreTranslate-Endpunkts, der explizit ohne diesen konfiguriert ist. Lokale KI erfordert keinen Übersetzungsanbieterschlüssel, aber ihr GGUF-Modell und die llama.cpp-Laufzeit müssen installiert sein und der Master-Passwort-Tresor muss entsperrt werden, wenn das ausgewählte AI-Profil ein verschlüsseltes Geheimnis benötigt.</p>
 </div>
 
 

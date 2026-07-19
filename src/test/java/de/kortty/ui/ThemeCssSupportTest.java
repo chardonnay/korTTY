@@ -17,6 +17,9 @@ class ThemeCssSupportTest {
         assertThat(css.contains(".root { -fx-background-color: #101820; }")).isTrue();
         assertThat(css.contains(".label { -fx-text-fill: #f3f4f6; }")).isTrue();
         assertThat(css.contains("-fx-prompt-text-fill:")).isTrue();
+        assertThat(css.contains(
+            ".ai-manager-primary-tab:selected { -fx-border-color: #0066cc; -fx-border-width: 0 0 3 0; }"))
+            .isTrue();
         assertThat(css.contains(".swarm-composer-input {")).isTrue();
         assertThat(css.contains(".swarm-composer-input .content {")).isTrue();
     }

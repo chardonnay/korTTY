@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.ai.llama.EmbeddedLlamaAiService;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
@@ -15,13 +16,89 @@ import static com.google.common.truth.Truth.assertThat;
 
 class AiServiceFactoryTest {
 
+    /** Sees through the outermost {@link LoggingAiService} decorator the factory now always applies. */
+    private static AiService unwrap(AiService service) {
+        return service instanceof LoggingAiService logging ? logging.delegate() : service;
+    }
+
+    @Test
+    void automaticRagStoresStayLocalWhileExplicitAssignmentsRemainAvailableEverywhere() {
+        AiProfile embedded = new AiProfile();
+        embedded.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        embedded.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(embedded, List.of("automatic")))
+            .containsExactly("explicit", "automatic").inOrder();
+
+        AiProfile loopback = new AiProfile();
+        loopback.setApiUrl("http://127.0.0.42:1234/v1/chat/completions");
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(loopback, List.of("automatic")))
+            .containsExactly("automatic");
+
+        AiProfile cloud = new AiProfile();
+        cloud.setApiUrl("https://api.example.com/v1/chat/completions");
+        cloud.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(cloud, List.of("automatic")))
+            .containsExactly("explicit");
+
+        AiProfile cli = new AiProfile();
+        cli.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        cli.setRagStoreIds(List.of("explicit"));
+        assertThat(AiServiceFactory.ragStoreIdsForProfile(cli, List.of("automatic")))
+            .containsExactly("explicit");
+    }
+
+    @Test
+    void automaticRagStoreLocalityCheckRejectsLanAndHostnameLookalikes() {
+        AiProfile localhost = new AiProfile();
+        localhost.setApiUrl("http://localhost:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(localhost)).isTrue();
+
+        AiProfile ipv6 = new AiProfile();
+        ipv6.setApiUrl("http://[::1]:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(ipv6)).isTrue();
+
+        AiProfile lan = new AiProfile();
+        lan.setApiUrl("http://192.168.1.8:1234/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(lan)).isFalse();
+
+        AiProfile lookalike = new AiProfile();
+        lookalike.setApiUrl("https://localhost.example.com/v1");
+        assertThat(AiServiceFactory.automaticallyAssignedRagStoresAllowed(lookalike)).isFalse();
+    }
+
+    @Test
+    void createBuildsEmbeddedLlamaServiceWithoutApiUrlOrExternalApiKey() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        profile.setEmbeddedModelId("qwen-local");
+
+        AiService service = unwrap(AiServiceFactory.create(profile, "must-not-be-used", AiInternetAccessConfiguration.disabled()));
+
+        assertThat(service).isInstanceOf(AiPromptPresetService.class);
+        AiPromptPresetService optimized = (AiPromptPresetService) service;
+        assertThat(optimized.delegate()).isInstanceOf(EmbeddedLlamaAiService.class);
+        assertThat(((EmbeddedLlamaAiService) optimized.delegate()).getModelId()).isEqualTo("qwen-local");
+    }
+
+    @Test
+    void createRejectsEmbeddedLlamaProfileWithoutRegisteredModelSelection() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+
+        IllegalStateException error = org.testng.Assert.expectThrows(
+            IllegalStateException.class,
+            () -> AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
+
+        assertThat(error).hasMessageThat().contains("local GGUF model");
+    }
+
     @Test
     void createNormalizesOpenAiCompatibleBaseUrlToChatCompletionsEndpoint() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("https://api.minimax.io/v1");
         profile.setModel("MiniMax-M2.7");
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -37,7 +114,7 @@ class AiServiceFactoryTest {
         profile.setApiUrl("https://api.minimax.io/v1/chat/completions");
         profile.setModel("MiniMax-M2.7");
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -83,7 +160,7 @@ class AiServiceFactoryTest {
         profile.setModel("stale-model");
         profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
@@ -105,7 +182,7 @@ class AiServiceFactoryTest {
         profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.HIGH));
         profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
 
-        AiService service = AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
         OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) service;
 
         String body = openAiService.buildRequestBody(new AiRequest(AiAction.SUMMARIZE, "sample", "source", "en"));
@@ -118,7 +195,7 @@ class AiServiceFactoryTest {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234/v1");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
     }
@@ -128,7 +205,7 @@ class AiServiceFactoryTest {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(OpenAiCompatibleAiService.class);
         assertThat(((OpenAiCompatibleAiService) service)
@@ -193,7 +270,7 @@ class AiServiceFactoryTest {
                 null,
                 null));
 
-        assertThat(service).isInstanceOf(LmStudioNativeAiService.class);
+        assertThat(unwrap(service)).isInstanceOf(LmStudioNativeAiService.class);
     }
 
     @Test
@@ -261,7 +338,7 @@ class AiServiceFactoryTest {
         profile.setCliArgumentsTemplate("{promptFile}");
         profile.setModel("custom-model");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(LocalCliAiService.class);
     }
@@ -273,7 +350,7 @@ class AiServiceFactoryTest {
         profile.setCliProviderId("claude-code");
         profile.setCliArgumentsTemplate("{promptFile}");
 
-        AiService service = AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled());
+        AiService service = unwrap(AiServiceFactory.create(profile, null, AiInternetAccessConfiguration.disabled()));
 
         assertThat(service).isInstanceOf(LocalCliAiService.class);
     }

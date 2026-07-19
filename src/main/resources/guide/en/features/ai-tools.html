@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/features/ai-tools.html">
       
       
-        <link rel="prev" href="ai-assistant.html">
+        <link rel="prev" href="rag.html">
       
       
         <link rel="next" href="ai-swarm.html">
@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1494,6 +1498,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -2784,6 +2844,10 @@
 <p>In local shells, commands use a native local backend (PowerShell via <code>-EncodedCommand</code>, <code>cmd.exe</code>, or POSIX <code>/bin/sh</code>) and the environment probe and system prompt are platform-aware. The agent captures the interactive shell's current directory when a run starts and uses that same snapshot for its probe and every command in the run. Local-shell limitations: no <code>sudo</code>/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.</p>
 </div>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
+<div class="admonition important">
+<p class="admonition-title">RAG is explicit for autonomous work</p>
+<p>Knowledge stores assigned to normal Text/Coding requests do not automatically expand the Terminal AI Agent, Planning, Swarm, or scheduled job context. Those autonomous flows require an explicit RAG opt-in; see <a href="rag.html">RAG knowledge stores</a>. This prevents a background workflow from reading indexed local sources merely because the same model profile is used for interactive chat.</p>
+</div>
 <h2 id="command-variants">Command variants<a class="headerlink" href="#command-variants" title="Permanent link">&para;</a></h2>
 <p>The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in <strong>Settings &gt; AI</strong>, KorTTY intercepts these commands locally instead of sending them to the server:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>agent<span class="w"> </span>&lt;goal&gt;

@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#sicherung" class="md-skip">
+        <a href="#backup" class="md-skip">
           Zum Inhalt
         </a>
       
@@ -1194,6 +1194,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1506,6 +1510,62 @@
     
   
     KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
   
 
     
@@ -1936,23 +1996,23 @@
 
 
 
-<h1 id="sicherung">Sicherung<a class="headerlink" href="#sicherung" title="Permanent link">&para;</a></h1>
+<h1 id="backup">Backup<a class="headerlink" href="#backup" title="Permanent link">&para;</a></h1>
 <p>Konfigurieren Sie die Sicherungsaufbewahrungsrichtlinie und die Verschlüsselungsmethode für korTTY-Sitzungssicherungen. Öffnen über <strong>Konfiguration → Globale Einstellungen → Backup</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
 <p><img alt="Backup settings tab" src="../../assets/screenshots/settings/backup.png" /></p>
 <table>
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
+<th>Typ</th>
+<th>Werte</th>
 <th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Maximale Anzahl Backups</td>
-<td>Nummer</td>
+<td>Maximale Anzahl an Backups</td>
+<td>Anzahl</td>
 <td>0–100 (0 = unbegrenzt)</td>
 <td>10</td>
 <td><code>maxBackupCount</code></td>
@@ -1961,28 +2021,28 @@
 <td>ZIP mit Passwort</td>
 <td>umschalten</td>
 <td>—</td>
-<td>Auf</td>
+<td>Ein</td>
 <td><code>backupEncryptionType</code></td>
 </tr>
 <tr>
 <td>Anmeldeinformationen</td>
-<td>Dropdown</td>
+<td>Dropdown-Liste</td>
 <td>Verfügbare gespeicherte Anmeldeinformationen</td>
-<td>—</td>
+<td>–</td>
 <td><code>backupCredentialId</code></td>
 </tr>
 <tr>
 <td>GPG-Verschlüsselung</td>
 <td>umschalten</td>
-<td>—</td>
+<td>–</td>
 <td>Aus</td>
 <td><code>backupEncryptionType</code></td>
 </tr>
 <tr>
 <td>GPG-Schlüssel</td>
-<td>Dropdown</td>
+<td>Dropdown-Liste</td>
 <td>Verfügbare GPG-Schlüssel</td>
-<td>—</td>
+<td>–</td>
 <td><code>backupGpgKeyId</code></td>
 </tr>
 </tbody>
@@ -1995,6 +2055,8 @@
 <p class="admonition-title">Note</p>
 <p><strong>Maximale Backups:</strong> Auf <code>0</code> eingestellt, um Backups auf unbestimmte Zeit aufzubewahren; Jeder andere Wert (1–100) löscht automatisch die ältesten Backups, sobald das Limit erreicht ist. Wenn Sie eine passwortbasierte Verschlüsselung verwenden, wählen Sie eine Anmeldeinformation aus dem Verwaltungssystem aus. Wählen Sie bei Verwendung der GPG-Verschlüsselung einen verfügbaren GPG-Schlüssel aus. Der Verschlüsselungstyp wird in den globalen Einstellungen gespeichert und bestimmt, welche Anmeldeinformationen oder Schlüssel-ID für zukünftige Sicherungen verwendet werden.</p>
 </div>
+<p>Sicherungen umfassen <code>ssh-host-keys.properties</code>, sodass normalisierte Host:Port-Vertrauensentscheidungen, die von interaktiven Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen geteilt werden, die Wiederherstellung überleben; Die transiente prozessübergreifende Datei <code>.lock</code> ist nicht enthalten. JobScheduler-Hostschlüssel-Pins bleiben separat in <code>job-scheduler.xml</code> gespeichert.</p>
+<p>Lokale KI-Backups umfassen <code>llm/models.xml</code> und <code>rag/stores.json</code>, sodass Modellregistrierungen, Rollenzuweisungen und Wissensquellendefinitionen wiederhergestellt werden können. Sie schließen GGUF-Gewichte, llama.cpp-Laufzeitpakete, temporäre Sidecar-Daten, Quelldokumente und regenerierbare HNSW-Snapshots aus; siehe <a href="../../features/backup.html">Sichern und Wiederherstellen</a>.</p>
 
 
 

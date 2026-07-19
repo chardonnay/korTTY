@@ -76,14 +76,14 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 
 | Artikel | Beschreibung |
 | --- | --- |
-| AI Manager… | AI-Profile und gespeicherte Chats verwalten |
+| AI Manager… | Verwalten Sie AI-Profile, integrierte GGUF-Modelle, Text-/Codierungsrollen, RAG-Wissensspeicher und gespeicherte Chats |
 | AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Übertragen Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++Strg+Alt+S++) |
 
-**AI Manager** listet Ihre KI-Profile (jeweils mit Verbindungsmodus, Modell, Argumentationsaufwand, Internetzugang und Token-Budget) und Ihre gespeicherten Chats auf:
+**AI Manager** listet Profile auf (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Argumentation, Internetzugang und Token-Budget), sucht/lädt/importiert lokale GGUF-Modelle, weist Text-/Codierungs-/Einbettungsrollen zu, verwaltet Wissensspeicherquellen und öffnet gespeicherte Chats. Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
 
-![AI Manager](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
 ## Plugins
 

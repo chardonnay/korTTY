@@ -262,6 +262,8 @@ public class MainWindow {
 
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
     private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
+    private AiManagerDialog aiManagerDialog;
+    private SavedChatsDialog savedChatsDialog;
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -1469,6 +1471,9 @@ public class MainWindow {
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         aiManager.setOnAction(e -> showAiManager());
 
+        MenuItem savedChats = new MenuItem(I18n.get("menu.tools.savedChats"));
+        savedChats.setOnAction(e -> showSavedChats());
+
         MenuItem aiAgent = new MenuItem(I18n.get("menu.tools.aiAgent"));
         aiAgent.setAccelerator(AI_AGENT_ACCELERATOR);
         aiAgent.setOnAction(e -> showAiAgent());
@@ -1483,12 +1488,13 @@ public class MainWindow {
         aiSwarm.setOnAction(e -> showAiSwarm());
 
         toolsAiMenuItems.add(aiManager);
+        toolsAiMenuItems.add(savedChats);
         toolsAiMenuItems.add(aiAgent);
         toolsAiMenuItems.add(aiPlanning);
         toolsAiMenuItems.add(aiSwarm);
         toolsAiAgentExecutionMenuItems.add(aiAgent);
 
-        aiMenu.getItems().addAll(aiManager, aiAgent, aiPlanning, aiSwarm);
+        aiMenu.getItems().addAll(aiManager, savedChats, aiAgent, aiPlanning, aiSwarm);
         return aiMenu;
     }
 
@@ -4786,13 +4792,18 @@ public class MainWindow {
         }
         AiProfile effectiveProfile = profile != null
             ? profile
-            : resolveAiProfileForConnection(terminalTab != null ? terminalTab.getConnection() : null);
+            : resolveAiProfileForConnection(
+                terminalTab != null ? terminalTab.getConnection() : null,
+                action.workload());
         int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
         if (selectedText.length() > maxSelectionChars) {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
-        String effectiveModel = effectiveProfile != null ? effectiveProfile.getModel() : null;
+        String effectiveModel = effectiveProfile != null
+            && effectiveProfile.getConnectionMode().isEmbedded()
+            ? effectiveProfile.getEmbeddedModelId()
+            : effectiveProfile != null ? effectiveProfile.getModel() : null;
         if (effectiveProfile != null
             && requiresModelForAiProfile(effectiveProfile)
             && (effectiveModel == null || effectiveModel.isBlank())) {
@@ -4858,7 +4869,7 @@ public class MainWindow {
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(e -> {
             AiExecutionResult result = task.getValue();
-            resultTab.showResult(result != null ? result.content() : "");
+            resultTab.showResult(result != null ? result.content() : "", result != null ? result.reasoning() : null);
             recordAiUsage(effectiveProfile, request, result);
             updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
         });
@@ -4893,6 +4904,9 @@ public class MainWindow {
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
         }
+        if (profile.getConnectionMode().isEmbedded()) {
+            return true;
+        }
         return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
     }
 
@@ -4921,7 +4935,7 @@ public class MainWindow {
             return null;
         }
         String apiKey = getAiApiKeyPlain(profile);
-        if (profile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
+        if (profile.getConnectionMode() == AiConnectionMode.HTTP_API
             && (profile.getApiUrl() == null || profile.getApiUrl().isBlank())) {
             return null;
         }
@@ -5228,6 +5242,13 @@ public class MainWindow {
             return "";
         }
         String model = profile.getModel() != null ? profile.getModel() : "";
+        if (profile.getConnectionMode().isEmbedded()) {
+            String embedded = profile.getEmbeddedModelId();
+            return embedded != null && !embedded.isBlank()
+                ? embedded
+                : I18n.get("settings.ai.connectionMode."
+                    + profile.getConnectionMode().name().toLowerCase(Locale.ROOT));
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String provider = de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())
                 .map(de.kortty.core.AiCliProviderDescriptor::displayName)
@@ -5720,7 +5741,8 @@ public class MainWindow {
         List<String> categoryNames = snippetManager.getAllCategories().stream()
             .map(SnippetCategory::getName)
             .toList();
-        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(this, getConnectionDisplayName(terminalTab));
+        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(
+            this, terminalTab != null ? terminalTab.getConnection() : null);
         SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
         dialog.initOwner(stage);
         dialog.showNonBlocking(null);
@@ -5990,6 +6012,24 @@ public class MainWindow {
         return settings != null && settings.isTerminalAgentShowRuntimeMessages();
     }
 
+    private boolean shouldMirrorTerminalAgentFinalAnswer() {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return settings == null || settings.isTerminalAgentMirrorFinalAnswerToTerminal();
+    }
+
+    private void rememberTerminalAgentMirrorFinalAnswer(boolean mirror) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null || settings.isTerminalAgentMirrorFinalAnswerToTerminal() == mirror) {
+            return;
+        }
+        settings.setTerminalAgentMirrorFinalAnswerToTerminal(mirror);
+        try {
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.warn("Could not persist terminal-agent terminal-mirror preference: {}", e.getMessage());
+        }
+    }
+
     private String getConnectionDisplayName(TerminalTab terminalTab) {
         return terminalTab.getConnection() != null
             ? terminalTab.getConnection().getDisplayName()
@@ -6091,7 +6131,7 @@ public class MainWindow {
                 ? findAiProfileByLookup(requestedProfileName)
                 : null;
             if (resolvedProfile == null) {
-                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection());
+                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection(), AiWorkload.CODING);
             }
             if (resolvedProfile == null) {
                 showAiManager();
@@ -6110,7 +6150,8 @@ public class MainWindow {
                 askConfirmationBeforeEveryCommand,
                 autoApproveRootCommands,
                 !queryOnly && shouldConfirmTerminalAgentMutatingCommandSets(),
-                queryOnly);
+                queryOnly,
+                shouldMirrorTerminalAgentFinalAnswer());
             launchTerminalAgent(terminalTab, directRequest, runContext, askSelectedText);
             return;
         }
@@ -6123,9 +6164,11 @@ public class MainWindow {
             getTerminalAgentExecutionTarget(),
             shouldShowTerminalAgentDebugMessages(),
             shouldShowTerminalAgentRuntimeMessages(),
+            shouldMirrorTerminalAgentFinalAnswer(),
             queryOnly,
             initialPrompt);
         dialog.showAndWait().ifPresent(request -> {
+            rememberTerminalAgentMirrorFinalAnswer(request.mirrorFinalAnswerToTerminal());
             TerminalAgentModels.Request enrichedRequest = new TerminalAgentModels.Request(
                 terminalTab.getAiSessionId(),
                 request.profileId(),
@@ -6138,7 +6181,8 @@ public class MainWindow {
                 askConfirmationBeforeEveryCommand || request.askConfirmationBeforeEveryCommand(),
                 autoApproveRootCommands || request.autoApproveRootCommands(),
                 !request.queryOnly() && shouldConfirmTerminalAgentMutatingCommandSets(),
-                request.queryOnly());
+                request.queryOnly(),
+                request.mirrorFinalAnswerToTerminal());
             launchTerminalAgent(terminalTab, enrichedRequest, runContext, askSelectedText);
         });
     }
@@ -6183,7 +6227,7 @@ public class MainWindow {
         String preferredProfileId = connection != null
             && AiProfileSelectionSupport.findById(profiles, connection.getAiProfileId()) != null
             ? connection.getAiProfileId()
-            : getDefaultAiProfileId();
+            : getConfiguredWorkloadProfileId(AiWorkload.CODING);
         return AiProfileSelectionSupport.reorderByRequestedOrDefault(
             profiles,
             requestedProfileName,
@@ -6299,7 +6343,7 @@ public class MainWindow {
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
-            resultTab.showResult(result != null ? result.content() : "");
+            resultTab.showResult(result != null ? result.content() : "", result != null ? result.reasoning() : null);
             recordAiUsageForProfile(profile, request, result);
         });
         task.setOnCancelled(event -> resultTab.showCancelled());
@@ -6390,7 +6434,8 @@ public class MainWindow {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
-                        if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                        if (state != null && isTerminalAgentFinalPhase(state.phase())
+                            && scopedRequest.mirrorFinalAnswerToTerminal()) {
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
                                 terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
@@ -6539,7 +6584,8 @@ public class MainWindow {
             request.askConfirmationBeforeEveryCommand(),
             request.autoApproveRootCommands(),
             request.confirmMutatingCommandSets(),
-            request.queryOnly());
+            request.queryOnly(),
+            request.mirrorFinalAnswerToTerminal());
     }
 
     /**
@@ -6553,7 +6599,8 @@ public class MainWindow {
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
         AiProfile currentProfile = resolveAiProfileForConnection(
-            terminalTab != null ? terminalTab.getConnection() : null);
+            terminalTab != null ? terminalTab.getConnection() : null,
+            AiWorkload.CODING);
         TerminalAgentModels.Request refreshedRequest = currentProfile != null
             ? withTerminalAgentProfileId(request, currentProfile.getId())
             : request;
@@ -6768,6 +6815,29 @@ public class MainWindow {
         return AiProfileSelectionSupport.defaultProfile(getAvailableAiProfiles(), getDefaultAiProfileId());
     }
 
+    AiProfile getAiProfileForWorkload(AiWorkload workload) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        return AiProfileSelectionSupport.workloadProfile(
+            getAvailableAiProfiles(),
+            workload != null ? workload : AiWorkload.TEXT,
+            settings != null ? settings.getTextAiProfileId() : null,
+            settings != null ? settings.getCodingAiProfileId() : null,
+            settings != null ? settings.getDefaultAiProfileId() : null);
+    }
+
+    private String getConfiguredWorkloadProfileId(AiWorkload workload) {
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return null;
+        }
+        String roleId = workload == AiWorkload.CODING
+            ? settings.getCodingAiProfileId()
+            : settings.getTextAiProfileId();
+        return AiProfileSelectionSupport.findById(getAvailableAiProfiles(), roleId) != null
+            ? roleId
+            : settings.getDefaultAiProfileId();
+    }
+
     String getSecurityCheckAiProfileId() {
         refreshGlobalSettingsIfChangedBeforeAiProfileResolution();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
@@ -6794,13 +6864,39 @@ public class MainWindow {
      * available, otherwise the default profile (until the fixed profile is available again).
      */
     AiProfile resolveAiProfileForConnection(ServerConnection connection) {
+        return resolveAiProfileForConnection(connection, AiWorkload.TEXT);
+    }
+
+    AiProfile resolveAiProfileForConnection(ServerConnection connection, AiWorkload workload) {
         if (connection != null) {
             AiProfile fixedProfile = findAiProfileById(connection.getAiProfileId());
             if (fixedProfile != null) {
                 return fixedProfile;
             }
         }
-        return getDefaultAiProfile();
+        return getAiProfileForWorkload(workload);
+    }
+
+    AiProfile resolveAiProfileForAction(
+        ServerConnection connection,
+        AiAction action,
+        String explicitProfileId) {
+
+        List<AiProfile> profiles = getAvailableAiProfiles();
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (settings == null) {
+            return null;
+        }
+        return AiProfileSelectionSupport.actionProfile(
+            profiles,
+            explicitProfileId,
+            action != null && action.isSecurityAction(),
+            settings.getSecurityCheckAiProfileId(),
+            connection != null ? connection.getAiProfileId() : null,
+            action != null ? action.workload() : AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     AiProfile findAiProfileById(String profileId) {
@@ -6943,6 +7039,14 @@ public class MainWindow {
 
     AiService createAiServiceForProfile(AiProfile profile, ServerConnection connection) {
         return createAiService(profile, connection);
+    }
+
+    AiService createAiServiceForProfile(
+        AiProfile profile,
+        ServerConnection connection,
+        java.util.Collection<String> forcedSkillIds) {
+
+        return createAiService(profile, connection, forcedSkillIds);
     }
 
     void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {
@@ -7254,6 +7358,43 @@ public class MainWindow {
             window.showUpdateAvailableDialog(update, false);
         }
     }
+
+    /**
+     * Shows the NOTIFY-policy result after the signed stable runtime index was verified. Only
+     * called for updates to an installed runtime; users without one are never notified. Serves
+     * both embedded runtimes — the runtime id already identifies llama.cpp vs MLX.
+     */
+    public static void showRuntimeUpdateAvailable(String runtimeId) {
+        MainWindow window = getFocusedOrLastOpenWindow();
+        if (window == null) {
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(window.getStage());
+        alert.setTitle(I18n.get("ai.local.models.runtime.notification.title"));
+        alert.setHeaderText(I18n.get("ai.local.models.runtime.notification.header", runtimeId));
+        alert.setContentText(I18n.get("ai.local.models.runtime.notification.update"));
+        alert.show();
+    }
+
+    /** Warns that a signed withdrawal has already quarantined and stopped the local runtime. */
+    public static void showRuntimeRevoked(String revokedRuntimeId, String replacementRuntimeId) {
+        MainWindow window = getFocusedOrLastOpenWindow();
+        if (window == null) {
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(window.getStage());
+        alert.setTitle(I18n.get("ai.local.models.runtime.revoked.notification.title"));
+        alert.setHeaderText(I18n.get(
+            "ai.local.models.runtime.revoked.notification.header", revokedRuntimeId));
+        alert.setContentText(replacementRuntimeId != null
+            ? I18n.get("ai.local.models.runtime.revoked.notification.replacement", replacementRuntimeId)
+            : I18n.get("ai.local.models.runtime.revoked.notification.unavailable"));
+        alert.show();
+    }
     
     public Stage getStage() {
         return stage;
@@ -7534,12 +7675,85 @@ public class MainWindow {
             return;
         }
         try {
+            if (aiManagerDialog != null) {
+                if (aiManagerDialog.isShowing()) {
+                    bringAiManagerToFront(aiManagerDialog);
+                    return;
+                }
+                aiManagerDialog = null;
+            }
+
             AiManagerDialog dialog = new AiManagerDialog(this);
             dialog.initOwner(stage);
-            dialog.showAndWait();
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                if (aiManagerDialog == dialog) {
+                    aiManagerDialog = null;
+                }
+            });
+            aiManagerDialog = dialog;
+            dialog.show();
+            bringAiManagerToFront(dialog);
         } catch (Exception e) {
+            if (aiManagerDialog != null && !aiManagerDialog.isShowing()) {
+                aiManagerDialog = null;
+            }
             logger.error("Failed to open AI Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private static void bringAiManagerToFront(AiManagerDialog dialog) {
+        Window window = dialog.getDialogPane().getScene() != null
+            ? dialog.getDialogPane().getScene().getWindow()
+            : null;
+        if (window instanceof Stage managerStage) {
+            managerStage.setIconified(false);
+            managerStage.toFront();
+            managerStage.requestFocus();
+        }
+    }
+
+    private void showSavedChats() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "saved_chats"));
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
+        try {
+            if (savedChatsDialog != null) {
+                if (savedChatsDialog.isShowing()) {
+                    bringDialogToFront(savedChatsDialog);
+                    return;
+                }
+                savedChatsDialog = null;
+            }
+
+            SavedChatsDialog dialog = new SavedChatsDialog(this);
+            dialog.initOwner(stage);
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                if (savedChatsDialog == dialog) {
+                    savedChatsDialog = null;
+                }
+            });
+            savedChatsDialog = dialog;
+            dialog.show();
+            bringDialogToFront(dialog);
+        } catch (Exception e) {
+            if (savedChatsDialog != null && !savedChatsDialog.isShowing()) {
+                savedChatsDialog = null;
+            }
+            logger.error("Failed to open saved chats window", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private static void bringDialogToFront(Dialog<?> dialog) {
+        Window window = dialog.getDialogPane().getScene() != null
+            ? dialog.getDialogPane().getScene().getWindow()
+            : null;
+        if (window instanceof Stage dialogStage) {
+            dialogStage.setIconified(false);
+            dialogStage.toFront();
+            dialogStage.requestFocus();
         }
     }
 

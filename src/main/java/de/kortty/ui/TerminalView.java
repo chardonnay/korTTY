@@ -2676,6 +2676,11 @@ public class TerminalView extends BorderPane {
             AppDesignStyleSupport.applyToScene(scene);
             connectingStage.setScene(scene);
             connectingStage.setResizable(false);
+            connectingStage.setOnCloseRequest(event -> {
+                if (done.getCount() > 0) {
+                    event.consume();
+                }
+            });
             
             Thread connectThread = new Thread(() -> {
                 try {
@@ -2777,8 +2782,54 @@ public class TerminalView extends BorderPane {
 
             newConnector = createConnectorForConnection(connResult.connection, connResult.password);
 
-            // Connect the new session
-            boolean connected = connectConnector(newConnector);
+            // Host-key confirmation and keyboard-interactive authentication both need a responsive
+            // FX thread. Run the network handshake in a worker and keep processing FX events via the
+            // nested progress-dialog event loop, just like the same-server split path above.
+            AtomicReference<Boolean> connectSuccess = new AtomicReference<>(false);
+            AtomicReference<Throwable> connectFailure = new AtomicReference<>();
+            java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+            Stage connectingStage = new Stage(StageStyle.UTILITY);
+            connectingStage.initModality(Modality.APPLICATION_MODAL);
+            connectingStage.setTitle(I18n.get("split.connecting"));
+            javafx.scene.control.Label label = new javafx.scene.control.Label(I18n.get("split.connecting"));
+            ProgressIndicator progress = new ProgressIndicator(-1);
+            VBox root = new VBox(15, progress, label);
+            root.setStyle("-fx-padding: 20; -fx-alignment: center;");
+            Scene scene = new Scene(root);
+            AppDesignStyleSupport.applyToScene(scene);
+            connectingStage.setScene(scene);
+            connectingStage.setResizable(false);
+            connectingStage.setOnCloseRequest(event -> {
+                if (done.getCount() > 0) {
+                    event.consume();
+                }
+            });
+
+            TtyConnector connectorToConnect = newConnector;
+            Thread connectThread = new Thread(() -> {
+                try {
+                    connectSuccess.set(connectConnector(connectorToConnect));
+                } catch (Throwable failure) {
+                    connectFailure.set(failure);
+                    logger.error("Split new-connection error: {}", failure.getMessage(), failure);
+                } finally {
+                    done.countDown();
+                    Platform.runLater(connectingStage::close);
+                }
+            }, "SSH-Split-New-Connection");
+            connectThread.setDaemon(true);
+            connectThread.start();
+
+            connectingStage.showAndWait();
+            Throwable failure = connectFailure.get();
+            if (failure != null) {
+                if (failure instanceof Exception exception) {
+                    throw exception;
+                }
+                throw new RuntimeException(failure);
+            }
+
+            boolean connected = Boolean.TRUE.equals(connectSuccess.get());
             if (!connected) {
                 logger.warn("Split new-connection failed for {}@{}:{}",
                         connResult.connection.getUsername(),
@@ -4710,6 +4761,7 @@ public class TerminalView extends BorderPane {
             boolean connected = false;
             String lastError = null;
             boolean authenticationFailed = false;
+            boolean hostKeyVerificationFailed = false;
             
             // Clear terminal before first attempt
             clearTerminal();
@@ -4808,6 +4860,15 @@ public class TerminalView extends BorderPane {
                         }
                     }
                     
+                } catch (SshTtyConnector.HostKeyVerificationException e) {
+                    authenticationFailed = true; // Stops retries; this is not a user-authentication failure.
+                    hostKeyVerificationFailed = true;
+                    lastError = e.getMessage();
+                    logger.error("Host-key verification failed for {} - NOT retrying: {}",
+                        connection.getDisplayName(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
                 } catch (SshTtyConnector.AuthenticationException e) {
                     // Authentication failed - do NOT retry
                     authenticationFailed = true;
@@ -4863,11 +4924,16 @@ public class TerminalView extends BorderPane {
             logger.error("All connection attempts failed for {}", connection.getDisplayName());
             
             // Notify disconnect listener about failure
-            String errorMessage = authenticationFailed 
-                ? I18n.get("terminal.authFailed") 
-                : (retryCount > 1 
-                    ? I18n.get("terminal.allAttemptsFailed", retryCount) 
-                    : I18n.get("terminal.connectionFailed"));
+            String errorMessage;
+            if (hostKeyVerificationFailed) {
+                errorMessage = lastError;
+            } else if (authenticationFailed) {
+                errorMessage = I18n.get("terminal.authFailed");
+            } else {
+                errorMessage = retryCount > 1
+                    ? I18n.get("terminal.allAttemptsFailed", retryCount)
+                    : I18n.get("terminal.connectionFailed");
+            }
             if (externalDisconnectListener != null) {
                 Platform.runLater(() -> {
                     externalDisconnectListener.onDisconnect(errorMessage, true);

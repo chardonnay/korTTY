@@ -111,6 +111,69 @@ Use the platform command below to compile, test and create the thin JAR plus the
 
 The thin JAR contains korTTY classes and resources but not its runtime dependencies and does not provide the complete deployment by itself. For a Java-based portable layout, extract the generated ZIP or TAR and start `bin/korTTY` on macOS/Linux or `bin\korTTY.bat` on Windows; the destination still needs JDK 25. These distributions also contain the native JavaFX dependencies selected on the build host, so build them on the same OS and architecture on which they will run.
 
+## Build a separate llama.cpp runtime package
+
+Integrated local AI uses a native artifact that is intentionally separate from every `jpackage` app image and installer. `build.gradle.kts` is the single build contract for its upstream tag, full commit, source-archive SHA-256, korTTY runtime revision, and API-contract version. `verifyLlamaCppPin` fails closed when those values or the requested backend are invalid.
+
+Install CMake and a native C/C++ toolchain. A Vulkan package additionally needs the Vulkan headers, loader, and shader compiler; Metal is available only on macOS with the Apple development tools. Then build the package for the current machine:
+
+=== "CPU"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=CPU
+    ```
+
+=== "macOS Metal"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=METAL
+    ```
+
+=== "Windows/Linux Vulkan"
+    ```bash
+    ./gradlew generateLlamaRuntimeManifest -Pllama.backend=VULKAN
+    ```
+
+The task chain downloads only the pinned commit archive, verifies its SHA-256, extracts it, configures a Release build with curl, RPC, tests, examples, tools, and server Web UI disabled, builds `llama-server`, stages its required libraries and license, and creates a reproducible ZIP plus JSON descriptor under `build/llama-runtime/packages/`. The descriptor records the immutable runtime ID, tag/commit, API-contract version, minimum korTTY version, platform, architecture, concrete backend, package size/SHA-256, publication URL placeholder, entrypoint, and revocation flag.
+
+!!! important "One build host cannot create the whole matrix"
+    Native llama.cpp artifacts follow the same target-platform rule as `jpackage`: build each operating-system/architecture/backend combination on a matching host. The runtime workflow covers macOS arm64/x86_64 CPU+Metal, Windows x86_64 CPU+Vulkan, Linux x86_64/arm64 CPU+Vulkan. CUDA is not in the first matrix.
+
+### Candidate detection, contract tests, and promotion
+
+`.github/workflows/llama-runtime.yml` checks upstream tags daily. A change opens a candidate PR that updates the source pin but does not publish it. Pull requests and manual builds run the native matrix; every artifact must start and report its version, the Linux CPU reference job additionally verifies unauthenticated rejection, authenticated model listing, completion, sleep/wake, JSON-schema chat completion, embeddings, and two simultaneously usable sidecars, and a pinned Qdrant 1.18.2 service runs the real vector-store contract. The korTTY repository owns only candidate detection and source-side matrix validation: it has no stable-promotion action, cross-repository release token, or runtime signing private key.
+
+Stable publication belongs to the public [chardonnay/kortty-llama-runtimes](https://github.com/chardonnay/kortty-llama-runtimes) repository. Its explicit human-dispatched workflow accepts the exact reviewed korTTY source commit, rebuilds the native matrix, runs authentication, chat/completion, embeddings, JSON-schema, sleep/wake, and parallel-sidecar smoke tests on every package, and runs the pinned Qdrant contract separately. After those checks it enters the protected `llama-runtime-signing` environment, verifies that `LLAMA_RUNTIME_ED25519_PRIVATE_KEY_PEM` matches the published trust root, verifies and extends the cumulative signed index, and creates an immutable runtime-only release with that repository's scoped `github.token`; no cross-repository personal access token is required. An existing runtime ID is never overwritten. Regular promotion is limited to once every seven days, while an audited security or model-support reason can override that cadence. The application installer therefore stays unchanged while a compatible native runtime can be promoted or withdrawn independently.
+
+## Publish the model and prompt catalog
+
+The reviewed canonical catalog is `ai-catalog/model-prompt-catalog-v1.json`. It uses strict schema v1 for local-model recommendations and model-name-to-preset mappings; application code and prompt-contract text are not part of this independently released payload.
+
+`.github/workflows/ai-catalog-release.yml` is manual-only, accepts dispatches only from `main`, and has no preview or automatic promotion path. Its dispatch requires the exact reviewed `catalogVersion` and a release repository, defaulting to `chardonnay/kortty-ai-catalog`. Before signing, it verifies that the positive catalog sequence is strictly greater than the latest published sequence and runs the authoritative Java schema/trust-chain tests. The `ai-catalog-signing` GitHub environment must have required reviewers before production secrets are configured; inside it, the workflow checks that `KORTTY_AI_CATALOG_PUBLIC_KEY` matches the Ed25519 private signing secret, signs the unchanged JSON bytes, verifies the signature, and publishes immutable `model-prompt-catalog-v1.json` plus `model-prompt-catalog-v1.sig`. An existing version tag or release is refused. Configure `AI_CATALOG_ED25519_PRIVATE_KEY_PEM` and `AI_CATALOG_RELEASE_TOKEN` only as environment-scoped promotion secrets.
+
+### Embed the local-AI trust roots
+
+Every application release that may install runtimes or refresh the catalog must embed both Ed25519 **public** verification keys. The runtime-channel trust root is public, auditable, and pinned in `config/trust/llama-runtime-ed25519-public.pem`, so normal local builds use the same key as official packages. The catalog trust root is supplied separately. Never provide either signing private key to an application build.
+
+| Channel | Source default | Environment variable | Gradle property |
+| --- | --- | --- | --- |
+| llama.cpp runtime | `config/trust/llama-runtime-ed25519-public.pem` | Optional `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY`; must match the pinned key exactly | Optional `kortty.llamaRuntimePublicKey`; must match the pinned key exactly |
+| Model/prompt catalog | None | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
+
+The generated resources store the fixed channel URLs and public trust roots with the application:
+
+=== "macOS / Linux"
+    ```bash
+    export KORTTY_AI_CATALOG_PUBLIC_KEY="$(cat ai-catalog-signing-public.pem)"
+    ./gradlew generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
+    ```
+
+=== "Windows PowerShell"
+    ```powershell
+    $env:KORTTY_AI_CATALOG_PUBLIC_KEY = Get-Content .\ai-catalog-signing-public.pem -Raw
+    .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
+    ```
+
+The official application-release workflow reads both names from GitHub Actions repository variables, rejects missing values or private-key material, and lets Gradle validate the X.509 Ed25519 keys before packaging. The runtime variable is a redundant CI identity check and must encode the same public key as the tracked PEM; a different override fails the build instead of replacing the trust root. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation/update fails closed before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.
+
 ## macOS
 
 ### Additional software

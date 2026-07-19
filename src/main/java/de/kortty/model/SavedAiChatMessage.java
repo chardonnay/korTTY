@@ -30,6 +30,10 @@ public class SavedAiChatMessage {
     @XmlElement
     private String aiProfileName;
 
+    /** Optional separated chain-of-thought for an assistant reply; display-only, may be null. */
+    @XmlElement
+    private String reasoning;
+
     public SavedAiChatMessage() {
         this.createdAt = System.currentTimeMillis();
     }
@@ -44,6 +48,7 @@ public class SavedAiChatMessage {
         this.createdAt = source.createdAt;
         this.aiProfileId = source.aiProfileId;
         this.aiProfileName = source.aiProfileName;
+        this.reasoning = source.reasoning;
     }
 
     public String getRole() {
@@ -84,5 +89,13 @@ public class SavedAiChatMessage {
 
     public void setAiProfileName(String aiProfileName) {
         this.aiProfileName = aiProfileName;
+    }
+
+    public String getReasoning() {
+        return reasoning;
+    }
+
+    public void setReasoning(String reasoning) {
+        this.reasoning = reasoning != null && !reasoning.isBlank() ? reasoning : null;
     }
 }

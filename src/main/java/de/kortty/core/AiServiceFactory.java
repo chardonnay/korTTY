@@ -1,12 +1,25 @@
 package de.kortty.core;
 
+import de.kortty.ai.llama.EmbeddedLlamaAiService;
+import de.kortty.ai.llama.LlamaModel;
+import de.kortty.ai.llama.LlamaModelPurpose;
+import de.kortty.ai.llama.LlamaModelRegistry;
+import de.kortty.ai.mlx.EmbeddedMlxAiService;
+import de.kortty.ai.mlx.MlxModel;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.ai.mlx.MlxPlatform;
+import de.kortty.KorTTYApplication;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiPromptPreset;
 import de.kortty.model.AiReasoningEffort;
+import de.kortty.rag.RagRuntimeService;
 
 import java.net.URI;
+import java.util.Locale;
+import java.util.List;
 
 /**
  * Builds the correct AI service implementation for a configured profile.
@@ -71,6 +84,74 @@ public final class AiServiceFactory {
         AiSkillPromptSupport effectiveSkillSupport = skillPromptSupport != null
             ? skillPromptSupport
             : AiSkillPromptSupport.disabled();
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            String embeddedModelId = trimToNull(profile.getEmbeddedModelId());
+            if (embeddedModelId == null) {
+                throw new IllegalStateException("Select a local GGUF model for the embedded llama.cpp profile.");
+            }
+            LlamaModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                .find(embeddedModelId)
+                .filter(model -> model.getPurpose() != LlamaModelPurpose.CHAT)
+                .ifPresent(model -> {
+                    throw new IllegalStateException(
+                        "The selected local model is configured for embeddings, not chat generation.");
+                });
+            AiInternetAccessMode mode = profile.getInternetAccessMode();
+            if (mode == null) {
+                throw new IllegalStateException("AI internet access mode must be configured.");
+            }
+            if (mode.usesLmStudioMcp()) {
+                throw new IllegalStateException("LM Studio MCP internet modes are not available for embedded llama.cpp profiles.");
+            }
+            AiInternetAccessConfiguration effectiveConfig = internetConfig != null
+                ? internetConfig
+                : AiInternetAccessConfiguration.disabled();
+            TavilyWebSearchTool webSearchTool = null;
+            if (mode.usesKorTTYTool()) {
+                String tavilyApiKey = trimToNull(effectiveConfig.tavilyApiKey());
+                if (tavilyApiKey == null) {
+                    throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
+                }
+                webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+            }
+            return decorate(profile, embeddedModelId, new EmbeddedLlamaAiService(
+                embeddedModelId,
+                effectiveReasoningEffort(profile, reasoningEffortOverride),
+                webSearchTool,
+                effectiveSkillSupport));
+        }
+        if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX) {
+            if (!MlxPlatform.isSupported()) {
+                throw new IllegalStateException("Embedded MLX profiles require an Apple Silicon Mac.");
+            }
+            String embeddedModelId = trimToNull(profile.getEmbeddedModelId());
+            if (embeddedModelId == null) {
+                throw new IllegalStateException("Select a local MLX model for the embedded MLX profile.");
+            }
+            AiInternetAccessMode mode = profile.getInternetAccessMode();
+            if (mode == null) {
+                throw new IllegalStateException("AI internet access mode must be configured.");
+            }
+            if (mode.usesLmStudioMcp()) {
+                throw new IllegalStateException("LM Studio MCP internet modes are not available for embedded MLX profiles.");
+            }
+            AiInternetAccessConfiguration effectiveConfig = internetConfig != null
+                ? internetConfig
+                : AiInternetAccessConfiguration.disabled();
+            TavilyWebSearchTool webSearchTool = null;
+            if (mode.usesKorTTYTool()) {
+                String tavilyApiKey = trimToNull(effectiveConfig.tavilyApiKey());
+                if (tavilyApiKey == null) {
+                    throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
+                }
+                webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+            }
+            return decorate(profile, embeddedModelId, new EmbeddedMlxAiService(
+                embeddedModelId,
+                effectiveReasoningEffort(profile, reasoningEffortOverride),
+                webSearchTool,
+                effectiveSkillSupport));
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String model = trimToNull(profile.getModel());
             AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
@@ -85,7 +166,8 @@ public final class AiServiceFactory {
                 && (modelSelectionMode == AiModelSelectionMode.DEFAULT || model == null)) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return new LocalCliAiService(profileWithReasoning(profile, reasoningEffortOverride), effectiveSkillSupport);
+            return decorate(profile, model,
+                new LocalCliAiService(profileWithReasoning(profile, reasoningEffortOverride), effectiveSkillSupport));
         }
         String apiUrl = trimToNull(profile.getApiUrl());
         if (apiUrl == null) {
@@ -96,12 +178,12 @@ public final class AiServiceFactory {
             if (anthropicModel == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return new AnthropicAiService(
+            return decorate(profile, anthropicModel, new AnthropicAiService(
                 apiUrl,
                 anthropicModel,
                 apiKey,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
-                effectiveSkillSupport);
+                effectiveSkillSupport));
         }
         if (apiUrl.matches("^https?://[^/]+/?$") && !LocalLmModelResolver.isLocalLmStudioBaseUrl(apiUrl)) {
             return null;
@@ -129,14 +211,14 @@ public final class AiServiceFactory {
             if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return new LmStudioNativeAiService(
+            return decorate(profile, model, new LmStudioNativeAiService(
                 apiUrl,
                 serviceModel,
                 modelSelectionMode,
                 normalizedApiKey,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
                 effectiveConfig,
-                effectiveSkillSupport);
+                effectiveSkillSupport));
         }
         TavilyWebSearchTool webSearchTool = null;
         if (mode.usesKorTTYTool()) {
@@ -155,14 +237,130 @@ public final class AiServiceFactory {
                 throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);
             }
         }
-        return new OpenAiCompatibleAiService(
+        return decorate(profile, model, new OpenAiCompatibleAiService(
             normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
             serviceModel,
             modelSelectionMode,
             normalizedApiKey,
             effectiveReasoningEffort(profile, reasoningEffortOverride),
             webSearchTool,
-            effectiveSkillSupport);
+            effectiveSkillSupport));
+    }
+
+    private static AiService decorate(AiProfile profile, String modelName, AiService service) {
+        AiPromptPreset configured = profile != null ? profile.getPromptPreset() : AiPromptPreset.AUTO;
+        AiPromptPreset resolved = AiPromptPresetSupport.resolve(configured, modelName);
+        AiService optimized = resolved == AiPromptPreset.GENERIC
+            ? service
+            : new AiPromptPresetService(service, resolved);
+        AiService composed;
+        if (profile == null) {
+            composed = optimized;
+        } else {
+            List<String> automaticStores = automaticallyAssignedRagStoresAllowed(profile)
+                ? new RagRuntimeService().configuredStoreIds()
+                : List.of();
+            List<String> storeIds = ragStoreIdsForProfile(profile, automaticStores);
+            composed = storeIds.isEmpty()
+                ? optimized
+                : new RagAugmentedAiService(optimized, storeIds, modelContextTokens(profile));
+        }
+        // Outermost wrapper: logs request submit/complete/fail (metadata only) so the whole request
+        // lifecycle — including any RAG retrieval and preset optimization above — is timed as one.
+        return LoggingAiService.wrap(composed, profile, modelName);
+    }
+
+    /**
+     * Combines the profile's explicit stores with automatically role-assigned stores. Automatic
+     * stores are accepted only for embedded or provably loopback HTTP inference; callers must pass
+     * an empty automatic list for cloud and CLI profiles.
+     */
+    static List<String> ragStoreIdsForProfile(AiProfile profile, List<String> automaticStoreIds) {
+        if (profile == null) {
+            return List.of();
+        }
+        List<String> safeAutomaticStores = automaticallyAssignedRagStoresAllowed(profile)
+            && automaticStoreIds != null
+            ? automaticStoreIds
+            : List.of();
+        return java.util.stream.Stream
+            .concat(profile.getRagStoreIds().stream(), safeAutomaticStores.stream())
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    }
+
+    static boolean automaticallyAssignedRagStoresAllowed(AiProfile profile) {
+        if (profile == null) {
+            return false;
+        }
+        if (profile.getConnectionMode().isEmbedded()) {
+            return true;
+        }
+        if (profile.getConnectionMode() != AiConnectionMode.HTTP_API) {
+            return false;
+        }
+        String apiUrl = trimToNull(profile.getApiUrl());
+        if (apiUrl == null) {
+            return false;
+        }
+        try {
+            URI endpoint = URI.create(apiUrl);
+            String host = trimToNull(endpoint.getHost());
+            if (host == null) {
+                return false;
+            }
+            String normalized = host.toLowerCase(Locale.ROOT);
+            if (normalized.startsWith("[") && normalized.endsWith("]")) {
+                normalized = normalized.substring(1, normalized.length() - 1);
+            }
+            if (normalized.endsWith(".")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
+            if ("localhost".equals(normalized) || "::1".equals(normalized)
+                || "0:0:0:0:0:0:0:1".equals(normalized)) {
+                return true;
+            }
+            String[] octets = normalized.split("\\.", -1);
+            if (octets.length != 4 || !"127".equals(octets[0])) {
+                return false;
+            }
+            for (String octet : octets) {
+                if (octet.isEmpty()) {
+                    return false;
+                }
+                int value = Integer.parseInt(octet);
+                if (value < 0 || value > 255) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (IllegalArgumentException error) {
+            return false;
+        }
+    }
+
+    private static int modelContextTokens(AiProfile profile) {
+        try {
+            if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+                return LlamaModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .find(profile.getEmbeddedModelId())
+                    .map(LlamaModel::getContextSize)
+                    .filter(value -> value > 0)
+                    .orElse(16_000);
+            }
+            if (profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX) {
+                return MlxModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .find(profile.getEmbeddedModelId())
+                    .map(MlxModel::getContextSize)
+                    .filter(value -> value > 0)
+                    .orElse(16_000);
+            }
+        } catch (RuntimeException ignored) {
+            return 16_000;
+        }
+        return 16_000;
     }
 
     private static AiProfile profileWithReasoning(AiProfile profile, AiReasoningEffort reasoningEffortOverride) {

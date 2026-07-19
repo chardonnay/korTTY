@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1514,6 +1518,62 @@
   
   
     <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ai-tools.html" class="md-nav__link">
         
   
@@ -1658,10 +1718,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#merkmale" class="md-nav__link">
+  <a href="#eigenschaften" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Merkmale
+        Eigenschaften
       
     </span>
   </a>
@@ -1719,10 +1779,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ein-backup-importieren" class="md-nav__link">
+  <a href="#ein-backup-wird-importiert" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Ein Backup importieren
+        Ein Backup wird importiert
       
     </span>
   </a>
@@ -1752,10 +1812,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#maschinenubergreifende-sicherungen-verwenden" class="md-nav__link">
+  <a href="#verwenden-von-backups-auf-mehreren-maschinen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Maschinenübergreifende Sicherungen verwenden
+        Verwenden von Backups auf mehreren Maschinen
       
     </span>
   </a>
@@ -2079,10 +2139,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#merkmale" class="md-nav__link">
+  <a href="#eigenschaften" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Merkmale
+        Eigenschaften
       
     </span>
   </a>
@@ -2140,10 +2200,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ein-backup-importieren" class="md-nav__link">
+  <a href="#ein-backup-wird-importiert" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Ein Backup importieren
+        Ein Backup wird importiert
       
     </span>
   </a>
@@ -2173,10 +2233,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#maschinenubergreifende-sicherungen-verwenden" class="md-nav__link">
+  <a href="#verwenden-von-backups-auf-mehreren-maschinen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Maschinenübergreifende Sicherungen verwenden
+        Verwenden von Backups auf mehreren Maschinen
       
     </span>
   </a>
@@ -2214,10 +2274,11 @@
 <h1 id="sichern-und-wiederherstellen">Sichern und Wiederherstellen<a class="headerlink" href="#sichern-und-wiederherstellen" title="Permanent link">&para;</a></h1>
 <p>KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen, Anmeldeinformationen und SSH-Schlüssel. Verwenden Sie Sicherung und Wiederherstellung, um Ihre Konfiguration zu schützen oder sie zwischen Computern zu verschieben.</p>
 <p><img alt="Backup &amp; restore flow" src="../assets/diagrams/backup-restore.svg" /></p>
-<h2 id="merkmale">Merkmale<a class="headerlink" href="#merkmale" title="Permanent link">&para;</a></h2>
+<h2 id="eigenschaften">Eigenschaften<a class="headerlink" href="#eigenschaften" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Verschlüsselte Backups</strong> – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt</li>
-<li><strong>Vollständige Sicherung</strong> – Beinhaltet Verbindungen, Anmeldeinformationen, SSH-Schlüssel, GPG-Schlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets und AI-Chat-Verlauf</li>
+<li><strong>Konfigurationssicherung</strong> – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Metadaten der Wissensspeicherquelle</li>
+<li><strong>Regenerierbare lokale KI-Daten ausgeschlossen</strong> – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert</li>
 <li><strong>Projektverzeichnis</strong> – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten</li>
 <li><strong>Automatische Rotation</strong> – Alte Backups werden automatisch mit Zeitstempeln in ein <code>old-backups</code>-Unterverzeichnis verschoben</li>
 <li><strong>Konfigurierbare Aufbewahrung</strong> – Legen Sie eine maximale Anzahl der aufzubewahrenden Backups fest (0 = unbegrenzt; älteste Backups werden automatisch gelöscht)</li>
@@ -2236,7 +2297,7 @@
 <thead>
 <tr>
 <th>Artikel</th>
-<th>Einzelheiten</th>
+<th>Details</th>
 </tr>
 </thead>
 <tbody>
@@ -2253,20 +2314,24 @@
 <td>Zentral verwaltete private SSH-Schlüssel mit verschlüsselten Passphrasen</td>
 </tr>
 <tr>
+<td>Vertrauenswürdige interaktive Hosts</td>
+<td><code>ssh-host-keys.properties</code>, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; Der vorübergehende Begleiter <code>.lock</code> ist nicht im Lieferumfang enthalten (</td>
+</tr>
+<tr>
 <td>GPG-Schlüssel</td>
 <td>Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung</td>
 </tr>
 <tr>
 <td>Einstellungen</td>
-<td>Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und KI-Profile</td>
+<td>Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile</td>
 </tr>
 <tr>
 <td>JobScheduler-Jobs</td>
 <td>Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter</td>
 </tr>
 <tr>
-<td>Schnipsel</td>
-<td>Codefragmente und Skriptvorlagen mit Metadaten</td>
+<td>Snippets</td>
+<td>Code-Snippets und Skriptvorlagen mit Metadaten</td>
 </tr>
 <tr>
 <td>Snippet-Variablen</td>
@@ -2277,8 +2342,16 @@
 <td>Gespeicherte KI-Gesprächsverläufe und -Profile</td>
 </tr>
 <tr>
+<td>Lokale KI-Konfiguration</td>
+<td>Lokale GGUF-Registrierungen und eingegebene Starteinstellungen, Text-/Codierungsrollen, bevorzugte Laufzeit-Backend-/Update-Richtlinie und verschlüsseltes Hugging Face-Token</td>
+</tr>
+<tr>
+<td>Wissensspeicherkonfiguration</td>
+<td>Speichermetadaten und Quellpfade, Filter, Synchronisierungsmodi und Einbettungskonfiguration; nicht die HNSW-Vektoren</td>
+</tr>
+<tr>
 <td>Projekte</td>
-<td>Alle <code>.kortty</code>-Projektarbeitsbereichsdateien</td>
+<td>Alle <code>.kortty</code> Projektarbeitsbereichsdateien</td>
 </tr>
 </tbody>
 </table>
@@ -2288,7 +2361,7 @@
 <li>Öffnen Sie <strong>Einstellungen → Backup</strong></li>
 <li>Wählen Sie <strong>Verschlüsselungstyp: Passwort</strong></li>
 <li>Wählen oder erstellen Sie Anmeldeinformationen, die als Verschlüsselungskennwort verwendet werden sollen</li>
-<li>Legen Sie optional <strong>Maximale Backups</strong> fest (0 = unbegrenzt)</li>
+<li>Optional <strong>Maximale Backups</strong> festlegen (0 = unbegrenzt)</li>
 <li>Speichern</li>
 </ol>
 <p>Passwortgeschützte Backups verwenden die Standard-ZIP-Verschlüsselung (<code>EncryptionMethod.ZIP_STANDARD</code>) über die zip4j-Bibliothek. Das Passwort der Anmeldeinformationen wird zum Verschlüsseln aller Dateien im Archiv verwendet.</p>
@@ -2297,7 +2370,7 @@
 <li>Öffnen Sie <strong>Einstellungen → Backup</strong></li>
 <li>Wählen Sie <strong>Verschlüsselungstyp: GPG</strong></li>
 <li>Wählen Sie einen GPG-Schlüssel aus <strong>GPG-Schlüssel verwalten...</strong></li>
-<li>Legen Sie optional <strong>Maximale Backups</strong> fest (0 = unbegrenzt)</li>
+<li>Optional <strong>Maximale Backups</strong> festlegen (0 = unbegrenzt)</li>
 <li>Speichern</li>
 </ol>
 <p>GPG-Backups verschlüsseln die Backup-Datei mit dem öffentlichen Schlüssel Ihres ausgewählten GPG-Schlüssels. KorTTY erstellt zunächst eine temporäre ZIP-Datei, verschlüsselt sie dann mit <code>gpg --encrypt</code> und speichert die Datei <code>.gpg</code>. Die temporäre ZIP-Datei wird nach der Verschlüsselung sicher gelöscht.</p>
@@ -2305,14 +2378,14 @@
 <p class="admonition-title">Tip</p>
 <p>Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie <strong>Verwaltung → GPG-Schlüssel verwalten...</strong>, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.</p>
 </div>
-<h2 id="ein-backup-importieren">Ein Backup importieren<a class="headerlink" href="#ein-backup-importieren" title="Permanent link">&para;</a></h2>
+<h2 id="ein-backup-wird-importiert">Ein Backup wird importiert<a class="headerlink" href="#ein-backup-wird-importiert" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Öffnen Sie <strong>Bearbeiten → Backup importieren...</strong></li>
+<li>Öffnen <strong>Bearbeiten → Backup importieren...</strong></li>
 <li>Wählen Sie eine Sicherungsdatei (<code>.zip</code> oder <code>.gpg</code>)</li>
 <li>Wenn die Sicherung passwortgeschützt ist, geben Sie das Passwort ein, wenn Sie dazu aufgefordert werden</li>
-<li>Wählen Sie, ob Sie <strong>Vorhandene Dateien überschreiben</strong> möchten:</li>
-<li><strong>Aktiviert</strong> – Sicherungsdateien ersetzen alle vorhandenen Dateien in Ihrer Konfiguration</li>
-<li><strong>Deaktiviert</strong> – Vorhandene Dateien werden übersprungen; Es werden nur fehlende Dateien importiert</li>
+<li>Wählen Sie aus, ob <strong>vorhandene Dateien überschrieben werden</strong>:</li>
+<li><strong>Überprüft</strong> – Sicherungsdateien ersetzen alle vorhandenen Dateien in Ihrer Konfiguration</li>
+<li><strong>Ungeprüft</strong> – Vorhandene Dateien werden übersprungen; Es werden nur fehlende Dateien importiert</li>
 <li>Klicken Sie auf <strong>Importieren</strong></li>
 <li><strong>Starten Sie die Anwendung neu</strong>, damit alle Änderungen wirksam werden</li>
 </ol>
@@ -2326,6 +2399,7 @@
 <li><code>connections.xml</code> – Alle SSH-Verbindungen und -Gruppen</li>
 <li><code>credentials.xml</code> – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)</li>
 <li><code>ssh-keys.xml</code> – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen</li>
+<li><code>ssh-host-keys.properties</code> – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (<code>ssh-host-keys.properties.lock</code> ist absichtlich ausgeschlossen)</li>
 <li><code>gpg-keys.xml</code> – öffentliche GPG-Schlüssel</li>
 <li><code>global-settings.xml</code> – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen</li>
 <li><code>job-scheduler.xml</code> – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter</li>
@@ -2333,21 +2407,27 @@
 <li><code>snippet-variables.xml</code> – Benutzerdefinierte Snippet-Variablen</li>
 <li><code>ai-chats.xml</code> – Gespeicherte KI-Gespräche</li>
 <li><code>master-password-hash</code> – Hash Ihres Master-Passworts (zur Überprüfung beim Import)</li>
+<li><code>llm/models.xml</code> – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)</li>
+<li><code>rag/stores.json</code> – Wissensspeicher- und Quellkonfiguration (Vektor-Snapshots sind nicht enthalten)</li>
 <li><code>projects/</code> – Alle gespeicherten Projektarbeitsbereichsdateien (<code>.kortty</code>)</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.</p>
 </div>
+<div class="admonition important">
+<p class="admonition-title">Erstellen Sie lokale KI-Assets nach einer Wiederherstellung neu</p>
+<p>Die Sicherung schließt <code>llm/models/</code>-, <code>llm/runtime/</code>-, <code>llm/catalog/</code>-, <code>llm/run/</code>- und lokale <code>index.hnsw</code>-Snapshots aus. Stellen Sie nach dem Wechsel auf einen anderen Computer die GGUF-Dateien und eine kompatible Laufzeit wieder her oder laden Sie sie herunter, verbinden Sie alle externen Modell-/Quellpfade erneut und führen Sie dann <strong>Jetzt aktualisieren</strong> in jedem Wissensspeicher aus, um seinen Index neu zu generieren. Der signierte Katalogcache wird automatisch aktualisiert oder greift auf den Bootstrap zurück. Originalquelldokumente und externe Qdrant-Daten sind nicht Teil einer korTTY-Konfigurationssicherung.</p>
+</div>
 <h2 id="backup-aufbewahrung-und-bereinigung">Backup-Aufbewahrung und -Bereinigung<a class="headerlink" href="#backup-aufbewahrung-und-bereinigung" title="Permanent link">&para;</a></h2>
 <p>Wenn Sie ein neues Backup in einem Verzeichnis erstellen, das bereits eines enthält, führt KorTTY Folgendes aus:</p>
 <ol>
 <li>Erstellt das neue Backup als <code>kortty-backup.zip</code></li>
-<li>Verschiebt das vorhandene Backup nach <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip</code></li>
-<li>Wenn die Anzahl der alten Backups die <strong>Maximale Anzahl an Backups</strong> überschreitet, werden die ältesten gelöscht</li>
+<li>Verschiebt die vorhandene Sicherung nach <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip</code></li>
+<li>Wenn die Anzahl der alten Backups <strong>Maximale Backups</strong> überschreitet, werden die ältesten gelöscht</li>
 </ol>
 <p>Um unbegrenzt alte Backups aufzubewahren, stellen Sie <strong>Maximale Backups</strong> unter <strong>Einstellungen → Backup</strong> auf <code>0</code> ein. Um nur das aktuelle Backup zu behalten, legen Sie <strong>Maximale Backups</strong> auf <code>1</code> fest (alte Backups werden weiterhin rotiert, dann aber sofort gelöscht).</p>
-<h2 id="maschinenubergreifende-sicherungen-verwenden">Maschinenübergreifende Sicherungen verwenden<a class="headerlink" href="#maschinenubergreifende-sicherungen-verwenden" title="Permanent link">&para;</a></h2>
+<h2 id="verwenden-von-backups-auf-mehreren-maschinen">Verwenden von Backups auf mehreren Maschinen<a class="headerlink" href="#verwenden-von-backups-auf-mehreren-maschinen" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Exportieren Sie Ihre aktuelle Konfiguration:</strong></li>
 <li>
@@ -2366,9 +2446,9 @@
 <li>Wählen Sie die Sicherungsdatei aus Schritt 2 aus</li>
 <li>Geben Sie das Backup-Passwort ein, wenn Sie dazu aufgefordert werden</li>
 <li>Lassen Sie <strong>Überschreiben</strong> deaktiviert, es sei denn, Sie möchten vorhandene Verbindungen ersetzen</li>
-<li>Starten Sie KorTTY neu</li>
+<li>KorTTY neu starten</li>
 </ol>
-<p>Alle Ihre Verbindungen, Einstellungen, Snippets und gespeicherten Chats sind auf Computer B verfügbar.</p>
+<p>Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, interaktive Hostschlüssel-Vertrauensentscheidungen, Modellregistrierungen und Wissensquellendefinitionen sind auf Maschine B verfügbar. Wiederhergestellte Hostschlüssel werden weiterhin mit normalisiertem Hostnamen und Port abgeglichen, sodass ein geänderter Schlüssel nach der Migration blockiert bleibt. Lokale Modellgewichte, Laufzeitpakete, Quelldokumente und HNSW-Vektoren müssen separat wiederhergestellt oder neu generiert werden.</p>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <dl>
 <dt><strong>"Sicherungsdatei nicht gefunden"</strong></dt>
@@ -2382,7 +2462,7 @@
 <dt><strong>Der Import war erfolgreich, aber die Änderungen wurden nicht wirksam</strong></dt>
 <dd>Starten Sie KorTTY neu, damit importierte Einstellungen aktiv werden. Wenn Sie Anmeldeinformationen importiert haben, müssen Sie nach dem Neustart möglicherweise auch das Master-Passwort entsperren.</dd>
 <dt><strong>Sicherungsdatei ist größer als erwartet</strong></dt>
-<dd>Große Backups können auftreten, wenn Sie viele gespeicherte AI-Chats, große Terminal-Verlaufsdateien oder ein großes Projektverzeichnis haben. Ältere Projekte oder Chats können vor der Verwendung aus dem Import gelöscht werden.</dd>
+<dd>Große Backups können auftreten, wenn Sie viele gespeicherte AI-Chats oder ein großes Projektverzeichnis haben. GGUF-Gewichte, llama.cpp-Laufzeitpakete und HNSW-Snapshots sind ausgeschlossen und können nicht die Ursache sein.</dd>
 </dl>
 
 

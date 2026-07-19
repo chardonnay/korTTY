@@ -70,6 +70,10 @@ public class KorTTYApplication extends Application {
     private static final String APP_VERSION = "2.5.2";
     
     private static KorTTYApplication instance;
+    private AutoCloseable llamaRuntimeStatusSubscription;
+    private volatile String lastNotifiedLlamaRuntimeId;
+    private AutoCloseable mlxRuntimeStatusSubscription;
+    private volatile String lastNotifiedMlxRuntimeId;
     
     private ConfigurationManager configManager;
     private SessionManager sessionManager;
@@ -270,6 +274,11 @@ public class KorTTYApplication extends Application {
                 logger.warn("Failed to load GPG keys or credentials", e);
             }
 
+            // RAG startup reconciliation is independent of credentials, snippets, and scheduler
+            // initialization. A failure in one of those subsystems must not disable automatic
+            // knowledge-source synchronization for this application session.
+            de.kortty.rag.RagCoordinator.startDefault();
+
             try {
                 terminalEffectPluginManager.load();
             } catch (Exception e) {
@@ -299,6 +308,7 @@ public class KorTTYApplication extends Application {
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
+            startLlamaRuntimeUpdateCoordinator();
             registerMacDesktopHandlers();
             // The AWT Taskbar Dock menu only attaches to a real .app bundle's Dock
             // tile (not a `./gradlew run` JVM), and initializing AWT there would also
@@ -450,6 +460,27 @@ public class KorTTYApplication extends Application {
         if (jobSchedulerService != null) {
             shutdownStep("stop job scheduler", jobSchedulerService::shutdownSchedulerThreads);
         }
+        shutdownStep("stop local knowledge-store coordination",
+            de.kortty.rag.RagCoordinator::shutdownDefault);
+        if (llamaRuntimeStatusSubscription != null) {
+            shutdownStep("remove llama.cpp runtime update listener", llamaRuntimeStatusSubscription::close);
+            llamaRuntimeStatusSubscription = null;
+        }
+        if (mlxRuntimeStatusSubscription != null) {
+            shutdownStep("remove MLX runtime update listener", mlxRuntimeStatusSubscription::close);
+            mlxRuntimeStatusSubscription = null;
+        }
+        shutdownStep("stop llama.cpp runtime update coordination",
+            de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator::shutdownDefault);
+        shutdownStep("stop MLX runtime update coordination",
+            de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator::shutdownDefault);
+        // The application terminates with Runtime.halt(), so sidecar cleanup cannot rely on JVM
+        // shutdown hooks. Stop every embedded llama.cpp and mlx-lm process explicitly before the
+        // hard halt.
+        shutdownStep("stop embedded llama.cpp runtimes",
+            de.kortty.ai.llama.LlamaRuntimeManager::shutdownDefault);
+        shutdownStep("stop embedded MLX runtimes",
+            de.kortty.ai.mlx.MlxRuntimeManager::shutdownDefault);
         if (powerManagementCoordinator != null) {
             shutdownStep("release power-management assertions", powerManagementCoordinator::close);
             powerManagementCoordinator = null;
@@ -643,6 +674,101 @@ public class KorTTYApplication extends Application {
             globalSettingsManager,
             update -> Platform.runLater(() -> MainWindow.showAutomaticUpdateAvailable(update)));
         updateCheckService.start();
+    }
+
+    private void startLlamaRuntimeUpdateCoordinator() {
+        if (globalSettingsManager == null || globalSettingsManager.getSettings() == null) {
+            return;
+        }
+        de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator coordinator =
+            de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator.getDefault();
+        if (llamaRuntimeStatusSubscription != null) {
+            try {
+                llamaRuntimeStatusSubscription.close();
+            } catch (Exception e) {
+                logger.debug("Could not replace llama.cpp runtime update listener", e);
+            }
+        }
+        llamaRuntimeStatusSubscription = coordinator.addListener(update -> {
+            if (update.state() == de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator.State.REVOKED
+                && update.revokedRuntimeId() != null) {
+                String notificationId = "revoked:" + update.revokedRuntimeId();
+                if (notificationId.equals(lastNotifiedLlamaRuntimeId)) {
+                    return;
+                }
+                lastNotifiedLlamaRuntimeId = notificationId;
+                String replacementId = update.availablePackage() != null
+                    ? update.availablePackage().runtimeId() : null;
+                Platform.runLater(() -> MainWindow.showRuntimeRevoked(
+                    update.revokedRuntimeId(), replacementId));
+                return;
+            }
+            if (update.state() != de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator.State.UPDATE_AVAILABLE
+                || update.availablePackage() == null) {
+                return;
+            }
+            // Notify only users who actually run the local runtime: without an installed (and
+            // not removed) llama.cpp installation the popup would advertise a feature that was
+            // never opted into. The AI Manager still lists the available runtime for install.
+            if (update.activeInstallation() == null) {
+                return;
+            }
+            String runtimeId = update.availablePackage().runtimeId();
+            if (runtimeId.equals(lastNotifiedLlamaRuntimeId)) {
+                return;
+            }
+            lastNotifiedLlamaRuntimeId = runtimeId;
+            Platform.runLater(() -> MainWindow.showRuntimeUpdateAvailable(runtimeId));
+        });
+        de.kortty.model.LlamaRuntimeUpdatePolicy policy =
+            globalSettingsManager.getSettings().getLlamaRuntimeUpdatePolicy();
+        coordinator.start(
+            policy,
+            globalSettingsManager.getSettings().getPreferredLlamaRuntimeBackend());
+        startMlxRuntimeUpdateCoordinator(policy);
+    }
+
+    /** Applies the same update policy to the embedded MLX runtime (Apple Silicon only). */
+    private void startMlxRuntimeUpdateCoordinator(de.kortty.model.LlamaRuntimeUpdatePolicy policy) {
+        if (!de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+            return;
+        }
+        de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator coordinator =
+            de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.getDefault();
+        if (mlxRuntimeStatusSubscription != null) {
+            try {
+                mlxRuntimeStatusSubscription.close();
+            } catch (Exception e) {
+                logger.debug("Could not replace MLX runtime update listener", e);
+            }
+        }
+        mlxRuntimeStatusSubscription = coordinator.addListener(update -> {
+            if (update.state() == de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.State.REVOKED
+                && update.revokedRuntimeId() != null) {
+                String notificationId = "revoked:" + update.revokedRuntimeId();
+                if (notificationId.equals(lastNotifiedMlxRuntimeId)) {
+                    return;
+                }
+                lastNotifiedMlxRuntimeId = notificationId;
+                String replacementId = update.availablePackage() != null
+                    ? update.availablePackage().runtimeId() : null;
+                Platform.runLater(() -> MainWindow.showRuntimeRevoked(
+                    update.revokedRuntimeId(), replacementId));
+                return;
+            }
+            if (update.state() != de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator.State.UPDATE_AVAILABLE
+                || update.availablePackage() == null
+                || update.activeInstallation() == null) {
+                return;
+            }
+            String runtimeId = update.availablePackage().runtimeId();
+            if (runtimeId.equals(lastNotifiedMlxRuntimeId)) {
+                return;
+            }
+            lastNotifiedMlxRuntimeId = runtimeId;
+            Platform.runLater(() -> MainWindow.showRuntimeUpdateAvailable(runtimeId));
+        });
+        coordinator.start(policy);
     }
 
     public void restartUpdateCheckService() {

@@ -12,6 +12,9 @@ korTTY's Terminal AI Agent is a controlled automation workflow that enables safe
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
 
+!!! important "RAG is explicit for autonomous work"
+    Knowledge stores assigned to normal Text/Coding requests do not automatically expand the Terminal AI Agent, Planning, Swarm, or scheduled job context. Those autonomous flows require an explicit RAG opt-in; see [RAG knowledge stores](rag.md). This prevents a background workflow from reading indexed local sources merely because the same model profile is used for interactive chat.
+
 ## Command variants
 
 The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in **Settings > AI**, KorTTY intercepts these commands locally instead of sending them to the server:
@@ -33,7 +36,7 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 
 ### Command purposes
 
-- **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.
+- **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and (by default) writes the final answer back to the terminal. The run dialog offers a **Show final answer in the terminal too** option: leave it on to mirror the answer into the terminal, or turn it off so the answer stays only in the AI agent activity panel. Either way the commands still run and their output and any files they create remain on the server; only the display of the final answer text changes. The last choice is remembered as the default.
 - **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask AI Agent**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
 - **`agent-plan <task>` / `agent -plan <task>`** — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click **Implement**.
 

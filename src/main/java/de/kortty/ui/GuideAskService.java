@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiPromptExecutionScope;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiService;
@@ -16,6 +17,7 @@ import de.kortty.core.LanguageManager;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiWorkload;
 import de.kortty.model.GlobalSettings;
 import de.kortty.security.EncryptionService;
 import org.slf4j.Logger;
@@ -98,8 +100,12 @@ public final class GuideAskService {
         if (settings == null) {
             throw new AskException(FailureKind.NO_PROFILE, "Settings unavailable");
         }
-        AiProfile profile = AiProfileSelectionSupport.defaultProfile(
-            settings.getAiProfiles(), settings.getDefaultAiProfileId());
+        AiProfile profile = AiProfileSelectionSupport.workloadProfile(
+            settings.getAiProfiles(),
+            AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
         if (profile == null) {
             throw new AskException(FailureKind.NO_PROFILE, "No AI profile available");
         }
@@ -145,7 +151,7 @@ public final class GuideAskService {
 
         AiExecutionResult result;
         try {
-            result = promptService.executePrompt(systemPrompt, userPrompt);
+            result = promptService.executePrompt(systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
         } catch (Exception e) {
             logger.warn("Guide AI ask failed", e);
             throw new AskException(FailureKind.AI_ERROR,

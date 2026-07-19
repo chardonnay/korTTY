@@ -32,6 +32,7 @@ public class SFTPSession {
     
     private final ServerConnection connection;
     private final String password;
+    private final SshHostKeyTrustManager hostKeyTrustManager;
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
     
@@ -41,8 +42,17 @@ public class SFTPSession {
     private String currentRemotePath = "~";
     
     public SFTPSession(ServerConnection connection, String password) {
+        this(connection, password, SshHostKeyTrustManager.shared());
+    }
+
+    SFTPSession(
+        ServerConnection connection,
+        String password,
+        SshHostKeyTrustManager hostKeyTrustManager) {
+
         this.connection = connection;
         this.password = password;
+        this.hostKeyTrustManager = java.util.Objects.requireNonNull(hostKeyTrustManager, "hostKeyTrustManager");
     }
     
     /**
@@ -140,10 +150,7 @@ public class SFTPSession {
         // Note: EdDSA signature support is automatically enabled when the eddsa dependency
         // is on the classpath. The client will detect and use EdDSA signatures automatically.
         
-        client.setServerKeyVerifier((clientSession, remoteAddress, serverKey) -> {
-            logger.warn("Accepting server key from {}: {}", remoteAddress, serverKey.getAlgorithm());
-            return true; // Accept all keys for now
-        });
+        client.setServerKeyVerifier(hostKeyTrustManager.verifierFor(connection));
         client.start();
         
         int timeoutSeconds = connection.getConnectionTimeoutSeconds();

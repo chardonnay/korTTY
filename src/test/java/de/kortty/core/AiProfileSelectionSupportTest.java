@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiWorkload;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -60,6 +61,55 @@ class AiProfileSelectionSupportTest {
             List.of(local, minimax));
 
         assertThat(normalized).isEqualTo("legacy-default");
+    }
+
+    @Test
+    void workloadProfileUsesDedicatedCodingAndTextAssignments() {
+        AiProfile fallback = profile("fallback", "Fallback");
+        AiProfile text = profile("text", "Text");
+        AiProfile coding = profile("coding", "Coding");
+        List<AiProfile> profiles = List.of(fallback, text, coding);
+
+        assertThat(AiProfileSelectionSupport.workloadProfile(
+            profiles, AiWorkload.TEXT, "text", "coding", "fallback")).isSameInstanceAs(text);
+        assertThat(AiProfileSelectionSupport.workloadProfile(
+            profiles, AiWorkload.CODING, "text", "coding", "fallback")).isSameInstanceAs(coding);
+    }
+
+    @Test
+    void workloadProfileFallsBackWhenRoleAssignmentIsMissing() {
+        AiProfile fallback = profile("fallback", "Fallback");
+
+        assertThat(AiProfileSelectionSupport.workloadProfile(
+            List.of(fallback), AiWorkload.CODING, null, "deleted", "fallback"))
+            .isSameInstanceAs(fallback);
+    }
+
+    @Test
+    void actionProfileAppliesExplicitSecurityConnectionWorkloadDefaultOrder() {
+        AiProfile fallback = profile("fallback", "Fallback");
+        AiProfile text = profile("text", "Text");
+        AiProfile coding = profile("coding", "Coding");
+        AiProfile connection = profile("connection", "Connection");
+        AiProfile security = profile("security", "Security");
+        AiProfile explicit = profile("explicit", "Explicit");
+        List<AiProfile> profiles = List.of(fallback, text, coding, connection, security, explicit);
+
+        assertThat(AiProfileSelectionSupport.actionProfile(
+            profiles, "explicit", true, "security", "connection", AiWorkload.CODING,
+            "text", "coding", "fallback")).isSameInstanceAs(explicit);
+        assertThat(AiProfileSelectionSupport.actionProfile(
+            profiles, null, true, "security", "connection", AiWorkload.CODING,
+            "text", "coding", "fallback")).isSameInstanceAs(security);
+        assertThat(AiProfileSelectionSupport.actionProfile(
+            profiles, null, false, "security", "connection", AiWorkload.CODING,
+            "text", "coding", "fallback")).isSameInstanceAs(connection);
+        assertThat(AiProfileSelectionSupport.actionProfile(
+            profiles, null, false, "security", null, AiWorkload.CODING,
+            "text", "coding", "fallback")).isSameInstanceAs(coding);
+        assertThat(AiProfileSelectionSupport.actionProfile(
+            List.of(fallback), "deleted", true, "deleted", "deleted", AiWorkload.TEXT,
+            "deleted", "deleted", "fallback")).isSameInstanceAs(fallback);
     }
 
     private static AiProfile profile(String id, String name) {

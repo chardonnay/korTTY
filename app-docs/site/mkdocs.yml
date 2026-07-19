@@ -135,6 +135,8 @@ nav:
       - features/projects.md
       - features/teamwork.md
       - features/ai-assistant.md
+      - features/local-models.md
+      - features/rag.md
       - features/ai-tools.md
       - features/ai-swarm.md
       - features/security.md

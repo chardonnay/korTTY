@@ -37,6 +37,10 @@ public final class AiPromptBuilder {
     }
 
     public static String buildSystemPrompt(AiRequest request) {
+        return buildBaseSystemPrompt(request);
+    }
+
+    private static String buildBaseSystemPrompt(AiRequest request) {
         String languageCode = request != null && request.responseLanguageCode() != null && !request.responseLanguageCode().isBlank()
             ? request.responseLanguageCode().trim()
             : "en";

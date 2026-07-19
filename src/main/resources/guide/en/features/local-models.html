@@ -1,0 +1,2676 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/features/local-models.html">
+      
+      
+        <link rel="prev" href="ai-assistant.html">
+      
+      
+        <link rel="next" href="rag.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Local models (llama.cpp and MLX) - korTTY Guide</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#local-models-llamacpp-and-mlx" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Guide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Local models (llama.cpp and MLX)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../de/features/local-models.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    korTTY Guide
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First launch — master password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main window overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menu reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard shortcuts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardening options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH Tunnels (Port Forwarding)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects (workspaces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamwork (shared connections)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="local-models.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-setup-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick setup assistant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#signed-model-and-prompt-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signed model and prompt catalog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#find-and-download-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find and download models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mlx-models-on-apple-silicon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MLX models on Apple Silicon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-existing-gguf-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import existing GGUF files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-and-run-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure and run models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-coding-translation-and-embedding-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text, coding, translation, and embedding roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prompt-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt optimization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-isolation-and-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime isolation and updates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-and-backup-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files and backup behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security — credentials, keys & encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal recording
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII art banner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal effect plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Languages & dynamic translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback & support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anonymous data for application optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#runtimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-setup-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick setup assistant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#signed-model-and-prompt-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signed model and prompt catalog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#find-and-download-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find and download models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mlx-models-on-apple-silicon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MLX models on Apple Silicon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-existing-gguf-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import existing GGUF files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-and-run-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure and run models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-coding-translation-and-embedding-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text, coding, translation, and embedding roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prompt-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt optimization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-isolation-and-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime isolation and updates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-and-backup-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files and backup behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="local-models-llamacpp-and-mlx">Local models (llama.cpp and MLX)<a class="headerlink" href="#local-models-llamacpp-and-mlx" title="Permanent link">&para;</a></h1>
+<p>korTTY can run local language models directly through integrated, model-specific sidecar servers: <a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md">GGUF</a> models through the pinned <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> <code>llama-server</code> on every platform, and — on Apple Silicon Macs — <a href="https://github.com/ml-explore/mlx">MLX</a> models through the official <a href="https://github.com/ml-explore/mlx-lm">mlx-lm</a> server. You do not need LM Studio, Ollama, or a cloud inference account for local chat, text, coding, translation, and embedding workloads.</p>
+<p>Open <strong>AI &gt; AI Manager</strong> and use these tabs:</p>
+<ul>
+<li><strong>Local Models</strong> installs, imports, configures, starts, stops, and removes local model registrations (GGUF everywhere, additionally MLX on Apple Silicon).</li>
+<li><strong>Local AI</strong> assigns profiles to the Text/translation and Coding roles, selects the RAG embedding model, stores an optional Hugging Face token, and records the llama.cpp runtime-update policy.</li>
+<li><strong>Profiles</strong> creates an <strong>Integrated llama.cpp</strong> or <strong>Integrated MLX (Apple Silicon)</strong> profile for an installed model and controls its prompt optimization preset.</li>
+</ul>
+<p>Every action button in the tab carries a matching glyph (install, wizard, import, configure, start, stop, remove, refresh, search, load more, download, pause, cancel), and the pause control switches between pause and resume glyphs during a download.</p>
+<p><img alt="Local Models showing the sortable Hugging Face browser with format filter and a GGUF download in progress" src="../assets/screenshots/ai/local-models.png" /></p>
+<h2 id="runtimes">Runtimes<a class="headerlink" href="#runtimes" title="Permanent link">&para;</a></h2>
+<p>The <strong>Runtimes</strong> table at the top of Local Models lists both embedded runtimes with their installed version, backend, and state (<strong>Ready</strong>, <strong>Not installed</strong>, or <strong>Revoked</strong>): the llama.cpp runtime (every platform) and, on Apple Silicon, the MLX runtime. Three actions operate on the selected row:</p>
+<ul>
+<li><strong>Install runtime / Check-install runtime update</strong> downloads, verifies, and activates the newest compatible package from the signed stable channel — the llama.cpp index for the llama row, the <code>mlx-stable</code> index for the MLX row.</li>
+<li><strong>Import local package…</strong> installs a runtime package file (<code>.zip</code>) without downloading it, for example on an air-gapped machine. The file is accepted only when its SHA-256 matches a non-revoked entry of the Ed25519-signed stable index for the current platform; anything not published by the signed channel is refused. The verified package then runs through exactly the same installation machinery as a download (extraction hardening, health/sanity check, idle-only activation).</li>
+<li><strong>Remove</strong> deletes the selected runtime after confirmation. Sidecars must be idle; installed models stay registered but cannot start until a runtime is installed again, and the revocation denylist survives removal so a withdrawn package remains blocked even across reinstalls.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Storage and network access</p>
+<p>Model inference stays on this computer. korTTY contacts Hugging Face only when you search for or download a model that you approve. Public repositories work without a token; an optional token for private or gated repositories is encrypted with the master password. Official builds can also fetch the separately signed model/prompt catalog over HTTPS in the background; no prompt, source document, or model weight is sent with that request.</p>
+</div>
+<h2 id="quick-setup-assistant">Quick setup assistant<a class="headerlink" href="#quick-setup-assistant" title="Permanent link">&para;</a></h2>
+<p>Select <strong>AI &gt; AI Manager &gt; Local Models &gt; Setup assistant</strong>. The six-step assistant covers privacy, detected system memory and backend guidance, optional role-specific recommendations, license and exact download-size review, verified installation, and a final readiness summary.</p>
+<p>On <strong>Choose models for optional roles</strong>, enable any combination of <strong>Text and translation</strong>, <strong>Coding</strong>, and <strong>RAG embeddings</strong>. Every enabled slot has its own recommendation selector; disabled slots are left unchanged. Text and Coding may deliberately share one compatible recommendation, in which case korTTY downloads and registers that GGUF only once. Opening the assistant from a missing-embedding warning preselects only the RAG-embedding slot.</p>
+<p>The built-in bootstrap catalog uses conservative RAM tiers:</p>
+<table>
+<thead>
+<tr>
+<th>Detected memory</th>
+<th>Text recommendation</th>
+<th>Coding recommendation</th>
+<th>RAG embeddings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Less than 16 GiB</td>
+<td>Qwen3 1.7B, <code>Q4_K_M</code></td>
+<td>Qwen3 1.7B, <code>Q4_K_M</code></td>
+<td>Qwen3-Embedding 0.6B, <code>Q8_0</code></td>
+</tr>
+<tr>
+<td>16–23 GiB</td>
+<td>Qwen3 4B, <code>Q4_K_M</code></td>
+<td>Qwen2.5-Coder 7B Instruct, <code>Q4_K_M</code></td>
+<td>Qwen3-Embedding 0.6B, <code>Q8_0</code></td>
+</tr>
+<tr>
+<td>24 GiB or more</td>
+<td>Qwen3 8B, <code>Q4_K_M</code></td>
+<td>Qwen2.5-Coder 7B Instruct, <code>Q4_K_M</code></td>
+<td>Qwen3-Embedding 0.6B, <code>Q8_0</code></td>
+</tr>
+</tbody>
+</table>
+<p>Recommendations are starting points, not hardware guarantees. The model table labels the estimated fit as <strong>Comfortable</strong>, <strong>Possible</strong>, <strong>Too large</strong>, or <strong>Unknown</strong>; context size and simultaneous models also affect memory use.</p>
+<p>Before <strong>Install</strong> becomes available, korTTY loads each selected repository at the catalog's fixed revision in the background, verifies that the requested quantization exists, and displays the pinned repository, license, and exact combined GGUF download size. You must review and accept those values. A mutable repository revision or missing quantization stops the assistant before any download starts.</p>
+<p>Runtime installation, GGUF downloads, verification, registration, and function tests run asynchronously so the JavaFX dialog remains responsive. The progress view names the current model and phase; <strong>Cancel installation</strong> stops at a safe boundary and retains resumable <code>.part</code> files, while <strong>Retry</strong> restarts a failed or cancelled run from the verified selections.</p>
+<p>The Hub-reported context length remains visible for comparison, but a new local model starts with the conservative 4,096-token runtime context. Increase it later under <strong>Configure</strong> only after considering the additional RAM/VRAM use.</p>
+<p>After every selected GGUF is downloaded and registered, the assistant sends a real local chat-completion request or, for an embedding-only model, a real embedding request through the installed runtime. Only after all tests pass does it atomically save the selected Text/Coding profile IDs and RAG embedding-model ID in <code>global-settings.xml</code>; it creates a reusable <strong>Local: …</strong> embedded profile when a selected chat model has none and makes the first such profile the default only when no default exists. A failed test does not produce a successful finish page or persist partially updated role assignments.</p>
+<h2 id="signed-model-and-prompt-catalog">Signed model and prompt catalog<a class="headerlink" href="#signed-model-and-prompt-catalog" title="Permanent link">&para;</a></h2>
+<p>korTTY always contains a small bootstrap catalog with the memory-tier recommendations and prompt-family detection needed for offline setup. All five bundled model recommendations carry a concrete 40-character Hugging Face commit, so even the bootstrap never resolves a mutable repository head when the assistant later fetches metadata or GGUF files. Official builds can update those data independently from the application through <code>model-prompt-catalog-v1.json</code> and its detached Ed25519 signature <code>model-prompt-catalog-v1.sig</code>.</p>
+<p>On the first use of recommendations or automatic prompt detection, korTTY immediately loads the last signature-verified cache and performs at most one background refresh from the fixed HTTPS stable channel. The catalog can update recommended model IDs, fixed revisions, quantizations, roles, RAM thresholds and ordering, plus the mapping from model-name tokens to built-in prompt presets. It cannot inject arbitrary executable code or replace korTTY's built-in action, safety, JSON, or code-output contracts.</p>
+<p>The exact catalog bytes are verified before strict schema-v1 parsing, and unknown schema fields are rejected. A failed download, invalid signature, or invalid catalog leaves the last valid cache untouched. If the application build has no valid catalog public trust root, korTTY performs no catalog network request, does not trust an existing cache, and uses only the built-in bootstrap.</p>
+<p>Each catalog also carries a positive monotonic sequence. During refresh, korTTY rejects a signed catalog whose sequence is older than the last accepted cache or bootstrap, and rejects an equal-sequence catalog with a different version. A newly accepted catalog with the highest sequence must be written to the atomic cache before it becomes active; the protected promotion workflow separately requires every official sequence to be strictly greater than the sequence in the latest published release, preventing a correctly signed older catalog from replaying obsolete recommendations.</p>
+<h2 id="find-and-download-models">Find and download models<a class="headerlink" href="#find-and-download-models" title="Permanent link">&para;</a></h2>
+<p>The <a href="https://huggingface.co/docs/hub/index">Hugging Face</a> browser searches model repositories and shows repository, format, architecture, available quantizations, license, selected-quantization size, context length, and a hardware estimate. On Apple Silicon a <strong>Format</strong> selector next to the search field switches between <strong>GGUF + MLX</strong> (default), <strong>GGUF</strong>, and <strong>MLX</strong>; each enabled format keeps its own cursor pagination, and the <strong>Format</strong> column identifies every row. Other platforms search GGUF only.</p>
+<p>Click a column header to sort the results by that column — a second click reverses the direction, and the header shows the active sort arrow. Size and context sort numerically, and the hardware estimate sorts from best to worst fit; the chosen order persists while background metadata loads complete.</p>
+<p>Only repositories this computer can actually run appear: korTTY completes the lightweight search listing with exact per-file metadata in the background and hides rows whose size is unknown or whose smallest quantization exceeds the detected memory. The status line reports how many usable repositories are shown and how many were hidden. Selecting a row loads exact metadata for that repository's immutable revision and shows <strong>Loading…</strong> while <strong>Size</strong> and <strong>Hardware estimate</strong> refresh; the chosen quantization remains selected. Projector, quantization-matrix, and speculative-decoding helper GGUFs are excluded from the downloadable language-model choices. <strong>Load more</strong> continues the same search without discarding earlier results. Select a repository and quantization, review its license and size, then choose <strong>Download and install</strong>.</p>
+<p>korTTY installs only an immutable 40-character repository revision with exact file metadata. After you confirm the license and download size, a fixed <strong>Model download</strong> panel at the bottom identifies the repository and quantization, the current file and multipart shard, transferred and total bytes, elapsed time, transfer rate, and estimated remaining time. Its full-width progress bar and <strong>Pause</strong>/<strong>Resume</strong> and <strong>Cancel</strong> controls remain available while you continue to review the manager. Downloads use <code>.part</code> files, free-space checks, HTTP <code>Range</code> and <code>If-Range</code>, content-digest verification (SHA-256 for LFS files, the git blob hash for small in-tree files), and multipart shard ordering. Cancellation, including closing the AI Manager during a transfer, keeps the partial data needed for a later resume. An unpinned repository or a missing file digest is rejected instead of silently installing mutable content.</p>
+<p>An MLX repository is downloaded as one complete directory (safetensors weights, tokenizer, and configuration files); its quantization is a repository-level property such as <code>4BIT</code> or <code>8BIT</code>, so the quantization selector shows exactly one entry. If no MLX runtime is installed yet, korTTY asks whether to download and register the model anyway — it can be started as soon as the runtime is installed.</p>
+<h2 id="mlx-models-on-apple-silicon">MLX models on Apple Silicon<a class="headerlink" href="#mlx-models-on-apple-silicon" title="Permanent link">&para;</a></h2>
+<p>On Apple Silicon Macs (macOS 14 or newer), korTTY additionally runs <a href="https://github.com/ml-explore/mlx">MLX</a> models — Apple's array framework for machine learning on Apple GPUs — through the official <a href="https://github.com/ml-explore/mlx-lm">mlx-lm</a> server. The <a href="https://huggingface.co/mlx-community">mlx-community</a> organization on Hugging Face publishes thousands of ready-converted models.</p>
+<ul>
+<li><strong>Registration and lifecycle</strong> mirror GGUF models: installed MLX models appear in the same table with backend <strong>MLX</strong>, support <strong>Start selected</strong>, <strong>Stop selected</strong>, <strong>Remove</strong>, and <strong>Configure</strong> (display name and unload-after idle time), and report the same runtime states.</li>
+<li><strong>Isolation</strong> mirrors llama.cpp: every model runs as its own loopback-only sidecar with a random port and a generated per-process API key. korTTY wraps <code>mlx_lm.server</code> — which has no authentication of its own — in its own launcher that rejects every unauthenticated request except the local health probe, forces offline Hugging Face access, strips inherited Python and token environment overrides, and exits after the configured idle time.</li>
+<li><strong>The MLX runtime package</strong> is separate from both the application installer and the llama.cpp runtime: a pinned relocatable CPython plus a hash-locked <code>mlx-lm</code> wheel set, built in CI and published through the same Ed25519-signed index mechanism as the llama.cpp packages (rolling <code>mlx-stable</code> index). Install, update, locally import, or remove it in the <strong>Runtimes</strong> table; without an installed MLX runtime, MLX models stay registered but cannot start.</li>
+<li><strong>Profiles</strong>: choose <strong>Integrated MLX (Apple Silicon)</strong> as the profile connection and select the installed model from the <strong>Local MLX model</strong> list. LM-Studio-MCP internet modes are not available for embedded profiles; the korTTY web-search tool works normally.</li>
+<li><strong>Reasoning models</strong> (for example Qwen3 conversions) are handled like their GGUF counterparts: korTTY separates the inline chain-of-thought from the answer and retries a reply that contains only reasoning once automatically.</li>
+</ul>
+<h2 id="import-existing-gguf-files">Import existing GGUF files<a class="headerlink" href="#import-existing-gguf-files" title="Permanent link">&para;</a></h2>
+<p>Select <strong>Import GGUF</strong>, choose one or more <code>.gguf</code> files, and then choose one mode:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Managed copy</strong></td>
+<td>Copies the GGUF into korTTY's model directory using a temporary file and atomic activation where the filesystem supports it.</td>
+</tr>
+<tr>
+<td><strong>External reference</strong></td>
+<td>Registers the original path. Moving or deleting that file makes the model unavailable; removing the registration never deletes the external file.</td>
+</tr>
+</tbody>
+</table>
+<p>A compatible, verified <code>llama-server</code> runtime must also be installed. Runtime packages live separately under <code>~/.kortty/llm/runtime/</code> and are not part of the base application installer. When you download or import the first model, korTTY offers to install the matching signed stable runtime before continuing; you can also choose <strong>Install runtime</strong> in <strong>Local Models</strong>. The model manager does not accept an arbitrary executable as a replacement for the verified package.</p>
+<h2 id="configure-and-run-models">Configure and run models<a class="headerlink" href="#configure-and-run-models" title="Permanent link">&para;</a></h2>
+<p>Select an installed model and choose <strong>Configure</strong>. The available settings are deliberately typed and bounded; arbitrary server arguments are not accepted. Saving first asks the runtime manager to stop the model. If that model is processing a request, korTTY refuses the change and leaves both the running sidecar and persisted configuration untouched; retry after the request finishes.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Values</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend</td>
+<td>Auto, CPU, Metal, Vulkan</td>
+<td>Auto</td>
+</tr>
+<tr>
+<td>Context size</td>
+<td>512–2,097,152 tokens</td>
+<td>4,096</td>
+</tr>
+<tr>
+<td>CPU threads</td>
+<td>0–1,024; <code>0</code> means automatic</td>
+<td>Automatic</td>
+</tr>
+<tr>
+<td>GPU layers</td>
+<td>-1–10,000; <code>-1</code> means automatic</td>
+<td>Automatic</td>
+</tr>
+<tr>
+<td>Unload after</td>
+<td>1–1,440 minutes, or <strong>Never</strong></td>
+<td>10 minutes</td>
+</tr>
+</tbody>
+</table>
+<p>The per-model backend describes how that model should run. In <strong>AI Manager &gt; Local AI</strong>, <strong>Preferred runtime backend</strong> controls which signed native package is installed and updated: macOS offers Auto, CPU, and Metal; Windows/Linux offer Auto, CPU, and Vulkan. <strong>Automatic (keep active backend)</strong> preserves the already active backend during updates. For a first installation, Auto prefers Metal and falls back to CPU on macOS; on Windows and Linux it prefers CPU and falls back to Vulkan only when no compatible CPU package is published. An explicitly selected backend requires an exact compatible package and never changes to another backend silently.</p>
+<p>Use multi-selection and <strong>Start selected</strong> to load several different models concurrently. Profiles that point to the same installed model and runtime configuration share one authenticated sidecar. The table reports <code>STOPPED</code>, <code>STARTING</code>, <code>LOADING</code>, <code>READY</code>, <code>BUSY</code>, <code>SLEEPING</code>, or <code>FAILED</code>.</p>
+<p>If a selected Metal or Vulkan model requires a different package from the active runtime, korTTY offers to download, verify, and activate the matching signed package without interrupting current requests. Models that require incompatible GPU runtimes must be started separately with the matching preferred backend.</p>
+<p>After the configured idle time, llama.cpp releases the model tensors from RAM/VRAM and korTTY marks the model as sleeping while retaining the lightweight process. The next request acquires a runtime lease and wakes the model automatically. <strong>Stop selected</strong> terminates only idle sidecars; an active generation is never interrupted by model removal or a normal stop request.</p>
+<h2 id="text-coding-translation-and-embedding-roles">Text, coding, translation, and embedding roles<a class="headerlink" href="#text-coding-translation-and-embedding-roles" title="Permanent link">&para;</a></h2>
+<p>In <strong>AI Manager &gt; Local AI</strong>, choose separate profiles for <strong>Text and translation</strong> and <strong>Coding</strong>. Leaving either choice at <strong>Use default AI profile</strong> preserves the normal fallback. Terminal summarization, problem solving, questions, descriptions, and translation use the Text role; snippet generation, completion, analysis, security fixes, and workflow generation use the Coding role.</p>
+<p>Profile resolution follows the most specific available choice: an explicitly selected profile, then a security-specific profile or connection profile where applicable, then the Text/Coding role, then the default profile. The same role mechanism works with embedded, remote HTTP, or local CLI profiles; a role does not force a local model.</p>
+<p>Dynamic UI translation can use <strong>Local AI text profile</strong> under <strong>Configuration &gt; Global Settings &gt; Translation</strong>. This path sends the translation request to the assigned embedded Text profile and does not require a translation-provider API key.</p>
+<p>The <strong>RAG embedding model ID</strong> identifies the installed local model used to vectorize knowledge-store documents and searches. Use a dedicated embedding GGUF rather than a chat model unless that model explicitly supports the embeddings route and the configured vector dimensions.</p>
+<h2 id="prompt-optimization">Prompt optimization<a class="headerlink" href="#prompt-optimization" title="Permanent link">&para;</a></h2>
+<p>Each AI profile has a <strong>Prompt optimization</strong> preset. <strong>Auto (model detection)</strong> uses the verified catalog's model-name mapping, whose bootstrap recognizes Qwen, DeepSeek, Mistral/Mixtral, Gemma, Phi, GPT-OSS, and Llama names; <strong>Generic</strong> adds no family-specific guidance. You can also force any family preset when a model name is unusual.</p>
+<p>Presets add short compatibility instructions after korTTY's action contract and AI Skills while preserving the existing strict JSON, code-payload, and safety requirements. GGUF chat templates themselves remain llama.cpp's responsibility. The preset asks supported models to return only the requested final format and to keep reasoning traces out of JSON/code responses.</p>
+<h2 id="runtime-isolation-and-updates">Runtime isolation and updates<a class="headerlink" href="#runtime-isolation-and-updates" title="Permanent link">&para;</a></h2>
+<p>Every loaded configuration starts <code>llama-server</code> on <code>127.0.0.1</code> with a random port and a generated per-process API key. korTTY passes a fixed model path, removes inherited <code>LLAMA_ARG_*</code> and Hugging Face token overrides, and starts the pinned server with offline mode plus its web UI, agent, UI MCP proxy, and slot endpoint disabled. Chat and embeddings use authenticated OpenAI-compatible local routes.</p>
+<p>Chat sidecars keep the server's default reasoning parsing, which correctly handles both <code>&lt;think&gt;</code>-style reasoning models (whose chain-of-thought is returned separately) and channel/harmony models such as gpt-oss (which require that parsing to produce a final answer at all). The pinned server can still occasionally answer a whole reply with an HTTP 500 (“does not match the expected … format”) when a reply parses ambiguously; korTTY retries a local server error, an empty reply, or a reasoning-only reply once automatically before reporting it, and defensively strips any reasoning markers that leak into the content.</p>
+<p>The runtime build is independent of the application installer. <code>build.gradle.kts</code> pins the upstream llama.cpp tag, full commit, source-archive SHA-256, API-contract version, and korTTY package revision. The korTTY repository detects candidates and validates its source-side native matrix but holds no publication token or runtime signing key. The public <a href="https://github.com/chardonnay/kortty-llama-runtimes">korTTY llama.cpp runtime channel</a> owns explicit human-dispatched stable publication: it rebuilds the reviewed source commit, runs authentication, chat/completion, embeddings, JSON-schema, sleep/wake, and parallel-sidecar smoke tests on every package plus a separate Qdrant contract, and publishes immutable descriptors with its own scoped <code>github.token</code> only after entering the protected signing environment. CUDA is not a v1 backend.</p>
+<p>The update format uses the detached Ed25519 signature <code>runtime-index-v1.sig</code> over the exact bytes of <code>runtime-index-v1.json</code>. Each entry binds the runtime ID, upstream tag and commit, API-contract version, minimum korTTY version, platform, architecture, backend, compressed size, SHA-256, HTTPS URL, executable path, and revocation status. The public verification key is auditable at <code>config/trust/llama-runtime-ed25519-public.pem</code> and embedded in normal local and release builds; an optional CI or Gradle override must match that pinned identity exactly. A missing or invalid trust root, mismatched override, index signature, package size, or package hash stops the operation before untrusted code is activated.</p>
+<p>A package is installed beside the active version and checked locally with a bounded <code>llama-server --version</code> launch before activation. Activation and the atomic rebinding of registered models occur only while all local inference is idle. The candidate then remains <strong>pending first launch</strong> until a real GGUF-backed server reaches its authenticated API: success promotes it into the healthy history, while that first real startup failing restores the newest non-revoked previous runtime, rebinds affected models, removes the failed package, and restarts runtime management. The two newest healthy installations are retained, and a package staged during active work is retried after the requests finish. Release CI performs the deeper authenticated chat, embedding, JSON-schema, sleep/wake, and parallel-sidecar contract tests before publication.</p>
+<p>A verified index withdrawal is enforced immediately for <strong>Notify me</strong> and <strong>Install stable updates automatically</strong> checks. korTTY first persists the revoked runtime/installation IDs in a durable denylist and writes a package-local quarantine marker, then clears the active pointer, stops its sidecars, removes revoked versions from rollback history, and replaces affected model bindings with a non-executable marker. Both the runtime installer and every new process launch consult those guards, so an interrupted cleanup or stale <code>models.xml</code> entry cannot restart the withdrawn executable. Local AI remains blocked until a compatible signed replacement is installed; the main window and Local Models status identify the revoked runtime and whether a verified replacement is available. <strong>Off</strong> performs no network check, so it cannot learn about a newly published withdrawal until the user explicitly checks or enables signed-index checks.</p>
+<p>The MLX runtime (Apple Silicon) has no per-model quarantine marker because MLX models bind to a model directory rather than to the runtime; its enforcement clears the active pointer, stops every MLX sidecar, and records the withdrawn id in a durable denylist so it can never be reinstalled or reactivated. Registered MLX models stay registered but cannot start until a non-revoked MLX runtime is installed.</p>
+<p>The single <strong>Runtime updates (llama.cpp &amp; MLX)</strong> choice controls the automatic check started with korTTY and whenever the preference is saved, and applies to <strong>both</strong> embedded runtimes:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Startup behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Off</strong></td>
+<td>Performs no runtime-update network request for either runtime. Non-revoked installed runtimes remain usable, while every withdrawal already persisted locally stays enforced.</td>
+</tr>
+<tr>
+<td><strong>Notify me</strong> (default)</td>
+<td>Verifies each installed runtime's signed stable index and shows a notification when a compatible update for an <strong>installed</strong> runtime is available (llama.cpp and, on Apple Silicon, MLX), without automatically installing it. Without an installed runtime no popup appears; the available package is still listed in Local Models. A verified withdrawal of either runtime is enforced immediately.</td>
+</tr>
+<tr>
+<td><strong>Install stable updates automatically</strong></td>
+<td>Downloads, verifies, installs, and activates a compatible stable package for each runtime, including a safe replacement for a withdrawn active version; a busy runtime defers its update instead of interrupting an active request.</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>Runtimes</strong> table in <strong>Local Models</strong> shows the installed version and state per runtime. The action button reads <strong>Install runtime</strong> when the selected runtime has no verified package and <strong>Check/install runtime update</strong> otherwise, and checks/installs the stable channel even when the stored automatic policy is <strong>Off</strong> or <strong>Notify me</strong>. Runtime candidates are discovered by a daily workflow, but promotion remains a deliberate, reviewed release action rather than adopting every upstream tag automatically.</p>
+<h2 id="files-and-backup-behavior">Files and backup behavior<a class="headerlink" href="#files-and-backup-behavior" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+<th>Included in a korTTY backup?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.kortty/global-settings.xml</code></td>
+<td>Embedded profiles, Text/Coding assignments, embedding model ID, runtime backend/update policy, encrypted Hugging Face token</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/models.xml</code></td>
+<td>Local GGUF model registrations and typed runtime settings</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/mlx-models.json</code></td>
+<td>Local MLX model registrations (Apple Silicon)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/models/</code></td>
+<td>Managed GGUF weights</td>
+<td>No; download or copy them again</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/mlx/models/</code></td>
+<td>Managed MLX model directories</td>
+<td>No; download them again</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/mlx/runtime/</code></td>
+<td>Regenerable MLX runtime packages (pinned CPython + mlx-lm)</td>
+<td>No; reinstall a compatible package</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/runtime/</code></td>
+<td>Regenerable llama.cpp packages and active-package metadata</td>
+<td>No; reinstall a compatible package</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/catalog/last-valid-catalog-v1.json</code></td>
+<td>Regenerable signature-verified model/prompt catalog cache</td>
+<td>No; korTTY reverts to the bootstrap and refreshes it again</td>
+</tr>
+<tr>
+<td><code>~/.kortty/llm/run/</code></td>
+<td>Temporary sidecar keys and logs</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<dl>
+<dt><strong>No llama.cpp runtime is installed</strong></dt>
+<dd>Open <strong>AI &gt; AI Manager &gt; Local Models</strong> and choose <strong>Install runtime</strong>, or accept the installation prompt when downloading or importing a model. korTTY downloads the matching signed stable package; the application installer intentionally does not contain a native runtime.</dd>
+<dt><strong>A signed runtime check or installation fails</strong></dt>
+<dd>Confirm that this korTTY build contains the official runtime-channel public key, that HTTPS access to the stable index and package is available, and that the platform/backend combination is published. korTTY fails closed instead of bypassing a missing trust root, invalid signature, checksum mismatch, incompatible API contract, or runtime quarantine. The runtime update coordinator records the complete failure cause and stack trace in <code>kortty.log</code> under the log directory configured in <strong>Configuration &gt; Global Settings &gt; Logging</strong> (default <code>~/.kortty/logs</code>), even when the manager shows a shorter status message.</dd>
+<dt><strong>The runtime is reported as revoked</strong></dt>
+<dd>Open <strong>AI &gt; AI Manager &gt; Local Models</strong> and install the offered verified replacement. Do not remove the package marker or edit <code>models.xml</code>: the durable denylist still blocks the installation, and revoked versions are deliberately ineligible for rollback or reinstallation. If no compatible replacement is listed, local AI stays unavailable until the stable channel publishes one for this platform/backend.</dd>
+<dt><strong>A new runtime rolls back on its first model start</strong></dt>
+<dd>The lightweight <code>--version</code> check passed, but the first real GGUF-backed authenticated API start failed. korTTY restores the newest healthy non-revoked package when available and reports <strong>Rolled back</strong>; inspect the Local Models error, model/backend compatibility, and memory settings before trying the update again.</dd>
+<dt><strong>A model remains in <code>FAILED</code></strong></dt>
+<dd>Verify that the GGUF and executable still exist, that the executable is runnable, and that the chosen backend is available on this computer. Reduce context size or simultaneous models when system or GPU memory is insufficient.</dd>
+<dt><strong>An MLX model cannot start</strong></dt>
+<dd>MLX requires an Apple Silicon Mac with macOS 14 or newer and an installed korTTY MLX runtime package under <code>~/.kortty/llm/mlx/runtime/</code>. Registered MLX models stay listed without the runtime but report the missing-runtime message when started. The runtime package is published through the signed runtime channel; developers can build an unsigned local package with <code>scripts/build-mlx-runtime-local.sh</code>.</dd>
+<dt><strong>The setup function test fails after installation</strong></dt>
+<dd>The GGUF remains registered so you can inspect it. Confirm that the matching signed runtime backend is active, reduce the model context or GPU layers if memory is tight, and retry by starting the model. Embedding tests additionally require readable GGUF embedding-dimension metadata.</dd>
+<dt><strong>A gated Hugging Face repository returns an authorization error</strong></dt>
+<dd>Accept the repository terms on Hugging Face, unlock the korTTY master-password vault, and save an authorized token under <strong>AI Manager &gt; Local AI</strong>. The token is sent only to the trusted Hugging Face host, not to redirected storage hosts.</dd>
+<dt><strong>A download cannot resume</strong></dt>
+<dd>If the repository's ETag or immutable file metadata changed, korTTY restarts that file instead of appending incompatible bytes. A checksum mismatch deletes the invalid partial file.</dd>
+</dl>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> — the inference engine behind korTTY's GGUF sidecars, including the <a href="https://github.com/ggml-org/llama.cpp/tree/master/tools/server"><code>llama-server</code> documentation</a>.</li>
+<li><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md">GGUF format specification</a> — the single-file model format used by llama.cpp, and llama.cpp's <a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md">quantization overview</a> explaining labels such as <code>Q4_K_M</code>.</li>
+<li><a href="https://github.com/ml-explore/mlx">Apple MLX</a> and <a href="https://github.com/ml-explore/mlx-lm">mlx-lm</a> — Apple's machine-learning framework for Apple Silicon and its official language-model server used by korTTY's MLX sidecars.</li>
+<li><a href="https://huggingface.co/docs/hub/index">Hugging Face Hub documentation</a> — repositories, revisions, gated models, and access tokens; MLX conversions are collected under <a href="https://huggingface.co/mlx-community">mlx-community</a>.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.5.2</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

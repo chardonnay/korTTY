@@ -134,6 +134,19 @@ public final class AiReasoningSupport {
     }
 
     private static List<AiReasoningEffort> discoveredEfforts(AiProfile profile) {
+        AiConnectionMode connectionMode = profile.getConnectionMode();
+        if (connectionMode != null && connectionMode.isEmbedded()) {
+            // An embedded profile is pinned to one embedded model, so its discovered efforts stay valid
+            // as long as a discovery ran. The connection key that HTTP/CLI profiles rely on is
+            // meaningless here: an embedded profile's apiUrl/model/CLI fields are unused placeholders
+            // whose stray values flip the key between save and reload and would otherwise silently
+            // reset the user's chosen reasoning level. The embedded model itself never changes without
+            // a fresh discovery.
+            String discoveryKey = profile.getReasoningDiscoveryKey();
+            return discoveryKey != null && !discoveryKey.isBlank()
+                ? normalizeOptions(profile.getDiscoveredReasoningEfforts())
+                : List.of();
+        }
         if (!Objects.equals(profile.getReasoningDiscoveryKey(), discoveryKey(profile))) {
             return List.of();
         }

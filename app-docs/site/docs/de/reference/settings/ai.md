@@ -2,98 +2,125 @@
 title: KI
 ---
 
-# KI
+# AI
 
 Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Argumentationsebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über **Konfiguration → Globale Einstellungen → AI**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![AI settings tab](../../assets/screenshots/settings/ai.png)
 
-## Grundeinstellungen
+## Core-Einstellungen
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| KI-Funktionen aktivieren | umschalten | — | Auf | `aiFeaturesEnabled` |
-| Bestätigungsdialog vor dem Senden von AI-Anfragen anzeigen | umschalten | — | Auf | `aiConfirmBeforeSend` |
+| KI-Funktionen aktivieren | umschalten | – | Ein | `aiFeaturesEnabled` |
+| Bestätigungsdialog vor dem Senden von AI-Anfragen anzeigen | umschalten | – | Ein | `aiConfirmBeforeSend` |
 
 ## Terminal-KI-Agent
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| AI-Agent-Ausführung aktivieren | umschalten | — | Auf | `terminalAgentExecutionEnabled` |
-| Fragen Sie nach, bevor AI Agent das Zielsystem ändert | umschalten | — | Aus | `terminalAgentConfirmMutatingCommandSets` |
-| Verwenden Sie OSC 133-Eingabeaufforderungsmarkierungen, wenn die Shell sie bereits bereitstellt | umschalten | — | Auf | `defaultPromptHookEnabled` |
-| Debug-Meldungen des Agenten anzeigen | umschalten | — | Aus | `terminalAgentShowDebugMessages` |
-| Laufzeitmeldungen des Agenten anzeigen | umschalten | — | Aus | `terminalAgentShowRuntimeMessages` |
-| Vor jeder Ausführung den Terminal-Agent-Setup-Dialog anzeigen | umschalten | — | Auf | `terminalAgentShowRunDialog` |
-| Name des Agentenbefehls | Text | — | Agent | `terminalAgentCommandName` |
-| Groß- und Kleinschreibung des Agentenbefehlsnamens nicht berücksichtigen | umschalten | — | Aus | `terminalAgentCommandNameCaseInsensitive` |
-| AI-Agent-Aufgabenziel | Dropdown | Terminalfenster, Neues Chatfenster | Terminalfenster | `terminalAgentExecutionTarget` |
+| AI Agent-Ausführung aktivieren | umschalten | – | Ein | `terminalAgentExecutionEnabled` |
+| Fragen, bevor AI Agent das Zielsystem ändert | umschalten | – | Aus | `terminalAgentConfirmMutatingCommandSets` |
+| Verwenden Sie OSC 133-Eingabeaufforderungsmarkierungen, wenn die Shell sie bereits bereitstellt. | umschalten | – | Ein | `defaultPromptHookEnabled` |
+| Agent-Debug-Meldungen anzeigen | umschalten | – | Aus | `terminalAgentShowDebugMessages` |
+| Agent-Laufzeitmeldungen anzeigen | umschalten | – | Aus | `terminalAgentShowRuntimeMessages` |
+| Terminal-Agent-Setup-Dialog vor jeder Ausführung anzeigen | umschalten | – | Ein | `terminalAgentShowRunDialog` |
+| Agentenbefehlsname | Text | – | Agent | `terminalAgentCommandName` |
+| Agentenbefehlsnamen ohne Berücksichtigung der Groß- und Kleinschreibung abgleichen | umschalten | – | Aus | `terminalAgentCommandNameCaseInsensitive` |
+| AI-Agent-Aufgabenziel | Dropdown-Liste | Terminalfenster, neues Chat-Fenster | Terminalfenster | `terminalAgentExecutionTarget` |
 | Größe des Eingabeverlaufs des Terminalagenten | Nummer | 5–100 | 20 | `terminalAgentInputHistorySize` |
 
-## KI-Profile
+## AI-Profile
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Standardprofil | Dropdown | (Liste der konfigurierten Profile) | — | `defaultAiProfileId` |
-| Sicherheitsüberprüfungsprofil | Dropdown | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | — | `securityCheckAiProfileId` |
+| Standardprofil | Dropdown-Liste | (Liste der konfigurierten Profile) | – | `defaultAiProfileId` |
+| Sicherheitsüberprüfungsprofil | Dropdown-Liste | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | – | `securityCheckAiProfileId` |
 
 Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-**Sicherheitsüberprüfungsaktionen**. Lassen Sie es leer (oder verwenden Sie **Löschen**), um das Standardprofil wiederzuverwenden. Es kann auch direkt im Snippet-Sicherheitsüberprüfungsfenster festgelegt werden, und an beiden Stellen wird dieselbe gespeicherte Einstellung verwendet.
 
 ### Profileinstellungen (im Editor-Raster)
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Profilname | Text | — | KI-Profil | (Profilfeld `name`) |
-| Verbindung | Dropdown | HTTP-API, lokale CLI | HTTP-API | (Profilfeld `connectionMode`) |
-| API-URL | Text | — | — | (Profilfeld `apiUrl`) |
-| CLI-Anbieter | Dropdown | (registrierte Anbieter) | — | (Profilfeld `cliProviderId`) |
-| CLI-ausführbare Datei | Text | — | — | (Profilfeld `cliExecutablePath`) |
-| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |
-| Kundenspezifisches Modell | Text | — | — | (Profilfeld `cliCustomModel`) |
-| Begründung | Dropdown | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
-| Internetzugang | Dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
-| API-Schlüssel (optional) | Text | (Passwortfeld) | — | (Profilfeld `encryptedApiKey`) |
+| Profilname | Text | – | AI-Profil | (Feld `name` des Profils) |
+| Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integriertes llama.cpp, integriertes MLX (Apple Silicon; nur auf Apple Silicon Macs verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
+| API-URL | Text | – | – | (Profilfeld `apiUrl`) |
+| CLI-Anbieter | Dropdown-Liste | (registrierte Anbieter) | – | (Profilfeld `cliProviderId`) |
+| CLI-ausführbare Datei | Text | – | – | (Profilfeld `cliExecutablePath`) |
+| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | – | (Profilfeld `model`) |
+| Lokales GGUF-Modell | Dropdown-Liste | Installierte Chat-Modelle; Verfügbar, wenn die Verbindung „Integriert“ ist. llama.cpp | – | (Profilfeld `embeddedModelId`) |
+| Lokales MLX-Modell | Dropdown-Liste | Installierte MLX-Modelle; Verfügbar, wenn die Verbindung „Integrated MLX“ (Apple Silicon) ist. | – | (Profilfeld `embeddedModelId`) |
+| Benutzerdefiniertes Modell | Text | – | – | (Profilfeld `cliCustomModel`) |
+| Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
+| Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
+| Internetzugang | Dropdown-Liste | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
+| API-Schlüssel (optional) | Text | (Passwortfeld) | – | (Profil `encryptedApiKey`-Feld) |
 | Max. Zeichen | Nummer | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
-| Max. Token | Zahl + Einheit | (Betrag: 0–1.000.000; Einheit: Tausender oder Millionen) | 0 (unbegrenzt) | (Profilfelder `tokenLimitAmount`, `tokenLimitUnit`) |
+| Max. Token | Anzahl + Einheit | (Betrag: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profilfelder `tokenLimitAmount`, `tokenLimitUnit`) |
 | Warnschwellen | Zahlenpaar | Gelb %: 0–100, Rot %: 0–100 | 75 %, 90 % | (Profilfelder `tokenWarningYellowPercent`, `tokenWarningRedPercent`) |
 | Zurücksetzen | Nummer + Ankerdatum | Zeitraum: 1–3650 Tage; Ankerdatum | 30 Tage | (Profilfelder `tokenResetPeriodDays`, `tokenResetAnchorDate`) |
-| AI-Verbindung testen | Schaltfläche | — | — | (nur Aktion) |
+| AI-Verbindung testen | Schaltfläche | – | – | (nur Aktion) |
 
 ## Snippet-Editor
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Standardsprache für AI-Text im Code | Dropdown | (verfügbare Sprachoptionen) | — | `aiCodeTextDefaultLanguage` |
-| Optionale Zusatzanweisungen für KI-Aktionen im Snippet-Editor anzeigen | umschalten | — | Aus | `aiSnippetEditorAdditionalInstructionsEnabled` |
-| Maximale Alternativlösungen | Nummer | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
+| Standardsprache für AI-Text im Code | Dropdown-Liste | (verfügbare Sprachoptionen) | – | `aiCodeTextDefaultLanguage` |
+| Optionale zusätzliche Anweisungen für KI-Aktionen im Snippet-Editor anzeigen | umschalten | – | Aus | `aiSnippetEditorAdditionalInstructionsEnabled` |
+| Maximale Alternativlösungen | Anzahl | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
 
 ## Internetzugriffskonfiguration
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Tavily-API-Schlüssel | Text | (Passwortfeld) | — | `encryptedAiTavilyApiKey` |
-| Bright Data API-Token | Text | (Passwortfeld) | — | `encryptedAiBrightDataApiToken` |
-| Brave Search API-Schlüssel | Text | (Passwortfeld) | — | `encryptedAiBraveSearchApiKey` |
-| SearXNG-URL | Text | — | — | `aiSearxngUrl` |
-| Tavily MCP-Server-Label | Text | — | tavily | `aiTavilyMcpServerLabel` |
-| Bright Data MCP-Serveretikett | Text | — | helle Daten | `aiBrightDataMcpServerLabel` |
-| Brave Search MCP-Plugin-ID | Text | — | — | `aiBraveSearchMcpPluginId` |
-| SearXNG MCP-Plugin-ID | Text | — | — | `aiSearxngMcpPluginId` |
-| LM Studio Toolpack MCP-Plugin-ID | Text | — | — | `aiLmStudioToolpackMcpPluginId` |
+| Tavily-API-Schlüssel | Text | (Passwortfeld) | – | `encryptedAiTavilyApiKey` |
+| Bright Data API-Token | Text | (Passwortfeld) | – | `encryptedAiBrightDataApiToken` |
+| Brave Search API-Schlüssel | Text | (Passwortfeld) | – | `encryptedAiBraveSearchApiKey` |
+| SearXNG-URL | Text | – | – | `aiSearxngUrl` |
+| Tavily MCP-Server-Label | Text | – | Tavily | `aiTavilyMcpServerLabel` |
+| Bright Data MCP-Serverbezeichnung | Text | – | Bright-Data | `aiBrightDataMcpServerLabel` |
+| Brave Search MCP-Plugin-ID | Text | – | – | `aiBraveSearchMcpPluginId` |
+| SearXNG MCP-Plugin-ID | Text | – | – | `aiSearxngMcpPluginId` |
+| LM Studio Toolpack MCP-Plugin-ID | Text | – | – | `aiLmStudioToolpackMcpPluginId` |
 
-## Notizen
+## Hinweise
 
-### KI-Profile
+### AI-Profile
 
-KorTTY speichert mehrere benannte KI-Profile, jedes mit seinem eigenen Modell, API-Endpunkt, Verbindungsmethode und Argumentationseinstellungen. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen zwei Verbindungsmodi:
+KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Argumentationseinstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:
 
 - **HTTP-API**: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (API-URL, Modellnamen und optionalen API-Schlüssel angeben).
 - **Lokale CLI**: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).
+- **Integrated llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell**. korTTY erwirbt dafür einen privaten Loopback-`llama-server`-Leasing; Die API-URL und der Profil-API-Schlüssel werden von korTTY verwaltet und können nicht bearbeitet werden.
 
-Das **Standardprofil** wird von Terminal-AI-Aktionen und dem Terminal-AI-Agenten verwendet, wenn kein explizites Profil ausgewählt ist.
+Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **AI > AI Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
 
-### Grad des Argumentationsaufwands
+Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Durch erneutes Aufrufen wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
+
+### Lokale AI-Manager-Einstellungen
+
+| Einstellung | Werte | Standard | Gespeichert als |
+| --- | --- | --- | --- |
+| Text- und Übersetzungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `textAiProfileId` |
+| Codierungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `codingAiProfileId` |
+| RAG-Einbettungsmodell-ID | Installiertes lokales Einbettungsmodell | – | `ragEmbeddingModelId` |
+| llama.cpp-Laufzeitaktualisierungen | Aus, Benachrichtigen, Stabile Updates automatisch installieren | Benachrichtigen Sie mich | `llamaRuntimeUpdatePolicy` |
+| Bevorzugtes Laufzeit-Backend | Auto/CPU/Metal unter macOS; Auto/CPU/Vulkan unter Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
+| Hugging Face-Token | Optionaler verschlüsselter Token für geschlossene/private Repositories | – | `encryptedHuggingFaceToken` |
+
+**Automatisch (aktives Backend beibehalten)** behält das aktive Laufzeitpaket-Backend für Aktualisierungen bei. Ohne installiertes Paket wählt Auto zunächst Metal unter macOS und CPU anderswo aus. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Möglichkeit, das passende signierte Paket zu installieren.
+
+Der **Lokale Modelle > Setup-Assistent** stellt optionale Text-, Codierungs- und RAG-Einbettungsslots bereit. Es überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe, bevor es mit der asynchronen Laufzeit-/Modellinstallation beginnt, führt einen echten Chat- oder Einbettungstest für jeden installierten GGUF durch und speichert die resultierenden Rollenzuweisungen erst, nachdem alle Tests erfolgreich waren. Die Text- und Codierungsslots können ein gemeinsames Modell haben. **Configure** weigert sich, die persistenten Laufzeiteinstellungen eines Modells zu ersetzen, während dieses Modell eine aktive Anfrage bedient.
+
+Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, sodass die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung darstellt. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
+
+### Prompt-Optimierungsvoreinstellungen
+
+**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
+
+### Begründungsaufwandsstufen
 
 Der Argumentationsaufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:
 
@@ -113,8 +140,8 @@ Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Argumentati
 
 Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrollen:
 
-- **Tokenizer**: Wählen Sie aus, welcher Tokenizer die Anzahl der Token schätzt – nützlich beim Wechsel zwischen OpenAI und anderen Anbietern. Optionen sind Estimate (generisch), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).
-- **Maximales Token-Limit**: Legen Sie eine Ausgabenobergrenze fest (in Tausenden oder Millionen Token oder unbegrenzt). Die Anzahl der Token wird nach einem fortlaufenden Zeitplan zurückgesetzt.
+- **Tokenizer**: Wählen Sie aus, welcher Tokenizer die Tokenanzahl schätzt – nützlich beim Wechsel zwischen OpenAI und anderen Anbietern. Optionen sind Estimate (generisch), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).
+- **Maximales Token-Limit**: Legen Sie eine Ausgabenobergrenze fest (in Tausend oder Millionen Token oder unbegrenzt). Die Anzahl der Token wird nach einem fortlaufenden Zeitplan zurückgesetzt.
 - **Reset-Zeitraum**: Anzahl der Tage zwischen Resets (1–3650), mit optionalem Ankerdatum für vorhersehbaren Reset-Zeitpunkt.
 - **Warnschwellenwerte**: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; rote Warnung bei einem höheren Prozentsatz. Konfigurieren Sie beide als Ganzzahlen 0–100.
 

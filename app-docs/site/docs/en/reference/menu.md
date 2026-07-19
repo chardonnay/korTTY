@@ -76,14 +76,14 @@ See the [Settings reference](settings/index.md) for every individual setting.
 
 | Item | Description |
 | --- | --- |
-| AI Manager… | Manage AI profiles and saved chats |
+| AI Manager… | Manage AI profiles, integrated GGUF models, Text/Coding roles, RAG knowledge stores, and saved chats |
 | AI Agent… | Open the terminal AI agent |
 | AI Planning… | Open the AI planning workflow |
 | AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
 
-**AI Manager** lists your AI profiles (each with connection mode, model, reasoning effort, internet access and token budget) and your saved chats:
+**AI Manager** opens as a modeless window, so it can remain visible while you use the main window. Invoking it again restores and focuses the same manager for that main window instead of creating a duplicate. It lists profiles (connection mode, model, prompt preset, reasoning, internet access and token budget), searches/downloads/imports local GGUF models, assigns Text/Coding/embedding roles, manages knowledge-store sources, and opens saved chats. The open primary section remains marked by a bold accent underline after you move focus into its tables, fields, or buttons:
 
-![AI Manager](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
 ## Plugins
 

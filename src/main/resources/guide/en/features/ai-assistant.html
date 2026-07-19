@@ -18,7 +18,7 @@
         <link rel="prev" href="teamwork.html">
       
       
-        <link rel="next" href="ai-tools.html">
+        <link rel="next" href="local-models.html">
       
       
         
@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1576,7 +1580,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Model selection">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#role-routing-rag-and-prompt-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role routing, RAG, and prompt order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Role routing, RAG, and prompt order">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1876,6 +1891,62 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2320,7 +2391,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Model selection">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#role-routing-rag-and-prompt-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Role routing, RAG, and prompt order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Role routing, RAG, and prompt order">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2634,22 +2716,22 @@
 
 
 <h1 id="ai-assistant">AI assistant<a class="headerlink" href="#ai-assistant" title="Permanent link">&para;</a></h1>
-<p>KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.</p>
+<p>KorTTY can analyze selected terminal text with an OpenAI-compatible AI endpoint, an integrated local llama.cpp model, or a configured local CLI and open the answer in a temporary AI result tab. You can also start agent-style workflows to automate SSH tasks or get plans reviewed before implementation.</p>
 <p>When <strong>Configuration &gt; Prevent System Sleep</strong> is enabled on macOS or Windows, korTTY keeps the computer awake while an AI API, local-model, web-tool, or local AI CLI request is waiting for a result. The assertion is released after the last concurrent AI request finishes; if no terminal is connected and no future or running Scheduler job exists, the computer may then sleep normally. Display sleep remains available.</p>
 <p><img alt="AI request/integration flow" src="../assets/diagrams/ai-api-integration.svg" /></p>
 <div class="admonition warning">
 <p class="admonition-title">Data Security</p>
-<p>Selected terminal text is transmitted to the configured AI endpoint for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, prefer a trusted local endpoint such as <strong>LM Studio</strong>, or verify that you trust the remote endpoint before sending anything. If you provide an <strong>API Key</strong>, korTTY stores it encrypted with your master password.</p>
+<p>Selected terminal text is transmitted to the configured AI service for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, use an <a href="local-models.html">integrated local GGUF model</a> or another endpoint you trust. Embedded inference uses an authenticated loopback-only server; remote providers receive the reviewed request over the network. If you provide an <strong>API Key</strong>, korTTY stores it encrypted with your master password.</p>
 </div>
 <h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open <strong>Edit &gt; Global Settings</strong>.</li>
 <li>Go to <strong>AI</strong>.</li>
-<li>Create one or more AI profiles and enter the <strong>API URL</strong> for each profile you want to use. You can manage profiles in <strong>Settings &gt; AI</strong> or in <strong>Tools &gt; AI Manager &gt; Profiles</strong>.</li>
-<li>Optionally enter <strong>Model</strong> and <strong>API Key</strong>. The editable model selector supports manual model names; for known cloud providers (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) it is pre-filled with common model names, and for local LM Studio endpoints it offers an <strong>Auto</strong> option plus the currently loaded local LLMs. The <strong>API Key</strong> is stored encrypted with your master password. Prefer local endpoints for sensitive data, or verify the endpoint's trust level before sending selections.</li>
-<li>Optionally configure <strong>Max characters</strong>, <strong>Tokenizer</strong>, <strong>Token limit</strong>, warning thresholds, token reset cycle, supported <strong>Reasoning</strong> effort, and <strong>Internet access</strong> per profile. korTTY exposes reasoning choices based on the configured API URL and model; profiles without a supported reasoning mode stay disabled.</li>
+<li>Create one or more AI profiles in <strong>Settings &gt; AI</strong> or <strong>AI &gt; AI Manager &gt; Profiles</strong>. Choose <strong>HTTP API</strong>, <strong>Local CLI</strong>, or <strong>Integrated llama.cpp</strong> as the connection mode.</li>
+<li>For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use <strong>AI Manager &gt; Local Models</strong> first when no GGUF is installed.</li>
+<li>Optionally configure <strong>Prompt optimization</strong>, <strong>Max characters</strong>, <strong>Tokenizer</strong>, <strong>Token limit</strong>, warning thresholds, token reset cycle, supported <strong>Reasoning</strong> effort, and <strong>Internet access</strong> per profile. korTTY exposes reasoning choices based on the configured endpoint and model; profiles without a supported reasoning mode stay disabled.</li>
 <li>Click <strong>Test AI Connection</strong>.</li>
-<li>Optionally choose a <strong>Default profile</strong> for terminal AI actions and follow-up chats that do not explicitly select another profile.</li>
+<li>Optionally choose a <strong>Default profile</strong>, then assign separate Text/translation and Coding roles under <strong>AI Manager &gt; Local AI</strong>. An empty role uses the default profile.</li>
 <li>Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.</li>
 <li>Optionally configure the terminal-agent input-history size (default 20, range 5–100), the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for <strong>AI Agent</strong> and <strong>AI Planning</strong>.</li>
 <li>Optionally disable the confirmation dialog for <strong>Summarize</strong> and <strong>Solve Problem</strong> if you want a faster workflow. <strong>Ask</strong> always opens the prompt dialog.</li>
@@ -2670,6 +2752,7 @@
 <li><strong>Profile Name</strong> - Enter a display name for the profile (e.g., "Claude Opus", "Local LM Studio").</li>
 </ol>
 <p>Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.</p>
+<p>For fully integrated GGUF inference, use the separate <strong>AI Manager &gt; Local Models &gt; Setup assistant</strong>. It checks hardware, recommends Text/Coding/embedding models, reviews license and exact size, verifies the immutable download, creates an embedded profile, assigns the selected role, and runs a real local chat or embedding function test. See <a href="local-models.html">Local models with llama.cpp</a>.</p>
 <h2 id="model-selection">Model selection<a class="headerlink" href="#model-selection" title="Permanent link">&para;</a></h2>
 <p>The model selector in <strong>Settings &gt; AI</strong> and <strong>Tools &gt; AI Manager &gt; Profiles</strong> is editable:</p>
 <ul>
@@ -2677,7 +2760,11 @@
 <li>A listed model stores that model as the manual selection.</li>
 <li>A typed model name is stored as a manual selection so any OpenAI-compatible endpoint works.</li>
 <li><strong>Auto</strong> is offered only for local LM Studio endpoints, where korTTY can actually detect the loaded model. Cloud profiles need a concrete model; if none is selected, requests stop with an explicit "select a specific AI model" error.</li>
+<li>An <strong>Integrated llama.cpp</strong> profile lists installed model IDs from <code>~/.kortty/llm/models.xml</code>; it does not use the HTTP URL or manual cloud-model field.</li>
 </ul>
+<h2 id="role-routing-rag-and-prompt-order">Role routing, RAG, and prompt order<a class="headerlink" href="#role-routing-rag-and-prompt-order" title="Permanent link">&para;</a></h2>
+<p>korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, and prose descriptions use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.</p>
+<p>When matching knowledge stores are assigned to the request's Text or Coding role, an ordinary AI request is assembled in this order: korTTY's action/output contract, selected AI Skills, bounded untrusted RAG context with <code>[R1]</code> source markers, the resolved model-family preset, and finally the provider transport. Only retrieved excerpts are added, not the complete knowledge store; choosing a cloud profile sends those excerpts to that provider, so the knowledge-store role/profile assignment is the explicit disclosure decision. Strict JSON and code-payload rules remain authoritative. Autonomous Agent, Planning, Swarm, and scheduled prompts require explicit RAG opt-in. See <a href="rag.html">RAG knowledge stores</a> for the retrieval and privacy details.</p>
 <h3 id="local-lm-studio-model-selection">Local LM Studio model selection<a class="headerlink" href="#local-lm-studio-model-selection" title="Permanent link">&para;</a></h3>
 <p>For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's <code>GET /api/v1/models</code> endpoint.</p>
 <p>Auto mode resolves the effective model immediately before connection tests, AI chat and follow-up requests, terminal AI actions, and Terminal AI Agent runs. If exactly one LLM is loaded, korTTY uses that model. If multiple LLMs are loaded, korTTY uses the saved preferred model only when that model is currently loaded. If no LLM is loaded, or multiple LLMs are loaded without a valid saved preference, korTTY stops the request with an explicit error instead of guessing.</p>
@@ -2849,14 +2936,18 @@
 </ul>
 </div>
 <h2 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
-<p>Open <strong>Tools &gt; AI Manager</strong> or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).</p>
-<p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
-<p>The AI Manager has two working areas:</p>
+<p>Open <strong>AI &gt; AI Manager</strong> or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).</p>
+<p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
+<p>The AI Manager is a modeless window: you can keep it open while you continue working in the main window. Invoking <strong>AI Manager</strong> again restores and focuses the same manager for that main window instead of opening a duplicate. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls.</p>
+<p>The manager combines profile, local-inference, retrieval, and saved-chat management:</p>
 <ul>
 <li><strong>Profiles</strong> - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.</li>
+<li><strong>Local Models</strong> - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.</li>
+<li><strong>Local AI</strong> - Assign Text/translation and Coding profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.</li>
+<li><strong>Knowledge Stores</strong> - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.</li>
 <li><strong>Saved Chats</strong> - Open, rename, refresh, or delete previously saved AI conversations. Saved <a href="ai-swarm.html">AI Swarm</a> conversations appear in their own <strong>Swarm Chats</strong> section, including those produced by scheduled swarm jobs.</li>
 </ul>
-<p>Use <strong>Settings &gt; AI</strong> for the global defaults and behavior switches, and <strong>AI Manager</strong> for day-to-day profile/chat management.</p>
+<p>Use <strong>Settings &gt; AI</strong> for global behavior switches and <strong>AI Manager</strong> for day-to-day profile, model, knowledge-store, and chat management.</p>
 <h2 id="ask-the-manual-ai-docs-search">Ask the manual (AI docs search)<a class="headerlink" href="#ask-the-manual-ai-docs-search" title="Permanent link">&para;</a></h2>
 <p>The built-in manual (<strong>Help &gt; Manual</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) includes an AI-powered search. Toggle <strong>AI search</strong> in the manual window's toolbar to open a side panel, type a question in natural language — for example <em>"How do I run the AI agent in the terminal window?"</em> — and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
 <p>How it works:</p>

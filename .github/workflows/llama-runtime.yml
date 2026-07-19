@@ -1,0 +1,368 @@
+name: llama.cpp runtime candidates
+
+# Candidate detection and source-side validation live with korTTY. Human-approved signing and
+# immutable stable publication run in chardonnay/kortty-llama-runtimes so no cross-repository
+# release token or private signing key is exposed to this repository's pull-request workflows.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  pull_request:
+    paths:
+      - "build.gradle.kts"
+      - ".github/workflows/llama-runtime.yml"
+      - "src/main/java/de/kortty/ai/llama/**"
+      - "src/main/java/de/kortty/ai/runtimeupdate/**"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Detect a candidate or build the reviewed package matrix"
+        type: choice
+        options: [build, detect]
+        default: build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llama-runtime-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect-candidate:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.action == 'detect' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: true
+
+      - name: Resolve newest upstream tag without promoting it
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -nE 's/^val llamaCppTag = "([^"]+)"/\1/p' build.gradle.kts)"
+          latest="$(git ls-remote --tags --refs https://github.com/ggml-org/llama.cpp.git 'refs/tags/b*' \
+            | sed -E 's#.*refs/tags/##' | grep -E '^b[0-9]+$' | sort -V | tail -n1)"
+          if [ -z "$latest" ]; then
+            echo "Could not resolve an upstream llama.cpp release tag."
+            exit 1
+          fi
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$pinned" = "$latest" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          commit="$(git ls-remote https://github.com/ggml-org/llama.cpp.git "refs/tags/$latest^{}" | awk 'NR == 1 {print $1}')"
+          if [ -z "$commit" ]; then
+            commit="$(git ls-remote https://github.com/ggml-org/llama.cpp.git "refs/tags/$latest" | awk 'NR == 1 {print $1}')"
+          fi
+          archive="$(mktemp)"
+          curl --fail --location --retry 3 "https://github.com/ggml-org/llama.cpp/archive/$commit.tar.gz" -o "$archive"
+          sha256="$(sha256sum "$archive" | awk '{print $1}')"
+          rm -f "$archive"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open one human-reviewed candidate PR
+        if: steps.upstream.outputs.changed == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.upstream.outputs.latest }}
+          COMMIT: ${{ steps.upstream.outputs.commit }}
+          SHA256: ${{ steps.upstream.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          branch="automation/llama-runtime-${TAG}"
+          if gh pr list --state open --head "$branch" --json number --jq '.[0].number' | grep -q .; then
+            echo "Candidate PR already exists for $TAG."
+            exit 0
+          fi
+          git switch -c "$branch"
+          python3 - <<'PY'
+          import os, pathlib, re
+          path = pathlib.Path("build.gradle.kts")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              "llamaCppTag": os.environ["TAG"],
+              "llamaCppCommit": os.environ["COMMIT"],
+              "llamaCppSourceSha256": os.environ["SHA256"],
+          }
+          for key, value in replacements.items():
+              text, count = re.subn(rf'^val {key} = "[^"]+"$', f'val {key} = "{value}"', text, flags=re.M)
+              if count != 1:
+                  raise SystemExit(f"Could not update {key}")
+          path.write_text(text, encoding="utf-8")
+          PY
+          git config user.name "kortty-runtime-bot[bot]"
+          git config user.email "kortty-runtime-bot[bot]@users.noreply.github.com"
+          git add build.gradle.kts
+          git commit -m "build(llama): test ${TAG} runtime candidate"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "build(llama): test ${TAG} runtime candidate" \
+            --body "Pins upstream ${TAG} at ${COMMIT}. This is a candidate only: the runtime matrix and API contract must pass, followed by human approval, before stable promotion."
+
+  build-runtime:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'build')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+            arch: aarch64
+            backend: CPU
+          - os: macos-latest
+            platform: macos
+            arch: aarch64
+            backend: METAL
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
+            backend: CPU
+          - os: macos-15-intel
+            platform: macos
+            arch: x86_64
+            backend: METAL
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            backend: CPU
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            backend: VULKAN
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            backend: CPU
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            backend: VULKAN
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            backend: CPU
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            backend: VULKAN
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install native build dependencies (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libvulkan-dev glslc spirv-headers spirv-tools mesa-vulkan-drivers curl jq
+
+      - name: Install native build dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install cmake ninja jq
+
+      - name: Install native build dependencies (Windows)
+        if: runner.os == 'Windows' && matrix.backend == 'VULKAN'
+        shell: pwsh
+        run: |
+          choco install cmake ninja vulkan-sdk jq -y --no-progress
+          $vulkanSdk = [Environment]::GetEnvironmentVariable("VULKAN_SDK", "Machine")
+          if ([string]::IsNullOrWhiteSpace($vulkanSdk)) {
+            $vulkanSdk = Get-ChildItem 'C:\VulkanSDK' -Directory | Sort-Object Name | Select-Object -Last 1 -ExpandProperty FullName
+          }
+          if (-not (Test-Path "$vulkanSdk\Bin\glslc.exe")) {
+            throw "Vulkan SDK installation is incomplete: $vulkanSdk"
+          }
+          "VULKAN_SDK=$vulkanSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vulkanSdk\Bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Materialize short Windows build path
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path C:\k) { cmd /c rmdir C:\k }
+          New-Item -ItemType Directory -Path C:\k | Out-Null
+          robocopy $env:GITHUB_WORKSPACE C:\k /E /XD .git build .gradle
+          if ($LASTEXITCODE -gt 7) { throw "robocopy failed with exit code $LASTEXITCODE" }
+          $global:LASTEXITCODE = 0
+
+      - name: Build verified runtime package and descriptor
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
+          ./gradlew generateLlamaRuntimeManifest -Pllama.backend=${{ matrix.backend }} --stacktrace
+
+      - name: Native link smoke on every platform/backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
+          server="$(find build -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
+          test -n "$server"
+          "$server" --version
+
+      - name: Full authenticated API contract smoke
+        shell: bash
+        env:
+          KORTTY_RUNTIME_BACKEND: ${{ matrix.backend }}
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
+          chat_model=build/llama-runtime/SmolLM2-135M-Instruct-Q2_K.gguf
+          embedding_model=build/llama-runtime/stories260K.gguf
+          curl --fail --location --retry 3 \
+            'https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/09816acd5d99df7be770d85ea30822623dab342c/SmolLM2-135M-Instruct-Q2_K.gguf?download=true' \
+            -o "$chat_model"
+          curl --fail --location --retry 3 \
+            'https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories260K.gguf?download=true' \
+            -o "$embedding_model"
+          if command -v sha256sum >/dev/null 2>&1; then
+            chat_sha="$(sha256sum "$chat_model" | awk '{print $1}')"
+            embedding_sha="$(sha256sum "$embedding_model" | awk '{print $1}')"
+          else
+            chat_sha="$(shasum -a 256 "$chat_model" | awk '{print $1}')"
+            embedding_sha="$(shasum -a 256 "$embedding_model" | awk '{print $1}')"
+          fi
+          test "$chat_sha" = '741ad12b64088fedc17c33aacb22e48be1972ef36a39f03666dd68bd15614fb9'
+          test "$embedding_sha" = '270cba1bd5109f42d03350f60406024560464db173c0e387d91f0426d3bd256d'
+          server="$(find build/llama-runtime/stage-* -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
+          test -n "$server"
+          key='kortty-ci-runtime-key'
+          gpu_layers=0
+          if [ "$KORTTY_RUNTIME_BACKEND" != CPU ]; then
+            # Backend packages must exercise actual offload instead of silently passing a CPU-only
+            # smoke. One layer is enough to validate device initialization and native linkage.
+            gpu_layers=1
+          fi
+          cleanup() {
+            for pid in $(jobs -p); do
+              kill "$pid" >/dev/null 2>&1 || true
+            done
+          }
+          trap cleanup EXIT
+
+          "$server" --host 127.0.0.1 --port 18080 --model "$chat_model" --api-key "$key" \
+            --offline --no-ui --no-agent --no-ui-mcp-proxy --no-slots --n-gpu-layers "$gpu_layers" \
+            --sleep-idle-seconds 1 \
+            >build/llama-runtime/server-chat.log 2>&1 &
+          for _ in $(seq 1 120); do
+            curl --silent --fail http://127.0.0.1:18080/health >/dev/null && break
+            sleep 1
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' --data '{"prompt":"blocked","max_tokens":1}' \
+            http://127.0.0.1:18080/v1/completions)" = 401
+          curl --fail --header "Authorization: Bearer $key" \
+            http://127.0.0.1:18080/v1/models | jq -e '.data | length > 0'
+          curl --fail --header "Authorization: Bearer $key" --header 'Content-Type: application/json' \
+            --data '{"prompt":"Once","max_tokens":1}' \
+            http://127.0.0.1:18080/v1/completions | jq -e '.choices | length == 1'
+          sleep 2
+          curl --fail --header "Authorization: Bearer $key" --header 'Content-Type: application/json' \
+            --data '{"prompt":"Wake","max_tokens":1}' \
+            http://127.0.0.1:18080/v1/completions | jq -e '.choices | length == 1'
+          curl --fail --header "Authorization: Bearer $key" --header 'Content-Type: application/json' \
+            --data '{"messages":[{"role":"user","content":"Return whether korTTY is local."}],"max_tokens":16,"response_format":{"type":"json_schema","schema":{"type":"object","properties":{"local":{"type":"boolean"}},"required":["local"],"additionalProperties":false}}}' \
+            http://127.0.0.1:18080/v1/chat/completions | jq -e '.choices | length == 1'
+
+          "$server" --host 127.0.0.1 --port 18081 --model "$embedding_model" --api-key "$key" \
+            --offline --no-ui --no-agent --no-ui-mcp-proxy --no-slots --n-gpu-layers "$gpu_layers" \
+            --embedding --pooling mean \
+            >build/llama-runtime/server-embedding.log 2>&1 &
+          for _ in $(seq 1 120); do
+            curl --silent --fail http://127.0.0.1:18081/health >/dev/null && break
+            sleep 1
+          done
+          curl --fail --header "Authorization: Bearer $key" --header 'Content-Type: application/json' \
+            --data '{"input":"korTTY"}' \
+            http://127.0.0.1:18081/v1/embeddings | jq -e '.data[0].embedding | length > 0'
+          # Both isolated sidecars must remain independently usable in parallel.
+          curl --fail --header "Authorization: Bearer $key" --header 'Content-Type: application/json' \
+            --data '{"prompt":"Still alive","max_tokens":1}' \
+            http://127.0.0.1:18080/v1/completions | jq -e '.choices | length == 1'
+
+      - name: Upload immutable candidate package
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: llama-runtime-${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.backend }}
+          path: build/llama-runtime/packages/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload immutable Windows candidate package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: llama-runtime-${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.backend }}
+          path: C:/k/build/llama-runtime/packages/*
+          if-no-files-found: error
+          retention-days: 14
+
+  qdrant-integration:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'build')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.18.2
+        ports:
+          - 6333:6333
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install build dependencies
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y maven curl
+
+      - name: Wait for pinned Qdrant service
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:6333/readyz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Pinned Qdrant v1.18.2 service did not become ready."
+          exit 1
+
+      - name: Run real Qdrant vector-store contract
+        env:
+          KORTTY_TEST_QDRANT_URL: http://127.0.0.1:6333
+        run: ./gradlew test --tests de.kortty.rag.QdrantVectorStoreIntegrationTest --stacktrace

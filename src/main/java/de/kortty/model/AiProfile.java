@@ -33,6 +33,17 @@ public class AiProfile {
     @XmlElement
     private String model;
 
+    /** Registry id of the GGUF model used by an embedded llama.cpp profile. */
+    @XmlElement
+    private String embeddedModelId;
+
+    @XmlElement
+    private AiPromptPreset promptPreset = AiPromptPreset.AUTO;
+
+    @XmlElementWrapper(name = "ragStoreIds")
+    @XmlElement(name = "storeId")
+    private List<String> ragStoreIds = new ArrayList<>();
+
     @XmlElement
     private AiModelSelectionMode modelSelectionMode;
 
@@ -109,6 +120,9 @@ public class AiProfile {
         this.apiUrl = source.apiUrl;
         this.connectionMode = source.getConnectionMode();
         this.model = source.model;
+        this.embeddedModelId = source.embeddedModelId;
+        this.promptPreset = source.getPromptPreset();
+        this.ragStoreIds = new ArrayList<>(source.getRagStoreIds());
         this.modelSelectionMode = source.getModelSelectionMode();
         this.reasoningEffort = source.getReasoningEffort();
         this.discoveredReasoningEfforts = copyReasoningEfforts(source.getDiscoveredReasoningEfforts());
@@ -170,6 +184,39 @@ public class AiProfile {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public String getEmbeddedModelId() {
+        return embeddedModelId;
+    }
+
+    public void setEmbeddedModelId(String embeddedModelId) {
+        this.embeddedModelId = embeddedModelId != null && !embeddedModelId.isBlank()
+            ? embeddedModelId.trim()
+            : null;
+    }
+
+    public AiPromptPreset getPromptPreset() {
+        return promptPreset != null ? promptPreset : AiPromptPreset.AUTO;
+    }
+
+    public void setPromptPreset(AiPromptPreset promptPreset) {
+        this.promptPreset = promptPreset != null ? promptPreset : AiPromptPreset.AUTO;
+    }
+
+    public List<String> getRagStoreIds() {
+        if (ragStoreIds == null) {
+            ragStoreIds = new ArrayList<>();
+        }
+        return ragStoreIds;
+    }
+
+    public void setRagStoreIds(List<String> ragStoreIds) {
+        this.ragStoreIds = ragStoreIds == null ? new ArrayList<>() : ragStoreIds.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     public AiModelSelectionMode getModelSelectionMode() {

@@ -23,18 +23,16 @@ import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiPromptPreset;
 import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
-import de.kortty.model.SavedAiChat;
-import de.kortty.model.SavedSwarmChat;
 import de.kortty.model.WindowGeometry;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -50,13 +48,9 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
@@ -65,7 +59,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -85,7 +79,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Dialog for managing AI profiles and saved AI chats.
+ * Dialog for managing AI profiles, local models, knowledge stores and local preferences.
+ * Saved AI chats and swarm chats now live in their own {@link SavedChatsDialog}.
  */
 public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
@@ -98,12 +93,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private final MainWindow ownerWindow;
     private final KorTTYApplication app;
-    private final ObservableList<SavedAiChat> chats;
-    private final ObservableList<SavedSwarmChat> swarmChats;
     private final ObservableList<AiProfile> profiles;
-    private final TableView<SavedAiChat> chatTable;
-    private final TableView<SavedSwarmChat> swarmChatTable;
     private final ListView<AiProfile> profileListView;
+    private final AiLocalPreferencesPane localPreferencesPane;
+    private final LocalModelManagerPane localModelManagerPane;
+    private final RagKnowledgeStorePane knowledgeStorePane;
     private final ComboBox<AiProfile> defaultProfileCombo;
     private final TextField profileNameField;
     private final ComboBox<AiConnectionMode> connectionModeCombo;
@@ -112,6 +106,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final TextField cliCustomModelField;
     private final Button refreshModelsButton;
     private final ComboBox<AiReasoningEffort> reasoningCombo;
+    private final ComboBox<AiPromptPreset> promptPresetCombo;
     private final Button refreshReasoningButton;
     private final ComboBox<AiInternetAccessMode> internetAccessModeCombo;
     private final PasswordField apiKeyField;
@@ -143,17 +138,32 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     public AiManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
         this.app = KorTTYApplication.getInstance();
+        initModality(Modality.NONE);
         setTitle(I18n.get("ai.manager.title"));
         setHeaderText(I18n.get("ai.manager.header"));
         setResizable(true);
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
-        chats = FXCollections.observableArrayList();
-        swarmChats = FXCollections.observableArrayList();
         profiles = FXCollections.observableArrayList();
+        javafx.stage.Window owner = ownerWindow != null ? ownerWindow.getStage() : null;
+        localPreferencesPane = new AiLocalPreferencesPane(app);
+        localModelManagerPane = new LocalModelManagerPane(app, owner, this::mergeExternalProfileChanges);
+        RagKnowledgeStorePane ragPane;
+        if (ownerWindow == null) {
+            // Headless UI harnesses intentionally have no application owner or configuration
+            // lifecycle. Avoid starting file watchers against the real user directory there.
+            ragPane = null;
+        } else {
+            try {
+                ragPane = new RagKnowledgeStorePane(app, owner, this::mergeExternalProfileChanges,
+                    localModelManagerPane::openEmbeddingSetupWizard);
+            } catch (java.io.IOException error) {
+                logger.warn("Could not initialize knowledge-store manager", error);
+                ragPane = null;
+            }
+        }
+        knowledgeStorePane = ragPane;
 
-        chatTable = buildChatTable();
-        swarmChatTable = buildSwarmChatTable();
         profileListView = buildProfileListView();
         defaultProfileCombo = new ComboBox<>();
         profileNameField = new TextField();
@@ -168,6 +178,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshModelsButton.setTooltip(new Tooltip(I18n.get("ai.model.refresh.tooltip")));
         refreshModelsButton.setAccessibleText(I18n.get("ai.model.refresh.accessible"));
         reasoningCombo = new ComboBox<>();
+        promptPresetCombo = new ComboBox<>();
         refreshReasoningButton = new Button("↻");
         refreshReasoningButton.setTooltip(new Tooltip(I18n.get("settings.ai.reasoning.refresh")));
         refreshReasoningButton.setAccessibleText(I18n.get("settings.ai.reasoning.refresh"));
@@ -194,8 +205,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         statusLabel = new Label();
 
         TabPane tabPane = new TabPane();
+        tabPane.getStyleClass().add("ai-manager-primary-navigation");
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.getTabs().addAll(buildProfilesTab(), buildSavedChatsTab(), buildSwarmChatsTab());
+        List<Tab> primaryTabs = List.of(
+            buildProfilesTab(),
+            buildLocalModelsTab(),
+            buildKnowledgeStoresTab(),
+            buildLocalPreferencesTab());
+        primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
+        tabPane.getTabs().addAll(primaryTabs);
 
         VBox root = new VBox(10, tabPane, statusLabel);
         root.setPadding(new Insets(8, 0, 0, 0));
@@ -216,6 +234,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         setOnCloseRequest(event -> saveGeometry());
         setOnHidden(event -> {
             saveGeometry();
+            localModelManagerPane.close();
+            if (knowledgeStorePane != null) {
+                knowledgeStorePane.close();
+            }
             try {
                 if (app != null && app.getGlobalSettingsManager() != null) {
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
@@ -265,46 +287,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         } catch (Exception ignored) {
         }
-    }
-
-    private TableView<SavedAiChat> buildChatTable() {
-        TableView<SavedAiChat> table = new TableView<>(chats);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-
-        TableColumn<SavedAiChat, String> titleColumn = new TableColumn<>(I18n.get("ai.manager.column.title"));
-        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getTitle() != null && !cell.getValue().getTitle().isBlank()
-                ? cell.getValue().getTitle()
-                : I18n.get("ai.saved.defaultTitle")));
-        titleColumn.setMinWidth(220);
-
-        TableColumn<SavedAiChat, String> profileColumn = new TableColumn<>(I18n.get("ai.manager.column.profile"));
-        profileColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getActiveAiProfileName() != null ? cell.getValue().getActiveAiProfileName() : ""));
-        profileColumn.setMinWidth(150);
-
-        TableColumn<SavedAiChat, String> updatedColumn = new TableColumn<>(I18n.get("ai.manager.column.updated"));
-        updatedColumn.setCellValueFactory(cell -> new SimpleStringProperty(formatUpdatedAt(cell.getValue().getUpdatedAt())));
-        updatedColumn.setMinWidth(160);
-
-        TableColumn<SavedAiChat, String> connectionColumn = new TableColumn<>(I18n.get("ai.manager.column.connection"));
-        connectionColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getConnectionDisplayName() != null ? cell.getValue().getConnectionDisplayName() : ""));
-        connectionColumn.setMinWidth(180);
-
-        table.getColumns().addAll(List.of(titleColumn, profileColumn, updatedColumn, connectionColumn));
-        table.setPlaceholder(new Label(I18n.get("ai.manager.empty")));
-        table.setRowFactory(view -> {
-            TableRow<SavedAiChat> row = new TableRow<>();
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    ownerWindow.openSavedAiChat(new SavedAiChat(row.getItem()));
-                }
-            });
-            return row;
-        });
-        return table;
     }
 
     private ListView<AiProfile> buildProfileListView() {
@@ -398,7 +380,31 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         });
 
+        promptPresetCombo.getItems().setAll(AiPromptPreset.values());
+        promptPresetCombo.setPrefWidth(220);
+        promptPresetCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiPromptPreset preset) {
+                return preset == null ? "" : I18n.get("settings.ai.promptPreset." + preset.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public AiPromptPreset fromString(String value) {
+                return null;
+            }
+        });
+        promptPresetCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedProfile != null) {
+                selectedProfile.setPromptPreset(newValue);
+            }
+        });
+
         connectionModeCombo.getItems().setAll(AiConnectionMode.values());
+        if (!de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+            // MLX runs exclusively on Apple-Silicon macOS; do not offer the mode elsewhere.
+            // Existing EMBEDDED_MLX profiles still render via the converter's unavailable hint.
+            connectionModeCombo.getItems().remove(AiConnectionMode.EMBEDDED_MLX);
+        }
         connectionModeCombo.setConverter(createConnectionModeConverter());
         connectionModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedProfile != null) {
@@ -509,6 +515,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox reasoningBox = new HBox(6, reasoningCombo, refreshReasoningButton);
         HBox.setHgrow(reasoningCombo, Priority.ALWAYS);
         editorGrid.add(reasoningBox, 1, row++);
+
+        editorGrid.add(new Label(I18n.get("settings.ai.promptPreset")), 0, row);
+        editorGrid.add(promptPresetCombo, 1, row++);
 
         internetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
         internetAccessModeCombo.setPrefWidth(260);
@@ -632,141 +641,32 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return tab;
     }
 
-    private Tab buildSavedChatsTab() {
-        Button openButton = new Button(I18n.get("ai.manager.open"));
-        openButton.setOnAction(event -> openSelectedChat());
-        applyButtonIcon(openButton, ICON_OPEN);
-        Button renameButton = new Button(I18n.get("ai.manager.rename"));
-        renameButton.setOnAction(event -> renameSelectedChat());
-        applyButtonIcon(renameButton, ICON_RENAME);
-        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        deleteButton.setOnAction(event -> deleteSelectedChat());
-        applyButtonIcon(deleteButton, ICON_DELETE);
-        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
-        refreshButton.setOnAction(event -> refreshChats());
-        applyButtonIcon(refreshButton, ICON_REFRESH);
-
-        openButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-        renameButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-
-        HBox buttonBar = new HBox(8, openButton, renameButton, deleteButton, refreshButton);
-        VBox root = new VBox(10, chatTable, buttonBar);
-        root.setPadding(new Insets(6));
-        VBox.setVgrow(chatTable, Priority.ALWAYS);
-
-        Tab tab = new Tab(I18n.get("ai.manager.tab.chats"));
-        tab.setContent(root);
+    private Tab buildLocalPreferencesTab() {
+        Tab tab = new Tab(I18n.get("ai.local.preferences.tab"));
+        tab.setContent(localPreferencesPane);
         return tab;
     }
 
-    private TableView<SavedSwarmChat> buildSwarmChatTable() {
-        TableView<SavedSwarmChat> table = new TableView<>(swarmChats);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-
-        TableColumn<SavedSwarmChat, String> titleColumn = new TableColumn<>(I18n.get("ai.swarm.manager.title"));
-        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getTitle() != null && !cell.getValue().getTitle().isBlank()
-                ? cell.getValue().getTitle()
-                : I18n.get("ai.saved.defaultTitle")));
-        titleColumn.setMinWidth(240);
-
-        TableColumn<SavedSwarmChat, String> profileColumn = new TableColumn<>(I18n.get("ai.manager.column.profile"));
-        profileColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getActiveAiProfileName() != null ? cell.getValue().getActiveAiProfileName() : ""));
-        profileColumn.setMinWidth(150);
-
-        TableColumn<SavedSwarmChat, String> targetsColumn = new TableColumn<>(I18n.get("ai.swarm.manager.targets"));
-        targetsColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            String.valueOf(cell.getValue().getTargetConnectionIds() != null
-                ? cell.getValue().getTargetConnectionIds().size() : 0)));
-        targetsColumn.setMinWidth(100);
-
-        TableColumn<SavedSwarmChat, String> updatedColumn = new TableColumn<>(I18n.get("ai.swarm.manager.updated"));
-        updatedColumn.setCellValueFactory(cell -> new SimpleStringProperty(formatUpdatedAt(cell.getValue().getUpdatedAt())));
-        updatedColumn.setMinWidth(160);
-
-        table.getColumns().addAll(List.of(titleColumn, profileColumn, targetsColumn, updatedColumn));
-        table.setPlaceholder(new Label(I18n.get("ai.swarm.manager.empty")));
-        table.setRowFactory(view -> {
-            TableRow<SavedSwarmChat> row = new TableRow<>();
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    ownerWindow.openSavedSwarmChat(new SavedSwarmChat(row.getItem()));
-                }
-            });
-            return row;
-        });
-        return table;
-    }
-
-    private Tab buildSwarmChatsTab() {
-        Button openButton = new Button(I18n.get("ai.manager.open"));
-        openButton.setOnAction(event -> openSelectedSwarmChat());
-        applyButtonIcon(openButton, ICON_OPEN);
-        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        deleteButton.setOnAction(event -> deleteSelectedSwarmChat());
-        applyButtonIcon(deleteButton, ICON_DELETE);
-        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
-        refreshButton.setOnAction(event -> refreshSwarmChats());
-        applyButtonIcon(refreshButton, ICON_REFRESH);
-
-        openButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
-
-        HBox buttonBar = new HBox(8, openButton, deleteButton, refreshButton);
-        VBox root = new VBox(10, swarmChatTable, buttonBar);
-        root.setPadding(new Insets(6));
-        VBox.setVgrow(swarmChatTable, Priority.ALWAYS);
-
-        Tab tab = new Tab(I18n.get("ai.swarm.manager.section"));
-        tab.setContent(root);
+    private Tab buildLocalModelsTab() {
+        Tab tab = new Tab(I18n.get("ai.local.models.tab"));
+        tab.setContent(localModelManagerPane);
         return tab;
     }
 
-    private void refreshSwarmChats() {
-        swarmChats.setAll(loadSwarmChats());
-    }
-
-    private List<SavedSwarmChat> loadSwarmChats() {
-        return app != null && app.getSwarmChatManager() != null
-            ? app.getSwarmChatManager().getAllChats()
-            : List.of();
-    }
-
-    private void openSelectedSwarmChat() {
-        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        ownerWindow.openSavedSwarmChat(new SavedSwarmChat(selected));
-    }
-
-    private void deleteSelectedSwarmChat() {
-        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        DialogThemeHelper.applyTheme(confirm);
-        confirm.initOwner(ownerWindow.getStage());
-        confirm.setTitle(I18n.get("ai.manager.delete.title"));
-        confirm.setHeaderText(I18n.get("ai.manager.delete.header"));
-        confirm.setContentText(I18n.get("ai.manager.delete.content",
-            selected.getTitle() != null ? selected.getTitle() : I18n.get("ai.saved.defaultTitle")));
-        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-        if (ownerWindow.deleteSavedSwarmChat(selected)) {
-            refreshSwarmChats();
-        }
+    private Tab buildKnowledgeStoresTab() {
+        Tab tab = new Tab(I18n.get("ai.rag.tab"));
+        tab.setContent(knowledgeStorePane != null
+            ? knowledgeStorePane
+            : new Label(I18n.get("ai.rag.unavailable")));
+        return tab;
     }
 
     private void refreshAll() {
         refreshProfiles();
-        refreshChats();
-        refreshSwarmChats();
+        localModelManagerPane.refresh();
+        if (knowledgeStorePane != null) {
+            knowledgeStorePane.refresh();
+        }
     }
 
     private void refreshProfiles() {
@@ -774,6 +674,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         String selectedProfileId = selectedProfile != null ? selectedProfile.getId() : null;
         defaultProfileId = getConfiguredDefaultProfileId();
         profiles.setAll(loadedProfiles);
+        localPreferencesPane.refresh(profiles);
         refreshDefaultProfileSelection(defaultProfileId);
         if (selectedProfileId != null) {
             for (AiProfile profile : profiles) {
@@ -791,14 +692,45 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
-    private void refreshChats() {
-        chats.setAll(loadChats());
+    private void mergeExternalProfileChanges() {
+        String selectedProfileId = selectedProfile != null ? selectedProfile.getId() : null;
+        defaultProfileId = getConfiguredDefaultProfileId();
+        profiles.setAll(mergeExternalProfiles(profiles, loadProfiles()));
+        localPreferencesPane.refresh(profiles);
+        refreshDefaultProfileSelection(defaultProfileId);
+        if (selectedProfileId != null) {
+            profiles.stream().filter(profile -> selectedProfileId.equals(profile.getId())).findFirst()
+                .ifPresent(profileListView.getSelectionModel()::select);
+        }
     }
 
-    private List<SavedAiChat> loadChats() {
-        return app != null && app.getAiChatManager() != null
-            ? app.getAiChatManager().getAllChats()
-            : List.of();
+    static List<AiProfile> mergeExternalProfiles(
+        List<AiProfile> drafts,
+        List<AiProfile> persisted
+    ) {
+        java.util.LinkedHashMap<String, AiProfile> draftById = new java.util.LinkedHashMap<>();
+        for (AiProfile draft : drafts != null ? drafts : List.<AiProfile>of()) {
+            if (draft != null && draft.getId() != null) {
+                draftById.put(draft.getId(), draft);
+            }
+        }
+        List<AiProfile> merged = new ArrayList<>();
+        for (AiProfile stored : persisted != null ? persisted : List.<AiProfile>of()) {
+            if (stored == null) {
+                continue;
+            }
+            AiProfile draft = stored.getId() != null ? draftById.remove(stored.getId()) : null;
+            if (draft == null) {
+                merged.add(new AiProfile(stored));
+            } else {
+                // Local-model and knowledge-store callbacks only own role/store assignments.
+                // Preserve every unsaved form field while merging the externally persisted list.
+                draft.setRagStoreIds(stored.getRagStoreIds());
+                merged.add(draft);
+            }
+        }
+        merged.addAll(draftById.values());
+        return List.copyOf(merged);
     }
 
     private List<AiProfile> loadProfiles() {
@@ -888,85 +820,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return null;
     }
 
-    private void openSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-        ownerWindow.openSavedAiChat(new SavedAiChat(selectedChat));
-    }
-
-    private void renameSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-
-        SaveAiChatDialog dialog = new SaveAiChatDialog(
-            ownerWindow.getStage(),
-            I18n.get("ai.result.rename.title"),
-            I18n.get("ai.result.rename.header"),
-            selectedChat.getTitle(),
-            selectedChat.getTitle(),
-            null);
-        dialog.showAndWait().ifPresent(newTitle -> {
-            if (ownerWindow.renameSavedAiChat(selectedChat, newTitle)) {
-                refreshChats();
-            }
-        });
-    }
-
-    private void deleteSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        DialogThemeHelper.applyTheme(confirm);
-        confirm.initOwner(ownerWindow.getStage());
-        confirm.setTitle(I18n.get("ai.manager.delete.title"));
-        confirm.setHeaderText(I18n.get("ai.manager.delete.header"));
-        confirm.setContentText(I18n.get(
-            "ai.manager.delete.content",
-            selectedChat.getTitle() != null ? selectedChat.getTitle() : I18n.get("ai.saved.defaultTitle")));
-        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-
-        if (ownerWindow.deleteSavedAiChat(selectedChat)) {
-            refreshChats();
-        }
-    }
-
-    // Inline SVG glyphs (24x24) for the action-bar buttons; filled with the theme text color.
-    private static final String ICON_WIZARD = "M12 2 L14 9 L21 11 L14 13 L12 20 L10 13 L3 11 L10 9 Z";
-    private static final String ICON_ADD = "M11 5 H13 V11 H19 V13 H13 V19 H11 V13 H5 V11 H11 Z";
-    private static final String ICON_TEST = "M13 2 L4 14 H10 L9 22 L20 10 H13 Z";
-    private static final String ICON_DELETE = "M7 8 H17 L16 21 H8 Z M9 4 H15 L16 6 H19 V8 H5 V6 H8 Z";
-    private static final String ICON_REFRESH =
-        "M17.65 6.35 C16.2 4.9 14.21 4 12 4 C7.58 4 4 7.58 4 12 C4 16.42 7.58 20 12 20 "
-        + "C15.73 20 18.84 17.45 19.73 14 H17.65 C16.83 16.33 14.61 18 12 18 C8.69 18 6 15.31 6 12 "
-        + "C6 8.69 8.69 6 12 6 C13.66 6 15.14 6.69 16.22 7.78 L13 11 H20 V4 Z";
-    private static final String ICON_SAVE = "M4 4 H17 L20 7 V20 H4 Z M7 4 H15 V10 H7 Z M8 13 H16 V20 H8 Z";
-    private static final String ICON_SKILLS =
-        "M9 21 H15 V22 H9 Z M8 18 H16 V20 H8 Z M12 2 C8.13 2 5 5.13 5 9 C5 11.38 6.19 13.47 8 14.74 "
-        + "V17 H16 V14.74 C17.81 13.47 19 11.38 19 9 C19 5.13 15.87 2 12 2 Z";
-    private static final String ICON_OPEN = "M4 4 H20 V16 H8 L4 20 Z";
-    private static final String ICON_RENAME =
-        "M3 17.25 V21 H6.75 L17.81 9.94 L14.06 6.19 Z "
-        + "M20.71 7.04 C21.1 6.65 21.1 6.02 20.71 5.63 L18.37 3.29 C17.98 2.9 17.35 2.9 16.96 3.29 "
-        + "L15.13 5.12 L18.88 8.87 Z";
+    // Shared inline-SVG button glyphs live in ButtonIcons; the aliases keep call sites short.
+    private static final String ICON_WIZARD = ButtonIcons.WIZARD;
+    private static final String ICON_ADD = ButtonIcons.ADD;
+    private static final String ICON_TEST = ButtonIcons.TEST;
+    private static final String ICON_DELETE = ButtonIcons.DELETE;
+    private static final String ICON_REFRESH = ButtonIcons.REFRESH;
+    private static final String ICON_SAVE = ButtonIcons.SAVE;
+    private static final String ICON_SKILLS = ButtonIcons.SKILLS;
 
     private static void applyButtonIcon(Button button, String svgPathData) {
-        SVGPath icon = new SVGPath();
-        icon.setContent(svgPathData);
-        // Match the button text color (terminal.css .button) so icons stay visible on the dark theme.
-        icon.setStyle("-fx-fill: #cccccc;");
-        icon.setScaleX(0.6);
-        icon.setScaleY(0.6);
-        button.setGraphic(icon);
-        button.setGraphicTextGap(6);
+        ButtonIcons.apply(button, svgPathData);
     }
 
     private void openProfileWizard() {
@@ -1091,6 +955,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 if (object == null) {
                     return "";
                 }
+                if (object == AiConnectionMode.EMBEDDED_MLX && !de.kortty.ai.mlx.MlxPlatform.isSupported()) {
+                    return I18n.get("settings.ai.connectionMode.embedded_mlx.unavailable");
+                }
                 return I18n.get("settings.ai.connectionMode." + object.name().toLowerCase(Locale.ROOT));
             }
 
@@ -1122,6 +989,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private String modelTextForReasoning() {
+        if (isEmbeddedModeSelected()) {
+            return selectedProfile != null ? trimToNull(selectedProfile.getEmbeddedModelId()) : trimToNull(modelEditorText());
+        }
         if (isCliModeSelected()) {
             String editorText = trimToNull(modelEditorText());
             if (AI_MODEL_DEFAULT_LABEL.equals(editorText)) {
@@ -1143,6 +1013,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void loadModelSelection(AiProfile profile) {
+        if (profile != null && profile.getConnectionMode().isEmbedded()) {
+            List<String> ids = localEmbeddedModelIds(profile.getConnectionMode());
+            String configured = trimToNull(profile.getEmbeddedModelId());
+            if (configured != null && !ids.contains(configured)) {
+                ids = new ArrayList<>(ids);
+                ids.add(configured);
+            }
+            modelCombo.getItems().setAll(ids);
+            modelCombo.getEditor().setText(configured != null ? configured : "");
+            return;
+        }
         if (profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             loadCliModelSelection(profile);
             return;
@@ -1166,6 +1047,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void snapshotModelSelection(AiProfile profile) {
+        if (profile.getConnectionMode().isEmbedded()) {
+            profile.setEmbeddedModelId(trimToNull(modelEditorText()));
+            profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+            profile.setModel(null);
+            return;
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String editorText = trimToNull(modelEditorText());
             if (AI_MODEL_DEFAULT_LABEL.equals(editorText)) {
@@ -1196,6 +1083,16 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void refreshLocalModels(boolean showErrors) {
         if (modelCombo == null || apiUrlField == null) {
+            return;
+        }
+        if (isEmbeddedModeSelected()) {
+            List<String> ids = localEmbeddedModelIds(selectedConnectionMode());
+            String selected = trimToNull(modelEditorText());
+            modelCombo.getItems().setAll(ids);
+            if (selected != null) {
+                modelCombo.getEditor().setText(selected);
+            }
+            refreshModelsButton.setDisable(false);
             return;
         }
         if (isCliModeSelected()) {
@@ -1283,6 +1180,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void applyModelEditorSelection(AiProfile profile) {
         String editorText = trimToNull(modelEditorText());
+        if (profile.getConnectionMode().isEmbedded()) {
+            profile.setEmbeddedModelId(editorText);
+            profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+            profile.setModel(null);
+            return;
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             if (AI_MODEL_DEFAULT_LABEL.equals(editorText)) {
                 profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
@@ -1315,12 +1218,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         if (selectedProfile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
+            && !selectedProfile.getConnectionMode().isEmbedded()
             && trimToNull(selectedProfile.getApiUrl()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
         }
-        if (requiresModelForTest(selectedProfile)
-            && trimToNull(selectedProfile.getModel()) == null) {
+        if (requiresModelForTest(selectedProfile) && !hasConfiguredTestModel(selectedProfile)) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
             return;
         }
@@ -1419,11 +1322,44 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private boolean isCliModeSelected() {
+        return selectedConnectionMode() == AiConnectionMode.LOCAL_CLI;
+    }
+
+    private boolean isEmbeddedModeSelected() {
+        AiConnectionMode mode = selectedConnectionMode();
+        return mode != null && mode.isEmbedded();
+    }
+
+    /** Mode from the editor combo, falling back to the selected profile while no editor value exists. */
+    private AiConnectionMode selectedConnectionMode() {
         AiConnectionMode mode = connectionModeCombo != null ? connectionModeCombo.getValue() : null;
         if (mode != null) {
-            return mode == AiConnectionMode.LOCAL_CLI;
+            return mode;
         }
-        return selectedProfile != null && selectedProfile.getConnectionMode() == AiConnectionMode.LOCAL_CLI;
+        return selectedProfile != null ? selectedProfile.getConnectionMode() : null;
+    }
+
+    private List<String> localEmbeddedModelIds(AiConnectionMode mode) {
+        try {
+            if (mode == AiConnectionMode.EMBEDDED_MLX) {
+                return de.kortty.ai.mlx.MlxModelRegistry
+                    .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                    .list().stream()
+                    .map(de.kortty.ai.mlx.MlxModel::getId)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+            }
+            return de.kortty.ai.llama.LlamaModelRegistry
+                .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                .list().stream()
+                .filter(model -> model.getPurpose() == de.kortty.ai.llama.LlamaModelPurpose.CHAT)
+                .map(de.kortty.ai.llama.LlamaModel::getId)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+        } catch (RuntimeException error) {
+            statusLabel.setText(error.getMessage() != null ? error.getMessage() : error.getClass().getSimpleName());
+            return List.of();
+        }
     }
 
     private String selectedCliProviderId() {
@@ -1477,11 +1413,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void updateConnectionModeUi() {
         boolean cliMode = isCliModeSelected();
-        apiUrlField.setDisable(cliMode);
-        apiKeyField.setDisable(cliMode);
-        clearApiKeyCheck.setDisable(cliMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
+        boolean embeddedMode = isEmbeddedModeSelected();
+        boolean managedLocalMode = cliMode || embeddedMode;
+        apiUrlField.setDisable(managedLocalMode);
+        apiKeyField.setDisable(managedLocalMode);
+        clearApiKeyCheck.setDisable(managedLocalMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
         internetAccessModeCombo.setDisable(cliMode);
-        refreshModelsButton.setDisable(cliMode || !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText())));
+        refreshModelsButton.setDisable(cliMode
+            || (!embeddedMode && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
         refreshReasoningButton.setDisable(selectedProfile == null || profileTestRunning.get());
         cliProviderCombo.setDisable(!cliMode);
         cliExecutableField.setDisable(!cliMode);
@@ -1531,6 +1470,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setReasoningEffort(AiReasoningSupport.normalize(
             reasoningCombo.getValue(),
             AiReasoningSupport.availableEfforts(selectedProfile)));
+        selectedProfile.setPromptPreset(promptPresetCombo.getValue());
         selectedProfile.setInternetAccessMode(internetAccessModeCombo.getValue());
         selectedProfile.setMaxSelectionChars(maxSelectionCharsSpinner.getValue());
         selectedProfile.setTokenizerType(tokenizerCombo.getValue());
@@ -1571,6 +1511,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             modelCombo.getItems().setAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
             modelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
             refreshReasoningOptions(AiReasoningEffort.DISABLED);
+            promptPresetCombo.setValue(AiPromptPreset.AUTO);
             internetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             apiKeyField.clear();
             clearApiKeyCheck.setDisable(false);
@@ -1599,6 +1540,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliArgumentsTemplateArea.setText(profile.getCliArgumentsTemplate() != null ? profile.getCliArgumentsTemplate() : "");
         loadModelSelection(profile);
         refreshReasoningOptions(profile.getReasoningEffort());
+        promptPresetCombo.setValue(profile.getPromptPreset());
         refreshLocalModels(false);
         internetAccessModeCombo.setValue(profile.getInternetAccessMode());
         maxSelectionCharsSpinner.getValueFactory().setValue(
@@ -1715,12 +1657,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         if (selectedProfile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
+            && !selectedProfile.getConnectionMode().isEmbedded()
             && trimToNull(selectedProfile.getApiUrl()) == null) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
             return;
         }
-        if (requiresModelForTest(selectedProfile)
-            && trimToNull(selectedProfile.getModel()) == null) {
+        if (requiresModelForTest(selectedProfile) && !hasConfiguredTestModel(selectedProfile)) {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
             return;
         }
@@ -1781,11 +1723,21 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             return AiCliArgumentTemplate.requiresModel(profile.getCliArgumentsTemplate());
         }
+        if (profile.getConnectionMode().isEmbedded()) {
+            return true;
+        }
         return profile.getModelSelectionMode() == AiModelSelectionMode.MANUAL;
+    }
+
+    private boolean hasConfiguredTestModel(AiProfile profile) {
+        return profile.getConnectionMode().isEmbedded()
+            ? trimToNull(profile.getEmbeddedModelId()) != null
+            : trimToNull(profile.getModel()) != null;
     }
 
     private AiService createAiService(AiProfile profile) {
         if (profile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
+            && !profile.getConnectionMode().isEmbedded()
             && trimToNull(profile.getApiUrl()) == null) {
             return null;
         }

@@ -402,6 +402,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-integrated-local-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional integrated local AI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-your-own-package" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1262,6 +1273,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1574,6 +1589,62 @@
     
   
     AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
   
 
     
@@ -2018,6 +2089,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-integrated-local-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional integrated local AI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-your-own-package" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2082,6 +2164,32 @@
 </tr>
 </tbody>
 </table>
+<h2 id="optional-integrated-local-ai">Optional integrated local AI<a class="headerlink" href="#optional-integrated-local-ai" title="Permanent link">&para;</a></h2>
+<p>The base korTTY package deliberately contains neither model weights nor a native llama.cpp runtime. When you enable integrated local AI, verified runtime packages from the public <a href="https://github.com/chardonnay/kortty-llama-runtimes">korTTY llama.cpp runtime channel</a> are installed independently under <code>~/.kortty/llm/runtime/</code> and GGUF models are downloaded or imported under <code>~/.kortty/llm/models/</code> (or referenced from a path you choose). Each runtime index and package is checked against the public Ed25519 trust root pinned in the korTTY source. This keeps the normal SSH client installer small and lets llama.cpp receive compatible stable updates without replacing the whole application.</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Runtime packages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS arm64 / x86_64</td>
+<td>CPU and Metal</td>
+</tr>
+<tr>
+<td>Windows x86_64</td>
+<td>CPU and Vulkan</td>
+</tr>
+<tr>
+<td>Linux x86_64 / arm64</td>
+<td>CPU and Vulkan</td>
+</tr>
+</tbody>
+</table>
+<p>CUDA is not part of the first runtime matrix. Under <strong>AI Manager &gt; Local AI</strong>, choose the preferred runtime backend: Auto/CPU/Metal on macOS or Auto/CPU/Vulkan on Windows/Linux. On a first installation, Auto prefers Metal on macOS and falls back to CPU when no compatible Metal package is available; on Windows and Linux it prefers the portable CPU package and falls back to Vulkan only when CPU is unavailable. Updates keep the active backend when a compatible package exists. Starting a model configured for another supported GPU backend offers to install the matching signed package. Runtime and model downloads can be several gigabytes, so verify free disk space and available RAM/VRAM before installation.</p>
+<p>After installing korTTY, open <strong>AI &gt; AI Manager &gt; Local Models &gt; Setup assistant</strong>. It reviews privacy, detects memory, recommends Text/Coding/embedding GGUF models, shows the repository license and exact size, verifies the immutable download, assigns roles, and runs a real local chat or embedding function test. If no runtime is active, accept the signed-runtime installation prompt, or choose <strong>Install runtime</strong> in the same tab before importing a GGUF. The Hub's context length remains visible, while new models start conservatively at 4,096 runtime tokens until you change <strong>Configure &gt; Context size</strong>. Official packages can refresh recommendations and prompt-family mappings from a separate signed catalog; a build without that catalog trust root stays fully usable with its offline bootstrap. See <a href="../features/local-models.html">Local models with llama.cpp</a> and <a href="../features/rag.html">RAG knowledge stores</a>.</p>
 <h2 id="build-your-own-package">Build your own package<a class="headerlink" href="#build-your-own-package" title="Permanent link">&para;</a></h2>
 <p>Building from source requires a complete JDK and platform packaging tools. The dedicated guide covers the thin JAR, Java ZIP/TAR distributions, self-contained portable app images and native installers for every supported operating system, including Intel macOS builds, signing and notarization.</p>
 <p><a class="md-button" href="building-packages.html">Build korTTY packages locally →</a></p>

@@ -27,12 +27,14 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
 | [Datenschutz](../../about/anonymous-data.md) | Opt-in für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
 | [Language](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
-| [Übersetzung](translation.md) | Anbieter für dynamische Übersetzung, API-Schlüssel, Zielsprache, Sprachdatei generieren |
+| [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg`-Videoexport |
-| [AI](ai.md) | KI-Funktionen, Agentenausführung, Profile, Argumentationsaufwand, Token-Quote, Internet-Tools |
+| [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Argumentation, Quote, Internet-Tools |
 | [KI-Fähigkeiten](ai-skills.md) | Fähigkeitsdefinitionen, automatische Erkennung, Import/Export |
 
 Im Einstellungsdialog werden auch die Registerkarten **SFTP-Manager**, **Editor** und **Snippet-Editor** angezeigt, die die Standardeinstellungen für Dateimanager und Monaco-Editor (Schriftart, Farben, Cursor) für diese Tools festlegen.
+
+Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie und Wissensquellensynchronisierung live in **AI > AI Manager** und nicht im globalen Einstellungsfenster; sehen [Lokale Modelle](../../features/local-models.md) Und [RAG-Wissensspeicher](../../features/rag.md).
 
 !!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.
@@ -58,7 +60,7 @@ Einige der Konfigurationsregisterkarten (die einzelnen Registerkartenseiten zeig
 
 ![Backup settings tab](../../assets/screenshots/settings/backup.png)
 
-**KI** – Agentenausführung, Profile, Internet-Tools
+**KI** – Agentenausführung, Profile, Eingabeaufforderungseinstellungen, Internet-Tools
 { .grid-caption }
 
 ![AI settings tab](../../assets/screenshots/settings/ai.png)

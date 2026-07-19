@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">KorTTY module overview</title>
-  <desc id="desc">Runtime modules grouped into application core, user interface and browser assets, terminal stack, SSH and security, and data and tooling responsibilities.</desc>
+  <desc id="desc">Runtime modules grouped into application core including AI and RAG, user interface and browser assets, terminal stack, SSH and security, and data and local tooling responsibilities.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -33,13 +33,13 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
   <text class="title" x="42" y="52">KorTTY Module Overview</text>
-  <text class="subtitle" x="42" y="80">Runtime responsibilities and their principal libraries; Node.js remains a build tool and is not installed with the application.</text>
+  <text class="subtitle" x="42" y="80">Runtime responsibilities and principal libraries; Node.js is build-only and the optional llama-server is installed separately.</text>
 
   <rect class="panel" x="390" y="105" width="500" height="125"/>
   <rect class="header" x="390" y="105" width="500" height="45"/>
   <text class="panelTitle" x="420" y="134">Application core</text>
   <rect class="box core" x="425" y="168" width="195" height="42"/>
-  <text class="label" x="471" y="194">de.kortty services</text>
+  <text class="label" x="462" y="194">core + ai + rag</text>
   <rect class="box core" x="660" y="168" width="195" height="42"/>
   <text class="label" x="704" y="194">JobScheduler</text>
 
@@ -82,8 +82,8 @@
   <text class="detail" x="716" y="462">Ed25519 + Bouncy Castle</text>
   <rect class="box optional" x="681" y="490" width="230" height="66"/>
   <text class="label" x="751" y="513">Optional I/O</text>
-  <text class="detail" x="716" y="533">mosh4j, rsync, system ssh</text>
-  <text class="detail" x="729" y="549">target-specific natives</text>
+  <text class="detail" x="704" y="533">llama-server, mosh4j, rsync</text>
+  <text class="detail" x="720" y="549">isolated optional runtimes</text>
 
   <rect class="panel" x="964" y="280" width="290" height="300"/>
   <rect class="header" x="964" y="280" width="290" height="48"/>
@@ -106,6 +106,6 @@
   <path class="dash" d="M 620 189 C 640 250 600 420 285 523"/>
 
   <rect class="panel" x="120" y="625" width="1040" height="55"/>
-  <text class="note" x="150" y="650">Central browser services: MermaidRenderService for diagrams, WebFormatterBackend for formatting, and Monaco hosts for editing.</text>
-  <text class="note" x="150" y="670">All browser assets are bundled offline; hidden WebViews are created on demand and released after idle or disposal.</text>
+  <text class="note" x="150" y="650">Embedded AI adds authenticated llama.cpp leases; RAG adds allowlisted extraction, embeddings and local HNSW snapshots.</text>
+  <text class="note" x="150" y="670">Signed catalogs are verified independently; native model runtimes and GGUF weights remain separate installations.</text>
 </svg>

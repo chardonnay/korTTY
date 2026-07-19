@@ -3234,7 +3234,7 @@ public class SFTPManagerTab extends Tab {
         List<String> categoryNames = app.getSnippetManager().getAllCategories().stream()
             .map(SnippetCategory::getName)
             .toList();
-        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(ownerWindow, connection.getDisplayName());
+        SnippetEditDialog.AiAssist aiAssist = SnippetAiAssistFactory.create(ownerWindow, connection);
         SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames, aiAssist, config);
         if (getTabPane() != null && getTabPane().getScene() != null) {
             dialog.initOwner(getTabPane().getScene().getWindow());

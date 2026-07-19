@@ -17,6 +17,7 @@ import de.kortty.core.WorkflowScriptSupport.ScriptLanguage;
 import de.kortty.core.WorkflowScriptSupport.WorkflowContext;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiWorkload;
 import de.kortty.model.GlobalSettings;
 import de.kortty.security.EncryptionService;
 import org.slf4j.Logger;
@@ -388,7 +389,12 @@ public final class WorkflowScriptGenerator {
         if (byId != null) {
             return byId;
         }
-        return AiProfileSelectionSupport.defaultProfile(profiles, settings.getDefaultAiProfileId());
+        return AiProfileSelectionSupport.workloadProfile(
+            profiles,
+            AiWorkload.CODING,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     private String resolveApiKey(AiProfile profile) {

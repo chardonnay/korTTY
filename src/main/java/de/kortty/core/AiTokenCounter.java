@@ -61,11 +61,8 @@ public final class AiTokenCounter {
     private static String buildPreviewSystemPrompt(AiRequest request, AiSkillPromptSupport skillPromptSupport) {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String skillBlock = skillPromptSupport.buildChatSkillBlock(request);
-        if (skillBlock.isBlank()) {
-            return systemPrompt;
-        }
-        String base = systemPrompt != null ? systemPrompt.trim() : "";
-        return base.isBlank() ? skillBlock : skillBlock + "\n\n" + base;
+        return AiPromptPipeline.appendAfterSkills(
+            AiPromptPipeline.insertSkills(systemPrompt, skillBlock), request);
     }
 
     public static int estimateTokens(String text) {

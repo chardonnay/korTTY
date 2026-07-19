@@ -119,7 +119,30 @@ public final class TerminalAgentModels {
         boolean askConfirmationBeforeEveryCommand,
         boolean autoApproveRootCommands,
         boolean confirmMutatingCommandSets,
-        boolean queryOnly) {
+        boolean queryOnly,
+        boolean mirrorFinalAnswerToTerminal) {
+
+        /**
+         * Backward-compatible constructor for callers that do not choose the terminal-mirror option;
+         * it defaults to mirroring the final answer into the terminal (the historical behavior).
+         */
+        public Request(
+            String sessionId,
+            String profileId,
+            String userPrompt,
+            String connectionDisplayName,
+            String acceptedPlanContext,
+            TerminalAgentExecutionTarget executionTarget,
+            boolean showDebugMessages,
+            boolean showRuntimeMessages,
+            boolean askConfirmationBeforeEveryCommand,
+            boolean autoApproveRootCommands,
+            boolean confirmMutatingCommandSets,
+            boolean queryOnly) {
+            this(sessionId, profileId, userPrompt, connectionDisplayName, acceptedPlanContext,
+                executionTarget, showDebugMessages, showRuntimeMessages, askConfirmationBeforeEveryCommand,
+                autoApproveRootCommands, confirmMutatingCommandSets, queryOnly, true);
+        }
     }
 
     public record PlanRequest(

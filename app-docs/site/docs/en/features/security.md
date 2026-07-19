@@ -112,6 +112,12 @@ When creating or editing a connection:
 3. Select the desired key from the **SSH Keys** dropdown.
 4. The key path and passphrase are filled in automatically.
 
+## Interactive SSH host-key trust
+
+Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.
+
+Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
+
 ## GPG Key Management
 
 Manage GPG keys for backup encryption and connection/snippet export encryption.
@@ -138,23 +144,24 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 
 GPG-encrypted backups and exports are stored as `.gpg` files and require your system's `gpg` command and a usable public key for decryption.
 
-## Stored Secrets
+## Stored security data
 
-The following data is stored encrypted in `~/.kortty/`:
+The following sensitive and security-related data is stored in `~/.kortty/`; secret values are encrypted, while public verification material is not:
 
 | File | Contents | Encryption |
 |------|----------|------------|
 | `credentials.xml` | Stored username/password credentials | AES-256-GCM |
 | `ssh-keys.xml` | SSH key paths and encrypted passphrases | AES-256-GCM |
 | `connections.xml` | Connection passwords (inline) and key passphrases (if not using SSH key management) | AES-256-GCM |
+| `ssh-host-keys.properties` | Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections | Public verification data; not encrypted |
 | `job-scheduler.xml` | Scheduler sudo passwords and archive passwords; journal entries redact KorTTY-managed secrets | AES-256-GCM |
 | `master-password-hash` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
-| `global-settings.xml` | AI profile API keys, translation API keys | AES-256-GCM |
+| `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
 
 ## Security Best Practices
 
 !!! warning
-    Selected terminal text sent to AI endpoints can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. For sensitive data, prefer a trusted local endpoint such as **LM Studio**, or verify that you trust the remote endpoint before sending anything.
+    Selected terminal text sent to AI services can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. For sensitive data, prefer an integrated local GGUF model, or verify that you trust the remote endpoint before sending anything.
 
 ### Master Password
 
@@ -167,10 +174,11 @@ The following data is stored encrypted in `~/.kortty/`:
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups.
 - Limit key file permissions (e.g., `chmod 600`).
+- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
 
 ### JobScheduler
 
-- **Host-key Pinning**: Host keys are pinned by default for unattended SSH/SFTP/Rsync jobs to prevent man-in-the-middle attacks.
+- **Host-key Pinning**: Host keys are pinned by default for unattended SSH/SFTP/Rsync jobs to prevent man-in-the-middle attacks. These connection-ID pins are intentionally separate from the normalized endpoint pins used by interactive Terminal/SFTP sessions.
 - **Sudo Passwords**: Scheduler sudo passwords are encrypted and stored in `~/.kortty/job-scheduler.xml`.
 - **Journal Redaction**: Job journal entries redact KorTTY-managed secrets before persistence (redacted mode is the default; full mode stores unredacted output).
 
@@ -183,7 +191,15 @@ The following data is stored encrypted in `~/.kortty/`:
 ### AI Integration
 
 - API keys for AI endpoints are encrypted with your master password.
-- AI profile configuration is stored locally; only your reviewed terminal selection or prompt is sent to the endpoint.
+- The optional Hugging Face token is encrypted with the master password and is used only for approved model search/download requests to the trusted Hugging Face host.
+- Each integrated `llama-server` binds only to `127.0.0.1` on a random port and requires a generated local API key. Offline mode is mandatory; web UI, agent, UI MCP proxy, slot endpoint, and inherited server-option overrides are disabled.
+- GGUF downloads require an immutable repository revision and exact SHA-256 metadata. Runtime indexes require an Ed25519 signature, and every runtime ZIP is checked against its signed size and SHA-256 before safe extraction. Official application builds embed only the public runtime-channel trust root; a missing or invalid key fails closed before any update request, while the signing private key remains isolated in the human-dispatched promotion workflow.
+- Signed runtime withdrawals are durable and fail closed. A verified index adds withdrawn runtime and installation IDs to `llm/runtime/revoked-v1`, marks each installed package, clears a matching active pointer, stops its sidecars, removes it from healthy rollback history, and quarantines affected model bindings. The installer and process launcher both reject those packages, including after an interrupted update. Notification-only checks enforce a withdrawal without silently installing the offered replacement; **Off** makes no index request and therefore learns no new withdrawal until an explicit or enabled check.
+- A newly activated runtime is not promoted to healthy history merely because its bounded `--version` check passed. It remains pending until the first real GGUF-backed authenticated API start succeeds; that start failing removes the candidate and restores/rebinds the newest healthy non-revoked package when one exists.
+- Model recommendations and automatic prompt-family detection can refresh from a separate Ed25519-signed HTTPS catalog. The last valid cache is re-verified before use, and a monotonic sequence rejects signed older replays or equal-sequence version collisions before an atomic high-water update. Without the independent catalog public key, korTTY trusts neither network nor cache data and falls back to the built-in bootstrap. Production catalog and runtime signing are restricted to their main-branch, reviewer-protected GitHub environments; application builds receive only the public trust roots.
+- AI profile configuration is stored locally; only your reviewed terminal selection or prompt is sent to the chosen service. Embedded inference stays on this computer.
+- Knowledge-store scanning follows a fixed text allowlist, validates content, refuses symbolic links, and presents a preview. Only bounded retrieved excerpts, not the complete knowledge store, enter the model prompt. Those excerpts stay local for integrated/loopback profiles but leave the computer when an explicitly assigned cloud profile handles the request; knowledge-store roles and persisted profile assignments are the user's disclosure authorization.
+- Remote Qdrant knowledge stores require HTTPS; plain HTTP is accepted only for loopback, and the optional API key remains vault-protected.
 - Internet access is disabled by default for AI profiles; enable only when needed.
 - Snippet AI actions never use internet access, even if the profile has it enabled.
 
@@ -194,7 +210,13 @@ The following data is stored encrypted in `~/.kortty/`:
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation, silent exact match, hard block on change |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
+| Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
+| GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |
+| Model/prompt catalog | Independent Ed25519 trust root, strict schema, monotonic anti-replay sequence, reverified atomic cache, protected human promotion, bootstrap fallback |
+| RAG source ingestion | Central allowlist, UTF-8/PDF content checks, no symlink traversal, reviewed preview |
+| RAG prompt context | Fixed retrieval limits, stable source markers, explicitly untrusted wrapper, explicit profile-based local/cloud disclosure |
 | Backup Encryption | Password-protected ZIP or GPG-encrypted |
 | JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
 | JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
@@ -221,7 +243,14 @@ All KorTTY data is stored under `~/.kortty/`. Key security-related files:
 ├── ssh-keys.xml             # SSH key paths and encrypted passphrases
 ├── gpg-keys.xml             # GPG keys for backup/export encryption
 ├── connections.xml          # Connection passwords and key passphrases
+├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
 ├── global-settings.xml      # AI API keys and other encrypted settings
+├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+├── llm/runtime/             # Regenerable native packages; excluded from backup
+├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+├── rag/stores.json          # Knowledge-store/source configuration
+├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
 ├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
 ├── kortty.log               # Application log
 └── history/                 # Compressed terminal session history

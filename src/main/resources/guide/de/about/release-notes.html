@@ -1180,6 +1180,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1492,6 +1496,62 @@
     
   
     KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
   
 
     
@@ -1865,15 +1925,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v251" class="md-nav__link">
+  <a href="#v252" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.5.1
+        v2.5.2
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.5.1">
+    <nav class="md-nav" aria-label="v2.5.2">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1881,6 +1941,39 @@
     <span class="md-ellipsis">
       
         Energieverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrierte-lokale-ki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrierte lokale KI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-wissensspeicher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG Wissensspeicher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-ai-laufzeit-und-backup-lebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local-AI-Laufzeit- und Backup-Lebenszyklus
       
     </span>
   </a>
@@ -2602,15 +2695,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v251" class="md-nav__link">
+  <a href="#v252" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.5.1
+        v2.5.2
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.5.1">
+    <nav class="md-nav" aria-label="v2.5.2">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2618,6 +2711,39 @@
     <span class="md-ellipsis">
       
         Energieverwaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrierte-lokale-ki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrierte lokale KI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-wissensspeicher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG Wissensspeicher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-ai-laufzeit-und-backup-lebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local-AI-Laufzeit- und Backup-Lebenszyklus
       
     </span>
   </a>
@@ -3259,10 +3385,39 @@
 
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
-<h2 id="v251">v2.5.1<a class="headerlink" href="#v251" title="Permanent link">&para;</a></h2>
+<h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
 <h3 id="energieverwaltung">Energieverwaltung<a class="headerlink" href="#energieverwaltung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Aktivitätsbasierte Energieverwaltung</strong> – macOS App Nap wird unterdrückt, während ein Scheduler-Job, eine AI-Anfrage oder eine Terminal-Eingabe/Ausgabe aktiv ist (mit einem 60-sekündigen Ende der Terminalaktivität). Hintergrundfenster parken regelmäßige Statusaktualisierungen und Designanimationen, und der Scheduler verfügt über keinen Abfrage-Timer, wenn keine aktivierte zukünftige Ausführung vorhanden ist. Unter macOS wird die Verhinderung des Ruhezustands des Systems an einen separaten <code>caffeinate</code>-Helfer delegiert, sodass der korTTY-Prozess weiterhin für App Nap geeignet ist. Unter macOS und Windows hält <strong>Konfiguration &gt; System-Ruhezustand verhindern</strong> den Computer nur dann wach, wenn ein Terminal angeschlossen ist, ein zukünftiger oder laufender Scheduler-Job existiert oder eine AI-Anfrage aktiv ist; Ohne diese Aktivitäten bleibt der Systemschlaf auch dann verfügbar, wenn die dauerhafte Einstellung aktiviert ist. Der Display-Ruhezustand ist davon nicht betroffen und Linux zeigt die Option als noch nicht unterstützt an.</li>
+</ul>
+<h3 id="integrierte-lokale-ki">Integrierte lokale KI<a class="headerlink" href="#integrierte-lokale-ki" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Eine Update-Richtlinie für beide Laufzeiten</strong> – die Einstellung „Local AI <strong>Laufzeit-Updates</strong>“ (Aus / Mich benachrichtigen / Stabile Updates automatisch installieren) regelt jetzt sowohl die MLX-Laufzeit als auch llama.cpp. Beim Start und beim Speichern überprüft korTTY den signierten stabilen Index der MLX-Laufzeitumgebung nach derselben Richtlinie: „Benachrichtigen“ zeigt nur dann ein Aktualisierungs-Popup an, wenn eine MLX-Laufzeitumgebung installiert ist, und „Automatisch“ installiert das neueste signierte MLX-Paket, sobald es inaktiv ist. Ein signierter MLX-Rückzug wird jetzt auch im Nachhinein erzwungen – der aktive Zeiger wird gelöscht, Sidecars werden angehalten und die zurückgezogene ID wird auf die Sperrliste gesetzt, sodass sie nie wieder installiert werden kann – und schließt die Lücke, in der eine widerrufene MLX-Laufzeit bis zur nächsten manuellen Installation weiterlaufen könnte.</li>
+<li><strong>Laufzeitübersicht mit Entfernung und verifiziertem lokalen Import</strong> – eine Laufzeittabelle in Local Models zeigt beide eingebetteten Laufzeiten (llama.cpp und auf Apple Silicon MLX) mit ihrer installierten Version, ihrem Backend und dem Status „Bereit/Nicht installiert/Widerrufen“. Pro Laufzeit können Benutzer über den signierten stabilen Kanal installieren oder aktualisieren (MLX installiert jetzt in der App über den rollierenden <code>mlx-stable</code>-Index), die Laufzeit entfernen (nur im Leerlauf; die Sperrliste bleibt bestehen) oder eine lokale Paketdatei importieren, die nur akzeptiert wird, wenn ihr SHA-256 mit einem nicht widerrufenen Eintrag des Ed25519-signierten Index übereinstimmt – verifizierte lokale Pakete laufen über die identische Installationsmaschinerie als Downloads.</li>
+<li><strong>MLX-Modelle auf Apple Silicon</strong> – auf Apple Silicon Macs sucht, lädt, registriert und führt der Local Models Manager zusätzlich <a href="https://github.com/ml-explore/mlx">MLX</a>-Modelle über den offiziellen <code>mlx_lm.server</code> aus, verpackt in korTTYs eigenem authentifizierten Nur-Loopback-Launcher mit Offline-Hugging-Face-Zugriff, bereinigter Prozessumgebung und inaktivem Selbstausstieg. Eine neue Profilverbindung <strong>Integrated MLX (Apple Silicon)</strong> wählt das installierte Modell aus; Die Laufzeit wird als separat signiertes Paket (angeheftetes verschiebbares CPython plus Hash-gesperrte mlx-lm-Räder) geliefert, das von einer neuen CI-Pipeline erstellt wurde, mit einem Entwicklerskript für nicht signierte lokale Pakete. MLX-Repositorys werden als vollständig verifizierte Verzeichnisse heruntergeladen – SHA-256 für LFS-Dateien und der Git-Blob-Hash für kleine In-Tree-Dateien – und Reasoning-Modelle erhalten die gleiche Inline-Gedankenkettentrennung wie GGUF-Modelle.</li>
+<li><strong>Sortierbarer, hardwaregefilterter Hugging Face-Browser</strong> – jede Spalte der Modellsuche wird aufsteigend/absteigend mit einem Kopfpfeil sortiert (Größen und Kontext numerisch, Hardwareschätzung vom besten zum schlechtesten), und die Ergebnisse sind auf Repositorys beschränkt, die dieser Computer tatsächlich ausführen kann: Zeilen ohne Größenmetadaten oder über den erkannten Speicher hinaus bleiben verborgen, während korTTY die Auflistung mit genauen Metadaten pro Repository im Hintergrund vervollständigt und die Statuszeile die angezeigten/verborgenen Zahlen meldet. Auf Apple Silicon schaltet ein Formatselektor zwischen GGUF, MLX und beiden um, wobei jede Zeile durch eine Formatspalte identifiziert wird.</li>
+<li><strong>Aktionsleistensymbole</strong> – jede Schaltfläche in lokalen Modellen (Installieren, Setup-Assistent, Importieren, Konfigurieren, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten/Fortsetzen, Abbrechen) trägt jetzt ein passendes Symbol, das mit den anderen AI Manager-Registerkarten übereinstimmt.</li>
+<li><strong>Robuste lokale Argumentationsantworten (einschließlich gpt-oss)</strong> – der angeheftete llama.cpp-Server antwortet gelegentlich auf eine ganze Antwort mit HTTP 500 („entspricht nicht dem erwarteten peg-nativen Format“, z. B. von den Snippet-Code-Analyseaktionen oder dem Terminalagenten); korTTY wiederholt jetzt automatisch einen lokalen Serverfehler, eine leere Antwort oder eine reine Begründungsantwort und trennt defensiv alle Inline-Gedankenketten (sowohl <code>&lt;think&gt;</code>- als auch gpt-oss-Harmony-Marker <code>&lt;|channel|&gt;</code>) von der Antwort. Chat-Sidecars behalten die standardmäßige Argumentationsanalyse des Servers bei, anstatt sie zu deaktivieren, da Harmonie-/Kanalmodelle wie gpt-oss diese Analyse erfordern, um überhaupt eine endgültige Antwort auszugeben – wenn sie deaktiviert war, blieben sie nach ihrem Analysekanal hängen und gaben keine Antwort zurück (was den Terminalagenten für gpt-oss kaputt machte). Der Terminalagent liest jetzt auch explizit eine unsichtbare Datei mit einem <code>cat</code>/<code>head</code>-Befehl, bevor er handelt, anstatt den Inhalt als nicht verfügbar zu melden.</li>
+<li><strong>Laufzeitaktualisierungsbenachrichtigung nur bei Installation</strong> – die Startbenachrichtigung über eine verfügbare llama.cpp-Laufzeit erscheint nur, wenn eine Laufzeit tatsächlich installiert ist; Ohne eines (nie installiert oder entfernt) wird das verfügbare Paket in „Lokale Modelle“ ohne Popup aufgeführt.</li>
+<li><strong>Private GGUF-Inferenz ohne LM Studio oder Ollama</strong> – KI-Profile können ein installiertes <strong>Integriertes llama.cpp</strong>-Modell verwenden. korTTY startet einen authentifizierten Nur-Loopback-Sidecar pro kompatibler GGUF-Konfiguration, teilt ihn über Anforderungsleasing, unterstützt mehrere verschiedene Modelle gleichzeitig, meldet den vollständigen Lade-/Beschäftigt-/Ruhezustand-/Fehler-Lebenszyklus und entlädt Tensoren nach einer konfigurierbaren Leerlaufzeit von 1–1.440 Minuten (standardmäßig 10 Minuten) oder nie.</li>
+<li><strong>Direkte lokale Profilauswahl</strong> – Wenn Sie <strong>Integrated llama.cpp</strong> in einem AI-Profil auswählen, wird jetzt ein dedizierter <strong>Lokales GGUF-Modell</strong>-Selektor angezeigt. Es listet installierte Chat-Modelle auf und behält die ausgewählte Registrierungs-ID bei, sodass keine lokale API-URL oder ein manuell eingegebener Modellname erforderlich ist.</li>
+<li><strong>Hugging Face-Modellmanager und Anfängerassistent</strong> – <strong>KI &gt; KI-Manager &gt; Lokale Modelle</strong> durchsucht GGUF-Repositories nach Architektur, Quantisierung, Lizenz, ausgewählter Quantisierungsgröße, Kontext und Hardwareschätzungen; Die Cursor-Paginierung behält frühere Übereinstimmungen bei, wenn <strong>Weitere laden</strong> ausgewählt ist. Wenn Sie ein Ergebnis auswählen, werden bei Bedarf exakte Dateimetadaten in ihrer unveränderlichen Revision geladen, die gewählte Quantisierung bleibt erhalten, während die Größen- und Hardwareschätzung aktualisiert wird, und Projektor-, Quantisierungsmatrix- und spekulative Dekodierungshilfs-GGUFs werden von Sprachmodell-Downloads ausgeschlossen. Nach der Lizenz-/Größenbestätigung identifiziert ein fester unterer Bereich das Repository, die Quantisierung, die Datei/den Shard und die übertragenen Bytes und meldet neben den Steuerelementen für Pause/Fortsetzen/Abbrechen die verstrichene Zeit, die adaptive Übertragungsrate und die verbleibende Zeit. Unveränderliche Downloads behalten fortsetzbare <code>.part</code>-Daten bei Abbruch oder Manager-Schließung bei und verwenden Range/If-Range-, Free-Space-, Multipart- und SHA-256-Prüfungen; Importe verwenden verwaltete Kopien oder externe Referenzen; und neue Registrierungen beginnen mit einem konservativen Laufzeitkontext von 4.096 Token. Der sechsstufige Einsteigerablauf bietet unabhängig voneinander optionale Text-, Codierungs- und Einbettungsslots, überprüft asynchron die feste Revision/Quantisierung/Lizenz/exakte Größe, installiert die Laufzeit und GGUFs, ohne JavaFX einzufrieren, führt einen echten Chat- oder Einbettungstest für jedes Modell durch und behält die Rollenzuweisungen erst bei, nachdem alle Tests bestanden wurden.</li>
+<li><strong>Text-/Coding-Rollen und Modell-Prompt-Voreinstellungen</strong> – separate Text-/Übersetzungs- und Coding-Profilzuweisungen greifen sicher über explizite/Sicherheits-/Verbindungsoptionen auf die Standardeinstellungen zurück. Automatische oder erzwungene Llama-, Qwen-, Mistral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Voreinstellungen verbessern die Konformität mit kleinen/lokalen Modellformaten, ohne strenge JSON-, Code-Payload- oder Sicherheitsverträge zu schwächen. Die dynamische Schnittstellenübersetzung kann das lokale Textprofil ohne einen API-Schlüssel des Übersetzungsanbieters verwenden.</li>
+<li><strong>Separat signierte Empfehlung und voreingestellter Katalog</strong> – ein Modell-/Eingabeaufforderungskatalog mit strengem Schema wird manuell aus einer durch Prüfer geschützten Signaturumgebung als unveränderliches JSON plus getrennte Ed25519-Signatur heraufgestuft. Eine monotone Sequenz blockiert signierte ältere Wiederholungen und Sequenz-/Versionskollisionen in der Anwendung und muss bei offiziellen Werbeaktionen zunehmen. Die fünf Bootstrap-Empfehlungen umfassen konkrete Hugging Face-Commits mit 40 Zeichen anstelle veränderlicher Köpfe. Der letzte gültige Cache wird einmal im Hintergrund erneut überprüft und aktualisiert. Ein fehlender Vertrauensstamm deaktiviert die Netzwerk- und Cache-Vertrauensstellung und hält den integrierten Bootstrap offline verfügbar.</li>
+<li><strong>Modeless AI Manager mit dauerhafter Navigation</strong> – der Manager kann geöffnet bleiben, während das Hauptfenster nutzbar bleibt, und ein erneuter Aufruf stellt dieselbe Instanz wieder her und fokussiert sie, anstatt ein Duplikat zu öffnen. Eine fette Akzentunterstreichung markiert weiterhin den offenen Abschnitt – Profile, lokale Modelle, Wissensspeicher, lokale KI, gespeicherte Chats oder Schwarm-Chats –, nachdem der Fokus in eine Tabelle, ein Suchfeld oder eine Aktionsschaltfläche verschoben wurde.</li>
+</ul>
+<h3 id="rag-wissensspeicher">RAG Wissensspeicher<a class="headerlink" href="#rag-wissensspeicher" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Überprüfte Dateien und Ordner statt HNSW-Konfiguration</strong> – Die Registerkarte „Wissensspeicher“ erstellt einen lokalen Kosinus-HNSW-Speicher und scannt einzelne Dateien oder rekursive Verzeichnisse asynchron anhand einer festen Text-Zulassungsliste, bevor eine bestätigbare Vorschau angezeigt wird. Es zählt akzeptierte/unveränderte/geänderte Dateien, listet übersprungene Einträge mit Gründen auf, unterstützt die automatische/manuelle Synchronisierung pro Quelle und bietet Aktionen zum Abbrechen/Deaktivieren/Entfernen/Aktualisieren/Testen der Suche, während überlappende Scan-/Indexjobs abgelehnt werden. Binäre/Nicht-UTF-8-Daten, geschützte oder reine Bild-PDFs, nicht unterstützte Formate, symbolische Links, versteckte/Build-/Abhängigkeitspfade und überlappende Quellen werden explizit abgelehnt oder übersprungen.</li>
+<li><strong>Inkrementelle, ausfallsichere hierarchische Indizierung</strong> – nur Inhalts-Hash-Änderungen werden in etwa 800-Token-Auszüge mit 120-Token-Überlappung neu aufgeteilt und über das ausgewählte lokale Modell eingebettet. Kandidaten für mehrschichtige HNSW v2-Snapshots werden geleert und atomar aktiviert; Legacy v1-Snapshots werden beim Öffnen migriert, und bei einem Abbruch oder einem schwerwiegenden Scan-/Einbettungsfehler bleibt das vorherige Diagramm erhalten. Ein Quellstamm, der tatsächlich gelöscht wurde, entfernt stattdessen atomar seine veralteten Teile und wird zu <strong>FEHLT</strong>. Der Startabgleich erfasst automatische Quelländerungen, die während des Schließens von korTTY vorgenommen wurden, während der beibehaltene Status, der Hash, die Anzahl der Dateien/Chunks/Probleme und Abschlusszusammenfassungen die Benutzeroberfläche über Neustarts hinweg informativ halten. Qdrant ist als optionales zweites Backend verfügbar.</li>
+<li><strong>Begrenzter, nicht vertrauenswürdiger Abruf mit Zitaten</strong> – Wissensspeicher mit Rollenzuordnung tragen höchstens sechs Auszüge bei, zwei pro Quelle, 4.000 Token und 25 % des Modellkontexts. Auszüge werden innerhalb von <code>&lt;retrieved_context&gt;</code> mit stabilen <code>[R1]</code>-Quellmarkierungen nach Aktions-/Fertigkeitsanweisungen und vor der Modellvoreinstellung maskiert; Der vollständige Speicher wird nie gesendet, aber die explizite Zuweisung eines Cloud-Profils ermöglicht es den abgerufenen Auszügen, den Computer zu verlassen. Agent, Planung, Schwarm und geplante autonome Abläufe erfordern eine explizite Zustimmung.</li>
+</ul>
+<h3 id="local-ai-laufzeit-und-backup-lebenszyklus">Local-AI-Laufzeit- und Backup-Lebenszyklus<a class="headerlink" href="#local-ai-laufzeit-und-backup-lebenszyklus" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Unabhängig aktualisierte, widerruf- und rollbacksichere llama.cpp-Pakete</strong> – korTTY CI erkennt Kandidaten-Pins, während das öffentliche <a href="https://github.com/chardonnay/kortty-llama-runtimes">llama.cpp-Laufzeit-Repository </a> den genau überprüften Commit neu erstellt, die komplette CPU/Metal/Vulkan-Plattformmatrix plus authentifizierten Chat, Einbettungen, JSON-Schema, Sleep/Wake, Parallel-Sidecar- und Pinned-Qdrant-Smokes und nur Signierungen ausführt nach geschützter menschlicher Förderung. Der öffentliche Trust-Stamm Ed25519 ist in der Anwendungsquelle angeheftet. Der Manager für lokale Modelle installiert oder aktualisiert das bevorzugte Backend (Metal zuerst unter macOS, CPU zuerst an anderer Stelle mit Vulkan-Fallback), während die Startrichtlinie Aus/Benachrichtigen/Automatisch stabil unterstützt. Verifizierte Abhebungen behalten eine Denylist- und Paketquarantänemarkierung bei, stoppen/binden betroffene Sidecars neu und entfernen unsichere Rollback-Kandidaten; Neue Pakete werden nur im Leerlauf aktiviert und bleiben bis zum ersten echten GGUF/API-Start ausstehend, bei dessen Fehlschlagen die neueste fehlerfreie, nicht widerrufene Version wiederhergestellt wird. Die beiden neuesten bestätigten fehlerfreien Versionen bleiben verfügbar.</li>
+<li><strong>Interaktives SSH/SFTP/Mosh-Hostschlüsselvertrauen</strong> – ein gemeinsamer <code>~/.kortty/ssh-host-keys.properties</code>-Speicher fixiert jeden normalisierten Host und Port mit einem OpenSSH SHA-256-Fingerabdruck. Die erste Nutzung wird verweigert, bis der Benutzer den Fingerabdruck bestätigt. Ein geänderter Schlüssel wird ohne erneuten Authentifizierungsversuch hart blockiert. Der Speicher wird prozessübergreifend atomar zusammengeführt und in verschlüsselte Backups einbezogen, während die separaten unbeaufsichtigten Hostschlüssel-Pins von JobScheduler unverändert bleiben.</li>
+<li><strong>Terminal- und Diagnosehärtung</strong> – die SithTermFX-Hyperlinkgrenze in der unteren Zeile ist gepatcht und regressionsgetestet, geteilte Handshakes bleiben vom JavaFX-Thread fern und die Testprotokollierung schreibt keine Stack-Traces für negative Fälle mehr in das Live-Verzeichnis <code>~/.kortty/logs</code> eines Entwicklers. Bei Laufzeitinstallationsfehlern bleiben jetzt vollständige Ursachen und Stack-Traces in <code>kortty.log</code> erhalten.</li>
+<li><strong>Portable Konfiguration ohne riesige Backups</strong> – verschlüsselte Backups umfassen lokale Modellregistrierungen, Text-/Codierungs-/RAG-Einstellungen und Wissensquellen-Metadaten, während GGUF-Gewichte, native Laufzeiten, temporäre Sidecars, Originaldokumente und regenerierbare HNSW-Snapshots ausgeschlossen sind. Die Anleitung enthält eine vollständige Dokumentation zu lokalem Modell, RAG, Sicherheit, Installation, Verpackung und Wiederherstellung sowie ein neues Indexierungs-/Abrufdiagramm.</li>
 </ul>
 <h3 id="freigabe-und-verpackung">Freigabe und Verpackung<a class="headerlink" href="#freigabe-und-verpackung" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3290,7 +3445,7 @@
 <h3 id="ai-codeanalyse">AI-Codeanalyse<a class="headerlink" href="#ai-codeanalyse" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Wählen Sie die KI-Textsprache in jedem Snippet-Editor</strong> – ein neuer <strong>KI-Textsprachen-Selektor</strong> steuert die Rechtschreibkorrektur sowie neue oder neu geschriebene Codekommentare und benutzerseitige Zeichenfolgen unabhängig von der korTTY-Schnittstelle und der Programmiersprache. Analyseberichte, Verbesserungsbeschreibungen und Diagrammbeschriftungen folgen weiterhin der Oberflächensprache; <strong>Ausgewählte anwenden</strong> verwendet die separate Auswahl für den generierten Code. Eine Änderung kann für diesen Editor vorübergehend bleiben oder als Standard für zukünftige Editoren gespeichert werden.</li>
-<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke. <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
+<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke; <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
 <li><strong>Die Massenauswahl ändert keine Abhängigkeiten mehr</strong> – das klar gekennzeichnete Steuerelement <strong>Alle Verbesserungen auswählen</strong> schaltet jetzt nur noch Sicherheits-, Optimierungs- und Designvorschläge um. Jede Abhängigkeit behält ihren unabhängigen ausgewählten oder nicht ausgewählten Status.</li>
 <li><strong>Wählen Sie die KI-Fähigkeiten für eine Analyse aus</strong> – das Fenster <strong>Vollständige Codeanalyse</strong> zeigt jetzt an, welche KI-Fähigkeiten enthalten waren, als Chips mit einem <em>(automatisch ausgewählten)</em> oder <em>(manuell)</em>-Abzeichen, und ermöglicht Ihnen, sie mit einer <strong>durchsuchbaren</strong> Auswahl zu ändern (nach Name, Beschreibung oder Tags filtern). Ihre Änderungen werden bei der nächsten <strong>Wiederholung</strong> wirksam, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fähigkeiten ausführt. korTTY wählt außerdem vor der ersten Analyse automatisch die für das Snippet relevanten Fähigkeiten aus, sodass der Satz sofort aussagekräftig ist.</li>
 <li><strong>Härtungsoptionen zeigen eine Zählung an und merken sich ihren Status</strong> – der Titel des Panels <em>Härtungsoptionen</em> zeigt jetzt an, wie viele Optionen aktiviert sind (z. B. <em>Härtungsoptionen (11)</em>), und das Fenster merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben.</li>
@@ -3309,7 +3464,7 @@
 <li><strong>Die Snippet-KI-Übersetzung gilt jetzt für Text, der in Kommentaren und Zeichenfolgen ausgewählt wird.</strong> – <strong>KI-Text → Auswahl übersetzen…</strong> und die Kontextmenüaktion des Editors behalten die ursprüngliche Auswahl bei, während das Zielsprachendialogfeld geöffnet ist, und verwenden das umgebende Snippet, um teilweise Kommentar- oder Zeichenfolgenauswahlen zu erkennen. Wenn Sie also eine Sprache bestätigen, wird jetzt die KI aufgerufen und der ausgewählte Text ersetzt, anstatt nichts zu tun.</li>
 <li><strong>Transparenz überlebt geteilte Terminals</strong> – Beim Öffnen horizontaler, vertikaler oder verschachtelter geteilter Fenster wird die konfigurierte Terminaltransparenz nicht mehr durch den undurchsichtigen Hintergrund des Themas ersetzt. Jeder neue Bereich erbt die aktive Ebene; Der Vollbildmodus bleibt vorübergehend undurchsichtig und stellt die gespeicherte Transparenz in allen Bereichen wieder her, wenn Sie ihn verlassen.</li>
 <li><strong>Das Hilfefenster bleibt im Hintergrund sichtbar</strong> – korTTY löscht den linken Inhaltsbereich nicht mehr, nachdem das Fenster 20 Sekunden lang nicht fokussiert war. Das frühere Verhalten könnte einen völlig weißen Bereich neben der KI-Suche hinterlassen. WebViews werden weiterhin freigegeben, wenn Benutzer die entsprechende Ansicht schließen, und unsichtbare Rendering-Dienste behalten ihre Leerlaufbereinigung bei.</li>
-<li><strong>Die vollständige Codeanalyse zeigt wieder ihre Änderungsvorschau an</strong> – nach <strong>Auswahl anwenden</strong> wartet korTTY nun, bis das Analysefenster vollständig geschlossen ist, und bringt das Side-by-Side-Überprüfungsfenster vor den Snippet-Editor. Der Editor bleibt unverändert, bis <strong>Änderung übernehmen</strong> in dieser Vorschau bestätigt wird.</li>
+<li><strong>Die vollständige Codeanalyse zeigt wieder ihre Änderungsvorschau an</strong> – nach <strong>Auswahl anwenden</strong> wartet korTTY nun, bis das Analysefenster vollständig geschlossen ist, und bringt das Side-by-Side-Überprüfungsfenster vor den Snippet-Editor. Der Editor bleibt unverändert, bis <strong>Änderung anwenden</strong> in dieser Vorschau bestätigt wird.</li>
 <li><strong>Kein Absturz, wenn das Speichern eines Snippets fehlschlägt</strong> – Das Speichern eines Snippets als neuer Eintrag könnte, wenn das Speichern fehlschlägt, beim Versuch, die Fehlermeldung anzuzeigen, mit einem Nullzeigerfehler abstürzen. Der Fehler wird nun sauber gemeldet.</li>
 <li><strong>Bei „Als neues Snippet speichern“ wird kein falscher „Bereits vorhanden“-Fehler mehr angezeigt</strong> – nachdem ein Snippet bearbeitet (z. B. durch Anwenden von Analyseverbesserungen) und unter einem neuen Namen mit <strong>Als neues Snippet speichern</strong> gespeichert wurde, wurde von korTTY fälschlicherweise <em>„Snippet-Name existiert bereits“</em> angezeigt, obwohl das Snippet gerade korrekt gespeichert wurde. Der Dialog übermittelt seinen Speichervorgang nun genau einmal.</li>
 </ul>
@@ -3435,7 +3590,7 @@
 <h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Fünf neue App-Designs</strong> – <em>Amber CRT</em> (warmes Bernstein-Phosphor-Retro-Terminal), <em>Synthwave '84</em> (80er-Jahre-Outrun-Neon), <em>Gruvbox Retro</em> (gemütlich warm erdig), <em>Nord Arctic</em> (ruhiges, flaches arktisches Blaugrau) und <em>Dracula</em> (sanftes Lila/Rosa) ergänzen die bestehenden Designs unter <em>Einstellungen → Aussehen</em>, jedes mit seinem eigenen Vorschaubild. Die bestehenden Designs bleiben unverändert.</li>
-<li><strong>Dezente Designanimationen umschalten</strong> – eine neue Darstellungseinstellung (Standardeinstellung) lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einatmen; Das Ausschalten dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster ausgeblendet ist.</li>
+<li><strong>Dezente Designanimationen umschalten</strong> – eine neue Darstellungseinstellung (Standardeinstellung) lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einhauchen; Das Ausschalten dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster ausgeblendet ist.</li>
 <li><strong>Konsistenteres Design-Chrom</strong> – Die Farben eines benutzerdefinierten Designs werden jetzt deterministisch auf alle Menüs und Dialoge angewendet, und das dynamische Stylesheet des Terminal-Designs überschreibt nicht mehr die Chromfarben des aktiven Designs.</li>
 <li><strong>App-Design <code>Normal</code> wurde unter <em>Einstellungen → Erscheinungsbild</em> in <code>Default</code></strong> umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.</li>
 <li>**Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.</li>
@@ -3443,7 +3598,7 @@
 </ul>
 <h3 id="lokale-shell-verbindungen">Lokale Shell-Verbindungen<a class="headerlink" href="#lokale-shell-verbindungen" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Öffnen Sie die Shell des lokalen Computers in einer Terminal-Registerkarte (kein Netzwerk)</strong> – ein neues <strong>Local Shell</strong>-Protokoll erzeugt ein lokales Pseudo-Terminal (PTY) über pty4j, anstatt eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong> wählen; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> verwendet (wobei auf <code>/bin/zsh</code> oder <code>/bin/bash</code> zurückgegriffen wird). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash), und ein optionales Startverzeichnis kann festgelegt werden. Die lokale Shell kann sowohl in Quick Connect als auch im Verbindungsmanager ausgewählt werden. Für diese Verbindungen sind Host/Port/Benutzername/Authentifizierung nicht erforderlich und in den Dialogen deaktiviert.</li>
+<li><strong>Öffnen Sie die Shell des lokalen Computers in einer Terminal-Registerkarte (kein Netzwerk)</strong> – ein neues <strong>Local Shell</strong>-Protokoll erzeugt ein lokales Pseudo-Terminal (PTY) über pty4j, anstatt eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong> wählen; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> verwendet (wobei auf <code>/bin/zsh</code> oder <code>/bin/bash</code> zurückgegriffen wird). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash), und ein optionales Startverzeichnis kann festgelegt werden. Die lokale Shell kann sowohl in Quick Connect als auch im Verbindungsmanager ausgewählt werden; Für diese Verbindungen sind Host/Port/Benutzername/Authentifizierung nicht erforderlich und in den Dialogen deaktiviert.</li>
 <li><strong>Git Bash/Cygwin/WSL-Voreinstellungen</strong> unter Windows – werden jeweils nur angeboten, wenn sie tatsächlich installiert sind (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; WSL nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist). Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt gestartet werden.</li>
 <li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
 <li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen jetzt in lokalen Shells unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</li>

@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">korTTY local knowledge-store indexing and retrieval pipeline</title>
+  <desc id="desc">Reviewed files and directories pass through the format allowlist, safe text extraction, chunking, local llama.cpp embeddings and an atomically activated HNSW snapshot before bounded retrieval adds cited untrusted context to an AI request.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
+    </marker>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .grid{stroke:#14243a;stroke-width:1}
+      .panel{fill:#0d1a2b;stroke:#263f5c;stroke-width:2;rx:18}
+      .box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}
+      .source{stroke:#60a5fa}
+      .guard{stroke:#f59e0b}
+      .process{stroke:#a78bfa}
+      .model{stroke:#fb7185}
+      .store{stroke:#34d399}
+      .retrieval{stroke:#22d3ee}
+      .title{font-size:30px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc;text-anchor:middle}
+      .detail{font-size:12px;fill:#b9c8da;text-anchor:middle}
+      .section{font-size:18px;font-weight:700;fill:#7dd3fc}
+      .note{font-size:13px;fill:#b9c8da}
+      .line{stroke:#67e8f9;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:1.8;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1280" height="720"/>
+  <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
+
+  <text class="title" x="42" y="52">Local Knowledge Store: Review, Index, Retrieve</text>
+  <text class="subtitle" x="42" y="80">Only approved text reaches the embedding model; snapshot replacement and prompt context remain bounded and failure-safe.</text>
+
+  <rect class="panel" x="25" y="115" width="1230" height="250"/>
+  <text class="section" x="52" y="148">Indexing pipeline</text>
+
+  <rect class="box source" x="45" y="180" width="150" height="120"/>
+  <text class="label" x="120" y="211">Sources</text>
+  <text class="detail" x="120" y="237">Files or recursive</text>
+  <text class="detail" x="120" y="256">directories</text>
+  <text class="detail" x="120" y="278">Preview required</text>
+
+  <rect class="box guard" x="220" y="180" width="150" height="120"/>
+  <text class="label" x="295" y="211">Allowlist</text>
+  <text class="detail" x="295" y="237">Suffix + content</text>
+  <text class="detail" x="295" y="256">limits + globs</text>
+  <text class="detail" x="295" y="278">No symlinks</text>
+
+  <rect class="box process" x="395" y="180" width="150" height="120"/>
+  <text class="label" x="470" y="211">Extraction</text>
+  <text class="detail" x="470" y="237">UTF-8 text</text>
+  <text class="detail" x="470" y="256">PDF text + pages</text>
+  <text class="detail" x="470" y="278">Skip binary/OCR</text>
+
+  <rect class="box process" x="570" y="180" width="150" height="120"/>
+  <text class="label" x="645" y="211">Chunking</text>
+  <text class="detail" x="645" y="237">≈ 800 tokens</text>
+  <text class="detail" x="645" y="256">120 overlap</text>
+  <text class="detail" x="645" y="278">Stable IDs</text>
+
+  <rect class="box model" x="745" y="180" width="150" height="120"/>
+  <text class="label" x="820" y="211">Embeddings</text>
+  <text class="detail" x="820" y="237">Local llama.cpp</text>
+  <text class="detail" x="820" y="256">Authenticated route</text>
+  <text class="detail" x="820" y="278">Changed files only</text>
+
+  <rect class="box store" x="920" y="180" width="150" height="120"/>
+  <text class="label" x="995" y="211">HNSW</text>
+  <text class="detail" x="995" y="237">Hierarchical cosine</text>
+  <text class="detail" x="995" y="256">Temporary snapshot</text>
+  <text class="detail" x="995" y="278">Atomic activation</text>
+
+  <rect class="box retrieval" x="1095" y="180" width="140" height="120"/>
+  <text class="label" x="1165" y="211">Retrieval</text>
+  <text class="detail" x="1165" y="237">Top 6 excerpts</text>
+  <text class="detail" x="1165" y="256">Max 2/source</text>
+  <text class="detail" x="1165" y="278">[R1] citations</text>
+
+  <path class="line" d="M 195 240 H 220"/>
+  <path class="line" d="M 370 240 H 395"/>
+  <path class="line" d="M 545 240 H 570"/>
+  <path class="line" d="M 720 240 H 745"/>
+  <path class="line" d="M 895 240 H 920"/>
+  <path class="line" d="M 1070 240 H 1095"/>
+
+  <rect class="panel" x="25" y="395" width="1230" height="255"/>
+  <text class="section" x="52" y="430">Request-time safeguards</text>
+
+  <rect class="box source" x="65" y="465" width="230" height="105"/>
+  <text class="label" x="180" y="496">User question</text>
+  <text class="detail" x="180" y="522">Prompt or selected text</text>
+  <text class="detail" x="180" y="543">Embedded locally</text>
+
+  <rect class="box retrieval" x="365" y="465" width="230" height="105"/>
+  <text class="label" x="480" y="496">Bounded search</text>
+  <text class="detail" x="480" y="522">Enabled sources only</text>
+  <text class="detail" x="480" y="543">Cosine rank + diversity</text>
+
+  <rect class="box guard" x="665" y="465" width="230" height="105"/>
+  <text class="label" x="780" y="496">Untrusted context</text>
+  <text class="detail" x="780" y="522">≤ 4,000 tokens or 25%</text>
+  <text class="detail" x="780" y="543">Cannot override instructions</text>
+
+  <rect class="box model" x="965" y="465" width="230" height="105"/>
+  <text class="label" x="1080" y="496">AI request</text>
+  <text class="detail" x="1080" y="522">Action → Skills → RAG</text>
+  <text class="detail" x="1080" y="543">→ Preset → Transport</text>
+
+  <path class="line" d="M 295 517 H 365"/>
+  <path class="line" d="M 595 517 H 665"/>
+  <path class="line" d="M 895 517 H 965"/>
+  <path class="dash" d="M 1165 300 V 345 H 480 V 465"/>
+
+  <text class="note" x="52" y="620">Cancellation or failure before activation leaves the previous local snapshot intact. Qdrant is an optional store using the same chunk and retrieval contract.</text>
+</svg>

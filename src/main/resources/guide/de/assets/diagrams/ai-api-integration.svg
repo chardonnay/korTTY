@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
-  <title id="title">KorTTY AI request and rendered-response integration</title>
-  <desc id="desc">AI requests flow from terminal, chat, snippet and agent entry points through profiles and prompt policy to configured endpoints, then through safe response handling including the central Mermaid renderer.</desc>
+  <title id="title">KorTTY AI request, local inference, RAG, and rendered-response integration</title>
+  <desc id="desc">AI requests flow from terminal, chat, snippet and agent entry points through deterministic role routing, profile policy, optional bounded RAG, model presets and remote, CLI, LM Studio, or embedded llama.cpp transport, then through safe response handling.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -32,7 +32,7 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
   <text class="title" x="42" y="52">AI Request + Rendered Response Flow</text>
-  <text class="subtitle" x="42" y="80">Profiles, prompts and quotas stay in korTTY; diagram and math output is rendered locally from pinned browser assets.</text>
+  <text class="subtitle" x="42" y="80">Profiles, Text/Coding roles, RAG limits, prompts and quotas stay in korTTY; embedded GGUF inference uses an isolated local sidecar.</text>
 
   <rect class="panel" x="35" y="125" width="245" height="430"/>
   <rect class="header" x="35" y="125" width="245" height="50"/>
@@ -58,10 +58,10 @@
   <text class="detail" x="375" y="242">endpoint, model, reasoning</text>
   <rect class="box secure" x="350" y="282" width="215" height="62"/>
   <text class="label" x="382" y="306">Prompt + policy</text>
-  <text class="detail" x="370" y="326">skills, privacy, internet gate</text>
+  <text class="detail" x="366" y="326">skills, RAG, privacy, internet gate</text>
   <rect class="box ai" x="350" y="366" width="215" height="62"/>
-  <text class="label" x="380" y="390">Model selection</text>
-  <text class="detail" x="365" y="410">configured or loopback Auto</text>
+  <text class="label" x="378" y="390">Role + model preset</text>
+  <text class="detail" x="369" y="410">explicit → role → default</text>
   <rect class="box store" x="350" y="450" width="215" height="62"/>
   <text class="label" x="394" y="474">Quota gate</text>
   <text class="detail" x="376" y="494">estimate and record usage</text>
@@ -70,17 +70,17 @@
   <rect class="header" x="635" y="125" width="270" height="50"/>
   <text class="panelTitle" x="662" y="157">3. Provider</text>
   <rect class="box external" x="665" y="198" width="210" height="62"/>
-  <text class="label" x="700" y="222">OpenAI-compatible</text>
+  <text class="label" x="697" y="222">Remote compatible API</text>
   <text class="detail" x="692" y="242">HTTP chat completions API</text>
   <rect class="box external" x="665" y="282" width="210" height="62"/>
   <text class="label" x="707" y="306">Anthropic</text>
   <text class="detail" x="700" y="326">native Messages endpoint</text>
   <rect class="box external" x="665" y="366" width="210" height="62"/>
-  <text class="label" x="704" y="390">LM Studio</text>
-  <text class="detail" x="688" y="410">OpenAI or native local API</text>
+  <text class="label" x="694" y="390">Embedded llama.cpp</text>
+  <text class="detail" x="684" y="410">leased loopback GGUF server</text>
   <rect class="box external" x="665" y="450" width="210" height="62"/>
-  <text class="label" x="704" y="474">Local CLI</text>
-  <text class="detail" x="687" y="494">verified provider command</text>
+  <text class="label" x="690" y="474">LM Studio / Local CLI</text>
+  <text class="detail" x="688" y="494">local endpoint or command</text>
 
   <rect class="panel" x="945" y="125" width="300" height="430"/>
   <rect class="header" x="945" y="125" width="300" height="50"/>
@@ -107,6 +107,6 @@
   <path class="dash" d="M 1095 428 V 450"/>
 
   <rect class="panel" x="155" y="595" width="970" height="68"/>
-  <text class="note" x="190" y="622">Loopback LM Studio Auto mode resolves a loaded LLM; remote endpoints use the configured model identifier.</text>
-  <text class="note" x="190" y="645">Mermaid and MathJax never use a remote renderer. Cancellation, timeout or disposal releases their hidden WebView work.</text>
+  <text class="note" x="190" y="622">Role-matched requests can add six bounded, cited, untrusted RAG excerpts before the model preset; autonomous flows stay opt-in.</text>
+  <text class="note" x="190" y="645">Embedded llama.cpp is loopback-only and authenticated. Mermaid and MathJax never use a remote renderer.</text>
 </svg>

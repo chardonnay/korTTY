@@ -14,7 +14,7 @@ hide:
 
 # korTTY Guide
 
-<p class="kt-tagline"> The complete reference for korTTY — a modern, cross-platform JavaFX SSH client with tabbed terminals, SFTP tooling, a background job scheduler, snippet management, terminal-effect plugins and OpenAI-compatible AI assistance. Every feature, setting and tool, explained in detail.
+<p class="kt-tagline"> The complete reference for korTTY — a modern, cross-platform JavaFX SSH client with tabbed terminals, SFTP tooling, a background job scheduler, snippet management, terminal-effect plugins, integrated local GGUF inference and OpenAI-compatible AI assistance. Every feature, setting and tool, explained in detail.
 </p>
 
 <span class="kt-badge">Press F1 inside korTTY to open this guide</span>
@@ -51,7 +51,19 @@ hide:
 
     Profiles, skills, the AI Manager, and the terminal AI agent's tools.
 
-    [:octicons-arrow-right-24: Connections & AI](features/connections.md)
+    [:octicons-arrow-right-24: AI assistant](features/ai-assistant.md)
+
+-   :material-brain: __Local models__
+
+    Install, import, route, and run private GGUF models with integrated llama.cpp.
+
+    [:octicons-arrow-right-24: Local models](features/local-models.md)
+
+-   :material-database-search: __RAG knowledge stores__
+
+    Review files or folders, build a safe local HNSW index, and add cited context to AI profiles.
+
+    [:octicons-arrow-right-24: Knowledge stores](features/rag.md)
 
 -   :material-history: __What's new__
 

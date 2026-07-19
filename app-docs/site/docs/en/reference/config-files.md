@@ -15,10 +15,21 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
+├── llm/
+│   ├── models.xml                     # Local GGUF registrations/settings
+│   ├── models/                        # Managed GGUF weights
+│   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
+│   ├── catalog/                       # Verified model/prompt catalog cache
+│   └── run/                           # Temporary sidecar state
+├── rag/
+│   ├── stores.json                    # Knowledge stores and source configuration
+│   └── stores/                        # Local HNSW snapshots
 ├── ai-chats.xml                       # Saved AI conversations
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
 ├── master-password-hash               # Hashed master password (PBKDF2)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── kortty.log                         # Application log file
@@ -75,6 +86,12 @@ Manages centralized SSH key storage.
 !!! tip
     SSH keys referenced in this file can be kept in their original location or copied to `~/.kortty/ssh-keys/` for easy backup and migration via the *Copy to User Directory* action in SSH key management.
 
+### ssh-host-keys.properties
+
+The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically.
+
+Writes use a temporary file plus atomic replacement, while `ssh-host-keys.properties.lock` coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in `job-scheduler.xml`, which are keyed by connection ID for unattended operations.
+
 ### gpg-keys.xml
 Stores GPG key information for backup encryption.
 
@@ -94,7 +111,9 @@ Global application preferences and defaults.
 - Window geometry and state (position, size, maximized status)
 - Dashboard visibility state
 - Menu bar visibility preference
-- AI profile defaults and configuration
+- AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
+- RAG embedding model ID and llama.cpp preferred runtime backend/update policy
+- Optional encrypted Hugging Face token
 - Translation API settings
 - Video/recording preferences
 - Terminal logging defaults
@@ -103,6 +122,48 @@ Global application preferences and defaults.
 - Terminal effect plugin defaults
 - Backup encryption method and retention settings
 - Connection timeout and retry defaults
+
+### llm/models.xml
+
+The atomically written JAXB registry for locally installed or referenced GGUF models.
+
+**Contains:**
+
+- Stable model ID and display name
+- GGUF path and compatible `llama-server` executable path
+- Backend (`AUTO`, `CPU`, `METAL`, or `VULKAN`)
+- Context size, CPU threads, GPU layers, and idle-unload minutes
+
+The registry contains paths and settings, not model weights or API keys. `llm/models/` holds managed GGUF copies, `llm/runtime/` holds independently updated native packages, and `llm/run/` holds temporary process directories, logs, and owner-only generated key files. Temporary keys are removed when the sidecar stops.
+
+### llm/runtime/
+
+The regenerable native-runtime area contains immutable package directories plus small atomic state files:
+
+- `active-v1` points to the currently selected installation.
+- `pending-first-launch-v1` records a candidate and its rollback base until a real GGUF-backed authenticated API start succeeds.
+- `healthy-history-v1` retains at most the two newest confirmed, non-revoked installations.
+- `revoked-v1` is the durable denylist learned from verified signed indexes; a revoked package also contains `.kortty-runtime-revoked`.
+- `blocked-active-v1` remembers the runtime ID removed from active use by a withdrawal so the UI can explain why local AI remains blocked.
+- `packages/` contains extracted verified installations, while `downloads/` is temporary staging protected by the updater lock.
+
+Do not edit or delete the denylist/quarantine markers to re-enable a package. Runtime launches independently enforce them, and a compatible signed replacement must be installed instead. The entire directory is excluded from backup because packages and state can be recreated from the signed stable channel.
+
+### llm/catalog/last-valid-catalog-v1.json
+
+An atomic cache envelope containing the last model/prompt catalog payload and its detached signature. korTTY re-verifies the signature and strict schema before every cache use. If the application has no valid catalog public trust root, this file is ignored and the built-in bootstrap is used without a network refresh. The cache is regenerable and is not included in backups.
+
+### rag/stores.json
+
+The atomically written, owner-readable JSON registry for knowledge stores and their sources.
+
+**Contains:**
+
+- Store ID/name/type, local snapshot directory or Qdrant endpoint/collection, embedding model ID and vector dimensions
+- Text, Coding, and autonomous-use assignments
+- Per-source stable ID, canonical path, file/directory type, enabled flag, automatic/manual sync mode, size limit, include/exclude globs, `.gitignore` preference, content hashes, last status, file/chunk/problem counts, and last successful index time
+
+The `rag/stores/` subdirectory holds regenerable `index.hnsw` snapshots. A v2 snapshot embeds its format version, vector dimensions, embedding model ID, hierarchical graph parameters, entry point, chunk metadata, vectors, node levels, and per-layer neighbors; a mismatch is rejected and requires a rebuild. A valid legacy single-layer v1 snapshot is rebuilt and atomically migrated when opened.
 
 ### job-scheduler.xml
 All JobScheduler jobs and related data.
@@ -287,6 +348,7 @@ Optional directory for copied SSH keys.
 | Master password | PBKDF2 hashing with 310,000 iterations |
 | Connection passwords | AES-256-GCM encryption |
 | SSH key passphrases | AES-256-GCM encryption |
+| Interactive Terminal/SFTP/Mosh host keys | Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection |
 | Credentials (username/password) | AES-256-GCM encryption |
 | JobScheduler sudo passwords | AES-256-GCM encryption |
 | JobScheduler journal entries | Redacted secrets before persistence |
@@ -304,7 +366,7 @@ All files are stored in the same `~/.kortty/` directory across platforms:
 
 ## Backup and recovery
 
-When you create a backup via *Edit > Create Backup*, the following files and directories are included:
+When you create a backup via *Edit > Create Backup*, the following configuration is included:
 
 - All `.xml` configuration files
 - `master-password-hash`
@@ -312,7 +374,12 @@ When you create a backup via *Edit > Create Backup*, the following files and dir
 - `projects/` directory
 - `i18n/` directory (generated language files)
 - `ssh-keys/` directory (if present)
+- `ssh-host-keys.properties` interactive host-key trust store (not its transient `.lock` file)
 - `snippets.xml` and related snippet data
+- `llm/models.xml` local-model registrations
+- `rag/stores.json` knowledge-store/source metadata
+
+Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable.
 
 The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.
 
@@ -325,11 +392,11 @@ You can edit KorTTY configuration directly by:
 
 1. Closing KorTTY completely
 2. Opening `~/.kortty/` in your file manager or terminal
-3. Editing the XML files with a text editor
+3. Editing the XML or JSON file with a text editor
 4. Restarting KorTTY to load the changes
 
 !!! warning
-    Editing XML files directly can corrupt your data if not done carefully. Always create a backup before manual editing. For most configuration tasks, use the KorTTY UI instead—it handles encryption, validation, and file format correctly.
+    Editing XML/JSON files directly can corrupt your data if not done carefully. Never edit a binary `index.hnsw` snapshot. Always create a backup before manual editing. For most configuration tasks, use the KorTTY UI instead—it handles encryption, validation, and file format correctly.
 
 ## Troubleshooting
 
@@ -342,6 +409,12 @@ You can edit KorTTY configuration directly by:
 
 **Corrupted XML files:**
 - If a `.xml` file becomes corrupted, restore from a backup or delete the file. KorTTY will recreate it with defaults on next save.
+
+**Knowledge-store registry or snapshot cannot be read:**
+- Restore `rag/stores.json` from a backup or recreate the store in the AI Manager. Delete only the affected regenerable `index.hnsw`, then choose **Update now** to rebuild it from the configured source files.
+
+**Interactive SSH host key changed:**
+- Do not reconnect until you have verified the new OpenSSH SHA-256 fingerprint with the server administrator and ruled out DNS, routing, or man-in-the-middle problems. KorTTY deliberately blocks the mismatch without retrying or replacing the stored pin.
 
 **Plugin loading issues:**
 - Check `kortty.log` for error messages related to plugin loading (e.g., duplicate IDs, missing services, class loading errors).

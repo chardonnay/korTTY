@@ -402,6 +402,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-integrierte-lokale-ki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional integrierte lokale KI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#erstellen-sie-ihr-eigenes-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1262,6 +1273,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1574,6 +1589,62 @@
     
   
     KI-Assistent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
   
 
     
@@ -2018,6 +2089,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-integrierte-lokale-ki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional integrierte lokale KI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#erstellen-sie-ihr-eigenes-paket" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2082,6 +2164,32 @@
 </tr>
 </tbody>
 </table>
+<h2 id="optional-integrierte-lokale-ki">Optional integrierte lokale KI<a class="headerlink" href="#optional-integrierte-lokale-ki" title="Permanent link">&para;</a></h2>
+<p>Das Basispaket korTTY enthält bewusst weder Modellgewichte noch eine native llama.cpp-Laufzeit. Wenn Sie die integrierte lokale KI aktivieren, werden verifizierte Laufzeitpakete aus dem öffentlichen Laufzeitkanal <a href="https://github.com/chardonnay/kortty-llama-runtimes">korTTY llama.cpp </a> unabhängig unter <code>~/.kortty/llm/runtime/</code> installiert und GGUF-Modelle werden unter <code>~/.kortty/llm/models/</code> heruntergeladen oder importiert (oder von einem von Ihnen gewählten Pfad referenziert). Jeder Laufzeitindex und jedes Laufzeitpaket wird mit dem öffentlichen Ed25519-Vertrauensstammverzeichnis verglichen, das in der korTTY-Quelle angeheftet ist. Dadurch bleibt das normale SSH-Client-Installationsprogramm klein und llama.cpp erhält kompatible stabile Updates, ohne die gesamte Anwendung zu ersetzen.</p>
+<table>
+<thead>
+<tr>
+<th>Plattform</th>
+<th>Laufzeitpakete</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS arm64 / x86_64</td>
+<td>CPU und Metal</td>
+</tr>
+<tr>
+<td>Windows x86_64</td>
+<td>CPU und Vulkan</td>
+</tr>
+<tr>
+<td>Linux x86_64 / arm64</td>
+<td>CPU und Vulkan</td>
+</tr>
+</tbody>
+</table>
+<p>CUDA ist nicht Teil der ersten Laufzeitmatrix. Wählen Sie unter <strong>AI Manager &gt; Lokale KI</strong> das bevorzugte Laufzeit-Backend aus: Auto/CPU/Metal unter macOS oder Auto/CPU/Vulkan unter Windows/Linux. Automatisch wählt Metal bei einer ersten macOS-Installation und CPU an anderer Stelle aus und behält dann das aktive Backend für Updates bei. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Möglichkeit, das passende signierte Paket zu installieren. Laufzeit- und Modell-Downloads können mehrere Gigabyte groß sein. Überprüfen Sie daher vor der Installation den freien Speicherplatz und den verfügbaren RAM/VRAM.</p>
+<p>Öffnen Sie nach der Installation von korTTY <strong>AI &gt; AI Manager &gt; Lokale Modelle &gt; Einrichtungsassistent</strong>. Es überprüft den Datenschutz, erkennt Speicher, empfiehlt Text-/Codierungs-/Einbettungs-GGUF-Modelle, zeigt die Repository-Lizenz und die genaue Größe an, überprüft den unveränderlichen Download, weist Rollen zu und führt einen echten lokalen Chat oder Einbettungsfunktionstest durch. Wenn keine Laufzeit aktiv ist, akzeptieren Sie die Installationsaufforderung für die signierte Laufzeit oder wählen Sie <strong>Laufzeit installieren</strong> auf derselben Registerkarte aus, bevor Sie einen GGUF importieren. Die Kontextlänge des Hubs bleibt sichtbar, während neue Modelle konservativ bei 4.096 Laufzeittokens beginnen, bis Sie <strong>Konfigurieren &gt; Kontextgröße</strong> ändern. Offizielle Pakete können Empfehlungen und Zuordnungen von Eingabeaufforderungsfamilien aus einem separaten signierten Katalog aktualisieren; Ein Build ohne dieses Katalog-Trust-Root bleibt mit seinem Offline-Bootstrap vollständig nutzbar. Sehen <a href="../features/local-models.html">Lokale Modelle mit llama.cpp</a> Und <a href="../features/rag.html">RAG-Wissensspeicher</a>.</p>
 <h2 id="erstellen-sie-ihr-eigenes-paket">Erstellen Sie Ihr eigenes Paket<a class="headerlink" href="#erstellen-sie-ihr-eigenes-paket" title="Permanent link">&para;</a></h2>
 <p>Für die Erstellung aus dem Quellcode sind ein vollständiges JDK und Plattform-Paketierungstools erforderlich. Der spezielle Anleitung behandelt die Thin JAR-, Java ZIP/TAR-Distributionen, eigenständige tragbare App-Images und native Installationsprogramme für jedes unterstützte Betriebssystem, einschließlich Intel macOS-Builds, Signierung und Beglaubigung.</p>
 <p><a class="md-button" href="building-packages.html">KorTTY-Pakete lokal erstellen →</a></p>

@@ -327,7 +327,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
-            throw new IOException("AI API returned an empty response.");
+            throw new EmptyResponseException();
         }
         return new AiExecutionResult(
             content.trim(),
@@ -358,7 +358,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 AiExecutionResult parsed = parseResponseBody(responseBody);
                 String content = parsed != null ? parsed.content() : null;
                 if (content == null || content.isBlank()) {
-                    throw new IOException("AI API returned an empty response.");
+                    throw new EmptyResponseException();
                 }
                 if (parsed != null && parsed.usage() != null) {
                     usageEntries.add(parsed.usage());
@@ -402,7 +402,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             AiExecutionResult parsed = parseJsonResponseBody(root);
             String content = parsed != null ? parsed.content() : null;
             if (content == null || content.isBlank()) {
-                throw new IOException("AI API returned an empty response.");
+                throw new EmptyResponseException();
             }
             return new AiExecutionResult(
                 content.trim(),
@@ -622,13 +622,37 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         }
     }
 
+    /** Thrown for a non-2xx API response; carries the HTTP status so callers can classify it. */
+    public static final class AiApiException extends IOException {
+        private final int statusCode;
+
+        AiApiException(int statusCode, String message) {
+            super(message);
+            this.statusCode = statusCode;
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+    }
+
+    /**
+     * Thrown when a 2xx reply carried no usable content. Small local models produce this
+     * stochastically, so the embedded services treat it as retryable.
+     */
+    public static final class EmptyResponseException extends IOException {
+        EmptyResponseException() {
+            super("AI API returned an empty response.");
+        }
+    }
+
     /** Builds the exception for a non-2xx response, with an actionable hint for the not-loaded case. */
     private IOException apiError(int status, String body) {
         String detail = extractErrorMessage(body);
         if (isModelNotLoadedError(body)) {
             return new ModelNotLoadedException(modelNotLoadedMessage(detail));
         }
-        return new IOException("AI API error " + status + ": " + detail);
+        return new AiApiException(status, "AI API error " + status + ": " + detail);
     }
 
     static boolean isModelNotLoadedError(String body) {
@@ -777,6 +801,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             AiPromptBuilder.buildSystemPrompt(request),
             request,
             skillClassifier);
+        systemPrompt = AiPromptPipeline.appendAfterSkills(systemPrompt, request);
         system.addProperty("content", includeInternetRules ? AiInternetPromptSupport.appendRules(systemPrompt) : systemPrompt);
         messages.add(system);
 
@@ -986,7 +1011,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
-            throw new IOException("AI API returned an empty response.");
+            throw new EmptyResponseException();
         }
         return new AiExecutionResult(
             content.trim(),

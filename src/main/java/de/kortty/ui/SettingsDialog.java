@@ -29,10 +29,12 @@ import de.kortty.core.LocalLmModelResolver;
 import de.kortty.core.AiSkillMarkdownCodec;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.AiPromptService;
 import de.kortty.core.FailingAiService;
 import de.kortty.core.GoogleTranslationService;
 import de.kortty.core.DeepLTranslationService;
 import de.kortty.core.LibreTranslateTranslationService;
+import de.kortty.core.LocalAiTranslationService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.TerminalAgentCommandSupport;
 import de.kortty.core.YandexTranslationService;
@@ -41,6 +43,11 @@ import de.kortty.core.LoggingConfiguration;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TranslationService;
+import de.kortty.ai.llama.LlamaModel;
+import de.kortty.ai.llama.LlamaModelRegistry;
+import de.kortty.ai.mlx.MlxModel;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.ai.mlx.MlxPlatform;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
@@ -221,6 +228,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiConnectionMode> aiConnectionModeCombo;
     private final TextField aiApiUrlField;
     private final ComboBox<String> aiModelCombo;
+    private final Label aiEmbeddedModelLabel;
+    private final ComboBox<EmbeddedModelChoice> aiEmbeddedModelCombo;
     private final TextField aiCliCustomModelField;
     private final Button aiRefreshModelsButton;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
@@ -1271,7 +1280,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             TranslationApiProvider.DEEPL,
             TranslationApiProvider.LIBRETRANSLATE,
             TranslationApiProvider.MICROSOFT,
-            TranslationApiProvider.YANDEX
+            TranslationApiProvider.YANDEX,
+            TranslationApiProvider.LOCAL_AI_PROFILE
         );
         translationProviderCombo.setConverter(new javafx.util.StringConverter<TranslationApiProvider>() {
             @Override
@@ -1283,6 +1293,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     case LIBRETRANSLATE: return I18n.get("settings.translation.provider.libretranslate");
                     case MICROSOFT: return I18n.get("settings.translation.provider.microsoft");
                     case YANDEX: return I18n.get("settings.translation.provider.yandex");
+                    case LOCAL_AI_PROFILE: return I18n.get("settings.translation.provider.localAi");
                     default: return p.name();
                 }
             }
@@ -1308,6 +1319,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             translationApiUrlField.setText(globalSettings.getTranslationApiUrl());
         }
         translationGrid.add(translationApiUrlField, 1, transRow++);
+        translationProviderCombo.valueProperty().addListener((obs, oldProvider, newProvider) -> {
+            boolean localAi = newProvider == TranslationApiProvider.LOCAL_AI_PROFILE;
+            translationApiKeyField.setDisable(localAi);
+            translationApiUrlField.setDisable(localAi);
+        });
+        boolean localAiTranslation = translationProviderCombo.getValue() == TranslationApiProvider.LOCAL_AI_PROFILE;
+        translationApiKeyField.setDisable(localAiTranslation);
+        translationApiUrlField.setDisable(localAiTranslation);
         Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
         testConnectionButton.setOnAction(e -> testTranslationConnection());
         translationGrid.add(testConnectionButton, 1, transRow++);
@@ -1721,6 +1740,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(new Label(I18n.get("settings.ai.connectionMode")), 0, aiRow);
         aiConnectionModeCombo = new ComboBox<>();
         aiConnectionModeCombo.getItems().setAll(AiConnectionMode.values());
+        if (!MlxPlatform.isSupported()) {
+            // MLX runs exclusively on Apple-Silicon macOS; do not offer the mode elsewhere.
+            // Existing EMBEDDED_MLX profiles still render via the converter's unavailable hint.
+            aiConnectionModeCombo.getItems().remove(AiConnectionMode.EMBEDDED_MLX);
+        }
         aiConnectionModeCombo.setPrefWidth(220);
         aiConnectionModeCombo.setConverter(createAiConnectionModeConverter());
         aiConnectionModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -1779,6 +1803,24 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox aiModelBox = new HBox(6, aiModelCombo, aiRefreshModelsButton);
         HBox.setHgrow(aiModelCombo, Priority.ALWAYS);
         aiEditorGrid.add(aiModelBox, 1, aiRow++);
+
+        aiEmbeddedModelLabel = new Label(I18n.get("settings.ai.embeddedModel"));
+        aiEditorGrid.add(aiEmbeddedModelLabel, 0, aiRow);
+        aiEmbeddedModelCombo = new ComboBox<>();
+        aiEmbeddedModelCombo.setPrefWidth(320);
+        aiEmbeddedModelCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(EmbeddedModelChoice model) {
+                return model == null ? "" : model.displayName() + " (" + model.id() + ")";
+            }
+
+            @Override
+            public EmbeddedModelChoice fromString(String string) {
+                return null;
+            }
+        });
+        aiEmbeddedModelCombo.setPromptText(I18n.get("settings.ai.embeddedModel.empty"));
+        aiEditorGrid.add(aiEmbeddedModelCombo, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.cli.customModel")), 0, aiRow);
         aiCliCustomModelField = new TextField();
@@ -3691,9 +3733,47 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             case YANDEX:
                 if (key == null || key.isEmpty()) return null;
                 return new YandexTranslationService(key, urlTrimmed);
+            case LOCAL_AI_PROFILE:
+                return createLocalAiTranslationService();
             default:
                 return key != null && !key.isEmpty() ? new GoogleTranslationService(key, urlTrimmed) : null;
         }
+    }
+
+    private TranslationService createLocalAiTranslationService() {
+        if (globalSettings == null) {
+            return null;
+        }
+        AiProfile profile = AiProfileSelectionSupport.workloadProfile(
+            globalSettings.getAiProfiles(),
+            de.kortty.model.AiWorkload.TEXT,
+            globalSettings.getTextAiProfileId(),
+            globalSettings.getCodingAiProfileId(),
+            globalSettings.getDefaultAiProfileId());
+        if (profile == null || !profile.getConnectionMode().isEmbedded()) {
+            return null;
+        }
+        // Translation never needs web search, and this call passes a disabled internet
+        // configuration; keep the profile's mode from tripping the factory's Tavily-key check.
+        // Disabling the mode on a copy is safe for embedded profiles (the LM-Studio-MCP
+        // mis-routing trap applies only to native LM Studio endpoints).
+        AiProfile translationProfile = new AiProfile(profile);
+        translationProfile.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.DISABLED);
+        AiService service;
+        try {
+            service = AiServiceFactory.create(
+                translationProfile,
+                null,
+                AiInternetAccessConfiguration.disabled(),
+                AiSkillPromptSupport.disabled());
+        } catch (IllegalStateException e) {
+            // E.g. no embedded model selected yet, or an EMBEDDED_MLX profile on a non-Apple-Silicon
+            // machine: surface the generic "test failed" path instead of an uncaught exception.
+            return null;
+        }
+        return service instanceof AiPromptService promptService
+            ? new LocalAiTranslationService(promptService)
+            : null;
     }
 
     private String getTranslationApiKeyPlain() {
@@ -3713,7 +3793,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void testTranslationConnection() {
         TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
         String key = getTranslationApiKeyPlain();
         if (!keyOptional && (key == null || key.isEmpty())) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
@@ -4279,6 +4360,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 if (object == null) {
                     return "";
                 }
+                if (object == AiConnectionMode.EMBEDDED_MLX && !MlxPlatform.isSupported()) {
+                    return I18n.get("settings.ai.connectionMode.embedded_mlx.unavailable");
+                }
                 return I18n.get("settings.ai.connectionMode." + object.name().toLowerCase(Locale.ROOT));
             }
 
@@ -4345,6 +4429,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private void loadAiModelSelection(AiProfile profile) {
+        refreshEmbeddedModelSelection(profile);
         if (profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             loadAiCliModelSelection(profile);
             return;
@@ -4367,7 +4452,59 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    /** Mode-independent embedded model entry (llama.cpp GGUF or MLX) for the profile editor combo. */
+    private record EmbeddedModelChoice(String id, String displayName) {
+    }
+
+    private void refreshEmbeddedModelSelection(AiProfile profile) {
+        if (aiEmbeddedModelCombo == null) {
+            return;
+        }
+        boolean mlx = profile != null && profile.getConnectionMode() == AiConnectionMode.EMBEDDED_MLX;
+        if (aiEmbeddedModelLabel != null) {
+            aiEmbeddedModelLabel.setText(I18n.get(mlx ? "settings.ai.embeddedModel.mlx" : "settings.ai.embeddedModel"));
+        }
+        aiEmbeddedModelCombo.setPromptText(I18n.get(mlx
+            ? "settings.ai.embeddedModel.mlx.empty"
+            : "settings.ai.embeddedModel.empty"));
+        List<EmbeddedModelChoice> models = mlx ? listMlxEmbeddedModels() : listLlamaEmbeddedModels();
+        aiEmbeddedModelCombo.getItems().setAll(models);
+        String selectedId = profile != null ? profile.getEmbeddedModelId() : null;
+        aiEmbeddedModelCombo.setValue(models.stream()
+            .filter(model -> model.id().equals(selectedId))
+            .findFirst()
+            .orElse(null));
+    }
+
+    private List<EmbeddedModelChoice> listLlamaEmbeddedModels() {
+        return LlamaModelRegistry
+            .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+            .list()
+            .stream()
+            .filter(model -> model.getPurpose() == de.kortty.ai.llama.LlamaModelPurpose.CHAT)
+            .sorted(Comparator.comparing(LlamaModel::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+            .map(model -> new EmbeddedModelChoice(model.getId(), model.getDisplayName()))
+            .toList();
+    }
+
+    private List<EmbeddedModelChoice> listMlxEmbeddedModels() {
+        return MlxModelRegistry
+            .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+            .list()
+            .stream()
+            .sorted(Comparator.comparing(MlxModel::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+            .map(model -> new EmbeddedModelChoice(model.getId(), model.getDisplayName()))
+            .toList();
+    }
+
     private void snapshotAiModelSelection(AiProfile profile) {
+        if (profile.getConnectionMode().isEmbedded()) {
+            EmbeddedModelChoice model = aiEmbeddedModelCombo != null ? aiEmbeddedModelCombo.getValue() : null;
+            profile.setEmbeddedModelId(model != null ? model.id() : null);
+            profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+            profile.setModel(model != null ? model.displayName() : null);
+            return;
+        }
         if (profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             String editorText = trimToNull(aiModelEditorText());
             if (AI_MODEL_DEFAULT_LABEL.equals(editorText)) {
@@ -4679,17 +4816,23 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void updateAiConnectionModeUi() {
         boolean cliMode = isAiCliModeSelected();
-        aiApiUrlField.setDisable(cliMode);
-        aiApiKeyField.setDisable(cliMode);
-        aiClearApiKeyCheck.setDisable(cliMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
-        aiInternetAccessModeCombo.setDisable(cliMode);
-        aiRefreshModelsButton.setDisable(cliMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
+        boolean embeddedMode = aiConnectionModeCombo != null
+            && aiConnectionModeCombo.getValue() != null
+            && aiConnectionModeCombo.getValue().isEmbedded();
+        boolean localMode = cliMode || embeddedMode;
+        aiApiUrlField.setDisable(localMode);
+        aiApiKeyField.setDisable(localMode);
+        aiClearApiKeyCheck.setDisable(localMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
+        aiInternetAccessModeCombo.setDisable(localMode);
+        aiRefreshModelsButton.setDisable(localMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
         aiRefreshReasoningButton.setDisable(selectedAiProfile == null);
         aiCliProviderCombo.setDisable(!cliMode);
         aiCliExecutableField.setDisable(!cliMode);
         aiCliArgumentsTemplateArea.setDisable(!cliMode);
         aiCliCustomModelField.setDisable(!cliMode);
         aiRefreshCliStatusButton.setDisable(!cliMode);
+        aiEmbeddedModelCombo.setDisable(!embeddedMode);
+        aiModelCombo.setDisable(embeddedMode);
         if (cliMode) {
             refreshAiCliStatus();
         } else {
@@ -4774,6 +4917,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiCliStatusLabel.setText("");
             aiModelCombo.getItems().setAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
             aiModelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
+            aiEmbeddedModelCombo.getItems().clear();
+            aiEmbeddedModelCombo.setValue(null);
             refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
             aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             aiApiKeyField.clear();
@@ -5323,7 +5468,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private void generateTranslationFile(Button generateButton) {
         TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE;
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
         String key = getTranslationApiKeyPlain();
         if (!keyOptional && (key == null || key.isEmpty())) {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();

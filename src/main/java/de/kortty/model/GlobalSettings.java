@@ -1,5 +1,6 @@
 package de.kortty.model;
 
+import de.kortty.ai.llama.LlamaBackend;
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -244,9 +245,37 @@ public class GlobalSettings {
     @XmlElement
     private String defaultAiProfileId;
 
+    /** Installed local model marked as the default/start model in the Local Models manager. */
+    @XmlElement
+    private String defaultLocalModelId;
+
     /** AI profile dedicated to snippet security checks. When null the default profile is used. */
     @XmlElement
     private String securityCheckAiProfileId;
+
+    /** Preferred AI profile for translation, summarization, and general text generation. */
+    @XmlElement
+    private String textAiProfileId;
+
+    /** Preferred AI profile for programming and code-related actions. */
+    @XmlElement
+    private String codingAiProfileId;
+
+    /** Local model id used to create embeddings for RAG knowledge stores. */
+    @XmlElement
+    private String ragEmbeddingModelId;
+
+    /** Encrypted optional Hugging Face access token for gated/private repositories. */
+    @XmlElement
+    private String encryptedHuggingFaceToken;
+
+    /** Update behavior for the separately installed llama.cpp runtime. */
+    @XmlElement
+    private LlamaRuntimeUpdatePolicy llamaRuntimeUpdatePolicy = LlamaRuntimeUpdatePolicy.NOTIFY;
+
+    /** Preferred separately installed runtime backend (AUTO keeps the active backend on updates). */
+    @XmlElement
+    private LlamaBackend preferredLlamaRuntimeBackend = LlamaBackend.AUTO;
 
     /** Encrypted Tavily API key used by KorTTY's direct web-search tool and Tavily MCP. */
     @XmlElement
@@ -355,6 +384,10 @@ public class GlobalSettings {
     /** Show AI agent runtime notices by default. */
     @XmlElement
     private boolean terminalAgentShowRuntimeMessages = false;
+
+    /** Also print the terminal agent's final answer into the terminal (not only the AI agent panel). */
+    @XmlElement
+    private boolean terminalAgentMirrorFinalAnswerToTerminal = true;
 
     /** Show the terminal-agent setup dialog before starting prompt-based terminal commands. */
     @XmlElement
@@ -584,6 +617,10 @@ public class GlobalSettings {
     /** Last window geometry of the AI manager dialog ("AI-Manager"). */
     @XmlElement
     private WindowGeometry aiManagerDialogGeometry;
+
+    /** Last window geometry of the saved chats dialog (saved AI and swarm chats). */
+    @XmlElement
+    private WindowGeometry savedChatsDialogGeometry;
 
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
@@ -1233,6 +1270,16 @@ public class GlobalSettings {
         normalizeAiProfiles();
     }
 
+    public String getDefaultLocalModelId() {
+        return defaultLocalModelId;
+    }
+
+    public void setDefaultLocalModelId(String defaultLocalModelId) {
+        this.defaultLocalModelId = defaultLocalModelId != null && !defaultLocalModelId.isBlank()
+            ? defaultLocalModelId.trim()
+            : null;
+    }
+
     public String getSecurityCheckAiProfileId() {
         return securityCheckAiProfileId;
     }
@@ -1242,6 +1289,60 @@ public class GlobalSettings {
             ? securityCheckAiProfileId.trim()
             : null;
         normalizeAiProfiles();
+    }
+
+    public String getTextAiProfileId() {
+        return textAiProfileId;
+    }
+
+    public void setTextAiProfileId(String textAiProfileId) {
+        this.textAiProfileId = normalizeOptionalString(textAiProfileId);
+        normalizeAiProfiles();
+    }
+
+    public String getCodingAiProfileId() {
+        return codingAiProfileId;
+    }
+
+    public void setCodingAiProfileId(String codingAiProfileId) {
+        this.codingAiProfileId = normalizeOptionalString(codingAiProfileId);
+        normalizeAiProfiles();
+    }
+
+    public String getRagEmbeddingModelId() {
+        return ragEmbeddingModelId;
+    }
+
+    public void setRagEmbeddingModelId(String ragEmbeddingModelId) {
+        this.ragEmbeddingModelId = normalizeOptionalString(ragEmbeddingModelId);
+    }
+
+    public String getEncryptedHuggingFaceToken() {
+        return encryptedHuggingFaceToken;
+    }
+
+    public void setEncryptedHuggingFaceToken(String encryptedHuggingFaceToken) {
+        this.encryptedHuggingFaceToken = normalizeOptionalString(encryptedHuggingFaceToken);
+    }
+
+    public LlamaRuntimeUpdatePolicy getLlamaRuntimeUpdatePolicy() {
+        return llamaRuntimeUpdatePolicy != null ? llamaRuntimeUpdatePolicy : LlamaRuntimeUpdatePolicy.NOTIFY;
+    }
+
+    public void setLlamaRuntimeUpdatePolicy(LlamaRuntimeUpdatePolicy llamaRuntimeUpdatePolicy) {
+        this.llamaRuntimeUpdatePolicy = llamaRuntimeUpdatePolicy != null
+            ? llamaRuntimeUpdatePolicy
+            : LlamaRuntimeUpdatePolicy.NOTIFY;
+    }
+
+    public LlamaBackend getPreferredLlamaRuntimeBackend() {
+        return preferredLlamaRuntimeBackend != null ? preferredLlamaRuntimeBackend : LlamaBackend.AUTO;
+    }
+
+    public void setPreferredLlamaRuntimeBackend(LlamaBackend preferredLlamaRuntimeBackend) {
+        this.preferredLlamaRuntimeBackend = preferredLlamaRuntimeBackend != null
+            ? preferredLlamaRuntimeBackend
+            : LlamaBackend.AUTO;
     }
 
     public String getEncryptedAiTavilyApiKey() {
@@ -1470,6 +1571,14 @@ public class GlobalSettings {
         return terminalAgentShowRuntimeMessages;
     }
 
+    public boolean isTerminalAgentMirrorFinalAnswerToTerminal() {
+        return terminalAgentMirrorFinalAnswerToTerminal;
+    }
+
+    public void setTerminalAgentMirrorFinalAnswerToTerminal(boolean terminalAgentMirrorFinalAnswerToTerminal) {
+        this.terminalAgentMirrorFinalAnswerToTerminal = terminalAgentMirrorFinalAnswerToTerminal;
+    }
+
     public void setTerminalAgentShowRuntimeMessages(boolean terminalAgentShowRuntimeMessages) {
         this.terminalAgentShowRuntimeMessages = terminalAgentShowRuntimeMessages;
     }
@@ -1693,6 +1802,24 @@ public class GlobalSettings {
             .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
             .noneMatch(profile -> securityCheckAiProfileId.equals(profile.getId()))) {
             securityCheckAiProfileId = null;
+        }
+        if (textAiProfileId != null && aiProfiles.stream()
+            .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
+            .noneMatch(profile -> textAiProfileId.equals(profile.getId()))) {
+            textAiProfileId = null;
+        }
+        if (codingAiProfileId != null && aiProfiles.stream()
+            .filter(profile -> profile != null && profile.getId() != null && !profile.getId().isBlank())
+            .noneMatch(profile -> codingAiProfileId.equals(profile.getId()))) {
+            codingAiProfileId = null;
+        }
+        ragEmbeddingModelId = normalizeOptionalString(ragEmbeddingModelId);
+        encryptedHuggingFaceToken = normalizeOptionalString(encryptedHuggingFaceToken);
+        if (llamaRuntimeUpdatePolicy == null) {
+            llamaRuntimeUpdatePolicy = LlamaRuntimeUpdatePolicy.NOTIFY;
+        }
+        if (preferredLlamaRuntimeBackend == null) {
+            preferredLlamaRuntimeBackend = LlamaBackend.AUTO;
         }
     }
 
@@ -2332,6 +2459,13 @@ public class GlobalSettings {
     /** Stores the AI manager dialog window position/size. */
     public void setAiManagerDialogGeometry(WindowGeometry aiManagerDialogGeometry) {
         this.aiManagerDialogGeometry = aiManagerDialogGeometry;
+    }
+
+    public WindowGeometry getSavedChatsDialogGeometry() { return savedChatsDialogGeometry; }
+
+    /** Stores the saved chats dialog window position/size. */
+    public void setSavedChatsDialogGeometry(WindowGeometry savedChatsDialogGeometry) {
+        this.savedChatsDialogGeometry = savedChatsDialogGeometry;
     }
 
     // ---- Teamwork ----

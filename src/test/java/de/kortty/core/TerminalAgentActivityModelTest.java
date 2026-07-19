@@ -8,6 +8,21 @@ import static com.google.common.truth.Truth.assertThat;
 class TerminalAgentActivityModelTest {
 
     @Test
+    void requestWithoutMirrorFlagDefaultsToMirroringTheFinalAnswer() {
+        TerminalAgentModels.Request legacy = new TerminalAgentModels.Request(
+            "session", "profile", "prompt", "conn", null,
+            de.kortty.model.TerminalAgentExecutionTarget.TERMINAL_WINDOW,
+            false, false, false, false, false, false);
+        assertThat(legacy.mirrorFinalAnswerToTerminal()).isTrue();
+
+        TerminalAgentModels.Request explicit = new TerminalAgentModels.Request(
+            "session", "profile", "prompt", "conn", null,
+            de.kortty.model.TerminalAgentExecutionTarget.TERMINAL_WINDOW,
+            false, false, false, false, false, false, false);
+        assertThat(explicit.mirrorFinalAnswerToTerminal()).isFalse();
+    }
+
+    @Test
     void unknownTokenUsageStaysExplicitlyUnknown() {
         TerminalAgentModels.AgentActivityTokenUsage usage =
             TerminalAgentModels.AgentActivityTokenUsage.unknown();

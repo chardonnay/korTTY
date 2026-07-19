@@ -51,6 +51,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     
     private final ServerConnection connection;
     private final String password;
+    private final SshHostKeyTrustManager hostKeyTrustManager;
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
     
@@ -85,8 +86,17 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private boolean tabCompletionPending;
     
     public SshTtyConnector(ServerConnection connection, String password) {
+        this(connection, password, SshHostKeyTrustManager.shared());
+    }
+
+    SshTtyConnector(
+        ServerConnection connection,
+        String password,
+        SshHostKeyTrustManager hostKeyTrustManager) {
+
         this.connection = connection;
         this.password = password;
+        this.hostKeyTrustManager = java.util.Objects.requireNonNull(hostKeyTrustManager, "hostKeyTrustManager");
     }
     
     /**
@@ -102,6 +112,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * This should be called before start() on the terminal widget.
      */
     public boolean connect() throws AuthenticationException {
+        SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier = null;
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -230,10 +241,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
             
-            client.setServerKeyVerifier((clientSession, remoteAddress, serverKey) -> {
-                logger.warn("Accepting server key from {}: {}", remoteAddress, serverKey.getAlgorithm());
-                return true; // Accept all keys for now
-            });
+            hostKeyVerifier = hostKeyTrustManager.verifierFor(connection);
+            client.setServerKeyVerifier(hostKeyVerifier);
             client.start();
             
             // Get timeout from connection settings
@@ -308,6 +317,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
             return true;
             
         } catch (org.apache.sshd.common.SshException e) {
+            if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
+                logger.error("SSH host-key verification rejected connection to {}:{}",
+                    connection.getHost(), connection.getPort());
+                close();
+                throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+            }
             // Check if this is an authentication error
             String message = e.getMessage();
             if (message != null && (message.contains("authentication") || 
@@ -321,10 +336,24 @@ public class SshTtyConnector implements ObservableTtyConnector {
             close();
             return false;
         } catch (Exception e) {
+            if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
+                logger.error("SSH host-key verification rejected connection to {}:{}",
+                    connection.getHost(), connection.getPort());
+                close();
+                throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+            }
             logger.error("Failed to connect to {}: {}", connection.getDisplayName(), e.getMessage(), e);
             close();
             return false;
         }
+    }
+
+    private static String hostKeyRejectionMessage() {
+        String key = "ssh.hostKey.connectionRejected";
+        String localized = I18n.get(key);
+        return localized.equals(key)
+            ? "SSH host-key verification failed or was rejected."
+            : localized;
     }
     
     /**
@@ -334,6 +363,13 @@ public class SshTtyConnector implements ObservableTtyConnector {
      */
     public static class AuthenticationException extends Exception {
         public AuthenticationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /** Non-retriable security failure which is distinct from user-authentication failure. */
+    public static class HostKeyVerificationException extends AuthenticationException {
+        public HostKeyVerificationException(String message, Throwable cause) {
             super(message, cause);
         }
     }

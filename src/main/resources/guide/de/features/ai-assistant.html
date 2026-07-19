@@ -18,7 +18,7 @@
         <link rel="prev" href="teamwork.html">
       
       
-        <link rel="next" href="ai-tools.html">
+        <link rel="next" href="local-models.html">
       
       
         
@@ -1182,6 +1182,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1576,7 +1580,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Modellauswahl">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollenrouting-rag-und-prompte-reihenfolge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollenrouting, RAG und prompte Reihenfolge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollenrouting, RAG und prompte Reihenfolge">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1865,6 +1880,62 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lokale Modelle (llama.cpp und MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG-Wissensspeicher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2309,7 +2380,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Modellauswahl">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollenrouting-rag-und-prompte-reihenfolge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollenrouting, RAG und prompte Reihenfolge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollenrouting, RAG und prompte Reihenfolge">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2612,22 +2694,22 @@
 
 
 <h1 id="ai-assistent">AI-Assistent<a class="headerlink" href="#ai-assistent" title="Permanent link">&para;</a></h1>
-<p>KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.</p>
+<p>KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt, einem integrierten lokalen llama.cpp-Modell oder einer konfigurierten lokalen CLI analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.</p>
 <p>Wenn <strong>Konfiguration &gt; System-Ruhezustand verhindern</strong> unter macOS oder Windows aktiviert ist, hält korTTY den Computer wach, während eine AI-API-, lokale Modell-, Web-Tool- oder lokale AI-CLI-Anfrage auf ein Ergebnis wartet. Die Behauptung wird freigegeben, nachdem die letzte gleichzeitige AI-Anfrage abgeschlossen ist. Wenn kein Terminal angeschlossen ist und kein zukünftiger oder laufender Scheduler-Job vorhanden ist, kann der Computer normal schlafen. Der Display-Ruhezustand bleibt verfügbar.</p>
 <p><img alt="AI request/integration flow" src="../assets/diagrams/ai-api-integration.svg" /></p>
 <div class="admonition warning">
 <p class="admonition-title">Datensicherheit</p>
-<p>Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Endpunkt übertragen. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Bevorzugen Sie für vertrauliche Daten einen vertrauenswürdigen lokalen Endpunkt wie <strong>LM Studio</strong> oder vergewissern Sie sich, dass Sie dem Remote-Endpunkt vertrauen, bevor Sie etwas senden. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
+<p>Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Dienst übermittelt. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Verwenden Sie für sensible Daten ein <a href="local-models.html">integriertes lokales GGUF-Modell </a> oder einen anderen Endpunkt, dem Sie vertrauen. Die eingebettete Inferenz verwendet einen authentifizierten Nur-Loopback-Server. Remote-Anbieter erhalten die überprüfte Anfrage über das Netzwerk. Wenn Sie einen <strong>API-Schlüssel</strong> angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.</p>
 </div>
 <h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
 <li>Gehe zu <strong>AI</strong>.</li>
-<li>Erstellen Sie ein oder mehrere AI-Profile und geben Sie die <strong>API-URL</strong> für jedes Profil ein, das Sie verwenden möchten. Sie können Profile unter <strong>Einstellungen &gt; AI</strong> oder unter <strong>Tools &gt; AI Manager &gt; Profile</strong> verwalten.</li>
-<li>Geben Sie optional <strong>Modell</strong> und <strong>API-Schlüssel</strong> ein. Die bearbeitbare Modellauswahl unterstützt manuelle Modellnamen; für bekannte Cloud-Anbieter (OpenAI, Anthropic, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax) ist es mit gängigen Modellnamen vorgefüllt und für lokale LM Studio-Endpunkte bietet es eine <strong>Auto</strong>-Option plus die aktuell geladenen lokalen LLMs. Der <strong>API-Schlüssel</strong> wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Bevorzugen Sie lokale Endpunkte für vertrauliche Daten oder überprüfen Sie die Vertrauensstufe des Endpunkts, bevor Sie eine Auswahl senden.</li>
-<li>Konfigurieren Sie optional <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Argumentationsoptionen basierend auf der konfigurierten API-URL und dem konfigurierten API-Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.</li>
+<li>Erstellen Sie ein oder mehrere AI-Profile unter <strong>Einstellungen &gt; AI</strong> oder <strong>AI &gt; AI Manager &gt; Profile</strong>. Wählen Sie <strong>HTTP API</strong>, <strong>Local CLI</strong> oder <strong>Integrated llama.cpp</strong> als Verbindungsmodus.</li>
+<li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus. korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>AI Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
+<li>Konfigurieren Sie optional <strong>Prompt-Optimierung</strong>, <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Argumentationsoptionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.</li>
 <li>Klicken Sie auf <strong>AI-Verbindung testen</strong>.</li>
-<li>Wählen Sie optional ein <strong>Standardprofil</strong> für Terminal-KI-Aktionen und Folgechats, die nicht explizit ein anderes Profil auswählen.</li>
+<li>Wählen Sie optional ein <strong>Standardprofil</strong> und weisen Sie dann unter <strong>AI-Manager &gt; Lokale KI</strong> separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.</li>
 <li>Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.</li>
 <li>Konfigurieren Sie optional die Größe des Terminal-Agent-Eingabeverlaufs (Standard 20, Bereich 5–100), den Agent-Befehlsnamen, die Befehlsübereinstimmung ohne Berücksichtigung der Groß-/Kleinschreibung, das Ausführungsziel, die Verwendung des Prompt-Hooks, den Einrichtungsdialog pro Ausführung, die Debug-/Laufzeitsichtbarkeit und die Aktivitätsfenstereinstellungen für <strong>AI Agent</strong> und <strong>AI Planning</strong>.</li>
 <li>Deaktivieren Sie optional den Bestätigungsdialog für <strong>Zusammenfassen</strong> und <strong>Problem lösen</strong>, wenn Sie einen schnelleren Arbeitsablauf wünschen. <strong>Fragen</strong> öffnet immer den Eingabeaufforderungsdialog.</li>
@@ -2648,6 +2730,7 @@
 <li><strong>Profilname</strong> – Geben Sie einen Anzeigenamen für das Profil ein (z. B. „Claude Opus“, „Local LM Studio“).</li>
 </ol>
 <p>Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten.</p>
+<p>Für eine vollständig integrierte GGUF-Inferenz verwenden Sie den separaten Assistenten <strong>AI Manager &gt; Lokale Modelle &gt; Einrichtungsassistent</strong>. Es überprüft die Hardware, empfiehlt Text-/Codierungs-/Einbettungsmodelle, überprüft die Lizenz und die genaue Größe, verifiziert den unveränderlichen Download, erstellt ein eingebettetes Profil, weist die ausgewählte Rolle zu und führt einen echten lokalen Chat oder einen Einbettungsfunktionstest durch. Siehe <a href="local-models.html">Lokale Modelle mit llama.cpp</a>.</p>
 <h2 id="modellauswahl">Modellauswahl<a class="headerlink" href="#modellauswahl" title="Permanent link">&para;</a></h2>
 <p>Die Modellauswahl unter <strong>Einstellungen &gt; AI</strong> und <strong>Tools &gt; AI Manager &gt; Profile</strong> kann bearbeitet werden:</p>
 <ul>
@@ -2655,7 +2738,11 @@
 Das in * A aufgeführte Modell speichert dieses Modell als manuelle Auswahl.
 Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jeder OpenAI-kompatible Endpunkt funktioniert.</li>
 <li><strong>Auto</strong> wird nur für lokale LM Studio-Endpunkte angeboten, bei denen korTTY das geladene Modell tatsächlich erkennen kann. Cloud-Profile benötigen ein konkretes Modell; Wenn keine Option ausgewählt ist, werden die Anforderungen mit der expliziten Fehlermeldung „Wählen Sie ein bestimmtes KI-Modell aus“ beendet.</li>
+<li>Ein <strong>Integriertes llama.cpp</strong>-Profil listet installierte Modell-IDs von <code>~/.kortty/llm/models.xml</code> auf; Es verwendet weder die HTTP-URL noch das manuelle Cloud-Modell-Feld.</li>
 </ul>
+<h2 id="rollenrouting-rag-und-prompte-reihenfolge">Rollenrouting, RAG und prompte Reihenfolge<a class="headerlink" href="#rollenrouting-rag-und-prompte-reihenfolge" title="Permanent link">&para;</a></h2>
+<p>korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Für Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen und prosaische Beschreibungen wird die Rolle „Text“ verwendet. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.</p>
+<p>Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Fähigkeiten, begrenzter nicht vertrauenswürdiger RAG-Kontext mit <code>[R1]</code>-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter <a href="rag.html">RAG Wissensspeicher</a>.</p>
 <h3 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h3>
 <p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln.</p>
 <p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung des Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
@@ -2827,14 +2914,18 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </ul>
 </div>
 <h2 id="ai-manager">AI-Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
-<p>Öffnen Sie <strong>Tools &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
-<p><img alt="AI Manager" src="../assets/screenshots/ai/ai-manager.png" /></p>
-<p>Der AI Manager verfügt über zwei Arbeitsbereiche:</p>
+<p>Öffnen Sie <strong>AI &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
+<p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
+<p>Der AI Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von <strong>AI Manager</strong> wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.</p>
+<p>Der Manager kombiniert Profil-, lokale Inferenz-, Abruf- und gespeicherte Chat-Verwaltung:</p>
 <ul>
 <li><strong>Profile</strong> – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.</li>
+<li><strong>Lokale Modelle</strong> – Hugging Face durchsuchen, GGUF-Dateien importieren/herunterladen/konfigurieren, den Funktionstest nach der Installation ausführen und mehrere llama.cpp-Sidecars starten oder stoppen.</li>
+<li><strong>Lokale KI</strong> – Weisen Sie Text-/Übersetzungs- und Codierungsprofile zu, wählen Sie das Einbettungsmodell und das bevorzugte Laufzeit-Backend aus, speichern Sie ein verschlüsseltes Hugging Face-Token und wählen Sie die Laufzeitaktualisierungsrichtlinie aus.</li>
+<li><strong>Wissensspeicher</strong> – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.</li>
 <li><strong>Gespeicherte Chats</strong> – zuvor gespeicherte KI-Konversationen öffnen, umbenennen, aktualisieren oder löschen. Gespeicherte <a href="ai-swarm.html">AI Swarm</a>-Konversationen werden in einem eigenen Abschnitt <strong>Swarm-Chats</strong> angezeigt, einschließlich der Konversationen, die durch geplante Swarm-Jobs erstellt wurden.</li>
 </ul>
-<p>Verwenden Sie <strong>Einstellungen &gt; AI</strong> für die globalen Standardeinstellungen und Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-/Chatverwaltung.</p>
+<p>Verwenden Sie <strong>Einstellungen &gt; KI</strong> für globale Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.</p>
 <h2 id="fragen-sie-nach-der-anleitung-ai-dokumentensuche">Fragen Sie nach der Anleitung (AI-Dokumentensuche)<a class="headerlink" href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" title="Permanent link">&para;</a></h2>
 <p>Das integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
 <p>So funktioniert es:</p>
