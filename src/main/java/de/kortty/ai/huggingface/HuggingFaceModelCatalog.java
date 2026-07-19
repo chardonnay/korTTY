@@ -59,8 +59,12 @@ public final class HuggingFaceModelCatalog {
             .toList();
     }
 
-    /** Returns one preferred recommendation for each role supported by the detected RAM tier. */
-    public static List<Recommendation> defaultsForMemory(long systemMemoryBytes) {
+    /**
+     * Returns every recommendation supported by the detected RAM tier, grouped by role and, within
+     * each role, ordered by descending preference. The first entry per role is the preferred
+     * default; the remaining entries give setup UIs real alternatives to offer.
+     */
+    public static List<Recommendation> candidatesForMemory(long systemMemoryBytes) {
         List<Recommendation> available = AiCatalogService.getDefault().catalog().recommendations().stream()
             .map(HuggingFaceModelCatalog::fromCatalog)
             .toList();
@@ -69,9 +73,10 @@ public final class HuggingFaceModelCatalog {
             available.stream()
                 .filter(value -> value.roles().contains(role))
                 .filter(value -> value.minimumSystemMemoryBytes() <= Math.max(0, systemMemoryBytes))
-                .max(Comparator.comparingInt(Recommendation::preference)
-                    .thenComparingLong(Recommendation::minimumSystemMemoryBytes))
-                .ifPresent(value -> selected.putIfAbsent(value.id(), value));
+                .sorted(Comparator.comparingInt(Recommendation::preference)
+                    .thenComparingLong(Recommendation::minimumSystemMemoryBytes)
+                    .reversed())
+                .forEach(value -> selected.putIfAbsent(value.id(), value));
         }
         return List.copyOf(selected.values());
     }

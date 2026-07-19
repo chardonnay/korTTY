@@ -2438,6 +2438,14 @@ tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("localAiWizardEmbeddingSmoke") {
+    group = "verification"
+    description = "Opens the local-AI setup wizard and verifies the embedding role offers the full model catalog."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LocalAiSetupWizardEmbeddingSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("savedChatsDialogSmoke") {
     group = "verification"
     description = "Opens the standalone saved-chats window and verifies its two primary tabs render."

@@ -36,7 +36,7 @@ final class LocalAiSetupWizardModel {
     private InstallationState installationState = InstallationState.NOT_STARTED;
 
     LocalAiSetupWizardModel(long systemMemoryBytes, HuggingFaceModelCatalog.Role preferredRole) {
-        this(HuggingFaceModelCatalog.defaultsForMemory(Math.max(0, systemMemoryBytes)), preferredRole);
+        this(HuggingFaceModelCatalog.candidatesForMemory(Math.max(0, systemMemoryBytes)), preferredRole);
     }
 
     LocalAiSetupWizardModel(
@@ -61,7 +61,11 @@ final class LocalAiSetupWizardModel {
         if (role == null) {
             return List.of();
         }
-        return recommendations.stream().filter(value -> value.roles().contains(role)).toList();
+        return recommendations.stream()
+            .filter(value -> value.roles().contains(role))
+            .sorted(java.util.Comparator.comparingInt(
+                HuggingFaceModelCatalog.Recommendation::preference).reversed())
+            .toList();
     }
 
     HuggingFaceModelCatalog.Recommendation selectedRecommendation(
@@ -214,7 +218,12 @@ final class LocalAiSetupWizardModel {
     private java.util.Optional<HuggingFaceModelCatalog.Recommendation> preferredRecommendation(
         HuggingFaceModelCatalog.Role role
     ) {
-        return recommendations.stream().filter(value -> value.roles().contains(role)).findFirst();
+        // The candidate list now carries alternatives per role, so the default must be picked by
+        // preference instead of list position. Ties keep the earlier (catalog-ordered) entry.
+        return recommendations.stream()
+            .filter(value -> value.roles().contains(role))
+            .max(java.util.Comparator.comparingInt(
+                HuggingFaceModelCatalog.Recommendation::preference));
     }
 
     private void requireRunning() {
