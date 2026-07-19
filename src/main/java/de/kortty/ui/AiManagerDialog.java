@@ -28,14 +28,11 @@ import de.kortty.model.AiReasoningEffort;
 import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
-import de.kortty.model.SavedAiChat;
-import de.kortty.model.SavedSwarmChat;
 import de.kortty.model.WindowGeometry;
 import de.kortty.security.EncryptionService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -51,13 +48,9 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
@@ -86,7 +79,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Dialog for managing AI profiles and saved AI chats.
+ * Dialog for managing AI profiles, local models, knowledge stores and local preferences.
+ * Saved AI chats and swarm chats now live in their own {@link SavedChatsDialog}.
  */
 public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
@@ -99,11 +93,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private final MainWindow ownerWindow;
     private final KorTTYApplication app;
-    private final ObservableList<SavedAiChat> chats;
-    private final ObservableList<SavedSwarmChat> swarmChats;
     private final ObservableList<AiProfile> profiles;
-    private final TableView<SavedAiChat> chatTable;
-    private final TableView<SavedSwarmChat> swarmChatTable;
     private final ListView<AiProfile> profileListView;
     private final AiLocalPreferencesPane localPreferencesPane;
     private final LocalModelManagerPane localModelManagerPane;
@@ -154,8 +144,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         setResizable(true);
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
-        chats = FXCollections.observableArrayList();
-        swarmChats = FXCollections.observableArrayList();
         profiles = FXCollections.observableArrayList();
         javafx.stage.Window owner = ownerWindow != null ? ownerWindow.getStage() : null;
         localPreferencesPane = new AiLocalPreferencesPane(app);
@@ -176,8 +164,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         knowledgeStorePane = ragPane;
 
-        chatTable = buildChatTable();
-        swarmChatTable = buildSwarmChatTable();
         profileListView = buildProfileListView();
         defaultProfileCombo = new ComboBox<>();
         profileNameField = new TextField();
@@ -225,9 +211,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             buildProfilesTab(),
             buildLocalModelsTab(),
             buildKnowledgeStoresTab(),
-            buildLocalPreferencesTab(),
-            buildSavedChatsTab(),
-            buildSwarmChatsTab());
+            buildLocalPreferencesTab());
         primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
         tabPane.getTabs().addAll(primaryTabs);
 
@@ -303,46 +287,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         } catch (Exception ignored) {
         }
-    }
-
-    private TableView<SavedAiChat> buildChatTable() {
-        TableView<SavedAiChat> table = new TableView<>(chats);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-
-        TableColumn<SavedAiChat, String> titleColumn = new TableColumn<>(I18n.get("ai.manager.column.title"));
-        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getTitle() != null && !cell.getValue().getTitle().isBlank()
-                ? cell.getValue().getTitle()
-                : I18n.get("ai.saved.defaultTitle")));
-        titleColumn.setMinWidth(220);
-
-        TableColumn<SavedAiChat, String> profileColumn = new TableColumn<>(I18n.get("ai.manager.column.profile"));
-        profileColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getActiveAiProfileName() != null ? cell.getValue().getActiveAiProfileName() : ""));
-        profileColumn.setMinWidth(150);
-
-        TableColumn<SavedAiChat, String> updatedColumn = new TableColumn<>(I18n.get("ai.manager.column.updated"));
-        updatedColumn.setCellValueFactory(cell -> new SimpleStringProperty(formatUpdatedAt(cell.getValue().getUpdatedAt())));
-        updatedColumn.setMinWidth(160);
-
-        TableColumn<SavedAiChat, String> connectionColumn = new TableColumn<>(I18n.get("ai.manager.column.connection"));
-        connectionColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getConnectionDisplayName() != null ? cell.getValue().getConnectionDisplayName() : ""));
-        connectionColumn.setMinWidth(180);
-
-        table.getColumns().addAll(List.of(titleColumn, profileColumn, updatedColumn, connectionColumn));
-        table.setPlaceholder(new Label(I18n.get("ai.manager.empty")));
-        table.setRowFactory(view -> {
-            TableRow<SavedAiChat> row = new TableRow<>();
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    ownerWindow.openSavedAiChat(new SavedAiChat(row.getItem()));
-                }
-            });
-            return row;
-        });
-        return table;
     }
 
     private ListView<AiProfile> buildProfileListView() {
@@ -697,34 +641,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return tab;
     }
 
-    private Tab buildSavedChatsTab() {
-        Button openButton = new Button(I18n.get("ai.manager.open"));
-        openButton.setOnAction(event -> openSelectedChat());
-        applyButtonIcon(openButton, ICON_OPEN);
-        Button renameButton = new Button(I18n.get("ai.manager.rename"));
-        renameButton.setOnAction(event -> renameSelectedChat());
-        applyButtonIcon(renameButton, ICON_RENAME);
-        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        deleteButton.setOnAction(event -> deleteSelectedChat());
-        applyButtonIcon(deleteButton, ICON_DELETE);
-        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
-        refreshButton.setOnAction(event -> refreshChats());
-        applyButtonIcon(refreshButton, ICON_REFRESH);
-
-        openButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-        renameButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.disableProperty().bind(chatTable.getSelectionModel().selectedItemProperty().isNull());
-
-        HBox buttonBar = new HBox(8, openButton, renameButton, deleteButton, refreshButton);
-        VBox root = new VBox(10, chatTable, buttonBar);
-        root.setPadding(new Insets(6));
-        VBox.setVgrow(chatTable, Priority.ALWAYS);
-
-        Tab tab = new Tab(I18n.get("ai.manager.tab.chats"));
-        tab.setContent(root);
-        return tab;
-    }
-
     private Tab buildLocalPreferencesTab() {
         Tab tab = new Tab(I18n.get("ai.local.preferences.tab"));
         tab.setContent(localPreferencesPane);
@@ -745,117 +661,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return tab;
     }
 
-    private TableView<SavedSwarmChat> buildSwarmChatTable() {
-        TableView<SavedSwarmChat> table = new TableView<>(swarmChats);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-
-        TableColumn<SavedSwarmChat, String> titleColumn = new TableColumn<>(I18n.get("ai.swarm.manager.title"));
-        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getTitle() != null && !cell.getValue().getTitle().isBlank()
-                ? cell.getValue().getTitle()
-                : I18n.get("ai.saved.defaultTitle")));
-        titleColumn.setMinWidth(240);
-
-        TableColumn<SavedSwarmChat, String> profileColumn = new TableColumn<>(I18n.get("ai.manager.column.profile"));
-        profileColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getActiveAiProfileName() != null ? cell.getValue().getActiveAiProfileName() : ""));
-        profileColumn.setMinWidth(150);
-
-        TableColumn<SavedSwarmChat, String> targetsColumn = new TableColumn<>(I18n.get("ai.swarm.manager.targets"));
-        targetsColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            String.valueOf(cell.getValue().getTargetConnectionIds() != null
-                ? cell.getValue().getTargetConnectionIds().size() : 0)));
-        targetsColumn.setMinWidth(100);
-
-        TableColumn<SavedSwarmChat, String> updatedColumn = new TableColumn<>(I18n.get("ai.swarm.manager.updated"));
-        updatedColumn.setCellValueFactory(cell -> new SimpleStringProperty(formatUpdatedAt(cell.getValue().getUpdatedAt())));
-        updatedColumn.setMinWidth(160);
-
-        table.getColumns().addAll(List.of(titleColumn, profileColumn, targetsColumn, updatedColumn));
-        table.setPlaceholder(new Label(I18n.get("ai.swarm.manager.empty")));
-        table.setRowFactory(view -> {
-            TableRow<SavedSwarmChat> row = new TableRow<>();
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    ownerWindow.openSavedSwarmChat(new SavedSwarmChat(row.getItem()));
-                }
-            });
-            return row;
-        });
-        return table;
-    }
-
-    private Tab buildSwarmChatsTab() {
-        Button openButton = new Button(I18n.get("ai.manager.open"));
-        openButton.setOnAction(event -> openSelectedSwarmChat());
-        applyButtonIcon(openButton, ICON_OPEN);
-        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        deleteButton.setOnAction(event -> deleteSelectedSwarmChat());
-        applyButtonIcon(deleteButton, ICON_DELETE);
-        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
-        refreshButton.setOnAction(event -> refreshSwarmChats());
-        applyButtonIcon(refreshButton, ICON_REFRESH);
-
-        openButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.disableProperty().bind(swarmChatTable.getSelectionModel().selectedItemProperty().isNull());
-
-        HBox buttonBar = new HBox(8, openButton, deleteButton, refreshButton);
-        VBox root = new VBox(10, swarmChatTable, buttonBar);
-        root.setPadding(new Insets(6));
-        VBox.setVgrow(swarmChatTable, Priority.ALWAYS);
-
-        Tab tab = new Tab(I18n.get("ai.swarm.manager.section"));
-        tab.setContent(root);
-        return tab;
-    }
-
-    private void refreshSwarmChats() {
-        swarmChats.setAll(loadSwarmChats());
-    }
-
-    private List<SavedSwarmChat> loadSwarmChats() {
-        return app != null && app.getSwarmChatManager() != null
-            ? app.getSwarmChatManager().getAllChats()
-            : List.of();
-    }
-
-    private void openSelectedSwarmChat() {
-        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        ownerWindow.openSavedSwarmChat(new SavedSwarmChat(selected));
-    }
-
-    private void deleteSelectedSwarmChat() {
-        SavedSwarmChat selected = swarmChatTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        DialogThemeHelper.applyTheme(confirm);
-        confirm.initOwner(ownerWindow.getStage());
-        confirm.setTitle(I18n.get("ai.manager.delete.title"));
-        confirm.setHeaderText(I18n.get("ai.manager.delete.header"));
-        confirm.setContentText(I18n.get("ai.manager.delete.content",
-            selected.getTitle() != null ? selected.getTitle() : I18n.get("ai.saved.defaultTitle")));
-        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-        if (ownerWindow.deleteSavedSwarmChat(selected)) {
-            refreshSwarmChats();
-        }
-    }
-
     private void refreshAll() {
         refreshProfiles();
         localModelManagerPane.refresh();
         if (knowledgeStorePane != null) {
             knowledgeStorePane.refresh();
         }
-        refreshChats();
-        refreshSwarmChats();
     }
 
     private void refreshProfiles() {
@@ -920,16 +731,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         merged.addAll(draftById.values());
         return List.copyOf(merged);
-    }
-
-    private void refreshChats() {
-        chats.setAll(loadChats());
-    }
-
-    private List<SavedAiChat> loadChats() {
-        return app != null && app.getAiChatManager() != null
-            ? app.getAiChatManager().getAllChats()
-            : List.of();
     }
 
     private List<AiProfile> loadProfiles() {
@@ -1019,57 +820,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return null;
     }
 
-    private void openSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-        ownerWindow.openSavedAiChat(new SavedAiChat(selectedChat));
-    }
-
-    private void renameSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-
-        SaveAiChatDialog dialog = new SaveAiChatDialog(
-            ownerWindow.getStage(),
-            I18n.get("ai.result.rename.title"),
-            I18n.get("ai.result.rename.header"),
-            selectedChat.getTitle(),
-            selectedChat.getTitle(),
-            null);
-        dialog.showAndWait().ifPresent(newTitle -> {
-            if (ownerWindow.renameSavedAiChat(selectedChat, newTitle)) {
-                refreshChats();
-            }
-        });
-    }
-
-    private void deleteSelectedChat() {
-        SavedAiChat selectedChat = chatTable.getSelectionModel().getSelectedItem();
-        if (selectedChat == null) {
-            return;
-        }
-
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        DialogThemeHelper.applyTheme(confirm);
-        confirm.initOwner(ownerWindow.getStage());
-        confirm.setTitle(I18n.get("ai.manager.delete.title"));
-        confirm.setHeaderText(I18n.get("ai.manager.delete.header"));
-        confirm.setContentText(I18n.get(
-            "ai.manager.delete.content",
-            selectedChat.getTitle() != null ? selectedChat.getTitle() : I18n.get("ai.saved.defaultTitle")));
-        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-            return;
-        }
-
-        if (ownerWindow.deleteSavedAiChat(selectedChat)) {
-            refreshChats();
-        }
-    }
-
     // Shared inline-SVG button glyphs live in ButtonIcons; the aliases keep call sites short.
     private static final String ICON_WIZARD = ButtonIcons.WIZARD;
     private static final String ICON_ADD = ButtonIcons.ADD;
@@ -1078,8 +828,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private static final String ICON_REFRESH = ButtonIcons.REFRESH;
     private static final String ICON_SAVE = ButtonIcons.SAVE;
     private static final String ICON_SKILLS = ButtonIcons.SKILLS;
-    private static final String ICON_OPEN = ButtonIcons.OPEN;
-    private static final String ICON_RENAME = ButtonIcons.RENAME;
 
     private static void applyButtonIcon(Button button, String svgPathData) {
         ButtonIcons.apply(button, svgPathData);

@@ -100,8 +100,8 @@ public final class AiManagerNavigationSmoke {
             check(navigationNode instanceof TabPane,
                 "AI Manager primary navigation style class is missing");
             TabPane navigation = (TabPane) navigationNode;
-            check(navigation.getTabs().size() == 6,
-                "expected six primary AI Manager tabs, got " + navigation.getTabs().size());
+            check(navigation.getTabs().size() == 4,
+                "expected four primary AI Manager tabs, got " + navigation.getTabs().size());
 
             Tab localModels = navigation.getTabs().get(1);
             check(localModels.getStyleClass().contains("ai-manager-primary-tab"),

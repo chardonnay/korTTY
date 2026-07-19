@@ -263,6 +263,7 @@ public class MainWindow {
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
     private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
     private AiManagerDialog aiManagerDialog;
+    private SavedChatsDialog savedChatsDialog;
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -1470,6 +1471,9 @@ public class MainWindow {
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         aiManager.setOnAction(e -> showAiManager());
 
+        MenuItem savedChats = new MenuItem(I18n.get("menu.tools.savedChats"));
+        savedChats.setOnAction(e -> showSavedChats());
+
         MenuItem aiAgent = new MenuItem(I18n.get("menu.tools.aiAgent"));
         aiAgent.setAccelerator(AI_AGENT_ACCELERATOR);
         aiAgent.setOnAction(e -> showAiAgent());
@@ -1484,12 +1488,13 @@ public class MainWindow {
         aiSwarm.setOnAction(e -> showAiSwarm());
 
         toolsAiMenuItems.add(aiManager);
+        toolsAiMenuItems.add(savedChats);
         toolsAiMenuItems.add(aiAgent);
         toolsAiMenuItems.add(aiPlanning);
         toolsAiMenuItems.add(aiSwarm);
         toolsAiAgentExecutionMenuItems.add(aiAgent);
 
-        aiMenu.getItems().addAll(aiManager, aiAgent, aiPlanning, aiSwarm);
+        aiMenu.getItems().addAll(aiManager, savedChats, aiAgent, aiPlanning, aiSwarm);
         return aiMenu;
     }
 
@@ -7705,6 +7710,50 @@ public class MainWindow {
             managerStage.setIconified(false);
             managerStage.toFront();
             managerStage.requestFocus();
+        }
+    }
+
+    private void showSavedChats() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "saved_chats"));
+        if (!isAiFeaturesEnabled()) {
+            return;
+        }
+        try {
+            if (savedChatsDialog != null) {
+                if (savedChatsDialog.isShowing()) {
+                    bringDialogToFront(savedChatsDialog);
+                    return;
+                }
+                savedChatsDialog = null;
+            }
+
+            SavedChatsDialog dialog = new SavedChatsDialog(this);
+            dialog.initOwner(stage);
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                if (savedChatsDialog == dialog) {
+                    savedChatsDialog = null;
+                }
+            });
+            savedChatsDialog = dialog;
+            dialog.show();
+            bringDialogToFront(dialog);
+        } catch (Exception e) {
+            if (savedChatsDialog != null && !savedChatsDialog.isShowing()) {
+                savedChatsDialog = null;
+            }
+            logger.error("Failed to open saved chats window", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private static void bringDialogToFront(Dialog<?> dialog) {
+        Window window = dialog.getDialogPane().getScene() != null
+            ? dialog.getDialogPane().getScene().getWindow()
+            : null;
+        if (window instanceof Stage dialogStage) {
+            dialogStage.setIconified(false);
+            dialogStage.toFront();
+            dialogStage.requestFocus();
         }
     }
 

@@ -618,6 +618,10 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry aiManagerDialogGeometry;
 
+    /** Last window geometry of the saved chats dialog (saved AI and swarm chats). */
+    @XmlElement
+    private WindowGeometry savedChatsDialogGeometry;
+
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
     @XmlElement(name = "source")
@@ -2455,6 +2459,13 @@ public class GlobalSettings {
     /** Stores the AI manager dialog window position/size. */
     public void setAiManagerDialogGeometry(WindowGeometry aiManagerDialogGeometry) {
         this.aiManagerDialogGeometry = aiManagerDialogGeometry;
+    }
+
+    public WindowGeometry getSavedChatsDialogGeometry() { return savedChatsDialogGeometry; }
+
+    /** Stores the saved chats dialog window position/size. */
+    public void setSavedChatsDialogGeometry(WindowGeometry savedChatsDialogGeometry) {
+        this.savedChatsDialogGeometry = savedChatsDialogGeometry;
     }
 
     // ---- Teamwork ----

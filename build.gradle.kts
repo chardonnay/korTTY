@@ -2438,6 +2438,14 @@ tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("savedChatsDialogSmoke") {
+    group = "verification"
+    description = "Opens the standalone saved-chats window and verifies its two primary tabs render."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SavedChatsDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     group = "verification"
     description = "Renders synthetic local-model download progress and verifies the fixed bottom status panel."
