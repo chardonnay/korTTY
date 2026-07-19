@@ -2037,14 +2037,12 @@ public class SFTPManagerTab extends Tab {
                 // Build the archive command based on format
                 String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
 
-                // Build the logged command with a placeholder password instead of regex-masking the
-                // real one: quote-escaping ('\'') let passwords containing quotes leak past the old
-                // "[^']*" masks (CodeQL java/sensitive-log). The password value itself must never
-                // flow into the logged expression, so the placeholder branch passes null, which
-                // buildArchiveCommand treats exactly like an absent password.
-                logger.info("Executing remote archive command: {}", buildArchiveCommand(
-                    filesToArchive, archivePath, format, compression,
-                    password != null && !password.isEmpty() ? "***" : null, excludePatterns));
+                // Log archive metadata instead of the command line: any buildArchiveCommand result
+                // can embed the archive password, and the old regex masks were bypassable via
+                // quote-escaping ('\'') — CodeQL java/sensitive-log.
+                logger.info("Executing remote archive command: format={} target={} files={} passwordProtected={}",
+                    format, archivePath, filesToArchive.size(),
+                    password != null && !password.isEmpty());
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
