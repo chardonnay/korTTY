@@ -370,8 +370,8 @@ dependencies {
 
     // Native desktop power-management integration. pty4j already brings these transitively, but
     // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
-    implementation("net.java.dev.jna:jna:5.13.0")
-    implementation("net.java.dev.jna:jna-platform:5.13.0")
+    implementation("net.java.dev.jna:jna:5.19.1")
+    implementation("net.java.dev.jna:jna-platform:5.19.1")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.18")
