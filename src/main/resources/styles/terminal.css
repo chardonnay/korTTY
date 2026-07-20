@@ -753,6 +753,12 @@
     -fx-font-size: 12px;
 }
 
+/* Context-menu icons live in a popup outside the dashboard's scene-graph
+ * branch, so they can't resolve -kortty-dash-* and use a static fill. */
+.dashboard-menu-icon {
+    -fx-fill: #8a8a8a;
+}
+
 /* Table View */
 .table-view {
     -fx-background-color: #2d2d2d;

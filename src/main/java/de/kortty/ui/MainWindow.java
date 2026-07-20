@@ -3814,7 +3814,8 @@ public class MainWindow {
         if (show && !dashboardVisible) {
             if (dashboardView == null) {
                 // Content-sized width: the view measures its entries and animates itself.
-                dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
+                dashboardView = new DashboardView(tabPane, this::handleDashboardAction,
+                        this::resolveDashboardEnvironmentName);
             }
             if (!mainContentBox.getChildren().contains(dashboardView)) {
                 mainContentBox.getChildren().add(0, dashboardView);
@@ -3835,6 +3836,24 @@ public class MainWindow {
     private void updateDashboard() {
         if (dashboardView != null && dashboardVisible) {
             dashboardView.refresh();
+        }
+    }
+
+    /**
+     * Resolves a connection's credential environment display name for the dashboard
+     * tree (e.g. "Production"), or null when the connection has no stored credential.
+     */
+    private String resolveDashboardEnvironmentName(ServerConnection connection) {
+        try {
+            if (connection == null || connection.getCredentialId() == null || connection.getCredentialId().isEmpty()
+                    || app.getCredentialManager() == null || app.getEnvironmentManager() == null) {
+                return null;
+            }
+            return app.getCredentialManager().findCredentialById(connection.getCredentialId())
+                    .map(credential -> app.getEnvironmentManager().getDisplayName(credential.getEnvironmentId()))
+                    .orElse(null);
+        } catch (Exception e) {
+            return null;
         }
     }
     

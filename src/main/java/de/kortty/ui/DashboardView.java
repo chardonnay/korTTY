@@ -24,8 +24,11 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 
+import javafx.scene.input.KeyCode;
+
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Dashboard view showing a tree of all active terminal tabs with their connection status.
@@ -35,6 +38,8 @@ public class DashboardView extends VBox {
 
     private final TabPane tabPane;
     private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
+    /** Resolves a connection to its credential-environment display name (or null). */
+    private final Function<ServerConnection, String> environmentResolver;
     private final TreeView<DashboardItem> treeView;
     private final Button refreshButton;
     private final Button collapseAllButton;
@@ -93,10 +98,19 @@ public class DashboardView extends VBox {
             "M8,2.5 A5.5,5.5 0 1 0 13.5,8 L12,8 A4,4 0 1 1 8,4 L8,6.5 L11.5,3.75 L8,1 Z";
     private static final String ICON_COLLAPSE_ALL =
             "M3,7.5 L8,2.5 13,7.5 11.6,8.9 8,5.3 4.4,8.9 z M3,13 L8,8 13,13 11.6,14.4 8,10.8 4.4,14.4 z";
+    // Context menu icons: right arrow (focus), overlapping squares (duplicate), X (close).
+    private static final String ICON_FOCUS =
+            "M2,6.5 h7 v-3.5 l5,5 -5,5 v-3.5 h-7 z";
+    private static final String ICON_DUPLICATE =
+            "M2,2 h8 v3 h-3 v5 h-5 z M6,6 h8 v8 h-8 z M7.5,7.5 v5 h5 v-5 z";
+    private static final String ICON_CLOSE =
+            "M3,4.4 L4.4,3 8,6.6 11.6,3 13,4.4 9.4,8 13,11.6 11.6,13 8,9.4 4.4,13 3,11.6 6.6,8 z";
 
-    public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler) {
+    public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler,
+                         Function<ServerConnection, String> environmentResolver) {
         this.tabPane = tabPane;
         this.actionHandler = actionHandler;
+        this.environmentResolver = environmentResolver;
 
         getStyleClass().add("dashboard-view");
 
@@ -121,6 +135,16 @@ public class DashboardView extends VBox {
         treeView = new TreeView<>();
         treeView.getStyleClass().add("dashboard-tree");
         treeView.setShowRoot(false);
+
+        // Enter focuses the selected connection (same as double-click).
+        treeView.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                TreeItem<DashboardItem> selected = treeView.getSelectionModel().getSelectedItem();
+                if (selected != null && selected.getValue() != null && selected.getValue().getTerminalTab() != null) {
+                    actionHandler.accept(selected.getValue().getTerminalTab(), DashboardAction.FOCUS);
+                }
+            }
+        });
 
         treeView.setCellFactory(tv -> {
             TreeCell<DashboardItem> cell = new DashboardCell();
@@ -275,6 +299,20 @@ public class DashboardView extends VBox {
         return Math.ceil(measurer.getLayoutBounds().getWidth());
     }
 
+    /** 16x16 SVG icon for context-menu items. Popups can't resolve the panel's
+     *  looked-up colors, so it uses the static dashboard-menu-icon fill. */
+    private static StackPane menuIcon(String svgPath) {
+        SVGPath icon = new SVGPath();
+        icon.setFillRule(FillRule.EVEN_ODD);
+        icon.setContent(svgPath);
+        icon.getStyleClass().add("dashboard-menu-icon");
+        StackPane pane = new StackPane(icon);
+        pane.setMinSize(16, 16);
+        pane.setPrefSize(16, 16);
+        pane.setMaxSize(16, 16);
+        return pane;
+    }
+
     /** Small transparent header button with a 16x16 SVG icon. */
     private static Button iconButton(String svgPath, String tooltip) {
         SVGPath icon = new SVGPath();
@@ -397,13 +435,19 @@ public class DashboardView extends VBox {
                 if (item.getTerminalTab() != null) {
                     ContextMenu contextMenu = new ContextMenu();
 
-                    MenuItem duplicateItem = new MenuItem(I18n.get("dashboard.duplicate"));
+                    MenuItem focusItem = new MenuItem(I18n.get("dashboard.focus"), menuIcon(ICON_FOCUS));
+                    focusItem.setOnAction(e -> {
+                        actionHandler.accept(item.getTerminalTab(), DashboardAction.FOCUS);
+                    });
+                    contextMenu.getItems().add(focusItem);
+
+                    MenuItem duplicateItem = new MenuItem(I18n.get("dashboard.duplicate"), menuIcon(ICON_DUPLICATE));
                     duplicateItem.setOnAction(e -> {
                         actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
                     });
                     contextMenu.getItems().add(duplicateItem);
 
-                    MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"));
+                    MenuItem reconnectItem = new MenuItem(I18n.get("dashboard.reconnect"), menuIcon(ICON_REFRESH));
                     reconnectItem.setOnAction(e -> {
                         actionHandler.accept(item.getTerminalTab(), DashboardAction.RECONNECT);
                     });
@@ -412,7 +456,7 @@ public class DashboardView extends VBox {
                     contextMenu.getItems().add(new SeparatorMenuItem());
 
                     if (item.isConnected()) {
-                        MenuItem sftpItem = new MenuItem(I18n.get("menu.connections.sftpClient"));
+                        MenuItem sftpItem = new MenuItem(I18n.get("menu.connections.sftpClient"), menuIcon(ICON_GROUP));
                         sftpItem.setOnAction(e -> {
                             actionHandler.accept(item.getTerminalTab(), DashboardAction.SFTP_MANAGER);
                         });
@@ -420,7 +464,7 @@ public class DashboardView extends VBox {
                         contextMenu.getItems().add(new SeparatorMenuItem());
                     }
 
-                    MenuItem closeItem = new MenuItem(I18n.get("dialog.close"));
+                    MenuItem closeItem = new MenuItem(I18n.get("dialog.close"), menuIcon(ICON_CLOSE));
                     closeItem.setOnAction(e -> {
                         actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE);
                     });
@@ -558,10 +602,37 @@ public class DashboardView extends VBox {
                 DashboardItem.container(NodeType.MAIN_WINDOW, I18n.get("dashboard.mainWindowTitle"), activeTabs, totalTabs));
         windowItem.setExpanded(true);
 
-        // Add ungrouped tabs first
+        // Ungrouped tabs: cluster by credential environment. Tabs without a
+        // resolvable environment sit directly under the main window node.
+        java.util.Map<String, java.util.List<TerminalTab>> environments = new java.util.HashMap<>();
         for (TerminalTab terminalTab : ungroupedTabs) {
-            windowItem.getChildren().add(new TreeItem<>(
-                    DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab)));
+            String env = resolveEnvironmentName(terminalTab);
+            if (env == null) {
+                windowItem.getChildren().add(new TreeItem<>(
+                        DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab)));
+            } else {
+                environments.computeIfAbsent(env, k -> new java.util.ArrayList<>()).add(terminalTab);
+            }
+        }
+
+        List<String> sortedEnvironments = new java.util.ArrayList<>(environments.keySet());
+        sortedEnvironments.sort(String::compareToIgnoreCase);
+        for (String envName : sortedEnvironments) {
+            java.util.List<TerminalTab> envTabs = environments.get(envName);
+            int envActive = 0;
+            for (TerminalTab tab : envTabs) {
+                if (stateOf(tab) == ConnState.CONNECTED) {
+                    envActive++;
+                }
+            }
+            TreeItem<DashboardItem> envItem = new TreeItem<>(
+                    DashboardItem.container(NodeType.ENVIRONMENT, envName, envActive, envTabs.size()));
+            envItem.setExpanded(true);
+            for (TerminalTab terminalTab : envTabs) {
+                envItem.getChildren().add(new TreeItem<>(
+                        DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab)));
+            }
+            windowItem.getChildren().add(envItem);
         }
 
         // Add grouped tabs, sorted by group name
@@ -602,6 +673,19 @@ public class DashboardView extends VBox {
         emptyBox.setVisible(totalTabs == 0);
         footerLabel.setText(I18n.get("dashboard.footer", activeTabs, totalTabs));
         updatePanelWidth();
+    }
+
+    /** Environment display name for a tab's connection credential, or null if none. */
+    private String resolveEnvironmentName(TerminalTab terminalTab) {
+        if (environmentResolver == null || terminalTab.getConnection() == null) {
+            return null;
+        }
+        try {
+            String env = environmentResolver.apply(terminalTab.getConnection());
+            return env != null && !env.isBlank() ? env : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
