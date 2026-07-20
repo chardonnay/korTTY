@@ -1,0 +1,29 @@
+diff --git a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+index fc2da7b..eccc4db 100644
+--- a/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
++++ b/sithtermfx-ui/src/main/java/com/sithtermfx/ui/TerminalPanel.java
+@@ -2205,0 +2206,13 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
++    /**
++     * True when the character carried by a key event is the residue of a shortcut chord and must
++     * not be written to the pty. Menu accelerators consume only the KEY_PRESSED half of a chord;
++     * on macOS the paired KEY_TYPED event (e.g. the "d" of Cmd+Shift+D) is still delivered to the
++     * terminal canvas afterwards. This also covers macOS window cycling via Cmd+backtick, which
++     * used to be special-cased here. Ctrl is deliberately not suppressed: plain Ctrl chords
++     * surface as ISO control characters that never reach this path, and Windows AltGr input is
++     * reported as Ctrl+Alt yet must keep producing composed characters (@, {, €, ...).
++     */
++    static boolean isShortcutChordCharacter(@NotNull KeyEvent e) {
++        return e.isMetaDown();
++    }
++
+@@ -2212,2 +2225 @@ public class TerminalPanel implements TerminalDisplay, TerminalActionProvider {
+-        if (keyChar == '`' && e.isMetaDown()) {
+-            // Command + backtick is a short-cut on Mac OSX, so we shouldn't type anything
++        if (isShortcutChordCharacter(e)) {
+diff --git a/sithtermfx-ui/src/main/resources/META-INF/kortty-patch-meta-shortcut-key-typed.properties b/sithtermfx-ui/src/main/resources/META-INF/kortty-patch-meta-shortcut-key-typed.properties
+new file mode 100644
+index 0000000..a2956ae
+--- /dev/null
++++ b/sithtermfx-ui/src/main/resources/META-INF/kortty-patch-meta-shortcut-key-typed.properties
+@@ -0,0 +1 @@
++terminal-panel-meta-shortcut-key-typed=1

@@ -405,11 +405,17 @@ tasks.named<JavaExec>("run") {
 
 val sithtermfxVersion = "1.2.1"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
-val sithtermfxPatchFile = layout.projectDirectory.file(
-    "patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch"
+// Applied in order. Every patch ships its own marker resource so each one stays independently
+// forward/reverse-checkable against the vendor tree regardless of which patches are present.
+val sithtermfxPatchFiles = listOf(
+    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch"),
+    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-meta-shortcut-key-typed.patch"),
 )
-val sithtermfxPatchMarkerEntry = "META-INF/kortty-patches.properties"
-val sithtermfxPatchMarker = "terminal-panel-bottom-row-hyperlink-boundary=1"
+// Jar entry -> line that entry must contain for the installed artifact to count as patched.
+val sithtermfxPatchMarkers = listOf(
+    "META-INF/kortty-patches.properties" to "terminal-panel-bottom-row-hyperlink-boundary=1",
+    "META-INF/kortty-patch-meta-shortcut-key-typed.properties" to "terminal-panel-meta-shortcut-key-typed=1",
+)
 
 tasks.register("cloneSithtermfx") {
     group = "build"
@@ -445,15 +451,14 @@ val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
     group = "build"
     description = "Apply korTTY's reviewed patches to the pinned SithTermFX source tree."
     dependsOn("cloneSithtermfx")
-    inputs.file(sithtermfxPatchFile)
+    inputs.files(sithtermfxPatchFiles)
     // Always validate the ignored vendor tree. A manually reverted source file must not be
     // mistaken for a successfully patched clone merely because a previous output marker exists.
     outputs.upToDateWhen { false }
     doLast {
         val vendorDir = sithtermfxDir.asFile
-        val patch = sithtermfxPatchFile.asFile
 
-        fun gitApplyCheck(reverse: Boolean): Boolean {
+        fun gitApplyCheck(patch: File, reverse: Boolean): Boolean {
             val command = mutableListOf("git", "apply", "--unidiff-zero")
             if (reverse) command.add("--reverse")
             command.add("--check")
@@ -466,19 +471,22 @@ val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
                 .waitFor() == 0
         }
 
-        if (gitApplyCheck(reverse = false)) {
-            val process = ProcessBuilder("git", "apply", "--unidiff-zero", patch.absolutePath)
-                .directory(vendorDir)
-                .inheritIO()
-                .start()
-            if (process.waitFor() != 0) {
-                throw GradleException("Applying the pinned SithTermFX patch failed.")
+        for (patchFile in sithtermfxPatchFiles) {
+            val patch = patchFile.asFile
+            if (gitApplyCheck(patch, reverse = false)) {
+                val process = ProcessBuilder("git", "apply", "--unidiff-zero", patch.absolutePath)
+                    .directory(vendorDir)
+                    .inheritIO()
+                    .start()
+                if (process.waitFor() != 0) {
+                    throw GradleException("Applying pinned SithTermFX patch ${patch.name} failed.")
+                }
+            } else if (!gitApplyCheck(patch, reverse = true)) {
+                throw GradleException(
+                    "Pinned SithTermFX patch ${patch.name} neither applies cleanly nor matches the " +
+                        "source tree. Verify tag v$sithtermfxVersion before building."
+                )
             }
-        } else if (!gitApplyCheck(reverse = true)) {
-            throw GradleException(
-                "The pinned SithTermFX patch neither applies cleanly nor matches the source tree. " +
-                    "Verify tag v$sithtermfxVersion before building."
-            )
         }
     }
 }
@@ -490,9 +498,11 @@ fun installedSithtermfxHasRequiredPatches(): Boolean {
     if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
     return try {
         ZipFile(mavenLocalSithtermfxUi).use { archive ->
-            val marker = archive.getEntry(sithtermfxPatchMarkerEntry) ?: return false
-            archive.getInputStream(marker).bufferedReader().use { reader ->
-                reader.readText().lineSequence().any { it.trim() == sithtermfxPatchMarker }
+            sithtermfxPatchMarkers.all { (entryName, requiredLine) ->
+                val marker = archive.getEntry(entryName) ?: return false
+                archive.getInputStream(marker).bufferedReader().use { reader ->
+                    reader.readText().lineSequence().any { it.trim() == requiredLine }
+                }
             }
         }
     } catch (_: Exception) {
@@ -2419,6 +2429,14 @@ tasks.register<JavaExec>("terminalSplitTransparencySmoke") {
     description = "Verifies terminal background transparency survives current and newly nested splits."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.TerminalSplitTransparencySmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("terminalShortcutKeyTypedSmoke") {
+    group = "verification"
+    description = "Verifies shortcut-chord KEY_TYPED characters (e.g. Cmd+Shift+D) reach neither pty nor broadcast panes."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalShortcutKeyTypedSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
