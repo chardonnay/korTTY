@@ -27,8 +27,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
 | ++Strg+D++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH) |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
-| ++f11++ | Vollbild umschalten |
-| ++f12++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
+| ++f12++ | Vollbild umschalten |
+| ++Strg+Umschalt+F++ | Nur Terminal-Vollbild umschalten |
 | ++Strg+Umschalt+B++ | Backup erstellen |
 | ++Strg+Q++ | Beenden |
 

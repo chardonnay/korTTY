@@ -93,6 +93,7 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Full code analysis shows its change preview again** — after **Apply selected**, korTTY now waits until the analysis window has completely closed and brings the side-by-side review window in front of the snippet editor. The editor remains unchanged until **Apply change** is confirmed in that preview.
 - **No crash when a snippet fails to save** — saving a snippet as a new entry could, if the save failed, crash with a null-pointer error while trying to show the failure message. The error is now reported cleanly.
 - **"Save as new snippet" no longer shows a false "already exists" error** — after editing a snippet (for example applying analysis improvements) and saving it under a new name with **Save as new snippet**, korTTY wrongly popped up *"Snippet name already exists"* even though it had just saved the snippet correctly. The dialog now delivers its save exactly once.
+- **Terminal-only fullscreen now shows the whole korTTY window, not a stretched terminal** — **View → Terminal-only Fullscreen** (++ctrl+shift+f++) keeps the whole korTTY window — menu bar, tabs, and status bar included — at the size it had before entering the mode (falling back to the configured window geometry when the window was already fullscreen) and centers it on an empty fullscreen background, so the desktop and other windows stop competing for attention. **View → Fullscreen** now uses ++f12++ instead of ++f11++, which macOS reserves system-wide for "Show Desktop".
 
 ## v2.4.2
 
