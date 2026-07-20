@@ -27,8 +27,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl++ + mouse wheel | Zoom the terminal font in/out (Cmd + wheel on macOS) |
 | ++ctrl+d++ | Close a local cmd.exe/PowerShell tab (EOF for bash-family shells and SSH) |
 | ++f1++ | Open the manual (**Help → Manual**) |
-| ++f11++ | Toggle Fullscreen |
-| ++f12++ | Toggle Terminal-only Fullscreen |
+| ++f12++ | Toggle Fullscreen |
+| ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
 | ++ctrl+shift+b++ | Create Backup |
 | ++ctrl+q++ | Quit |
 

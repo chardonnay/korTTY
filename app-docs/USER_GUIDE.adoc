@@ -125,7 +125,7 @@ image::diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Dashboard* - Toggle with Ctrl+Shift+D. Shows all open connections with status indicators. Right-click a connection to *Reconnect* (always available; closes active connection and re-establishes it), duplicate, open SFTP, or close.
 * *Status Bar* - Shows connection state, host/IP, active protocol, temporary SSH key timer, and connection duration.
 * *JobScheduler menu status* - When enabled and at least one scheduler entry is active, an additional menu appears after *Help*. It shows running jobs or the next scheduled run with a live countdown.
-* *Terminal-only fullscreen* - Press F12 or use *View > Terminal-only Fullscreen* to show the whole korTTY window - menu bar, tabs, and status bar included - kept at its previous window size and centered on an empty fullscreen background, hiding the desktop and other windows. *View > Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars while fullscreen mode is active. Press F12 again to restore the previous fullscreen and UI state.
+* *Terminal-only fullscreen* - Press Ctrl+Shift+F (Cmd+Shift+F on macOS) or use *View > Terminal-only Fullscreen* to show the whole korTTY window - menu bar, tabs, and status bar included - kept at its previous window size and centered on an empty fullscreen background, hiding the desktop and other windows. *View > Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars while fullscreen mode is active. Press Ctrl+Shift+F again to restore the previous fullscreen and UI state.
 
 == 3. Connections
 
@@ -1232,8 +1232,8 @@ On macOS, "Ctrl" refers to the *Cmd* key; "Alt" refers to the *Option* key.
 | Alt+Plus | Zoom In
 | Alt+Minus | Zoom Out
 | Alt+0 | Reset Zoom
-| F11 | Toggle Fullscreen
-| F12 | Toggle Terminal-only Fullscreen
+| F12 | Toggle Fullscreen
+| Ctrl+Shift+F | Toggle Terminal-only Fullscreen
 | Ctrl+X | Cut (terminal: copy selection to clipboard)
 | Ctrl+C | Copy
 | Ctrl+V | Paste

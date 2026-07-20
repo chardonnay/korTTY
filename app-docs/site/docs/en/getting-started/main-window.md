@@ -17,7 +17,7 @@ korTTY's main window has these regions:
 - **Status bar** — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.
 
 !!! tip "Terminal-only fullscreen"
-    Press ++f12++ (or **View → Terminal-only Fullscreen**) to show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, so the desktop and other windows stop competing for attention. **View → Hide terminal scrollbars in fullscreen** removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press ++f12++ again to restore.
+    Press ++ctrl+shift+f++ (or **View → Terminal-only Fullscreen**) to show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, so the desktop and other windows stop competing for attention. **View → Hide terminal scrollbars in fullscreen** removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press ++ctrl+shift+f++ again to restore.
 
 ## macOS Dock menu
 

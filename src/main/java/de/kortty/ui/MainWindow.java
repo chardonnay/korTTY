@@ -167,8 +167,10 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination AI_PLANNING_ACCELERATOR =
         new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    // F11 is intercepted system-wide by macOS ("Show Desktop") and F12 is used for regular OS
+    // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
-        new KeyCodeCombination(KeyCode.F12);
+        new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -306,7 +308,7 @@ public class MainWindow {
         
         openWindows.add(this);
         Telemetry.track(TelemetryEvents.WINDOW_OPENED, Map.of("open_windows", openWindows.size()));
-        // OS fullscreen can be entered via F11, the menu, or the macOS window button —
+        // OS fullscreen can be entered via F12, the menu, or the macOS window button —
         // the stage property is the single funnel for all of them.
         stage.fullScreenProperty().addListener((obs, wasFullScreen, isFullScreen) -> {
             if (Boolean.TRUE.equals(isFullScreen)) {
@@ -644,8 +646,8 @@ public class MainWindow {
             String character = event.getCharacter();
             zoomTriggered[0] = false;
             
-            // Fullscreen toggle: F11
-            if (code == KeyCode.F11) {
+            // Fullscreen toggle: F12 (F11 is reserved by macOS for "Show Desktop")
+            if (code == KeyCode.F12) {
                 boolean goFullscreen = !stage.isFullScreen();
                 stage.setFullScreen(goFullscreen);
                 // Force terminal resize after fullscreen change
@@ -1651,10 +1653,11 @@ public class MainWindow {
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
-        // F11 lives on the in-window bar; the macOS companion system bar has all accelerators
+        // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
         // stripped (see setupMenuBar), which also avoids the Cocoa NSEventModifierFlagFunction
-        // warning for the F11 function key. F11 also works via the global key handler.
-        fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
+        // warning for the F12 function key. F12 also works via the global key handler. F11 is not
+        // used here because macOS reserves it system-wide for "Show Desktop".
+        fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F12));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
         CheckMenuItem terminalOnlyFullscreen = new CheckMenuItem(I18n.get("menu.view.terminalOnlyFullscreen"));

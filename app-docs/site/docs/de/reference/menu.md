@@ -103,8 +103,8 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Verkleinern | ++Alt+Minus++ | Terminal-Schriftgröße verringern |
 | Zoom zurücksetzen | ++alt+0++ | Terminal-Schriftgröße zurücksetzen |
 | Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
-| Vollbild | ++f11++ | Fenster-Vollbild umschalten |
-| Nur korTTY Applikationsfenster | ++f12++ | Zeigt das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
+| Vollbild | ++f12++ | Fenster-Vollbild umschalten |
+| Nur korTTY Applikationsfenster | ++Strg+Umschalt+F++ | Zeigt das gesamte korTTY-Fenster an – Menüs, Registerkarten und Statusleiste inklusive – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
 
