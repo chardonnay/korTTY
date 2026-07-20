@@ -210,7 +210,9 @@ public class LanguageManager {
         try {
             ResourceBundle fromFile = loadBundleFromConfigDir(currentLocale);
             if (fromFile != null) {
-                resourceBundle = fromFile;
+                // Config-dir bundles are generated snapshots; keys added to the app after
+                // generation must still resolve, so chain the classpath bundle behind it.
+                resourceBundle = withClasspathFallback(fromFile, currentLocale);
                 logger.info("Loaded resource bundle from config dir for locale: {} (language: {})", currentLocale, currentLocale.getLanguage());
                 return;
             }
@@ -221,11 +223,43 @@ public class LanguageManager {
             java.util.ResourceBundle.clearCache();
             ResourceBundle fromFile = loadBundleFromConfigDir(Locale.ENGLISH);
             if (fromFile != null) {
-                resourceBundle = fromFile;
+                resourceBundle = withClasspathFallback(fromFile, Locale.ENGLISH);
             } else {
                 resourceBundle = ResourceBundle.getBundle(BUNDLE_BASE_NAME, Locale.ENGLISH, UTF8_CONTROL);
             }
         }
+    }
+
+    /**
+     * Wraps a config-dir bundle so lookups missing from it fall back to the
+     * classpath bundle of the same locale (which itself falls back to the base
+     * bundle). Without this, users with generated ~/.kortty/i18n files would see
+     * raw keys for any string added after their file was generated.
+     */
+    private static ResourceBundle withClasspathFallback(ResourceBundle primary, Locale locale) {
+        final ResourceBundle fallback;
+        try {
+            fallback = ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale, UTF8_CONTROL);
+        } catch (MissingResourceException e) {
+            return primary;
+        }
+        return new ResourceBundle() {
+            @Override
+            protected Object handleGetObject(String key) {
+                if (primary.containsKey(key)) {
+                    return primary.getObject(key);
+                }
+                return fallback.containsKey(key) ? fallback.getObject(key) : null;
+            }
+
+            @Override
+            public java.util.Enumeration<String> getKeys() {
+                java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+                keys.addAll(java.util.Collections.list(primary.getKeys()));
+                keys.addAll(java.util.Collections.list(fallback.getKeys()));
+                return java.util.Collections.enumeration(keys);
+            }
+        };
     }
 
     /**

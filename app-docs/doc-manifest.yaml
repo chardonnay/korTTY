@@ -72,10 +72,10 @@ pages:
     last_synced_ref: "93470d6"
   - path: app-docs/site/docs/en/getting-started/main-window.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "9ed8fbc"
+    last_synced_ref: "8c22eae"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -85,11 +85,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "9ed8fbc"
+    last_synced_ref: "8c22eae"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "9ed8fbc"
+    last_synced_ref: "8c22eae"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -198,7 +198,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "9ed8fbc"
+    last_synced_ref: "8c22eae"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/model]

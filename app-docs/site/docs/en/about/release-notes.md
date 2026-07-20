@@ -4,6 +4,14 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.5.2
 
+### Dashboard
+
+- **Redesigned dashboard panel** — the side panel (++ctrl+shift+d++) got a full visual and interaction overhaul: a clear panel boundary with its own background, a header with the panel title plus collapse/expand-all and refresh icon buttons, node-type icons for main window, environment, group and connection rows, and bold section rows with dimmed active/total counts. Rows respond to hover and selection (accent stripe), tooltips show `user@host` and the connection state, and ++enter++ or double-click focuses the session.
+- **Three-state status dots and protocol badges** — each connection row shows a filled green dot while connected, a filled red dot when the connection dropped unexpectedly (including Mosh network interruptions), and a hollow outline after a session ended normally; the old text-glyph status is gone. A small `ssh` / `mosh` / `local` badge identifies the transport.
+- **Environment grouping** — ungrouped connections cluster under the environment of their stored credential (Production, Development, Test, Staging or custom), so multi-stage work stays visually separated.
+- **Content-sized, animated panel** — the dashboard sizes its width to the longest entry (bounded), animates open and closed instead of popping in, shows a placeholder when no session is open, and reports "connected of total" in a footer. Its colors follow the active App Design, including per-design status-dot palettes.
+- **Context menu and group fixes** — the connection context menu adds **Focus** and icons for every action. Tabs opened via "open whole group" now correctly appear under their group, and changing a connection's group in the Connection Manager updates open tabs immediately.
+
 ### Power management
 
 - **Activity-based power management** — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate `caffeinate` helper so the korTTY process remains eligible for App Nap. On macOS and Windows, **Configuration > Prevent System Sleep** keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.

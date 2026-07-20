@@ -2488,6 +2488,7 @@ public class MainWindow {
      * Called when connections are saved in Connection Manager so changes take effect immediately.
      */
     private void refreshAllTerminalTabsConnectionSettings() {
+        boolean groupChanged = false;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 ServerConnection conn = terminalTab.getConnection();
@@ -2496,6 +2497,18 @@ public class MainWindow {
                     if (stored != null) {
                         if (stored.getSettings() != null) {
                             terminalTab.applyConnectionSettings(stored.getSettings());
+                        }
+                        // Propagate the connection's group to the open tab only when it
+                        // actually changed since the tab last saw it (baseline snapshot) —
+                        // a manually assigned tab group must survive unrelated saves.
+                        String storedGroup = stored.getGroup() != null && !stored.getGroup().trim().isEmpty()
+                                ? stored.getGroup().trim() : null;
+                        if (!java.util.Objects.equals(storedGroup, terminalTab.getConnectionGroupBaseline())) {
+                            terminalTab.setConnectionGroupBaseline(storedGroup);
+                            if (!java.util.Objects.equals(storedGroup, terminalTab.getGroup())) {
+                                terminalTab.setGroup(storedGroup);
+                                groupChanged = true;
+                            }
                         }
                         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                             terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(
@@ -2509,6 +2522,11 @@ public class MainWindow {
                     }
                 }
             }
+        }
+        if (groupChanged) {
+            // organizeTabsByGroup() already rebuilds every tab's context menu.
+            organizeTabsByGroup();
+            updateDashboard();
         }
     }
     
@@ -3312,7 +3330,6 @@ public class MainWindow {
         }
     }
     
-    private static final int DASHBOARD_FIXED_WIDTH = 300;
     private static final int FILE_BROWSER_DEFAULT_WIDTH = 220;
     private static final int FILE_BROWSER_MIN_WIDTH = 160;
     private static final int FILE_BROWSER_MAX_WIDTH = 420;
@@ -3813,20 +3830,26 @@ public class MainWindow {
     
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
-            if (dashboardView == null) {
-                dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
-                // Fixed width - dashboard does not resize when main window resizes
-                dashboardView.setMinWidth(DASHBOARD_FIXED_WIDTH);
-                dashboardView.setMaxWidth(DASHBOARD_FIXED_WIDTH);
-                dashboardView.setPrefWidth(DASHBOARD_FIXED_WIDTH);
+            boolean created = dashboardView == null;
+            if (created) {
+                // Content-sized width: the view measures its entries and animates itself.
+                dashboardView = new DashboardView(tabPane, this::handleDashboardAction,
+                        this::resolveDashboardEnvironmentName);
             }
-            mainContentBox.getChildren().add(0, dashboardView);
+            if (!mainContentBox.getChildren().contains(dashboardView)) {
+                mainContentBox.getChildren().add(0, dashboardView);
+            }
             dashboardVisible = true;
             applyMainWindowThemeFromGlobalSettings();
+            if (!created) {
+                // The constructor already built the tree; only re-sync on re-show.
+                dashboardView.refresh();
+            }
+            dashboardView.playShowAnimation();
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", true));
         } else if (!show && dashboardVisible) {
-            mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
+            dashboardView.playHideAnimation(() -> mainContentBox.getChildren().remove(dashboardView));
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", false));
         }
         syncDashboardMenuItems(dashboardVisible);
@@ -3835,6 +3858,24 @@ public class MainWindow {
     private void updateDashboard() {
         if (dashboardView != null && dashboardVisible) {
             dashboardView.refresh();
+        }
+    }
+
+    /**
+     * Resolves a connection's credential environment display name for the dashboard
+     * tree (e.g. "Production"), or null when the connection has no stored credential.
+     */
+    private String resolveDashboardEnvironmentName(ServerConnection connection) {
+        try {
+            if (connection == null || connection.getCredentialId() == null || connection.getCredentialId().isEmpty()
+                    || app.getCredentialManager() == null || app.getEnvironmentManager() == null) {
+                return null;
+            }
+            return app.getCredentialManager().findCredentialById(connection.getCredentialId())
+                    .map(credential -> app.getEnvironmentManager().getDisplayName(credential.getEnvironmentId()))
+                    .orElse(null);
+        } catch (Exception e) {
+            return null;
         }
     }
     
@@ -7424,6 +7465,11 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            // Assign the connection's group so the tab shows under it (dashboard, tab ordering);
+            // the single-connection path does the same in openConnectionInternal.
+            if (conn.getGroup() != null && !conn.getGroup().trim().isEmpty()) {
+                tab.setGroup(conn.getGroup().trim());
+            }
             registerTerminalTabForAiAgentDock(tab);
             if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 tab.getTerminalView().setTerminalEffectAnimationSpeed(
@@ -7439,6 +7485,12 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            tab.setOnClosed(e -> {
+                updateDashboard();
+                organizeTabsByGroup();
+                updateAllTabContextMenus();
+            });
+            setupTabContextMenu(tab);
             tabPane.getTabs().add(tab);
             tab.connect();
             

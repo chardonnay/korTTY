@@ -89,6 +89,7 @@ public class TerminalTab extends Tab {
     
     public TerminalTab(ServerConnection connection, String password, TemporarySSHKey temporarySSHKey) {
         this.connection = connection;
+        this.connectionGroupBaseline = normalizeGroup(connection != null ? connection.getGroup() : null);
         this.settings = resolveInitialSettings(connection);
         this.temporarySSHKey = temporarySSHKey;
         this.aiSessionId = UUID.randomUUID().toString();
@@ -892,7 +893,17 @@ public class TerminalTab extends Tab {
     public boolean isConnected() {
         return terminalView.isConnected();
     }
-    
+
+    /**
+     * True while this tab is in an error state: the connection dropped or failed
+     * unexpectedly (red disconnect bar), or mosh reports a network interruption.
+     * A cleanly ended session returns false.
+     */
+    public boolean isUnexpectedlyDisconnected() {
+        return isConnectionFailed || moshInterruptedBarVisible;
+    }
+
+
     /**
      * Returns the temporary SSH key if this tab was connected with one.
      * Used by SFTP Manager to use the same key for file transfers.
@@ -945,6 +956,23 @@ public class TerminalTab extends Tab {
         updateTabTitle(lastTitleSuffix);
     }
     
+    /** The connection's group as last seen/applied by this tab (normalized, may be null).
+     *  Lets MainWindow detect actual connection-group edits on Connection Manager save
+     *  without clobbering a manually assigned tab group. */
+    private String connectionGroupBaseline;
+
+    public String getConnectionGroupBaseline() {
+        return connectionGroupBaseline;
+    }
+
+    public void setConnectionGroupBaseline(String group) {
+        this.connectionGroupBaseline = normalizeGroup(group);
+    }
+
+    private static String normalizeGroup(String group) {
+        return group != null && !group.trim().isEmpty() ? group.trim() : null;
+    }
+
     /**
      * Gets the group name for this tab (independent from connection).
      */
