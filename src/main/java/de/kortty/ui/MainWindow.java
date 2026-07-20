@@ -276,6 +276,9 @@ public class MainWindow {
         LocalFileBrowserManager.Position.HIDDEN;
     private AiAgentPanelDockManager.Placement terminalOnlyPreviousAiAgentPlacement =
         AiAgentPanelDockManager.Placement.BOTTOM;
+    // Terminal-only fullscreen keeps the terminal at this size, centered on an empty background.
+    private double terminalOnlyContentWidth = -1;
+    private double terminalOnlyContentHeight = -1;
     // Suppresses persistence while temporarily forcing BOTTOM during terminal-only fullscreen.
     private boolean suppressAiAgentDockPersist = false;
     /** Consumer reference for file browser position listener, stored so it can be removed on close. */
@@ -3704,6 +3707,7 @@ public class MainWindow {
             terminalOnlyPreviousFileBrowserPosition = fileBrowserManager != null
                 ? fileBrowserManager.getPosition()
                 : LocalFileBrowserManager.Position.HIDDEN;
+            captureTerminalOnlyContentSize();
 
             terminalOnlyFullscreenActive = true;
             Telemetry.track(TelemetryEvents.FULLSCREEN_ENTERED, Map.of("mode", "terminal_only"));
@@ -3732,8 +3736,10 @@ public class MainWindow {
             }
             applyTerminalTabsChromeVisibility(false);
             applyTerminalOnlyTabHeaderVisibility(false);
+            applyTerminalOnlyCenteredLayout(true);
         } else {
             terminalOnlyFullscreenActive = false;
+            applyTerminalOnlyCenteredLayout(false);
             applyTerminalOnlyTabHeaderVisibility(true);
             applyTerminalTabsChromeVisibility(true);
             applyMenuBarVisibility(terminalOnlyPreviousMenuBarVisible);
@@ -3762,6 +3768,57 @@ public class MainWindow {
                 terminalTab.getTerminalView().focusTerminal();
             }
         });
+    }
+
+    /**
+     * Remembers the size the terminal area should keep while terminal-only fullscreen is active.
+     * Normally that is the live size of the terminal region right before entering fullscreen; when
+     * the window is already fullscreen (so no windowed size is on screen), the configured window
+     * geometry from the global settings is used instead.
+     */
+    private void captureTerminalOnlyContentSize() {
+        double width = tabPane.getWidth();
+        double height = tabPane.getHeight();
+        if (stage.isFullScreen() || width <= 0 || height <= 0) {
+            WindowGeometry geo = resolveConfiguredWindowGeometry();
+            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
+                width = geo.getWidth();
+                height = geo.getHeight();
+            }
+        }
+        terminalOnlyContentWidth = width;
+        terminalOnlyContentHeight = height;
+    }
+
+    private WindowGeometry resolveConfiguredWindowGeometry() {
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        if (globalSettings == null) {
+            return null;
+        }
+        if (globalSettings.isUseFixedWindowGeometry() && globalSettings.getFixedWindowGeometry() != null) {
+            return globalSettings.getFixedWindowGeometry();
+        }
+        if (globalSettings.isRememberWindowGeometry() && globalSettings.getLastWindowGeometry() != null) {
+            return globalSettings.getLastWindowGeometry();
+        }
+        return null;
+    }
+
+    /**
+     * Terminal-only fullscreen must not stretch the terminal across the whole screen: the terminal
+     * keeps its captured size and is centered on the otherwise empty fullscreen background, so the
+     * user can focus on a single window without the desktop clutter behind it.
+     */
+    private void applyTerminalOnlyCenteredLayout(boolean active) {
+        if (active && terminalOnlyContentWidth > 0 && terminalOnlyContentHeight > 0) {
+            mainContentBox.setPrefSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            mainContentBox.setMaxSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            BorderPane.setAlignment(mainContentBox, Pos.CENTER);
+        } else {
+            mainContentBox.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            mainContentBox.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            BorderPane.setAlignment(mainContentBox, null);
+        }
     }
 
     private void applyTerminalScrollbarVisibilityForOpenTabs() {
