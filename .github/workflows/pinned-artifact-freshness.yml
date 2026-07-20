@@ -75,7 +75,8 @@ jobs:
 
           # --- build the outdated table ----------------------------------------
           ROWS=""
-          add() { is_newer "$2" "$3" && ROWS="${ROWS}| ${1} | ${2} | ${3} |"$'\n'; }
+          # `if` (not `&&`) so an up-to-date artifact doesn't trip the runner's implicit `bash -e`.
+          add() { if is_newer "$2" "$3"; then ROWS="${ROWS}| ${1} | ${2} | ${3} |"$'\n'; fi; }
           add "mosh4j (GitHub release, per-arch JARs)" "$MOSH4J_PIN" "$MOSH4J_UP"
           add "BouncyCastle bcprov-jdk18on (Gradle runtime)" "$BC_PIN" "$BC_UP"
           add "protobuf-java (BUNDLED copy)" "$PB_PIN" "$PB_UP"
@@ -112,7 +113,7 @@ jobs:
           gh label create security --color D93F0B --description "Security-relevant change" 2>/dev/null || true
 
           existing="$(gh issue list --state open --label pinned-dependency \
-            --search "in:title $TITLE" --json number --jq '.[0].number' 2>/dev/null || true)"
+            --search "in:title $TITLE" --json number --jq '.[0].number // empty' 2>/dev/null || true)"
 
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --body-file body.md
