@@ -663,6 +663,60 @@
     -fx-border-color: transparent transparent transparent -kortty-dash-accent;
 }
 
+/* Dashboard row content (icon, status dot, labels) */
+.dashboard-node-icon {
+    -fx-fill: -kortty-dash-dim;
+}
+
+.dashboard-tree .tree-cell:selected .dashboard-node-icon {
+    -fx-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-name {
+    -fx-text-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-header .dashboard-node-name {
+    -fx-font-weight: bold;
+}
+
+.dashboard-node-header .dashboard-node-icon {
+    -fx-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-count {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 11px;
+}
+
+.dashboard-protocol-badge {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 10px;
+    -fx-border-color: -kortty-dash-border;
+    -fx-border-radius: 3;
+    -fx-padding: 0 4 0 4;
+}
+
+.dashboard-status-dot-connected {
+    -fx-fill: -kortty-dash-accent;
+    -fx-stroke: transparent;
+}
+
+.dashboard-status-dot-error {
+    -fx-fill: -kortty-dash-error;
+    -fx-stroke: transparent;
+}
+
+.dashboard-status-dot-ended {
+    -fx-fill: transparent;
+    -fx-stroke: -kortty-dash-dim;
+    -fx-stroke-width: 1.5;
+}
+
+.dashboard-agent-badge {
+    -fx-font-size: 12px;
+}
+
 /* Table View */
 .table-view {
     -fx-background-color: #2d2d2d;

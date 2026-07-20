@@ -892,7 +892,17 @@ public class TerminalTab extends Tab {
     public boolean isConnected() {
         return terminalView.isConnected();
     }
-    
+
+    /**
+     * True while this tab is in an error state: the connection dropped or failed
+     * unexpectedly (red disconnect bar), or mosh reports a network interruption.
+     * A cleanly ended session returns false.
+     */
+    public boolean isUnexpectedlyDisconnected() {
+        return isConnectionFailed || moshInterruptedBarVisible;
+    }
+
+
     /**
      * Returns the temporary SSH key if this tab was connected with one.
      * Used by SFTP Manager to use the same key for file transfers.
