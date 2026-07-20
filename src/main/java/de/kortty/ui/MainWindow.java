@@ -2498,13 +2498,17 @@ public class MainWindow {
                         if (stored.getSettings() != null) {
                             terminalTab.applyConnectionSettings(stored.getSettings());
                         }
-                        // Saved connection group is authoritative on save: propagate set,
-                        // changed and removed groups to the open tab (dashboard, ordering).
+                        // Propagate the connection's group to the open tab only when it
+                        // actually changed since the tab last saw it (baseline snapshot) —
+                        // a manually assigned tab group must survive unrelated saves.
                         String storedGroup = stored.getGroup() != null && !stored.getGroup().trim().isEmpty()
                                 ? stored.getGroup().trim() : null;
-                        if (!java.util.Objects.equals(storedGroup, terminalTab.getGroup())) {
-                            terminalTab.setGroup(storedGroup);
-                            groupChanged = true;
+                        if (!java.util.Objects.equals(storedGroup, terminalTab.getConnectionGroupBaseline())) {
+                            terminalTab.setConnectionGroupBaseline(storedGroup);
+                            if (!java.util.Objects.equals(storedGroup, terminalTab.getGroup())) {
+                                terminalTab.setGroup(storedGroup);
+                                groupChanged = true;
+                            }
                         }
                         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                             terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(
@@ -2520,8 +2524,8 @@ public class MainWindow {
             }
         }
         if (groupChanged) {
+            // organizeTabsByGroup() already rebuilds every tab's context menu.
             organizeTabsByGroup();
-            updateAllTabContextMenus();
             updateDashboard();
         }
     }
@@ -3826,7 +3830,8 @@ public class MainWindow {
     
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
-            if (dashboardView == null) {
+            boolean created = dashboardView == null;
+            if (created) {
                 // Content-sized width: the view measures its entries and animates itself.
                 dashboardView = new DashboardView(tabPane, this::handleDashboardAction,
                         this::resolveDashboardEnvironmentName);
@@ -3836,7 +3841,10 @@ public class MainWindow {
             }
             dashboardVisible = true;
             applyMainWindowThemeFromGlobalSettings();
-            dashboardView.refresh();
+            if (!created) {
+                // The constructor already built the tree; only re-sync on re-show.
+                dashboardView.refresh();
+            }
             dashboardView.playShowAnimation();
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", true));
         } else if (!show && dashboardVisible) {

@@ -62,6 +62,8 @@ public class DashboardView extends VBox {
     /** Panel width all entries currently fit in; refreshed together with the tree. */
     private double targetWidth = PANEL_MIN_WIDTH;
     private Timeline widthAnimation;
+    /** Inline fill for context-menu icons (popups can't resolve the panel's looked-up colors). */
+    private String menuIconColor;
 
     public enum DashboardAction {
         RECONNECT,
@@ -232,9 +234,17 @@ public class DashboardView extends VBox {
                 new KeyValue(minWidthProperty(), toWidth, Interpolator.EASE_BOTH),
                 new KeyValue(prefWidthProperty(), toWidth, Interpolator.EASE_BOTH),
                 new KeyValue(maxWidthProperty(), toWidth, Interpolator.EASE_BOTH)));
-        if (onFinished != null) {
-            widthAnimation.setOnFinished(e -> onFinished.run());
-        }
+        widthAnimation.setOnFinished(e -> {
+            if (onFinished != null) {
+                onFinished.run();
+            }
+            // A refresh() during this animation may have computed a new targetWidth
+            // and skipped animating; catch up now. Not after the hide animation
+            // (toWidth 0 removes the panel from the scene).
+            if (toWidth != 0 && getScene() != null && Math.abs(getPrefWidth() - targetWidth) > 1) {
+                animatePanelWidth(targetWidth, WIDTH_ANIM, null);
+            }
+        });
         widthAnimation.play();
     }
 
@@ -260,11 +270,25 @@ public class DashboardView extends VBox {
      * when shown. Names longer than the max width ellipsize in their labels.
      */
     private void updatePanelWidth() {
+        // Measure with the font the rows actually render in (design stylesheets may
+        // switch the tree to e.g. Monospaced); fall back to the system default until
+        // a first cell exists to sample from.
+        Font rowFont = Font.font(13);
+        javafx.scene.Node sample = treeView.lookup(".dashboard-node-name");
+        if (sample instanceof Label sampleLabel && sampleLabel.getFont() != null) {
+            rowFont = sampleLabel.getFont();
+        }
+        String family = rowFont.getFamily();
+        Font nameFont = Font.font(family, rowFont.getSize());
+        Font headerFont = Font.font(family, FontWeight.BOLD, rowFont.getSize());
+        Font countFont = Font.font(family, 11);
+        Font badgeFont = Font.font(family, 10);
+
         double needed = PANEL_MIN_WIDTH;
         TreeItem<DashboardItem> root = treeView.getRoot();
         if (root != null) {
             for (TreeItem<DashboardItem> child : root.getChildren()) {
-                needed = Math.max(needed, requiredRowWidth(child, 0));
+                needed = Math.max(needed, requiredRowWidth(child, 0, nameFont, headerFont, countFont, badgeFont));
             }
         }
         targetWidth = Math.min(needed, PANEL_MAX_WIDTH);
@@ -278,26 +302,25 @@ public class DashboardView extends VBox {
     }
 
     /** Widest row in this subtree, in px, including indentation and row chrome. */
-    private double requiredRowWidth(TreeItem<DashboardItem> item, int depth) {
+    private double requiredRowWidth(TreeItem<DashboardItem> item, int depth,
+                                    Font nameFont, Font headerFont, Font countFont, Font badgeFont) {
         DashboardItem di = item.getValue();
         double width = ROW_CHROME_WIDTH + depth * INDENT_WIDTH;
         if (di != null) {
             boolean header = di.getType() != NodeType.CONNECTION;
-            width += textWidth(di.getDisplayName(), header
-                    ? Font.font(null, FontWeight.BOLD, 13)
-                    : Font.font(13));
+            width += textWidth(di.getDisplayName(), header ? headerFont : nameFont);
             if (header && di.getTotalCount() >= 0) {
                 width += 6 + textWidth(I18n.get("dashboard.count", di.getActiveCount(), di.getTotalCount()),
-                        Font.font(11));
+                        countFont);
             }
             if (di.getType() == NodeType.CONNECTION) {
                 // status dot + protocol badge + possible agent badge
-                width += 14 + 6 + textWidth(protocolLabelFor(di.getTerminalTab()), Font.font(10)) + 8 + 20;
+                width += 14 + 6 + textWidth(protocolLabelFor(di.getTerminalTab()), badgeFont) + 8 + 20;
             }
         }
         double max = width;
         for (TreeItem<DashboardItem> child : item.getChildren()) {
-            max = Math.max(max, requiredRowWidth(child, depth + 1));
+            max = Math.max(max, requiredRowWidth(child, depth + 1, nameFont, headerFont, countFont, badgeFont));
         }
         return max;
     }
@@ -312,12 +335,16 @@ public class DashboardView extends VBox {
     }
 
     /** 16x16 SVG icon for context-menu items. Popups can't resolve the panel's
-     *  looked-up colors, so it uses the static dashboard-menu-icon fill. */
-    private static StackPane menuIcon(String svgPath) {
+     *  looked-up colors, so the fill is set inline from the current theme
+     *  (menuIconColor, updated by applyTheme), with the CSS class as fallback. */
+    private StackPane menuIcon(String svgPath) {
         SVGPath icon = new SVGPath();
         icon.setFillRule(FillRule.EVEN_ODD);
         icon.setContent(svgPath);
         icon.getStyleClass().add("dashboard-menu-icon");
+        if (menuIconColor != null && !menuIconColor.isEmpty()) {
+            icon.setStyle("-fx-fill: " + menuIconColor + ";");
+        }
         StackPane pane = new StackPane(icon);
         pane.setMinSize(16, 16);
         pane.setPrefSize(16, 16);
@@ -393,8 +420,16 @@ public class DashboardView extends VBox {
      */
     private class DashboardCell extends TreeCell<DashboardItem> {
         // The item this cell's context menu was built for; avoids rebuilding it on every 1s
-        // badge-refresh tick (treeView.refresh() re-runs updateItem on the same item).
+        // badge-refresh tick (treeView.refresh() re-runs updateItem on the same item). The
+        // menu is also rebuilt when the connectivity changes, because the SFTP entry
+        // depends on it.
         private DashboardItem builtMenuForItem;
+        private boolean builtMenuConnected;
+        // Last-rendered signature; the 1s tick must not mutate children/styles when
+        // nothing changed, or it causes a CSS+layout pass per second on every row.
+        private DashboardItem lastItem;
+        private ConnState lastState;
+        private String lastBadge;
 
         private final SVGPath icon = new SVGPath();
         private final StackPane iconPane = new StackPane(icon);
@@ -431,48 +466,60 @@ public class DashboardView extends VBox {
                 setTooltip(null);
                 rowBox.getStyleClass().remove("dashboard-node-header");
                 builtMenuForItem = null;
+                lastItem = null;
+                lastState = null;
+                lastBadge = null;
                 return;
             }
             setText(null);
 
             boolean isConnection = item.getType() == NodeType.CONNECTION;
-            icon.setContent(iconPathFor(item.getType()));
+            TerminalTab tab = item.getTerminalTab();
+            ConnState state = isConnection ? stateOf(tab) : null;
+            String badge = isConnection ? agentBadgeFor(tab) : null;
 
-            if (isConnection) {
-                TerminalTab tab = item.getTerminalTab();
-                ConnState state = stateOf(tab);
-                statusDot.getStyleClass().setAll("dashboard-status-dot",
-                        "dashboard-status-dot-" + state.name().toLowerCase());
-                nameLabel.setText(item.getDisplayName());
-                protocolBadge.setText(protocolLabelFor(tab));
-                protocolBadge.setVisible(!protocolBadge.getText().isEmpty());
-                protocolBadge.setManaged(protocolBadge.isVisible());
-                String badge = agentBadgeFor(tab);
-                agentBadge.setText(badge);
-                agentBadge.setVisible(!badge.isEmpty());
-                agentBadge.setManaged(agentBadge.isVisible());
-                rowBox.getStyleClass().remove("dashboard-node-header");
-                rowBox.getChildren().setAll(iconPane, statusDot, nameLabel, protocolBadge, agentBadge);
-                rowTooltip.setText(tooltipTextFor(item, state));
-                setTooltip(rowTooltip);
-            } else {
-                nameLabel.setText(item.getDisplayName());
-                countLabel.setText(item.getTotalCount() >= 0
-                        ? I18n.get("dashboard.count", item.getActiveCount(), item.getTotalCount())
-                        : "");
-                countLabel.setVisible(!countLabel.getText().isEmpty());
-                countLabel.setManaged(countLabel.isVisible());
-                if (!rowBox.getStyleClass().contains("dashboard-node-header")) {
-                    rowBox.getStyleClass().add("dashboard-node-header");
+            boolean changed = item != lastItem || state != lastState
+                    || !java.util.Objects.equals(badge, lastBadge);
+            if (changed) {
+                icon.setContent(iconPathFor(item.getType()));
+                if (isConnection) {
+                    statusDot.getStyleClass().setAll("dashboard-status-dot",
+                            "dashboard-status-dot-" + state.name().toLowerCase());
+                    nameLabel.setText(item.getDisplayName());
+                    protocolBadge.setText(protocolLabelFor(tab));
+                    protocolBadge.setVisible(!protocolBadge.getText().isEmpty());
+                    protocolBadge.setManaged(protocolBadge.isVisible());
+                    agentBadge.setText(badge);
+                    agentBadge.setVisible(!badge.isEmpty());
+                    agentBadge.setManaged(agentBadge.isVisible());
+                    rowBox.getStyleClass().remove("dashboard-node-header");
+                    rowBox.getChildren().setAll(iconPane, statusDot, nameLabel, protocolBadge, agentBadge);
+                    rowTooltip.setText(tooltipTextFor(item, state));
+                    setTooltip(rowTooltip);
+                } else {
+                    nameLabel.setText(item.getDisplayName());
+                    countLabel.setText(item.getTotalCount() >= 0
+                            ? I18n.get("dashboard.count", item.getActiveCount(), item.getTotalCount())
+                            : "");
+                    countLabel.setVisible(!countLabel.getText().isEmpty());
+                    countLabel.setManaged(countLabel.isVisible());
+                    if (!rowBox.getStyleClass().contains("dashboard-node-header")) {
+                        rowBox.getStyleClass().add("dashboard-node-header");
+                    }
+                    rowBox.getChildren().setAll(iconPane, nameLabel, countLabel);
+                    setTooltip(null);
                 }
-                rowBox.getChildren().setAll(iconPane, nameLabel, countLabel);
-                setTooltip(null);
+                setGraphic(rowBox);
+                lastItem = item;
+                lastState = state;
+                lastBadge = badge;
             }
-            setGraphic(rowBox);
 
             // Context menu for terminal tabs only (not for window nodes). Rebuilt only when
-            // the row's item changes, so the 1s badge-refresh tick stays cheap.
-            if (item != builtMenuForItem) {
+            // the row's item or its connectivity changes (the SFTP entry depends on the
+            // latter), so the 1s badge-refresh tick stays cheap.
+            if (item != builtMenuForItem
+                    || (item.getTerminalTab() != null && builtMenuConnected != item.isConnected())) {
                 if (item.getTerminalTab() != null) {
                     ContextMenu contextMenu = new ContextMenu();
 
@@ -516,6 +563,7 @@ public class DashboardView extends VBox {
                     setContextMenu(null);
                 }
                 builtMenuForItem = item;
+                builtMenuConnected = item.isConnected();
             }
         }
     }
@@ -592,25 +640,70 @@ public class DashboardView extends VBox {
     public void applyTheme(String bgColor, String fgColor) {
         if (AppDesignStyleSupport.isCustomAppDesignActive()) {
             // Per-design stylesheets are authoritative; drop any inline overrides.
+            menuIconColor = AppDesignStyleSupport.activeDimColor();
             setStyle(null);
             return;
         }
         // Override the panel's looked-up colors; all descendants (cells, buttons,
         // separators) resolve them via CSS, so no per-cell styling is needed.
+        // hover/selected/border/dim must be derived too — the terminal.css defaults
+        // are dark and would be unreadable on a light theme background.
         StringBuilder style = new StringBuilder();
+        Boolean bgLight = isLightColor(bgColor);
         if (bgColor != null && !bgColor.isEmpty()) {
             style.append("-kortty-dash-bg: ").append(bgColor).append(";");
+            if (bgLight != null) {
+                style.append("-kortty-dash-hover: derive(").append(bgColor).append(", ").append(bgLight ? "-8%" : "15%").append(");");
+                style.append("-kortty-dash-selected: derive(").append(bgColor).append(", ").append(bgLight ? "-14%" : "25%").append(");");
+                style.append("-kortty-dash-border: derive(").append(bgColor).append(", ").append(bgLight ? "-25%" : "30%").append(");");
+            }
         }
+        Boolean fgLight = isLightColor(fgColor);
         if (fgColor != null && !fgColor.isEmpty()) {
             style.append("-kortty-dash-fg: ").append(fgColor).append(";");
+            if (fgLight != null) {
+                // dim = fg pulled toward the background.
+                style.append("-kortty-dash-dim: derive(").append(fgColor).append(", ").append(fgLight ? "-30%" : "45%").append(");");
+            }
         }
+        menuIconColor = fgColor != null && !fgColor.isEmpty() ? fgColor : null;
         setStyle(style.length() == 0 ? null : style.toString());
+    }
+
+    /** True/false for a parseable CSS color's perceived lightness; null when unparseable. */
+    private static Boolean isLightColor(String cssColor) {
+        if (cssColor == null || cssColor.isEmpty()) {
+            return null;
+        }
+        try {
+            return javafx.scene.paint.Color.web(cssColor).getBrightness() > 0.55;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
      * Refreshes the dashboard tree with current tabs, organized by groups.
      */
     public void refresh() {
+        // The tree is rebuilt from scratch; carry over what the user arranged so a
+        // background updateDashboard() doesn't wipe collapse state and selection.
+        java.util.Map<String, Boolean> expansion = new java.util.HashMap<>();
+        TerminalTab selectedTab = null;
+        String selectedContainerKey = null;
+        TreeItem<DashboardItem> oldRoot = treeView.getRoot();
+        if (oldRoot != null) {
+            collectExpansion(oldRoot, expansion);
+            TreeItem<DashboardItem> selected = treeView.getSelectionModel().getSelectedItem();
+            if (selected != null && selected.getValue() != null) {
+                if (selected.getValue().getTerminalTab() != null) {
+                    selectedTab = selected.getValue().getTerminalTab();
+                } else {
+                    selectedContainerKey = containerKey(selected.getValue());
+                }
+            }
+        }
+
         TreeItem<DashboardItem> root = new TreeItem<>(
                 DashboardItem.container(NodeType.MAIN_WINDOW, I18n.get("dashboard.root"), -1, -1));
 
@@ -641,7 +734,7 @@ public class DashboardView extends VBox {
 
         TreeItem<DashboardItem> windowItem = new TreeItem<>(
                 DashboardItem.container(NodeType.MAIN_WINDOW, I18n.get("dashboard.mainWindowTitle"), activeTabs, totalTabs));
-        windowItem.setExpanded(true);
+        windowItem.setExpanded(restoredExpansion(expansion, windowItem));
 
         // Ungrouped tabs: cluster by credential environment. Tabs without a
         // resolvable environment sit directly under the main window node.
@@ -668,7 +761,7 @@ public class DashboardView extends VBox {
             }
             TreeItem<DashboardItem> envItem = new TreeItem<>(
                     DashboardItem.container(NodeType.ENVIRONMENT, envName, envActive, envTabs.size()));
-            envItem.setExpanded(true);
+            envItem.setExpanded(restoredExpansion(expansion, envItem));
             for (TerminalTab terminalTab : envTabs) {
                 envItem.getChildren().add(new TreeItem<>(
                         DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab)));
@@ -693,7 +786,7 @@ public class DashboardView extends VBox {
 
             TreeItem<DashboardItem> groupItem = new TreeItem<>(
                     DashboardItem.container(NodeType.GROUP, groupName, groupActive, groupTabs.size()));
-            groupItem.setExpanded(true);
+            groupItem.setExpanded(restoredExpansion(expansion, groupItem));
 
             // Add tabs in group
             for (TerminalTab terminalTab : groupTabs) {
@@ -714,11 +807,63 @@ public class DashboardView extends VBox {
         root.addEventHandler(TreeItem.<DashboardItem>branchExpandedEvent(), e -> updateCollapseAllButton());
         root.addEventHandler(TreeItem.<DashboardItem>branchCollapsedEvent(), e -> updateCollapseAllButton());
         treeView.setRoot(root);
+        restoreSelection(root, selectedTab, selectedContainerKey);
         updateCollapseAllButton();
 
         emptyBox.setVisible(totalTabs == 0);
         footerLabel.setText(I18n.get("dashboard.footer", activeTabs, totalTabs));
         updatePanelWidth();
+    }
+
+    /** Stable identity of a container row across tree rebuilds. */
+    private static String containerKey(DashboardItem item) {
+        return item.getType() + "|" + item.getDisplayName();
+    }
+
+    private void collectExpansion(TreeItem<DashboardItem> item, java.util.Map<String, Boolean> into) {
+        DashboardItem value = item.getValue();
+        if (value != null && value.getTerminalTab() == null && !item.getChildren().isEmpty()) {
+            into.put(containerKey(value), item.isExpanded());
+        }
+        for (TreeItem<DashboardItem> child : item.getChildren()) {
+            collectExpansion(child, into);
+        }
+    }
+
+    /** Previous expansion of the same container, or expanded for nodes new to the tree. */
+    private boolean restoredExpansion(java.util.Map<String, Boolean> expansion, TreeItem<DashboardItem> item) {
+        Boolean was = expansion.get(containerKey(item.getValue()));
+        return was == null || was;
+    }
+
+    private void restoreSelection(TreeItem<DashboardItem> root, TerminalTab selectedTab, String containerKey) {
+        if (selectedTab == null && containerKey == null) {
+            return;
+        }
+        TreeItem<DashboardItem> match = findItem(root, selectedTab, containerKey);
+        if (match != null) {
+            treeView.getSelectionModel().select(match);
+        }
+    }
+
+    private TreeItem<DashboardItem> findItem(TreeItem<DashboardItem> item, TerminalTab tab, String containerKey) {
+        DashboardItem value = item.getValue();
+        if (value != null) {
+            if (tab != null && value.getTerminalTab() == tab) {
+                return item;
+            }
+            if (tab == null && containerKey != null && value.getTerminalTab() == null
+                    && containerKey.equals(containerKey(value))) {
+                return item;
+            }
+        }
+        for (TreeItem<DashboardItem> child : item.getChildren()) {
+            TreeItem<DashboardItem> found = findItem(child, tab, containerKey);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /** Environment display name for a tab's connection credential, or null if none. */
