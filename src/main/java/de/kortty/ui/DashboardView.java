@@ -43,6 +43,8 @@ public class DashboardView extends VBox {
     private final TreeView<DashboardItem> treeView;
     private final Button refreshButton;
     private final Button collapseAllButton;
+    /** Icon of the collapse/expand toggle; flips between chevrons up and down. */
+    private final SVGPath collapseAllIcon;
     private final Label footerLabel;
     private final VBox emptyBox;
     // Lightweight 1s tick that re-renders cells so AI-agent badges stay current while the dashboard shows.
@@ -98,6 +100,8 @@ public class DashboardView extends VBox {
             "M8,2.5 A5.5,5.5 0 1 0 13.5,8 L12,8 A4,4 0 1 1 8,4 L8,6.5 L11.5,3.75 L8,1 Z";
     private static final String ICON_COLLAPSE_ALL =
             "M3,7.5 L8,2.5 13,7.5 11.6,8.9 8,5.3 4.4,8.9 z M3,13 L8,8 13,13 11.6,14.4 8,10.8 4.4,14.4 z";
+    private static final String ICON_EXPAND_ALL =
+            "M3,3 L4.4,1.6 8,5.2 11.6,1.6 13,3 8,8 z M3,8.5 L4.4,7.1 8,10.7 11.6,7.1 13,8.5 8,13.5 z";
     // Context menu icons: right arrow (focus), overlapping squares (duplicate), X (close).
     private static final String ICON_FOCUS =
             "M2,6.5 h7 v-3.5 l5,5 -5,5 v-3.5 h-7 z";
@@ -124,10 +128,18 @@ public class DashboardView extends VBox {
         Region titleSpacer = new Region();
         HBox.setHgrow(titleSpacer, Priority.ALWAYS);
 
-        collapseAllButton = iconButton(ICON_COLLAPSE_ALL, I18n.get("dashboard.collapseAll"));
-        collapseAllButton.setOnAction(e -> collapseAll());
+        collapseAllIcon = new SVGPath();
+        collapseAllIcon.setFillRule(FillRule.EVEN_ODD);
+        collapseAllIcon.setContent(ICON_COLLAPSE_ALL);
+        collapseAllIcon.getStyleClass().add("dashboard-button-icon");
+        collapseAllButton = iconButton(collapseAllIcon, I18n.get("dashboard.collapseAll"));
+        collapseAllButton.setOnAction(e -> toggleCollapseAll());
 
-        refreshButton = iconButton(ICON_REFRESH, I18n.get("dashboard.refresh"));
+        SVGPath refreshIcon = new SVGPath();
+        refreshIcon.setFillRule(FillRule.EVEN_ODD);
+        refreshIcon.setContent(ICON_REFRESH);
+        refreshIcon.getStyleClass().add("dashboard-button-icon");
+        refreshButton = iconButton(refreshIcon, I18n.get("dashboard.refresh"));
         refreshButton.setOnAction(e -> refresh());
 
         titleBox.getChildren().addAll(titleLabel, titleSpacer, collapseAllButton, refreshButton);
@@ -314,11 +326,7 @@ public class DashboardView extends VBox {
     }
 
     /** Small transparent header button with a 16x16 SVG icon. */
-    private static Button iconButton(String svgPath, String tooltip) {
-        SVGPath icon = new SVGPath();
-        icon.setFillRule(FillRule.EVEN_ODD);
-        icon.setContent(svgPath);
-        icon.getStyleClass().add("dashboard-button-icon");
+    private static Button iconButton(SVGPath icon, String tooltip) {
         StackPane pane = new StackPane(icon);
         pane.setMinSize(16, 16);
         pane.setPrefSize(16, 16);
@@ -330,19 +338,52 @@ public class DashboardView extends VBox {
         return button;
     }
 
-    /** Collapses every expandable node below the (hidden) root. */
-    private void collapseAll() {
+    /** Collapses everything while anything is expanded, otherwise expands everything. */
+    private void toggleCollapseAll() {
         TreeItem<DashboardItem> root = treeView.getRoot();
-        if (root != null) {
-            root.getChildren().forEach(this::collapseRecursively);
+        if (root == null) {
+            return;
+        }
+        boolean collapse = hasExpandedNode(root);
+        root.getChildren().forEach(item -> setExpandedRecursively(item, !collapse));
+        updateCollapseAllButton();
+    }
+
+    private void setExpandedRecursively(TreeItem<DashboardItem> item, boolean expanded) {
+        item.getChildren().forEach(child -> setExpandedRecursively(child, expanded));
+        if (!item.getChildren().isEmpty()) {
+            item.setExpanded(expanded);
         }
     }
 
-    private void collapseRecursively(TreeItem<DashboardItem> item) {
-        item.getChildren().forEach(this::collapseRecursively);
-        if (!item.getChildren().isEmpty()) {
-            item.setExpanded(false);
+    /** True when any expandable node below the (hidden) root is expanded. */
+    private boolean hasExpandedNode(TreeItem<DashboardItem> root) {
+        for (TreeItem<DashboardItem> child : root.getChildren()) {
+            if (isExpandedDeep(child)) {
+                return true;
+            }
         }
+        return false;
+    }
+
+    private boolean isExpandedDeep(TreeItem<DashboardItem> item) {
+        if (!item.getChildren().isEmpty() && item.isExpanded()) {
+            return true;
+        }
+        for (TreeItem<DashboardItem> child : item.getChildren()) {
+            if (isExpandedDeep(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Flips the toggle's icon and tooltip to describe what clicking it will do next. */
+    private void updateCollapseAllButton() {
+        boolean anyExpanded = treeView.getRoot() != null && hasExpandedNode(treeView.getRoot());
+        collapseAllIcon.setContent(anyExpanded ? ICON_COLLAPSE_ALL : ICON_EXPAND_ALL);
+        collapseAllButton.getTooltip().setText(
+                I18n.get(anyExpanded ? "dashboard.collapseAll" : "dashboard.expandAll"));
     }
 
     /**
@@ -668,7 +709,12 @@ public class DashboardView extends VBox {
         }
 
         root.setExpanded(true);
+        // Keep the collapse/expand toggle in sync with manual disclosure clicks
+        // (branch events bubble up to the root; the root is rebuilt each refresh).
+        root.addEventHandler(TreeItem.<DashboardItem>branchExpandedEvent(), e -> updateCollapseAllButton());
+        root.addEventHandler(TreeItem.<DashboardItem>branchCollapsedEvent(), e -> updateCollapseAllButton());
         treeView.setRoot(root);
+        updateCollapseAllButton();
 
         emptyBox.setVisible(totalTabs == 0);
         footerLabel.setText(I18n.get("dashboard.footer", activeTabs, totalTabs));
