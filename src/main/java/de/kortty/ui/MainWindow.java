@@ -3312,7 +3312,6 @@ public class MainWindow {
         }
     }
     
-    private static final int DASHBOARD_FIXED_WIDTH = 300;
     private static final int FILE_BROWSER_DEFAULT_WIDTH = 220;
     private static final int FILE_BROWSER_MIN_WIDTH = 160;
     private static final int FILE_BROWSER_MAX_WIDTH = 420;
@@ -3814,19 +3813,20 @@ public class MainWindow {
     private void toggleDashboard(boolean show) {
         if (show && !dashboardVisible) {
             if (dashboardView == null) {
+                // Content-sized width: the view measures its entries and animates itself.
                 dashboardView = new DashboardView(tabPane, this::handleDashboardAction);
-                // Fixed width - dashboard does not resize when main window resizes
-                dashboardView.setMinWidth(DASHBOARD_FIXED_WIDTH);
-                dashboardView.setMaxWidth(DASHBOARD_FIXED_WIDTH);
-                dashboardView.setPrefWidth(DASHBOARD_FIXED_WIDTH);
             }
-            mainContentBox.getChildren().add(0, dashboardView);
+            if (!mainContentBox.getChildren().contains(dashboardView)) {
+                mainContentBox.getChildren().add(0, dashboardView);
+            }
             dashboardVisible = true;
             applyMainWindowThemeFromGlobalSettings();
+            dashboardView.refresh();
+            dashboardView.playShowAnimation();
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", true));
         } else if (!show && dashboardVisible) {
-            mainContentBox.getChildren().remove(dashboardView);
             dashboardVisible = false;
+            dashboardView.playHideAnimation(() -> mainContentBox.getChildren().remove(dashboardView));
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", false));
         }
         syncDashboardMenuItems(dashboardVisible);

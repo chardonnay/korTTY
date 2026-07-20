@@ -4,7 +4,9 @@ import de.kortty.core.AgentDashboardStatus;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import javafx.animation.Animation;
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -15,7 +17,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.FillRule;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.SVGPath;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 import java.util.List;
@@ -36,6 +42,19 @@ public class DashboardView extends VBox {
     private final VBox emptyBox;
     // Lightweight 1s tick that re-renders cells so AI-agent badges stay current while the dashboard shows.
     private Timeline agentStatusTimer;
+
+    /** Width bounds for the content-sized panel. */
+    private static final double PANEL_MIN_WIDTH = 220;
+    private static final double PANEL_MAX_WIDTH = 480;
+    private static final Duration WIDTH_ANIM = Duration.millis(140);
+    private static final Duration SHOW_HIDE_ANIM = Duration.millis(180);
+    /** Width every row needs besides its text: tree padding, disclosure node, icon, gaps, scrollbar. */
+    private static final double ROW_CHROME_WIDTH = 96;
+    private static final double INDENT_WIDTH = 18;
+
+    /** Panel width all entries currently fit in; refreshed together with the tree. */
+    private double targetWidth = PANEL_MIN_WIDTH;
+    private Timeline widthAnimation;
 
     public enum DashboardAction {
         RECONNECT,
@@ -141,6 +160,13 @@ public class DashboardView extends VBox {
 
         getChildren().addAll(titleBox, contentStack, footerLabel);
 
+        // Clip so content doesn't paint outside the panel while its width animates.
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(widthProperty());
+        clip.heightProperty().bind(heightProperty());
+        setClip(clip);
+        setPanelWidth(PANEL_MIN_WIDTH);
+
         // Run the badge refresh tick only while the dashboard is actually shown (in a scene).
         agentStatusTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> treeView.refresh()));
         agentStatusTimer.setCycleCount(Animation.INDEFINITE);
@@ -153,6 +179,100 @@ public class DashboardView extends VBox {
         });
 
         refresh();
+    }
+
+    /** Pins min/pref/max so the HBox layout gives the panel exactly this width. */
+    private void setPanelWidth(double width) {
+        setMinWidth(width);
+        setPrefWidth(width);
+        setMaxWidth(width);
+    }
+
+    private void animatePanelWidth(double toWidth, Duration duration, Runnable onFinished) {
+        if (widthAnimation != null) {
+            widthAnimation.stop();
+        }
+        widthAnimation = new Timeline(new KeyFrame(duration,
+                new KeyValue(minWidthProperty(), toWidth, Interpolator.EASE_BOTH),
+                new KeyValue(prefWidthProperty(), toWidth, Interpolator.EASE_BOTH),
+                new KeyValue(maxWidthProperty(), toWidth, Interpolator.EASE_BOTH)));
+        if (onFinished != null) {
+            widthAnimation.setOnFinished(e -> onFinished.run());
+        }
+        widthAnimation.play();
+    }
+
+    /** Animates the panel in from zero width. Call after adding it to the layout. */
+    public void playShowAnimation() {
+        setPanelWidth(0);
+        animatePanelWidth(targetWidth, SHOW_HIDE_ANIM, null);
+    }
+
+    /** Animates the panel out to zero width, then runs the removal callback. */
+    public void playHideAnimation(Runnable onHidden) {
+        animatePanelWidth(0, SHOW_HIDE_ANIM, () -> {
+            if (onHidden != null) {
+                onHidden.run();
+            }
+            setPanelWidth(targetWidth);
+        });
+    }
+
+    /**
+     * Recomputes the width needed to show every entry (clamped to
+     * [PANEL_MIN_WIDTH, PANEL_MAX_WIDTH]) and animates the panel towards it
+     * when shown. Names longer than the max width ellipsize in their labels.
+     */
+    private void updatePanelWidth() {
+        double needed = PANEL_MIN_WIDTH;
+        TreeItem<DashboardItem> root = treeView.getRoot();
+        if (root != null) {
+            for (TreeItem<DashboardItem> child : root.getChildren()) {
+                needed = Math.max(needed, requiredRowWidth(child, 0));
+            }
+        }
+        targetWidth = Math.min(needed, PANEL_MAX_WIDTH);
+        if (getScene() != null && (widthAnimation == null || widthAnimation.getStatus() != Animation.Status.RUNNING)) {
+            if (Math.abs(getPrefWidth() - targetWidth) > 1) {
+                animatePanelWidth(targetWidth, WIDTH_ANIM, null);
+            }
+        } else if (getScene() == null) {
+            setPanelWidth(targetWidth);
+        }
+    }
+
+    /** Widest row in this subtree, in px, including indentation and row chrome. */
+    private double requiredRowWidth(TreeItem<DashboardItem> item, int depth) {
+        DashboardItem di = item.getValue();
+        double width = ROW_CHROME_WIDTH + depth * INDENT_WIDTH;
+        if (di != null) {
+            boolean header = di.getType() != NodeType.CONNECTION;
+            width += textWidth(di.getDisplayName(), header
+                    ? Font.font(null, FontWeight.BOLD, 13)
+                    : Font.font(13));
+            if (header && di.getTotalCount() >= 0) {
+                width += 6 + textWidth(I18n.get("dashboard.count", di.getActiveCount(), di.getTotalCount()),
+                        Font.font(11));
+            }
+            if (di.getType() == NodeType.CONNECTION) {
+                // status dot + protocol badge + possible agent badge
+                width += 14 + 6 + textWidth(protocolLabelFor(di.getTerminalTab()), Font.font(10)) + 8 + 20;
+            }
+        }
+        double max = width;
+        for (TreeItem<DashboardItem> child : item.getChildren()) {
+            max = Math.max(max, requiredRowWidth(child, depth + 1));
+        }
+        return max;
+    }
+
+    private static double textWidth(String text, Font font) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        Text measurer = new Text(text);
+        measurer.setFont(font);
+        return Math.ceil(measurer.getLayoutBounds().getWidth());
     }
 
     /** Small transparent header button with a 16x16 SVG icon. */
@@ -481,6 +601,7 @@ public class DashboardView extends VBox {
 
         emptyBox.setVisible(totalTabs == 0);
         footerLabel.setText(I18n.get("dashboard.footer", activeTabs, totalTabs));
+        updatePanelWidth();
     }
 
     /**
