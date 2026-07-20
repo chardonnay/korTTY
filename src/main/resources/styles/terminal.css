@@ -596,6 +596,73 @@
     -fx-background-color: #353535;
 }
 
+/* Dashboard panel
+ * Colors are looked-up colors so themes (applyTheme inline overrides or the
+ * per-design stylesheets) can retint the whole panel by redefining them. */
+.dashboard-view {
+    -kortty-dash-bg: #252526;
+    -kortty-dash-fg: #cccccc;
+    -kortty-dash-dim: #8a8a8a;
+    -kortty-dash-accent: #18c26e;
+    -kortty-dash-error: #d9534f;
+    -kortty-dash-border: #3d3d3d;
+    -kortty-dash-hover: #313132;
+    -kortty-dash-selected: #3a3a3c;
+    -fx-background-color: -kortty-dash-bg;
+    -fx-border-color: transparent -kortty-dash-border transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-padding: 0;
+    -fx-spacing: 0;
+}
+
+.dashboard-title {
+    -fx-padding: 6 8 6 12;
+    -fx-alignment: center-left;
+    -fx-border-color: transparent transparent -kortty-dash-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.dashboard-refresh-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: -kortty-dash-fg;
+    -fx-font-size: 14px;
+    -fx-padding: 2 6 2 6;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.dashboard-refresh-button:hover {
+    -fx-background-color: -kortty-dash-hover;
+}
+
+.dashboard-tree {
+    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
+}
+
+.dashboard-tree .tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -kortty-dash-fg;
+    -fx-cell-size: 28px;
+    -fx-padding: 0 8 0 6;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
+}
+
+.dashboard-tree .tree-cell .tree-disclosure-node .arrow,
+.dashboard-tree .tree-cell:expanded .tree-disclosure-node .arrow {
+    -fx-background-color: -kortty-dash-dim;
+}
+
+.dashboard-tree .tree-cell:hover {
+    -fx-background-color: -kortty-dash-hover;
+}
+
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: -kortty-dash-selected;
+    -fx-border-color: transparent transparent transparent -kortty-dash-accent;
+}
+
 /* Table View */
 .table-view {
     -fx-background-color: #2d2d2d;

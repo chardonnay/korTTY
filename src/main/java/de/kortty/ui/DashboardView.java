@@ -5,7 +5,6 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -26,8 +25,6 @@ public class DashboardView extends VBox {
     private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
     private final TreeView<DashboardItem> treeView;
     private final Button refreshButton;
-    /** Current theme foreground color for tree cells (e.g. from Settings → Themes). */
-    private volatile String themeTextColor = "#cccccc";
     // Lightweight 1s tick that re-renders cells so AI-agent badges stay current while the dashboard shows.
     private Timeline agentStatusTimer;
     
@@ -43,17 +40,13 @@ public class DashboardView extends VBox {
         this.tabPane = tabPane;
         this.actionHandler = actionHandler;
         
-        setPadding(new Insets(5));
-        setSpacing(5);
         getStyleClass().add("dashboard-view");
-        
+
         HBox titleBox = new HBox(10);
         titleBox.getStyleClass().add("dashboard-title");
-        titleBox.setPadding(new Insets(0, 0, 5, 0));
-        
+
         refreshButton = new Button("⟳");
         refreshButton.getStyleClass().add("dashboard-refresh-button");
-        refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;");
         refreshButton.setTooltip(new Tooltip(I18n.get("dashboard.refresh")));
         refreshButton.setOnAction(e -> refresh());
         
@@ -77,7 +70,6 @@ public class DashboardView extends VBox {
                     if (empty || item == null) {
                         setText(null);
                         setGraphic(null);
-                        setStyle("-fx-background-color: transparent;");
                         setContextMenu(null);
                         builtMenuForItem = null;
                     } else {
@@ -90,9 +82,7 @@ public class DashboardView extends VBox {
                             text = agentBadge + " " + text;
                         }
                         setText(text);
-                        String fg = (themeTextColor != null && !themeTextColor.isEmpty()) ? themeTextColor : "#cccccc";
-                        setStyle("-fx-text-fill: " + fg + "; -fx-background-color: transparent;");
-                        
+
                         // Context menu for terminal tabs only (not for window nodes). Rebuilt only when
                         // the row's item changes, so the 1s badge-refresh tick stays cheap.
                         if (item != builtMenuForItem) {
@@ -183,30 +173,21 @@ public class DashboardView extends VBox {
      * Called from MainWindow when global theme settings change (or when dashboard is first shown).
      */
     public void applyTheme(String bgColor, String fgColor) {
-        if (bgColor == null) {
-            bgColor = "";
-        }
-        if (fgColor == null) {
-            fgColor = "";
-        }
         if (AppDesignStyleSupport.isCustomAppDesignActive()) {
-            themeTextColor = AppDesignStyleSupport.activeTextColor();
+            // Per-design stylesheets are authoritative; drop any inline overrides.
             setStyle(null);
-            treeView.setStyle(null);
-            refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10;");
-        } else {
-            themeTextColor = fgColor.isEmpty() ? "#cccccc" : fgColor;
-            String bgStyle = bgColor.isEmpty() ? "" : "-fx-background-color: " + bgColor + ";";
-            String fgStyle = fgColor.isEmpty() ? "" : " -fx-text-fill: " + fgColor + ";";
-            setStyle(bgStyle + fgStyle);
-            treeView.setStyle(bgStyle + fgStyle);
-            refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;" + fgStyle);
+            return;
         }
-        TreeItem<DashboardItem> root = treeView.getRoot();
-        if (root != null) {
-            treeView.setRoot(null);
-            treeView.setRoot(root);
+        // Override the panel's looked-up colors; all descendants (cells, buttons,
+        // separators) resolve them via CSS, so no per-cell styling is needed.
+        StringBuilder style = new StringBuilder();
+        if (bgColor != null && !bgColor.isEmpty()) {
+            style.append("-kortty-dash-bg: ").append(bgColor).append(";");
         }
+        if (fgColor != null && !fgColor.isEmpty()) {
+            style.append("-kortty-dash-fg: ").append(fgColor).append(";");
+        }
+        setStyle(style.length() == 0 ? null : style.toString());
     }
     
     /**
