@@ -3811,29 +3811,19 @@ public class MainWindow {
     private void showTerminalOnlyBackdrop() {
         if (terminalOnlyBackdropStage == null) {
             Stage backdrop = new Stage(StageStyle.UNDECORATED);
+            backdrop.setResizable(false);
             backdrop.setScene(new Scene(new Region(), 100, 100, Color.BLACK));
             terminalOnlyBackdropStage = backdrop;
         }
         Rectangle2D bounds = terminalOnlyTargetScreen().getBounds();
-        applyTerminalOnlyBackdropBounds(bounds);
-        terminalOnlyBackdropStage.show();
-        // Setting bounds before the very first show() can be dropped once the native peer is created
-        // (a known JavaFX quirk on some platforms for borderless stages) - re-assert them afterward.
-        applyTerminalOnlyBackdropBounds(bounds);
-        Platform.runLater(() -> applyTerminalOnlyBackdropBounds(bounds));
-        // The backdrop's own show() call can steal focus/front position; reclaim it for the main window.
-        stage.toFront();
-        stage.requestFocus();
-    }
-
-    private void applyTerminalOnlyBackdropBounds(Rectangle2D bounds) {
-        if (terminalOnlyBackdropStage == null) {
-            return;
-        }
         terminalOnlyBackdropStage.setX(bounds.getMinX());
         terminalOnlyBackdropStage.setY(bounds.getMinY());
         terminalOnlyBackdropStage.setWidth(bounds.getWidth());
         terminalOnlyBackdropStage.setHeight(bounds.getHeight());
+        terminalOnlyBackdropStage.show();
+        // The backdrop's own show() call can steal focus/front position; reclaim it for the main window.
+        stage.toFront();
+        stage.requestFocus();
     }
 
     private void hideTerminalOnlyBackdrop() {
