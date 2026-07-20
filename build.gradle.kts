@@ -48,9 +48,9 @@ val isLinux = osName.contains("linux")
 // application installer and are installed below ~/.kortty/llm/runtime at run time. Keep the tag,
 // full commit and GitHub source-archive digest in lockstep; downloadLlamaCppSource fails closed on
 // any upstream/archive mismatch.
-val llamaCppTag = "b10025"
-val llamaCppCommit = "a3e5b96ac5e278c390df429df0b68efcee3ee1b5"
-val llamaCppSourceSha256 = "c51807b434fe3bc5dfef826da4f03b12b6e9b909abd8188eacb27a6f8176ad8a"
+val llamaCppTag = "b10069"
+val llamaCppCommit = "178a6c44937154dc4c4eff0d166f4a044c4fceba"
+val llamaCppSourceSha256 = "35ec7f7877285a408f1754723a433113e65895e71d4b455b9ca76a2afe60bf87"
 val llamaRuntimeRevision = "kortty2"
 val llamaRuntimeApiContractVersion = 1
 val llamaRuntimeId = "llama-$llamaCppTag-$llamaRuntimeRevision"
