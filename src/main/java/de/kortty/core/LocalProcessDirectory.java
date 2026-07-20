@@ -3,6 +3,7 @@ package de.kortty.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -135,39 +136,58 @@ public final class LocalProcessDirectory {
      * ordinary paths — which contain no backslash in lsof output unless it was itself escaped — pass
      * through unchanged. Because lsof escapes real control bytes, decoding cannot reintroduce a line
      * break into the field.
+     *
+     * <p>Decoding happens at the BYTE level and the result is re-decoded as UTF-8. Whether lsof
+     * escapes a byte at all depends on its locale: under a UTF-8 {@code LANG} it prints "ü"
+     * literally, but with an unset/POSIX locale it emits {@code \xc3\xbc}. Those two hex escapes are
+     * one UTF-8 character, so appending each byte as its own {@code char} would yield "Ã¼" and the
+     * path would no longer resolve on disk — the directory would look nonexistent to every caller.
      */
     private static String unescapeLsofName(String name) {
         if (name.indexOf('\\') < 0) {
             return name;
         }
-        StringBuilder out = new StringBuilder(name.length());
+        ByteArrayOutputStream out = new ByteArrayOutputStream(name.length());
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
             if (c != '\\' || i + 1 >= name.length()) {
-                out.append(c);
+                // Keep a surrogate pair together: encoding either half alone loses the character.
+                if (Character.isHighSurrogate(c) && i + 1 < name.length()
+                    && Character.isLowSurrogate(name.charAt(i + 1))) {
+                    writeUtf8(out, name.substring(i, i + 2));
+                    i++;
+                } else {
+                    writeUtf8(out, String.valueOf(c));
+                }
                 continue;
             }
             char next = name.charAt(i + 1);
             switch (next) {
-                case 'n' -> { out.append('\n'); i++; }
-                case 't' -> { out.append('\t'); i++; }
-                case 'r' -> { out.append('\r'); i++; }
-                case 'f' -> { out.append('\f'); i++; }
-                case 'b' -> { out.append('\b'); i++; }
-                case '\\' -> { out.append('\\'); i++; }
+                case 'n' -> { out.write('\n'); i++; }
+                case 't' -> { out.write('\t'); i++; }
+                case 'r' -> { out.write('\r'); i++; }
+                case 'f' -> { out.write('\f'); i++; }
+                case 'b' -> { out.write('\b'); i++; }
+                case '\\' -> { out.write('\\'); i++; }
                 case 'x' -> {
                     if (i + 3 < name.length()
                         && isHex(name.charAt(i + 2)) && isHex(name.charAt(i + 3))) {
-                        out.append((char) Integer.parseInt(name.substring(i + 2, i + 4), 16));
+                        out.write(Integer.parseInt(name.substring(i + 2, i + 4), 16));
                         i += 3;
                     } else {
-                        out.append(c);
+                        writeUtf8(out, String.valueOf(c));
                     }
                 }
-                default -> out.append(c);
+                default -> writeUtf8(out, String.valueOf(c));
             }
         }
-        return out.toString();
+        return out.toString(StandardCharsets.UTF_8);
+    }
+
+    /** Appends already-decoded text back to the byte stream in UTF-8. */
+    private static void writeUtf8(ByteArrayOutputStream out, String text) {
+        byte[] encoded = text.getBytes(StandardCharsets.UTF_8);
+        out.write(encoded, 0, encoded.length);
     }
 
     private static boolean isHex(char c) {

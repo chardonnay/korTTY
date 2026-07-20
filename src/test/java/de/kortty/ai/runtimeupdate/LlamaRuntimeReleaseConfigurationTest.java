@@ -17,10 +17,10 @@ class LlamaRuntimeReleaseConfigurationTest {
             KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());
         LlamaRuntimeReleaseConfiguration configuration = configuration(publicKey);
 
-        assertThat(configuration.baselineRuntimeId()).isEqualTo("llama-b10025-kortty2");
-        assertThat(configuration.baselineTag()).isEqualTo("b10025");
+        assertThat(configuration.baselineRuntimeId()).isEqualTo("llama-b10069-kortty2");
+        assertThat(configuration.baselineTag()).isEqualTo("b10069");
         assertThat(configuration.baselineCommit())
-            .isEqualTo("a3e5b96ac5e278c390df429df0b68efcee3ee1b5");
+            .isEqualTo("178a6c44937154dc4c4eff0d166f4a044c4fceba");
         assertThat(configuration.apiContractVersion()).isEqualTo(1);
         assertThat(configuration.stableIndexUri().toString()).contains(
             "chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.json");

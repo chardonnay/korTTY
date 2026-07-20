@@ -2129,8 +2129,8 @@ tasks.register("verifyLlamaCppPin") {
     doLast {
         check(llamaCppTag.matches(Regex("b[0-9]+"))) { "llama.cpp tag must use the bNNNN release form." }
         check(llamaCppCommit.matches(Regex("[0-9a-f]{40}"))) { "llama.cpp commit must be a full SHA-1." }
-        check(llamaCppTag != "b10025" || llamaCppCommit.startsWith("a3e5b96ac")) {
-            "llama.cpp b10025 must resolve to a3e5b96ac."
+        check(llamaCppTag != "b10069" || llamaCppCommit.startsWith("178a6c449")) {
+            "llama.cpp b10069 must resolve to 178a6c449."
         }
         check(llamaCppSourceSha256.matches(Regex("[0-9a-f]{64}"))) { "llama.cpp source SHA-256 is invalid." }
         check(llamaRuntimeRevision.matches(Regex("kortty[1-9][0-9]*"))) { "Runtime revision must be immutable (korttyN)." }
