@@ -98,7 +98,6 @@
 
 .status-bar,
 .main-content,
-.dashboard-view,
 .dialog-pane .content,
 .dialog-pane .header-panel,
 .scroll-pane,
@@ -397,18 +396,14 @@
 .file-browser-tree .scroll-bar .track,
 .file-browser-tree .scroll-bar .increment-button,
 .file-browser-tree .scroll-bar .decrement-button,
-.file-browser-status,
-.dashboard-tree,
-.dashboard-tree .tree-cell {
+.file-browser-status {
     -fx-background-color: #1a0b2e;
     -fx-control-inner-background: #1a0b2e;
     -fx-text-fill: #f5e1ff;
 }
 
 .file-browser-tree .tree-cell:hover,
-.file-browser-tree .tree-cell:selected,
-.dashboard-tree .tree-cell:hover,
-.dashboard-tree .tree-cell:selected {
+.file-browser-tree .tree-cell:selected {
     -fx-background-color: rgba(255,46,136,0.18);
     -fx-text-fill: #f5e1ff;
 }
@@ -444,4 +439,17 @@
     -fx-font-size: 12px;
     -fx-font-weight: bold;
     -fx-text-fill: #26d6ff;
+}
+
+/* Dashboard panel palette (looked-up colors consumed by the dashboard rules in terminal.css) */
+.dashboard-view {
+    -kortty-dash-bg: derive(#1a0b2e, 6%);
+    -kortty-dash-fg: #f5e1ff;
+    -kortty-dash-dim: #9d8fc7;
+    -kortty-dash-accent: #ff2e88;
+    -kortty-dash-ok: #72f1b8;
+    -kortty-dash-error: #fe4450;
+    -kortty-dash-border: derive(#1a0b2e, 30%);
+    -kortty-dash-hover: derive(#1a0b2e, 15%);
+    -kortty-dash-selected: derive(#1a0b2e, 25%);
 }

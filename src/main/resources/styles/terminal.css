@@ -604,6 +604,7 @@
     -kortty-dash-fg: #cccccc;
     -kortty-dash-dim: #8a8a8a;
     -kortty-dash-accent: #18c26e;
+    -kortty-dash-ok: #18c26e;
     -kortty-dash-error: #d9534f;
     -kortty-dash-border: #3d3d3d;
     -kortty-dash-hover: #313132;
@@ -733,7 +734,7 @@
 }
 
 .dashboard-status-dot-connected {
-    -fx-fill: -kortty-dash-accent;
+    -fx-fill: -kortty-dash-ok;
     -fx-stroke: transparent;
 }
 
