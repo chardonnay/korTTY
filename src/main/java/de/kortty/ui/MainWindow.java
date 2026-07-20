@@ -7443,6 +7443,11 @@ public class MainWindow {
             
             // Open tab
             TerminalTab tab = new TerminalTab(conn, password);
+            // Assign the connection's group so the tab shows under it (dashboard, tab ordering);
+            // the single-connection path does the same in openConnectionInternal.
+            if (conn.getGroup() != null && !conn.getGroup().trim().isEmpty()) {
+                tab.setGroup(conn.getGroup().trim());
+            }
             registerTerminalTabForAiAgentDock(tab);
             if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 tab.getTerminalView().setTerminalEffectAnimationSpeed(
@@ -7458,6 +7463,12 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            tab.setOnClosed(e -> {
+                updateDashboard();
+                organizeTabsByGroup();
+                updateAllTabContextMenus();
+            });
+            setupTabContextMenu(tab);
             tabPane.getTabs().add(tab);
             tab.connect();
             
