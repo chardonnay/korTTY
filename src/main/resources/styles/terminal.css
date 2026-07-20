@@ -699,6 +699,15 @@
     -fx-border-color: transparent transparent transparent -kortty-dash-accent;
 }
 
+/* Empty filler rows must never paint hover/selection — hovering the blank
+ * area below the tree otherwise flashes gray stripes. */
+.dashboard-tree .tree-cell:empty,
+.dashboard-tree .tree-cell:empty:hover,
+.dashboard-tree .tree-cell:empty:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
 /* Dashboard row content (icon, status dot, labels) */
 .dashboard-node-icon {
     -fx-fill: -kortty-dash-dim;
