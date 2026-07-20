@@ -12,12 +12,26 @@ korTTY's main window has these regions:
 
 - **Menu bar** — File · Edit · Connections · Security · Configuration · Tools · Plugins · View · Teamwork · AI · Help. All features are reachable here and via [keyboard shortcuts](../reference/keyboard-shortcuts.md). A live **JobScheduler status** menu appears after *Help* when a scheduled entry is active.
 - **Tab bar** — each SSH/Mosh session runs in its own tab. ++ctrl+t++ opens Quick Connect for a new tab; ++ctrl+tab++ / ++ctrl+shift+tab++ switch tabs.
-- **Dashboard** (toggle ++ctrl+shift+d++) — lists all open connections with status indicators and AI-agent badges. Right-click a connection to reconnect, duplicate, open SFTP, or close.
+- **Dashboard** (toggle ++ctrl+shift+d++) — a side panel listing every open connection with status dots, protocol badges and AI-agent badges. See [Dashboard](#dashboard) below.
 - **Terminal area** — the active terminal, with optional split-screen and broadcast input.
 - **Status bar** — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.
 
 !!! tip "Terminal-only fullscreen"
     Press ++ctrl+shift+f++ (or **View → Terminal-only Fullscreen**) to show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, so the desktop and other windows stop competing for attention. **View → Hide terminal scrollbars in fullscreen** removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press ++ctrl+shift+f++ again to restore.
+
+## Dashboard
+
+Toggle the dashboard with ++ctrl+shift+d++ or **View → Show Dashboard**. It slides in on the left, sizes its width to the longest entry, and follows the active App Design's colors.
+
+The header shows the panel title with two buttons: a collapse/expand toggle (collapses everything while any node is open, expands everything otherwise) and a refresh button. Below it, connections are organized as a tree:
+
+- **Main window** — the root node, with an active/total session count.
+- **Environments** — connections whose stored credential has an environment (for example *Production* or *Test*) are clustered under an environment node; connections without one sit directly under the main window.
+- **Groups** — tabs assigned to a connection group appear under their group node. Saving a changed group in the Connection Manager updates open tabs immediately.
+
+Each connection row shows a type icon, a status dot, the server name, and a protocol badge (`ssh`, `mosh` or `local`). The status dot distinguishes three states: filled green for a healthy connection, filled red for a connection that dropped unexpectedly (including a Mosh network interruption), and a hollow outline for a session that ended normally. Terminals with AI-agent runs carry the same ✋/⚡/⏸/✓ badge as elsewhere. Hovering a row shows `user@host` and the connection state; double-click (or ++enter++) focuses the session's tab.
+
+Right-click a connection for **Focus**, **Duplicate**, **Reconnect**, **SFTP-Client...** (connected sessions only) and **Close**. A footer keeps a running "connected of total" count, and an empty panel shows a placeholder until the first session opens.
 
 ## macOS Dock menu
 
