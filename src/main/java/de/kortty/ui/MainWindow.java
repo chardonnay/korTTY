@@ -94,14 +94,13 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.event.Event;
 import javafx.geometry.Side;
 import javafx.stage.FileChooser;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
@@ -183,6 +182,8 @@ public class MainWindow {
     
     private final Stage stage;
     private final BorderPane root;
+    // Scene root: hosts `root` and, in terminal-only fullscreen, centers it on an empty backdrop.
+    private StackPane sceneRoot;
     private final TabPane tabPane;
     private final Label statusLabel;
     private VBox statusBar;
@@ -271,15 +272,10 @@ public class MainWindow {
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
     private boolean terminalOnlyFullscreenActive = false;
     private boolean terminalOnlyPreviousFullScreen = false;
-    // "Terminal-only fullscreen" keeps the whole korTTY window - with its native title bar, traffic
-    // lights and rounded corners intact - at its previous position/size, and shows a separate
-    // borderless black backdrop window behind it to hide other windows/the desktop. Real OS fullscreen
-    // would strip that native chrome, so the main stage deliberately never goes fullscreen for this.
-    private double terminalOnlyPreviousStageX;
-    private double terminalOnlyPreviousStageY;
-    private double terminalOnlyPreviousStageWidth;
-    private double terminalOnlyPreviousStageHeight;
-    private Stage terminalOnlyBackdropStage;
+    // "Terminal-only fullscreen" keeps the whole korTTY window at this size, centered on an
+    // otherwise empty fullscreen background, so other windows/the desktop stop being a distraction.
+    private double terminalOnlyContentWidth = -1;
+    private double terminalOnlyContentHeight = -1;
     /** Consumer reference for file browser position listener, stored so it can be removed on close. */
     private Consumer<LocalFileBrowserManager.Position> fileBrowserPositionListener;
     
@@ -602,8 +598,11 @@ public class MainWindow {
         root.setBottom(statusBar);
         applyMainWindowThemeFromGlobalSettings();
         
-        // Scene setup
-        Scene scene = new Scene(root, 1000, 700);
+        // Scene setup. `root` is wrapped in a StackPane so terminal-only fullscreen can shrink it to
+        // its previous window size and let the StackPane center it on an empty backdrop; in the
+        // normal case the wrapper is fully transparent and root fills it edge to edge as before.
+        sceneRoot = new StackPane(root);
+        Scene scene = new Scene(sceneRoot, 1000, 700);
         if (unifiedTitleBarEnabled || transparentWindowMode) {
             // Unified title bar: let the themed root background flow into the macOS title bar area.
             // Transparent mode: the scene fill must be clear so the desktop shows through the terminal.
@@ -647,7 +646,8 @@ public class MainWindow {
             
             // Fullscreen toggle: F11
             if (code == KeyCode.F11) {
-                toggleOsFullscreen();
+                boolean goFullscreen = !stage.isFullScreen();
+                stage.setFullScreen(goFullscreen);
                 // Force terminal resize after fullscreen change
                 Platform.runLater(() -> {
                     Platform.runLater(() -> {
@@ -719,6 +719,9 @@ public class MainWindow {
         
         // Handle fullscreen changes - resize terminal properly
         stage.fullScreenProperty().addListener((obs, wasFullscreen, isFullscreen) -> {
+            if (!isFullscreen && terminalOnlyFullscreenActive) {
+                setTerminalOnlyFullscreen(false);
+            }
             // Fullscreen is intentionally solid. Keep the persisted percentage untouched and
             // restore it across all panes as soon as the window leaves fullscreen again.
             applyBackgroundTransparencyToAllTabs();
@@ -743,12 +746,9 @@ public class MainWindow {
             
             // Always save last geometry (for next session) unless fixed geometry is used
             if (!globalSettings.isUseFixedWindowGeometry()) {
-                // While terminal-only fullscreen is active the stage sits at its shrunk, centered
-                // bounds; save the geometry it had before entering that mode instead.
-                WindowGeometry geo = terminalOnlyFullscreenActive
-                    ? new WindowGeometry(terminalOnlyPreviousStageX, terminalOnlyPreviousStageY,
-                        terminalOnlyPreviousStageWidth, terminalOnlyPreviousStageHeight)
-                    : new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+                WindowGeometry geo = new WindowGeometry(
+                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
+                );
                 geo.setMaximized(stage.isMaximized());
                 globalSettings.setLastWindowGeometry(geo);
                 logger.info("Saving window geometry: x={}, y={}, w={}, h={}, maximized={}", 
@@ -775,10 +775,6 @@ public class MainWindow {
             } else {
                 stopJobSchedulerStatusUpdates();
                 stopAgentStatusIndicatorTimer();
-                if (terminalOnlyBackdropStage != null) {
-                    terminalOnlyBackdropStage.close();
-                    terminalOnlyBackdropStage = null;
-                }
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
@@ -1659,7 +1655,7 @@ public class MainWindow {
         // stripped (see setupMenuBar), which also avoids the Cocoa NSEventModifierFlagFunction
         // warning for the F11 function key. F11 also works via the global key handler.
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
-        fullscreen.setOnAction(e -> toggleOsFullscreen());
+        fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
         CheckMenuItem terminalOnlyFullscreen = new CheckMenuItem(I18n.get("menu.view.terminalOnlyFullscreen"));
         terminalOnlyFullscreen.setAccelerator(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR);
@@ -2666,7 +2662,7 @@ public class MainWindow {
      */
     private void applyTransparentModeContainerBackgrounds(String bg) {
         Tab active = tabPane.getSelectionModel().getSelectedItem();
-        if (active instanceof TerminalTab && !isAnyFullscreenModeActive()) {
+        if (active instanceof TerminalTab && !stage.isFullScreen()) {
             root.setStyle("-fx-background-color: transparent;");
             mainContentBox.setStyle("-fx-background-color: transparent;");
             tabPane.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent;");
@@ -2723,7 +2719,7 @@ public class MainWindow {
         if (view == null) {
             return;
         }
-        boolean transparencyActive = transparentWindowMode && !isAnyFullscreenModeActive();
+        boolean transparencyActive = transparentWindowMode && !stage.isFullScreen();
         view.setBackgroundTransparent(transparencyActive);
         view.setBackgroundTransparency(transparencyActive ? currentBackgroundTransparencyPercent() : 0);
     }
@@ -3684,18 +3680,6 @@ public class MainWindow {
         setTerminalOnlyFullscreen(!terminalOnlyFullscreenActive);
     }
 
-    /**
-     * Real OS fullscreen and terminal-only fullscreen are mutually exclusive: entering one first
-     * cleanly leaves the other, so the two modes never end up layered on top of each other with
-     * inconsistent saved geometry.
-     */
-    private void toggleOsFullscreen() {
-        if (terminalOnlyFullscreenActive) {
-            setTerminalOnlyFullscreen(false);
-        }
-        stage.setFullScreen(!stage.isFullScreen());
-    }
-
     private void setTerminalOnlyFullscreen(boolean active) {
         if (active == terminalOnlyFullscreenActive) {
             syncTerminalOnlyFullscreenMenuItems();
@@ -3704,35 +3688,21 @@ public class MainWindow {
 
         if (active) {
             terminalOnlyPreviousFullScreen = stage.isFullScreen();
-            captureTerminalOnlyWindowGeometry();
-            // Real OS fullscreen would strip the native title bar/traffic lights/rounded corners we
-            // want to keep, so leave it first (while the flag is still false, so the fullScreenProperty
-            // listener below does not treat this as an unexpected exit).
-            if (terminalOnlyPreviousFullScreen) {
-                stage.setFullScreen(false);
-            }
+            captureTerminalOnlyContentSize();
 
             terminalOnlyFullscreenActive = true;
             Telemetry.track(TelemetryEvents.FULLSCREEN_ENTERED, Map.of("mode", "terminal_only"));
-            showTerminalOnlyBackdrop();
-            centerTerminalOnlyWindow();
-        } else {
-            terminalOnlyFullscreenActive = false;
-            hideTerminalOnlyBackdrop();
-            stage.setX(terminalOnlyPreviousStageX);
-            stage.setY(terminalOnlyPreviousStageY);
-            stage.setWidth(terminalOnlyPreviousStageWidth);
-            stage.setHeight(terminalOnlyPreviousStageHeight);
-            if (terminalOnlyPreviousFullScreen) {
+            if (!stage.isFullScreen()) {
                 stage.setFullScreen(true);
             }
+            applyTerminalOnlyCenteredLayout(true);
+        } else {
+            terminalOnlyFullscreenActive = false;
+            applyTerminalOnlyCenteredLayout(false);
+            stage.setFullScreen(terminalOnlyPreviousFullScreen);
         }
 
         syncTerminalOnlyFullscreenMenuItems();
-        // Terminal-only fullscreen hides other windows/the desktop behind its own backdrop just like
-        // real OS fullscreen does, so it gets the same "solid, no see-through" treatment.
-        applyBackgroundTransparencyToAllTabs();
-        refreshTransparentModeContainers();
         applyTerminalScrollbarVisibilityForOpenTabs();
         Platform.runLater(() -> {
             Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
@@ -3743,16 +3713,14 @@ public class MainWindow {
     }
 
     /**
-     * Remembers the korTTY window's position and size so they can be restored when terminal-only
-     * fullscreen is left again. Normally that is the window's live bounds right before entering the
-     * mode; when the window is already fullscreen (so no windowed bounds are on screen), the
-     * configured window geometry from the global settings is used for the size instead.
+     * Remembers the size the whole korTTY window should keep while terminal-only fullscreen is
+     * active. Normally that is the live size of the window content right before entering
+     * fullscreen; when the window is already fullscreen (so no windowed size is on screen), the
+     * configured window geometry from the global settings is used instead.
      */
-    private void captureTerminalOnlyWindowGeometry() {
-        terminalOnlyPreviousStageX = stage.getX();
-        terminalOnlyPreviousStageY = stage.getY();
-        double width = stage.getWidth();
-        double height = stage.getHeight();
+    private void captureTerminalOnlyContentSize() {
+        double width = root.getWidth();
+        double height = root.getHeight();
         if (stage.isFullScreen() || width <= 0 || height <= 0) {
             WindowGeometry geo = resolveConfiguredWindowGeometry();
             if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
@@ -3760,8 +3728,8 @@ public class MainWindow {
                 height = geo.getHeight();
             }
         }
-        terminalOnlyPreviousStageWidth = width;
-        terminalOnlyPreviousStageHeight = height;
+        terminalOnlyContentWidth = width;
+        terminalOnlyContentHeight = height;
     }
 
     private WindowGeometry resolveConfiguredWindowGeometry() {
@@ -3778,57 +3746,25 @@ public class MainWindow {
         return null;
     }
 
-    /** The screen the korTTY window's captured bounds are (mostly) on, falling back to the primary screen. */
-    private Screen terminalOnlyTargetScreen() {
-        var screens = Screen.getScreensForRectangle(
-            terminalOnlyPreviousStageX, terminalOnlyPreviousStageY,
-            Math.max(terminalOnlyPreviousStageWidth, 1), Math.max(terminalOnlyPreviousStageHeight, 1));
-        return !screens.isEmpty() ? screens.get(0) : Screen.getPrimary();
-    }
+    private static final String TERMINAL_ONLY_BACKDROP_STYLE_CLASS = "terminal-only-fullscreen-backdrop";
 
     /**
-     * Resizes/repositions the korTTY window to its captured size, centered on its screen. The window
-     * stays a normal, decorated stage (native title bar, traffic lights, rounded corners, shadow all
-     * intact) - only the backdrop behind it hides the rest of the screen.
+     * Terminal-only fullscreen must not stretch the korTTY window across the whole screen: the
+     * whole application window (menu, tabs, status bar included) keeps its captured size and is
+     * centered on an otherwise empty fullscreen background, so the user can focus on a single
+     * window without other windows or the desktop competing for attention.
      */
-    private void centerTerminalOnlyWindow() {
-        Rectangle2D bounds = terminalOnlyTargetScreen().getBounds();
-        double width = terminalOnlyPreviousStageWidth;
-        double height = terminalOnlyPreviousStageHeight;
-        stage.setWidth(width);
-        stage.setHeight(height);
-        stage.setX(bounds.getMinX() + (bounds.getWidth() - width) / 2.0);
-        stage.setY(bounds.getMinY() + (bounds.getHeight() - height) / 2.0);
-        stage.toFront();
-        stage.requestFocus();
-    }
-
-    /**
-     * Shows a borderless, solid black stage covering the whole screen behind the korTTY window, so
-     * other windows and the desktop are hidden without putting the korTTY window itself into real OS
-     * fullscreen (which would strip its native chrome).
-     */
-    private void showTerminalOnlyBackdrop() {
-        if (terminalOnlyBackdropStage == null) {
-            Stage backdrop = new Stage(StageStyle.UNDECORATED);
-            backdrop.setResizable(false);
-            backdrop.setScene(new Scene(new Region(), 100, 100, Color.BLACK));
-            terminalOnlyBackdropStage = backdrop;
-        }
-        Rectangle2D bounds = terminalOnlyTargetScreen().getBounds();
-        terminalOnlyBackdropStage.setX(bounds.getMinX());
-        terminalOnlyBackdropStage.setY(bounds.getMinY());
-        terminalOnlyBackdropStage.setWidth(bounds.getWidth());
-        terminalOnlyBackdropStage.setHeight(bounds.getHeight());
-        terminalOnlyBackdropStage.show();
-        // The backdrop's own show() call can steal focus/front position; reclaim it for the main window.
-        stage.toFront();
-        stage.requestFocus();
-    }
-
-    private void hideTerminalOnlyBackdrop() {
-        if (terminalOnlyBackdropStage != null) {
-            terminalOnlyBackdropStage.hide();
+    private void applyTerminalOnlyCenteredLayout(boolean active) {
+        if (active && terminalOnlyContentWidth > 0 && terminalOnlyContentHeight > 0) {
+            root.setPrefSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            root.setMaxSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            if (!sceneRoot.getStyleClass().contains(TERMINAL_ONLY_BACKDROP_STYLE_CLASS)) {
+                sceneRoot.getStyleClass().add(TERMINAL_ONLY_BACKDROP_STYLE_CLASS);
+            }
+        } else {
+            root.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            root.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            sceneRoot.getStyleClass().remove(TERMINAL_ONLY_BACKDROP_STYLE_CLASS);
         }
     }
 
@@ -3852,13 +3788,8 @@ public class MainWindow {
         boolean showTerminalScrollbar = globalSettings == null || globalSettings.isShowTerminalScrollbar();
         boolean hideForFullscreen = globalSettings != null
             && globalSettings.isHideTerminalScrollbarsInFullscreen()
-            && isAnyFullscreenModeActive();
+            && stage.isFullScreen();
         return showTerminalScrollbar && !hideForFullscreen;
-    }
-
-    /** True while the window is either in real OS fullscreen or in terminal-only fullscreen. */
-    private boolean isAnyFullscreenModeActive() {
-        return stage.isFullScreen() || terminalOnlyFullscreenActive;
     }
 
     private void applyStatusBarVisibility(boolean visible) {
