@@ -10,6 +10,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
@@ -30,6 +31,9 @@ public class DashboardView extends VBox {
     private final BiConsumer<TerminalTab, DashboardAction> actionHandler;
     private final TreeView<DashboardItem> treeView;
     private final Button refreshButton;
+    private final Button collapseAllButton;
+    private final Label footerLabel;
+    private final VBox emptyBox;
     // Lightweight 1s tick that re-renders cells so AI-agent badges stay current while the dashboard shows.
     private Timeline agentStatusTimer;
 
@@ -65,6 +69,11 @@ public class DashboardView extends VBox {
             "M1,3 h5 l1.5,2 H15 v8 H1 z";
     private static final String ICON_CONNECTION =
             "M1,2 h14 v11 h-14 z M2.5,3.5 h11 v8 h-11 z M4,5.5 l2.5,1.75 -2.5,1.75 z M8,9.5 h4 v1 h-4 z";
+    // Header button icons: circular refresh arrow, double chevron up (collapse all).
+    private static final String ICON_REFRESH =
+            "M8,2.5 A5.5,5.5 0 1 0 13.5,8 L12,8 A4,4 0 1 1 8,4 L8,6.5 L11.5,3.75 L8,1 Z";
+    private static final String ICON_COLLAPSE_ALL =
+            "M3,7.5 L8,2.5 13,7.5 11.6,8.9 8,5.3 4.4,8.9 z M3,13 L8,8 13,13 11.6,14.4 8,10.8 4.4,14.4 z";
 
     public DashboardView(TabPane tabPane, BiConsumer<TerminalTab, DashboardAction> actionHandler) {
         this.tabPane = tabPane;
@@ -72,16 +81,23 @@ public class DashboardView extends VBox {
 
         getStyleClass().add("dashboard-view");
 
-        HBox titleBox = new HBox(10);
+        HBox titleBox = new HBox(6);
         titleBox.getStyleClass().add("dashboard-title");
+        titleBox.setAlignment(Pos.CENTER_LEFT);
 
-        refreshButton = new Button("⟳");
-        refreshButton.getStyleClass().add("dashboard-refresh-button");
-        refreshButton.setTooltip(new Tooltip(I18n.get("dashboard.refresh")));
+        Label titleLabel = new Label(I18n.get("dashboard.title"));
+        titleLabel.getStyleClass().add("dashboard-title-label");
+
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+
+        collapseAllButton = iconButton(ICON_COLLAPSE_ALL, I18n.get("dashboard.collapseAll"));
+        collapseAllButton.setOnAction(e -> collapseAll());
+
+        refreshButton = iconButton(ICON_REFRESH, I18n.get("dashboard.refresh"));
         refreshButton.setOnAction(e -> refresh());
 
-        titleBox.getChildren().add(refreshButton);
-        HBox.setHgrow(refreshButton, Priority.NEVER);
+        titleBox.getChildren().addAll(titleLabel, titleSpacer, collapseAllButton, refreshButton);
 
         treeView = new TreeView<>();
         treeView.getStyleClass().add("dashboard-tree");
@@ -100,9 +116,30 @@ public class DashboardView extends VBox {
             return cell;
         });
 
-        VBox.setVgrow(treeView, Priority.ALWAYS);
+        // Empty-state placeholder shown instead of the tree when no tabs are open.
+        SVGPath emptyIcon = new SVGPath();
+        emptyIcon.setFillRule(FillRule.EVEN_ODD);
+        emptyIcon.setContent(ICON_CONNECTION);
+        emptyIcon.getStyleClass().add("dashboard-empty-icon");
+        emptyIcon.setScaleX(2.5);
+        emptyIcon.setScaleY(2.5);
+        Label emptyLabel = new Label(I18n.get("dashboard.empty"));
+        emptyLabel.getStyleClass().add("dashboard-empty-label");
+        emptyLabel.setWrapText(true);
+        emptyBox = new VBox(24, emptyIcon, emptyLabel);
+        emptyBox.getStyleClass().add("dashboard-empty");
+        emptyBox.setAlignment(Pos.CENTER);
+        emptyBox.setMouseTransparent(true);
+        emptyBox.setVisible(false);
 
-        getChildren().addAll(titleBox, treeView);
+        StackPane contentStack = new StackPane(treeView, emptyBox);
+        VBox.setVgrow(contentStack, Priority.ALWAYS);
+
+        footerLabel = new Label();
+        footerLabel.getStyleClass().add("dashboard-footer");
+        footerLabel.setMaxWidth(Double.MAX_VALUE);
+
+        getChildren().addAll(titleBox, contentStack, footerLabel);
 
         // Run the badge refresh tick only while the dashboard is actually shown (in a scene).
         agentStatusTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> treeView.refresh()));
@@ -116,6 +153,38 @@ public class DashboardView extends VBox {
         });
 
         refresh();
+    }
+
+    /** Small transparent header button with a 16x16 SVG icon. */
+    private static Button iconButton(String svgPath, String tooltip) {
+        SVGPath icon = new SVGPath();
+        icon.setFillRule(FillRule.EVEN_ODD);
+        icon.setContent(svgPath);
+        icon.getStyleClass().add("dashboard-button-icon");
+        StackPane pane = new StackPane(icon);
+        pane.setMinSize(16, 16);
+        pane.setPrefSize(16, 16);
+        pane.setMaxSize(16, 16);
+        Button button = new Button();
+        button.setGraphic(pane);
+        button.getStyleClass().add("dashboard-icon-button");
+        button.setTooltip(new Tooltip(tooltip));
+        return button;
+    }
+
+    /** Collapses every expandable node below the (hidden) root. */
+    private void collapseAll() {
+        TreeItem<DashboardItem> root = treeView.getRoot();
+        if (root != null) {
+            root.getChildren().forEach(this::collapseRecursively);
+        }
+    }
+
+    private void collapseRecursively(TreeItem<DashboardItem> item) {
+        item.getChildren().forEach(this::collapseRecursively);
+        if (!item.getChildren().isEmpty()) {
+            item.setExpanded(false);
+        }
     }
 
     /**
@@ -409,6 +478,9 @@ public class DashboardView extends VBox {
 
         root.setExpanded(true);
         treeView.setRoot(root);
+
+        emptyBox.setVisible(totalTabs == 0);
+        footerLabel.setText(I18n.get("dashboard.footer", activeTabs, totalTabs));
     }
 
     /**
