@@ -54,7 +54,7 @@ public class DashboardView extends VBox {
         refreshButton = new Button("⟳");
         refreshButton.getStyleClass().add("dashboard-refresh-button");
         refreshButton.setStyle("-fx-font-size: 32px; -fx-padding: 5 10 5 10; -fx-background-color: transparent;");
-        refreshButton.setTooltip(new Tooltip("Aktualisieren"));
+        refreshButton.setTooltip(new Tooltip(I18n.get("dashboard.refresh")));
         refreshButton.setOnAction(e -> refresh());
         
         titleBox.getChildren().add(refreshButton);
@@ -99,7 +99,7 @@ public class DashboardView extends VBox {
                             if (item.getTerminalTab() != null) {
                                 ContextMenu contextMenu = new ContextMenu();
 
-                                MenuItem duplicateItem = new MenuItem("Duplizieren");
+                                MenuItem duplicateItem = new MenuItem(I18n.get("dashboard.duplicate"));
                                 duplicateItem.setOnAction(e -> {
                                     actionHandler.accept(item.getTerminalTab(), DashboardAction.DUPLICATE);
                                 });
@@ -213,7 +213,7 @@ public class DashboardView extends VBox {
      * Refreshes the dashboard tree with current tabs, organized by groups.
      */
     public void refresh() {
-        TreeItem<DashboardItem> root = new TreeItem<>(new DashboardItem("Projekt", null, true, null));
+        TreeItem<DashboardItem> root = new TreeItem<>(new DashboardItem(I18n.get("dashboard.root"), null, true, null));
         
         // Count active connections
         int totalTabs = 0;
@@ -319,7 +319,7 @@ public class DashboardView extends VBox {
             }
             return name;
         }
-        return "Unbekannt";
+        return I18n.get("dashboard.unknown");
     }
     
     /**
