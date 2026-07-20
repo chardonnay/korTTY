@@ -47,11 +47,6 @@
     -fx-font-weight: bold;
 }
 
-/* Empty area around the centered korTTY window in terminal-only fullscreen. */
-.terminal-only-fullscreen-backdrop {
-    -fx-background-color: #000000;
-}
-
 .tab-close-button {
     -fx-background-color: #666666;
     -fx-background-radius: 2;
