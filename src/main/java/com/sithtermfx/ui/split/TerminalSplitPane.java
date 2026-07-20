@@ -282,6 +282,9 @@ public class TerminalSplitPane extends StackPane {
         
         widgetPane.addEventFilter(KeyEvent.KEY_TYPED, event -> {
             if (!broadcastMode) return;
+            // Meta/Cmd chords are shortcuts, not text (menu accelerators such as Cmd+Shift+D only
+            // consume KEY_PRESSED; macOS still delivers the paired KEY_TYPED character here).
+            if (event.isMetaDown()) return;
             String character = event.getCharacter();
             if (character != null && !character.isEmpty()) {
                 char c = character.charAt(0);
