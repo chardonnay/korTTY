@@ -65,6 +65,24 @@ class LocalProcessDirectoryTest {
     }
 
     @Test
+    void reassemblesMultiByteUtf8FromConsecutiveHexEscapes() {
+        // Under a non-UTF-8 locale (unset LANG) lsof escapes every non-ASCII byte, so "ü" arrives as
+        // the two escapes \xc3\xbc. They are ONE character: decoding each byte to its own char would
+        // yield "Ã¼" and the resulting path would no longer exist on disk.
+        assertThat(LocalProcessDirectory.parseLsofCwdOutput("p1\nfcwd\nn/tmp/Ziel \\xc3\\xbc\n"))
+            .isEqualTo("/tmp/Ziel ü");
+        // Four-byte sequences (outside the BMP) must survive too.
+        assertThat(LocalProcessDirectory.parseLsofCwdOutput("p1\nfcwd\nn/tmp/\\xf0\\x9f\\x93\\x81\n"))
+            .isEqualTo("/tmp/📁");
+        // Under a UTF-8 locale the same byte is printed literally and must pass through unchanged,
+        // even when another part of the name forces the escape path.
+        assertThat(LocalProcessDirectory.parseLsofCwdOutput("p1\nfcwd\nn/tmp/Ziel ü\\x20x\n"))
+            .isEqualTo("/tmp/Ziel ü x");
+        assertThat(LocalProcessDirectory.parseLsofCwdOutput("p1\nfcwd\nn/tmp/📁\\x20x\n"))
+            .isEqualTo("/tmp/📁 x");
+    }
+
+    @Test
     void leavesOrdinaryPathsUntouched() {
         // No backslash -> returned verbatim (the common case).
         assertThat(LocalProcessDirectory.parseLsofCwdOutput("p1\nfcwd\nn/Users/dan/projects/korTTY\n"))
