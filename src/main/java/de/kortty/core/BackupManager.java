@@ -379,7 +379,15 @@ public class BackupManager {
                             Files.newInputStream(tempZipFile))) {
                         java.util.zip.ZipEntry entry;
                         while ((entry = zis.getNextEntry()) != null) {
-                            Path entryPath = extractDir.resolve(entry.getName());
+                            // Zip-slip guard: a crafted entry name ("../..") must never escape
+                            // the extraction directory. zip4j's extractAll above validates this
+                            // itself; this manual ZipInputStream path has to do it explicitly.
+                            Path entryPath = extractDir.resolve(entry.getName()).normalize();
+                            if (!entryPath.startsWith(extractDir)) {
+                                throw new IOException(
+                                    "Blocked backup ZIP entry outside the extraction directory: "
+                                        + entry.getName());
+                            }
                             if (entry.isDirectory()) {
                                 Files.createDirectories(entryPath);
                             } else {

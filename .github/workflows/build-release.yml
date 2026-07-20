@@ -14,6 +14,10 @@ on:
         required: false
         default: '2.1.0'
 
+# Least-privilege default for every job; upload-release widens to contents: write itself.
+permissions:
+  contents: read
+
 jobs:
   docs-render:
     name: Validate documentation SVG diagrams

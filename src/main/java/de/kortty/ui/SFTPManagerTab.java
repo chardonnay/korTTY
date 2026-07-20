@@ -2036,8 +2036,13 @@ public class SFTPManagerTab extends Tab {
             try {
                 // Build the archive command based on format
                 String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
-                
-                logger.info("Executing remote archive command: {}", archiveCommand.replaceAll("-P '[^']*'", "-P '***'").replaceAll("-p'[^']*'", "-p'***'"));
+
+                // Log archive metadata instead of the command line: any buildArchiveCommand result
+                // can embed the archive password, and the old regex masks were bypassable via
+                // quote-escaping ('\'') — CodeQL java/sensitive-log.
+                logger.info("Executing remote archive command: format={} target={} files={} passwordProtected={}",
+                    format, archivePath, filesToArchive.size(),
+                    password != null && !password.isEmpty());
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
@@ -3080,25 +3085,33 @@ public class SFTPManagerTab extends Tab {
     
     private void createLocal7z(List<Path> files, String archivePath, int compression, String password, List<String> excludePatterns) throws Exception {
         List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
-        StringBuilder cmd = new StringBuilder();
-        
-        cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
-        
-        if (password != null && !password.isEmpty()) {
+
+        // Head and tail are shared verbatim between the executed and the logged command; only the
+        // password fragment differs (real secret vs. "***"), so the secret never flows into the
+        // logged string at all (CodeQL java/sensitive-log — the command previously went to the
+        // log unmasked).
+        String head = "$(command -v 7z || command -v 7za) a -mx=" + compression;
+        boolean passwordProtected = password != null && !password.isEmpty();
+
+        StringBuilder tail = new StringBuilder();
+        for (String pattern : exclude) {
+            tail.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
+        }
+
+        tail.append(" '").append(archivePath.replace("'", "'\\''")).append("' ");
+
+        for (Path file : files) {
+            tail.append("'").append(file.toAbsolutePath().toString().replace("'", "'\\''")).append("' ");
+        }
+
+        StringBuilder cmd = new StringBuilder(head);
+        if (passwordProtected) {
             cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
         }
-        
-        for (String pattern : exclude) {
-            cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
-        }
-        
-        cmd.append(" '").append(archivePath.replace("'", "'\\''")).append("' ");
-        
-        for (Path file : files) {
-            cmd.append("'").append(file.toAbsolutePath().toString().replace("'", "'\\''")).append("' ");
-        }
-        
-        logger.info("Executing local 7z command: {}", cmd);
+        cmd.append(tail);
+
+        logger.info("Executing local 7z command: {}",
+            head + (passwordProtected ? " -p'***' -mhe=on" : "") + tail);
         
         // Execute command
         Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd.toString()});
