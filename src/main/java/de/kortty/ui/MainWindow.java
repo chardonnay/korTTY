@@ -2488,6 +2488,7 @@ public class MainWindow {
      * Called when connections are saved in Connection Manager so changes take effect immediately.
      */
     private void refreshAllTerminalTabsConnectionSettings() {
+        boolean groupChanged = false;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
                 ServerConnection conn = terminalTab.getConnection();
@@ -2496,6 +2497,14 @@ public class MainWindow {
                     if (stored != null) {
                         if (stored.getSettings() != null) {
                             terminalTab.applyConnectionSettings(stored.getSettings());
+                        }
+                        // Saved connection group is authoritative on save: propagate set,
+                        // changed and removed groups to the open tab (dashboard, ordering).
+                        String storedGroup = stored.getGroup() != null && !stored.getGroup().trim().isEmpty()
+                                ? stored.getGroup().trim() : null;
+                        if (!java.util.Objects.equals(storedGroup, terminalTab.getGroup())) {
+                            terminalTab.setGroup(storedGroup);
+                            groupChanged = true;
                         }
                         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                             terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(
@@ -2509,6 +2518,11 @@ public class MainWindow {
                     }
                 }
             }
+        }
+        if (groupChanged) {
+            organizeTabsByGroup();
+            updateAllTabContextMenus();
+            updateDashboard();
         }
     }
     
