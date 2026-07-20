@@ -47,18 +47,9 @@
     -fx-font-weight: bold;
 }
 
-.terminal-only-fullscreen .tab-pane .tab-header-area {
-    visibility: hidden;
-    -fx-pref-height: 0;
-    -fx-min-height: 0;
-    -fx-max-height: 0;
-    -fx-padding: 0;
-}
-
-.terminal-only-fullscreen .tab-pane .tab-header-background {
-    -fx-pref-height: 0;
-    -fx-min-height: 0;
-    -fx-max-height: 0;
+/* Empty area around the centered korTTY window in terminal-only fullscreen. */
+.terminal-only-fullscreen-backdrop {
+    -fx-background-color: #000000;
 }
 
 .tab-close-button {

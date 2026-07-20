@@ -96,6 +96,7 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.event.Event;
 import javafx.geometry.Side;
@@ -181,6 +182,8 @@ public class MainWindow {
     
     private final Stage stage;
     private final BorderPane root;
+    // Scene root: hosts `root` and, in terminal-only fullscreen, centers it on an empty backdrop.
+    private StackPane sceneRoot;
     private final TabPane tabPane;
     private final Label statusLabel;
     private VBox statusBar;
@@ -269,18 +272,10 @@ public class MainWindow {
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
     private boolean terminalOnlyFullscreenActive = false;
     private boolean terminalOnlyPreviousFullScreen = false;
-    private boolean terminalOnlyPreviousMenuBarVisible = true;
-    private boolean terminalOnlyPreviousStatusBarVisible = true;
-    private boolean terminalOnlyPreviousDashboardVisible = false;
-    private LocalFileBrowserManager.Position terminalOnlyPreviousFileBrowserPosition =
-        LocalFileBrowserManager.Position.HIDDEN;
-    private AiAgentPanelDockManager.Placement terminalOnlyPreviousAiAgentPlacement =
-        AiAgentPanelDockManager.Placement.BOTTOM;
-    // Terminal-only fullscreen keeps the terminal at this size, centered on an empty background.
+    // "Terminal-only fullscreen" keeps the whole korTTY window at this size, centered on an
+    // otherwise empty fullscreen background, so other windows/the desktop stop being a distraction.
     private double terminalOnlyContentWidth = -1;
     private double terminalOnlyContentHeight = -1;
-    // Suppresses persistence while temporarily forcing BOTTOM during terminal-only fullscreen.
-    private boolean suppressAiAgentDockPersist = false;
     /** Consumer reference for file browser position listener, stored so it can be removed on close. */
     private Consumer<LocalFileBrowserManager.Position> fileBrowserPositionListener;
     
@@ -416,15 +411,7 @@ public class MainWindow {
         // Listen for tab removals to update dashboard and clear per-terminal AI state.
         tabPane.getTabs().addListener((javafx.collections.ListChangeListener.Change<? extends Tab> change) -> {
             while (change.next()) {
-                if (change.wasAdded() && terminalOnlyFullscreenActive) {
-                    for (Tab addedTab : change.getAddedSubList()) {
-                        if (addedTab instanceof TerminalTab terminalTab) {
-                            terminalTab.setTerminalChromeVisible(false);
-                            applyTerminalScrollbarVisibility(terminalTab);
-                            applyBackgroundTransparencyToTab(terminalTab);
-                        }
-                    }
-                } else if (change.wasAdded()) {
+                if (change.wasAdded()) {
                     for (Tab addedTab : change.getAddedSubList()) {
                         if (addedTab instanceof TerminalTab terminalTab) {
                             applyTerminalScrollbarVisibility(terminalTab);
@@ -611,8 +598,11 @@ public class MainWindow {
         root.setBottom(statusBar);
         applyMainWindowThemeFromGlobalSettings();
         
-        // Scene setup
-        Scene scene = new Scene(root, 1000, 700);
+        // Scene setup. `root` is wrapped in a StackPane so terminal-only fullscreen can shrink it to
+        // its previous window size and let the StackPane center it on an empty backdrop; in the
+        // normal case the wrapper is fully transparent and root fills it edge to edge as before.
+        sceneRoot = new StackPane(root);
+        Scene scene = new Scene(sceneRoot, 1000, 700);
         if (unifiedTitleBarEnabled || transparentWindowMode) {
             // Unified title bar: let the themed root background flow into the macOS title bar area.
             // Transparent mode: the scene fill must be clear so the desktop shows through the terminal.
@@ -3611,9 +3601,6 @@ public class MainWindow {
     }
 
     private void persistAiAgentDockSettings() {
-        if (suppressAiAgentDockPersist) {
-            return;
-        }
         try {
             var gsm = app.getGlobalSettingsManager();
             GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
@@ -3701,12 +3688,6 @@ public class MainWindow {
 
         if (active) {
             terminalOnlyPreviousFullScreen = stage.isFullScreen();
-            terminalOnlyPreviousMenuBarVisible = menuBar == null || menuBar.isVisible();
-            terminalOnlyPreviousStatusBarVisible = statusBar == null || statusBar.isVisible();
-            terminalOnlyPreviousDashboardVisible = dashboardVisible;
-            terminalOnlyPreviousFileBrowserPosition = fileBrowserManager != null
-                ? fileBrowserManager.getPosition()
-                : LocalFileBrowserManager.Position.HIDDEN;
             captureTerminalOnlyContentSize();
 
             terminalOnlyFullscreenActive = true;
@@ -3714,49 +3695,10 @@ public class MainWindow {
             if (!stage.isFullScreen()) {
                 stage.setFullScreen(true);
             }
-            applyMenuBarVisibility(false);
-            applyStatusBarVisibility(false);
-            if (dashboardVisible) {
-                toggleDashboard(false);
-            }
-            if (fileBrowserManager != null) {
-                fileBrowserManager.hide();
-            }
-            // Force the agent panel back to the bottom for distraction-free fullscreen (restored on exit).
-            terminalOnlyPreviousAiAgentPlacement = aiAgentDockManager != null
-                ? aiAgentDockManager.getPlacement()
-                : AiAgentPanelDockManager.Placement.BOTTOM;
-            if (aiAgentDockManager != null && aiAgentDockManager.isDocked()) {
-                suppressAiAgentDockPersist = true;
-                try {
-                    aiAgentDockManager.setPlacement(AiAgentPanelDockManager.Placement.BOTTOM);
-                } finally {
-                    suppressAiAgentDockPersist = false;
-                }
-            }
-            applyTerminalTabsChromeVisibility(false);
-            applyTerminalOnlyTabHeaderVisibility(false);
             applyTerminalOnlyCenteredLayout(true);
         } else {
             terminalOnlyFullscreenActive = false;
             applyTerminalOnlyCenteredLayout(false);
-            applyTerminalOnlyTabHeaderVisibility(true);
-            applyTerminalTabsChromeVisibility(true);
-            applyMenuBarVisibility(terminalOnlyPreviousMenuBarVisible);
-            applyStatusBarVisibility(terminalOnlyPreviousStatusBarVisible);
-            if (terminalOnlyPreviousDashboardVisible) {
-                toggleDashboard(true);
-            }
-            restoreTerminalOnlyFileBrowserPosition();
-            if (terminalOnlyPreviousAiAgentPlacement != AiAgentPanelDockManager.Placement.BOTTOM
-                && aiAgentDockManager != null) {
-                suppressAiAgentDockPersist = true;
-                try {
-                    aiAgentDockManager.setPlacement(terminalOnlyPreviousAiAgentPlacement);
-                } finally {
-                    suppressAiAgentDockPersist = false;
-                }
-            }
             stage.setFullScreen(terminalOnlyPreviousFullScreen);
         }
 
@@ -3771,14 +3713,14 @@ public class MainWindow {
     }
 
     /**
-     * Remembers the size the terminal area should keep while terminal-only fullscreen is active.
-     * Normally that is the live size of the terminal region right before entering fullscreen; when
-     * the window is already fullscreen (so no windowed size is on screen), the configured window
-     * geometry from the global settings is used instead.
+     * Remembers the size the whole korTTY window should keep while terminal-only fullscreen is
+     * active. Normally that is the live size of the window content right before entering
+     * fullscreen; when the window is already fullscreen (so no windowed size is on screen), the
+     * configured window geometry from the global settings is used instead.
      */
     private void captureTerminalOnlyContentSize() {
-        double width = tabPane.getWidth();
-        double height = tabPane.getHeight();
+        double width = root.getWidth();
+        double height = root.getHeight();
         if (stage.isFullScreen() || width <= 0 || height <= 0) {
             WindowGeometry geo = resolveConfiguredWindowGeometry();
             if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
@@ -3804,20 +3746,25 @@ public class MainWindow {
         return null;
     }
 
+    private static final String TERMINAL_ONLY_BACKDROP_STYLE_CLASS = "terminal-only-fullscreen-backdrop";
+
     /**
-     * Terminal-only fullscreen must not stretch the terminal across the whole screen: the terminal
-     * keeps its captured size and is centered on the otherwise empty fullscreen background, so the
-     * user can focus on a single window without the desktop clutter behind it.
+     * Terminal-only fullscreen must not stretch the korTTY window across the whole screen: the
+     * whole application window (menu, tabs, status bar included) keeps its captured size and is
+     * centered on an otherwise empty fullscreen background, so the user can focus on a single
+     * window without other windows or the desktop competing for attention.
      */
     private void applyTerminalOnlyCenteredLayout(boolean active) {
         if (active && terminalOnlyContentWidth > 0 && terminalOnlyContentHeight > 0) {
-            mainContentBox.setPrefSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
-            mainContentBox.setMaxSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
-            BorderPane.setAlignment(mainContentBox, Pos.CENTER);
+            root.setPrefSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            root.setMaxSize(terminalOnlyContentWidth, terminalOnlyContentHeight);
+            if (!sceneRoot.getStyleClass().contains(TERMINAL_ONLY_BACKDROP_STYLE_CLASS)) {
+                sceneRoot.getStyleClass().add(TERMINAL_ONLY_BACKDROP_STYLE_CLASS);
+            }
         } else {
-            mainContentBox.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-            mainContentBox.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-            BorderPane.setAlignment(mainContentBox, null);
+            root.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            root.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            sceneRoot.getStyleClass().remove(TERMINAL_ONLY_BACKDROP_STYLE_CLASS);
         }
     }
 
@@ -3851,32 +3798,6 @@ public class MainWindow {
         }
         statusBar.setVisible(visible);
         statusBar.setManaged(visible);
-    }
-
-    private void applyTerminalOnlyTabHeaderVisibility(boolean visible) {
-        String styleClass = "terminal-only-fullscreen";
-        if (visible) {
-            root.getStyleClass().remove(styleClass);
-        } else if (!root.getStyleClass().contains(styleClass)) {
-            root.getStyleClass().add(styleClass);
-        }
-    }
-
-    private void applyTerminalTabsChromeVisibility(boolean visible) {
-        for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof TerminalTab terminalTab) {
-                terminalTab.setTerminalChromeVisible(visible);
-            }
-        }
-    }
-
-    private void restoreTerminalOnlyFileBrowserPosition() {
-        if (terminalOnlyPreviousFileBrowserPosition == null
-            || terminalOnlyPreviousFileBrowserPosition == LocalFileBrowserManager.Position.HIDDEN) {
-            return;
-        }
-        ensureFileBrowserManager();
-        fileBrowserManager.show(terminalOnlyPreviousFileBrowserPosition);
     }
 
     private void ensureFileBrowserManager() {
