@@ -1803,7 +1803,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2138,9 +2138,9 @@
 </tr>
 <tr>
 <td>Sort</td>
-<td>dropdown</td>
+<td>menu button</td>
 <td>Alphabetical, Status (enabled first)</td>
-<td>Alphabetical</td>
+<td>—</td>
 <td>—</td>
 </tr>
 </tbody>
@@ -2190,7 +2190,7 @@
 <td>Active</td>
 <td>toggle</td>
 <td>—</td>
-<td>Off</td>
+<td>On</td>
 <td><code>enabled</code></td>
 </tr>
 <tr>
@@ -2205,7 +2205,7 @@
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Auto-detection behavior</p>
-<p>When <strong>Automatically send only matching skills</strong> is enabled, korTTY evaluates each skill's tags against the current request and includes only those that match. When disabled, all active skills are sent regardless of tags.</p>
+<p>When <strong>Automatically send only matching skills</strong> is enabled, korTTY scores each skill against the current request across four fields — tags, name, description, and the headings in the skill's Markdown — and includes those that clear the relevance threshold. When the local scores are inconclusive (nothing matched, or several skills score almost equally), it additionally asks the model to classify the request and prefers that answer, falling back to the local result if the call fails. When disabled, all applicable skills are sent without scoring — a skill is still skipped when it is inactive, has empty content, or does not match the current target.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill targets</p>
@@ -2213,7 +2213,7 @@
 <li><strong>AI Chat/Functions</strong>: Skills available in AI Chat and function call contexts</li>
 <li><strong>AI Agent</strong>: Skills used by the terminal AI agent</li>
 <li><strong>Both</strong>: Available to both AI Chat and AI Agent contexts</li>
-<li><strong>Connection</strong>: Skills specific to SSH connection handling</li>
+<li><strong>Connection</strong>: Available to both AI Chat and AI Agent, but only on the connections the skill is assigned to. Such skills are always sent on those connections and bypass auto-detection.</li>
 </ul>
 </div>
 <div class="admonition note">

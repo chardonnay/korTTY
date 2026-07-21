@@ -2106,7 +2106,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2763,7 +2763,7 @@
 <li>An <strong>Integrated llama.cpp</strong> profile lists installed model IDs from <code>~/.kortty/llm/models.xml</code>; it does not use the HTTP URL or manual cloud-model field.</li>
 </ul>
 <h2 id="role-routing-rag-and-prompt-order">Role routing, RAG, and prompt order<a class="headerlink" href="#role-routing-rag-and-prompt-order" title="Permanent link">&para;</a></h2>
-<p>korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, and prose descriptions use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.</p>
+<p>korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, prose descriptions, and AI ASCII-art pictures use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.</p>
 <p>When matching knowledge stores are assigned to the request's Text or Coding role, an ordinary AI request is assembled in this order: korTTY's action/output contract, selected AI Skills, bounded untrusted RAG context with <code>[R1]</code> source markers, the resolved model-family preset, and finally the provider transport. Only retrieved excerpts are added, not the complete knowledge store; choosing a cloud profile sends those excerpts to that provider, so the knowledge-store role/profile assignment is the explicit disclosure decision. Strict JSON and code-payload rules remain authoritative. Autonomous Agent, Planning, Swarm, and scheduled prompts require explicit RAG opt-in. See <a href="rag.html">RAG knowledge stores</a> for the retrieval and privacy details.</p>
 <h3 id="local-lm-studio-model-selection">Local LM Studio model selection<a class="headerlink" href="#local-lm-studio-model-selection" title="Permanent link">&para;</a></h3>
 <p>For local LM Studio profiles, korTTY can discover currently loaded LLM model keys through LM Studio's <code>GET /api/v1/models</code> endpoint.</p>
@@ -2811,7 +2811,7 @@
 <p>Required provider configuration is entered under <strong>Settings &gt; AI &gt; Internet tool configuration</strong>. API keys and tokens are stored encrypted with the master password. MCP server labels and plugin IDs are stored as normal settings.</p>
 <p>Important behavior:</p>
 <ul>
-<li>Snippet AI, text correction, translation, snippet descriptions, and alternative-solution requests do not use internet access.</li>
+<li>Snippet AI, text correction, translation, snippet descriptions, alternative-solution requests, and AI ASCII-art generation do not use internet access.</li>
 <li>Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout, and a maximum of two web-tool rounds per AI request.</li>
 <li>LM Studio MCP requests with internet access use a longer total request timeout because the MCP server runs behind LM Studio.</li>
 <li>Canceling a running request interrupts the Java HTTP request where the active provider supports interruption.</li>

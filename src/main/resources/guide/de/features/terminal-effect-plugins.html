@@ -1721,7 +1721,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2554,7 +2554,7 @@
 <ol>
 <li>Klassenpfad-Plugins für Anwendungen</li>
 <li>Gebündelte Plugin-JARs, aufgelistet nach <code>bundled-plugins/terminal-effects.index</code></li>
-<li>Externe JARs in <code>~/.kortty/plugins</code> kopiert</li>
+<li>Externe JARs kopiert <code>~/.kortty/plugins</code></li>
 </ol>
 <p>Wenn zwei Plugins dieselbe Plugin-ID offenlegen, gewinnt das erste und spätere Duplikate werden ignoriert. Dies ist beabsichtigt, da die Verbindungseinstellungen die Plugin-ID beibehalten.</p>
 <p>Externe Plugins werden jeweils aus einem JAR geladen, wobei der Anwendungsklassenlader von KorTTY als übergeordnetes Element fungiert. Abhängigkeiten, die bereits Teil von KorTTY sind, können von diesem übergeordneten Klassenlader verwendet werden. Abhängigkeiten, die nicht Teil von KorTTY sind, werden nicht automatisch von benachbarten Dateien erkannt; Vermeiden Sie sie entweder oder schattieren Sie sie in die Plugin-JAR.</p>
@@ -2576,7 +2576,7 @@
 <p>Benutzer können:</p>
 <ul>
 <li>Aktivieren oder deaktivieren Sie ein Plugin</li>
-<li>Importieren Sie ein externes <code>.jar</code>-Plugin, das KorTTY nach <code>~/.kortty/plugins</code> kopiert</li>
+<li>Importieren Sie eine externe <code>.jar</code> Plugin, in das KorTTY kopiert <code>~/.kortty/plugins</code></li>
 <li>Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)</li>
 </ul>
 <p>Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong> aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt <code>1x</code> bis <code>10x</code> ab; Das numerische Feld akzeptiert Werte bis zu <code>99x</code>.</p>
@@ -2595,7 +2595,7 @@
 <p>Regeln:</p>
 <ul>
 <li><code>id()</code> muss stabil sein, da die Verbindungseinstellungen und der Status des deaktivierten Plugins bestehen bleiben</li>
-<li>Gültige IDs stimmen mit dem regulären Ausdruck <code>[a-z0-9][a-z0-9._-]{0,63}</code> überein</li>
+<li>Gültige IDs stimmen mit dem regulären Ausdruck überein <code>[a-z0-9][a-z0-9._-]{0,63}</code></li>
 <li><code>displayName()</code> darf nicht leer sein</li>
 <li><code>description()</code> wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein</li>
 <li>Die Provider-Klasse muss von <code>ServiceLoader</code> ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente</li>
@@ -2617,7 +2617,7 @@
 </span></code></pre></div>
 <p>Verantwortlichkeiten:</p>
 <ul>
-<li>Weisen Sie UI-Ressourcen in <code>start()</code> zu</li>
+<li>Allokieren Sie UI-Ressourcen in <code>start()</code></li>
 <li>Dekorieren Sie Anschlüsse in <code>wrapConnector(...)</code>, wenn eine Ausgabesteuerung oder -filterung erforderlich ist</li>
 <li>Entfernen Sie Listener, stoppen Sie Zeitleisten, lösen Sie die Bindung von Eigenschaften und veröffentlichen Sie Referenzen in <code>stop()</code></li>
 </ul>
@@ -2646,7 +2646,7 @@
 </tr>
 <tr>
 <td><code>widgets()</code></td>
-<td>Aktuelle SithTermFX-Widgets für die Terminalansicht; Split-Terminals können mehr als ein Widget</td>
+<td>Aktuelle SithTermFX-Widgets für die Terminalansicht; Split-Terminals können mehr als ein Widget haben</td>
 </tr>
 <tr>
 <td><code>animationSpeed()</code></td>
@@ -2796,7 +2796,7 @@
 <li>Binden Sie Breite und Höhe an die Overlay-Wurzel</li>
 <li>Stoppen Sie Zeitleisten/Animationen und lösen Sie die Bindung von Eigenschaften in <code>stop()</code></li>
 <li>Zeichnen Sie so günstig, dass Sie es immer wieder neu bemalen können</li>
-<li>Entfernen Sie beim Herunterfahren den Overlay-Knoten von <code>overlayRoot()</code></li>
+<li>Entfernen Sie den Overlay-Knoten von <code>overlayRoot()</code> beim Herunterfahren</li>
 <li>Geben Sie den Canvas-Backing-Speicher frei, während sich die Registerkarte im Hintergrund befindet: Eine fensterlose Canvas-Textur pro ausgeblendeter Registerkarte kann den Prism-Texturpool erschöpfen, sobald mehrere Effekt-Registerkarten geöffnet sind, was zum Absturz des Renderings führt. Alle integrierten Effekte (MOTHER und das Effektpaket) lösen die Bindung und verkleinern ihre Overlay-Leinwand auf 0x0, während sie in der Szene nicht sichtbar ist, und binden sie erneut, wenn die Registerkarte erneut angezeigt wird</li>
 </ul>
 <p>Entscheiden Sie bei geteilten Terminals, ob das Overlay die gesamte Terminal-Registerkarte abdecken oder einzelne SithTermFX-Widgets verfolgen soll. <code>context.widgets()</code> kann mehr als ein Widget zurückgeben.</p>
@@ -2806,7 +2806,7 @@
 <li>Minimum: <code>1x</code></li>
 <li>Slider-Maximum: <code>10x</code></li>
 <li>Numerisches Maximum: <code>99x</code></li>
-<li>Ungültige, nicht endliche oder nicht positive Werte werden auf <code>1x</code> normalisiert</li>
+<li>Ungültige, nicht endliche oder nicht positive Werte werden auf normalisiert <code>1x</code></li>
 </ul>
 <p>Verwenden Sie <code>context.animationSpeed()</code>, wenn Sie das Effekt-Timing berechnen. Die von MOTHER verwendete Konvention lautet:</p>
 <div class="language-java highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">scaledDelayMillis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">max</span><span class="p">(</span><span class="mi">1L</span><span class="p">,</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="na">round</span><span class="p">(</span><span class="n">baseDelayMillis</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">context</span><span class="p">.</span><span class="na">animationSpeed</span><span class="p">()));</span>
@@ -2826,14 +2826,14 @@
 - Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden</p>
 <p><strong>Beharrlichkeit:</strong></p>
 <ul>
-<li>Deaktivierte Plugin-IDs werden in <code>~/.kortty/terminal-effect-plugins.disabled</code> gespeichert</li>
+<li>Deaktivierte Plugin-IDs werden in gespeichert <code>~/.kortty/terminal-effect-plugins.disabled</code></li>
 <li>Gespeicherte Verbindungen und wiederhergestellte Sitzungen speichern die ausgewählte Terminal-Effekt-Plugin-ID und die Animationsgeschwindigkeit</li>
 <li>Wenn eine gespeicherte Plugin-ID nicht verfügbar oder deaktiviert ist, kann KorTTY sie nicht aktivieren und protokolliert das Problem</li>
 </ul>
 <h2 id="kompatibilitats-und-sicherheitscheckliste">Kompatibilitäts- und Sicherheitscheckliste<a class="headerlink" href="#kompatibilitats-und-sicherheitscheckliste" title="Permanent link">&para;</a></h2>
 <p>Vor dem Versand einer Plugin-JAR:</p>
 <ul>
-<li>Verwenden Sie eine stabile Plugin-ID in Kleinbuchstaben, die zu <code>[a-z0-9][a-z0-9._-]{0,63}</code> passt</li>
+<li>Verwenden Sie einen stabilen Plugin-ID-Abgleich in Kleinbuchstaben <code>[a-z0-9][a-z0-9._-]{0,63}</code></li>
 <li>Halten Sie <code>displayName()</code> und <code>description()</code> nicht leer und für den Benutzer lesbar</li>
 <li>Fügen Sie für jede Anbieterklasse genau einen ServiceLoader-Deskriptor ein</li>
 <li>JavaFX-Mutationen im JavaFX-Anwendungsthread beibehalten</li>

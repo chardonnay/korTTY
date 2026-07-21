@@ -1719,7 +1719,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -1935,6 +1935,50 @@
   
     <nav class="md-nav" aria-label="v2.5.2">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jump-server-bastion-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jump-Server (Bastion-Host)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-hostschlusseluberprufung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Hostschlüsselüberprüfung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascii-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASCII-Art
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#energieverwaltung" class="md-nav__link">
@@ -2707,6 +2751,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#jump-server-bastion-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jump-Server (Bastion-Host)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-hostschlusseluberprufung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH-Hostschlüsselüberprüfung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascii-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASCII-Art
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#energieverwaltung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3386,6 +3474,32 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="jump-server-bastion-host">Jump-Server (Bastion-Host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Jump-Server-Hopping ist jetzt implementiert</strong> – eine Verbindung mit einem aktivierten Jump-Server wird über die Bastion geleitet: korTTY authentifiziert sich beim Jump-Host mit seinen eigenen Anmeldeinformationen, öffnet einen Tunnel und öffnet über ihn die echte SSH-Sitzung zum Ziel. Zuvor sammelte die Registerkarte „Jump-Server“ Host, Benutzernamen und Passwort, verwarf sie jedoch beim Speichern und stellte eine direkte Verbindung zum Ziel her – eine Verbindung konnte beim direkten Herstellen einer Bastion-Routing-Verbindung aussehen. Die Registerkarte behält nun jedes Feld bei (mit dem Master-Passwort verschlüsseltes Passwort) und fügt einen Authentifizierungsselektor für das Passwort oder eine unverschlüsselte SSH-Schlüsseldatei hinzu.</li>
+<li><strong>Die Bastion ist verifiziert und die Anmeldeinformationen werden getrennt gehalten</strong> – der Schlüssel des Jump-Hosts durchläuft die gleiche Aufforderung zur Vertrauenswürdigkeit bei der ersten Verwendung und das gleiche Pinning wie jeder andere Host, das Ziel wird weiterhin unter seinem eigenen Namen durch den Tunnel verifiziert und keinem Host wird jemals das Passwort oder der Schlüssel des anderen angeboten. Das schreibgeschützte <em>Auto-Command</em>-Feld wurde entfernt; Ein echter Tunnel ersetzt das „Type SSH on the Bastion“-Muster, für das er stand.</li>
+<li><strong>SFTP wird nun ebenfalls über den Jump-Server geleitet</strong> – Dateiübertragungsverbindungen springen genauso über die Bastion wie Terminalsitzungen.</li>
+<li><strong>Mosh mit einem Jump-Server wird von vornherein abgelehnt</strong> – eine Mosh-Sitzung läuft über UDP, was der SSH-Tunnel der Bastion nicht weiterleiten kann; Zuvor war der SSH-Bootstrap erfolgreich und die Sitzung blieb dann ohne Daten stehen. Das Herstellen einer Verbindung schlägt jetzt sofort mit einer eindeutigen Meldung fehl und die Registerkarte „Jump-Server“ warnt, sobald die Kombination konfiguriert ist. SFTP für solche Verbindungen leitet immer noch über die Bastion.</li>
+</ul>
+<h3 id="ssh-hostschlusseluberprufung">SSH-Hostschlüsselüberprüfung<a class="headerlink" href="#ssh-hostschlusseluberprufung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Deaktivieren Sie die Überprüfung des Hostschlüssels, pro Verbindung, pro Gruppe oder global</strong> – für Labor- oder Wegwerfhosts kann korTTY einen unbekannten Hostschlüssel ohne Aufforderung bei der ersten Verwendung akzeptieren. Es handelt sich um eine <strong>Neues akzeptieren</strong>-Lockerung, nicht um blindes Vertrauen: Ein Schlüssel, der sich von dem unterscheidet, der bereits für diesen Host festgelegt wurde, ist immer noch hart blockiert, sodass ein Man-in-the-Middle auf einem Host, mit dem Sie sich zuvor verbunden haben, immer noch abgefangen wird. Die drei Bereiche werden in der Reihenfolge ihrer Priorität aufgelöst – eine Außerkraftsetzung pro Verbindung (Verbindungsmanager-Editor und Schnellverbindung: <em>Standard verwenden</em> / <em>Überprüfen</em> / <em>Nicht überprüfen</em>) hat Vorrang vor einer gruppenspezifischen Umschaltung (Rechtsklick auf eine Gruppe → <em>Hostschlüsselüberprüfung deaktivieren</em>), die Vorrang vor der globalen <strong>Einstellungen → Terminal → Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</strong> hat. Standardmäßig deaktiviert. Der eigene Hostschlüssel eines Jump-Servers wird immer streng überprüft, unabhängig von der Einstellung des Ziels.</li>
+</ul>
+<h3 id="ascii-art">ASCII-Art<a class="headerlink" href="#ascii-art" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>KI-gezeichnete ASCII-Bilder</strong> – das ASCII-Artwerkzeug (<strong>Werkzeuge &gt; ASCII-Art...</strong>) hat eine Registerkarte <strong>KI-Bild</strong> erhalten: Geben Sie einen Betreff wie „Haus“ ein und ein Modell zeichnet es als ASCII-Bild, beschränkt auf druckbares ASCII innerhalb von 60 Spalten und 30 Zeilen, damit es lesbar bleibt. <strong>Neue Variante</strong> zeichnet dasselbe Motiv mit einer anderen Behandlung neu – Betrachtungswinkel, Detaillierungsgrad, Linienstil, Szenenkontext oder Proportionen – und fragt bei jedem erneuten Versuch erneut nach etwas anderem, und eine vorübergehende Profilauswahl ermöglicht es einem einzelnen Durchlauf, ein anderes KI-Profil zu verwenden, ohne Ihre Standardeinstellung zu ändern.</li>
+<li><strong>Zoombare Vorschau</strong> – beide Registerkarten teilen sich eine Zoomstufe, einstellbar mit den Tasten <strong>+</strong> / <strong>−</strong> / <strong>⟲</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-0">0</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd></span> und dem Scrollrad über der Vorschau. Der Wert reicht von 50 % bis 333 % und wird zwischen den Sitzungen zusammen mit der Fensterposition und -größe gespeichert.</li>
+<li><strong>Zwei Registerkarten anstelle eines Formulars</strong> – der FIGlet-Bannergenerator wurde in eine eigene Registerkarte <strong>Textbanner</strong> verschoben, sodass ein Banner und ein Bild ihr eigenes Ergebnis behalten, während Sie wechseln, und <strong>In die Zwischenablage kopieren</strong> kopiert die geöffnete Registerkarte.</li>
+<li><strong>Behoben: Die Lean-Schriftart fehlte in gepackten Builds</strong> – der Stil wurde in Kleinbuchstaben deklariert, während die gebündelte Datei <code>Lean.flf</code> ist, daher wurde sie bei der JAR-Ressourcensuche aus der Stilliste auf Dateisystemen entfernt, bei denen die Groß-/Kleinschreibung beachtet wird.</li>
+</ul>
+<h3 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Neu gestaltetes Dashboard-Panel</strong> – das Seitenpanel (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) wurde optisch und interaktiv komplett überarbeitet: eine klare Panel-Grenze mit eigenem Hintergrund, eine Kopfzeile mit dem Panel-Titel sowie Schaltflächen zum Reduzieren/Alles-Erweitern und Aktualisieren, Knotentyp-Symbole für Hauptfenster, Umgebung, Gruppe und Verbindungszeilen sowie fett gedruckte Abschnittszeilen mit abgeblendeten Aktiv-/Gesamtzahlen. Zeilen reagieren auf Hover und Auswahl (Akzentstreifen), Tooltips zeigen <code>user@host</code> und den Verbindungsstatus an und <span class="keys"><kbd class="key-enter">Enter</kbd></span> oder Doppelklick fokussiert die Sitzung.</li>
+<li><strong>Drei-Status-Statuspunkte und Protokollabzeichen</strong> – jede Verbindungszeile zeigt einen ausgefüllten grünen Punkt, wenn eine Verbindung besteht, einen ausgefüllten roten Punkt, wenn die Verbindung unerwartet unterbrochen wurde (einschließlich Mosh-Netzwerkunterbrechungen), und einen leeren Umriss, nachdem eine Sitzung normal beendet wurde; Der alte Text-Glyphen-Status ist verschwunden. Eine kleine Plakette <code>ssh</code> / <code>mosh</code> / <code>local</code> identifiziert den Transport.</li>
+<li><strong>Umgebungsgruppierung</strong> – nicht gruppierte Verbindungen gruppieren sich in der Umgebung ihrer gespeicherten Anmeldeinformationen (Produktion, Entwicklung, Test, Staging oder benutzerdefiniert), sodass mehrstufige Arbeiten visuell getrennt bleiben.</li>
+<li><strong>Inhaltsgroßes, animiertes Panel</strong> – das Dashboard passt seine Breite an den längsten Eintrag an (begrenzt), animiert das Öffnen und Schließen, anstatt einzuspringen, zeigt einen Platzhalter an, wenn keine Sitzung geöffnet ist, und meldet „verbunden mit der Gesamtheit“ in einer Fußzeile. Seine Farben folgen dem aktiven App-Design, einschließlich der Statuspunktpaletten pro Design.</li>
+<li><strong>Kontextmenü- und Gruppenkorrekturen</strong> – Das Verbindungskontextmenü fügt <strong>Fokus</strong> und Symbole für jede Aktion hinzu. Tabs, die über „Ganze Gruppe öffnen“ geöffnet wurden, werden jetzt korrekt unter ihrer Gruppe angezeigt, und beim Ändern der Gruppe einer Verbindung im Verbindungsmanager werden geöffnete Tabs sofort aktualisiert.</li>
+</ul>
 <h3 id="energieverwaltung">Energieverwaltung<a class="headerlink" href="#energieverwaltung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Aktivitätsbasierte Energieverwaltung</strong> – macOS App Nap wird unterdrückt, während ein Scheduler-Job, eine AI-Anfrage oder eine Terminal-Eingabe/Ausgabe aktiv ist (mit einem 60-sekündigen Ende der Terminalaktivität). Hintergrundfenster parken regelmäßige Statusaktualisierungen und Designanimationen, und der Scheduler verfügt über keinen Abfrage-Timer, wenn keine aktivierte zukünftige Ausführung vorhanden ist. Unter macOS wird die Verhinderung des Ruhezustands des Systems an einen separaten <code>caffeinate</code>-Helfer delegiert, sodass der korTTY-Prozess weiterhin für App Nap geeignet ist. Unter macOS und Windows hält <strong>Konfiguration &gt; System-Ruhezustand verhindern</strong> den Computer nur dann wach, wenn ein Terminal angeschlossen ist, ein zukünftiger oder laufender Scheduler-Job existiert oder eine AI-Anfrage aktiv ist; Ohne diese Aktivitäten bleibt der Systemschlaf auch dann verfügbar, wenn die dauerhafte Einstellung aktiviert ist. Der Display-Ruhezustand ist davon nicht betroffen und Linux zeigt die Option als noch nicht unterstützt an.</li>
@@ -3395,15 +3509,22 @@
 <li><strong>Eine Update-Richtlinie für beide Laufzeiten</strong> – die Einstellung „Local AI <strong>Laufzeit-Updates</strong>“ (Aus / Mich benachrichtigen / Stabile Updates automatisch installieren) regelt jetzt sowohl die MLX-Laufzeit als auch llama.cpp. Beim Start und beim Speichern überprüft korTTY den signierten stabilen Index der MLX-Laufzeitumgebung nach derselben Richtlinie: „Benachrichtigen“ zeigt nur dann ein Aktualisierungs-Popup an, wenn eine MLX-Laufzeitumgebung installiert ist, und „Automatisch“ installiert das neueste signierte MLX-Paket, sobald es inaktiv ist. Ein signierter MLX-Rückzug wird jetzt auch im Nachhinein erzwungen – der aktive Zeiger wird gelöscht, Sidecars werden angehalten und die zurückgezogene ID wird auf die Sperrliste gesetzt, sodass sie nie wieder installiert werden kann – und schließt die Lücke, in der eine widerrufene MLX-Laufzeit bis zur nächsten manuellen Installation weiterlaufen könnte.</li>
 <li><strong>Laufzeitübersicht mit Entfernung und verifiziertem lokalen Import</strong> – eine Laufzeittabelle in Local Models zeigt beide eingebetteten Laufzeiten (llama.cpp und auf Apple Silicon MLX) mit ihrer installierten Version, ihrem Backend und dem Status „Bereit/Nicht installiert/Widerrufen“. Pro Laufzeit können Benutzer über den signierten stabilen Kanal installieren oder aktualisieren (MLX installiert jetzt in der App über den rollierenden <code>mlx-stable</code>-Index), die Laufzeit entfernen (nur im Leerlauf; die Sperrliste bleibt bestehen) oder eine lokale Paketdatei importieren, die nur akzeptiert wird, wenn ihr SHA-256 mit einem nicht widerrufenen Eintrag des Ed25519-signierten Index übereinstimmt – verifizierte lokale Pakete laufen über die identische Installationsmaschinerie als Downloads.</li>
 <li><strong>MLX-Modelle auf Apple Silicon</strong> – auf Apple Silicon Macs sucht, lädt, registriert und führt der Local Models Manager zusätzlich <a href="https://github.com/ml-explore/mlx">MLX</a>-Modelle über den offiziellen <code>mlx_lm.server</code> aus, verpackt in korTTYs eigenem authentifizierten Nur-Loopback-Launcher mit Offline-Hugging-Face-Zugriff, bereinigter Prozessumgebung und inaktivem Selbstausstieg. Eine neue Profilverbindung <strong>Integrated MLX (Apple Silicon)</strong> wählt das installierte Modell aus; Die Laufzeit wird als separat signiertes Paket (angeheftetes verschiebbares CPython plus Hash-gesperrte mlx-lm-Räder) geliefert, das von einer neuen CI-Pipeline erstellt wurde, mit einem Entwicklerskript für nicht signierte lokale Pakete. MLX-Repositorys werden als vollständig verifizierte Verzeichnisse heruntergeladen – SHA-256 für LFS-Dateien und der Git-Blob-Hash für kleine In-Tree-Dateien – und Reasoning-Modelle erhalten die gleiche Inline-Gedankenkettentrennung wie GGUF-Modelle.</li>
+<li><strong>Eine echte Auswahl an Einbettungsmodellen</strong> – der Bootstrap-Katalog (<code>bootstrap-v2</code>) fügt neben dem standardmäßigen Qwen3-Embedding 0.6B <code>Q8_0</code> vier Einbettungsempfehlungen hinzu: Qwen3-Embedding 4B <code>Q4_K_M</code> (ab 16 GiB RAM), Qwen3-Embedding 8B <code>Q4_K_M</code> (ab 24 GiB), das mehrsprachige BGE-M3 <code>Q8_0</code> und der sehr kleine, schnelle Nomic Embed Text v1.5 <code>Q8_0</code>. Jeder Rollenplatz im Einrichtungsassistenten bietet jetzt jedes Katalogmodell an, das der erkannte Speicher unterstützt – bevorzugte Standardeinstellung vorausgewählt – anstelle von genau einem festen Vorschlag pro Rolle.</li>
 <li><strong>Sortierbarer, hardwaregefilterter Hugging Face-Browser</strong> – jede Spalte der Modellsuche wird aufsteigend/absteigend mit einem Kopfpfeil sortiert (Größen und Kontext numerisch, Hardwareschätzung vom besten zum schlechtesten), und die Ergebnisse sind auf Repositorys beschränkt, die dieser Computer tatsächlich ausführen kann: Zeilen ohne Größenmetadaten oder über den erkannten Speicher hinaus bleiben verborgen, während korTTY die Auflistung mit genauen Metadaten pro Repository im Hintergrund vervollständigt und die Statuszeile die angezeigten/verborgenen Zahlen meldet. Auf Apple Silicon schaltet ein Formatselektor zwischen GGUF, MLX und beiden um, wobei jede Zeile durch eine Formatspalte identifiziert wird.</li>
-<li><strong>Aktionsleistensymbole</strong> – jede Schaltfläche in lokalen Modellen (Installieren, Setup-Assistent, Importieren, Konfigurieren, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten/Fortsetzen, Abbrechen) trägt jetzt ein passendes Symbol, das mit den anderen AI Manager-Registerkarten übereinstimmt.</li>
+<li><strong>Aktionsleistensymbole</strong> – jede Schaltfläche in lokalen Modellen (Installieren, Setup-Assistent, Importieren, Konfigurieren, Als Standard festlegen, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten/Fortsetzen, Abbrechen) trägt jetzt ein passendes Symbol, das mit den anderen AI Manager-Registerkarten übereinstimmt.</li>
+<li><strong>Markierung des lokalen Standardmodells</strong> – ein installiertes Modell kann mit <strong>Als Standard festlegen</strong> (Aktionsleiste oder Rechtsklickmenü) als Standard markiert werden; Es zeigt ein führendes ★ in der Spalte „Name“ und ist beim Öffnen des Managers vorab ausgewählt, daher ist „Start/Konfigurieren/Stoppen“ standardmäßig darauf ausgerichtet. <strong>Standard löschen</strong> entfernt die Markierung. Dies dient lediglich der Annehmlichkeit für Manager und ändert nichts daran, welches KI-Profil der Agent oder Chat verwendet.</li>
+<li><strong>Engere Tabellen für lokale Modelle</strong> – die Tabelle „installierte Modelle“ streckt die kurzen Spalten „Zweck“, „Backend“, „Entladen nach“ und „Status“ nicht mehr über die Zeile; Sie werden in der Nähe ihrer Inhaltsbreite begrenzt (niemals breiter als ~30 Zeichen), sodass in den Spalten „Name“ und „Datei“ der Platz erhalten bleibt. Wenn Sie in jeder Tabelle „Lokale Modelle“ den Mauszeiger über eine Zelle bewegen, deren Text von der Spalte abgeschnitten wird, wird jetzt der vollständige Wert in einer QuickInfo angezeigt.</li>
 <li><strong>Robuste lokale Argumentationsantworten (einschließlich gpt-oss)</strong> – der angeheftete llama.cpp-Server antwortet gelegentlich auf eine ganze Antwort mit HTTP 500 („entspricht nicht dem erwarteten peg-nativen Format“, z. B. von den Snippet-Code-Analyseaktionen oder dem Terminalagenten); korTTY wiederholt jetzt automatisch einen lokalen Serverfehler, eine leere Antwort oder eine reine Begründungsantwort und trennt defensiv alle Inline-Gedankenketten (sowohl <code>&lt;think&gt;</code>- als auch gpt-oss-Harmony-Marker <code>&lt;|channel|&gt;</code>) von der Antwort. Chat-Sidecars behalten die standardmäßige Argumentationsanalyse des Servers bei, anstatt sie zu deaktivieren, da Harmonie-/Kanalmodelle wie gpt-oss diese Analyse erfordern, um überhaupt eine endgültige Antwort auszugeben – wenn sie deaktiviert war, blieben sie nach ihrem Analysekanal hängen und gaben keine Antwort zurück (was den Terminalagenten für gpt-oss kaputt machte). Der Terminalagent liest jetzt auch explizit eine unsichtbare Datei mit einem <code>cat</code>/<code>head</code>-Befehl, bevor er handelt, anstatt den Inhalt als nicht verfügbar zu melden.</li>
+<li><strong>Getrennte Argumentation wird angezeigt, nicht ausgeblendet</strong> – wenn ein lokales Argumentationsmodell (sowohl <code>&lt;think&gt;</code> als auch gpt-oss-Harmony-Modelle) seine Gedankenkette inline zurückgibt, hält korTTY die Antwort sauber und bietet die Begründung hinter einer zusammenklappbaren Offenlegung von <strong>Begründungen</strong> unterhalb der Antwort im KI-Chat-Panel an. Im KI-Agent-Fenster des Terminals erscheint die gleiche Begründung bereits unter jedem <em>Thinking</em>-Schritt und kann mit der Zugleiste erweitert oder reduziert werden.</li>
+<li><strong>Begründungsebene bleibt für eingebettete Profile bestehen</strong> – Die Auswahl einer Begründungsebene für ein integriertes llama.cpp-/MLX-Profil wird jetzt zuverlässig gespeichert. Zuvor konnte es zeitweise auf „Deaktiviert“ zurückgesetzt werden, da der Reasoning-Discovery-Cache durch Verbindungsfelder (apiUrl/CLI-Anbieter) verschlüsselt wurde, bei denen es sich um ungenutzte Platzhalter für ein eingebettetes Profil handelt. Eingebettete Profile werden jetzt durch ihr angeheftetes Modell verschlüsselt, sodass beim Speichern und erneuten Laden eine erkannte Ebene beibehalten wird.</li>
+<li><strong>Wählen Sie aus, wo die Antwort des Terminalagenten angezeigt werden soll</strong> – Das Dialogfeld „Agentenausführung“ fügt eine Option <strong>Endgültige Antwort auch im Terminal anzeigen</strong> hinzu. Lassen Sie es eingeschaltet, um die endgültige Antwort weiterhin im Terminal zu spiegeln (unverändertes Verhalten), oder schalten Sie es aus, damit die Antwort nur im KI-Agent-Aktivitätsfenster verbleibt. Befehle werden weiterhin ausgeführt und alle von ihnen erstellten Dateien bleiben auf dem Server. Die letzte Wahl wird gespeichert.</li>
+<li><strong>KI-Anforderungs- und Modelllebenszyklusprotokollierung</strong> – <code>kortty.log</code> zeichnet jetzt auf, wann eine KI-Anfrage übermittelt wird und wann sie abgeschlossen wird oder fehlschlägt (<code>AI request sent</code> / <code>AI request done</code> / <code>AI request failed</code>), mit Aktion, Anbieter, Modell, ungefährer Eingabegröße, Dauer und Tokenanzahl – nur Metadaten, niemals der Eingabeaufforderungs- oder Antworttext. Eingebettete llama.cpp- und MLX-Modelle protokollieren zusätzlich, wenn ein Modell geladen, nach dem Leerlauf-Timeout (im Ruhezustand) entladen oder entladen wird, weil sein Sidecar angehalten wurde. Bei allen handelt es sich um <code>INFO</code>-Zeilen, die auf der Standardprotokollebene sichtbar sind, sodass leicht erkennbar ist, ob die KI etwas unternimmt und welches Modell eine Anfrage bearbeitet hat.</li>
 <li><strong>Laufzeitaktualisierungsbenachrichtigung nur bei Installation</strong> – die Startbenachrichtigung über eine verfügbare llama.cpp-Laufzeit erscheint nur, wenn eine Laufzeit tatsächlich installiert ist; Ohne eines (nie installiert oder entfernt) wird das verfügbare Paket in „Lokale Modelle“ ohne Popup aufgeführt.</li>
 <li><strong>Private GGUF-Inferenz ohne LM Studio oder Ollama</strong> – KI-Profile können ein installiertes <strong>Integriertes llama.cpp</strong>-Modell verwenden. korTTY startet einen authentifizierten Nur-Loopback-Sidecar pro kompatibler GGUF-Konfiguration, teilt ihn über Anforderungsleasing, unterstützt mehrere verschiedene Modelle gleichzeitig, meldet den vollständigen Lade-/Beschäftigt-/Ruhezustand-/Fehler-Lebenszyklus und entlädt Tensoren nach einer konfigurierbaren Leerlaufzeit von 1–1.440 Minuten (standardmäßig 10 Minuten) oder nie.</li>
 <li><strong>Direkte lokale Profilauswahl</strong> – Wenn Sie <strong>Integrated llama.cpp</strong> in einem AI-Profil auswählen, wird jetzt ein dedizierter <strong>Lokales GGUF-Modell</strong>-Selektor angezeigt. Es listet installierte Chat-Modelle auf und behält die ausgewählte Registrierungs-ID bei, sodass keine lokale API-URL oder ein manuell eingegebener Modellname erforderlich ist.</li>
 <li><strong>Hugging Face-Modellmanager und Anfängerassistent</strong> – <strong>KI &gt; KI-Manager &gt; Lokale Modelle</strong> durchsucht GGUF-Repositories nach Architektur, Quantisierung, Lizenz, ausgewählter Quantisierungsgröße, Kontext und Hardwareschätzungen; Die Cursor-Paginierung behält frühere Übereinstimmungen bei, wenn <strong>Weitere laden</strong> ausgewählt ist. Wenn Sie ein Ergebnis auswählen, werden bei Bedarf exakte Dateimetadaten in ihrer unveränderlichen Revision geladen, die gewählte Quantisierung bleibt erhalten, während die Größen- und Hardwareschätzung aktualisiert wird, und Projektor-, Quantisierungsmatrix- und spekulative Dekodierungshilfs-GGUFs werden von Sprachmodell-Downloads ausgeschlossen. Nach der Lizenz-/Größenbestätigung identifiziert ein fester unterer Bereich das Repository, die Quantisierung, die Datei/den Shard und die übertragenen Bytes und meldet neben den Steuerelementen für Pause/Fortsetzen/Abbrechen die verstrichene Zeit, die adaptive Übertragungsrate und die verbleibende Zeit. Unveränderliche Downloads behalten fortsetzbare <code>.part</code>-Daten bei Abbruch oder Manager-Schließung bei und verwenden Range/If-Range-, Free-Space-, Multipart- und SHA-256-Prüfungen; Importe verwenden verwaltete Kopien oder externe Referenzen; und neue Registrierungen beginnen mit einem konservativen Laufzeitkontext von 4.096 Token. Der sechsstufige Einsteigerablauf bietet unabhängig voneinander optionale Text-, Codierungs- und Einbettungsslots, überprüft asynchron die feste Revision/Quantisierung/Lizenz/exakte Größe, installiert die Laufzeit und GGUFs, ohne JavaFX einzufrieren, führt einen echten Chat- oder Einbettungstest für jedes Modell durch und behält die Rollenzuweisungen erst bei, nachdem alle Tests bestanden wurden.</li>
 <li><strong>Text-/Coding-Rollen und Modell-Prompt-Voreinstellungen</strong> – separate Text-/Übersetzungs- und Coding-Profilzuweisungen greifen sicher über explizite/Sicherheits-/Verbindungsoptionen auf die Standardeinstellungen zurück. Automatische oder erzwungene Llama-, Qwen-, Mistral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Voreinstellungen verbessern die Konformität mit kleinen/lokalen Modellformaten, ohne strenge JSON-, Code-Payload- oder Sicherheitsverträge zu schwächen. Die dynamische Schnittstellenübersetzung kann das lokale Textprofil ohne einen API-Schlüssel des Übersetzungsanbieters verwenden.</li>
-<li><strong>Separat signierte Empfehlung und voreingestellter Katalog</strong> – ein Modell-/Eingabeaufforderungskatalog mit strengem Schema wird manuell aus einer durch Prüfer geschützten Signaturumgebung als unveränderliches JSON plus getrennte Ed25519-Signatur heraufgestuft. Eine monotone Sequenz blockiert signierte ältere Wiederholungen und Sequenz-/Versionskollisionen in der Anwendung und muss bei offiziellen Werbeaktionen zunehmen. Die fünf Bootstrap-Empfehlungen umfassen konkrete Hugging Face-Commits mit 40 Zeichen anstelle veränderlicher Köpfe. Der letzte gültige Cache wird einmal im Hintergrund erneut überprüft und aktualisiert. Ein fehlender Vertrauensstamm deaktiviert die Netzwerk- und Cache-Vertrauensstellung und hält den integrierten Bootstrap offline verfügbar.</li>
+<li><strong>Separat signierte Empfehlung und voreingestellter Katalog</strong> – ein Modell-/Eingabeaufforderungskatalog mit strengem Schema wird manuell aus einer durch Prüfer geschützten Signaturumgebung als unveränderliches JSON plus getrennte Ed25519-Signatur heraufgestuft. Eine monotone Sequenz blockiert signierte ältere Wiederholungen und Sequenz-/Versionskollisionen in der Anwendung und muss bei offiziellen Werbeaktionen zunehmen. Die neun Bootstrap-Empfehlungen umfassen konkrete Hugging Face-Commits mit 40 Zeichen anstelle veränderlicher Köpfe. Der letzte gültige Cache wird einmal im Hintergrund erneut überprüft und aktualisiert. Ein fehlender Vertrauensstamm deaktiviert die Netzwerk- und Cache-Vertrauensstellung und hält den integrierten Bootstrap offline verfügbar.</li>
 <li><strong>Modeless AI Manager mit dauerhafter Navigation</strong> – der Manager kann geöffnet bleiben, während das Hauptfenster nutzbar bleibt, und ein erneuter Aufruf stellt dieselbe Instanz wieder her und fokussiert sie, anstatt ein Duplikat zu öffnen. Eine fette Akzentunterstreichung markiert weiterhin den offenen Abschnitt – Profile, lokale Modelle, Wissensspeicher, lokale KI, gespeicherte Chats oder Schwarm-Chats –, nachdem der Fokus in eine Tabelle, ein Suchfeld oder eine Aktionsschaltfläche verschoben wurde.</li>
 </ul>
 <h3 id="rag-wissensspeicher">RAG Wissensspeicher<a class="headerlink" href="#rag-wissensspeicher" title="Permanent link">&para;</a></h3>
@@ -3464,9 +3585,10 @@
 <li><strong>Die Snippet-KI-Übersetzung gilt jetzt für Text, der in Kommentaren und Zeichenfolgen ausgewählt wird.</strong> – <strong>KI-Text → Auswahl übersetzen…</strong> und die Kontextmenüaktion des Editors behalten die ursprüngliche Auswahl bei, während das Zielsprachendialogfeld geöffnet ist, und verwenden das umgebende Snippet, um teilweise Kommentar- oder Zeichenfolgenauswahlen zu erkennen. Wenn Sie also eine Sprache bestätigen, wird jetzt die KI aufgerufen und der ausgewählte Text ersetzt, anstatt nichts zu tun.</li>
 <li><strong>Transparenz überlebt geteilte Terminals</strong> – Beim Öffnen horizontaler, vertikaler oder verschachtelter geteilter Fenster wird die konfigurierte Terminaltransparenz nicht mehr durch den undurchsichtigen Hintergrund des Themas ersetzt. Jeder neue Bereich erbt die aktive Ebene; Der Vollbildmodus bleibt vorübergehend undurchsichtig und stellt die gespeicherte Transparenz in allen Bereichen wieder her, wenn Sie ihn verlassen.</li>
 <li><strong>Das Hilfefenster bleibt im Hintergrund sichtbar</strong> – korTTY löscht den linken Inhaltsbereich nicht mehr, nachdem das Fenster 20 Sekunden lang nicht fokussiert war. Das frühere Verhalten könnte einen völlig weißen Bereich neben der KI-Suche hinterlassen. WebViews werden weiterhin freigegeben, wenn Benutzer die entsprechende Ansicht schließen, und unsichtbare Rendering-Dienste behalten ihre Leerlaufbereinigung bei.</li>
-<li><strong>Die vollständige Codeanalyse zeigt wieder ihre Änderungsvorschau an</strong> – nach <strong>Auswahl anwenden</strong> wartet korTTY nun, bis das Analysefenster vollständig geschlossen ist, und bringt das Side-by-Side-Überprüfungsfenster vor den Snippet-Editor. Der Editor bleibt unverändert, bis <strong>Änderung anwenden</strong> in dieser Vorschau bestätigt wird.</li>
+<li><strong>Die vollständige Codeanalyse zeigt wieder ihre Änderungsvorschau an</strong> – nach <strong>Auswahl anwenden</strong> wartet korTTY nun, bis das Analysefenster vollständig geschlossen ist, und bringt das Side-by-Side-Überprüfungsfenster vor den Snippet-Editor. Der Editor bleibt unverändert, bis <strong>Änderung übernehmen</strong> in dieser Vorschau bestätigt wird.</li>
 <li><strong>Kein Absturz, wenn das Speichern eines Snippets fehlschlägt</strong> – Das Speichern eines Snippets als neuer Eintrag könnte, wenn das Speichern fehlschlägt, beim Versuch, die Fehlermeldung anzuzeigen, mit einem Nullzeigerfehler abstürzen. Der Fehler wird nun sauber gemeldet.</li>
 <li><strong>Bei „Als neues Snippet speichern“ wird kein falscher „Bereits vorhanden“-Fehler mehr angezeigt</strong> – nachdem ein Snippet bearbeitet (z. B. durch Anwenden von Analyseverbesserungen) und unter einem neuen Namen mit <strong>Als neues Snippet speichern</strong> gespeichert wurde, wurde von korTTY fälschlicherweise <em>„Snippet-Name existiert bereits“</em> angezeigt, obwohl das Snippet gerade korrekt gespeichert wurde. Der Dialog übermittelt seinen Speichervorgang nun genau einmal.</li>
+<li><strong>Der Nur-Terminal-Vollbildmodus zeigt jetzt das gesamte korTTY-Fenster an, kein gestrecktes Terminal</strong> – <strong>Ansicht → Nur-Terminal-Vollbild</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>) behält das gesamte korTTY-Fenster – Menüleiste, Registerkarten und Statusleiste inklusive – in der Größe bei, die es vor dem Aufrufen des Modus hatte (Rückfall auf die konfigurierte Fenstergeometrie, als das Fenster bereits im Vollbildmodus war) und zentriert es auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. <strong>Ansicht → Vollbild</strong> verwendet jetzt <span class="keys"><kbd class="key-f12">F12</kbd></span> anstelle von <span class="keys"><kbd class="key-f11">F11</kbd></span>, das macOS systemweit für „Desktop anzeigen“ reserviert.</li>
 </ul>
 <h2 id="v242">v2.4.2<a class="headerlink" href="#v242" title="Permanent link">&para;</a></h2>
 <h3 id="branding">Branding<a class="headerlink" href="#branding" title="Permanent link">&para;</a></h3>
@@ -3537,7 +3659,7 @@
 <h3 id="ai-chat">AI-Chat<a class="headerlink" href="#ai-chat" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Chat-Farbprofile</strong> – der AI-Chat und der AI-Swarm-Chat verfügen jetzt über auswählbare Farbthemen. Elf integrierte Profile werden mitgeliefert: <strong>Automatic (Theme)</strong>, das Ihrem aktiven Terminal-Theme folgt, plus <strong>Original</strong>, <strong>Paper</strong>, <strong>Midnight</strong>, <strong>Cyberpunk</strong>, <strong>Retrowave</strong>, <strong>Forest</strong>, <strong>Ocean</strong>, <strong>Terminal</strong>, <strong>GPT</strong> und <strong>Cute</strong>. Wählen Sie eines aus der Dropdown-Liste „Farbprofil“ in der Chat-Symbolleiste oder unter <strong>Einstellungen → Erscheinungsbild → Chat-Farbprofil</strong>; Die Auswahl wird gespeichert und live auf jeden offenen Chat angewendet.</li>
-<li><strong>Volltext-Chat-Suche</strong> (++Strg+F++, Befehl+F auf macOS) – klicken Sie auf die Schaltfläche <strong>Suchen</strong> in der Chat-Symbolleiste oder drücken Sie die Tastenkombination, um eine Suchleiste über einer KI- oder Schwarmkonversation zu öffnen. Es durchsucht den gesamten Chat einschließlich Codeblöcken, zeigt die Anzahl der Live-Matches an, springt mit den Pfeiltasten oder der Eingabetaste zwischen Treffern und skizziert und scrollt jedes Match in die Ansicht. Esc schließt die Leiste.</li>
+<li><strong>Volltext-Chat-Suche</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span>, Cmd+F auf macOS) – Klicken Sie in der Chat-Symbolleiste auf die Schaltfläche <strong>Suchen</strong> oder drücken Sie die Verknüpfung, um eine Suchleiste über einer KI- oder Schwarmkonversation zu öffnen. Es durchsucht den gesamten Chat einschließlich Codeblöcken, zeigt die Anzahl der Live-Matches an, springt mit den Pfeiltasten oder der Eingabetaste zwischen Treffern und skizziert und scrollt jedes Match in die Ansicht. Esc schließt die Leiste.</li>
 <li><strong>Neu gestalteter, vollständig themenbezogener Chat</strong> – der KI-Chat und der Schwarm-Chat wurden neu gestaltet, sodass Ihre Nachrichten in einer nach rechts eingerückten, abgerundeten Blase angezeigt werden und jede KI-Antwort eine Karte in voller Breite darstellt, wobei Codeblöcke, Tabellen, der Komponist und Bildlaufleisten alle dem ausgewählten Farbprofil folgen und nicht einem festen Lichtstil.</li>
 </ul>
 <h3 id="datenschutz-und-analyse">Datenschutz und Analyse<a class="headerlink" href="#datenschutz-und-analyse" title="Permanent link">&para;</a></h3>
@@ -3575,7 +3697,7 @@
 <h2 id="v230">v2.3.0<a class="headerlink" href="#v230" title="Permanent link">&para;</a></h2>
 <h3 id="ai-schwarm">AI Schwarm<a class="headerlink" href="#ai-schwarm" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>AI Swarm-Registerkarte</strong> (<strong>AI → AI Swarm...</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> / Cmd auf macOS) – sendet eine AI-Agent-Aufgabe gleichzeitig an viele Server; Jeder Server führt seinen eigenen Agenten aus und die Antworten werden in einer einzigen Vergleichstabelle mit einer Zeile pro Server und einer wörtlichen Spalte „Fehler“ für Abweichungen und Fehler zusammengefasst.</li>
+<li><strong>AI Swarm-Registerkarte</strong> (<strong>AI → AI Swarm...</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> / Cmd auf macOS) – eine AI-Agent-Aufgabe gleichzeitig an viele Server senden; Jeder Server führt seinen eigenen Agenten aus und die Antworten werden in einer einzigen Vergleichstabelle mit einer Zeile pro Server und einer wörtlichen Spalte „Fehler“ für Abweichungen und Fehler zusammengefasst.</li>
 <li><strong>Animierter Statusstreifen</strong> – eine Kugel pro Agent über der Konversation zeigt auf einen Blick an, ob sie in der Warteschlange steht/läuft/auf Eingaben wartet/angehalten/erledigt/fehlgeschlagen/abgebrochen ist, markiert <em>ungewöhnlich lange</em> Ausführungen über einen adaptiven Schwellenwert (<code>max(60 s, 2 × median of finished agents)</code>) und durch Klicken auf eine Kugel wird zur Zeile des Agenten gesprungen. Der Strip skaliert von 1 bis 50+ Servern.</li>
 <li><strong>Pro-Agent und schwarmweite Ausführungssteuerung</strong> – Anhalten, Fortsetzen, Neustarten und Stoppen entweder eines einzelnen Agenten (Rechtsklick auf seine Zeile) oder des gesamten Schwarms (Symbolleiste). Das Pausieren ist kooperativ und stoppt die abgelaufenen Timer. Neustarts ersetzen nur die Antwort dieses Agenten.</li>
 <li><strong>Erweiterbare Live-Transkripte</strong> – Klicken Sie mit der linken Maustaste auf eine Agentenzeile, um deren Live-Befehls-/Ausgabetranskript während der Ausführung inline anzusehen.</li>
@@ -3590,7 +3712,7 @@
 <h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Fünf neue App-Designs</strong> – <em>Amber CRT</em> (warmes Bernstein-Phosphor-Retro-Terminal), <em>Synthwave '84</em> (80er-Jahre-Outrun-Neon), <em>Gruvbox Retro</em> (gemütlich warm erdig), <em>Nord Arctic</em> (ruhiges, flaches arktisches Blaugrau) und <em>Dracula</em> (sanftes Lila/Rosa) ergänzen die bestehenden Designs unter <em>Einstellungen → Aussehen</em>, jedes mit seinem eigenen Vorschaubild. Die bestehenden Designs bleiben unverändert.</li>
-<li><strong>Dezente Designanimationen umschalten</strong> – eine neue Darstellungseinstellung (Standardeinstellung) lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einhauchen; Das Ausschalten dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster ausgeblendet ist.</li>
+<li><strong>Dezente Designanimationen umschalten</strong> – eine neue Darstellungseinstellung (Standardeinstellung) lässt die leuchtenden Designs einen kleinen Akzentpunkt in der Statusleiste einatmen; Das Ausschalten dient gleichzeitig als Option zur Bewegungsreduzierung und die Animation stoppt, während das Fenster ausgeblendet ist.</li>
 <li><strong>Konsistenteres Design-Chrom</strong> – Die Farben eines benutzerdefinierten Designs werden jetzt deterministisch auf alle Menüs und Dialoge angewendet, und das dynamische Stylesheet des Terminal-Designs überschreibt nicht mehr die Chromfarben des aktiven Designs.</li>
 <li><strong>App-Design <code>Normal</code> wurde unter <em>Einstellungen → Erscheinungsbild</em> in <code>Default</code></strong> umbenannt. Der gespeicherte Wert bleibt unverändert, sodass vorhandene Konfigurationen ihr ausgewähltes Design behalten.</li>
 <li>**Mit den Schaltflächen „Zurück/Weiter“ neben dem Dropdown-Menü „App-Design“ können Sie durch die Designs vor- und zurückblättern (an den Enden umschließen), ohne das Dropdown-Menü zu öffnen.</li>

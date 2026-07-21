@@ -2246,7 +2246,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -3021,8 +3021,8 @@
 </tr>
 <tr>
 <td><strong>ai</strong></td>
-<td>Signierter Modell-/Prompt-Katalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp-Prozessleasings und signierte Laufzeitpakete</td>
-<td><code>AiCatalogService</code>, <code>HuggingFaceClient</code>, <code>LlamaRuntimeManager</code>, <code>LlamaRuntimePackageInstaller</code></td>
+<td>Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete</td>
+<td><code>AiCatalogService</code>, <code>HuggingFaceClient</code>, <code>LlamaRuntimeManager</code>, <code>LlamaRuntimePackageInstaller</code>, <code>EmbeddedMlxAiService</code>, <code>MlxRuntimeLocator</code></td>
 </tr>
 <tr>
 <td><strong>rag</strong></td>
@@ -3032,32 +3032,42 @@
 <tr>
 <td><strong>ui</strong></td>
 <td>JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager</td>
-<td><code>TerminalPane</code>, <code>ConnectionDialog</code>, <code>SFTPManagerDialog</code>, <code>SnippetEditor</code></td>
+<td><code>TerminalView</code>, <code>TerminalTab</code>, <code>ConnectionEditDialog</code>, <code>SFTPManagerDialog</code>, <code>SnippetEditDialog</code></td>
 </tr>
 <tr>
 <td><strong>Modell</strong></td>
 <td>Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs</td>
-<td><code>Connection</code>, <code>Credential</code>, <code>Snippet</code>, <code>JobScheduleEntry</code></td>
+<td><code>ServerConnection</code>, <code>WissensspeicherdCredential</code>, <code>Snippet</code>, <code>JobSchedule</code></td>
 </tr>
 <tr>
 <td><strong>Jobscheduler</strong></td>
 <td>Hintergrundjobplanung und -ausführung</td>
-<td><code>JobScheduler</code>, <code>JobExecutor</code>, <code>JobJournal</code></td>
+<td><code>JobSchedulerService</code>, <code>JobSchedulerJobRunner</code>, <code>JobJournalEntry</code></td>
 </tr>
 <tr>
 <td><strong>Sicherheit</strong></td>
-<td>Master-Passwort, Verschlüsselung/Entschlüsselung, SSH-Schlüsselverwaltung</td>
-<td><code>MasterPasswordManager</code>, <code>AES256GCMEncryption</code>, <code>SSHKeyManager</code></td>
+<td>Master-Passwort, Verschlüsselung/Entschlüsselung, Passwort-Tresor</td>
+<td><code>MasterPasswordManager</code>, <code>EncryptionService</code>, <code>PasswordVault</code></td>
 </tr>
 <tr>
 <td><strong>Persistenz</strong></td>
 <td>XML-Serialisierung, Datei-E/A, Repository-Muster</td>
-<td><code>XMLConnectionRepository</code>, <code>CredentialRepository</code>, <code>JobSchedulerPersistence</code></td>
+<td><code>XMLConnectionRepository</code>, <code>HistoryStorage</code></td>
 </tr>
 <tr>
 <td><strong>Plugin</strong></td>
 <td>Terminaleffekt-Plugins (ServiceLoader SPI)</td>
 <td><code>TerminalEffectPlugin</code>, <code>TerminalEffectSession</code></td>
+</tr>
+<tr>
+<td><strong>Leistung</strong></td>
+<td>Aktivitätsbewusstes Schlaf- und App-Nap-Management pro Plattform</td>
+<td><code>PowerManagementCoordinator</code>, <code>MacPowerManagementBackend</code></td>
+</tr>
+<tr>
+<td><strong>Telemetrie</strong></td>
+<td>Opt-in anonyme Nutzungsereignisse</td>
+<td><code>TelemetryService</code>, <code>Telemetry</code></td>
 </tr>
 <tr>
 <td><strong>Teamarbeit</strong></td>
@@ -3083,18 +3093,19 @@
 <li><strong>OSC 8-Hyperlinks</strong>: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> beschränkt auf lokalen Host)</li>
 <li><strong>Sitzungsintegration</strong>: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe</li>
 <li><strong>Farbunterstützung</strong>: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung</li>
-<li><strong>Überprüfte Grenzkorrektur</strong>: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei <code>line == height</code> während des Hyperlink-Treffertests ab und verhindert so Bereichsfehler in der unteren Zeile von <code>TerminalTextBuffer</code></li>
+<li><strong>Überprüfte Grenzkorrektur</strong>: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab <code>line == height</code> beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern <code>TerminalTextBuffer</code> Bereichsfehler</li>
+<li><strong>Überprüfte Shortcut-Akkord-Korrektur</strong>: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-<code>KEY_TYPED</code>-Zeichen (z. B. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) die PTY- oder Broadcast-Fenster erreichen</li>
 </ul>
 <h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>Der Build-Prozess automatisch:</p>
 <ol>
 <li>Klont SithTermFX am Tag <code>v1.2.1</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
-<li>Wendet das überprüfte <code>patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch</code> an und schlägt fehl, wenn es weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
+<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.1-terminal-panel-bottom-row.patch</code> und <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
-<li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierung, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen</li>
+<li>Installiert Artefakte im lokalen Maven-Repo (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
 </ol>
-<p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich. Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
+<p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
 <h2 id="persistenz-und-konfiguration">Persistenz und Konfiguration<a class="headerlink" href="#persistenz-und-konfiguration" title="Permanent link">&para;</a></h2>
 <p>KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstatus unter <code>~/.kortty/</code>, hauptsächlich als JAXB-XML. Die lokale Modellregistrierung verwendet ebenfalls JAXB-XML, während die Konfiguration des Wissensspeichers strikt JSON ist und das lokale Vektordiagramm ein regenerierbarer binärer Snapshot ist. Dieser Ansatz gewährleistet:</p>
 <ul>
@@ -3140,10 +3151,12 @@
 <li><code>JobSchedulerPersistence</code>: Behält <code>JobScheduleEntry</code>-Objekte und Ausführungsjournal bei</li>
 </ul>
 <p><strong>AES-256-GCM-Verschlüsselung</strong> schützt vertrauliche Felder:</p>
-<p>Das Master-Passwort -  wird bei der ersten Anmeldung einmal gehasht und als <code>master-password-hash</code> gespeichert
-- Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden
-- SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
-- Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</p>
+<ul>
+<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als <code>master-password-hash</code></li>
+<li>Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden</li>
+<li>SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
+<li>Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</li>
+</ul>
 <h2 id="kernmodulorganisation">Kernmodulorganisation<a class="headerlink" href="#kernmodulorganisation" title="Permanent link">&para;</a></h2>
 <h3 id="ssh-und-sitzungsverwaltung">SSH und Sitzungsverwaltung<a class="headerlink" href="#ssh-und-sitzungsverwaltung" title="Permanent link">&para;</a></h3>
 <table>
@@ -3195,7 +3208,7 @@
 </tr>
 <tr>
 <td><code>AiServiceFactory</code></td>
-<td>Ordnet ein Profil dem HTTP-, Anthropic-, lokalen CLI- oder eingebetteten llama.cpp-Transport zu und fügt dann Eingabeaufforderungsvoreinstellungen und optionales RAG</td>
+<td>Ordnet ein Profil dem HTTP-, Anthropic-, lokalen CLI- oder eingebetteten llama.cpp-Transport zu und fügt dann Eingabeaufforderungsvoreinstellungen und optionales RAG hinzu</td>
 </tr>
 <tr>
 <td><code>AiCatalogService</code></td>
@@ -3207,7 +3220,7 @@
 </tr>
 <tr>
 <td><code>RagAugmentedAiService</code></td>
-<td>Ruft begrenzte Auszüge für gewöhnliche KI-Aktionen ab und fügt den nicht vertrauenswürdigen Kontext vor der Modellvoreinstellung</td>
+<td>Ruft begrenzte Auszüge für gewöhnliche KI-Aktionen ab und fügt den nicht vertrauenswürdigen Kontext vor der Modellvoreinstellung hinzu</td>
 </tr>
 <tr>
 <td><code>TerminalAgentService</code></td>
@@ -3298,7 +3311,7 @@
 <h3 id="master-passwort-und-verschlusselung">Master-Passwort und Verschlüsselung<a class="headerlink" href="#master-passwort-und-verschlusselung" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Erster Start</strong>: Der Benutzer erstellt ein Master-Passwort (mindestens 6 Zeichen, Stärke überprüft über zxcvbn)</li>
-<li><strong>Speicher</strong>: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und in <code>~/.kortty/master-password-hash</code> gespeichert</li>
+<li><strong>Speicherung</strong>: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert <code>~/.kortty/master-password-hash</code></li>
 <li><strong>Entsperren</strong>: Das Master-Passwort entsperrt alle verschlüsselten Daten (Verbindungspasswörter, SSH-Schlüsselpassphrasen, Anmeldeinformationen, Backup-Archiv-Passwörter)</li>
 <li><strong>Verschlüsselung</strong>: AES-256-GCM mit zufälligen IVs; Die Verschlüsselung/Entschlüsselung erfolgt bei Bedarf beim Zugriff auf vertrauliche Felder</li>
 </ol>
@@ -3355,14 +3368,14 @@
 </tr>
 <tr>
 <td><code>TerminalEffectConnectorWrapper</code></td>
-<td>Transparenter Befehlsstream-Wrapper; KorTTY kann</td>
+<td>Transparenter Befehlsstream-Wrapper; KorTTY kann sicher ausgepackt werden</td>
 </tr>
 </tbody>
 </table>
 <h3 id="plugin-wird-geladen">Plugin wird geladen<a class="headerlink" href="#plugin-wird-geladen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Gebündelte Plugins</strong>: Aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)</li>
-<li><strong>Externe Plugins</strong>: Als <code>.jar</code>-Dateien in <code>~/.kortty/plugins/</code> importiert</li>
+<li><strong>Externe Plugins</strong>: Importiert als <code>.jar</code> Dateien in <code>~/.kortty/plugins/</code></li>
 <li><strong>Verwaltung</strong>: Einzelne Plugins über <code>Plugins → Terminal Effects</code> ohne Deinstallation aktivieren/deaktivieren</li>
 <li><strong>Exportierbare Plugins</strong>: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden</li>
 </ul>
@@ -3383,8 +3396,14 @@
 <tr>
 <td><strong>SSH</strong></td>
 <td>Apache SSHD (Core, Common, SFTP)</td>
-<td>2.12.0</td>
+<td>2.19.0</td>
 <td>SSH-Protokollimplementierung</td>
+</tr>
+<tr>
+<td></td>
+<td>BouncyCastle (bcprov, bcpkix)</td>
+<td>1,85</td>
+<td>Kryptografieanbieter und SSH-Schlüsselanalyse</td>
 </tr>
 <tr>
 <td></td>
@@ -3395,13 +3414,13 @@
 <tr>
 <td><strong>Terminal</strong></td>
 <td>SithTermFX (Kern, UI)</td>
-<td>1.2.1 plus angehefteter korTTY-Grenzpatch</td>
+<td>1.2.1 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches</td>
 <td>Terminal-Emulator-Engine</td>
 </tr>
 <tr>
 <td></td>
 <td>Lanterna</td>
-<td>3.1.2</td>
+<td>3.1.5</td>
 <td>Textbasierte UI-Komponenten</td>
 </tr>
 <tr>
@@ -3411,33 +3430,51 @@
 <td>PTY-Zuteilung für Mosh</td>
 </tr>
 <tr>
+<td><strong>Plattform</strong></td>
+<td>JNA (JNA, JNA-Plattform)</td>
+<td>5.19.1</td>
+<td>Native Desktop-Energieverwaltungsintegration</td>
+</tr>
+<tr>
 <td><strong>Daten</strong></td>
 <td>Jakarta XML Bind</td>
-<td>4.0</td>
+<td>4.0.5 (jaxb-runtime 4.0.9)</td>
 <td>JAXB-Serialisierung</td>
 </tr>
 <tr>
 <td></td>
 <td>Gson</td>
-<td>2.13.2</td>
+<td>2.14.0</td>
 <td>JSON-Analyse</td>
 </tr>
 <tr>
 <td></td>
 <td>zip4j</td>
-<td>2.11.5</td>
+<td>2.11.6</td>
 <td>ZIP-Verschlüsselung</td>
+</tr>
+<tr>
+<td></td>
+<td>jtokkit</td>
+<td>1.1.0</td>
+<td>Tokenzählung für AI-Anfragen</td>
+</tr>
+<tr>
+<td></td>
+<td>PDFBox</td>
+<td>3.0.8</td>
+<td>PDF-Export und RAG-Textextraktion</td>
 </tr>
 <tr>
 <td><strong>Archiv</strong></td>
 <td>Apache Commons Compress</td>
-<td>1.25.0</td>
+<td>1.28.0</td>
 <td>TAR, BZ2, XZ-Unterstützung</td>
 </tr>
 <tr>
 <td></td>
 <td>Tukaani xz</td>
-<td>1,9</td>
+<td>1.12</td>
 <td>XZ-Komprimierung</td>
 </tr>
 <tr>
@@ -3474,7 +3511,7 @@
 <td><strong>Dienstprogramme</strong></td>
 <td>jfiglet</td>
 <td>0.0.9</td>
-<td>ASCII-Kunstbanner</td>
+<td>ASCII-Art-Banner</td>
 </tr>
 <tr>
 <td></td>
@@ -3485,7 +3522,7 @@
 <tr>
 <td><strong>Protokollierung</strong></td>
 <td>SLF4J / Logback</td>
-<td>2.0.9 / 1.4.14</td>
+<td>2.0.18 / 1.5.38</td>
 <td>Strukturierte Protokollierung</td>
 </tr>
 <tr>
@@ -3576,7 +3613,7 @@
 <li><strong>JobScheduler-Journal</strong>: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)</li>
 <li><strong>Terminalverlauf</strong>: Komprimierte Sitzungsprotokolle in <code>~/.kortty/history/</code></li>
 <li><strong>Terminalaufzeichnung</strong>: Optionale Wiedergabedateien in <code>~/.kortty/recordings/</code></li>
-<li><strong>Testisolation</strong>: Die Test-Logback-Konfiguration schreibt nur auf ihre eigene Konsole und erstellt niemals <code>~/.kortty/logs</code> des echten Benutzers oder hängt daran an</li>
+<li><strong>Testisolation</strong>: Die Test-Logback-Konfiguration schreibt nur auf die eigene Konsole und erstellt niemals die Konsole des echten Benutzers oder hängt an diese an <code>~/.kortty/logs</code></li>
 </ul>
 <h2 id="thread-modell">Thread-Modell<a class="headerlink" href="#thread-modell" title="Permanent link">&para;</a></h2>
 <ul>

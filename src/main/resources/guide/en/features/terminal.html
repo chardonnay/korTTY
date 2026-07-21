@@ -2006,7 +2006,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2559,6 +2559,7 @@
 <h2 id="connecting-safely">Connecting safely<a class="headerlink" href="#connecting-safely" title="Permanent link">&para;</a></h2>
 <p>Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with <strong>No</strong> selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See <a href="connections.html#ssh-host-key-verification">SSH host-key verification</a>.</p>
 <p>Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.</p>
+<p>Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See <a href="jump-server.html">Jump server</a> for the Mosh restriction.</p>
 <p>KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks <code>TerminalTextBuffer</code> for the non-existent row at <code>line == height</code>.</p>
 <h2 id="multi-window-support">Multi-window support<a class="headerlink" href="#multi-window-support" title="Permanent link">&para;</a></h2>
 <p>Open additional windows to organize connections by project or environment:</p>
@@ -2600,7 +2601,7 @@
 <h2 id="background-transparency">Background transparency<a class="headerlink" href="#background-transparency" title="Permanent link">&para;</a></h2>
 <p><strong>View → Zoom → Background Transparency</strong> is a slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. At 0 % the background is solid; higher values let more of the desktop show through. The value is saved and restored across restarts.</p>
 <p>Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.</p>
-<p>Horizontal, vertical and nested split terminals inherit the active transparency level, including panes added after transparency was enabled. Entering fullscreen with <span class="keys"><kbd class="key-f11">F11</kbd></span> or terminal-only fullscreen with <span class="keys"><kbd class="key-f12">F12</kbd></span> temporarily renders the terminal area opaque without changing the saved value; leaving fullscreen restores that value to every pane.</p>
+<p>Horizontal, vertical and nested split terminals inherit the active transparency level, including panes added after transparency was enabled. Entering fullscreen with <span class="keys"><kbd class="key-f12">F12</kbd></span> or terminal-only fullscreen with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> temporarily renders the terminal area opaque without changing the saved value; leaving fullscreen restores that value to every pane.</p>
 <p>Because a see-through window uses a different window style that the operating system fixes when the window opens, <strong>switching transparency on or off (crossing 0 %) only takes full effect after a restart</strong>; the status bar shows a hint when you cross that threshold. Adjusting the level while already in transparent mode applies live. In transparent mode the window uses a lightweight custom title bar (drag to move, buttons to minimise/maximise/close, double-click the strip to maximise, drag the edges to resize).</p>
 <p>The slider lives in the in-window menu bar only (the native macOS menu bar cannot host a slider).</p>
 <h2 id="local-shell-tabs">Local shell tabs<a class="headerlink" href="#local-shell-tabs" title="Permanent link">&para;</a></h2>

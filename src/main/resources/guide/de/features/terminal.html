@@ -2006,7 +2006,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2532,19 +2532,19 @@
 <tbody>
 <tr>
 <td><strong>Neuer Tab</strong></td>
-<td>++Strg+T++ (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten</td>
 </tr>
 <tr>
 <td><strong>Tab schließen</strong></td>
-<td>++Strg+W++ (Befehl+W unter macOS) – schließt den aktiven Tab. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung vollständig.</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung vollständig.</td>
 </tr>
 <tr>
 <td><strong>Nächster Tab</strong></td>
-<td>++Strg+Tab++</td>
+<td>++ctrl+Tab++</td>
 </tr>
 <tr>
 <td><strong>Vorheriger Tab</strong></td>
-<td>++Strg+Umschalt+Tab++</td>
+<td>++ctrl+shift+Tab++</td>
 </tr>
 <tr>
 <td><strong>Erneut verbinden</strong></td>
@@ -2559,11 +2559,12 @@
 <h2 id="sicher-verbinden">Sicher verbinden<a class="headerlink" href="#sicher-verbinden" title="Permanent link">&para;</a></h2>
 <p>Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei <strong>Nein</strong> standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe <a href="connections.html#ssh-host-key-verification">SSH-Hostschlüsselüberprüfung</a>.</p>
 <p>Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.</p>
+<p>Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederholung des Versuchs das Ergebnis nicht ändern kann – ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit. Das Terminal löscht den Vorgang und zeigt sofort den Grund an, anstatt die Anzahl der Wiederholungsversuche durchzugehen. Informationen zur Mosh-Einschränkung finden Sie unter <a href="jump-server.html">Jump server</a>.</p>
 <p>Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überarbeitete Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird <code>TerminalTextBuffer</code> nicht mehr nach der nicht vorhandenen Zeile bei <code>line == height</code> gefragt.</p>
 <h2 id="multi-window-unterstutzung">Multi-Window-Unterstützung<a class="headerlink" href="#multi-window-unterstutzung" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:</p>
 <ul>
-<li><strong>Neues Fenster</strong>: ++Strg+Umschalt+N++ (Befehl+Umschalt+N unter macOS) öffnet ein neues KorTTY-Fenster. Jedes Fenster kann über eigene Registerkarten und Verbindungen verfügen.</li>
+<li><strong>Neues Fenster</strong>: <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span> (Befehl+Umschalt+N unter macOS) öffnet ein neues KorTTY-Fenster. Jedes Fenster kann über eigene Registerkarten und Verbindungen verfügen.</li>
 <li><strong>Registerkarten zwischen Fenstern verschieben</strong>: Ziehen Sie eine Registerkarte aus der Registerkartenleiste und legen Sie sie auf der Registerkartenleiste eines anderen KorTTY-Fensters ab, um diese Registerkarte (und ihre Sitzung, einschließlich aller geteilten Terminals) in das andere Fenster zu verschieben.</li>
 <li><strong>Tabs neu anordnen</strong>: Ziehen Sie einen Tab innerhalb desselben Fensters, um seine Reihenfolge zu ändern; die Registerkarte „+“ bleibt am Ende.</li>
 </ul>
@@ -2579,7 +2580,7 @@
 <tbody>
 <tr>
 <td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span></td>
-<td>Vergrößern (Schriftgröße erhöhen)</td>
+<td>Vergrößern (Schriftgröße vergrößern)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span></td>
@@ -2600,13 +2601,13 @@
 <h2 id="hintergrundtransparenz">Hintergrundtransparenz<a class="headerlink" href="#hintergrundtransparenz" title="Permanent link">&para;</a></h2>
 <p><strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.</p>
 <p>Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben solide, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
-<p>Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit <span class="keys"><kbd class="key-f11">F11</kbd></span> den Vollbildmodus oder mit <span class="keys"><kbd class="key-f12">F12</kbd></span> den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.</p>
+<p>Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit <span class="keys"><kbd class="key-f12">F12</kbd></span> den Vollbildmodus oder mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.</p>
 <p>Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird <strong>das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam</strong>; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).</p>
 <p>Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).</p>
 <h2 id="lokale-shell-registerkarten">Lokale Shell-Registerkarten<a class="headerlink" href="#lokale-shell-registerkarten" title="Permanent link">&para;</a></h2>
 <p>Neben SSH und Mosh kann eine Terminal-Registerkarte eine <strong>Lokale Shell</strong> hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe <a href="connections.html#local-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokal-Shell-bewusst:</p>
 <ul>
-<li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> closes the tab for local cmd.exe/PowerShell sessions.</strong> Those Windows shells do not exit on EOF, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> behält seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.</li>
+<li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.</strong> Diese Windows-Shells werden bei EOF nicht beendet, sodass <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> seine normale EOF-Bedeutung bei – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.</li>
 <li><strong>Bestätigung schließen</strong> verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.</li>
 <li><strong>Das aktuelle Verzeichnis folgt der interaktiven Shell.</strong> Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach <code>cd</code>, <code>pushd</code>, <code>popd</code> oder <code>Set-Location</code> löst <strong>Im Snippet-Editor öffnen</strong> einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.</li>
 <li><strong>Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.</strong> Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der <code>agent ...</code>-Anfrage bleibt und Enter ihn genau einmal versendet.</li>
@@ -2618,7 +2619,7 @@
 <li><strong>Geteilter Bereich</strong>: Erstellen Sie über das Kontextmenü oder Tastaturkürzel horizontale oder vertikale Teilungen innerhalb einer Registerkarte.</li>
 <li><strong>Unabhängige Sitzungen</strong>: In jedem Bereich kann eine andere SSH-Verbindung angezeigt werden.</li>
 <li><strong>Anpassbare Fensterbereiche</strong>: Ziehen Sie die Trennlinien, um die Fenstergrößen anzupassen.</li>
-<li><strong>Fenster verschieben</strong>: Halten Sie ++Umschalt+Alt++ (Windows/Linux) or ++Umschalt+Option++ (macOS) gedrückt und ziehen Sie einen Bereich auf einen anderen, um ihn neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.</li>
+<li><strong>Fenster verschieben</strong>: Halten Sie <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> (Windows/Linux) oder <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-option">Option</kbd></span> (macOS) gedrückt und ziehen Sie ein Fenster auf ein anderes, um es neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.</li>
 </ul>
 <h3 id="broadcast-modus">Broadcast-Modus<a class="headerlink" href="#broadcast-modus" title="Permanent link">&para;</a></h3>
 <p>Wenn der <strong>Broadcast-Modus</strong> aktiviert ist, werden Tastatureingaben gleichzeitig an alle sichtbaren Bereiche gesendet. Dies ist nützlich, um dieselben Befehle auf mehreren Servern auszuführen.</p>
@@ -2682,9 +2683,9 @@
 <h3 id="aufnahme-starten-und-stoppen">Aufnahme starten und stoppen<a class="headerlink" href="#aufnahme-starten-und-stoppen" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte.</li>
-<li>Wenn die Terminalaufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf <strong>Aufzeichnung starten</strong>, wählen Sie <strong>Extras &gt; Terminalaufzeichnung starten/stoppen</strong> oder drücken Sie ++Strg+Umschalt+E++ (Befehl+Umschalt+E unter macOS).</li>
+<li>Wenn die Terminalaufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf <strong>Aufzeichnung starten</strong>, wählen Sie <strong>Extras &gt; Terminalaufzeichnung starten/stoppen</strong> oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span> (Befehl+Umschalt+E unter macOS).</li>
 <li>Wenn die Registerkarte mehrere geteilte Terminals enthält, wählen Sie aus, ob nur die aktive Teilung oder die gesamte Registerkarte aufgezeichnet werden soll.</li>
-<li>Klicken Sie auf <strong>Aufzeichnung stoppen</strong> oder drücken Sie erneut ++Strg+Umschalt+E++, um das aktuelle Segment zu stoppen.</li>
+<li>Klicken Sie auf <strong>Aufzeichnung stoppen</strong> oder drücken Sie erneut <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span>, um das aktuelle Segment zu stoppen.</li>
 <li>Starten und stoppen Sie so oft wie nötig auf derselben Registerkarte. KorTTY hängt alle Segmente an dieselbe Wiedergabedatei an, bis die Registerkarte geschlossen wird.</li>
 </ol>
 <h3 id="exportieren-sie-ein-video">Exportieren Sie ein Video<a class="headerlink" href="#exportieren-sie-ein-video" title="Permanent link">&para;</a></h3>

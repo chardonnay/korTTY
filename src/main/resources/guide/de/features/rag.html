@@ -1856,7 +1856,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2221,7 +2221,7 @@
 <h2 id="erstellen-sie-einen-lokalen-wissensspeicher">Erstellen Sie einen lokalen Wissensspeicher<a class="headerlink" href="#erstellen-sie-einen-lokalen-wissensspeicher" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>AI &gt; AI Manager &gt; Wissensspeicher</strong> und wählen Sie <strong>Erstellen</strong>. Der Anfänger-Flow benötigt einen Namen, ein installiertes Einbettungsmodell, Rollenzuweisungen und mindestens eine überprüfte Quelle. Speichertyp, Vektordimensionen und optionale Qdrant-Verbindungsfelder bleiben unter <strong>Erweitert</strong> ausgeblendet; korTTY verwaltet die lokalen HNSW-Graphparameter intern, sodass bei normaler Verwendung keine Vektorindexoptimierung erforderlich ist.</p>
 <p><img alt="Wissensspeicher with a local HNSW demo store and one manual folder source" src="../assets/screenshots/ai/knowledge-stores.png" /></p>
-<p>Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten <a href="local-models.html">local-model </a> mit vorausgewählter Einbettungsrolle. Installieren Sie das empfohlene Modell Qwen3-Embedding 0.6B <code>Q8_0</code> und kehren Sie dann zu <strong>Erstellen</strong> zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.</p>
+<p>Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten <a href="local-models.html">local-model </a> mit vorausgewählter Einbettungsrolle. Installieren Sie das vorausgewählte Modell Qwen3-Embedding 0.6B <code>Q8_0</code> oder wählen Sie eine der Katalogalternativen aus, die der Assistent für den Speicher dieses Computers anbietet – Qwen3-Embedding 4B oder 8B <code>Q4_K_M</code> auf Computern mit mindestens 16 oder 24 GiB, das mehrsprachige BGE-M3 <code>Q8_0</code> oder das sehr kleine und schnelle Nomic Embed Text v1.5 <code>Q8_0</code> – Kehren Sie dann zu <strong>Erstellen</strong> zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.</p>
 <p>So fügen Sie Inhalte hinzu:</p>
 <ol>
 <li>Wählen Sie <strong>Dateien hinzufügen</strong> für eine oder mehrere einzelne Dateien oder <strong>Ordner hinzufügen</strong> für eine rekursive Verzeichnisquelle.</li>

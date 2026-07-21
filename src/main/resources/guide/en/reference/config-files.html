@@ -2121,7 +2121,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2787,6 +2787,7 @@
 - Authentication method (password, SSH key, temporary SSH key)
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
+- Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Window geometry preferences
@@ -2817,7 +2818,7 @@
 <p>SSH keys referenced in this file can be kept in their original location or copied to <code>~/.kortty/ssh-keys/</code> for easy backup and migration via the <em>Copy to User Directory</em> action in SSH key management.</p>
 </div>
 <h3 id="ssh-host-keysproperties">ssh-host-keys.properties<a class="headerlink" href="#ssh-host-keysproperties" title="Permanent link">&para;</a></h3>
-<p>The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically.</p>
+<p>The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.</p>
 <p>Writes use a temporary file plus atomic replacement, while <code>ssh-host-keys.properties.lock</code> coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in <code>job-scheduler.xml</code>, which are keyed by connection ID for unattended operations.</p>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
 <p>Stores GPG key information for backup encryption.</p>
@@ -2835,6 +2836,7 @@
 - Window geometry and state (position, size, maximized status)
 - Dashboard visibility state
 - Menu bar visibility preference
+- Last ASCII Art dialog preview zoom level
 - AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
 - RAG embedding model ID and llama.cpp preferred runtime backend/update policy
 - Optional encrypted Hugging Face token
@@ -2842,6 +2844,7 @@
 - Video/recording preferences
 - Terminal logging defaults
 - SSH keep-alive settings
+- SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
 - JobScheduler status display preference
 - Terminal effect plugin defaults
 - Backup encryption method and retention settings
@@ -3034,7 +3037,7 @@
 </tr>
 <tr>
 <td>Interactive Terminal/SFTP/Mosh host keys</td>
-<td>Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection</td>
+<td>Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection; the optional per-connection/group/global opt-out relaxes only unknown-key prompting to accept-new</td>
 </tr>
 <tr>
 <td>Credentials (username/password)</td>

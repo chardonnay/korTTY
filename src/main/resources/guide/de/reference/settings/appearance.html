@@ -799,10 +799,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#registerkarte-darstellung" class="md-nav__link">
+  <a href="#registerkarte-aussehen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Registerkarte „Darstellung“.
+        Registerkarte „Aussehen“.
       
     </span>
   </a>
@@ -855,10 +855,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#integrierte-vs-benutzerdefinierte-designs" class="md-nav__link">
+  <a href="#eingebaute-vs-benutzerdefinierte-designs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integrierte vs. benutzerdefinierte Designs
+        Eingebaute vs. benutzerdefinierte Designs
       
     </span>
   </a>
@@ -882,10 +882,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kreuztabellenintegration" class="md-nav__link">
+  <a href="#cross-tab-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kreuztabellenintegration
+        Cross-Tab-Integration
       
     </span>
   </a>
@@ -1864,7 +1864,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2119,10 +2119,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#registerkarte-darstellung" class="md-nav__link">
+  <a href="#registerkarte-aussehen" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Registerkarte „Darstellung“.
+        Registerkarte „Aussehen“.
       
     </span>
   </a>
@@ -2175,10 +2175,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#integrierte-vs-benutzerdefinierte-designs" class="md-nav__link">
+  <a href="#eingebaute-vs-benutzerdefinierte-designs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integrierte vs. benutzerdefinierte Designs
+        Eingebaute vs. benutzerdefinierte Designs
       
     </span>
   </a>
@@ -2202,10 +2202,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#kreuztabellenintegration" class="md-nav__link">
+  <a href="#cross-tab-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Kreuztabellenintegration
+        Cross-Tab-Integration
       
     </span>
   </a>
@@ -2231,30 +2231,46 @@
 
 <h1 id="aussehen-themen-und-schriftart">Aussehen, Themen und Schriftart<a class="headerlink" href="#aussehen-themen-und-schriftart" title="Permanent link">&para;</a></h1>
 <p>Die visuelle Konfiguration von korTTY umfasst drei Registerkarten: <strong>Darstellung</strong> steuert das UI-Design auf App-Ebene, <strong>Schriftart</strong> konfiguriert die Schriftart und -größe des Terminals und <strong>Themen</strong> verwaltet wiederverwendbare Terminal-Farbprofile. Alle Einstellungen bleiben bis <code>~/.kortty/global-settings.xml</code> bestehen.</p>
-<h2 id="registerkarte-darstellung">Registerkarte „Darstellung“.<a class="headerlink" href="#registerkarte-darstellung" title="Permanent link">&para;</a></h2>
+<h2 id="registerkarte-aussehen">Registerkarte „Aussehen“.<a class="headerlink" href="#registerkarte-aussehen" title="Permanent link">&para;</a></h2>
 <p><img alt="Appearance settings tab" src="../../assets/screenshots/settings/appearance.png" /></p>
 <p>Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.</p>
 <table>
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
+<th>Typ</th>
+<th>Werte</th>
 <th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>App-Design</td>
+<td>App Design</td>
 <td>Dropdown</td>
-<td>Standard, Matrix-Terminal, holographische Schnittstelle, klingonische Taktik, elegante Dunkelheit</td>
+<td>Standard, Matrix Terminal, Holographische Schnittstelle, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula</td>
 <td>Standard</td>
 <td><code>appDesign</code></td>
+</tr>
+<tr>
+<td>Designanimationen aktivieren</td>
+<td>umschalten</td>
+<td>Ein, Aus</td>
+<td>Ein</td>
+<td><code>appDesignAnimationsEnabled</code></td>
+</tr>
+<tr>
+<td>Chat-Farbprofil</td>
+<td>Dropdown-Liste</td>
+<td>Automatisch (Thema), Original, Papier, Mitternacht, Cyberpunk, Retrowave, Wald, Ozean, Terminal, GPT, Niedlich</td>
+<td>Automatisch (Thema)</td>
+<td><code>chatColorProfileId</code></td>
 </tr>
 </tbody>
 </table>
 <p>Mit den Schaltflächen <code>◀</code> und <code>▶</code> neben dem Dropdown-Menü können Sie durch die Designs vor- und zurückblättern (an den Enden umlaufend). Wenn ein anderes Design als <strong>Standard</strong> ausgewählt wird, wird unterhalb der Steuerelemente ein Vorschaubild dieses Designs angezeigt. Das <strong>Standarddesign</strong> hat keine Vorschau und zeigt stattdessen eine kurze Notiz an.</p>
+<p><strong>Designanimationen aktivieren</strong> dient gleichzeitig als Schalter zur Bewegungsreduzierung: Wenn Sie ihn ausschalten, werden die animierten Designeffekte gestoppt, während die Farben an Ort und Stelle bleiben.</p>
+<p><strong>Chat-Farbprofil</strong> thematisiert die KI-Chat- und Schwarmoberflächen. Das standardmäßige <strong>Automatic (Theme)</strong> leitet seine Palette von den Agent-Panel-Farben des aktiven Terminal-Themes ab; Die anderen Profile sind feste Paletten.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen und der Dateieditor behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“).</p>
@@ -2266,16 +2282,16 @@
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
+<th>Typ</th>
+<th>Werte</th>
 <th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Schriftfamilie</td>
-<td>Dropdown</td>
+<td>Schriftartenfamilie</td>
+<td>Dropdown-Liste</td>
 <td>Gängige Monospace-Schriftarten (Monaco, Courier New, Menlo, Fira Code usw.) und alle Systemschriftarten</td>
 <td>Monospaced</td>
 <td><code>defaultTerminalSettings.fontFamily</code></td>
@@ -2284,7 +2300,7 @@
 <td>Schriftgröße</td>
 <td>Nummer</td>
 <td>8–72 pt</td>
-<td>12</td>
+<td>14</td>
 <td><code>defaultTerminalSettings.fontSize</code></td>
 </tr>
 </tbody>
@@ -2311,10 +2327,10 @@
 </tr>
 <tr>
 <td><strong>Bearbeiten</strong></td>
-<td>Ändern Sie das ausgewählte Design (nur benutzerdefinierte Designs; integrierte Designs können nicht direkt bearbeitet werden)</td>
+<td>Das ausgewählte Thema ändern. Die Schaltfläche bleibt für integrierte Designs aktiviert, führt aber beim Klicken nichts aus – duplizieren Sie zuerst das Design</td>
 </tr>
 <tr>
-<td><strong>Duplikat</strong></td>
+<td><strong>Duplizieren</strong></td>
 <td>Kopieren Sie das ausgewählte Design als neues benutzerdefiniertes Design</td>
 </tr>
 <tr>
@@ -2328,14 +2344,14 @@
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Standard</th>
+<th>Typ</th>
+<th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Option „Schriftart anwenden“</td>
+<td>Wenn diese Option aktiviert ist, ändert sich beim Anwenden eines Designs auch die Schriftfamilie und -größe.</td>
 <td>umschalten</td>
 <td>Aus</td>
 <td><code>applyThemeFonts</code></td>
@@ -2344,19 +2360,19 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Wenn die Option „Schriftart anwenden“ aktiviert ist, wird bei der Auswahl eines Themas aus der Dropdown-Liste „Farbprofil“ auf der Registerkarte „Farben“ auch die Schriftfamilie und -größe dieses Themas angewendet. Wenn die Option deaktiviert ist, werden nur die Farben des Themas angewendet.</p>
+<p>Wenn diese Option aktiviert ist, wird bei der Auswahl eines Themas aus der Dropdown-Liste „Farbprofil“ der Registerkarte „Farben“ auch die Schriftfamilie und -größe dieses Themas angewendet. Wenn die Option deaktiviert ist, werden nur die Farben des Themas angewendet.</p>
 </div>
-<h3 id="integrierte-vs-benutzerdefinierte-designs">Integrierte vs. benutzerdefinierte Designs<a class="headerlink" href="#integrierte-vs-benutzerdefinierte-designs" title="Permanent link">&para;</a></h3>
-<p>korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus, Solarisiertes Licht). Benutzerdefinierte Designs werden in <code>~/.kortty/themes/</code> als einzelne XML-Dateien gespeichert. Alle Themen werden in der Farbprofilauswahl der Registerkarte „Farben“ und in verbindungsspezifischen Themen-Dropdown-Menüs angezeigt.</p>
+<h3 id="eingebaute-vs-benutzerdefinierte-designs">Eingebaute vs. benutzerdefinierte Designs<a class="headerlink" href="#eingebaute-vs-benutzerdefinierte-designs" title="Permanent link">&para;</a></h3>
+<p>korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus, Solarisiertes Licht). Integrierte und benutzerdefinierte Designs werden zusammen in einer einzigen Datei, <code>~/.kortty/themes.xml</code>, gespeichert. Alle Themen werden in der Farbprofilauswahl der Registerkarte „Farben“ und in verbindungsspezifischen Themen-Dropdown-Menüs angezeigt.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Integrierte Designs können nicht bearbeitet oder gelöscht werden. Um ein integriertes Design zu ändern, duplizieren Sie es zunächst und bearbeiten Sie dann die benutzerdefinierte Kopie.</p>
 </div>
 <h3 id="theme-vorschau">Theme-Vorschau<a class="headerlink" href="#theme-vorschau" title="Permanent link">&para;</a></h3>
-<p>Eine Live-Theme-Vorschau zeigt die Farben des Themes an. In der Vorschau werden Vordergrund-, Hintergrund-, Cursor- und ANSI-Farbfelder angezeigt, sodass Sie ein Design bewerten können, bevor Sie es anwenden.</p>
-<h2 id="kreuztabellenintegration">Kreuztabellenintegration<a class="headerlink" href="#kreuztabellenintegration" title="Permanent link">&para;</a></h2>
+<p>Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sechs Farbfelder – Vordergrund, Hintergrund und Cursor sowie die Hintergrund-, Ausführungs- und Fehlerfarben des AI-Agent-Panels – sodass Sie ein Design bewerten können, bevor Sie es anwenden.</p>
+<h2 id="cross-tab-integration">Cross-Tab-Integration<a class="headerlink" href="#cross-tab-integration" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Registerkarte „Farben“</strong>: Wählen Sie über das Dropdown-Menü „Farbprofil“ ein Thema aus. Wenn auf der Registerkarte „Themen“ die Option „Schriftart anwenden“ aktiviert ist, wird auch die Schriftart des ausgewählten Themas angewendet.</li>
+<li><strong>Registerkarte „Farben“</strong>: Wählen Sie über das Dropdown-Menü „Farbprofil“ ein Thema aus. Wenn die Schriftartoption der Registerkarte „Themen“ aktiviert ist, wird auch die Schriftart des ausgewählten Designs angewendet.</li>
 <li><strong>Verbindungseinstellungen</strong>: Jede einzelne SSH-Verbindung kann die globale Schriftart und das globale Design über ihre eigenen Einstellungen überschreiben (zugänglich im Verbindungsmanager oder in Quick Connect).</li>
 <li><strong>Terminal-Emulation</strong>: Schrift- und Designfarben wirken sich nur auf den Terminalinhalt aus; Der Stil der Anwendungsoberfläche (Menüleiste, Dialoge, Registerkarten) wird durch die App-Designeinstellung der Registerkarte „Darstellung“ bestimmt.</li>
 </ul>

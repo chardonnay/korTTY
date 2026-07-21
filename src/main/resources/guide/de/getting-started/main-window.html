@@ -464,6 +464,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#macos-dock-menu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1779,7 +1790,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2034,6 +2045,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#macos-dock-menu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2069,15 +2091,25 @@
 <p>Das Hauptfenster von korTTY hat diese Bereiche:</p>
 <ul>
 <li><strong>Menüleiste</strong> – Datei · Bearbeiten · Verbindungen · Sicherheit · Konfiguration · Tools · Plugins · Anzeigen · Teamwork · KI · Hilfe. Alle Funktionen sind hier und über <a href="../reference/keyboard-shortcuts.html">Tastaturkürzel</a>] erreichbar. Ein Live-Menü <strong>JobScheduler-Status</strong> erscheint nach <em>Hilfe</em>, wenn ein geplanter Eintrag aktiv ist.</li>
-<li><strong>Tab-Leiste</strong> – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++Strg+T++ opens Quick Connect for a new tab; ++Strg+Tab++ / ++Strg+Umschalt+Tab++ Tabs wechseln.</li>
-<li><strong>Dashboard</strong> (umschalten ++Strg+Umschalt+D++) – listet alle offenen Verbindungen mit Statusanzeigen und KI-Agent-Abzeichen auf. Klicken Sie mit der rechten Maustaste auf eine Verbindung, um sie erneut zu verbinden, zu duplizieren, SFTP zu öffnen oder zu schließen.</li>
+<li><strong>Tab-Leiste</strong> – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> öffnet Quick Connect für eine neue Registerkarte; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> Schalterlaschen.</li>
+<li><strong>Dashboard</strong> (umschalten <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Sehen <a href="#dashboard">Armaturenbrett</a> unten.</li>
 <li><strong>Terminalbereich</strong> – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.</li>
 <li><strong>Statusleiste</strong> – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.</li>
 </ul>
 <div class="admonition tip">
-<p class="admonition-title">Nur Terminal-Vollbild</p>
-<p>Drücken Sie <span class="keys"><kbd class="key-f12">F12</kbd></span> (oder <strong>Ansicht → Nur Terminal-Vollbild</strong>), um das gesamte Fensterchrom auszublenden und nur das Terminal anzuzeigen. <strong>Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden</strong> entfernt auch die Bildlaufleisten. Ein transparenter Terminalhintergrund wird undurchsichtig, während der Vollbildmodus aktiv ist, und kehrt beim Verlassen auf die gespeicherte Ebene zurück. Drücken Sie erneut <span class="keys"><kbd class="key-f12">F12</kbd></span>, um die Wiederherstellung durchzuführen.</p>
+<p class="admonition-title">Nur korTTY Applikationsfenster</p>
+<p>Drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> (oder <strong>Ansicht → Nur Terminal-Vollbild</strong>), um das gesamte korTTY-Fenster – Menüs, Registerkarten und Statusleiste inklusive – in seiner vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund anzuzeigen, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. <strong>Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden</strong> entfernt auch die Bildlaufleisten. Ein transparenter Terminalhintergrund wird undurchsichtig, während der Vollbildmodus aktiv ist, und kehrt beim Verlassen auf die gespeicherte Ebene zurück. Drücken Sie erneut <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>, um die Wiederherstellung durchzuführen.</p>
 </div>
+<h2 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h2>
+<p>Schalten Sie das Dashboard mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span> oder <strong>Ansicht → Dashboard anzeigen</strong> um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.</p>
+<p>In der Kopfzeile wird der Titel des Bedienfelds mit zwei Schaltflächen angezeigt: einem Umschalter zum Reduzieren/Erweitern (reduziert alles, während ein Knoten geöffnet ist, erweitert alles andere) und einer Schaltfläche „Aktualisieren“. Darunter sind die Verbindungen als Baum organisiert:</p>
+<ul>
+<li><strong>Hauptfenster</strong> – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.</li>
+<li><strong>Umgebungen</strong> – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. <em>Produktion</em> oder <em>Test</em>), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.</li>
+<li><strong>Gruppen</strong> – Registerkarten, die einer Verbindungsgruppe zugewiesen sind, werden unter ihrem Gruppenknoten angezeigt. Durch das Speichern einer geänderten Gruppe im Verbindungsmanager werden geöffnete Registerkarten sofort aktualisiert.</li>
+</ul>
+<p>Jede Verbindungszeile zeigt ein Typsymbol, einen Statuspunkt, den Servernamen und ein Protokoll-Badge (<code>ssh</code>, <code>mosh</code> oder <code>local</code>). Der Statuspunkt unterscheidet drei Zustände: grün gefüllt für eine gesunde Verbindung, rot gefüllt für eine Verbindung, die unerwartet unterbrochen wurde (einschließlich einer Unterbrechung des Mosh-Netzwerks) und ein leerer Umriss für eine Sitzung, die normal beendet wurde. Terminals mit KI-Agentenläufen tragen das gleiche ✋/⚡/⏸/ ✓-Abzeichen wie anderswo. Wenn Sie den Mauszeiger über eine Zeile bewegen, werden <code>user@host</code> und der Verbindungsstatus angezeigt. Ein Doppelklick (oder <span class="keys"><kbd class="key-enter">Enter</kbd></span>) fokussiert die Registerkarte der Sitzung.</p>
+<p>Klicken Sie mit der rechten Maustaste auf eine Verbindung für <strong>Fokus</strong>, <strong>Duplizieren</strong>, <strong>Erneut verbinden</strong>, <strong>SFTP-Client...</strong> (nur verbundene Sitzungen) und <strong>Schließen</strong>. In einer Fußzeile wird die Anzahl der „verbunden von insgesamt“ fortlaufend angezeigt, und in einem leeren Bereich wird ein Platzhalter angezeigt, bis die erste Sitzung geöffnet wird.</p>
 <h2 id="macos-dock-menu">macOS Dock-Menü<a class="headerlink" href="#macos-dock-menu" title="Permanent link">&para;</a></h2>
 <p>Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Strg-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen durchzuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:</p>
 <ul>
@@ -2088,7 +2120,7 @@
 <li><strong>Anleitung</strong> (die In-App-Anleitung)</li>
 <li><strong>Über korTTY</strong></li>
 </ul>
-<p>Sehen Sie sich die <a href="../reference/menu.html">Menüreferenz </a> für jeden Menüpunkt und die <a href="../reference/keyboard-shortcuts.html">Tastaturkürzel-Referenz </a> für die vollständige Liste der Zugriffstasten an.</p>
+<p>Siehe die <a href="../reference/menu.html">Menüreferenz</a> für jeden Menüpunkt und die <a href="../reference/keyboard-shortcuts.html">Referenz zu Tastaturkürzeln</a> für die vollständige Liste der Beschleuniger.</p>
 
 
 

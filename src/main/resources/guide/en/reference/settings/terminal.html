@@ -1781,7 +1781,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2168,6 +2168,13 @@
 <td>On</td>
 <td><code>connectionRetriesEnabled</code></td>
 </tr>
+<tr>
+<td>Disable host key verification for all connections</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>hostKeyCheckDisabledForAllConnections</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
@@ -2178,6 +2185,10 @@
 <div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
 <p>When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Disable host key verification for all connections</p>
+<p>This is the global, lowest-precedence host-key setting: it relaxes verification to accept-new for every connection that does not set its own or its group's override. Accept-new still hard-blocks a changed key on a host already pinned, and a jump server's own key is always verified strictly — but disabling first-use verification removes protection against a man-in-the-middle on the very first connection. Off by default. Per-connection and per-group overrides are set in the Connection Manager; see <a href="../../features/security.html#relaxing-host-key-verification">Security → Relaxing host-key verification</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Drag-and-Drop File Copy</p>
@@ -2190,6 +2201,7 @@
 <div class="admonition note">
 <p class="admonition-title">Connection Retries</p>
 <p>When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.</p>
+<p>Retries only cover failures that a further attempt could resolve. A changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.</p>
 </div>
 
 

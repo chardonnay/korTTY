@@ -2246,7 +2246,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -3021,8 +3021,8 @@
 </tr>
 <tr>
 <td><strong>ai</strong></td>
-<td>Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp process leases, and signed runtime packages</td>
-<td><code>AiCatalogService</code>, <code>HuggingFaceClient</code>, <code>LlamaRuntimeManager</code>, <code>LlamaRuntimePackageInstaller</code></td>
+<td>Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp and MLX runtimes, and signed runtime packages</td>
+<td><code>AiCatalogService</code>, <code>HuggingFaceClient</code>, <code>LlamaRuntimeManager</code>, <code>LlamaRuntimePackageInstaller</code>, <code>EmbeddedMlxAiService</code>, <code>MlxRuntimeLocator</code></td>
 </tr>
 <tr>
 <td><strong>rag</strong></td>
@@ -3032,32 +3032,42 @@
 <tr>
 <td><strong>ui</strong></td>
 <td>JavaFX user interface, dialogs, terminal views, SFTP manager</td>
-<td><code>TerminalPane</code>, <code>ConnectionDialog</code>, <code>SFTPManagerDialog</code>, <code>SnippetEditor</code></td>
+<td><code>TerminalView</code>, <code>TerminalTab</code>, <code>ConnectionEditDialog</code>, <code>SFTPManagerDialog</code>, <code>SnippetEditDialog</code></td>
 </tr>
 <tr>
 <td><strong>model</strong></td>
 <td>Domain objects for connections, credentials, snippets, jobs</td>
-<td><code>Connection</code>, <code>Credential</code>, <code>Snippet</code>, <code>JobScheduleEntry</code></td>
+<td><code>ServerConnection</code>, <code>StoredCredential</code>, <code>Snippet</code>, <code>JobSchedule</code></td>
 </tr>
 <tr>
 <td><strong>jobscheduler</strong></td>
 <td>Background job scheduling and execution</td>
-<td><code>JobScheduler</code>, <code>JobExecutor</code>, <code>JobJournal</code></td>
+<td><code>JobSchedulerService</code>, <code>JobSchedulerJobRunner</code>, <code>JobJournalEntry</code></td>
 </tr>
 <tr>
 <td><strong>security</strong></td>
-<td>Master password, encryption/decryption, SSH key management</td>
-<td><code>MasterPasswordManager</code>, <code>AES256GCMEncryption</code>, <code>SSHKeyManager</code></td>
+<td>Master password, encryption/decryption, password vault</td>
+<td><code>MasterPasswordManager</code>, <code>EncryptionService</code>, <code>PasswordVault</code></td>
 </tr>
 <tr>
 <td><strong>persistence</strong></td>
 <td>XML serialization, file I/O, repository pattern</td>
-<td><code>XMLConnectionRepository</code>, <code>CredentialRepository</code>, <code>JobSchedulerPersistence</code></td>
+<td><code>XMLConnectionRepository</code>, <code>HistoryStorage</code></td>
 </tr>
 <tr>
 <td><strong>plugin</strong></td>
 <td>Terminal effect plugins (ServiceLoader SPI)</td>
 <td><code>TerminalEffectPlugin</code>, <code>TerminalEffectSession</code></td>
+</tr>
+<tr>
+<td><strong>power</strong></td>
+<td>Activity-aware sleep and App Nap management per platform</td>
+<td><code>PowerManagementCoordinator</code>, <code>MacPowerManagementBackend</code></td>
+</tr>
+<tr>
+<td><strong>telemetry</strong></td>
+<td>Opt-in anonymous usage events</td>
+<td><code>TelemetryService</code>, <code>Telemetry</code></td>
 </tr>
 <tr>
 <td><strong>teamwork</strong></td>
@@ -3084,14 +3094,15 @@
 <li><strong>Session integration</strong>: Direct JAXB marshaling of terminal state for session recording and replay</li>
 <li><strong>Color support</strong>: Configurable ANSI and TrueColor handling with per-connection overrides</li>
 <li><strong>Reviewed boundary fix</strong>: A pinned korTTY patch rejects the non-existent row at <code>line == height</code> during hyperlink hit-testing, preventing bottom-row <code>TerminalTextBuffer</code> range errors</li>
+<li><strong>Reviewed shortcut-chord fix</strong>: A second pinned korTTY patch stops shortcut-chord <code>KEY_TYPED</code> characters (for example <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) from reaching the pty or broadcast panes</li>
 </ul>
 <h3 id="build-integration">Build Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>The build process automatically:</p>
 <ol>
 <li>Clones SithTermFX at tag <code>v1.2.1</code> into <code>vendor/sithtermfx</code> (no GitHub token required)</li>
-<li>Applies the reviewed <code>patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch</code> and fails if it neither applies nor already matches the source</li>
+<li>Applies the reviewed patches in <code>patches/sithtermfx/</code> — <code>1.2.1-terminal-panel-bottom-row.patch</code> and <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> — in order, failing if a patch neither applies nor already matches the source</li>
 <li>Builds it locally using Maven via the <code>installSithtermfxLocal</code> task</li>
-<li>Installs artifacts to the local Maven repo (<code>mavenLocal()</code>), including a marker that lets Gradle reject an unpatched cached UI JAR</li>
+<li>Installs artifacts to the local Maven repo (<code>mavenLocal()</code>), including one marker resource per patch that lets Gradle reject an unpatched cached UI JAR</li>
 <li>Links SithTermFX core and UI modules into the korTTY JAR</li>
 </ol>
 <p>No network access is needed after cloning; all build steps are deterministic and reproducible.</p>
@@ -3385,8 +3396,14 @@
 <tr>
 <td><strong>SSH</strong></td>
 <td>Apache SSHD (core, common, sftp)</td>
-<td>2.12.0</td>
+<td>2.19.0</td>
 <td>SSH protocol implementation</td>
+</tr>
+<tr>
+<td></td>
+<td>BouncyCastle (bcprov, bcpkix)</td>
+<td>1.85</td>
+<td>Cryptographic provider and SSH key parsing</td>
 </tr>
 <tr>
 <td></td>
@@ -3397,13 +3414,13 @@
 <tr>
 <td><strong>Terminal</strong></td>
 <td>SithTermFX (core, ui)</td>
-<td>1.2.1 plus pinned korTTY boundary patch</td>
+<td>1.2.1 plus pinned korTTY boundary and shortcut-chord patches</td>
 <td>Terminal emulator engine</td>
 </tr>
 <tr>
 <td></td>
 <td>Lanterna</td>
-<td>3.1.2</td>
+<td>3.1.5</td>
 <td>Text-based UI components</td>
 </tr>
 <tr>
@@ -3413,33 +3430,51 @@
 <td>PTY allocation for Mosh</td>
 </tr>
 <tr>
+<td><strong>Platform</strong></td>
+<td>JNA (jna, jna-platform)</td>
+<td>5.19.1</td>
+<td>Native desktop power-management integration</td>
+</tr>
+<tr>
 <td><strong>Data</strong></td>
 <td>Jakarta XML Bind</td>
-<td>4.0</td>
+<td>4.0.5 (jaxb-runtime 4.0.9)</td>
 <td>JAXB serialization</td>
 </tr>
 <tr>
 <td></td>
 <td>Gson</td>
-<td>2.13.2</td>
+<td>2.14.0</td>
 <td>JSON parsing</td>
 </tr>
 <tr>
 <td></td>
 <td>zip4j</td>
-<td>2.11.5</td>
+<td>2.11.6</td>
 <td>ZIP encryption</td>
+</tr>
+<tr>
+<td></td>
+<td>jtokkit</td>
+<td>1.1.0</td>
+<td>Token counting for AI requests</td>
+</tr>
+<tr>
+<td></td>
+<td>PDFBox</td>
+<td>3.0.8</td>
+<td>PDF export and RAG text extraction</td>
 </tr>
 <tr>
 <td><strong>Archive</strong></td>
 <td>Apache Commons Compress</td>
-<td>1.25.0</td>
+<td>1.28.0</td>
 <td>TAR, BZ2, XZ support</td>
 </tr>
 <tr>
 <td></td>
 <td>Tukaani xz</td>
-<td>1.9</td>
+<td>1.12</td>
 <td>XZ compression</td>
 </tr>
 <tr>
@@ -3487,7 +3522,7 @@
 <tr>
 <td><strong>Logging</strong></td>
 <td>SLF4J / Logback</td>
-<td>2.0.9 / 1.4.14</td>
+<td>2.0.18 / 1.5.38</td>
 <td>Structured logging</td>
 </tr>
 <tr>

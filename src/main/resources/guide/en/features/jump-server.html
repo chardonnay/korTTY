@@ -1385,7 +1385,7 @@
   <a href="#connection-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connection Flow
+        Connection flow
       
     </span>
   </a>
@@ -1404,10 +1404,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
+  <a href="#host-key-verification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        Host key verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
       
     </span>
   </a>
@@ -1801,7 +1812,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2059,7 +2070,7 @@
   <a href="#connection-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connection Flow
+        Connection flow
       
     </span>
   </a>
@@ -2078,10 +2089,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
+  <a href="#host-key-verification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        Host key verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
       
     </span>
   </a>
@@ -2106,43 +2128,47 @@
 
 
 <h1 id="jump-server-bastion-host">Jump Server (Bastion Host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h1>
-<p>A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network. KorTTY can tunnel connections through a jump server so you can access internal systems from your local machine without direct network access.</p>
-<h2 id="connection-flow">Connection Flow<a class="headerlink" href="#connection-flow" title="Permanent link">&para;</a></h2>
+<p>A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network. korTTY tunnels the connection through a jump server so you can reach an internal system from your local machine without direct network access to it.</p>
+<h2 id="connection-flow">Connection flow<a class="headerlink" href="#connection-flow" title="Permanent link">&para;</a></h2>
 <p><img alt="Jump server flow" src="../assets/diagrams/jump-server-flow.svg" /></p>
-<p>Your local machine connects first to the jump server (bastion host), which then connects to the target server. All traffic is routed through the jump server.</p>
+<p>korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.</p>
+<p>Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Mosh connections cannot go through a jump server: a Mosh session runs over UDP, which the jump server's SSH tunnel (TCP) does not forward. korTTY refuses the combination up front — the Jump Server tab warns as soon as it is configured, and connecting fails immediately with a clear message instead of stalling after the SSH bootstrap. Use the SSH protocol for targets behind a bastion, or disable the jump server.</p>
+</div>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>To configure a jump server for a connection:</p>
 <ol>
-<li>Open the <em>Connection Manager</em> or create a new connection.</li>
-<li>Edit the connection and go to the <strong>Jump Server</strong> tab (or <strong>Advanced</strong> tab).</li>
+<li>Open the <em>Connection Manager</em> and edit (or create) a connection.</li>
+<li>Go to the <strong>Jump Server</strong> tab.</li>
 <li>Enable <strong>Jump Server</strong>.</li>
-<li>Enter the jump server's details:</li>
-<li><strong>Host</strong> — Hostname or IP address of the jump server</li>
+<li>Enter the jump server's details:<ul>
+<li><strong>Host</strong> — hostname or IP address of the jump server</li>
 <li><strong>Port</strong> — SSH port (default: 22)</li>
-<li><strong>Username</strong> — Login username for the jump server</li>
-<li>Select an <strong>Authentication</strong> method:</li>
-<li><strong>Password</strong> — Enter the password directly (stored encrypted with your master password)</li>
-<li><strong>SSH Key</strong> — Select a stored SSH key from your key management</li>
-<li>Optionally set an <strong>Auto-Command</strong> to execute after connecting to the jump server (e.g., <code>ssh internal-server</code>).</li>
+<li><strong>Username</strong> — login username for the jump server</li>
+</ul>
+</li>
+<li>Choose an <strong>Authentication</strong> method:<ul>
+<li><strong>Password</strong> — the password is stored encrypted with your master password. Leave the field empty when editing to keep the previously stored password.</li>
+<li><strong>SSH key file (no passphrase)</strong> — the path to an unencrypted private key file. Passphrase-protected keys are not supported for the jump hop.</li>
+</ul>
+</li>
 <li>Click <strong>Save</strong>.</li>
 </ol>
-<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>When you connect to a target server with a jump server configured, KorTTY:</p>
-<ol>
-<li>Establishes an SSH connection to the jump server</li>
-<li>Uses that connection to reach the target server</li>
-<li>Routes all traffic through the jump server</li>
-<li>Executes the optional auto-command on the jump server</li>
-</ol>
-<p>This is particularly useful when:</p>
+<h2 id="host-key-verification">Host key verification<a class="headerlink" href="#host-key-verification" title="Permanent link">&para;</a></h2>
+<p>The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. The bastion is always checked strictly: <a href="security.html#relaxing-host-key-verification">relaxing host-key verification</a> applies to target hosts only, never to the jump hop.</p>
+<p>This holds even when host-key verification has been relaxed for the target: the per-connection, per-group and global opt-outs never cover the bastion, so its key is always verified strictly. See <a href="security.html#relaxing-host-key-verification">Relaxing host-key verification</a>.</p>
+<p>The target host is verified under its own name even though the transport goes through the tunnel, so a compromised bastion cannot substitute a different target host key unnoticed.</p>
+<h2 id="when-to-use-it">When to use it<a class="headerlink" href="#when-to-use-it" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Target servers are behind a firewall and only reachable via a bastion host</li>
-<li>You need to comply with security policies that require routing through a gateway</li>
-<li>Internal infrastructure uses private IPs and requires an intermediary for access</li>
+<li>Target servers are behind a firewall and only reachable through a bastion host.</li>
+<li>Security policy requires routing through a gateway.</li>
+<li>Internal infrastructure uses private addresses and needs an intermediary for access.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The jump server credentials are stored encrypted in KorTTY, just like regular connection credentials. Your master password protects all stored jump server passwords and SSH key passphrases.</p>
+<p>Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY reports that the jump password could not be saved and leaves the other settings untouched.</p>
 </div>
 
 

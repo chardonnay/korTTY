@@ -1870,6 +1870,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Interaktive SSH-Hostschlüssel-Vertrauensstellung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lockere-uberprufung-des-hostschlussels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lockere Überprüfung des Hostschlüssels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2128,7 +2145,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2563,6 +2580,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Interaktive SSH-Hostschlüssel-Vertrauensstellung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lockere-uberprufung-des-hostschlussels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lockere Überprüfung des Hostschlüssels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2850,6 +2884,14 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <h2 id="interaktive-ssh-hostschlussel-vertrauensstellung">Interaktive SSH-Hostschlüssel-Vertrauensstellung<a class="headerlink" href="#interaktive-ssh-hostschlussel-vertrauensstellung" title="Permanent link">&para;</a></h2>
 <p>Terminal- und SFTP-Verbindungen, einschließlich des von Mosh verwendeten SSH-Bootstraps, nutzen einen TOFU-Verifizierer (Trust-on-First-Use), der durch normalisierten Hostnamen und Port verschlüsselt ist. Bei der ersten Verwendung zeigt korTTY den Serverschlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an; Überprüfen Sie vor der Annahme, dass es außerhalb des Bandes liegt. Die Bestätigung lautet standardmäßig <strong>Nein</strong>. Ein zuvor vertrauenswürdiger passender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit den erwarteten und angebotenen Fingerabdrücken fest blockiert wird und nie automatisch erneut versucht wird.</p>
 <p>Interaktive Pins werden atomar in <code>~/.kortty/ssh-host-keys.properties</code> geschrieben; Eine Companion-Sperre koordiniert gleichzeitige korTTY-Prozesse. Dieser Speicher unterscheidet sich von den verbindungs-ID-basierten Hostschlüssel-Pins des JobScheduler in <code>job-scheduler.xml</code>, die die unbeaufsichtigte SSH-, SFTP- und Rsync-Ausführung schützen.</p>
+<h3 id="lockere-uberprufung-des-hostschlussels">Lockere Überprüfung des Hostschlüssels<a class="headerlink" href="#lockere-uberprufung-des-hostschlussels" title="Permanent link">&para;</a></h3>
+<p>Für Labor- oder Wegwerf-Hosts können Sie die Eingabeaufforderung bei der ersten Verwendung deaktivieren und korTTY veranlassen, einen unbekannten Schlüssel stillschweigend zu akzeptieren. Hierbei handelt es sich um eine <strong>Akzeptieren-Neu</strong>-Lockerung, nicht um blindes Vertrauen: Ein Schlüssel, der sich von dem unterscheidet, der bereits für diesen Host festgelegt wurde, ist immer noch hart blockiert, sodass ein Man-in-the-Middle auf einem Host, mit dem Sie sich zuvor verbunden haben, immer noch abgefangen wird. Es ist standardmäßig deaktiviert und kann in der Reihenfolge der Priorität auf drei Bereiche eingestellt werden:</p>
+<ol>
+<li><strong>Pro Verbindung</strong> – das Steuerelement <em>Host-Schlüsselüberprüfung</em> im Verbindungseditor des Verbindungsmanagers und in Quick Connect mit drei Zuständen: <strong>Standard verwenden</strong> (übernehmen), <strong>Überprüfen</strong> (strikt erzwingen, auch wenn die Gruppen- oder globale Einstellung dies gelockert hat) und <strong>Nicht überprüfen</strong>.</li>
+<li><strong>Pro Gruppe</strong> – Klicken Sie im Verbindungsmanager mit der rechten Maustaste auf eine Gruppe und aktivieren Sie <strong>Hostschlüsselüberprüfung deaktivieren</strong>; Es gilt für jede Verbindung in der Gruppe, die erbt.</li>
+<li><strong>Global</strong> – <strong>Einstellungen → Terminal → Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</strong>, der Basisstandard für jede Verbindung, die auf beiden oben genannten Ebenen erbt.</li>
+</ol>
+<p>Der eigene Hostschlüssel eines Jump-Servers wird durch keines davon gelockert – die Bastion wird immer streng überprüft.</p>
 <h2 id="gpg-schlusselverwaltung">GPG Schlüsselverwaltung<a class="headerlink" href="#gpg-schlusselverwaltung" title="Permanent link">&para;</a></h2>
 <p>Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindungs-/Snippet-Exportverschlüsselung.</p>
 <h3 id="offnen-des-managers_2">Öffnen des Managers<a class="headerlink" href="#offnen-des-managers_2" title="Permanent link">&para;</a></h3>
@@ -2987,7 +3029,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 </tr>
 <tr>
 <td>Interaktive SSH/SFTP/Mosh-Hostschlüssel</td>
-<td>Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung, stille exakte Übereinstimmung, harte Blockierung bei Änderung</td>
+<td>Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung</td>
 </tr>
 <tr>
 <td>AI-API-Schlüssel</td>

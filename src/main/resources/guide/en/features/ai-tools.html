@@ -2167,7 +2167,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2866,7 +2866,7 @@
 </div>
 <h3 id="command-purposes">Command purposes<a class="headerlink" href="#command-purposes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and writes the final answer back to the terminal.</li>
+<li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and (by default) writes the final answer back to the terminal. The run dialog offers a <strong>Show final answer in the terminal too</strong> option: leave it on to mirror the answer into the terminal, or turn it off so the answer stays only in the AI agent activity panel. Either way the commands still run and their output and any files they create remain on the server; only the display of the final answer text changes. The last choice is remembered as the default.</li>
 <li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask AI Agent</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click <strong>Implement</strong>.</li>
 </ul>

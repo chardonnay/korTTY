@@ -1870,6 +1870,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Interactive SSH host-key trust">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#relaxing-host-key-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relaxing host-key verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2128,7 +2145,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2563,6 +2580,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Interactive SSH host-key trust">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#relaxing-host-key-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relaxing host-key verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2850,6 +2884,14 @@
 <h2 id="interactive-ssh-host-key-trust">Interactive SSH host-key trust<a class="headerlink" href="#interactive-ssh-host-key-trust" title="Permanent link">&para;</a></h2>
 <p>Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to <strong>No</strong>. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.</p>
 <p>Interactive pins are written atomically to <code>~/.kortty/ssh-host-keys.properties</code>; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in <code>job-scheduler.xml</code>, which protect unattended SSH, SFTP, and Rsync execution.</p>
+<h3 id="relaxing-host-key-verification">Relaxing host-key verification<a class="headerlink" href="#relaxing-host-key-verification" title="Permanent link">&para;</a></h3>
+<p>For lab or throwaway hosts you can turn the first-use prompt off and have korTTY accept an unknown key silently. This is an <strong>accept-new</strong> relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. It is off by default and can be set at three scopes, in precedence order:</p>
+<ol>
+<li><strong>Per connection</strong> — the <em>Host key verification</em> control in the Connection Manager's connection editor and in Quick Connect, with three states: <strong>Use default</strong> (inherit), <strong>Verify</strong> (force strict even if the group or global setting relaxed it), and <strong>Don't verify</strong>.</li>
+<li><strong>Per group</strong> — right-click a group in the Connection Manager and toggle <strong>Disable host key verification</strong>; it applies to every connection in the group that inherits.</li>
+<li><strong>Globally</strong> — <strong>Settings → Terminal → Disable host key verification for all connections</strong>, the base default for every connection that inherits at both levels above.</li>
+</ol>
+<p>A jump server's own host key is never relaxed by any of these — the bastion is always verified strictly.</p>
 <h2 id="gpg-key-management">GPG Key Management<a class="headerlink" href="#gpg-key-management" title="Permanent link">&para;</a></h2>
 <p>Manage GPG keys for backup encryption and connection/snippet export encryption.</p>
 <h3 id="opening-the-manager_2">Opening the Manager<a class="headerlink" href="#opening-the-manager_2" title="Permanent link">&para;</a></h3>
@@ -2987,7 +3029,7 @@
 </tr>
 <tr>
 <td>Interactive SSH/SFTP/Mosh host keys</td>
-<td>Shared normalized host:port TOFU, first-use fingerprint confirmation, silent exact match, hard block on change</td>
+<td>Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change</td>
 </tr>
 <tr>
 <td>AI API Keys</td>
