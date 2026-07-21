@@ -74,6 +74,12 @@ public class NativeMoshTtyConnector implements TtyConnector {
         if (connection.getProtocol() != ConnectionProtocol.MOSH_CLIENT) {
             throw new IllegalStateException(i18n("mosh.native.protocolMismatch", i18n("protocol.moshClient")));
         }
+        // Refuse up front: the SSH bootstrap could hop through the bastion, but mosh-client
+        // speaks UDP straight to the target, which the jump server's TCP tunnel cannot carry —
+        // the bootstrap would succeed and the session then stall with no data.
+        if (JumpHostSupport.isActive(connection)) {
+            throw new IllegalStateException(i18n("mosh.error.jumpServerUnsupported"));
+        }
         try {
             logger.info("Starting native MOSH for {}@{}:{}",
                     connection.getUsername(), connection.getHost(), connection.getPort());

@@ -4762,7 +4762,8 @@ public class TerminalView extends BorderPane {
             String lastError = null;
             boolean authenticationFailed = false;
             boolean hostKeyVerificationFailed = false;
-            
+            boolean configurationRefused = false;
+
             // Clear terminal before first attempt
             clearTerminal();
             if (retryCount > 1) {
@@ -4770,8 +4771,8 @@ public class TerminalView extends BorderPane {
             } else {
                 showMessage(I18n.get("terminal.connecting"));
             }
-            
-            while (attempt < retryCount && !connected && !authenticationFailed) {
+
+            while (attempt < retryCount && !connected && !authenticationFailed && !configurationRefused) {
                 attempt++;
                 
                 try {
@@ -4888,7 +4889,17 @@ public class TerminalView extends BorderPane {
                     }
                     showMessage("");
                     showMessage(I18n.get("error.title") + ": " + e.getMessage());
-                    
+
+                } catch (IllegalStateException e) {
+                    // Deterministic configuration/environment refusal (e.g. Mosh with a jump
+                    // server, or a missing mosh runtime): retrying cannot change the outcome.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    logger.error("Connection refused for {} - NOT retrying: {}",
+                            connection.getDisplayName(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
                 } catch (Exception e) {
                     lastError = I18n.get("terminal.connectionFailed") + ": " + e.getMessage();
                     logger.error("Failed to start terminal session (attempt {}/{}): {}", 
@@ -4909,8 +4920,8 @@ public class TerminalView extends BorderPane {
                 }
             }
             
-            // All retries failed (or auth failed)
-            if (!authenticationFailed) {
+            // All retries failed (or auth failed / configuration refused)
+            if (!authenticationFailed && !configurationRefused) {
                 clearTerminal();
                 if (retryCount > 1) {
                     showMessage(I18n.get("terminal.allAttemptsFailed", retryCount));
@@ -4922,11 +4933,12 @@ public class TerminalView extends BorderPane {
                 showMessage(finalError);
             }
             logger.error("All connection attempts failed for {}", connection.getDisplayName());
-            
+
             // Notify disconnect listener about failure
             String errorMessage;
-            if (hostKeyVerificationFailed) {
-                errorMessage = lastError;
+            if (hostKeyVerificationFailed || configurationRefused) {
+                errorMessage = lastError != null && !lastError.isEmpty()
+                    ? lastError : I18n.get("terminal.connectionFailed");
             } else if (authenticationFailed) {
                 errorMessage = I18n.get("terminal.authFailed");
             } else {
