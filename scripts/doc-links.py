@@ -59,12 +59,22 @@ def _git(*args: str) -> tuple[int, str]:
         return 1, ""
 
 
+def _main_ref() -> str | None:
+    """The mainline branch to measure ancestry against, or None when none is available."""
+    for candidate in ("origin/main", "main", "origin/HEAD"):
+        if _git("rev-parse", "--quiet", "--verify", f"{candidate}^{{commit}}")[0] == 0:
+            return candidate
+    return None
+
+
 def _history_unavailable() -> str | None:
     """Why `last_synced_ref` cannot be verified here, or None when it can."""
     if _git("rev-parse", "--is-inside-work-tree")[1] != "true":
         return "not a git work tree"
     if _git("rev-parse", "--is-shallow-repository")[1] == "true":
         return "shallow clone (CI needs actions/checkout with fetch-depth: 0)"
+    if _main_ref() is None:
+        return "no main branch available to check ancestry against"
     return None
 
 
@@ -121,12 +131,23 @@ def main() -> int:
         warnings.append(
             f"last_synced_ref not verified for {len(refs_to_pages)} ref(s): {skip_reason}")
     else:
+        main_ref = _main_ref()
         for ref in sorted(refs_to_pages):
+            owners = refs_to_pages[ref]
+            shown = ", ".join(owners[:3]) + (f" (+{len(owners) - 3} more)" if len(owners) > 3 else "")
             if _git("rev-parse", "--quiet", "--verify", f"{ref}^{{commit}}")[0] != 0:
-                owners = refs_to_pages[ref]
-                shown = ", ".join(owners[:3]) + (f" (+{len(owners) - 3} more)" if len(owners) > 3 else "")
                 errors.append(
                     f"last_synced_ref {ref!r} does not resolve to a commit "
+                    f"— used by {len(owners)} page(s): {shown}")
+            elif _git("merge-base", "--is-ancestor", ref, main_ref)[0] != 0:
+                # Resolving is not enough: a commit that lives only on an unmerged branch is in the
+                # local object store but not in the project's history. It passes `rev-parse --verify`
+                # on the machine that has that branch and fails on a fresh CI clone — and it dies for
+                # good once the branch is squash-merged or deleted, which is the failure this whole
+                # check exists to prevent.
+                errors.append(
+                    f"last_synced_ref {ref!r} resolves but is not an ancestor of {main_ref} "
+                    f"— it exists only on an unmerged branch and will not survive there "
                     f"— used by {len(owners)} page(s): {shown}")
 
     # Orphan diagrams (present on disk, referenced by no page) — a soft warning.

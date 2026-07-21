@@ -87,11 +87,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "8c22eae"
+    last_synced_ref: "7413247"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "8c22eae"
+    last_synced_ref: "7413247"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -195,12 +195,12 @@ pages:
     owns_i18n: [menu.connections.]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "604540f"
+    last_synced_ref: "5919b09"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "8c22eae"
+    last_synced_ref: "7413247"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
@@ -272,7 +272,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
     diagrams: [backup-restore.svg]
-    last_synced_ref: "604540f"
+    last_synced_ref: "5919b09"
   - path: app-docs/site/docs/en/features/recording.md
     owns_i18n: [recording., terminal.recording.]
     owns_code:
