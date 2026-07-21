@@ -112,6 +112,7 @@ Global application preferences and defaults.
 - Window geometry and state (position, size, maximized status)
 - Dashboard visibility state
 - Menu bar visibility preference
+- Last ASCII Art dialog preview zoom level
 - AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
 - RAG embedding model ID and llama.cpp preferred runtime backend/update policy
 - Optional encrypted Hugging Face token
