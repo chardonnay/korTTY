@@ -92,15 +92,26 @@ jobs:
           import os, pathlib, re
           path = pathlib.Path("build.gradle.kts")
           text = path.read_text(encoding="utf-8")
+          tag, commit, sha256 = os.environ["TAG"], os.environ["COMMIT"], os.environ["SHA256"]
           replacements = {
-              "llamaCppTag": os.environ["TAG"],
-              "llamaCppCommit": os.environ["COMMIT"],
-              "llamaCppSourceSha256": os.environ["SHA256"],
+              "llamaCppTag": tag,
+              "llamaCppCommit": commit,
+              "llamaCppSourceSha256": sha256,
           }
           for key, value in replacements.items():
               text, count = re.subn(rf'^val {key} = "[^"]+"$', f'val {key} = "{value}"', text, flags=re.M)
               if count != 1:
                   raise SystemExit(f"Could not update {key}")
+
+          # Record the triple in llamaCppKnownPins as well. verifyLlamaCppPin looks the active tag
+          # up there and fails when the row is missing or disagrees, so a bump that only rewrote the
+          # three vals above would red-light its own PR. Rows are newest first.
+          if f'"{tag}" to (' not in text:
+              anchor = "    // NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.\n"
+              if anchor not in text:
+                  raise SystemExit("Could not find the llamaCppKnownPins insertion anchor")
+              row = f'    "{tag}" to ("{commit}" to "{sha256}"),\n'
+              text = text.replace(anchor, anchor + row, 1)
           path.write_text(text, encoding="utf-8")
           PY
           git config user.name "kortty-runtime-bot[bot]"

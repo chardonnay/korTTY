@@ -105,3 +105,11 @@ outside `app-docs/` so they stay reviewed as code.
 Dependencies and bundled artifacts (Monaco, mosh4j, BouncyCastle, Node) are
 version-pinned with SHA-256 in `build.gradle.kts` — when changing a version,
 update its pin too.
+
+For llama.cpp the pin is enforced rather than trusted: `llamaCppKnownPins` maps every
+shipped tag to its upstream commit and source-archive SHA-256, and `verifyLlamaCppPin`
+fails when the active tag has no row or the row disagrees with `llamaCppTag` /
+`llamaCppCommit` / `llamaCppSourceSha256`. **Bumping the tag means adding a row.** The
+`llama-runtime` workflow does this automatically; a bump that only rewrites the three
+vals fails its own PR. Keep those three declarations as plain `val x = "..."` lines —
+both that workflow and `pinned-artifact-freshness` parse them by regex.

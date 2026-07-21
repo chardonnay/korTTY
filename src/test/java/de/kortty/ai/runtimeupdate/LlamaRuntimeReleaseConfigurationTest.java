@@ -17,10 +17,17 @@ class LlamaRuntimeReleaseConfigurationTest {
             KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());
         LlamaRuntimeReleaseConfiguration configuration = configuration(publicKey);
 
-        assertThat(configuration.baselineRuntimeId()).isEqualTo("llama-b10069-kortty2");
-        assertThat(configuration.baselineTag()).isEqualTo("b10069");
-        assertThat(configuration.baselineCommit())
-            .isEqualTo("178a6c44937154dc4c4eff0d166f4a044c4fceba");
+        // Deliberately shape-and-derivation assertions, not literals. The tag/commit pair is a
+        // moving pin that llama-runtime.yml bumps automatically, so hardcoding it guarantees a red
+        // test after every bump while catching nothing the build does not — it sat red on main
+        // after b10025 -> b10069 and had to be chased again for b10069. The authoritative record of
+        // which tag maps to which commit and digest is llamaCppKnownPins in build.gradle.kts,
+        // enforced by verifyLlamaCppPin; what matters here is that the generated configuration
+        // stays internally consistent.
+        assertThat(configuration.baselineTag()).matches("b[0-9]+");
+        assertThat(configuration.baselineCommit()).matches("[0-9a-f]{40}");
+        assertThat(configuration.baselineRuntimeId())
+            .matches("llama-" + configuration.baselineTag() + "-kortty[1-9][0-9]*");
         assertThat(configuration.apiContractVersion()).isEqualTo(1);
         assertThat(configuration.stableIndexUri().toString()).contains(
             "chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.json");

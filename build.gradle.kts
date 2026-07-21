@@ -51,6 +51,20 @@ val isLinux = osName.contains("linux")
 val llamaCppTag = "b10069"
 val llamaCppCommit = "178a6c44937154dc4c4eff0d166f4a044c4fceba"
 val llamaCppSourceSha256 = "35ec7f7877285a408f1754723a433113e65895e71d4b455b9ca76a2afe60bf87"
+
+// Every llama.cpp pin korTTY has shipped: tag -> (upstream commit, source archive SHA-256).
+// verifyLlamaCppPin looks the ACTIVE tag up here and fails when the row is missing or disagrees
+// with the three vals above. A table lookup has no "unless the tag changed" escape hatch, unlike
+// the `check(tag != "bNNNN" || commit.startsWith(...))` guard it replaces — that form silently
+// switched itself off on the b10025 -> b10069 bump by making its left disjunct true, and would
+// have done so again on the next one.
+// The three vals stay as plain literals on purpose: llama-runtime.yml rewrites them with
+// `^val <name> = "..."$` and pinned-artifact-freshness.yml greps the same shape.
+val llamaCppKnownPins = mapOf(
+    // NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.
+    "b10069" to ("178a6c44937154dc4c4eff0d166f4a044c4fceba" to "35ec7f7877285a408f1754723a433113e65895e71d4b455b9ca76a2afe60bf87"),
+    "b10025" to ("a3e5b96ac5e278c390df429df0b68efcee3ee1b5" to "c51807b434fe3bc5dfef826da4f03b12b6e9b909abd8188eacb27a6f8176ad8a"),
+)
 val llamaRuntimeRevision = "kortty2"
 val llamaRuntimeApiContractVersion = 1
 val llamaRuntimeId = "llama-$llamaCppTag-$llamaRuntimeRevision"
@@ -2129,10 +2143,31 @@ tasks.register("verifyLlamaCppPin") {
     doLast {
         check(llamaCppTag.matches(Regex("b[0-9]+"))) { "llama.cpp tag must use the bNNNN release form." }
         check(llamaCppCommit.matches(Regex("[0-9a-f]{40}"))) { "llama.cpp commit must be a full SHA-1." }
-        check(llamaCppTag != "b10069" || llamaCppCommit.startsWith("178a6c449")) {
-            "llama.cpp b10069 must resolve to 178a6c449."
-        }
         check(llamaCppSourceSha256.matches(Regex("[0-9a-f]{64}"))) { "llama.cpp source SHA-256 is invalid." }
+
+        // Bind tag -> commit -> digest. downloadLlamaCppSource fetches by COMMIT and verifies the
+        // SHA-256, so commit -> bytes is already bound cryptographically; what nothing else checks
+        // is that the TAG names that commit. A wrong tag builds fine and mislabels the result,
+        // because the tag feeds llamaRuntimeId, LLAMA_BUILD_NUMBER and the release manifest.
+        val pinnedRow = llamaCppKnownPins[llamaCppTag]
+            ?: throw GradleException(
+                "llama.cpp tag $llamaCppTag has no row in llamaCppKnownPins (build.gradle.kts). " +
+                    "A pin bump must add one recording that tag's upstream commit and source archive " +
+                    "SHA-256; an unrecorded tag cannot be verified and is rejected instead of skipped.")
+        check(pinnedRow.first == llamaCppCommit) {
+            "llama.cpp $llamaCppTag is recorded at commit ${pinnedRow.first}, but the pin declares $llamaCppCommit."
+        }
+        check(pinnedRow.second == llamaCppSourceSha256) {
+            "llama.cpp $llamaCppTag is recorded with source SHA-256 ${pinnedRow.second}, " +
+                "but the pin declares $llamaCppSourceSha256."
+        }
+        // Validate every row, not just the active one, so a malformed entry fails on the commit that
+        // introduces it rather than months later when it becomes the active pin.
+        llamaCppKnownPins.forEach { (tag, row) ->
+            check(tag.matches(Regex("b[0-9]+"))) { "llamaCppKnownPins key \"$tag\" must use the bNNNN release form." }
+            check(row.first.matches(Regex("[0-9a-f]{40}"))) { "llamaCppKnownPins[\"$tag\"] commit must be a full SHA-1." }
+            check(row.second.matches(Regex("[0-9a-f]{64}"))) { "llamaCppKnownPins[\"$tag\"] SHA-256 must be 64 hex chars." }
+        }
         check(llamaRuntimeRevision.matches(Regex("kortty[1-9][0-9]*"))) { "Runtime revision must be immutable (korttyN)." }
         check(requestedLlamaBackend.get() in setOf("CPU", "METAL", "VULKAN")) {
             "-Pllama.backend must be CPU, METAL, or VULKAN."

@@ -281,7 +281,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 byte[] out = process.getInputStream().readAllBytes();
                 // `wsl -l -q` prints distro names in UTF-16LE; strip NULs and check for any content.
                 String text = new String(out, java.nio.charset.StandardCharsets.UTF_16LE)
-                    .replace(" ", "").trim();
+                    .replace("\0", "").trim();
                 result = process.exitValue() == 0 && !text.isBlank();
             } else {
                 process.destroyForcibly();
