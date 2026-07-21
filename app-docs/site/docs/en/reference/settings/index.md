@@ -18,7 +18,7 @@ Each per-tab page lists settings as a table:
 | --- | --- |
 | [Appearance, themes & font](appearance.md) | App design (Default, Matrix, Holographic, Klingon, Elegant Dark), terminal themes, font family & size |
 | [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
-| [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, connection retries, drag-drop, timestamps |
+| [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, SSH host key verification, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
 | [Resources](resources.md) | Opt-in JVM heap/GC profile (Balanced / High / Maximum) for larger workloads |
 | [Logging](logging.md) | Terminal log directory, retention and format |
