@@ -26,7 +26,8 @@ public enum AiAction {
     SECURITY_REVIEW_SNIPPET_CODE,
     APPLY_SNIPPET_SECURITY_FIXES,
     GENERATE_SNIPPET_ONE_LINER,
-    GENERATE_SNIPPET_MERMAID;
+    GENERATE_SNIPPET_MERMAID,
+    GENERATE_ASCII_ART;
 
     /** Deterministic role routing; no model call is needed to classify the action. */
     public AiWorkload workload() {
@@ -34,7 +35,7 @@ public enum AiAction {
             case SUMMARIZE, SOLVE_PROBLEM, ASK, GENERATE_CHAT_TITLE,
                  CORRECT_SNIPPET_DESCRIPTION, CORRECT_SNIPPET_SELECTION_TEXT,
                  TRANSLATE_SNIPPET_SELECTION_TEXT, DESCRIBE_SNIPPET_SELECTION,
-                 DESCRIBE_SNIPPET_FULL -> AiWorkload.TEXT;
+                 DESCRIBE_SNIPPET_FULL, GENERATE_ASCII_ART -> AiWorkload.TEXT;
             default -> AiWorkload.CODING;
         };
     }

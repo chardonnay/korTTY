@@ -277,9 +277,9 @@ pages:
     last_synced_ref: "e7f0df8"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java]
+    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
     screenshots: [tools/ascii-art.png]
-    last_synced_ref: "e7f0df8"
+    last_synced_ref: "d118aa8"
   - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/plugin]

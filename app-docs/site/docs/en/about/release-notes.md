@@ -4,6 +4,13 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.5.2
 
+### ASCII art
+
+- **AI-drawn ASCII pictures** — the ASCII art tool (**Tools > ASCII Art...**) gained an **AI Picture** tab: type a subject such as "house" and a model draws it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable. **New variation** redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry, and a transient profile picker lets a single run use a different AI profile without changing your default.
+- **Zoomable preview** — both tabs share one zoom level, adjustable with the **+** / **−** / **⟲** buttons, ++ctrl+plus++ / ++ctrl+minus++ / ++ctrl+0++, or ++ctrl++ and the scroll wheel over the preview. The level ranges from 50 % to 333 % and is remembered between sessions along with the window position and size.
+- **Two tabs instead of one form** — the FIGlet banner generator moved into its own **Text Banner** tab, so a banner and a picture keep their own result while you switch, and **Copy to Clipboard** copies whichever tab is open.
+- **Fixed: the Lean font was missing from packaged builds** — the style was declared in lowercase while the bundled file is `Lean.flf`, so JAR resource lookup dropped it from the style list on case-sensitive filesystems.
+
 ### Dashboard
 
 - **Redesigned dashboard panel** — the side panel (++ctrl+shift+d++) got a full visual and interaction overhaul: a clear panel boundary with its own background, a header with the panel title plus collapse/expand-all and refresh icon buttons, node-type icons for main window, environment, group and connection rows, and bold section rows with dimmed active/total counts. Rows respond to hover and selection (accent stripe), tooltips show `user@host` and the connection state, and ++enter++ or double-click focuses the session.
