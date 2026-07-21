@@ -62,6 +62,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     /** Combo entry for the per-connection AI profile; profileId == null means "use default". */
     private record AiProfileOption(String profileId, String label) {
     }
+    /** Tri-state host-key override entry; value null=inherit, FALSE=verify, TRUE=don't verify. */
+    private record HostKeyChoice(Boolean value, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
     private TextField hostField;
     private Spinner<Integer> portSpinner;
     private ComboBox<ConnectionProtocol> protocolCombo;
@@ -92,6 +99,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private TextField connectionNameField;
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
+    /** Per-connection host-key override: null=inherit, FALSE=verify, TRUE=don't verify. */
+    private ComboBox<HostKeyChoice> hostKeyCheckCombo;
     
     // Terminal appearance
     private ComboBox<Theme> themeCombo;
@@ -234,6 +243,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             if (dialogButton == connectButtonType) {
                 result = createIndividualResult();
                 if (result != null && result.connection() != null) {
+                    // Stamp the host-key override here, the single choke point for every
+                    // individual-result branch, so an ad-hoc Quick Connect can override too.
+                    if (hostKeyCheckCombo != null && hostKeyCheckCombo.getValue() != null) {
+                        result.connection().setDisableHostKeyCheck(hostKeyCheckCombo.getValue().value());
+                    }
                     applyAiAssignments(result.connection());
                 }
             } else if (dialogButton == openGroupButtonType) {
@@ -705,6 +719,15 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         HBox retryBox = new HBox(10);
         retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("quickConnect.attempts")));
         timeoutGrid.add(retryBox, 1, 1);
+        hostKeyCheckCombo = new ComboBox<>();
+        hostKeyCheckCombo.getItems().addAll(
+            new HostKeyChoice(null, I18n.get("connEdit.hostKeyCheck.inherit")),
+            new HostKeyChoice(Boolean.FALSE, I18n.get("connEdit.hostKeyCheck.verify")),
+            new HostKeyChoice(Boolean.TRUE, I18n.get("connEdit.hostKeyCheck.disable")));
+        hostKeyCheckCombo.setValue(hostKeyCheckCombo.getItems().get(0));
+        hostKeyCheckCombo.setTooltip(new Tooltip(I18n.get("connEdit.hostKeyCheck.tooltip")));
+        timeoutGrid.add(new Label(I18n.get("connEdit.hostKeyCheck")), 0, 2);
+        timeoutGrid.add(hostKeyCheckCombo, 1, 2);
         collapsibleSections.getChildren().add(
             collapsibleSection("connectionTimeout", I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
 

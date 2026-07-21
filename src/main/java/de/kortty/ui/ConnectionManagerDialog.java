@@ -212,6 +212,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnDeleteConnections(this::deleteConnections);
         treeView.setOnExportGroup(this::exportGroup);
         treeView.setOnAddConnection(this::addConnection);
+        treeView.setGroupHostKeyCheckDisabledProbe(this::isGroupHostKeyCheckDisabled);
+        treeView.setOnToggleGroupHostKeyCheck(this::toggleGroupHostKeyCheck);
         
         // Teamwork tree: no group ops, same connect/edit/delete/export
         teamworkTreeView.setOnDoubleClick(() -> {
@@ -786,6 +788,41 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         });
     }
     
+    private boolean isGroupHostKeyCheckDisabled(GroupPath groupPath) {
+        try {
+            var gsm = app.getGlobalSettingsManager();
+            var settings = gsm != null ? gsm.getSettings() : null;
+            return settings != null && settings.isHostKeyCheckDisabledForGroup(groupPath.getPath());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void toggleGroupHostKeyCheck(GroupPath groupPath, boolean disabled) {
+        try {
+            var gsm = app.getGlobalSettingsManager();
+            var settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            if (disabled) {
+                Alert confirm = new Alert(Alert.AlertType.WARNING,
+                    I18n.get("connManager.group.disableHostKeyCheck.confirm", groupPath.getName()),
+                    ButtonType.OK, ButtonType.CANCEL);
+                DialogThemeHelper.applyTheme(confirm);
+                confirm.setHeaderText(null);
+                confirm.initOwner(owner);
+                if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                    return; // leave it enabled; the CheckMenuItem re-renders correct state on next open
+                }
+            }
+            settings.setHostKeyCheckDisabledForGroup(groupPath.getPath(), disabled);
+            gsm.save();
+        } catch (Exception e) {
+            logger.error("Could not toggle host-key verification for group {}", groupPath.getPath(), e);
+        }
+    }
+
     private void renameGroup(GroupPath oldPath) {
         TextInputDialog dialog = new TextInputDialog(oldPath.getName());
         dialog.setTitle(I18n.get("connManager.renameFolder"));

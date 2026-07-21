@@ -477,6 +477,16 @@ public class GlobalSettings {
     @XmlElement(name = "reason")
     private java.util.List<String> accessReasonHistory;
 
+    /** When true, SSH host-key verification relaxes to accept-new for every connection that inherits
+     * (i.e. does not set its own or its group's override). Insecure; off by default. */
+    @XmlElement
+    private boolean hostKeyCheckDisabledForAllConnections = false;
+
+    /** Names of connection groups whose SSH host-key verification is relaxed to accept-new. */
+    @XmlElementWrapper(name = "hostKeyCheckDisabledGroups")
+    @XmlElement(name = "group")
+    private java.util.List<String> hostKeyCheckDisabledGroups;
+
     @XmlElementWrapper(name = "aiPromptHistory")
     @XmlElement(name = "prompt")
     private java.util.List<String> aiPromptHistory;
@@ -1932,6 +1942,44 @@ public class GlobalSettings {
         this.connectionRetriesEnabled = connectionRetriesEnabled;
     }
     
+    public boolean isHostKeyCheckDisabledForAllConnections() {
+        return hostKeyCheckDisabledForAllConnections;
+    }
+
+    public void setHostKeyCheckDisabledForAllConnections(boolean value) {
+        this.hostKeyCheckDisabledForAllConnections = value;
+    }
+
+    public java.util.List<String> getHostKeyCheckDisabledGroups() {
+        if (hostKeyCheckDisabledGroups == null) {
+            hostKeyCheckDisabledGroups = new java.util.ArrayList<>();
+        }
+        return hostKeyCheckDisabledGroups;
+    }
+
+    public void setHostKeyCheckDisabledGroups(java.util.List<String> groups) {
+        this.hostKeyCheckDisabledGroups = groups;
+    }
+
+    /** Whether {@code group}'s host-key verification is relaxed (exact-name match). */
+    public boolean isHostKeyCheckDisabledForGroup(String group) {
+        return group != null && !group.isBlank() && getHostKeyCheckDisabledGroups().contains(group);
+    }
+
+    public void setHostKeyCheckDisabledForGroup(String group, boolean disabled) {
+        if (group == null || group.isBlank()) {
+            return;
+        }
+        java.util.List<String> groups = getHostKeyCheckDisabledGroups();
+        if (disabled) {
+            if (!groups.contains(group)) {
+                groups.add(group);
+            }
+        } else {
+            groups.remove(group);
+        }
+    }
+
     public java.util.List<String> getAccessReasonHistory() {
         if (accessReasonHistory == null) {
             accessReasonHistory = new java.util.ArrayList<>();

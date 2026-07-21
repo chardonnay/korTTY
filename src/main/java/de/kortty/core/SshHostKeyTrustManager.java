@@ -76,15 +76,28 @@ public final class SshHostKeyTrustManager {
         return SharedHolder.INSTANCE;
     }
 
-    /** Creates an Apache MINA verifier bound to the configured, user-visible endpoint. */
+    /**
+     * Creates a STRICT (trust-on-first-use) verifier bound to the connection's user-visible
+     * endpoint. This overload is always strict — a jump server's own host key uses it so the
+     * bastion is verified regardless of any relaxed target policy.
+     */
     public ConnectionVerifier verifierFor(ServerConnection connection) {
+        return verifierFor(connection, HostKeyCheckMode.STRICT);
+    }
+
+    /** Creates a verifier for the connection's endpoint using the given {@link HostKeyCheckMode}. */
+    public ConnectionVerifier verifierFor(ServerConnection connection, HostKeyCheckMode mode) {
         Objects.requireNonNull(connection, "connection");
         String host = connection.getHost();
         int port = effectivePort(connection.getPort());
-        return new ConnectionVerifier(this, host, port);
+        return new ConnectionVerifier(this, host, port, mode != null ? mode : HostKeyCheckMode.STRICT);
     }
 
     boolean verify(String host, int port, PublicKey serverKey) {
+        return verify(host, port, serverKey, HostKeyCheckMode.STRICT);
+    }
+
+    boolean verify(String host, int port, PublicKey serverKey, HostKeyCheckMode mode) {
         Endpoint endpoint;
         HostKeyDetails offered;
         try {
@@ -107,6 +120,22 @@ public final class SshHostKeyTrustManager {
 
         if (existing != null) {
             return acceptIfMatching(existing, offered);
+        }
+
+        // accept-new: a host with no existing pin is trusted and pinned WITHOUT a prompt. A changed
+        // key still fails, because that path (existing != null) is handled above and is unaffected.
+        if (mode == HostKeyCheckMode.ACCEPT_NEW) {
+            try {
+                persistFirstPin(offered);
+                logger.info("Accepted new SSH host key for {}:{} without prompt (host-key checking relaxed) ({})",
+                    endpoint.host(), endpoint.port(), offered.fingerprintSha256());
+                return true;
+            } catch (Exception e) {
+                logger.error("Could not persist accepted SSH host key for {}:{}",
+                    endpoint.host(), endpoint.port(), e);
+                warnFailure(new HostKeyVerificationFailure(endpoint.host(), endpoint.port(), safeMessage(e)));
+                return false;
+            }
         }
 
         PendingDecision ownDecision = new PendingDecision();
@@ -465,12 +494,14 @@ public final class SshHostKeyTrustManager {
         private final SshHostKeyTrustManager trustManager;
         private final String host;
         private final int port;
+        private final HostKeyCheckMode mode;
         private final AtomicBoolean rejected = new AtomicBoolean();
 
-        private ConnectionVerifier(SshHostKeyTrustManager trustManager, String host, int port) {
+        private ConnectionVerifier(SshHostKeyTrustManager trustManager, String host, int port, HostKeyCheckMode mode) {
             this.trustManager = trustManager;
             this.host = host;
             this.port = port;
+            this.mode = mode;
         }
 
         @Override
@@ -479,7 +510,7 @@ public final class SshHostKeyTrustManager {
             java.net.SocketAddress remoteAddress,
             PublicKey serverKey) {
 
-            boolean accepted = trustManager.verify(host, port, serverKey);
+            boolean accepted = trustManager.verify(host, port, serverKey, mode);
             if (!accepted) {
                 rejected.set(true);
             }

@@ -172,6 +172,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // SSH Keep-Alive settings
     private final CheckBox sshKeepAliveCheck;
+    private final CheckBox disableHostKeyCheckAllCheck;
     private final Spinner<Integer> sshKeepAliveIntervalSpinner;
     
     // Connection settings
@@ -661,6 +662,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
         sshKeepAliveCheck.setSelected(settings.isSshKeepAliveEnabled());
         sshKeepAliveCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.sshKeepAlive.tooltip")));
+
+        disableHostKeyCheckAllCheck = new CheckBox(I18n.get("settings.terminal.hostKeyCheck.disableAll"));
         
         sshKeepAliveIntervalSpinner = new Spinner<>(5, 600, settings.getSshKeepAliveInterval(), 5);
         sshKeepAliveIntervalSpinner.setEditable(true);
@@ -701,7 +704,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
         terminalGrid.add(keepAliveBox, 1, 13);
-        
+
+        // SSH host-key verification (global, insecure opt-out)
+        terminalGrid.add(new Separator(), 0, 14, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.hostKeyCheck")), 0, 15, 2, 1);
+        disableHostKeyCheckAllCheck.setSelected(globalSettings != null && globalSettings.isHostKeyCheckDisabledForAllConnections());
+        disableHostKeyCheckAllCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.hostKeyCheck.disableAll.tooltip")));
+        terminalGrid.add(disableHostKeyCheckAllCheck, 0, 16, 2, 1);
+        Label hostKeyWarn = new Label(I18n.get("settings.terminal.hostKeyCheck.warning"));
+        hostKeyWarn.setStyle("-fx-font-size: 10px; -fx-text-fill: #d9534f;");
+        hostKeyWarn.setWrapText(true);
+        terminalGrid.add(hostKeyWarn, 0, 17, 2, 1);
+
         // Connection section
         terminalGrid.add(new Separator(), 0, 14, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
@@ -2610,6 +2624,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
         settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
         settings.setSshKeepAliveInterval(sshKeepAliveIntervalSpinner.getValue());
+        if (globalSettings != null) {
+            globalSettings.setHostKeyCheckDisabledForAllConnections(disableHostKeyCheckAllCheck.isSelected());
+        }
         
         // Save connection settings to GlobalSettings
         if (globalSettings != null) {
