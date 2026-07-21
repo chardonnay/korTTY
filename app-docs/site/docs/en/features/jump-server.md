@@ -15,7 +15,7 @@ korTTY authenticates to the jump server with the jump server's own credentials, 
 Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP.
 
 !!! warning
-    Mosh connections are not carried through a jump server. Mosh's SSH bootstrap hops through the bastion, but its ongoing session uses UDP, which the jump server's SSH tunnel does not forward — so a Mosh connection whose target is only reachable through the bastion will not complete. Use the SSH protocol for such targets.
+    Mosh connections cannot go through a jump server: a Mosh session runs over UDP, which the jump server's SSH tunnel (TCP) does not forward. korTTY refuses the combination up front — the Jump Server tab warns as soon as it is configured, and connecting fails immediately with a clear message instead of stalling after the SSH bootstrap. Use the SSH protocol for targets behind a bastion, or disable the jump server.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ To configure a jump server for a connection:
 
 ## Host key verification
 
-The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets.
+The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. The bastion is always checked strictly: [relaxing host-key verification](security.md#relaxing-host-key-verification) applies to target hosts only, never to the jump hop.
 
 The target host is verified under its own name even though the transport goes through the tunnel, so a compromised bastion cannot substitute a different target host key unnoticed.
 

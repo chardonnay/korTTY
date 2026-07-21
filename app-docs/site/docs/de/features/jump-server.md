@@ -15,7 +15,7 @@ korTTY authentifiziert sich beim Jump-Server mit den eigenen Anmeldeinformatione
 Sowohl SSH-Terminal- als auch SFTP-Verbindungen zur Zielroute über den Jump-Server; Für SFTP muss nichts extra konfiguriert werden.
 
 !!! warning
-    Mosh-Verbindungen werden nicht über einen Jump-Server übertragen. Moshs SSH-Bootstrap springt durch die Bastion, aber seine laufende Sitzung verwendet UDP, das der SSH-Tunnel des Jump-Servers nicht weiterleitet – sodass eine Mosh-Verbindung, deren Ziel nur über die Bastion erreichbar ist, nicht hergestellt wird. Verwenden Sie für solche Ziele das SSH-Protokoll.
+    Mosh-Verbindungen können nicht über einen Jump-Server laufen: Eine Mosh-Sitzung läuft über UDP, das vom SSH-Tunnel (TCP) des Jump-Servers nicht weitergeleitet wird. korTTY lehnt die Kombination von vornherein ab – die Registerkarte „Jump Server“ warnt, sobald sie konfiguriert ist, und die Verbindung schlägt sofort mit einer eindeutigen Meldung fehl, anstatt nach dem SSH-Bootstrap ins Stocken zu geraten. Verwenden Sie das SSH-Protokoll für Ziele hinter einer Bastion oder deaktivieren Sie den Jump-Server.
 
 ## Konfiguration
 
@@ -35,7 +35,7 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
 ## Host-Schlüsselüberprüfung
 
-Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost.
+Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost. Die Bastion wird immer streng überprüft: [Relaxing Host-Key-Überprüfung](security.md#relaxing-host-key-verification) gilt nur für Zielhosts, niemals für den Jump Hop.
 
 Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.
 

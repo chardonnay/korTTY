@@ -204,12 +204,12 @@ pages:
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
-    last_synced_ref: "cfc9436"
+    last_synced_ref: "4b57258"
   - path: app-docs/site/docs/en/features/jump-server.md
     owns_i18n: [connEdit.jump, connEdit.enableJump, connEdit.tab.jumpServer]
     owns_code: [src/main/java/de/kortty/model/JumpServer.java, src/main/java/de/kortty/core/JumpHostSupport.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java]
     diagrams: [jump-server-flow.svg]
-    last_synced_ref: "0d3fb77"
+    last_synced_ref: "4b57258"
   - path: app-docs/site/docs/en/features/sftp.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/sftp]
