@@ -1451,13 +1451,29 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         enableJumpCheck.selectedProperty().addListener((obs, old, newVal) -> {
             grid.setDisable(!newVal);
         });
-        
+
         Label infoLabel = new Label(I18n.get("connEdit.jumpInfo"));
         infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
-        
-        vbox.getChildren().addAll(enableJumpCheck, new Separator(), grid, infoLabel);
-        
+
+        // Mosh sessions are UDP and cannot ride the bastion's TCP tunnel; the connectors refuse
+        // the combination at connect time. Surface that here as soon as it is configured.
+        Label moshWarningLabel = new Label(I18n.get("connEdit.jumpMoshWarning"));
+        moshWarningLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #e67e22;");
+        moshWarningLabel.setWrapText(true);
+        Runnable syncMoshWarning = () -> {
+            ConnectionProtocol protocol = protocolCombo.getValue();
+            boolean mosh = protocol == ConnectionProtocol.MOSH || protocol == ConnectionProtocol.MOSH_CLIENT;
+            boolean show = mosh && enableJumpCheck.isSelected();
+            moshWarningLabel.setVisible(show);
+            moshWarningLabel.setManaged(show);
+        };
+        protocolCombo.valueProperty().addListener((obs, old, newVal) -> syncMoshWarning.run());
+        enableJumpCheck.selectedProperty().addListener((obs, old, newVal) -> syncMoshWarning.run());
+        syncMoshWarning.run();
+
+        vbox.getChildren().addAll(enableJumpCheck, new Separator(), grid, moshWarningLabel, infoLabel);
+
         tab.setContent(vbox);
         return tab;
     }

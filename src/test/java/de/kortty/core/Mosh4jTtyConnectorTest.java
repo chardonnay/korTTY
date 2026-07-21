@@ -1,13 +1,31 @@
 package de.kortty.core;
 
+import de.kortty.model.ConnectionProtocol;
+import de.kortty.model.JumpServer;
 import de.kortty.model.ServerConnection;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 
 class Mosh4jTtyConnectorTest {
+
+    @Test
+    void connectRefusesAnEnabledJumpServerBeforeAnyNetwork() {
+        ServerConnection connection = new ServerConnection("Test", "example.com", 22, "daniel");
+        connection.setProtocol(ConnectionProtocol.MOSH);
+        JumpServer jump = new JumpServer("bastion.example.com", 22, "hopper");
+        jump.setEnabled(true);
+        connection.setJumpServer(jump);
+
+        Mosh4jTtyConnector connector = new Mosh4jTtyConnector(connection, "secret");
+
+        IllegalStateException refusal = expectThrows(IllegalStateException.class, connector::connect);
+        assertThat(refusal).hasMessageThat().contains("UDP");
+        assertThat(connector.isConnected()).isFalse();
+    }
 
     @Test
     void isConnectedStaysTrueDuringTransientInterruption() throws Exception {

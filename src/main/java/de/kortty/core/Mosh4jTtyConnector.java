@@ -179,6 +179,12 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (connection.getProtocol() != ConnectionProtocol.MOSH) {
             throw new IllegalStateException(i18n("mosh.mosh4j.protocolMismatch", i18n("protocol.mosh")));
         }
+        // Refuse up front: the SSH bootstrap could hop through the bastion, but the subsequent
+        // Mosh session is UDP straight to the target, which the jump server's TCP tunnel cannot
+        // carry — the bootstrap would succeed and the session then stall with no data.
+        if (JumpHostSupport.isActive(connection)) {
+            throw new IllegalStateException(i18n("mosh.error.jumpServerUnsupported"));
+        }
         try {
             String connectLine = sshBootstrapMoshServer();
             Matcher m = MOSH_CONNECT_PATTERN.matcher(connectLine);
