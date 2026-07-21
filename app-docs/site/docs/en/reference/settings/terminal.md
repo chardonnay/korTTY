@@ -44,3 +44,5 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Connection Retries"
     When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.
+
+    Retries only cover failures that a further attempt could resolve. A changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.
