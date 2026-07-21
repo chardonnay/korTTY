@@ -1695,6 +1695,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#funktionen-der-ai-ergebnisregisterkarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Funktionen der AI-Ergebnisregisterkarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#gerenderte-bilder-diagramme-und-mathematik" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2095,7 +2106,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2495,6 +2506,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#funktionen-der-ai-ergebnisregisterkarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Funktionen der AI-Ergebnisregisterkarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#gerenderte-bilder-diagramme-und-mathematik" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2741,7 +2763,7 @@ Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jed
 <li>Ein <strong>Integriertes llama.cpp</strong>-Profil listet installierte Modell-IDs von <code>~/.kortty/llm/models.xml</code> auf; Es verwendet weder die HTTP-URL noch das manuelle Cloud-Modell-Feld.</li>
 </ul>
 <h2 id="rollenrouting-rag-und-prompte-reihenfolge">Rollenrouting, RAG und prompte Reihenfolge<a class="headerlink" href="#rollenrouting-rag-und-prompte-reihenfolge" title="Permanent link">&para;</a></h2>
-<p>korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Für Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen und prosaische Beschreibungen wird die Rolle „Text“ verwendet. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.</p>
+<p>korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen, Prosabeschreibungen und KI-ASCII-Artbilder verwenden die Textrolle. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.</p>
 <p>Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Fähigkeiten, begrenzter nicht vertrauenswürdiger RAG-Kontext mit <code>[R1]</code>-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter <a href="rag.html">RAG Wissensspeicher</a>.</p>
 <h3 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h3>
 <p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln.</p>
@@ -2789,7 +2811,7 @@ Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jed
 <p>Die erforderliche Provider-Konfiguration wird unter <strong>Einstellungen &gt; AI &gt; Internet-Tool-Konfiguration</strong> eingetragen. API-Schlüssel und Token werden mit dem Master-Passwort verschlüsselt gespeichert. MCP-Serverbezeichnungen und Plugin-IDs werden als normale Einstellungen gespeichert.</p>
 <p>Wichtiges Verhalten:</p>
 <ul>
-<li>Snippet AI, Textkorrektur, Übersetzung, Snippet-Beschreibungen und Anfragen nach alternativen Lösungen nutzen keinen Internetzugang.</li>
+<li>Snippet AI, Textkorrektur, Übersetzung, Snippet-Beschreibungen, alternative Lösungsanfragen und AI ASCII-Art-Generierung nutzen keinen Internetzugang.</li>
 <li>Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden und maximal zwei Web-Tool-Runden pro KI-Anfrage.</li>
 <li>LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.</li>
 <li>Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.</li>
@@ -2844,9 +2866,9 @@ Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jed
 <li>Bestätigen Sie die Anfrage im Vorschaudialog. Sie können den ausgewählten Text vor dem Senden bearbeiten. Fügen Sie für <strong>Fragen</strong> Ihre eigene Eingabeaufforderung hinzu. Das Dialogfeld zeigt auch die geschätzten Anforderungstoken und das prognostizierte verbleibende Kontingent an.</li>
 <li>Die Antwort wird in einer temporären AI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.</li>
 <li>Verwenden Sie <strong>Speichern</strong> auf der Registerkarte „AI“, um die Konversation unter einem benutzerdefinierten Titel zu speichern.</li>
-<li>Öffnen Sie gespeicherte Konversationen später erneut über <strong>Extras &gt; AI Manager</strong> oder ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</li>
+<li>Öffnen Sie gespeicherte Konversationen später erneut über <strong>Tools &gt; AI Manager</strong> oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</li>
 </ol>
-<p>Funktionen der ### AI-Ergebnisregisterkarte</p>
+<h3 id="funktionen-der-ai-ergebnisregisterkarte">Funktionen der AI-Ergebnisregisterkarte<a class="headerlink" href="#funktionen-der-ai-ergebnisregisterkarte" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Das Gesprächsprotokoll ist schreibgeschützt und nicht im gespeicherten Projekt-/Sitzungsstatus enthalten.</li>
 <li><code>&lt;think&gt; ... &lt;/think&gt;</code>-Blöcke werden aus der sichtbaren Ausgabe entfernt.</li>
@@ -2914,7 +2936,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </ul>
 </div>
 <h2 id="ai-manager">AI-Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
-<p>Öffnen Sie <strong>AI &gt; AI Manager</strong> oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).</p>
+<p>Öffnen Sie <strong>AI &gt; AI Manager</strong> oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</p>
 <p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
 <p>Der AI Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von <strong>AI Manager</strong> wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.</p>
 <p>Der Manager kombiniert Profil-, lokale Inferenz-, Abruf- und gespeicherte Chat-Verwaltung:</p>
@@ -2965,7 +2987,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>⏸ pausiert</li>
 <li>✓ fertig</li>
 <li><strong>Gleichzeitige Ausführungen</strong> – Mehrere gleichzeitige Ausführungen pro Split werden als schließbare Registerkarten im Aktivitätsbereich angezeigt (eine Registerkarte pro Ausführung), mit einer Parallelitätsobergrenze pro Widget von 5 Ausführungen. Abgeschlossene Läufe bleiben als Tabs erhalten, bis sie geschlossen werden.</li>
-<li><strong>Tippen während des Laufens</strong> – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren <code>agent ...</code>-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Strg+C++ cancel the selected tab's run; ++Strg+R++ schaltet die Denkdetails dieses Laufs um.</li>
+<li><strong>Tippen während des Laufens</strong> – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren <code>agent ...</code>-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Ctrl+C++ brechen die Ausführung des ausgewählten Tabs ab; ++Ctrl+R++ schaltet die Denkdetails dieses Laufs um.</li>
 <li><strong>Pause und Fortsetzen</strong> – Auf jeder Laufregisterkarte werden Schaltflächen zum Anhalten und Abbrechen angezeigt. Pause parkt den Agenten an einem sicheren Punkt zwischen den Schritten; Die Pausenzeit wird von der Laufarbeitszeit ausgeschlossen.</li>
 <li><strong>Aktuelles Verzeichnis</strong> – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Ein lokaler Lauf erfasst ein stabiles Verzeichnis für seine Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn des Laufs arbeitete.</li>
 <li><strong>Genehmigungen und Sudo</strong> – Der Agent kann vor der Befehlsausführung eine explizite Genehmigung anfordern und im Aktivitätsbereich nach einem Sudo-Passwort fragen. Die Passworteingabe ist maskiert, kann mit ++Enter++ übermittelt werden und ermöglicht bis zu drei Wiederholungsversuche mit falschem Passwort. Wenn ein Passwort zwischengespeichert wird, wird es nur für den aktuellen Agenten-/Sitzungskontext verwendet. Wenn eine Benutzereingabe (Sudo-Passwort/Befehlsgenehmigung) erforderlich ist, wird das Bedienfeld automatisch erweitert.</li>
@@ -3039,7 +3061,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <tbody>
 <tr>
 <td>💾</td>
-<td>Anforderung oder Eingabe: Datei</td>
+<td>Anfrage oder Eingabe: Datei schreiben/erstellen</td>
 </tr>
 <tr>
 <td>📖</td>
@@ -3047,7 +3069,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </tr>
 <tr>
 <td>▶️</td>
-<td>Aktion: Befehl</td>
+<td>Aktion: Befehl ausführen/ausführen</td>
 </tr>
 <tr>
 <td>📁</td>
@@ -3067,7 +3089,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </tr>
 <tr>
 <td>🔍</td>
-<td>Aktion:</td>
+<td>Aktion: prüfen/analysieren</td>
 </tr>
 <tr>
 <td>💭</td>
@@ -3099,12 +3121,12 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>Befehle, die das System ändern oder Berechtigungen erfordern, können abhängig von den Einstellungen und der Modellentscheidung durch eine Bestätigung weitergeleitet werden.</li>
 <li>Sudo verwendet <code>sudo -n</code> und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine <code>sudo -S</code>, <code>su</code> oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.</li>
 <li>SSH-Verzeichnisse werden anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein verfolgtes Remote-Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut vom SSH-Standardverzeichnis aus und meldet das Problem. Lokale Ausführungen aktualisieren das Shell-Prozessverzeichnis oder verwenden einen absoluten nativen Eingabeaufforderungspfad, frieren das Ergebnis für die Ausführung ein und stoppen sicher, wenn ein geändertes Verzeichnis nicht ermittelt oder zugeordnet werden kann.</li>
-<li>Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.</li>
+<li>Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Nur die Laufsteuerungstasten (++Esc++/++Ctrl+C++ zum Abbrechen des ausgewählten Laufs, ++Ctrl+R++ zum Umschalten seiner Denkdetails) werden abgefangen.</li>
 <li>Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.</li>
 <li>Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>
 <h2 id="ai-swarm-multiserver">AI Swarm (Multiserver)<a class="headerlink" href="#ai-swarm-multiserver" title="Permanent link">&para;</a></h2>
-<p>Der <a href="ai-swarm.html">KI-Schwarm</a> sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – auch Server <strong>ohne offenes Terminal</strong> – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Pausen-/Fortsetzungs-/Neustart-/Stopp-Steuerelemente pro Agent und schwarmweit, KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche <strong>Planen…</strong> hinzu, die den Lauf in einen unbeaufsichtigten Lauf verwandelt <a href="jobscheduler.html">JobScheduler</a> Arbeit. Öffnen Sie es mit <strong>AI &gt; AI Swarm...</strong> oder ++Strg+Alt+S++ (Cmd unter macOS); siehe die <a href="ai-swarm.html">KI-Schwarm</a> Seite für den vollständigen Funktionsumfang.</p>
+<p>Der <a href="ai-swarm.html">KI-Schwarm</a> sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – auch Server <strong>ohne offenes Terminal</strong> – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Pausen-/Fortsetzungs-/Neustart-/Stopp-Steuerelemente pro Agent und schwarmweit, KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche <strong>Planen…</strong> hinzu, die den Lauf in einen unbeaufsichtigten Lauf verwandelt <a href="jobscheduler.html">JobScheduler</a> Arbeit. Öffnen Sie es mit <strong>AI &gt; AI Swarm...</strong> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> (Befehl unter macOS); siehe die <a href="ai-swarm.html">KI-Schwarm</a> Seite für den vollständigen Funktionsumfang.</p>
 <h2 id="workflow-skript-generieren">Workflow-Skript generieren<a class="headerlink" href="#workflow-skript-generieren" title="Permanent link">&para;</a></h2>
 <p>Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, verwandelt eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong> Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
 <p>Skripterstellung:</p>

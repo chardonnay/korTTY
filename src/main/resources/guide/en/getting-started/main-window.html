@@ -464,6 +464,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#macos-dock-menu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1779,7 +1790,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2034,6 +2045,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#macos-dock-menu" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2070,14 +2092,24 @@
 <ul>
 <li><strong>Menu bar</strong> — File · Edit · Connections · Security · Configuration · Tools · Plugins · View · Teamwork · AI · Help. All features are reachable here and via <a href="../reference/keyboard-shortcuts.html">keyboard shortcuts</a>. A live <strong>JobScheduler status</strong> menu appears after <em>Help</em> when a scheduled entry is active.</li>
 <li><strong>Tab bar</strong> — each SSH/Mosh session runs in its own tab. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> opens Quick Connect for a new tab; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> switch tabs.</li>
-<li><strong>Dashboard</strong> (toggle <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) — lists all open connections with status indicators and AI-agent badges. Right-click a connection to reconnect, duplicate, open SFTP, or close.</li>
+<li><strong>Dashboard</strong> (toggle <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) — a side panel listing every open connection with status dots, protocol badges and AI-agent badges. See <a href="#dashboard">Dashboard</a> below.</li>
 <li><strong>Terminal area</strong> — the active terminal, with optional split-screen and broadcast input.</li>
 <li><strong>Status bar</strong> — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Terminal-only fullscreen</p>
-<p>Press <span class="keys"><kbd class="key-f12">F12</kbd></span> (or <strong>View → Terminal-only Fullscreen</strong>) to hide all window chrome and show only the terminal. <strong>View → Hide terminal scrollbars in fullscreen</strong> removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press <span class="keys"><kbd class="key-f12">F12</kbd></span> again to restore.</p>
+<p>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> (or <strong>View → Terminal-only Fullscreen</strong>) to show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, so the desktop and other windows stop competing for attention. <strong>View → Hide terminal scrollbars in fullscreen</strong> removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> again to restore.</p>
 </div>
+<h2 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h2>
+<p>Toggle the dashboard with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span> or <strong>View → Show Dashboard</strong>. It slides in on the left, sizes its width to the longest entry, and follows the active App Design's colors.</p>
+<p>The header shows the panel title with two buttons: a collapse/expand toggle (collapses everything while any node is open, expands everything otherwise) and a refresh button. Below it, connections are organized as a tree:</p>
+<ul>
+<li><strong>Main window</strong> — the root node, with an active/total session count.</li>
+<li><strong>Environments</strong> — connections whose stored credential has an environment (for example <em>Production</em> or <em>Test</em>) are clustered under an environment node; connections without one sit directly under the main window.</li>
+<li><strong>Groups</strong> — tabs assigned to a connection group appear under their group node. Saving a changed group in the Connection Manager updates open tabs immediately.</li>
+</ul>
+<p>Each connection row shows a type icon, a status dot, the server name, and a protocol badge (<code>ssh</code>, <code>mosh</code> or <code>local</code>). The status dot distinguishes three states: filled green for a healthy connection, filled red for a connection that dropped unexpectedly (including a Mosh network interruption), and a hollow outline for a session that ended normally. Terminals with AI-agent runs carry the same ✋/⚡/⏸/✓ badge as elsewhere. Hovering a row shows <code>user@host</code> and the connection state; double-click (or <span class="keys"><kbd class="key-enter">Enter</kbd></span>) focuses the session's tab.</p>
+<p>Right-click a connection for <strong>Focus</strong>, <strong>Duplicate</strong>, <strong>Reconnect</strong>, <strong>SFTP-Client...</strong> (connected sessions only) and <strong>Close</strong>. A footer keeps a running "connected of total" count, and an empty panel shows a placeholder until the first session opens.</p>
 <h2 id="macos-dock-menu">macOS Dock menu<a class="headerlink" href="#macos-dock-menu" title="Permanent link">&para;</a></h2>
 <p>On macOS, right-click (or Control-click) the korTTY icon in the Dock for quick actions without switching to the app — they apply to the current (focused) window, opening one first if none is open:</p>
 <ul>

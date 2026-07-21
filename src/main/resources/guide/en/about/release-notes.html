@@ -1719,7 +1719,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -1935,6 +1935,50 @@
   
     <nav class="md-nav" aria-label="v2.5.2">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#jump-server-bastion-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jump server (bastion host)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-host-key-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH host-key verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascii-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASCII art
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#power-management" class="md-nav__link">
@@ -2707,6 +2751,50 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#jump-server-bastion-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jump server (bastion host)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-host-key-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSH host-key verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascii-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASCII art
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#power-management" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3386,6 +3474,32 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is shown in the footer.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="jump-server-bastion-host">Jump server (bastion host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Jump server hopping is now implemented</strong> — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.</li>
+<li><strong>The bastion is verified, and credentials are kept separate</strong> — the jump host's key goes through the same trust-on-first-use prompt and pinning as any other host, the target is still verified under its own name through the tunnel, and neither host is ever offered the other's password or key. The write-only <em>Auto-Command</em> field was removed; a real tunnel supersedes the "type ssh on the bastion" pattern it stood for.</li>
+<li><strong>SFTP now routes through the jump server too</strong> — file transfer connections hop through the bastion the same way terminal sessions do.</li>
+<li><strong>Mosh with a jump server is refused up front</strong> — a Mosh session runs over UDP, which the bastion's SSH tunnel cannot forward; previously the SSH bootstrap succeeded and the session then stalled with no data. Connecting now fails immediately with a clear message, and the Jump Server tab warns as soon as the combination is configured. SFTP for such connections still routes through the bastion.</li>
+</ul>
+<h3 id="ssh-host-key-verification">SSH host-key verification<a class="headerlink" href="#ssh-host-key-verification" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Opt out of host-key verification, per connection, per group, or globally</strong> — for lab or throwaway hosts, korTTY can accept an unknown host key without the first-use prompt. It is an <strong>accept-new</strong> relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. The three scopes resolve in precedence order — a per-connection override (Connection Manager editor and Quick Connect: <em>Use default</em> / <em>Verify</em> / <em>Don't verify</em>) wins over a per-group toggle (right-click a group → <em>Disable host key verification</em>), which wins over the global <strong>Settings → Terminal → Disable host key verification for all connections</strong>. Off by default. A jump server's own host key is always verified strictly, regardless of the target's setting.</li>
+</ul>
+<h3 id="ascii-art">ASCII art<a class="headerlink" href="#ascii-art" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI-drawn ASCII pictures</strong> — the ASCII art tool (<strong>Tools &gt; ASCII Art...</strong>) gained an <strong>AI Picture</strong> tab: type a subject such as "house" and a model draws it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable. <strong>New variation</strong> redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry, and a transient profile picker lets a single run use a different AI profile without changing your default.</li>
+<li><strong>Zoomable preview</strong> — both tabs share one zoom level, adjustable with the <strong>+</strong> / <strong>−</strong> / <strong>⟲</strong> buttons, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-0">0</kbd></span>, or <span class="keys"><kbd class="key-control">Ctrl</kbd></span> and the scroll wheel over the preview. The level ranges from 50 % to 333 % and is remembered between sessions along with the window position and size.</li>
+<li><strong>Two tabs instead of one form</strong> — the FIGlet banner generator moved into its own <strong>Text Banner</strong> tab, so a banner and a picture keep their own result while you switch, and <strong>Copy to Clipboard</strong> copies whichever tab is open.</li>
+<li><strong>Fixed: the Lean font was missing from packaged builds</strong> — the style was declared in lowercase while the bundled file is <code>Lean.flf</code>, so JAR resource lookup dropped it from the style list on case-sensitive filesystems.</li>
+</ul>
+<h3 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Redesigned dashboard panel</strong> — the side panel (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) got a full visual and interaction overhaul: a clear panel boundary with its own background, a header with the panel title plus collapse/expand-all and refresh icon buttons, node-type icons for main window, environment, group and connection rows, and bold section rows with dimmed active/total counts. Rows respond to hover and selection (accent stripe), tooltips show <code>user@host</code> and the connection state, and <span class="keys"><kbd class="key-enter">Enter</kbd></span> or double-click focuses the session.</li>
+<li><strong>Three-state status dots and protocol badges</strong> — each connection row shows a filled green dot while connected, a filled red dot when the connection dropped unexpectedly (including Mosh network interruptions), and a hollow outline after a session ended normally; the old text-glyph status is gone. A small <code>ssh</code> / <code>mosh</code> / <code>local</code> badge identifies the transport.</li>
+<li><strong>Environment grouping</strong> — ungrouped connections cluster under the environment of their stored credential (Production, Development, Test, Staging or custom), so multi-stage work stays visually separated.</li>
+<li><strong>Content-sized, animated panel</strong> — the dashboard sizes its width to the longest entry (bounded), animates open and closed instead of popping in, shows a placeholder when no session is open, and reports "connected of total" in a footer. Its colors follow the active App Design, including per-design status-dot palettes.</li>
+<li><strong>Context menu and group fixes</strong> — the connection context menu adds <strong>Focus</strong> and icons for every action. Tabs opened via "open whole group" now correctly appear under their group, and changing a connection's group in the Connection Manager updates open tabs immediately.</li>
+</ul>
 <h3 id="power-management">Power management<a class="headerlink" href="#power-management" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Activity-based power management</strong> — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate <code>caffeinate</code> helper so the korTTY process remains eligible for App Nap. On macOS and Windows, <strong>Configuration &gt; Prevent System Sleep</strong> keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.</li>
@@ -3395,15 +3509,22 @@
 <li><strong>One update policy for both runtimes</strong> — the Local AI <strong>Runtime updates</strong> setting (Off / Notify me / Install stable updates automatically) now governs the MLX runtime as well as llama.cpp. At startup and on save, korTTY checks the MLX runtime's signed stable index under the same policy: Notify me shows an update popup only when an MLX runtime is installed, and Automatic installs the newest signed MLX package once idle. A signed MLX withdrawal is now enforced after the fact too — the active pointer is cleared, sidecars stop, and the withdrawn id is denylisted so it can never be reinstalled — closing the gap where a revoked MLX runtime could keep running until the next manual install.</li>
 <li><strong>Runtime overview with removal and verified local import</strong> — a Runtimes table in Local Models shows both embedded runtimes (llama.cpp and, on Apple Silicon, MLX) with their installed version, backend, and Ready/Not-installed/Revoked state. Per runtime, users can install or update from the signed stable channel (MLX now installs in-app from the rolling <code>mlx-stable</code> index), remove the runtime (idle-only; the revocation denylist survives), or import a local package file that is accepted only when its SHA-256 matches a non-revoked entry of the Ed25519-signed index — verified local packages run through the identical installation machinery as downloads.</li>
 <li><strong>MLX models on Apple Silicon</strong> — on Apple Silicon Macs, the Local Models manager additionally searches, downloads, registers, and runs <a href="https://github.com/ml-explore/mlx">MLX</a> models through the official <code>mlx_lm.server</code>, wrapped in korTTY's own authenticated loopback-only launcher with offline Hugging Face access, sanitized process environment, and idle self-exit. A new <strong>Integrated MLX (Apple Silicon)</strong> profile connection selects the installed model; the runtime ships as a separately signed package (pinned relocatable CPython plus hash-locked mlx-lm wheels) built by a new CI pipeline, with a developer script for unsigned local packages. MLX repositories download as complete verified directories — SHA-256 for LFS files and the git blob hash for small in-tree files — and reasoning models get the same inline chain-of-thought separation as GGUF models.</li>
+<li><strong>A real choice of embedding models</strong> — the bootstrap catalog (<code>bootstrap-v2</code>) adds four embedding recommendations alongside the default Qwen3-Embedding 0.6B <code>Q8_0</code>: Qwen3-Embedding 4B <code>Q4_K_M</code> (from 16 GiB RAM), Qwen3-Embedding 8B <code>Q4_K_M</code> (from 24 GiB), the multilingual BGE-M3 <code>Q8_0</code>, and the very small, fast Nomic Embed Text v1.5 <code>Q8_0</code>. Each role slot in the setup assistant now offers every catalog model the detected memory supports — preferred default preselected — instead of exactly one fixed suggestion per role.</li>
 <li><strong>Sortable, hardware-filtered Hugging Face browser</strong> — every column of the model search sorts ascending/descending with a header arrow (sizes and context numerically, hardware estimate from best to worst), and results are limited to repositories this computer can actually run: rows without size metadata or beyond the detected memory stay hidden while korTTY completes the listing with exact per-repository metadata in the background, and the status line reports the shown/hidden counts. On Apple Silicon a format selector switches between GGUF, MLX, and both, with a Format column identifying each row.</li>
-<li><strong>Action-bar icons</strong> — every button in Local Models (install, setup assistant, import, configure, start, stop, remove, refresh, search, load more, download, pause/resume, cancel) now carries a matching glyph, consistent with the other AI Manager tabs.</li>
+<li><strong>Action-bar icons</strong> — every button in Local Models (install, setup assistant, import, configure, set as default, start, stop, remove, refresh, search, load more, download, pause/resume, cancel) now carries a matching glyph, consistent with the other AI Manager tabs.</li>
+<li><strong>Default local model marker</strong> — one installed model can be marked as the default with <strong>Set as default</strong> (action bar or right-click menu); it shows a leading ★ in the Name column and is pre-selected when the manager opens, so Start/Configure/Stop target it by default. <strong>Clear default</strong> removes the mark. It is a manager convenience only and does not change which AI profile the agent or chat uses.</li>
+<li><strong>Tighter Local Models tables</strong> — the installed-models table no longer stretches the short Purpose, Backend, Unload-after, and Status columns across the row; they are capped near their content width (never wider than ~30 characters) so the Name and file columns keep the space. Across every Local Models table, hovering a cell whose text is clipped by the column now shows the full value in a tooltip.</li>
 <li><strong>Robust local reasoning replies (including gpt-oss)</strong> — the pinned llama.cpp server occasionally answers a whole reply with HTTP 500 (“does not match the expected peg-native format”, e.g. from the snippet code-analysis actions or the terminal agent); korTTY now retries a local server error, an empty reply, or a reasoning-only reply once automatically, and defensively separates any inline chain-of-thought (both <code>&lt;think&gt;</code> and gpt-oss harmony <code>&lt;|channel|&gt;</code> markers) from the answer. Chat sidecars keep the server's default reasoning parsing rather than disabling it, because harmony/channel models such as gpt-oss require that parsing to emit a final answer at all — with it disabled they got stuck after their analysis channel and returned no answer (which broke the terminal agent for gpt-oss). The terminal agent also now explicitly reads an unseen file with a <code>cat</code>/<code>head</code> command before acting, instead of reporting the content as unavailable.</li>
+<li><strong>Separated reasoning is shown, not hidden</strong> — when a local reasoning model (both <code>&lt;think&gt;</code> and gpt-oss harmony models) returns its chain-of-thought inline, korTTY keeps the answer clean and offers the reasoning behind a collapsible <strong>Reasoning</strong> disclosure below the reply in the AI chat panel. In the terminal AI-agent window the same reasoning already appears under each <em>Thinking</em> step and can be expanded or collapsed with its pull bar.</li>
+<li><strong>Reasoning level persists for embedded profiles</strong> — choosing a reasoning level for an Integrated llama.cpp / MLX profile is now saved reliably. Previously it could intermittently reset to Disabled because the reasoning-discovery cache was keyed by connection fields (apiUrl / CLI provider) that are unused placeholders for an embedded profile; embedded profiles are now keyed by their pinned model, so a discovered level is kept across save and reload.</li>
+<li><strong>Choose where the terminal agent's answer appears</strong> — the agent run dialog adds a <strong>Show final answer in the terminal too</strong> option. Leave it on to keep mirroring the final answer into the terminal (unchanged behavior), or turn it off so the answer stays only in the AI agent activity panel; commands still run and any files they create stay on the server. The last choice is remembered.</li>
+<li><strong>AI request and model-lifecycle logging</strong> — <code>kortty.log</code> now records when an AI request is submitted and when it completes or fails (<code>AI request sent</code> / <code>AI request done</code> / <code>AI request failed</code>), with the action, provider, model, approximate input size, duration and token count — metadata only, never the prompt or response text. Embedded llama.cpp and MLX models additionally log when a model is loaded, unloaded after the idle timeout (sleeping), or unloaded because its sidecar stopped. All are <code>INFO</code> lines visible at the default log level, so it is easy to see whether the AI is doing anything and which model handled a request.</li>
 <li><strong>Runtime-update notification only when installed</strong> — the startup notification about an available llama.cpp runtime appears only when a runtime is actually installed; without one (never installed or removed), the available package is listed in Local Models without a popup.</li>
 <li><strong>Private GGUF inference without LM Studio or Ollama</strong> — AI profiles can use an installed <strong>Integrated llama.cpp</strong> model. korTTY launches one authenticated loopback-only sidecar per compatible GGUF configuration, shares it through request leases, supports several different models concurrently, reports the complete loading/busy/sleep/failure lifecycle, and unloads tensors after a configurable 1–1,440 minute idle period (10 minutes by default) or never.</li>
 <li><strong>Direct local-profile selection</strong> — choosing <strong>Integrated llama.cpp</strong> in an AI profile now shows a dedicated <strong>Local GGUF model</strong> selector. It lists installed chat models and persists the selected registry ID, so no local API URL or manually entered model name is required.</li>
 <li><strong>Hugging Face model manager and beginner assistant</strong> — <strong>AI &gt; AI Manager &gt; Local Models</strong> searches GGUF repositories with architecture, quantization, license, selected-quantization size, context and hardware estimates; cursor pagination keeps earlier matches when <strong>Load more</strong> is selected. Selecting a result loads exact file metadata on demand at its immutable revision, preserves the chosen quantization while refreshing the size and hardware estimate, and excludes projector, quantization-matrix and speculative-decoding helper GGUFs from language-model downloads. After the license/size confirmation, a fixed bottom panel identifies the repository, quantization, file/shard and transferred bytes, and reports elapsed time, adaptive transfer rate and remaining time beside pause/resume/cancel controls. Immutable downloads retain resumable <code>.part</code> data on cancellation or manager close and use Range/If-Range, free-space, multipart and SHA-256 checks; imports use managed copies or external references; and new registrations start with a conservative 4,096-token runtime context. The six-step beginner flow offers independently optional Text, Coding, and embedding slots, asynchronously verifies the fixed revision/quantization/license/exact size, installs the runtime and GGUFs without freezing JavaFX, runs a real chat or embedding test for every model, and persists the role assignments only after all tests pass.</li>
 <li><strong>Text/Coding roles and model prompt presets</strong> — separate Text/translation and Coding profile assignments fall back safely through explicit/security/connection choices to the default. Auto or forced Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS presets improve small/local-model format compliance without weakening strict JSON, code-payload or safety contracts. Dynamic interface translation can use the local Text profile without a translation-provider API key.</li>
-<li><strong>Separately signed recommendation and preset catalog</strong> — a strict-schema model/prompt catalog is promoted manually from a reviewer-protected signing environment as immutable JSON plus detached Ed25519 signature. A monotonic sequence blocks signed older replays and sequence/version collisions in the application and must increase across official promotions. The five bootstrap recommendations include concrete 40-character Hugging Face commits rather than mutable heads. The last valid cache is reverified and refreshed once in the background; a missing trust root disables network and cache trust and keeps the built-in bootstrap available offline.</li>
+<li><strong>Separately signed recommendation and preset catalog</strong> — a strict-schema model/prompt catalog is promoted manually from a reviewer-protected signing environment as immutable JSON plus detached Ed25519 signature. A monotonic sequence blocks signed older replays and sequence/version collisions in the application and must increase across official promotions. The nine bootstrap recommendations include concrete 40-character Hugging Face commits rather than mutable heads. The last valid cache is reverified and refreshed once in the background; a missing trust root disables network and cache trust and keeps the built-in bootstrap available offline.</li>
 <li><strong>Modeless AI Manager with persistent navigation</strong> — the manager can remain open while the main window stays usable, and invoking it again restores and focuses the same instance instead of opening a duplicate. A bold accent underline continues to mark the open section—Profiles, Local Models, Knowledge Stores, Local AI, Saved Chats, or Swarm Chats—after focus moves into a table, search field, or action button.</li>
 </ul>
 <h3 id="rag-knowledge-stores">RAG knowledge stores<a class="headerlink" href="#rag-knowledge-stores" title="Permanent link">&para;</a></h3>
@@ -3467,6 +3588,7 @@
 <li><strong>Full code analysis shows its change preview again</strong> — after <strong>Apply selected</strong>, korTTY now waits until the analysis window has completely closed and brings the side-by-side review window in front of the snippet editor. The editor remains unchanged until <strong>Apply change</strong> is confirmed in that preview.</li>
 <li><strong>No crash when a snippet fails to save</strong> — saving a snippet as a new entry could, if the save failed, crash with a null-pointer error while trying to show the failure message. The error is now reported cleanly.</li>
 <li><strong>"Save as new snippet" no longer shows a false "already exists" error</strong> — after editing a snippet (for example applying analysis improvements) and saving it under a new name with <strong>Save as new snippet</strong>, korTTY wrongly popped up <em>"Snippet name already exists"</em> even though it had just saved the snippet correctly. The dialog now delivers its save exactly once.</li>
+<li><strong>Terminal-only fullscreen now shows the whole korTTY window, not a stretched terminal</strong> — <strong>View → Terminal-only Fullscreen</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>) keeps the whole korTTY window — menu bar, tabs, and status bar included — at the size it had before entering the mode (falling back to the configured window geometry when the window was already fullscreen) and centers it on an empty fullscreen background, so the desktop and other windows stop competing for attention. <strong>View → Fullscreen</strong> now uses <span class="keys"><kbd class="key-f12">F12</kbd></span> instead of <span class="keys"><kbd class="key-f11">F11</kbd></span>, which macOS reserves system-wide for "Show Desktop".</li>
 </ul>
 <h2 id="v242">v2.4.2<a class="headerlink" href="#v242" title="Permanent link">&para;</a></h2>
 <h3 id="branding">Branding<a class="headerlink" href="#branding" title="Permanent link">&para;</a></h3>

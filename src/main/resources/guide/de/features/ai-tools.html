@@ -2167,7 +2167,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2866,7 +2866,7 @@
 </div>
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere Terminalbefehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt die endgültige Antwort zurück an das Terminal.</li>
+<li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere Terminalbefehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt (standardmäßig) die endgültige Antwort zurück an das Terminal. Das Ausführungsdialogfeld bietet die Option <strong>Endgültige Antwort auch im Terminal anzeigen</strong>: Lassen Sie diese Option aktiviert, um die Antwort im Terminal zu spiegeln, oder schalten Sie sie aus, damit die Antwort nur im Aktivitätsfenster des KI-Agenten verbleibt. In beiden Fällen werden die Befehle weiterhin ausgeführt und ihre Ausgabe sowie alle von ihnen erstellten Dateien verbleiben auf dem Server. Lediglich die Anzeige des endgültigen Antworttextes ändert sich. Die letzte Auswahl wird als Standard gespeichert.</li>
 <li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Beim Start über das Terminal-Rechtsklickmenü (<strong>AI → Ask AI Agent</strong>) mit ausgewähltem Text wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> – Wechseln Sie zuerst in den Planungsmodus. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf <strong>Umsetzen</strong> geklickt haben.</li>
 </ul>
@@ -2960,7 +2960,7 @@
 <tbody>
 <tr>
 <td>💾</td>
-<td>Anforderung oder Eingabe: Datei</td>
+<td>Anfrage oder Eingabe: Datei schreiben/erstellen</td>
 </tr>
 <tr>
 <td>📖</td>
@@ -2968,7 +2968,7 @@
 </tr>
 <tr>
 <td>▶️</td>
-<td>Aktion: Befehl</td>
+<td>Aktion: Befehl ausführen/ausführen</td>
 </tr>
 <tr>
 <td>📁</td>
@@ -2988,7 +2988,7 @@
 </tr>
 <tr>
 <td>🔍</td>
-<td>Aktion:</td>
+<td>Aktion: prüfen/analysieren</td>
 </tr>
 <tr>
 <td>💭</td>
@@ -3047,8 +3047,8 @@
 <ul>
 <li><strong>Nicht gesperrt</strong> – Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Sie können weiterhin die Shell-Eingabeaufforderung eingeben und neue <code>agent</code>-Befehle starten (sie öffnen neue Registerkarten).</li>
 <li><strong>Nur Laufkontrollschlüssel</strong> – Es werden nur Laufkontrollschlüssel abgefangen:</li>
-<li><span class="keys"><kbd class="key-escape">Esc</kbd></span> oder ++Strg+C++ – Brechen Sie die Registerkarte des ausgewählten Laufs ab</li>
-<li>++Strg+R++ – Schaltet die Denkdetails des ausgewählten Laufs um</li>
+<li><span class="keys"><kbd class="key-escape">Esc</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> – Brechen Sie die Registerkarte des ausgewählten Laufs ab</li>
+<li><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-r">R</kbd></span> – Schaltet die Denkdetails des ausgewählten Laufs um</li>
 </ul>
 <h3 id="web-tools">Web-Tools<a class="headerlink" href="#web-tools" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3151,12 +3151,12 @@
 <td>Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen</td>
 </tr>
 <tr>
-<td><span class="keys"><kbd class="key-escape">Esc</kbd></span> oder ++Strg+C++ während der Ausführung</td>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> während des Laufs</td>
 <td>Brechen Sie die Registerkarte des ausgewählten Laufs ab</td>
 </tr>
 <tr>
-<td>++Strg+R++ während des Laufs</td>
-<td>Denkdetails für den ausgewählten Lauf umschalten</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-r">R</kbd></span> während des Laufs</td>
+<td>Schalten Sie die Denkdetails für den ausgewählten Lauf um</td>
 </tr>
 <tr>
 <td>Aktivitätsfeld ⏸ Schaltfläche</td>
@@ -3201,7 +3201,7 @@
 </tr>
 <tr>
 <td><strong>Ausführungsziel</strong></td>
-<td>Wählen Sie, ob der Agent offen in dedizierten Registerkarten oder inline am Terminalsplit</td>
+<td>Wählen Sie, ob der Agent offen in speziellen Registerkarten oder inline am Terminal-Split ausgeführt wird</td>
 </tr>
 <tr>
 <td><strong>Setup-Dialog pro Lauf</strong></td>

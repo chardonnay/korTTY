@@ -2112,7 +2112,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2804,7 +2804,7 @@
 </tr>
 <tr>
 <td>Ausgehender HTTPS-Zugriff</td>
-<td>Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds</td>
+<td>Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen</td>
 </tr>
 <tr>
 <td>Gradle Wrapper aus diesem Repository</td>
@@ -2813,8 +2813,10 @@
 </tbody>
 </table>
 <p>Node.js und MkDocs sind keine allgemeinen Voraussetzungen für einen Anwendungs-Build: Gradle lädt eine angeheftete Node.js-Laufzeit nur zum Kompilieren von Monaco in ein isoliertes Build-Verzeichnis herunter, niemals in das Anwendungs-Image, und der normale Anwendungs-Build verwendet die festgeschriebenen Offline-Guide-Ressourcen. Prettier Standalone und SQL-Formatter werden als kompakte Browser-Bundles kopiert und offline in JavaFX WebView ohne Node ausgeführt.</p>
-<p>!!! important "Packaging ist an die JDK 25-Toolchain" angeheftet
-    Die gepackte Laufzeit enthält explizit <code>jdk.jsobject</code>, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem <code>JDK-8362628</code>: <a href="https://bugs.openjdk.org/browse/JDK-8362628">https://bugs.openjdk.org/browse/JDK-8362628</a> verfolgt. Jede Paketierungsaufgabe löst <code>jpackage</code> aus derselben von Gradle ausgewählten Temurin JDK 25-Toolchain wie bei der Kompilierung auf, sodass ein neueres System <code>java</code> oder <code>jpackage</code> nicht stillschweigend eine inkompatible Laufzeit erstellen kann. Die ausgewählte Toolchain muss weiterhin mit der Ziel-CPU übereinstimmen, da <code>jpackage</code> keine Cross-Compilierung durchführt.</p>
+<div class="admonition important">
+<p class="admonition-title">Die Verpackung ist an die JDK 25-Toolchain gebunden</p>
+<p>Die gepackte Laufzeit enthält explizit <code>jdk.jsobject</code>, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem <code>JDK-8362628</code>: <a href="https://bugs.openjdk.org/browse/JDK-8362628">https://bugs.openjdk.org/browse/JDK-8362628</a> verfolgt. Jede Paketierungsaufgabe löst <code>jpackage</code> aus derselben von Gradle ausgewählten Temurin JDK 25-Toolchain wie bei der Kompilierung auf, sodass ein neueres System <code>java</code> oder <code>jpackage</code> nicht stillschweigend eine inkompatible Laufzeit erstellen kann. Die ausgewählte Toolchain muss weiterhin mit der Ziel-CPU übereinstimmen, da <code>jpackage</code> keine Cross-Compilierung durchführt.</p>
+</div>
 <p>Klonen Sie die Quelle einmal:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/chardonnay/korTTY.git
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>korTTY
@@ -2923,10 +2925,10 @@
 </thead>
 <tbody>
 <tr>
-<td>llama.cpp Laufzeit</td>
+<td>llama.cpp-Laufzeit</td>
 <td><code>config/trust/llama-runtime-ed25519-public.pem</code></td>
 <td>Optional <code>KORTTY_LLAMA_RUNTIME_PUBLIC_KEY</code>; muss genau mit dem angepinnten Schlüssel übereinstimmen</td>
-<td>Optional <code>kortty.llamaRuntimePublicKey</code>; muss genau mit dem angepinnten Schlüssel</td>
+<td>Optional <code>kortty.llamaRuntimePublicKey</code>; muss genau mit dem angepinnten Schlüssel übereinstimmen</td>
 </tr>
 <tr>
 <td>Modell-/Sofortkatalog</td>

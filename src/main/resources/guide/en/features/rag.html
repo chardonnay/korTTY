@@ -1856,7 +1856,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII art banner
+    ASCII art
   
 
     
@@ -2221,7 +2221,7 @@
 <h2 id="create-a-local-knowledge-store">Create a local knowledge store<a class="headerlink" href="#create-a-local-knowledge-store" title="Permanent link">&para;</a></h2>
 <p>Open <strong>AI &gt; AI Manager &gt; Knowledge Stores</strong> and choose <strong>Create</strong>. The beginner flow needs a name, an installed embedding model, role assignments, and at least one reviewed source. Store type, vector dimensions, and optional Qdrant connection fields stay collapsed under <strong>Advanced</strong>; korTTY manages the local HNSW graph parameters internally, so normal use requires no vector-index tuning.</p>
 <p><img alt="Knowledge Stores with a local HNSW demo store and one manual folder source" src="../assets/screenshots/ai/knowledge-stores.png" /></p>
-<p>If no embedding model is installed, the same flow opens the <a href="local-models.html">local-model setup assistant</a> with the embedding role preselected. Install the recommended Qwen3-Embedding 0.6B <code>Q8_0</code> model, then return to <strong>Create</strong>. An index is tied to that exact embedding model and dimension count; changing either requires rebuilding it.</p>
+<p>If no embedding model is installed, the same flow opens the <a href="local-models.html">local-model setup assistant</a> with the embedding role preselected. Install the preselected Qwen3-Embedding 0.6B <code>Q8_0</code> model, or pick one of the catalog alternatives the assistant offers for this computer's memory — Qwen3-Embedding 4B or 8B <code>Q4_K_M</code> on machines with at least 16 or 24 GiB, the multilingual BGE-M3 <code>Q8_0</code>, or the very small and fast Nomic Embed Text v1.5 <code>Q8_0</code> — then return to <strong>Create</strong>. An index is tied to that exact embedding model and dimension count; changing either requires rebuilding it.</p>
 <p>To add content:</p>
 <ol>
 <li>Choose <strong>Add files</strong> for one or more individual files, or <strong>Add folder</strong> for a recursive directory source.</li>

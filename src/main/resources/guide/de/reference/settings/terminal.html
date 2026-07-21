@@ -855,10 +855,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#notizen" class="md-nav__link">
+  <a href="#hinweise" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notizen
+        Hinweise
       
     </span>
   </a>
@@ -1781,7 +1781,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2036,10 +2036,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#notizen" class="md-nav__link">
+  <a href="#hinweise" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notizen
+        Hinweise
       
     </span>
   </a>
@@ -2070,8 +2070,8 @@
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
+<th>Typ</th>
+<th>Werte</th>
 <th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
@@ -2092,7 +2092,7 @@
 <td><code>terminalRows</code></td>
 </tr>
 <tr>
-<td>Zurückscrollen:</td>
+<td>Scrollback:</td>
 <td>Nummer</td>
 <td>100–100.000</td>
 <td>10.000</td>
@@ -2106,52 +2106,52 @@
 <td><code>encoding</code></td>
 </tr>
 <tr>
-<td>Fett wie helle Farbe</td>
+<td>Fett als helle Farbe</td>
 <td>umschalten</td>
 <td>—</td>
-<td>Auf</td>
+<td>Ein</td>
 <td><code>boldAsBright</code></td>
 </tr>
 <tr>
 <td>Bildlaufleiste im Terminal anzeigen</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>showTerminalScrollbar</code></td>
 </tr>
 <tr>
 <td>Befehlszeitstempel anzeigen</td>
 <td>umschalten</td>
-<td>—</td>
+<td>–</td>
 <td>Aus</td>
 <td><code>commandTimestampsEnabled</code></td>
 </tr>
 <tr>
-<td>Dateikopie per Drag-and-Drop ins Terminal zulassen</td>
+<td>Dateikopie per Drag-and-Drop in das Terminal zulassen</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>terminalDragDropEnabled</code></td>
 </tr>
 <tr>
 <td>Auswahl automatisch in die Zwischenablage kopieren</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>terminalCopyOnSelectEnabled</code></td>
 </tr>
 <tr>
 <td>Aktive Terminalfenster ohne Bestätigung schließen</td>
 <td>umschalten</td>
-<td>—</td>
+<td>–</td>
 <td>Aus</td>
 <td><code>closeActiveTerminalWindowsWithoutConfirmation</code></td>
 </tr>
 <tr>
-<td>SSH-Keep-Alive aktivieren</td>
+<td>SSH Keep-Alive aktivieren</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>sshKeepAliveEnabled</code></td>
 </tr>
 <tr>
@@ -2164,20 +2164,31 @@
 <tr>
 <td>Verbindungswiederholungen aktivieren</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>connectionRetriesEnabled</code></td>
+</tr>
+<tr>
+<td>Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Aus</td>
+<td><code>hostKeyCheckDisabledForAllConnections</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
+<h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Scrollback</p>
-<p>Legt fest, wie viele Ausgabezeilen jeder Terminal-Bereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen; eine Änderung gilt daher für neu geöffnete Tabs und geteilte Bereiche – bereits offene Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.</p>
+<p>Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
 <p>Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</p>
+<p>Dies ist die globale Hostschlüsseleinstellung mit der niedrigsten Priorität: Sie lockert die Überprüfung auf „Accept-New“ für jede Verbindung, die nicht ihre eigene oder die Überschreibung ihrer Gruppe festlegt. Accept-new blockiert weiterhin einen geänderten Schlüssel auf einem Host, der bereits gepinnt ist, und der eigene Schlüssel eines Jump-Servers wird immer streng überprüft – aber durch Deaktivieren der Erstverwendungsüberprüfung wird der Schutz vor einem Man-in-the-Middle bei der allerersten Verbindung aufgehoben. Standardmäßig deaktiviert. Im Verbindungsmanager werden verbindungs- und gruppenspezifische Außerkraftsetzungen festgelegt. siehe <a href="../../features/security.html#relaxing-host-key-verification">Sicherheit → Lockere Host-Schlüssel-Überprüfung</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Drag-and-Drop-Datei kopieren</p>
@@ -2190,6 +2201,7 @@
 <div class="admonition note">
 <p class="admonition-title">Verbindungswiederholungsversuche</p>
 <p>Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.</p>
+<p>Wiederholungsversuche decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit wird unabhängig von dieser Einstellung sofort abgelehnt.</p>
 </div>
 
 

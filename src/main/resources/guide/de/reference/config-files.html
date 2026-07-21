@@ -2121,7 +2121,7 @@
   <span class="md-ellipsis">
     
   
-    ASCII-Kunstbanner
+    ASCII-Art
   
 
     
@@ -2787,6 +2787,7 @@
 - Authentifizierungsmethode (Passwort, SSH-Schlüssel, temporärer SSH-Schlüssel)
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
+- Optionale Überschreibung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für Fenstergeometrie
@@ -2817,7 +2818,7 @@
 <p>SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder zur einfachen Sicherung und Migration über die Aktion <em>In Benutzerverzeichnis kopieren</em> in der SSH-Schlüsselverwaltung nach <code>~/.kortty/ssh-keys/</code> kopiert werden.</p>
 </div>
 <h3 id="ssh-host-keysproperties">ssh-host-keys.properties<a class="headerlink" href="#ssh-host-keysproperties" title="Permanent link">&para;</a></h3>
-<p>Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt.</p>
+<p>Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.</p>
 <p>Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während <code>ssh-host-keys.properties.lock</code> separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in <code>job-scheduler.xml</code> getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.</p>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
 <p>Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.</p>
@@ -2835,6 +2836,7 @@
 - Fenstergeometrie und -status (Position, Größe, maximierter Status)
 - Dashboard-Sichtbarkeitsstatus
 - Präferenz für die Sichtbarkeit der Menüleiste
+- Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
 - AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
 - RAG-Einbettungsmodell-ID und bevorzugte Laufzeit-Backend-/Update-Richtlinie für llama.cpp
 - Optional verschlüsseltes Hugging Face-Token
@@ -2842,6 +2844,7 @@
 - Video-/Aufnahmeeinstellungen
 - Standardeinstellungen für die Terminalprotokollierung
 - SSH Keep-Alive-Einstellungen
+- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Akzeptieren von Neu“ gelockert wird
 - JobScheduler-Statusanzeigeeinstellung
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
@@ -3005,7 +3008,7 @@
 <p><strong>Anwendung:</strong>
 1. Öffnen Sie <em>Verwaltung &gt; SSH-Schlüssel verwalten...</em>
 2. Wählen Sie einen SSH-Schlüssel aus und klicken Sie auf <em>In Benutzerverzeichnis kopieren</em>
-3. Der Schlüssel wird nach <code>~/.kortty/ssh-keys/</code> kopiert</p>
+3. Der Schlüssel wird kopiert <code>~/.kortty/ssh-keys/</code></p>
 <p><strong>Backup:</strong> SSH-Schlüssel in diesem Verzeichnis werden einbezogen, wenn Sie über <em>Bearbeiten &gt; Backup erstellen</em> ein Backup erstellen.</p>
 <p><strong>Vorteile:</strong>
 - Zentraler Speicherort für alle SSH-Schlüssel
@@ -3033,8 +3036,8 @@
 <td>AES-256-GCM-Verschlüsselung</td>
 </tr>
 <tr>
-<td>Interactive Terminal/SFTP/Mosh-Hostschlüssel</td>
-<td>Normalisierter Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung</td>
+<td>Hostschlüssel für interaktives Terminal/SFTP/Mosh</td>
+<td>Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Das optionale Opt-Out pro Verbindung/Gruppe/Global lockert nur die Aufforderung zum Akzeptieren neuer Schlüssel mit unbekannten Schlüsseln</td>
 </tr>
 <tr>
 <td>Anmeldeinformationen (Benutzername/Passwort)</td>
