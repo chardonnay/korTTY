@@ -6,7 +6,7 @@ title: KI-Schwarm
 
 Der KI-Schwarm sendet eine KI-Agentenaufgabe gleichzeitig an viele Server. Jeder ausgewählte Server erhält seinen eigenen unabhängigen Agenten, der über seine SSH-Sitzung ausgeführt wird, und die Antworten pro Server werden in einer einzigen Vergleichstabelle – einer Zeile pro Server – in einer gemeinsamen Konversation zusammengefasst.
 
-Öffnen Sie es mit **Tools > AI Swarm...** oder ++Strg+Alt+S++ (Cmd unter macOS). Der Schwarm wird als normaler Tab geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.
+Öffnen Sie es mit **Tools > AI Swarm...** oder ++ctrl+alt+s++ (Cmd unter macOS). Der Schwarm wird als normaler Tab geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.
 
 ## Der Schwarm-Tab
 

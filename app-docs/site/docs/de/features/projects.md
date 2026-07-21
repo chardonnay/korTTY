@@ -8,7 +8,7 @@ Projekte speichern und stellen Ihren gesamten Arbeitsbereichsstatus wieder her �
 
 ## Ein Projekt speichern
 
-1. Öffnen Sie *Datei > Projekt speichern* oder drücken Sie ++Strg+s++ (++cmd+s++ unter macOS).
+1. Öffnen Sie *Datei > Projekt speichern* oder drücken Sie ++ctrl+s++ (++cmd+s++ unter macOS).
 2. Geben Sie einen **Namen** und optional eine **Beschreibung** für das Projekt ein.
 3. Konfigurieren Sie **Auto-Reconnect**:
    - Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.
@@ -19,7 +19,7 @@ Projekte werden als `.kortty`-Dateien in `~/.kortty/projects/` gespeichert.
 
 ## Ein Projekt öffnen
 
-1. Öffnen Sie *Datei > Projekt öffnen* oder drücken Sie ++Strg+o++ (++cmd+o++ unter macOS).
+1. Öffnen Sie *Datei > Projekt öffnen* oder drücken Sie ++ctrl+o++ (++cmd+o++ unter macOS).
 2. Wählen Sie im Dateibrowser eine `.kortty`-Projektdatei aus.
 3. Das Dialogfeld **Projektvorschau** wird angezeigt und zeigt Folgendes:
    - Anzahl der wiederherzustellenden Fenster

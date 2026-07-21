@@ -185,8 +185,8 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 - **Nicht gesperrt** – Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Sie können weiterhin die Shell-Eingabeaufforderung eingeben und neue `agent`-Befehle starten (sie öffnen neue Registerkarten).
 - **Nur Laufkontrollschlüssel** – Es werden nur Laufkontrollschlüssel abgefangen:
-  - ++esc++ oder ++Strg+C++ – Brechen Sie die Registerkarte des ausgewählten Laufs ab
-  - ++Strg+R++ – Schaltet die Denkdetails des ausgewählten Laufs um
+  - ++esc++ oder ++ctrl+c++ – Brechen Sie die Registerkarte des ausgewählten Laufs ab
+  - ++ctrl+r++ – Schaltet die Denkdetails des ausgewählten Laufs um
 
 ### Web-Tools
 
@@ -277,8 +277,8 @@ So starten Sie eine Agentenaufgabe:
 |----------|--------|
 | ++tab++ auf Befehl des Agenten | Zeigen `agent`, `agent-ask`, `agent-plan` Varianten |
 | ++tab++ nach `agent ` | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen |
-| ++esc++ oder ++Strg+C++ während der Ausführung | Brechen Sie die Registerkarte des ausgewählten Laufs ab |
-| ++Strg+R++ während des Laufs | Denkdetails für den ausgewählten Lauf umschalten |
+| ++esc++ oder ++ctrl+c++ während des Laufs | Brechen Sie die Registerkarte des ausgewählten Laufs ab |
+| ++ctrl+r++ während des Laufs | Schalten Sie die Denkdetails für den ausgewählten Lauf um |
 | Aktivitätsfeld ⏸ Schaltfläche | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
 | Aktivitätsfeld ▶️ Schaltfläche | Fortsetzen eines angehaltenen Laufs |
 

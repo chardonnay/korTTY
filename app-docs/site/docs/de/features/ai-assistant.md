@@ -151,9 +151,9 @@ Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
 4. Bestätigen Sie die Anfrage im Vorschaudialog. Sie können den ausgewählten Text vor dem Senden bearbeiten. Fügen Sie für **Fragen** Ihre eigene Eingabeaufforderung hinzu. Das Dialogfeld zeigt auch die geschätzten Anforderungstoken und das prognostizierte verbleibende Kontingent an.
 5. Die Antwort wird in einer temporären AI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.
 6. Verwenden Sie **Speichern** auf der Registerkarte „AI“, um die Konversation unter einem benutzerdefinierten Titel zu speichern.
-7. Öffnen Sie gespeicherte Konversationen später erneut über **Extras > AI Manager** oder ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).
+7. Öffnen Sie gespeicherte Konversationen später erneut über **Tools > AI Manager** oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).
 
-Funktionen der ### AI-Ergebnisregisterkarte
+### Funktionen der AI-Ergebnisregisterkarte
 
 * Das Gesprächsprotokoll ist schreibgeschützt und nicht im gespeicherten Projekt-/Sitzungsstatus enthalten.
 * `<think> ... </think>`-Blöcke werden aus der sichtbaren Ausgabe entfernt.
@@ -212,7 +212,7 @@ $$a^2 + b^2 = c^2$$
 
 ## AI-Manager
 
-Öffnen Sie **AI > AI Manager** oder drücken Sie ++Strg+Umschalt+Y++ (++Cmd+Umschalt+Y++ unter macOS).
+Öffnen Sie **AI > AI Manager** oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).
 
 ![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
@@ -269,7 +269,7 @@ korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
   - ⏸ pausiert
   -  ✓ fertig
 * **Gleichzeitige Ausführungen** – Mehrere gleichzeitige Ausführungen pro Split werden als schließbare Registerkarten im Aktivitätsbereich angezeigt (eine Registerkarte pro Ausführung), mit einer Parallelitätsobergrenze pro Widget von 5 Ausführungen. Abgeschlossene Läufe bleiben als Tabs erhalten, bis sie geschlossen werden.
-* **Tippen während des Laufens** – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren `agent ...`-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Strg+C++ cancel the selected tab's run; ++Strg+R++ schaltet die Denkdetails dieses Laufs um.
+* **Tippen während des Laufens** – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren `agent ...`-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Ctrl+C++ brechen die Ausführung des ausgewählten Tabs ab; ++Ctrl+R++ schaltet die Denkdetails dieses Laufs um.
 * **Pause und Fortsetzen** – Auf jeder Laufregisterkarte werden Schaltflächen zum Anhalten und Abbrechen angezeigt. Pause parkt den Agenten an einem sicheren Punkt zwischen den Schritten; Die Pausenzeit wird von der Laufarbeitszeit ausgeschlossen.
 * **Aktuelles Verzeichnis** – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Ein lokaler Lauf erfasst ein stabiles Verzeichnis für seine Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn des Laufs arbeitete.
 * **Genehmigungen und Sudo** – Der Agent kann vor der Befehlsausführung eine explizite Genehmigung anfordern und im Aktivitätsbereich nach einem Sudo-Passwort fragen. Die Passworteingabe ist maskiert, kann mit ++Enter++ übermittelt werden und ermöglicht bis zu drei Wiederholungsversuche mit falschem Passwort. Wenn ein Passwort zwischengespeichert wird, wird es nur für den aktuellen Agenten-/Sitzungskontext verwendet. Wenn eine Benutzereingabe (Sudo-Passwort/Befehlsgenehmigung) erforderlich ist, wird das Bedienfeld automatisch erweitert.
@@ -374,13 +374,13 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 * Befehle, die das System ändern oder Berechtigungen erfordern, können abhängig von den Einstellungen und der Modellentscheidung durch eine Bestätigung weitergeleitet werden.
 * Sudo verwendet `sudo -n` und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine `sudo -S`, `su` oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.
 * SSH-Verzeichnisse werden anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein verfolgtes Remote-Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut vom SSH-Standardverzeichnis aus und meldet das Problem. Lokale Ausführungen aktualisieren das Shell-Prozessverzeichnis oder verwenden einen absoluten nativen Eingabeaufforderungspfad, frieren das Ergebnis für die Ausführung ein und stoppen sicher, wenn ein geändertes Verzeichnis nicht ermittelt oder zugeordnet werden kann.
-* Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Es werden nur die Run-Control-Tasten (++Esc++/++Strg+C++ to cancel the selected run, ++Strg+R++ zum Umschalten der Denkdetails) abgefangen.
+* Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Nur die Laufsteuerungstasten (++Esc++/++Ctrl+C++ zum Abbrechen des ausgewählten Laufs, ++Ctrl+R++ zum Umschalten seiner Denkdetails) werden abgefangen.
 * Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.
 * Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.
 
 ## AI Swarm (Multiserver)
 
-Der [KI-Schwarm](ai-swarm.md) sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – auch Server **ohne offenes Terminal** – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Pausen-/Fortsetzungs-/Neustart-/Stopp-Steuerelemente pro Agent und schwarmweit, KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche **Planen…** hinzu, die den Lauf in einen unbeaufsichtigten Lauf verwandelt [JobScheduler](jobscheduler.md) Arbeit. Öffnen Sie es mit **AI > AI Swarm...** oder ++Strg+Alt+S++ (Cmd unter macOS); siehe die [KI-Schwarm](ai-swarm.md) Seite für den vollständigen Funktionsumfang.
+Der [KI-Schwarm](ai-swarm.md) sendet eine KI-Agentenaufgabe gleichzeitig an viele Server: Jeder ausgewählte Server erhält seinen eigenen Agentenlauf – auch Server **ohne offenes Terminal** – und die Antworten pro Server werden in einer einzigen Vergleichstabelle zusammengefasst. Die Schwarm-Registerkarte fügt einen animierten Statusstreifen pro Agent, erweiterbare Live-Transkripte, Pausen-/Fortsetzungs-/Neustart-/Stopp-Steuerelemente pro Agent und schwarmweit, KI-freie Skriptausführung über den Snippet-Manager sowie eine Schaltfläche **Planen…** hinzu, die den Lauf in einen unbeaufsichtigten Lauf verwandelt [JobScheduler](jobscheduler.md) Arbeit. Öffnen Sie es mit **AI > AI Swarm...** oder ++ctrl+alt+s++ (Befehl unter macOS); siehe die [KI-Schwarm](ai-swarm.md) Seite für den vollständigen Funktionsumfang.
 
 ## Workflow-Skript generieren
 

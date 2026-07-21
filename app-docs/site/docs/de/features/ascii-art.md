@@ -1,53 +1,64 @@
 ---
-title: ASCII-Kunstbanner
+title: ASCII-Art
 ---
 
-# ASCII-Kunstbanner
+# ASCII-Art
 
-Generieren Sie ASCII-Kunsttextbanner mit FIGlet-Schriftarten mit mehreren Stiloptionen. Mit dem Dialogfeld „ASCII-Art-Banner“ können Sie eine Vorschau Ihres Texts in verschiedenen Stilen anzeigen und das Ergebnis in Ihre Zwischenablage kopieren, um es in Terminal-Skripten, Kopfzeilen oder Dokumentationen zu verwenden.
+Erstellen Sie ASCII-Art auf zwei Arten: Rendern Sie Text als FIGlet-Banner oder lassen Sie die KI ein Bild aus einem Betreffwort wie „Haus“ zeichnen. Beide befinden sich in einem Dialog hinter ihrer eigenen Registerkarte, geben eine zoombare Vorschau frei und können in die Zwischenablage kopiert werden, um sie in Terminal-Skripten, Anmeldebannern oder Dokumentationen zu verwenden.
 
 ## Zugriff auf das Tool
 
-Öffnen Sie den ASCII-Art-Banner-Generator über **Extras > ASCII-Art-Banner** in der Menüleiste.
+Öffnen Sie den Dialog über **Extras > ASCII Art...** in der Menüleiste oder drücken Sie ++ctrl+shift+a++ (++cmd+shift+a++ unter macOS).
 
-## Verwenden des Dialogs
+## Registerkarte „Textbanner“.
 
-Der Dialog enthält vier Hauptabschnitte:
+### Stil
 
-### Stilauswahl
+Wählen Sie im Dropdown-Menü einen FIGlet-Schriftstil aus. **Standard** und **Slant** stammen aus der jfiglet-Bibliothek; **3-D**, **Banner**, **big**, **block**, **cosmic**, **Digital**, **Lean**, **roman**, **script** und **small** sind gebündelte FIGfonts. Ein Stil, dessen Schriftartdatei nicht geladen werden kann, wird aus der Liste ausgeschlossen.
 
-Wählen Sie über das Dropdown-Menü aus über 11 verfügbaren FIGlet-Schriftstilen:
+Wechseln Sie zwischen Stilen mit dem Dropdown-Menü, mit den Pfeiltasten (++left++, ++right++, ++up++, ++down++), während das Dropdown-Menü den Fokus hat, oder mit den Tasten ◀ und ▶ daneben.
 
-- **Standard** – Klassische Blockbuchstaben (Standard-Jfiglet-Stil)
-- **Schräge** – kursive Blockschrift
-- **3-D**, **Banner**, **groß**, **Block**, **kosmisch**, **Digital**, **lean**, **roman**, **script**, **small** – Zusätzliche gebündelte Stile für vielfältige visuelle Effekte
+### Text
 
-Navigieren Sie zwischen Stilen mit:
+Geben Sie den zu konvertierenden Text in das Feld **Text** ein oder fügen Sie ihn ein. Die mehrzeilige Eingabe wird unterstützt – jede Zeile wird einzeln konvertiert und leere Zeilen bleiben leer.
 
-- Das Dropdown-Menü direkt
-- Pfeiltasten (++left++, ++right++, ++up++, ++down++), wenn das Kombinationsfeld den Fokus hat
-- Die Navigationsschaltflächen (◀ und ▶) neben dem Dropdown
+Die **Vorschau** wird während der Eingabe und bei jeder Änderung des Stils neu gerendert.
 
-### Eingabe
+## AI Registerkarte „Bild“.
 
-Geben oder fügen Sie den Text, den Sie konvertieren möchten, in das Feld **Eingabe** ein. Mehrzeiliger Text wird unterstützt – jede Zeile wird separat konvertiert.
+Anstelle einer Beschriftung fordert diese Registerkarte ein Modell auf, das Motiv als Bild zu zeichnen.
 
-### Vorschau
+| Steuerung | Was es tut |
+| --- | --- |
+| **Thema** | Das Ding zum Zeichnen zum Beispiel `house`. Drücken ++enter++ startet die Generation. |
+| **Generieren** | Fordert ein Bild für den Betreff an. |
+| **AI-Profil** | Welches Profil verarbeitet diesen Lauf? Die Auswahl ist vorübergehend und ändert Ihr Standardprofil nicht. |
+| **Neue Variante** | Zeichnet dasselbe Motiv mit einer anderen Behandlung neu – Betrachtungswinkel, Detaillierungsgrad, Linienstil, Szenenkontext oder Proportionen – und fordert bei jedem Wiederholungsversuch erneut etwas anderes an. |
 
-Im Bereich **Ausgabe** wird Ihr Text in Echtzeit angezeigt, während Sie:
+Für die Registerkarte ist mindestens ein konfiguriertes AI-Profil und der aktivierte AI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an. Fehler und „Kein brauchbares Bild“-Antworten werden in derselben Statuszeile gemeldet.
 
-- Ändern Sie den ausgewählten Schriftstil
-- Geben Sie Ihren Eingabetext ein oder bearbeiten Sie ihn
+!!! note
+    Das Modell wird nur nach druckbarem ASCII gefragt, höchstens 60 Zeichen pro Zeile und 30 Zeilen hoch, damit ein Ergebnis in der Vorschau lesbar bleibt. Antworten werden bereinigt, bevor sie angezeigt werden: Ein umschlossener Codeblock wird entpackt, Argumentationsblöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten.
 
-Die Ausgabe verwendet eine Monospace-Schriftart für eine genaue ASCII-Grafikwiedergabe.
+## Vorschauzoom
 
-### In die Zwischenablage kopieren
+Beide Registerkarten teilen sich eine Zoomstufe, sodass ein Banner und ein Bild immer in der gleichen Größe angezeigt werden.
 
-Klicken Sie auf **In die Zwischenablage kopieren**, um die generierte ASCII-Grafik in die Zwischenablage Ihres Systems zu kopieren. Sie können es dann in Terminalskripte, Dokumentation, Konfigurationsdateien oder jeden anderen Textkontext einfügen.
+| Aktion | Steuert |
+| --- | --- |
+| Vergrößern | ***+**-Taste, ++ctrl+plus++, oder ++ctrl++ und scrollen Sie nach oben über die Vorschau |
+| Schrumpfen | **−**-Taste, ++ctrl+minus++, oder ++ctrl++ und scrollen Sie nach unten über die Vorschau |
+| Zurücksetzen | **⟲**-Taste oder ++ctrl+0++ |
+
+Der Prozentsatz zwischen den Schaltflächen zeigt den aktuellen Wert an, von 50 % bis 333 %, wobei 100 % die standardmäßige 12-Pixel-Monospace-Größe ist.
+
+## In die Zwischenablage kopieren
+
+**In die Zwischenablage kopieren** kopiert die Vorschau der aktuell geöffneten Registerkarte, sodass Sie das Banner von der Registerkarte „Textbanner“ und das Bild von der Registerkarte „KI-Bild“ erhalten.
 
 ## Beispiel
 
-Mit dem „Banner“-Stil und dem Eingabetext „Hallo“:
+Der **Banner**-Stil mit dem Eingabetext „Hallo“:
 
 ```
  _   _                 
@@ -60,6 +71,6 @@ Mit dem „Banner“-Stil und dem Eingabetext „Hallo“:
 
 ## Dialogstatus
 
-Das Dialogfeld „ASCII-Art-Banner“ merkt sich zwischen den Sitzungen seine Fensterposition, Größe und den ausgewählten Schriftstil.
+Der Dialog merkt sich seine Fensterposition, seine Größe und die Vorschau-Zoomstufe zwischen den Sitzungen.
 
-![ASCII Art banner generator](../assets/screenshots/tools/ascii-art.png)
+![ASCII art generator](../assets/screenshots/tools/ascii-art.png)

@@ -6,31 +6,31 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 | Verknüpfung | Aktion |
 | --- | --- |
-| ++Strg+T++ | Neuer Tab (Schnellverbindung) |
-| ++Strg+Umschalt+N++ | Neues Fenster |
-| ++Strg+W++ | Tab schließen |
-| ++Strg+Tab++ | Nächste Registerkarte |
-| ++Strg+Umschalt+Tab++ | Vorheriger Tab |
-| ++Strg+O++ | Projekt öffnen |
-| ++Strg+S++ | Projekt speichern |
-| ++Strg+K++ | Schnellverbindung |
-| ++Strg+Umschalt+D++ | Dashboard umschalten |
-| ++Strg+Umschalt+L++ | Menüleiste ein-/ausblenden |
-| ++Strg+Umschalt+Y++ | Öffnen Sie AI Manager |
-| ++Strg+Alt+S++ | KI-Schwarm öffnen |
-| ++Strg+x++ | Ausschneiden (für Anschlusslaschen deaktiviert) |
-| ++Strg+C++ | Kopieren |
-| ++Strg+V++ | Einfügen |
+| ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
+| ++ctrl+shift+n++ | Neues Fenster |
+| ++ctrl+w++ | Tab schließen |
+| ++ctrl+tab++ | Nächste Registerkarte |
+| ++ctrl+shift+tab++ | Vorheriger Tab |
+| ++ctrl+o++ | Projekt öffnen |
+| ++ctrl+s++ | Projekt speichern |
+| ++ctrl+k++ | Schnellverbindung |
+| ++ctrl+shift+d++ | Dashboard umschalten |
+| ++ctrl+shift+l++ | Menüleiste ein-/ausblenden |
+| ++ctrl+shift+y++ | Öffnen Sie AI Manager |
+| ++ctrl+alt+s++ | Öffnen Sie den KI-Schwarm |
+| ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
+| ++ctrl+c++ | Kopie |
+| ++ctrl+v++ | Paste |
 | ++alt+plus++ | Vergrößern |
-| ++alt+minus++ | Verkleinern |
+| ++alt+minus++ | Herauszoomen |
 | ++alt+0++ | Zoom zurücksetzen |
 | ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
-| ++Strg+D++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH) |
+| ++ctrl+d++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH). |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |
-| ++Strg+Umschalt+F++ | Nur Terminal-Vollbild umschalten |
-| ++Strg+Umschalt+B++ | Backup erstellen |
-| ++Strg+Q++ | Beenden |
+| ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
+| ++ctrl+shift+b++ | Backup erstellen |
+| ++ctrl+q++ | Aufhören |
 
 ## Terminal-KI-Agent
 
@@ -38,8 +38,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | --- | --- |
 | `agent` + ++tab++ (an der Shell-Eingabeaufforderung) | Agentenbefehlsvarianten anzeigen (`agent`, `agent-ask`, `agent-plan`) |
 | `agent ` + ++tab++ (an der Shell-Eingabeaufforderung) | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen (neueste zuerst) |
-| ++esc++ oder ++Strg+C++ (während eines Laufs) | Brechen Sie die Registerkarte der ausgewählten Agentenausführung ab |
-| ++Strg+R++ (während einer Ausführung) | Denkdetails für den ausgewählten Lauf umschalten |
+| ++esc++ oder ++ctrl+c++ (während eines Laufs) | Brechen Sie die Registerkarte der ausgewählten Agentenausführung ab |
+| ++ctrl+r++ (während eines Laufs) | Schalten Sie die Denkdetails für den ausgewählten Lauf um |
 | ⏸ (Aktivitätsbereich) | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
 | ▶️ (Aktivitätsbereich) | Einen angehaltenen Lauf fortsetzen |
 

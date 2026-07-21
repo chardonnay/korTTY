@@ -68,7 +68,7 @@ Wenn sich `ffmpeg` unter macOS und Linux in Ihrem PATH befindet, erkennt KorTTY 
 1. Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte
 2. Wenn die Aufzeichnung aktiviert ist, klicken Sie in der Terminalleiste auf **Aufzeichnung starten** oder:
    - Wählen Sie **Extras > Terminalaufzeichnung starten/stoppen**, oder
-   - Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)
+   - Press ++ctrl+shift+e++ (++cmd+shift+e++ auf macOS)
 3. Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:
    - **Aktive Teilung** – Nur den fokussierten Terminalbereich aufzeichnen
    - **Gesamte Registerkarte** – zeichnet alle sichtbaren Teilungen auf
@@ -78,7 +78,7 @@ Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung a
 ### Stoppen Sie die Aufnahme
 
 - Klicken Sie in der Terminalleiste auf **Aufnahme beenden**, oder
-- Drücken Sie ++Strg+Umschalt+e++ (++cmd+Umschalt+e++ unter macOS)
+- Press ++ctrl+shift+e++ (++cmd+shift+e++ auf macOS)
 
 ### Mehrere Segmente
 
