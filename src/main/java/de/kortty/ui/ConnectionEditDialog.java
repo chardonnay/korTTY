@@ -113,6 +113,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     // Connection timeout
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
+    /** Tri-state host-key verification override: null=inherit, Boolean.FALSE=verify, Boolean.TRUE=don't verify. */
+    private ComboBox<HostKeyChoice> hostKeyCheckCombo;
     
     // Window geometry (per connection)
     private CheckBox useCustomGeometryCheck;
@@ -412,7 +414,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         HBox retryBox = new HBox(10);
         retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("connEdit.attempts")));
         connectionGrid.add(retryBox, 1, row++);
-        
+
+        hostKeyCheckCombo = new ComboBox<>();
+        hostKeyCheckCombo.getItems().addAll(
+            new HostKeyChoice(null, I18n.get("connEdit.hostKeyCheck.inherit")),
+            new HostKeyChoice(Boolean.FALSE, I18n.get("connEdit.hostKeyCheck.verify")),
+            new HostKeyChoice(Boolean.TRUE, I18n.get("connEdit.hostKeyCheck.disable")));
+        Boolean stored = connection.getDisableHostKeyCheck();
+        hostKeyCheckCombo.setValue(hostKeyCheckCombo.getItems().stream()
+            .filter(c -> java.util.Objects.equals(c.value(), stored))
+            .findFirst().orElse(hostKeyCheckCombo.getItems().get(0)));
+        hostKeyCheckCombo.setTooltip(new Tooltip(I18n.get("connEdit.hostKeyCheck.tooltip")));
+        connectionGrid.add(new Label(I18n.get("connEdit.hostKeyCheck")), 0, row);
+        connectionGrid.add(hostKeyCheckCombo, 1, row++);
+
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
         connectionGrid.add(new Label(I18n.get("connEdit.authentication")), 0, row);
@@ -538,6 +553,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());
+                connection.setDisableHostKeyCheck(
+                    hostKeyCheckCombo.getValue() != null ? hostKeyCheckCombo.getValue().value() : null);
                 
                 // Save credential reference
                 if (savedCredentialsCombo.getValue() != null) {
@@ -728,6 +745,14 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     
     /** Combo entry for the per-connection AI profile; profileId == null means "use default". */
     private record AiProfileOption(String profileId, String label) {
+    }
+
+    /** Tri-state host-key override entry; value null=inherit, FALSE=verify, TRUE=don't verify. */
+    private record HostKeyChoice(Boolean value, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private Tab createAiTab() {

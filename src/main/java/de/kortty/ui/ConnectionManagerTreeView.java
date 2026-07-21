@@ -34,6 +34,10 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private Consumer<List<ServerConnection>> onExportConnections;
     private Consumer<List<ServerConnection>> onDeleteConnections;
     private Consumer<GroupPath> onExportGroup;
+    /** Toggles host-key verification for a group; the boolean is the new "disabled" state. */
+    private java.util.function.BiConsumer<GroupPath, Boolean> onToggleGroupHostKeyCheck;
+    /** Reports whether a group currently has host-key verification disabled, to render the check mark. */
+    private java.util.function.Predicate<GroupPath> groupHostKeyCheckDisabled;
     private Runnable onAddConnection;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
@@ -495,9 +499,26 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
         
-        menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(), 
+        CheckMenuItem disableHostKeyItem = new CheckMenuItem(I18n.get("connManager.group.disableHostKeyCheck"));
+        disableHostKeyItem.setSelected(groupHostKeyCheckDisabled != null && groupHostKeyCheckDisabled.test(groupPath));
+        disableHostKeyItem.setOnAction(e -> {
+            if (onToggleGroupHostKeyCheck != null) {
+                onToggleGroupHostKeyCheck.accept(groupPath, disableHostKeyItem.isSelected());
+            }
+        });
+
+        menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(),
+                               disableHostKeyItem, new SeparatorMenuItem(),
                                exportGroupItem, deleteGroupItem);
         return menu;
+    }
+
+    public void setOnToggleGroupHostKeyCheck(java.util.function.BiConsumer<GroupPath, Boolean> handler) {
+        this.onToggleGroupHostKeyCheck = handler;
+    }
+
+    public void setGroupHostKeyCheckDisabledProbe(java.util.function.Predicate<GroupPath> probe) {
+        this.groupHostKeyCheckDisabled = probe;
     }
     
     /**

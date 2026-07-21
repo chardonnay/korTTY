@@ -124,7 +124,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:
       - settings/terminal.png
-    last_synced_ref: "6133079"
+    last_synced_ref: "0d3fb77"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
@@ -265,9 +265,9 @@ pages:
     last_synced_ref: "6133079"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java]
+    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java]
     diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
-    last_synced_ref: "00c8bf6"
+    last_synced_ref: "0d3fb77"
   - path: app-docs/site/docs/en/features/backup.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]

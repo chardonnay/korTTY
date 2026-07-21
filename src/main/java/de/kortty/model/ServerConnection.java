@@ -73,7 +73,15 @@ public class ServerConnection {
     
     @XmlElement
     private String group;
-    
+
+    /**
+     * Per-connection host-key verification override. {@code null} inherits from the group/global
+     * setting; {@code true} relaxes to accept-new; {@code false} forces strict verification even if
+     * the group or global setting disabled it. See {@link de.kortty.core.HostKeyCheckPolicy}.
+     */
+    @XmlElement
+    private Boolean disableHostKeyCheck;
+
     @XmlElement
     private int usageCount = 0;
     
@@ -361,6 +369,15 @@ public class ServerConnection {
     
     public void setGroup(String group) {
         this.group = group;
+    }
+
+    /** {@code null} = inherit, {@code true} = don't verify (accept-new), {@code false} = force strict. */
+    public Boolean getDisableHostKeyCheck() {
+        return disableHostKeyCheck;
+    }
+
+    public void setDisableHostKeyCheck(Boolean disableHostKeyCheck) {
+        this.disableHostKeyCheck = disableHostKeyCheck;
     }
     
     public String getDisplayName() {

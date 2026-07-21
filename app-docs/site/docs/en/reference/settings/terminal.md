@@ -23,6 +23,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
+| Disable host key verification for all connections | toggle | — | Off | `hostKeyCheckDisabledForAllConnections` |
 
 ## Notes
 
@@ -31,6 +32,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.
+
+!!! warning "Disable host key verification for all connections"
+    This is the global, lowest-precedence host-key setting: it relaxes verification to accept-new for every connection that does not set its own or its group's override. Accept-new still hard-blocks a changed key on a host already pinned, and a jump server's own key is always verified strictly — but disabling first-use verification removes protection against a man-in-the-middle on the very first connection. Off by default. Per-connection and per-group overrides are set in the Connection Manager; see [Security → Relaxing host-key verification](../../features/security.md#relaxing-host-key-verification).
 
 !!! note "Drag-and-Drop File Copy"
     When enabled, you can drop files or folders from your file manager (Finder on macOS, Explorer on Windows) directly into the terminal window. The files will be copied to the remote SSH server via SFTP.

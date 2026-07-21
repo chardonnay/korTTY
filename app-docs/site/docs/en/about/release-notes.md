@@ -8,6 +8,11 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 - **Jump server hopping is now implemented** — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.
 - **The bastion is verified, and credentials are kept separate** — the jump host's key goes through the same trust-on-first-use prompt and pinning as any other host, the target is still verified under its own name through the tunnel, and neither host is ever offered the other's password or key. The write-only *Auto-Command* field was removed; a real tunnel supersedes the "type ssh on the bastion" pattern it stood for.
+- **SFTP now routes through the jump server too** — file transfer connections hop through the bastion the same way terminal sessions do.
+
+### SSH host-key verification
+
+- **Opt out of host-key verification, per connection, per group, or globally** — for lab or throwaway hosts, korTTY can accept an unknown host key without the first-use prompt. It is an **accept-new** relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. The three scopes resolve in precedence order — a per-connection override (Connection Manager editor and Quick Connect: *Use default* / *Verify* / *Don't verify*) wins over a per-group toggle (right-click a group → *Disable host key verification*), which wins over the global **Settings → Terminal → Disable host key verification for all connections**. Off by default. A jump server's own host key is always verified strictly, regardless of the target's setting.
 
 ### ASCII art
 

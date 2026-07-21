@@ -23,6 +23,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | SSH-Keep-Alive aktivieren | umschalten | — | Auf | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
 | Verbindungswiederholungen aktivieren | umschalten | — | Auf | `connectionRetriesEnabled` |
+| Hostschlüsselüberprüfung für alle Verbindungen deaktivieren | umschalten | – | Aus | `hostKeyCheckDisabledForAllConnections` |
 
 ## Notizen
 
@@ -31,6 +32,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! note "SSH Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
+
+!!! warning "Hostschlüsselüberprüfung für alle Verbindungen deaktivieren"
+    Dies ist die globale Hostschlüsseleinstellung mit der niedrigsten Priorität: Sie lockert die Überprüfung auf „Accept-New“ für jede Verbindung, die nicht ihre eigene oder die Überschreibung ihrer Gruppe festlegt. Accept-new blockiert weiterhin einen geänderten Schlüssel auf einem Host, der bereits gepinnt ist, und der eigene Schlüssel eines Jump-Servers wird immer streng überprüft – aber durch Deaktivieren der Erstverwendungsüberprüfung wird der Schutz vor einem Man-in-the-Middle bei der allerersten Verbindung aufgehoben. Standardmäßig deaktiviert. Im Verbindungsmanager werden verbindungs- und gruppenspezifische Außerkraftsetzungen festgelegt. siehe [Sicherheit → Lockere Host-Schlüssel-Überprüfung](../../features/security.md#relaxing-host-key-verification).
 
 !!! note "Drag-and-Drop-Datei kopieren"
     Wenn diese Option aktiviert ist, können Sie Dateien oder Ordner aus Ihrem Dateimanager (Finder unter macOS, Explorer unter Windows) direkt im Terminalfenster ablegen. Die Dateien werden über SFTP auf den Remote-SSH-Server kopiert.

@@ -243,7 +243,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
             
-            hostKeyVerifier = hostKeyTrustManager.verifierFor(connection);
+            hostKeyVerifier = hostKeyTrustManager.verifierFor(
+                connection, HostKeyCheckPolicy.resolveFromSettings(connection));
             client.setServerKeyVerifier(hostKeyVerifier);
             client.start();
             
