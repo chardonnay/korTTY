@@ -717,11 +717,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(hostKeyWarn, 0, 17, 2, 1);
 
         // Connection section
-        terminalGrid.add(new Separator(), 0, 14, 2, 1);
+        terminalGrid.add(new Separator(), 0, 18, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
         connectionHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(connectionHeader, 0, 15, 2, 1);
-        terminalGrid.add(connectionRetriesEnabledCheck, 0, 16, 2, 1);
+        terminalGrid.add(connectionHeader, 0, 19, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
         
         terminalTab.setContent(terminalGrid);
 
