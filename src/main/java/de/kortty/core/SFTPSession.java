@@ -40,6 +40,8 @@ public class SFTPSession {
     private ClientSession session;
     private SftpClient sftpClient;
     private String currentRemotePath = "~";
+    /** Established bastion hop when the connection has an enabled jump server; null otherwise. */
+    private JumpHostSupport.JumpTunnel jumpTunnel;
     
     public SFTPSession(ServerConnection connection, String password) {
         this(connection, password, SshHostKeyTrustManager.shared());
@@ -158,22 +160,46 @@ public class SFTPSession {
             timeoutSeconds = 15;
         }
         
-        session = client.connect(connection.getUsername(), connection.getHost(), connection.getPort())
-                .verify(Duration.ofSeconds(timeoutSeconds))
-                .getSession();
-        
-        // Authenticate
-        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-            authenticateWithKey();
-        } else {
-            session.addPasswordIdentity(password);
+        // With an enabled jump server, hop first: authenticate to the bastion with its own
+        // credentials and open a loopback forward to the target. The verifier set above was built
+        // for the target's real host:port, so the target's key is still pinned under its real name.
+        String connectHost = connection.getHost();
+        int connectPort = connection.getPort();
+        if (JumpHostSupport.isActive(connection)) {
+            jumpTunnel = JumpHostSupport.open(
+                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
+            connectHost = jumpTunnel.localHost();
+            connectPort = jumpTunnel.localPort();
+            logger.info("SFTP connecting to {} via jump server {}",
+                connection.getDisplayName(), connection.getJumpServer().getHost());
         }
-        session.auth().verify(Duration.ofSeconds(timeoutSeconds));
-        
+
+        // Once the tunnel is open, a failure connecting or authenticating to the target must not
+        // leak it — the caller may not reach close(). Close the tunnel on the way out and rethrow.
         try {
-            sftpClient = SftpClientFactory.instance().createSftpClient(session);
-        } catch (IOException | RuntimeException e) {
-            throw new IOException(sftpSubsystemFailureMessage(e), e);
+            session = client.connect(connection.getUsername(), connectHost, connectPort)
+                    .verify(Duration.ofSeconds(timeoutSeconds))
+                    .getSession();
+
+            // Authenticate
+            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+                authenticateWithKey();
+            } else {
+                session.addPasswordIdentity(password);
+            }
+            session.auth().verify(Duration.ofSeconds(timeoutSeconds));
+
+            try {
+                sftpClient = SftpClientFactory.instance().createSftpClient(session);
+            } catch (IOException | RuntimeException e) {
+                throw new IOException(sftpSubsystemFailureMessage(e), e);
+            }
+        } catch (Exception e) {
+            if (jumpTunnel != null) {
+                jumpTunnel.close();
+                jumpTunnel = null;
+            }
+            throw e;
         }
         
         // Initialize current directory
@@ -488,6 +514,11 @@ public class SFTPSession {
             logger.info("SFTP connection closed");
         } catch (Exception e) {
             logger.error("Error closing SFTP connection", e);
+        } finally {
+            if (jumpTunnel != null) {
+                jumpTunnel.close();
+                jumpTunnel = null;
+            }
         }
     }
     
