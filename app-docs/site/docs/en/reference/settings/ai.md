@@ -154,7 +154,6 @@ Per-profile internet access strategy for AI requests. Each mode requires differe
 - **Disabled** (default): No internet access.
 - **KorTTY Tavily Tool**: Built-in web search using Tavily API directly (requires Tavily API key).
 - **LM Studio Tavily MCP**: Web search via an LM Studio Tavily MCP instance (requires Tavily API key and MCP server label).
-- **LM Studio Tavily MCP**: Web search via an LM Studio Tavily MCP instance (requires Tavily API key and MCP server label).
 - **Bright Data Web MCP**: Structured data extraction and browsing via Bright Data Web MCP (requires Bright Data API token and MCP server label).
 - **Brave Search MCP**: Search via Brave Search MCP (requires Brave Search API key and MCP plugin ID in `mcp/<server_label>` format).
 - **SearXNG MCP**: Search via a SearXNG MCP instance (requires SearXNG URL and MCP plugin ID in `mcp/<server_label>` format).

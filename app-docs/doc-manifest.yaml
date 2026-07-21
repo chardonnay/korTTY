@@ -104,7 +104,7 @@ pages:
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -112,25 +112,25 @@ pages:
       - settings/appearance.png
       - settings/themes.png
       - settings/font.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/colors.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/terminal.md
     owns_i18n: [settings.terminal.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:
       - settings/terminal.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/window.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
@@ -140,7 +140,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/logging.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
@@ -170,26 +170,26 @@ pages:
     owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/translation.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/video.md
     owns_i18n: [settings.video.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/core/TerminalRecordingRuntimeState.java]
     screenshots:
       - settings/video.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/ai.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
 
     screenshots:
       - settings/ai-skills.png
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b8c5d3f"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections.]
