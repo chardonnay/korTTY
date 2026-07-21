@@ -220,7 +220,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
-| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation, silent exact match, hard block on change |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
 | Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
 | GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |

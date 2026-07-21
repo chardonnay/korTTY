@@ -34,7 +34,7 @@ Das Backup umfasst:
 | Verbindungen | Alle gespeicherten SSH-Verbindungen und Gruppen |
 | Anmeldeinformationen | Gespeicherte Benutzernamen und Passwörter (verschlüsselt) |
 | SSH-Schlüssel | Zentral verwaltete private SSH-Schlüssel mit verschlüsselten Passphrasen |
-| Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; Der vorübergehende Begleiter `.lock` ist nicht im Lieferumfang enthalten (|).
+| Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; der Vergängliche `.lock` Begleiter ist nicht im Lieferumfang enthalten |
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
 | Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile |
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |

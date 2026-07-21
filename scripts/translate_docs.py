@@ -46,7 +46,7 @@ CACHE = SITE / ".docs-translate-cache"
 TARGET = "de"
 # Bump whenever masking/format-preservation rules change so cached pages are
 # regenerated with the new rules instead of silently keeping stale Markdown.
-TRANSLATION_FORMAT_VERSION = "8"
+TRANSLATION_FORMAT_VERSION = "11"
 
 # Asset subtrees that are generated/staged elsewhere — never copy or translate.
 SKIP_DIRS = {"diagrams", "screenshots"}
@@ -98,7 +98,7 @@ def unmask(text: str, store: list[str]) -> str:
 TOKEN_RE = re.compile(r"(KTPH\d{3})")
 
 
-def placeholders_intact(text: str, store: list[str]) -> bool:
+def placeholders_intact(text: str, store: list[str], masked: str | None = None) -> bool:
     """Return whether protected tokens survived and Markdown grammar stayed ordered."""
     tokens = [f"KTPH{i:03d}" for i in range(len(store))]
     if any(text.count(token) != 1 for token in tokens):
@@ -114,7 +114,30 @@ def placeholders_intact(text: str, store: list[str]) -> bool:
         or re.match(r"^\s*(?:!!!|===|#{1,6}|>|[-*+]|\d+[.)])", fragment)
     ]
     positions = [text.index(tokens[i]) for i in structural_indices]
-    return positions == sorted(positions)
+    if positions != sorted(positions):
+        return False
+    # Relative order is not enough: German word order routinely moves text ACROSS the final
+    # token without disturbing any pair's order. Two ways that corrupts a line, so the check
+    # is symmetric — whether the line ends in a token must be preserved, and so must which
+    # token that is:
+    #   * a table row's closing "|" swallowed into the cell ("... über `ffmpeg` | nach WebM
+    #     exportieren") turns the trailing text into a phantom column;
+    #   * inline code dragged to the end ("ob die Datei unter noch vorhanden ist `~/...`")
+    #     leaves grammatically broken prose.
+    # Failing here routes the line to translate_preserving_token_order, which translates only
+    # the fragments between tokens and so cannot move one.
+    if masked is not None:
+        source_tail = masked.rstrip()
+        found = TOKEN_RE.findall(source_tail)
+        source_ends_with_token = bool(found) and source_tail.endswith(found[-1])
+        target_tail = text.rstrip()
+        target_found = TOKEN_RE.findall(target_tail)
+        target_ends_with_token = bool(target_found) and target_tail.endswith(target_found[-1])
+        if source_ends_with_token != target_ends_with_token:
+            return False
+        if source_ends_with_token and found[-1] != target_found[-1]:
+            return False
+    return True
 
 
 def translate_preserving_token_order(masked: str, translator) -> str:
@@ -187,6 +210,9 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
 # ("Anleitung", matching the app's menu.help.guide=Anleitung) so the DE site never
 # drifts to Handbuch/Leitfaden/Manual. Applied after translation.
 GLOSSARY_DE = [
+    # A bare "Enabled" column label reads as a verb to MT ("Ermöglicht" = "enables"); as a
+    # settings-table label it is the adjective. Scoped to the cell so prose is untouched.
+    ("| Ermöglicht |", "| Aktiviert |"),
     # Product/technology names that MT tends to translate literally.
     ("Meerjungfrau", "Mermaid"),
     ("meerjungfrau", "Mermaid"),
@@ -296,7 +322,7 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
             time.sleep(0.4)
     for (_idx, masked, store), translated in zip(misses, out):
         translated = translated or ""
-        if not placeholders_intact(translated, store):
+        if not placeholders_intact(translated, store, masked):
             translated = translate_preserving_token_order(masked, translator)
         memory[masked] = translated
     for idx, masked, store in jobs:
@@ -361,7 +387,10 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
                 continue
             de_line = de_line[len("title:"):].strip()
         remasked = remask(de_line, store)
-        if remasked is not None:
+        # Validate reuse with the same predicate that gates a fresh translation. Without
+        # this, a row damaged by an earlier run is keyed by its (unchanged) English line
+        # and gets reused verbatim forever — the repaired rule would never reach it.
+        if remasked is not None and placeholders_intact(remasked, store, masked):
             memory[masked] = remasked
     return memory
 

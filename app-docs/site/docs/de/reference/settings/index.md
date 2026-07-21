@@ -16,19 +16,19 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 
 | Tab | Was es steuert |
 | --- | --- |
-| [Erscheinungsbild, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
+| [Aussehen, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
 | [Farben](colors.md) | Farbprofil, Text-/Hintergrund-/Cursor-/Auswahlfarben, Cursor-Blinken, die 16-Farben-ANSI-Palette |
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH-Keep-Alive, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
 | [Fenster](window.md) | Wiederherstellung der Fenstergeometrie, feste Geometrie, Dashboard-Status, Menüleiste |
-| [Ressourcen](resources.md) | Opt-in-JVM-Heap/GC-Profil (Ausbalanciert/Hoch/Maximal) für größere Arbeitslasten |
-| [Logging](logging.md) | Terminalprotokollverzeichnis, Aufbewahrung und Format |
+| [Ressourcen](resources.md) | Opt-in-JVM-Heap/GC-Profil (Ausgeglichen/Hoch/Maximum) für größere Arbeitslasten |
+| [Protokollierung](logging.md) | Verzeichnis, Aufbewahrung und Format des Terminalprotokolls |
 | [Sicherung](backup.md) | Verschlüsselungstyp (ZIP-Passwort / GPG), maximale Backup-Anzahl |
-| [Updates](updates.md) | Automatische Aktualisierungsprüfung und -intervall |
+| [Aktualisierungen](updates.md) | Automatische Update-Überprüfung und -Intervall |
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
-| [Datenschutz](../../about/anonymous-data.md) | Opt-in für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
-| [Language](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
+| [Privatsphäre](../../about/anonymous-data.md) | Opt-in für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
+| [Sprache](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
-| [Video](video.md) | Terminalaufzeichnung / `ffmpeg`-Videoexport |
+| [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |
 | [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Argumentation, Quote, Internet-Tools |
 | [KI-Fähigkeiten](ai-skills.md) | Fähigkeitsdefinitionen, automatische Erkennung, Import/Export |
 

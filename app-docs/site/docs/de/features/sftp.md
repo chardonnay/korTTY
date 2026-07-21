@@ -97,7 +97,7 @@ Beide Panels unterstützen die **Glob-Mustersuche** mit dem Platzhalter `*`. Zum
 
 - `*.log` findet alle Protokolldateien im aktuellen Verzeichnis
 - `*.{py,sh}` findet Python- und Shell-Dateien (wenn Ihre Shell die Klammererweiterung unterstützt)
-- `backup*` findet alle Dateien, die mit „backup"“ beginnen
+- `backup*` findet alle Dateien, die mit „backup“ beginnen"
 
 Geben Sie das Muster in das Suchfeld ein, um angezeigte Dateien schnell zu filtern, ohne das aktuelle Verzeichnis zu verlassen.
 

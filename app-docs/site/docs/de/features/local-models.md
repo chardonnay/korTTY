@@ -171,8 +171,8 @@ Die Tabelle **Laufzeiten** in **Lokale Modelle** zeigt die installierte Version 
 | `~/.kortty/llm/mlx-models.json` | Lokale MLX-Modellregistrierungen (Apple Silicon) | Ja |
 | `~/.kortty/llm/models/` | Verwaltete GGUF-Gewichte | Nein; Laden Sie sie herunter oder kopieren Sie sie erneut |
 | `~/.kortty/llm/mlx/models/` | Verwaltete MLX-Modellverzeichnisse | Nein; Laden Sie sie erneut herunter |
-| `~/.kortty/llm/mlx/runtime/` | Regenerierbare MLX-Laufzeitpakete (gepinnt CPython + mlx-lm) | Nein; Installieren Sie ein kompatibles Paket | neu
-| `~/.kortty/llm/runtime/` | Regenerierbare llama.cpp-Pakete und aktive Paketmetadaten | Nein; Installieren Sie ein kompatibles Paket | neu
+| `~/.kortty/llm/mlx/runtime/` | Regenerierbare MLX-Laufzeitpakete (gepinnt CPython + mlx-lm) | NEIN; Installieren Sie ein kompatibles Paket neu |
+| `~/.kortty/llm/runtime/` | Regenerierbare llama.cpp-Pakete und Metadaten aktiver Pakete | NEIN; Installieren Sie ein kompatibles Paket neu |
 | `~/.kortty/llm/catalog/last-valid-catalog-v1.json` | Regenerierbarer, signaturverifizierter Modell-/Prompt-Katalog-Cache | Nein; korTTY kehrt zum Bootstrap zurück und aktualisiert ihn erneut |
 | `~/.kortty/llm/run/` | Temporäre Beiwagenschlüssel und Protokolle | Nein |
 

@@ -39,7 +39,7 @@ korTTY übermittelt niemals Folgendes:
 
 ## Wohin die Daten gehen
 
-Nutzungsstatistiken werden von **[Aptabase](https://aptabase.com)**, einem Open-Source-Analysedienst, bei dem der Datenschutz an erster Stelle steht, verarbeitet. korTTY nutzt die **EU-Region** (`eu.aptabase.com`) von Aptabase, sodass die Daten auf Servern in der Europäischen Union in Übereinstimmung mit der **DSGVO** verarbeitet werden. Einzelheiten finden Sie in der [Aptabase-Datenschutzrichtlinie](https://aptabase.com/legal/privacy).
+Nutzungsstatistiken werden verarbeitet von **[Aptabase](https://aptabase.com)**, ein Open-Source-Analysedienst, bei dem der Datenschutz an erster Stelle steht. korTTY verwendet die **EU-Region** von Aptabase (`eu.aptabase.com`), sodass die Daten unter Einhaltung der **DSGVO** auf Servern in der Europäischen Union verarbeitet werden. Siehe die [Aptabase-Datenschutzrichtlinie](https://aptabase.com/legal/privacy) für Einzelheiten.
 
 Wenn keine Verbindung verfügbar ist, werden Ereignisse lokal in `~/.kortty` zwischengespeichert und später – auch nach einem Neustart – gesendet, sodass bei einem vorübergehenden Verbindungsausfall nichts verloren geht oder blockiert wird. Dieser Offline-Cache enthält nur dieselben anonymen Ereignisse. Es wird verworfen, wenn Sie sich abmelden, und Ereignisse, die älter als drei Tage sind, werden gelöscht.
 
