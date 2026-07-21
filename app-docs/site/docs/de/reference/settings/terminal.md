@@ -8,27 +8,27 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
-| Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Spalten: | Nummer | 40–500 | 80 | `terminalColumns` |
 | Zeilen: | Nummer | 10–200 | 24 | `terminalRows` |
-| Zurückscrollen: | Nummer | 100–100.000 | 10.000 | `scrollbackLines` |
+| Scrollback: | Nummer | 100–100.000 | 10.000 | `scrollbackLines` |
 | Kodierung: | Dropdown | UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252 | UTF-8 | `encoding` |
-| Fett wie helle Farbe | umschalten | — | Auf | `boldAsBright` |
-| Bildlaufleiste im Terminal anzeigen | umschalten | — | Auf | `showTerminalScrollbar` |
-| Befehlszeitstempel anzeigen | umschalten | — | Aus | `commandTimestampsEnabled` |
-| Dateikopie per Drag-and-Drop ins Terminal zulassen | umschalten | — | Auf | `terminalDragDropEnabled` |
-| Auswahl automatisch in die Zwischenablage kopieren | umschalten | — | Auf | `terminalCopyOnSelectEnabled` |
-| Aktive Terminalfenster ohne Bestätigung schließen | umschalten | — | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
-| SSH-Keep-Alive aktivieren | umschalten | — | Auf | `sshKeepAliveEnabled` |
+| Fett als helle Farbe | umschalten | — | Ein | `boldAsBright` |
+| Bildlaufleiste im Terminal anzeigen | umschalten | – | Ein | `showTerminalScrollbar` |
+| Befehlszeitstempel anzeigen | umschalten | – | Aus | `commandTimestampsEnabled` |
+| Dateikopie per Drag-and-Drop in das Terminal zulassen | umschalten | – | Ein | `terminalDragDropEnabled` |
+| Auswahl automatisch in die Zwischenablage kopieren | umschalten | – | Ein | `terminalCopyOnSelectEnabled` |
+| Aktive Terminalfenster ohne Bestätigung schließen | umschalten | – | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
+| SSH Keep-Alive aktivieren | umschalten | – | Ein | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
-| Verbindungswiederholungen aktivieren | umschalten | — | Auf | `connectionRetriesEnabled` |
+| Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
 | Hostschlüsselüberprüfung für alle Verbindungen deaktivieren | umschalten | – | Aus | `hostKeyCheckDisabledForAllConnections` |
 
-## Notizen
+## Hinweise
 
 !!! note "Scrollback"
-    Legt fest, wie viele Ausgabezeilen jeder Terminal-Bereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen; eine Änderung gilt daher für neu geöffnete Tabs und geteilte Bereiche – bereits offene Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
+    Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
 
 !!! note "SSH Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
@@ -44,3 +44,5 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! note "Verbindungswiederholungsversuche"
     Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.
+
+    Wiederholungsversuche decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit wird unabhängig von dieser Einstellung sofort abgelehnt.
