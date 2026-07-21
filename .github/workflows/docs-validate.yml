@@ -38,6 +38,10 @@ jobs:
         with:
           # PR-triggered job: don't persist the GITHUB_TOKEN in local git config.
           persist-credentials: false
+          # Full history: doc-links.py verifies that every last_synced_ref still
+          # resolves to a commit. The default shallow checkout has one commit, so
+          # the check would skip itself and the manifest could rot unnoticed.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"

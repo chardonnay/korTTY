@@ -8,13 +8,32 @@ and images). This guards the manifest itself:
   * every `diagrams:` entry exists under app-docs/diagrams/;
   * every `screenshots:` entry exists under app-docs/screenshots/;
   * no two pages own the same `owns_i18n` prefix (ambiguous home);
+  * every `owns_code` path exists on disk;
+  * every `last_synced_ref` resolves to a commit in the current history;
   * (warn) canonical diagrams that no page references (orphan asset).
+
+The two drift-detection checks guard opposite failures, both silent. An `owns_code`
+path that does not exist makes `git diff -- <path>` return nothing, so the page reads
+as permanently CLEAN and is never reconciled — `first-launch.md` pointed at
+`core/MasterPasswordManager.java`, which has only ever existed under `security/`.
+A dead `last_synced_ref` makes the same command abort with "fatal: bad revision",
+which is just as easily read as "nothing changed".
+
+The `last_synced_ref` check exists because a dead ref silently disables the
+`update-docs` skill: its dirty-page detection is `git diff <last_synced_ref>..HEAD`,
+which aborts with "fatal: bad revision" and is easily read as "nothing changed".
+Refs die when a docs sync records the branch HEAD and the PR is then squash-merged
+under a new hash — see the skill's step 9, which records a merge-base for that reason.
+
+Needs real history: the check is skipped with a warning on a shallow clone or
+outside a git work tree, so CI must check out with `fetch-depth: 0` for it to bite.
 
 Exit non-zero on any hard error (always, so it is safe as a CI gate).
 Requires PyYAML (run via .venv-docs/bin/python).
 """
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +46,36 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = REPO_ROOT / "app-docs" / "doc-manifest.yaml"
 DIAGRAMS_DIR = REPO_ROOT / "app-docs" / "diagrams"
 SCREENSHOTS_DIR = REPO_ROOT / "app-docs" / "screenshots"
+
+
+def _git(*args: str) -> tuple[int, str]:
+    """Runs git in the repo; returns (returncode, stdout). Never raises."""
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), *args],
+            capture_output=True, text=True, timeout=30, check=False)
+        return done.returncode, done.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return 1, ""
+
+
+def _main_ref() -> str | None:
+    """The mainline branch to measure ancestry against, or None when none is available."""
+    for candidate in ("origin/main", "main", "origin/HEAD"):
+        if _git("rev-parse", "--quiet", "--verify", f"{candidate}^{{commit}}")[0] == 0:
+            return candidate
+    return None
+
+
+def _history_unavailable() -> str | None:
+    """Why `last_synced_ref` cannot be verified here, or None when it can."""
+    if _git("rev-parse", "--is-inside-work-tree")[1] != "true":
+        return "not a git work tree"
+    if _git("rev-parse", "--is-shallow-repository")[1] == "true":
+        return "shallow clone (CI needs actions/checkout with fetch-depth: 0)"
+    if _main_ref() is None:
+        return "no main branch available to check ancestry against"
+    return None
 
 
 def main() -> int:
@@ -62,6 +111,45 @@ def main() -> int:
             if not (SCREENSHOTS_DIR / shot).exists():
                 errors.append(f"{path}: screenshot not found: app-docs/screenshots/{shot}")
 
+        # A non-existent owns_code path makes the page's drift check permanently pass.
+        for code_path in page.get("owns_code") or []:
+            if not (REPO_ROOT / code_path).exists():
+                errors.append(
+                    f"{path}: owns_code path does not exist: {code_path} "
+                    f"— the page's drift check would silently always pass")
+
+    # Every last_synced_ref must name a commit that still exists. Distinct refs are
+    # checked once and mapped back to their pages, since many pages share a ref.
+    refs_to_pages: dict[str, list[str]] = {}
+    for page in pages:
+        ref = page.get("last_synced_ref")
+        if ref and page.get("path"):
+            refs_to_pages.setdefault(str(ref), []).append(page["path"])
+
+    skip_reason = _history_unavailable()
+    if skip_reason:
+        warnings.append(
+            f"last_synced_ref not verified for {len(refs_to_pages)} ref(s): {skip_reason}")
+    else:
+        main_ref = _main_ref()
+        for ref in sorted(refs_to_pages):
+            owners = refs_to_pages[ref]
+            shown = ", ".join(owners[:3]) + (f" (+{len(owners) - 3} more)" if len(owners) > 3 else "")
+            if _git("rev-parse", "--quiet", "--verify", f"{ref}^{{commit}}")[0] != 0:
+                errors.append(
+                    f"last_synced_ref {ref!r} does not resolve to a commit "
+                    f"— used by {len(owners)} page(s): {shown}")
+            elif _git("merge-base", "--is-ancestor", ref, main_ref)[0] != 0:
+                # Resolving is not enough: a commit that lives only on an unmerged branch is in the
+                # local object store but not in the project's history. It passes `rev-parse --verify`
+                # on the machine that has that branch and fails on a fresh CI clone — and it dies for
+                # good once the branch is squash-merged or deleted, which is the failure this whole
+                # check exists to prevent.
+                errors.append(
+                    f"last_synced_ref {ref!r} resolves but is not an ancestor of {main_ref} "
+                    f"— it exists only on an unmerged branch and will not survive there "
+                    f"— used by {len(owners)} page(s): {shown}")
+
     # Orphan diagrams (present on disk, referenced by no page) — a soft warning.
     if DIAGRAMS_DIR.is_dir():
         for svg in sorted(DIAGRAMS_DIR.glob("*.svg")):
@@ -77,8 +165,10 @@ def main() -> int:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         return 1
+    refs_note = "unverified" if skip_reason else "verified"
     print(f"\nManifest OK: {len(seen_paths)} pages, {len(prefix_owner)} owned prefixes, "
-          f"{len(referenced_diagrams)} diagrams referenced.")
+          f"{len(referenced_diagrams)} diagrams referenced, "
+          f"{len(refs_to_pages)} sync ref(s) {refs_note}.")
     return 0
 
 

@@ -87,10 +87,26 @@ python3 scripts/sync-version.py
 ```
 
 ### 9. Bump last-synced refs
-For each page you reconciled, set its `last_synced_ref` in the manifest to:
+For each page you reconciled, set its `last_synced_ref` in the manifest to the
+**merge-base with `main`** — never the branch HEAD:
 ```bash
-git rev-parse --short HEAD
+git rev-parse --short "$(git merge-base HEAD origin/main 2>/dev/null \
+  || git merge-base HEAD main 2>/dev/null \
+  || git rev-parse HEAD)"
 ```
+On `main` this is HEAD, so nothing changes there. On a feature branch it is the last
+commit the branch was based on — a commit that still exists after the PR is merged.
+
+**Why not `git rev-parse --short HEAD`:** a branch-local hash does not survive a
+squash merge. The PR is replaced by a single new commit and the recorded hash is
+gone, so `git diff <last_synced_ref>..HEAD` in step 1 aborts with "fatal: bad
+revision" — which reads exactly like "nothing changed", and the page silently stops
+being checked. This is not hypothetical: 19 of 46 pages had dead refs from this, some
+unchecked for three weeks. `scripts/doc-links.py` now fails on unresolvable refs.
+
+The trade-off is deliberate: the merge-base predates your own branch, so after the PR
+lands the page shows dirty for the code changes you just documented. A page flagged
+for a second look costs one diff; a dead ref costs every future check.
 
 ### 10. Regenerate German (if EN changed)
 ```bash
