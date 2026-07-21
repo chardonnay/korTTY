@@ -12,10 +12,14 @@ name: Docs guide auto-commit
 
 on:
   push:
-    # A tag is immutable and has no branch for this workflow to update. Release
-    # tags still build the application through the release workflow, but must not
-    # attempt the branch-only guide auto-commit below.
-    tags-ignore:
+    # A tag is immutable and has no branch for this workflow to update, so this
+    # must only run for branch pushes. Listing ONLY `branches` achieves that:
+    # per GitHub's filter semantics, defining just one ref-type filter means the
+    # other ref type never triggers — tags stay out without any tags-ignore.
+    # (The previous `tags-ignore: "**"`-only variant hit the same rule from the
+    # other side: with no branch filter defined, BRANCH pushes stopped triggering
+    # entirely, and the workflow went silently dark from 2026-07-15 on.)
+    branches:
       - "**"
     paths:
       - "app-docs/site/**"
