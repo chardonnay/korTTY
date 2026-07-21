@@ -46,7 +46,7 @@ Im Dialogfeld „Teamwork-Einstellungen“ werden alle Quellen mit Typ, Standort
 | Geben Sie | ein **Git** oder **Shared File** |
 | Standort | Repository-URL oder Dateipfad |
 | Intervall | Minuten zwischen Synchronisierungsprüfungen |
-| Aktiviert | Umschalten zum Aktivieren/Deaktivieren, ohne | zu löschen
+| Aktiviert | Umschalten zum Aktivieren/Deaktivieren ohne Löschen |
 
 Verwenden Sie die Schaltflächen, um:
 - **Hinzufügen** – Erstellen Sie eine neue Quelle.

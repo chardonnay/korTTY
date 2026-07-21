@@ -18,7 +18,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv). Für **Local Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv), **Host-Schlüsselüberprüfung** (Standard verwenden / überprüfen / nicht überprüfen). Für **Local Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. |
 | Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
@@ -41,6 +41,8 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 Interactive Terminal- und SFTP-Verbindungen verwenden denselben TOFU-Hostschlüsselspeicher (Trust-on-First-Use). Mosh verwendet es auch für den SSH-Bootstrap. Die Vertrauenswürdigkeit wird durch den normalisierten Hostnamen und Port bestimmt, sodass verschiedene gespeicherte Verbindungen zum selben Endpunkt eine gemeinsame Entscheidung treffen.
 
 Bei der ersten Verbindung zeigt korTTY den Schlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an. Überprüfen Sie diesen Fingerabdruck beim Serveradministrator, bevor Sie **Ja** auswählen. **Nein** ist die sichere Standardeinstellung. Ein passender Schlüssel wird bei späteren Verbindungen stillschweigend akzeptiert. Wenn der Server einen anderen Schlüssel vorlegt, blockiert korTTY die Verbindung hart, zeigt die erwarteten und angebotenen Fingerabdrücke an und versucht es nicht erneut, da eine Wiederholung des Versuchs einen möglichen Man-in-the-Middle-Angriff nicht auflösen kann.
+
+Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die **Hostschlüsselüberprüfung** auf der Registerkarte *Verbindung* des Verbindungseditors oder in Quick Connect (**Standard verwenden** / **Überprüfen** / **Nicht überprüfen**), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter **Einstellungen → Terminal** fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird weiterhin hart blockiert. Siehe [Lockere Hostschlüsselüberprüfung](security.md#relaxing-host-key-verification).
 
 Die interaktiven Pins werden atomar in `~/.kortty/ssh-host-keys.properties` gespeichert, mit prozessübergreifender Sperrung, sodass zwei korTTY-Fenster die Entscheidungen des anderen nicht überschreiben können. Diese endpunktbasierten Pins sind von den verbindungs-ID-basierten Pins getrennt, die von unbeaufsichtigten JobScheduler-SSH-, SFTP- und Rsync-Jobs verwendet werden.
 
@@ -69,7 +71,7 @@ Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funk
 ## Tunnels und Sprungserver
 
 - **SSH-Tunnel** – Ports über die Verbindung weiterleiten: **lokal** (`-L`), **remote** (`-R`) oder **dynamisch / SOCKS** (`-D`).
-- **Jump-Server (Bastion)** – Leiten Sie die Verbindung über einen oder mehrere Zwischenhosts weiter.
+- **Jump-Server (Bastion)** – Leiten Sie die Verbindung über einen Zwischenhost weiter; Sowohl SSH-Terminal- als auch SFTP-Sitzungen springen darüber. Siehe [Jump Server](jump-server.md).
 
 ![Jump server flow](../assets/diagrams/jump-server-flow.svg)
 

@@ -51,6 +51,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Authentifizierungsmethode (Passwort, SSH-Schlüssel, temporärer SSH-Schlüssel)
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
+- Optionale Überschreibung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für Fenstergeometrie
@@ -88,7 +89,7 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 
 ### ssh-host-keys.properties
 
-Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt.
+Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert. Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
 
 Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während `ssh-host-keys.properties.lock` separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in `job-scheduler.xml` getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.
 
@@ -118,6 +119,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Video-/Aufnahmeeinstellungen
 - Standardeinstellungen für die Terminalprotokollierung
 - SSH Keep-Alive-Einstellungen
+- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Akzeptieren von Neu“ gelockert wird
 - JobScheduler-Statusanzeigeeinstellung
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
@@ -332,7 +334,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 **Anwendung:**
 1. Öffnen Sie *Verwaltung > SSH-Schlüssel verwalten...*
 2. Wählen Sie einen SSH-Schlüssel aus und klicken Sie auf *In Benutzerverzeichnis kopieren*
-3. Der Schlüssel wird nach `~/.kortty/ssh-keys/` kopiert
+3. Der Schlüssel wird kopiert `~/.kortty/ssh-keys/`
 
 **Backup:** SSH-Schlüssel in diesem Verzeichnis werden einbezogen, wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen.
 
@@ -348,7 +350,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | Master-Passwort | PBKDF2-Hashing mit 310.000 Iterationen |
 | Verbindungspasswörter | AES-256-GCM-Verschlüsselung |
 | SSH-Schlüsselpassphrasen | AES-256-GCM-Verschlüsselung |
-| Interactive Terminal/SFTP/Mosh-Hostschlüssel | Normalisierter Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung |
+| Hostschlüssel für interaktives Terminal/SFTP/Mosh | Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Das optionale Opt-Out pro Verbindung/Gruppe/Global lockert nur die Aufforderung zum Akzeptieren neuer Schlüssel mit unbekannten Schlüsseln |
 | Anmeldeinformationen (Benutzername/Passwort) | AES-256-GCM-Verschlüsselung |
 | JobScheduler Sudo-Passwörter | AES-256-GCM-Verschlüsselung |
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |

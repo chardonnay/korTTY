@@ -37,6 +37,8 @@ To configure a jump server for a connection:
 
 The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets.
 
+This holds even when host-key verification has been relaxed for the target: the per-connection, per-group and global opt-outs never cover the bastion, so its key is always verified strictly. See [Relaxing host-key verification](security.md#relaxing-host-key-verification).
+
 The target host is verified under its own name even though the transport goes through the tunnel, so a compromised bastion cannot substitute a different target host key unnoticed.
 
 ## When to use it

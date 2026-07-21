@@ -59,7 +59,7 @@ The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is
 
 ## Role routing, RAG, and prompt order
 
-korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, and prose descriptions use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.
+korTTY classifies its own action types deterministically without asking a model. Translation, summary, problem solving, questions, prose descriptions, and AI ASCII-art pictures use the Text role; coding, completion, snippet review, security fixes, diagrams, and workflow generation use the Coding role. An explicit profile choice, security-check profile, or connection-specific profile takes precedence, followed by the role profile and then the default.
 
 When matching knowledge stores are assigned to the request's Text or Coding role, an ordinary AI request is assembled in this order: korTTY's action/output contract, selected AI Skills, bounded untrusted RAG context with `[R1]` source markers, the resolved model-family preset, and finally the provider transport. Only retrieved excerpts are added, not the complete knowledge store; choosing a cloud profile sends those excerpts to that provider, so the knowledge-store role/profile assignment is the explicit disclosure decision. Strict JSON and code-payload rules remain authoritative. Autonomous Agent, Planning, Swarm, and scheduled prompts require explicit RAG opt-in. See [RAG knowledge stores](rag.md) for the retrieval and privacy details.
 
@@ -87,7 +87,7 @@ Required provider configuration is entered under **Settings > AI > Internet tool
 
 Important behavior:
 
-* Snippet AI, text correction, translation, snippet descriptions, and alternative-solution requests do not use internet access.
+* Snippet AI, text correction, translation, snippet descriptions, alternative-solution requests, and AI ASCII-art generation do not use internet access.
 * Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout, and a maximum of two web-tool rounds per AI request.
 * LM Studio MCP requests with internet access use a longer total request timeout because the MCP server runs behind LM Studio.
 * Canceling a running request interrupts the Java HTTP request where the active provider supports interruption.

@@ -69,7 +69,7 @@ Durch das Kontrollkästchen **Schreibgeschützt** bleibt jeder Agent auf nicht m
 
 | Politik | Verhalten |
 | --- | --- |
-| **Eine Genehmigung für alle** | Der erste Agent, der eine Änderung benötigt, löst einen Dialog aus; **Approve on all** deckt jeden Server im Lauf | ab
+| **Eine Genehmigung für alle** | Der erste Agent, der eine Änderung benötigt, löst einen Dialog aus; **Approve on all** deckt jeden Server im Lauf ab |
 | **Pro Server** | Die Änderungen jedes Servers werden einzeln genehmigt |
 
 Der Genehmigungsdialog bietet außerdem die Option **Schwarm abbrechen**, um den gesamten Lauf zu stoppen.
@@ -121,7 +121,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 
 | Feld | Beschreibung |
 | --- | --- |
-| **KI-Profil** | Das AI-Profil, das für alle Agenten im Lauf | verwendet wird
+| **AI-Profil** | Das AI-Profil, das für alle Agenten im Lauf verwendet wird |
 | **KI-Eingabeaufforderung** | Die Aufgabe wird an jeden Zielserver gesendet |
 | **Automatisch genehmigen** | Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden) |
 | **Schwarmparallelität** | Wie viele Server laufen gleichzeitig (1–16, Standard 4) |

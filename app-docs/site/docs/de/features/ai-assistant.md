@@ -59,7 +59,7 @@ Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jed
 
 ## Rollenrouting, RAG und prompte Reihenfolge
 
-korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Für Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen und prosaische Beschreibungen wird die Rolle „Text“ verwendet. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.
+korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen, Prosabeschreibungen und KI-ASCII-Artbilder verwenden die Textrolle. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.
 
 Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Fähigkeiten, begrenzter nicht vertrauenswürdiger RAG-Kontext mit `[R1]`-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter [RAG Wissensspeicher](rag.md).
 
@@ -87,7 +87,7 @@ Die erforderliche Provider-Konfiguration wird unter **Einstellungen > AI > Inter
 
 Wichtiges Verhalten:
 
-* Snippet AI, Textkorrektur, Übersetzung, Snippet-Beschreibungen und Anfragen nach alternativen Lösungen nutzen keinen Internetzugang.
+* Snippet AI, Textkorrektur, Übersetzung, Snippet-Beschreibungen, alternative Lösungsanfragen und AI ASCII-Art-Generierung nutzen keinen Internetzugang.
 * Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden und maximal zwei Web-Tool-Runden pro KI-Anfrage.
 * LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.
 * Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.
@@ -350,14 +350,14 @@ Aktivitätszeilen verwenden semantische Emoji-Symbole, um den Aktionstyp anzugeb
 
 | Symbol | Bedeutung |
 |------|---------|
-| 💾 | Anforderung oder Eingabe: Datei | schreiben/erstellen
+| 💾 | Anfrage oder Eingabe: Datei schreiben/erstellen |
 | 📖 | Aktion: Datei/Verzeichnis lesen |
-| ▶️ | Aktion: Befehl | ausführen/ausführen
+| ▶️ | Aktion: Befehl ausführen/ausführen |
 | 📁 | Aktion: Verzeichnisoperation |
 | 📦 | Kontext: Paketmanager |
 | ⚙️ | Kontext: Dienst oder System |
 | 🌐 | Aktion: Netzwerkbetrieb |
-| 🔍 | Aktion: | prüfen/analysieren
+| 🔍 | Aktion: prüfen/analysieren |
 | 💭 | Zustand: Denken/Argumentieren |
 | 💬 | Ausgabe: Meldung oder Ergebnis |
 | ✋ | Erforderlich: Warten auf Benutzereingabe (Sudo/Genehmigung) |

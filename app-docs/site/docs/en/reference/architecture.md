@@ -49,15 +49,16 @@ KorTTY uses **SithTermFX 1.2.1** as its primary terminal emulator, built from so
 - **Session integration**: Direct JAXB marshaling of terminal state for session recording and replay
 - **Color support**: Configurable ANSI and TrueColor handling with per-connection overrides
 - **Reviewed boundary fix**: A pinned korTTY patch rejects the non-existent row at `line == height` during hyperlink hit-testing, preventing bottom-row `TerminalTextBuffer` range errors
+- **Reviewed shortcut-chord fix**: A second pinned korTTY patch stops shortcut-chord `KEY_TYPED` characters (for example ++cmd+shift+d++) from reaching the pty or broadcast panes
 
 ### Build Integration
 
 The build process automatically:
 
 1. Clones SithTermFX at tag `v1.2.1` into `vendor/sithtermfx` (no GitHub token required)
-2. Applies the reviewed `patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch` and fails if it neither applies nor already matches the source
+2. Applies the reviewed patches in `patches/sithtermfx/` — `1.2.1-terminal-panel-bottom-row.patch` and `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` — in order, failing if a patch neither applies nor already matches the source
 3. Builds it locally using Maven via the `installSithtermfxLocal` task
-4. Installs artifacts to the local Maven repo (`mavenLocal()`), including a marker that lets Gradle reject an unpatched cached UI JAR
+4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch that lets Gradle reject an unpatched cached UI JAR
 5. Links SithTermFX core and UI modules into the korTTY JAR
 
 No network access is needed after cloning; all build steps are deterministic and reproducible.
@@ -235,7 +236,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | **SSH** | Apache SSHD (core, common, sftp) | 2.19.0 | SSH protocol implementation |
 | | BouncyCastle (bcprov, bcpkix) | 1.85 | Cryptographic provider and SSH key parsing |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA key support |
-| **Terminal** | SithTermFX (core, ui) | 1.2.1 plus pinned korTTY boundary patch | Terminal emulator engine |
+| **Terminal** | SithTermFX (core, ui) | 1.2.1 plus pinned korTTY boundary and shortcut-chord patches | Terminal emulator engine |
 | | Lanterna | 3.1.5 | Text-based UI components |
 | | pty4j (JetBrains) | 0.12.25 | PTY allocation for Mosh |
 | **Platform** | JNA (jna, jna-platform) | 5.19.1 | Native desktop power-management integration |

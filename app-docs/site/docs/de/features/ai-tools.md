@@ -133,14 +133,14 @@ Aktivitätszeilen verwenden semantische Emoji-Symbole (statisch, nicht blinkend)
 
 | Symbol | Bedeutung |
 |------|---------|
-| 💾 | Anforderung oder Eingabe: Datei | schreiben/erstellen
+| 💾 | Anfrage oder Eingabe: Datei schreiben/erstellen |
 | 📖 | Aktion: Datei/Verzeichnis lesen |
-| ▶️ | Aktion: Befehl | ausführen/ausführen
+| ▶️ | Aktion: Befehl ausführen/ausführen |
 | 📁 | Aktion: Verzeichnisoperation |
 | 📦 | Kontext: Paketmanager |
 | ⚙️ | Kontext: Dienst oder System |
 | 🌐 | Aktion: Netzwerkbetrieb |
-| 🔍 | Aktion: | prüfen/analysieren
+| 🔍 | Aktion: prüfen/analysieren |
 | 💭 | Zustand: Denken/Argumentieren |
 | 💬 | Ausgabe: Meldung oder Ergebnis |
 | ✋ | Erforderlich: Warten auf Benutzereingabe (Sudo/Genehmigung) |
@@ -301,7 +301,7 @@ Konfigurieren Sie den Terminal AI Agent unter **Einstellungen > AI**:
 | **AI Agent aktiviert** | Aktivieren oder deaktivieren Sie die Agentenfunktion global |
 | **Agent-Befehlsname** | Der Basisbefehl (Standard: `agent`); andere Varianten werden automatisch abgeleitet |
 | **Groß-/Kleinschreibung wird nicht berücksichtigt** | Befehlsabgleich ohne Berücksichtigung der Groß-/Kleinschreibung festlegen |
-| **Ausführungsziel** | Wählen Sie, ob der Agent offen in dedizierten Registerkarten oder inline am Terminalsplit | ausgeführt wird
+| **Ausführungsziel** | Wählen Sie, ob der Agent offen in speziellen Registerkarten oder inline am Terminal-Split ausgeführt wird |
 | **Setup-Dialog pro Lauf** | Zeigt vor jedem Lauf einen Setup-Dialog an (deaktiviert verwendet das Standardprofil) |
 | **Größe des Eingabeverlaufs** | Anzahl der zuletzt zu merkenden Eingabeaufforderungen (5–100, Standard 20) |
 | **Standardprofil** | Das AI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |

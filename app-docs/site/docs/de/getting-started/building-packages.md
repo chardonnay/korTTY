@@ -25,12 +25,12 @@ Installieren Sie diese Tools, bevor Sie auf einem Betriebssystem aufbauen:
 | Git | Klont korTTY und die angeheftete SithTermFX-Quellenabhängigkeit |
 | Apache Maven | Erstellt SithTermFX vor der korTTY-Kompilierung im lokalen Maven-Repository |
 | `curl` | Lädt die angehefteten mosh4j-Artefakte herunter, die von gepackten Builds verwendet werden |
-| Ausgehender HTTPS-Zugriff | Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds | heruntergeladen
+| Ausgehender HTTPS-Zugriff | Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen |
 | Gradle Wrapper aus diesem Repository | `gradlew` und `gradlew.bat` laden die im Repository angeheftete Gradle-Version herunter und führen sie aus; Installieren oder ersetzen Sie kein System Gradle |
 
 Node.js und MkDocs sind keine allgemeinen Voraussetzungen für einen Anwendungs-Build: Gradle lädt eine angeheftete Node.js-Laufzeit nur zum Kompilieren von Monaco in ein isoliertes Build-Verzeichnis herunter, niemals in das Anwendungs-Image, und der normale Anwendungs-Build verwendet die festgeschriebenen Offline-Guide-Ressourcen. Prettier Standalone und SQL-Formatter werden als kompakte Browser-Bundles kopiert und offline in JavaFX WebView ohne Node ausgeführt.
 
-!!! important "Packaging ist an die JDK 25-Toolchain" angeheftet
+!!! important "Die Verpackung ist an die JDK 25-Toolchain gebunden"
     Die gepackte Laufzeit enthält explizit `jdk.jsobject`, das JavaFX WebView benötigt und das in JDK 26 entfernt wurde. Die Entfernung wird als OpenJDK-Problem `JDK-8362628`: <https://bugs.openjdk.org/browse/JDK-8362628> verfolgt. Jede Paketierungsaufgabe löst `jpackage` aus derselben von Gradle ausgewählten Temurin JDK 25-Toolchain wie bei der Kompilierung auf, sodass ein neueres System `java` oder `jpackage` nicht stillschweigend eine inkompatible Laufzeit erstellen kann. Die ausgewählte Toolchain muss weiterhin mit der Ziel-CPU übereinstimmen, da `jpackage` keine Cross-Compilierung durchführt.
 
 Klonen Sie die Quelle einmal:
@@ -155,7 +155,7 @@ Jede Anwendungsversion, die Laufzeiten installieren oder den Katalog aktualisier
 
 | Kanal | Quellstandard | Umgebungsvariable | Gradle-Eigenschaft |
 | --- | --- | --- | --- |
-| llama.cpp Laufzeit | `config/trust/llama-runtime-ed25519-public.pem` | Optional `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY`; muss genau mit dem angepinnten Schlüssel übereinstimmen | Optional `kortty.llamaRuntimePublicKey`; muss genau mit dem angepinnten Schlüssel | übereinstimmen
+| llama.cpp-Laufzeit | `config/trust/llama-runtime-ed25519-public.pem` | Optional `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY`; muss genau mit dem angepinnten Schlüssel übereinstimmen | Optional `kortty.llamaRuntimePublicKey`; muss genau mit dem angepinnten Schlüssel übereinstimmen |
 | Modell-/Sofortkatalog | Keine | `KORTTY_AI_CATALOG_PUBLIC_KEY` | `kortty.aiCatalogPublicKey` |
 
 Die generierten Ressourcen speichern die festen Kanal-URLs und öffentlichen Vertrauensstämme mit der Anwendung:

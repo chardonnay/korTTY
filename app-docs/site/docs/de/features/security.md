@@ -220,7 +220,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 | Master-Passwort-Hashing | PBKDF2 mit 310.000 Iterationen |
 | Anmeldeinformationsverschlüsselung | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | Verschlüsselt mit AES-256-GCM und Master-Passwort |
-| Interaktive SSH/SFTP/Mosh-Hostschlüssel | Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung, stille exakte Übereinstimmung, harte Blockierung bei Änderung |
+| Interaktive SSH/SFTP/Mosh-Hostschlüssel | Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung |
 | AI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | Eingebetteter llama.cpp | Nur-Loopback-zufälliger Port, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing |
 | GGUF/Laufzeit-Lieferkette | Unveränderliche Revisionen, SHA-256-Verifizierung, signierter Laufzeitindex, dauerhafte Sperrquarantäne, Rollback nach fehlgeschlagener Integritätsprüfung oder erstem echten API-Start |

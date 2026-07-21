@@ -51,6 +51,7 @@ Contains all saved SSH connections with their settings.
 - Authentication method (password, SSH key, temporary SSH key)
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
+- Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Window geometry preferences
@@ -88,7 +89,7 @@ Manages centralized SSH key storage.
 
 ### ssh-host-keys.properties
 
-The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically.
+The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.
 
 Writes use a temporary file plus atomic replacement, while `ssh-host-keys.properties.lock` coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in `job-scheduler.xml`, which are keyed by connection ID for unattended operations.
 
@@ -118,6 +119,7 @@ Global application preferences and defaults.
 - Video/recording preferences
 - Terminal logging defaults
 - SSH keep-alive settings
+- SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
 - JobScheduler status display preference
 - Terminal effect plugin defaults
 - Backup encryption method and retention settings
@@ -348,7 +350,7 @@ Optional directory for copied SSH keys.
 | Master password | PBKDF2 hashing with 310,000 iterations |
 | Connection passwords | AES-256-GCM encryption |
 | SSH key passphrases | AES-256-GCM encryption |
-| Interactive Terminal/SFTP/Mosh host keys | Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection |
+| Interactive Terminal/SFTP/Mosh host keys | Normalized host:port TOFU with OpenSSH SHA-256 fingerprints and fail-closed change detection; the optional per-connection/group/global opt-out relaxes only unknown-key prompting to accept-new |
 | Credentials (username/password) | AES-256-GCM encryption |
 | JobScheduler sudo passwords | AES-256-GCM encryption |
 | JobScheduler journal entries | Redacted secrets before persistence |

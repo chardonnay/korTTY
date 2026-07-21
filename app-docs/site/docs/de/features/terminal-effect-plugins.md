@@ -42,7 +42,7 @@ Terminaleffekt-Plugins werden von `de.kortty.core.TerminalEffectPluginManager` i
 
 1. Klassenpfad-Plugins für Anwendungen
 2. Gebündelte Plugin-JARs, aufgelistet nach `bundled-plugins/terminal-effects.index`
-3. Externe JARs in `~/.kortty/plugins` kopiert
+3. Externe JARs kopiert `~/.kortty/plugins`
 
 Wenn zwei Plugins dieselbe Plugin-ID offenlegen, gewinnt das erste und spätere Duplikate werden ignoriert. Dies ist beabsichtigt, da die Verbindungseinstellungen die Plugin-ID beibehalten.
 
@@ -70,7 +70,7 @@ Neben der Tabelle spielt ein Vorschaufenster eine animierte Live-Vorschau des au
 Benutzer können:
 
 - Aktivieren oder deaktivieren Sie ein Plugin
-- Importieren Sie ein externes `.jar`-Plugin, das KorTTY nach `~/.kortty/plugins` kopiert
+- Importieren Sie eine externe `.jar` Plugin, in das KorTTY kopiert `~/.kortty/plugins`
 - Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)
 
 Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder **Ansicht > Terminaleffekt** aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; Das numerische Feld akzeptiert Werte bis zu `99x`.
@@ -96,7 +96,7 @@ public interface TerminalEffectPlugin {
 Regeln:
 
 - `id()` muss stabil sein, da die Verbindungseinstellungen und der Status des deaktivierten Plugins bestehen bleiben
-- Gültige IDs stimmen mit dem regulären Ausdruck `[a-z0-9][a-z0-9._-]{0,63}` überein
+- Gültige IDs stimmen mit dem regulären Ausdruck überein `[a-z0-9][a-z0-9._-]{0,63}`
 - `displayName()` darf nicht leer sein
 - `description()` wird in der Plugin-Verwaltungstabelle angezeigt und sollte ein kurzer Satz sein
 - Die Provider-Klasse muss von `ServiceLoader` ladbar sein; Verwenden Sie eine öffentliche Klasse mit einem öffentlichen Konstruktor ohne Argumente
@@ -122,7 +122,7 @@ public interface TerminalEffectSession extends AutoCloseable {
 
 Verantwortlichkeiten:
 
-- Weisen Sie UI-Ressourcen in `start()` zu
+- Allokieren Sie UI-Ressourcen in `start()`
 - Dekorieren Sie Anschlüsse in `wrapConnector(...)`, wenn eine Ausgabesteuerung oder -filterung erforderlich ist
 - Entfernen Sie Listener, stoppen Sie Zeitleisten, lösen Sie die Bindung von Eigenschaften und veröffentlichen Sie Referenzen in `stop()`
 
@@ -137,7 +137,7 @@ Verantwortlichkeiten:
 | `pluginId()` | Die aktive Plugin-ID |
 | `terminalView()` | Die besitzende KorTTY-Terminalansicht |
 | `overlayRoot()` | Ein JavaFX `StackPane` über dem Terminalbereich; Overlay-Knoten hier hinzufügen |
-| `widgets()` | Aktuelle SithTermFX-Widgets für die Terminalansicht; Split-Terminals können mehr als ein Widget | haben
+| `widgets()` | Aktuelle SithTermFX-Widgets für die Terminalansicht; Split-Terminals können mehr als ein Widget haben |
 | `animationSpeed()` | Vom Benutzer ausgewählte Geschwindigkeit normalisiert durch `TerminalEffectAnimationSpeed` |
 | `applyAppearance(TerminalEffectAppearance)` | Wendet Überschreibungen des Terminal-Erscheinungsbilds an |
 | `restoreAppearance()` | Stellt das ursprüngliche Erscheinungsbild wieder her, das vor der Aktivierung des Effekts erfasst wurde |
@@ -319,7 +319,7 @@ Gutes Overlay-Verhalten:
 - Binden Sie Breite und Höhe an die Overlay-Wurzel
 - Stoppen Sie Zeitleisten/Animationen und lösen Sie die Bindung von Eigenschaften in `stop()`
 - Zeichnen Sie so günstig, dass Sie es immer wieder neu bemalen können
-- Entfernen Sie beim Herunterfahren den Overlay-Knoten von `overlayRoot()`
+- Entfernen Sie den Overlay-Knoten von `overlayRoot()` beim Herunterfahren
 - Geben Sie den Canvas-Backing-Speicher frei, während sich die Registerkarte im Hintergrund befindet: Eine fensterlose Canvas-Textur pro ausgeblendeter Registerkarte kann den Prism-Texturpool erschöpfen, sobald mehrere Effekt-Registerkarten geöffnet sind, was zum Absturz des Renderings führt. Alle integrierten Effekte (MOTHER und das Effektpaket) lösen die Bindung und verkleinern ihre Overlay-Leinwand auf 0x0, während sie in der Szene nicht sichtbar ist, und binden sie erneut, wenn die Registerkarte erneut angezeigt wird
 
 Entscheiden Sie bei geteilten Terminals, ob das Overlay die gesamte Terminal-Registerkarte abdecken oder einzelne SithTermFX-Widgets verfolgen soll. `context.widgets()` kann mehr als ein Widget zurückgeben.
@@ -331,7 +331,7 @@ Die Animationsgeschwindigkeit ist eine gemeinsame Benutzereinstellung für Termi
 - Minimum: `1x`
 - Slider-Maximum: `10x`
 - Numerisches Maximum: `99x`
-- Ungültige, nicht endliche oder nicht positive Werte werden auf `1x` normalisiert
+- Ungültige, nicht endliche oder nicht positive Werte werden auf normalisiert `1x`
 
 Verwenden Sie `context.animationSpeed()`, wenn Sie das Effekt-Timing berechnen. Die von MOTHER verwendete Konvention lautet:
 
@@ -358,7 +358,7 @@ Das - A-Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurd
 
 **Beharrlichkeit:**
 
-- Deaktivierte Plugin-IDs werden in `~/.kortty/terminal-effect-plugins.disabled` gespeichert
+- Deaktivierte Plugin-IDs werden in gespeichert `~/.kortty/terminal-effect-plugins.disabled`
 - Gespeicherte Verbindungen und wiederhergestellte Sitzungen speichern die ausgewählte Terminal-Effekt-Plugin-ID und die Animationsgeschwindigkeit
 - Wenn eine gespeicherte Plugin-ID nicht verfügbar oder deaktiviert ist, kann KorTTY sie nicht aktivieren und protokolliert das Problem
 
@@ -366,7 +366,7 @@ Das - A-Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurd
 
 Vor dem Versand einer Plugin-JAR:
 
-- Verwenden Sie eine stabile Plugin-ID in Kleinbuchstaben, die zu `[a-z0-9][a-z0-9._-]{0,63}` passt
+- Verwenden Sie einen stabilen Plugin-ID-Abgleich in Kleinbuchstaben `[a-z0-9][a-z0-9._-]{0,63}`
 - Halten Sie `displayName()` und `description()` nicht leer und für den Benutzer lesbar
 - Fügen Sie für jede Anbieterklasse genau einen ServiceLoader-Deskriptor ein
 - JavaFX-Mutationen im JavaFX-Anwendungsthread beibehalten

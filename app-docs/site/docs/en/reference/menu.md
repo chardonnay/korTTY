@@ -68,7 +68,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs |
 | Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
 | Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |
-| ASCII Art… | FIGlet banner generator with multiple font styles |
+| ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
 
 ## AI
 

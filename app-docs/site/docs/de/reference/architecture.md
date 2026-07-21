@@ -48,16 +48,17 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **OSC 8-Hyperlinks**: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` beschränkt auf lokalen Host)
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
-- **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei `line == height` während des Hyperlink-Treffertests ab und verhindert so Bereichsfehler in der unteren Zeile von `TerminalTextBuffer`
+- **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
+- **Überprüfte Shortcut-Akkord-Korrektur**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
 
 ### Build-Integration
 
 Der Build-Prozess automatisch:
 
 1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
-2. Wendet das überprüfte `patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch` an und schlägt fehl, wenn es weder zutrifft noch bereits mit der Quelle übereinstimmt
+2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch` und `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt
 3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
-4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierung, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
+4. Installiert Artefakte im lokalen Maven-Repo (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
 Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.
@@ -113,7 +114,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 
 **AES-256-GCM-Verschlüsselung** schützt vertrauliche Felder:
 
-Das Master-Passwort -  wird bei der ersten Anmeldung einmal gehasht und als `master-password-hash` gespeichert
+- Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als `master-password-hash`
 - Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden
 - SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
 - Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden
@@ -136,10 +137,10 @@ Das Master-Passwort -  wird bei der ersten Anmeldung einmal gehasht und als `mas
 | **Komponente** | **Verantwortung** |
 |---|---|
 | `AiChatManager` | Verwaltet KI-Chatsitzungen und den Gesprächsverlauf |
-| `AiServiceFactory` | Ordnet ein Profil dem HTTP-, Anthropic-, lokalen CLI- oder eingebetteten llama.cpp-Transport zu und fügt dann Eingabeaufforderungsvoreinstellungen und optionales RAG | hinzu
+| `AiServiceFactory` | Ordnet ein Profil dem HTTP-, Anthropic-, lokalen CLI- oder eingebetteten llama.cpp-Transport zu und fügt dann Eingabeaufforderungsvoreinstellungen und optionales RAG hinzu |
 | `AiCatalogService` | Gibt sofort einen erneut verifizierten Cache/Bootstrap zurück und plant eine signierte Stable-Channel-Aktualisierung für Empfehlungen und voreingestellte Familienzuordnungen |
 | `LlamaRuntimeManager` | Gibt einen isolierten authentifizierten Sidecar pro kompatibler GGUF-Konfiguration gemeinsam und gewährt referenzgezählte Anforderungsleasings |
-| `RagAugmentedAiService` | Ruft begrenzte Auszüge für gewöhnliche KI-Aktionen ab und fügt den nicht vertrauenswürdigen Kontext vor der Modellvoreinstellung | hinzu
+| `RagAugmentedAiService` | Ruft begrenzte Auszüge für gewöhnliche KI-Aktionen ab und fügt den nicht vertrauenswürdigen Kontext vor der Modellvoreinstellung hinzu |
 | `TerminalAgentService` | Führt Agenten-Workflows aus: SSH-Sitzung prüfen, Aufgabe an Modell senden, Befehle validieren/ausführen |
 | `AiInternetAccessConfiguration` | Konfiguriert Web-Tools (Tavily, Brave Search, SearXNG usw.) pro Profil |
 | `AiChatExportService` | Exportiert KI-Chats nach Markdown, PDF, YAML, JSON, XML, Asciidoctor |
@@ -173,7 +174,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 ### Master-Passwort und Verschlüsselung
 
 1. **Erster Start**: Der Benutzer erstellt ein Master-Passwort (mindestens 6 Zeichen, Stärke überprüft über zxcvbn)
-2. **Speicher**: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und in `~/.kortty/master-password-hash` gespeichert
+2. **Speicherung**: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert `~/.kortty/master-password-hash`
 3. **Entsperren**: Das Master-Passwort entsperrt alle verschlüsselten Daten (Verbindungspasswörter, SSH-Schlüsselpassphrasen, Anmeldeinformationen, Backup-Archiv-Passwörter)
 4. **Verschlüsselung**: AES-256-GCM mit zufälligen IVs; Die Verschlüsselung/Entschlüsselung erfolgt bei Bedarf beim Zugriff auf vertrauliche Felder
 
@@ -213,12 +214,12 @@ KorTTY unterstützt **Terminaleffekt-Plugins** über Java `ServiceLoader` zum An
 | `TerminalEffectSession` | Lebenszyklus-Hooks (Init, Render, Cleanup) und optionaler TtyConnector-Wrapping |
 | `TerminalEffectContext` | Zugriff auf Overlay-API, aktuelle SithTermFX-Widgets, Animationsgeschwindigkeit, Erscheinungsbild |
 | `TerminalEffectAppearance` | Optionale Schriftart/Farbe/Cursor überschreibt |
-| `TerminalEffectConnectorWrapper` | Transparenter Befehlsstream-Wrapper; KorTTY kann | sicher auspacken
+| `TerminalEffectConnectorWrapper` | Transparenter Befehlsstream-Wrapper; KorTTY kann sicher ausgepackt werden |
 
 ### Plugin wird geladen
 
 - **Gebündelte Plugins**: Aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)
-- **Externe Plugins**: Als `.jar`-Dateien in `~/.kortty/plugins/` importiert
+- **Externe Plugins**: Importiert als `.jar` Dateien in `~/.kortty/plugins/`
 - **Verwaltung**: Einzelne Plugins über `Plugins → Terminal Effects` ohne Deinstallation aktivieren/deaktivieren
 - **Exportierbare Plugins**: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden
 
@@ -235,7 +236,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **SSH** | Apache SSHD (Core, Common, SFTP) | 2.19.0 | SSH-Protokollimplementierung |
 | | BouncyCastle (bcprov, bcpkix) | 1,85 | Kryptografieanbieter und SSH-Schlüsselanalyse |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA-Schlüsselunterstützung |
-| **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angehefteter korTTY-Grenzpatch | Terminal-Emulator-Engine |
+| **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0.12.25 | PTY-Zuteilung für Mosh |
 | **Plattform** | JNA (JNA, JNA-Plattform) | 5.19.1 | Native Desktop-Energieverwaltungsintegration |
@@ -342,7 +343,7 @@ Menu-bar status displays next runs / live countdown
 - **JobScheduler-Journal**: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)
 - **Terminalverlauf**: Komprimierte Sitzungsprotokolle in `~/.kortty/history/`
 - **Terminalaufzeichnung**: Optionale Wiedergabedateien in `~/.kortty/recordings/`
-- **Testisolation**: Die Test-Logback-Konfiguration schreibt nur auf ihre eigene Konsole und erstellt niemals `~/.kortty/logs` des echten Benutzers oder hängt daran an
+- **Testisolation**: Die Test-Logback-Konfiguration schreibt nur auf die eigene Konsole und erstellt niemals die Konsole des echten Benutzers oder hängt an diese an `~/.kortty/logs`
 
 ## Thread-Modell
 
