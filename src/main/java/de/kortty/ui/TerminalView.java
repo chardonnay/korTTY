@@ -4895,8 +4895,12 @@ public class TerminalView extends BorderPane {
                     // server, or a missing mosh runtime): retrying cannot change the outcome.
                     configurationRefused = true;
                     lastError = e.getMessage();
-                    logger.error("Connection refused for {} - NOT retrying: {}",
-                            connection.getDisplayName(), e.getMessage());
+                    // Log raw host:port rather than connection.getDisplayName(): the latter can fall
+                    // back to "username@host", and CodeQL's coarse sensitive-data heuristic treats any
+                    // getter on ServerConnection as tainted once the class holds an encryptedPassword
+                    // field. Host/port carry no credential and give the same diagnostic value.
+                    logger.error("Connection refused for {}:{} - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
 
                     clearTerminal();
                     showMessage(e.getMessage());
