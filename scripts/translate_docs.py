@@ -158,7 +158,7 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
                 if val:
                     masked, store = mask(val)
                     jobs.append((i, masked, store))
-                    lines[i] = "title: "  # sentinel; filled back after translate
+                    lines[i] = "title: \x03"  # sentinel; filled back after translate
             continue
         if FENCE_RE.match(line):
             in_fence = not in_fence
@@ -274,7 +274,7 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
         memory[masked] = translated
     for idx, masked, store in jobs:
         translated = unmask(memory.get(masked, ""), store)
-        if lines[idx] == "title: ":
+        if lines[idx] == "title: \x03":
             lines[idx] = f'title: {translated}'
         else:
             # The translation API strips leading whitespace from its output, but a
