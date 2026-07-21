@@ -2380,6 +2380,7 @@
 <li>Click <strong>Regenerate outdated</strong></li>
 <li>All generated languages are re-translated to include new or changed keys from the new version</li>
 </ol>
+<p>Regenerating is not urgent: until you do it, any string added after your file was generated falls back to the packaged translation for that language, or to English when the language ships no packaged file. You see a translated or English label, never a raw key name.</p>
 <h3 id="storage-and-persistence">Storage and Persistence<a class="headerlink" href="#storage-and-persistence" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Generated language files are stored in <code>~/.kortty/i18n/</code></li>
@@ -2394,6 +2395,7 @@
 <li><strong>Built-in languages</strong>: Pre-translated properties files are packaged with the application</li>
 <li><strong>Dynamic languages</strong>: Generated properties files are loaded from <code>~/.kortty/i18n/</code> on startup</li>
 <li><strong>Placeholder preservation</strong>: Translation APIs preserve parameterized placeholders like <code>{0}</code>, <code>{1}</code>, and <code>${variable}</code> during translation</li>
+<li><strong>Lookup fallback</strong>: A file in <code>~/.kortty/i18n/</code> is consulted first, then the packaged file for the same language, then the English base bundle — so a key the generated file lacks still resolves</li>
 </ul>
 <p>The <code>LanguageManager</code> class detects available locales from both built-in translations and dynamically generated files, allowing you to seamlessly mix both types.</p>
 <h2 id="platform-locale-detection">Platform Locale Detection<a class="headerlink" href="#platform-locale-detection" title="Permanent link">&para;</a></h2>

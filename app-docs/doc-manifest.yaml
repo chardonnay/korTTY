@@ -308,7 +308,7 @@ pages:
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
-    last_synced_ref: "4b57258"
+    last_synced_ref: "b7270fd"
   - path: app-docs/site/docs/en/reference/architecture.md
     owns_i18n: []
     # Deliberately NOT the whole source tree: owning src/main/java/de/kortty made this page
