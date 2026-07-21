@@ -51,6 +51,30 @@ def load_feature_keys(cfg: dict) -> list[str]:
     return sorted(set(keys))
 
 
+def load_all_keys(cfg: dict) -> set[str]:
+    """Every declared i18n key — used only to check that an owned prefix matches something.
+
+    Deliberately not `load_feature_keys`: that one is filtered to `required_prefixes`
+    (settings./menu.), so validating owned prefixes against it reported every legitimate
+    feature prefix (recording., tunnel., theme., project., ...) as stale by construction.
+
+    Also reads the base bundle, not just `i18n_source`. `messages.properties` is the English
+    source of truth — `ResourceBundle` falls back to it — while `messages_en.properties` is a
+    partial overlay, so a few hundred keys exist solely in the base bundle.
+    """
+    sources = {REPO_ROOT / cfg["i18n_source"],
+               REPO_ROOT / "src/main/resources/i18n/messages.properties"}
+    keys: set[str] = set()
+    for src in sources:
+        if not src.exists():
+            continue
+        for line in src.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                keys.add(line.split("=", 1)[0].strip())
+    return keys
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="korTTY docs settings/menu coverage gate.")
     ap.add_argument("--strict", action="store_true", help="non-zero exit on undocumented keys (CI)")
@@ -71,8 +95,9 @@ def main() -> int:
         owned_prefixes.extend(prefixes)
 
     orphans = [k for k in feature_keys if not any(k.startswith(p) for p in owned_prefixes)]
+    all_keys = load_all_keys(manifest["coverage"])
     stale = [p for p in sorted(set(owned_prefixes))
-             if not any(k.startswith(p) for k in feature_keys)]
+             if not any(k.startswith(p) for k in all_keys)]
 
     documented = len(feature_keys) - len(orphans)
     pct = (documented / len(feature_keys) * 100) if feature_keys else 100.0

@@ -26,14 +26,16 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **Module** | **Purpose** | **Key Classes** |
 |---|---|---|
 | **core** | SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
-| **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp process leases, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller` |
+| **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp and MLX runtimes, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
-| **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalPane`, `ConnectionDialog`, `SFTPManagerDialog`, `SnippetEditor` |
-| **model** | Domain objects for connections, credentials, snippets, jobs | `Connection`, `Credential`, `Snippet`, `JobScheduleEntry` |
-| **jobscheduler** | Background job scheduling and execution | `JobScheduler`, `JobExecutor`, `JobJournal` |
-| **security** | Master password, encryption/decryption, SSH key management | `MasterPasswordManager`, `AES256GCMEncryption`, `SSHKeyManager` |
-| **persistence** | XML serialization, file I/O, repository pattern | `XMLConnectionRepository`, `CredentialRepository`, `JobSchedulerPersistence` |
+| **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
+| **model** | Domain objects for connections, credentials, snippets, jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
+| **jobscheduler** | Background job scheduling and execution | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
+| **security** | Master password, encryption/decryption, password vault | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
+| **persistence** | XML serialization, file I/O, repository pattern | `XMLConnectionRepository`, `HistoryStorage` |
 | **plugin** | Terminal effect plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
+| **power** | Activity-aware sleep and App Nap management per platform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
+| **telemetry** | Opt-in anonymous usage events | `TelemetryService`, `Telemetry` |
 | **teamwork** | Collaboration and remote access features | Team-based session sharing and coordination |
 | **jmx** | Java Management Extensions monitoring | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **update** | Version checking and update notifications | Update service and version metadata |
@@ -230,16 +232,20 @@ KorTTY relies on carefully curated, production-tested dependencies:
 
 | **Category** | **Library** | **Version** | **Purpose** |
 |---|---|---|---|
-| **SSH** | Apache SSHD (core, common, sftp) | 2.12.0 | SSH protocol implementation |
+| **SSH** | Apache SSHD (core, common, sftp) | 2.19.0 | SSH protocol implementation |
+| | BouncyCastle (bcprov, bcpkix) | 1.85 | Cryptographic provider and SSH key parsing |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA key support |
 | **Terminal** | SithTermFX (core, ui) | 1.2.1 plus pinned korTTY boundary patch | Terminal emulator engine |
-| | Lanterna | 3.1.2 | Text-based UI components |
+| | Lanterna | 3.1.5 | Text-based UI components |
 | | pty4j (JetBrains) | 0.12.25 | PTY allocation for Mosh |
-| **Data** | Jakarta XML Bind | 4.0 | JAXB serialization |
-| | Gson | 2.13.2 | JSON parsing |
-| | zip4j | 2.11.5 | ZIP encryption |
-| **Archive** | Apache Commons Compress | 1.25.0 | TAR, BZ2, XZ support |
-| | Tukaani xz | 1.9 | XZ compression |
+| **Platform** | JNA (jna, jna-platform) | 5.19.1 | Native desktop power-management integration |
+| **Data** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB serialization |
+| | Gson | 2.14.0 | JSON parsing |
+| | zip4j | 2.11.6 | ZIP encryption |
+| | jtokkit | 1.1.0 | Token counting for AI requests |
+| | PDFBox | 3.0.8 | PDF export and RAG text extraction |
+| **Archive** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ support |
+| | Tukaani xz | 1.12 | XZ compression |
 | **UI** | JavaFX | 21 | Application framework |
 | | Monaco Editor | 0.55.1 | Code editor component |
 | | Mermaid | 11.16.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
@@ -247,7 +253,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | google-java-format | 1.35.0 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Password strength (offline) |
-| **Logging** | SLF4J / Logback | 2.0.9 / 1.4.14 | Structured logging |
+| **Logging** | SLF4J / Logback | 2.0.18 / 1.5.38 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
 | **Local AI** | llama.cpp `llama-server` | Source-pinned runtime package | Local GGUF chat-completions and embeddings sidecar |
 
