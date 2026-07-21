@@ -359,7 +359,10 @@ public final class SwarmWorkflowScriptDialog {
             }
             String jump = null;
             JumpServer jumpServer = connection.getJumpServer();
-            if (jumpServer != null && jumpServer.getHost() != null && !jumpServer.getHost().isBlank()) {
+            // Only route through the bastion when it is actually enabled — a disabled jump server
+            // now means a direct connection, and the generated script must match that.
+            if (jumpServer != null && jumpServer.isEnabled()
+                && jumpServer.getHost() != null && !jumpServer.getHost().isBlank()) {
                 jump = (jumpServer.getUsername() != null ? jumpServer.getUsername() + "@" : "")
                     + jumpServer.getHost() + ":" + jumpServer.getPort();
             }

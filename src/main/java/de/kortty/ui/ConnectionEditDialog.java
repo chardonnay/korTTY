@@ -88,6 +88,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     // Tunnel and Jump Server
     private CheckBox enableTunnelsCheck;
     private CheckBox enableJumpCheck;
+    private TextField jumpHostField;
+    private Spinner<Integer> jumpPortSpinner;
+    private TextField jumpUserField;
+    private PasswordField jumpPasswordField;
+    private ComboBox<de.kortty.model.AuthMethod> jumpAuthCombo;
+    private TextField jumpKeyPathField;
     private ComboBox<String> fontFamilyCombo;
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
@@ -635,13 +641,40 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 
                 // Save jump server settings
                 if (enableJumpCheck != null && enableJumpCheck.isSelected()) {
-                    // Jump server configuration is saved when checkbox is enabled
-                    // Full implementation TODO: extract values from UI fields
                     if (connection.getJumpServer() == null) {
                         connection.setJumpServer(new de.kortty.model.JumpServer());
                     }
-                    connection.getJumpServer().setEnabled(true);
-                    // TODO: Set host, port, username, password, autoCommand from UI fields
+                    de.kortty.model.JumpServer jump = connection.getJumpServer();
+                    jump.setEnabled(true);
+                    jump.setHost(jumpHostField.getText() != null ? jumpHostField.getText().trim() : null);
+                    jump.setPort(jumpPortSpinner.getValue() != null ? jumpPortSpinner.getValue() : 22);
+                    jump.setUsername(jumpUserField.getText() != null ? jumpUserField.getText().trim() : null);
+                    jump.setAuthMethod(jumpAuthCombo.getValue() != null
+                        ? jumpAuthCombo.getValue() : de.kortty.model.AuthMethod.PASSWORD);
+                    String keyPath = jumpKeyPathField.getText();
+                    jump.setPrivateKeyPath(keyPath != null && !keyPath.isBlank() ? keyPath.trim() : null);
+                    // An empty password field means "keep the stored password" — the stored value is
+                    // never displayed, so an untouched field must not wipe it. This runs inside the
+                    // result converter, which has no catch: a throw here would abort the whole save
+                    // silently, so failures surface as an alert and leave the stored password as is.
+                    String jumpPassword = jumpPasswordField.getText();
+                    if (jumpPassword != null && !jumpPassword.isEmpty()) {
+                        try {
+                            if (masterPassword == null) {
+                                throw new IllegalStateException(I18n.get("connEdit.jumpPasswordVaultLocked"));
+                            }
+                            EncryptionService encryptionService = new EncryptionService();
+                            jump.setEncryptedPassword(encryptionService.encryptPassword(jumpPassword, masterPassword));
+                        } catch (Exception ex) {
+                            logger.error("Could not encrypt the jump server password", ex);
+                            Alert alert = new Alert(Alert.AlertType.WARNING,
+                                I18n.get("connEdit.jumpPasswordSaveFailed", String.valueOf(ex.getMessage())),
+                                ButtonType.OK);
+                            DialogThemeHelper.applyTheme(alert);
+                            alert.setHeaderText(null);
+                            alert.showAndWait();
+                        }
+                    }
                 } else if (connection.getJumpServer() != null) {
                     connection.getJumpServer().setEnabled(false);
                 }
@@ -1313,24 +1346,64 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         grid.setVgap(10);
         grid.setDisable(jumpServer == null || !jumpServer.isEnabled());
         
-        TextField jumpHostField = new TextField();
+        jumpHostField = new TextField();
         jumpHostField.setPromptText(I18n.get("connEdit.jumpHostPrompt"));
         if (jumpServer != null) jumpHostField.setText(jumpServer.getHost());
-        
-        Spinner<Integer> jumpPortSpinner = new Spinner<>(1, 65535, jumpServer != null ? jumpServer.getPort() : 22);
+
+        jumpPortSpinner = new Spinner<>(1, 65535, jumpServer != null ? jumpServer.getPort() : 22);
         jumpPortSpinner.setEditable(true);
         jumpPortSpinner.setPrefWidth(80);
-        
-        TextField jumpUserField = new TextField();
+
+        jumpUserField = new TextField();
         jumpUserField.setPromptText(I18n.get("common.username"));
         if (jumpServer != null) jumpUserField.setText(jumpServer.getUsername());
-        
-        PasswordField jumpPasswordField = new PasswordField();
-        jumpPasswordField.setPromptText(I18n.get("connEdit.passwordOptional"));
-        
-        TextField autoCommandField = new TextField();
-        autoCommandField.setPromptText(I18n.get("connEdit.autoCommandPrompt"));
-        if (jumpServer != null) autoCommandField.setText(jumpServer.getAutoCommand());
+
+        // Auth method: password, or an unencrypted key file. The stored password is never shown
+        // back; an empty password field on save means "keep the stored one".
+        jumpAuthCombo = new ComboBox<>();
+        jumpAuthCombo.getItems().addAll(de.kortty.model.AuthMethod.PASSWORD, de.kortty.model.AuthMethod.PUBLIC_KEY);
+        jumpAuthCombo.setValue(jumpServer != null && jumpServer.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY
+            ? de.kortty.model.AuthMethod.PUBLIC_KEY : de.kortty.model.AuthMethod.PASSWORD);
+        jumpAuthCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override public String toString(de.kortty.model.AuthMethod m) {
+                if (m == null) return "";
+                return m == de.kortty.model.AuthMethod.PUBLIC_KEY
+                    ? I18n.get("connEdit.jumpAuth.key") : I18n.get("connEdit.jumpAuth.password");
+            }
+            @Override public de.kortty.model.AuthMethod fromString(String s) { return null; }
+        });
+
+        jumpPasswordField = new PasswordField();
+        jumpPasswordField.setPromptText(jumpServer != null && jumpServer.getEncryptedPassword() != null
+            && !jumpServer.getEncryptedPassword().isBlank()
+            ? I18n.get("connEdit.jumpPasswordStored") : I18n.get("connEdit.passwordOptional"));
+
+        jumpKeyPathField = new TextField();
+        jumpKeyPathField.setPromptText(I18n.get("connEdit.jumpKeyPathPrompt"));
+        if (jumpServer != null && jumpServer.getPrivateKeyPath() != null) {
+            jumpKeyPathField.setText(jumpServer.getPrivateKeyPath());
+        }
+        Button jumpKeyBrowse = new Button(I18n.get("connEdit.browse"));
+        jumpKeyBrowse.setOnAction(e -> {
+            javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+            chooser.setTitle(I18n.get("connEdit.jumpKeyPathPrompt"));
+            java.io.File sshDir = new java.io.File(System.getProperty("user.home"), ".ssh");
+            if (sshDir.isDirectory()) chooser.setInitialDirectory(sshDir);
+            java.io.File chosen = chooser.showOpenDialog(getDialogPane().getScene().getWindow());
+            if (chosen != null) jumpKeyPathField.setText(chosen.getAbsolutePath());
+        });
+        HBox jumpKeyBox = new HBox(10, jumpKeyPathField, jumpKeyBrowse);
+        HBox.setHgrow(jumpKeyPathField, Priority.ALWAYS);
+
+        // Only the fields of the selected method are enabled.
+        Runnable syncAuthFields = () -> {
+            boolean key = jumpAuthCombo.getValue() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+            jumpPasswordField.setDisable(key);
+            jumpKeyPathField.setDisable(!key);
+            jumpKeyBrowse.setDisable(!key);
+        };
+        jumpAuthCombo.valueProperty().addListener((obs, o, n) -> syncAuthFields.run());
+        syncAuthFields.run();
         
         int row = 0;
         grid.add(new Label(I18n.get("connEdit.jumpHost")), 0, row);
@@ -1341,12 +1414,15 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         grid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         grid.add(jumpUserField, 1, row++);
         
+        grid.add(new Label(I18n.get("connEdit.jumpAuthMethod")), 0, row);
+        grid.add(jumpAuthCombo, 1, row++);
+
         grid.add(new Label(I18n.get("common.password") + ":"), 0, row);
         grid.add(jumpPasswordField, 1, row++);
-        
-        grid.add(new Label(I18n.get("connEdit.autoCommand")), 0, row);
-        grid.add(autoCommandField, 1, row++);
-        
+
+        grid.add(new Label(I18n.get("connEdit.jumpKeyPath")), 0, row);
+        grid.add(jumpKeyBox, 1, row++);
+
         enableJumpCheck.selectedProperty().addListener((obs, old, newVal) -> {
             grid.setDisable(!newVal);
         });

@@ -4,6 +4,11 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.5.2
 
+### Jump server (bastion host)
+
+- **Jump server hopping is now implemented** — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.
+- **The bastion is verified, and credentials are kept separate** — the jump host's key goes through the same trust-on-first-use prompt and pinning as any other host, the target is still verified under its own name through the tunnel, and neither host is ever offered the other's password or key. The write-only *Auto-Command* field was removed; a real tunnel supersedes the "type ssh on the bastion" pattern it stood for.
+
 ### ASCII art
 
 - **AI-drawn ASCII pictures** — the ASCII art tool (**Tools > ASCII Art...**) gained an **AI Picture** tab: type a subject such as "house" and a model draws it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable. **New variation** redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry, and a transient profile picker lets a single run use a different AI profile without changing your default.
