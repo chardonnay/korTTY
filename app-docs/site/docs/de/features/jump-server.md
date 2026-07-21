@@ -4,45 +4,41 @@ title: Jump-Server (Bastion Host)
 
 # Jump Server (Bastion Host)
 
-Ein Jump-Server (Bastion-Host) fungiert als Zwischengateway, um Server in einem privaten Netzwerk zu erreichen. KorTTY kann Verbindungen über einen Jump-Server tunneln, sodass Sie von Ihrem lokalen Computer aus auf interne Systeme zugreifen können, ohne direkten Netzwerkzugriff zu benötigen.
+Ein Jump-Server (Bastion-Host) fungiert als Zwischengateway, um Server in einem privaten Netzwerk zu erreichen. korTTY tunnelt die Verbindung über einen Jump-Server, sodass Sie von Ihrem lokalen Computer aus ein internes System erreichen können, ohne direkten Netzwerkzugriff darauf zu haben.
 
 ## Verbindungsfluss
 
 ![Jump server flow](../assets/diagrams/jump-server-flow.svg)
 
-Ihr lokaler Computer stellt zunächst eine Verbindung zum Jump-Server (Bastion-Host) her, der dann eine Verbindung zum Zielserver herstellt. Der gesamte Datenverkehr wird über den Jump-Server geleitet.
+korTTY authentifiziert sich beim Jump-Server mit den eigenen Anmeldeinformationen des Jump-Servers, öffnet einen Tunnel dadurch und öffnet dann die echte SSH-Sitzung zum Zielhost über diesen Tunnel. Die Anmeldeinformationen des Ziels werden nur für das Ziel verwendet, und die Anmeldeinformationen des Jump-Servers werden nur für den Jump-Server verwendet – keinem Host wird das Kennwort oder der Schlüssel des anderen angeboten.
 
 ## Konfiguration
 
 So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
-1. Öffnen Sie den *Verbindungsmanager* oder erstellen Sie eine neue Verbindung.
-2. Bearbeiten Sie die Verbindung und wechseln Sie zur Registerkarte **Jump Server** (oder zur Registerkarte **Erweitert**).
+1. Öffnen Sie den *Verbindungsmanager* und bearbeiten (oder erstellen) Sie eine Verbindung.
+2. Gehen Sie zur Registerkarte **Jump-Server**.
 3. Aktivieren Sie **Jump Server**.
 4. Geben Sie die Details des Jump-Servers ein:
-   - **Host** – Hostname oder IP-Adresse des Jump-Servers
-   - **Port** – SSH-Port (Standard: 22)
-   - **Benutzername** – Login-Benutzername für den Jump-Server
+    - **Host** – Hostname oder IP-Adresse des Jump-Servers
+    - **Port** – SSH-Port (Standard: 22)
+    - **Benutzername** – Anmeldebenutzername für den Jump-Server
 5. Wählen Sie eine **Authentifizierungsmethode**:
-   - **Passwort** – Geben Sie das Passwort direkt ein (wird verschlüsselt mit Ihrem Master-Passwort gespeichert)
-   - **SSH-Schlüssel** – Wählen Sie einen gespeicherten SSH-Schlüssel aus Ihrer Schlüsselverwaltung aus
-6. Legen Sie optional einen **Auto-Befehl** fest, der nach der Verbindung mit dem Jump-Server ausgeführt wird (z. B. `ssh internal-server`).
-7. Klicken Sie auf **Speichern**.
+    - **Passwort** – das Passwort wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Lassen Sie das Feld beim Bearbeiten leer, um das zuvor gespeicherte Passwort beizubehalten.
+    - **SSH-Schlüsseldatei (keine Passphrase)** – der Pfad zu einer unverschlüsselten privaten Schlüsseldatei. Passphrase-geschützte Schlüssel werden für den Jump Hop nicht unterstützt.
+6. Klicken Sie auf **Speichern**.
 
-## Wie es funktioniert
+## Host-Schlüsselüberprüfung
 
-Wenn Sie eine Verbindung zu einem Zielserver mit konfiguriertem Jump-Server herstellen, führt KorTTY Folgendes aus:
+Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost.
 
-1. Stellt eine SSH-Verbindung zum Jump-Server her
-2. Verwendet diese Verbindung, um den Zielserver zu erreichen
-3. Leitet den gesamten Datenverkehr über den Jump-Server
-4. Führt den optionalen automatischen Befehl auf dem Jump-Server aus
+Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.
 
-Dies ist besonders nützlich, wenn:
+## Wann es verwendet werden soll
 
-- Zielserver befinden sich hinter einer Firewall und sind nur über einen Bastion-Host erreichbar
-- Sie müssen Sicherheitsrichtlinien einhalten, die das Routing über ein Gateway erfordern
-- Die interne Infrastruktur verwendet private IPs und erfordert einen Vermittler für den Zugriff
+- Zielserver befinden sich hinter einer Firewall und sind nur über einen Bastion-Host erreichbar.
+- Sicherheitsrichtlinie erfordert Routing über ein Gateway.
+- Die interne Infrastruktur verwendet private Adressen und benötigt einen Vermittler für den Zugriff.
 
 !!! note
-    Die Jump-Server-Anmeldeinformationen werden wie normale Verbindungsanmeldeinformationen verschlüsselt in KorTTY gespeichert. Ihr Master-Passwort schützt alle gespeicherten Jump-Server-Passwörter und SSH-Schlüssel-Passphrasen.
+    Jump-Server-Passwörter werden zusammen mit den Anmeldeinformationen der Verbindung verschlüsselt mit Ihrem Master-Passwort gespeichert. Da das gespeicherte Passwort nie wieder angezeigt wird, bleibt das gespeicherte Passwort erhalten, wenn Sie die Verbindung mit einem leeren Jump-Server-Passwortfeld bearbeiten. Geben Sie einen neuen Wert ein, nur um ihn zu ändern. Wenn der Master-Passwort-Tresor beim Speichern eines neuen Jump-Passworts gesperrt ist, meldet korTTY, dass das Jump-Passwort nicht gespeichert werden konnte und lässt die anderen Einstellungen unberührt.

@@ -4,45 +4,41 @@ title: Jump Server (Bastion Host)
 
 # Jump Server (Bastion Host)
 
-A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network. KorTTY can tunnel connections through a jump server so you can access internal systems from your local machine without direct network access.
+A jump server (bastion host) acts as an intermediate gateway to reach servers on a private network. korTTY tunnels the connection through a jump server so you can reach an internal system from your local machine without direct network access to it.
 
-## Connection Flow
+## Connection flow
 
 ![Jump server flow](../assets/diagrams/jump-server-flow.svg)
 
-Your local machine connects first to the jump server (bastion host), which then connects to the target server. All traffic is routed through the jump server.
+korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.
 
 ## Configuration
 
 To configure a jump server for a connection:
 
-1. Open the *Connection Manager* or create a new connection.
-2. Edit the connection and go to the **Jump Server** tab (or **Advanced** tab).
+1. Open the *Connection Manager* and edit (or create) a connection.
+2. Go to the **Jump Server** tab.
 3. Enable **Jump Server**.
 4. Enter the jump server's details:
-   - **Host** — Hostname or IP address of the jump server
-   - **Port** — SSH port (default: 22)
-   - **Username** — Login username for the jump server
-5. Select an **Authentication** method:
-   - **Password** — Enter the password directly (stored encrypted with your master password)
-   - **SSH Key** — Select a stored SSH key from your key management
-6. Optionally set an **Auto-Command** to execute after connecting to the jump server (e.g., `ssh internal-server`).
-7. Click **Save**.
+    - **Host** — hostname or IP address of the jump server
+    - **Port** — SSH port (default: 22)
+    - **Username** — login username for the jump server
+5. Choose an **Authentication** method:
+    - **Password** — the password is stored encrypted with your master password. Leave the field empty when editing to keep the previously stored password.
+    - **SSH key file (no passphrase)** — the path to an unencrypted private key file. Passphrase-protected keys are not supported for the jump hop.
+6. Click **Save**.
 
-## How It Works
+## Host key verification
 
-When you connect to a target server with a jump server configured, KorTTY:
+The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets.
 
-1. Establishes an SSH connection to the jump server
-2. Uses that connection to reach the target server
-3. Routes all traffic through the jump server
-4. Executes the optional auto-command on the jump server
+The target host is verified under its own name even though the transport goes through the tunnel, so a compromised bastion cannot substitute a different target host key unnoticed.
 
-This is particularly useful when:
+## When to use it
 
-- Target servers are behind a firewall and only reachable via a bastion host
-- You need to comply with security policies that require routing through a gateway
-- Internal infrastructure uses private IPs and requires an intermediary for access
+- Target servers are behind a firewall and only reachable through a bastion host.
+- Security policy requires routing through a gateway.
+- Internal infrastructure uses private addresses and needs an intermediary for access.
 
 !!! note
-    The jump server credentials are stored encrypted in KorTTY, just like regular connection credentials. Your master password protects all stored jump server passwords and SSH key passphrases.
+    Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY reports that the jump password could not be saved and leaves the other settings untouched.

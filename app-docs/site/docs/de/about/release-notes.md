@@ -4,6 +4,11 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 
 ## v2.5.2
 
+### Jump-Server (Bastion-Host)
+
+- **Jump-Server-Hopping ist jetzt implementiert** – eine Verbindung mit einem aktivierten Jump-Server wird über die Bastion geleitet: korTTY authentifiziert sich beim Jump-Host mit seinen eigenen Anmeldeinformationen, öffnet einen Tunnel und öffnet über ihn die echte SSH-Sitzung zum Ziel. Zuvor sammelte die Registerkarte „Jump-Server“ Host, Benutzernamen und Passwort, verwarf sie jedoch beim Speichern und stellte eine direkte Verbindung zum Ziel her – eine Verbindung konnte beim direkten Herstellen einer Bastion-Routing-Verbindung aussehen. Die Registerkarte behält nun jedes Feld bei (mit dem Master-Passwort verschlüsseltes Passwort) und fügt einen Authentifizierungsselektor für das Passwort oder eine unverschlüsselte SSH-Schlüsseldatei hinzu.
+- **Die Bastion ist verifiziert und die Anmeldeinformationen werden getrennt gehalten** – der Schlüssel des Jump-Hosts durchläuft die gleiche Aufforderung zur Vertrauenswürdigkeit bei der ersten Verwendung und das gleiche Pinning wie jeder andere Host, das Ziel wird weiterhin unter seinem eigenen Namen durch den Tunnel verifiziert und keinem Host wird jemals das Passwort oder der Schlüssel des anderen angeboten. Das schreibgeschützte *Auto-Command*-Feld wurde entfernt; Ein echter Tunnel ersetzt das „Type SSH on the Bastion“-Muster, für das er stand.
+
 ### ASCII-Art
 
 - **KI-gezeichnete ASCII-Bilder** – das ASCII-Artwerkzeug (**Werkzeuge > ASCII-Art...**) hat eine Registerkarte **KI-Bild** erhalten: Geben Sie einen Betreff wie „Haus“ ein und ein Modell zeichnet es als ASCII-Bild, beschränkt auf druckbares ASCII innerhalb von 60 Spalten und 30 Zeilen, damit es lesbar bleibt. **Neue Variante** zeichnet dasselbe Motiv mit einer anderen Behandlung neu – Betrachtungswinkel, Detaillierungsgrad, Linienstil, Szenenkontext oder Proportionen – und fragt bei jedem erneuten Versuch erneut nach etwas anderem, und eine vorübergehende Profilauswahl ermöglicht es einem einzelnen Durchlauf, ein anderes KI-Profil zu verwenden, ohne Ihre Standardeinstellung zu ändern.

@@ -58,6 +58,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private SshClient client;
     private ClientSession session;
     private ChannelShell channel;
+    /** Established bastion hop when the connection has an enabled jump server; null otherwise. */
+    private JumpHostSupport.JumpTunnel jumpTunnel;
     private InputStream inputStream;
     private OutputStream outputStream;
     private InputStreamReader reader;
@@ -258,8 +260,24 @@ public class SshTtyConnector implements ObservableTtyConnector {
             
             // Clear default key identity provider on client to avoid loading ~/.ssh keys
             client.setKeyIdentityProvider(null);
-            
-            session = client.connect(username, connection.getHost(), connection.getPort())
+
+            // With an enabled jump server, hop first: authenticate to the bastion with its own
+            // credentials and open a loopback forward to the target. The session below then
+            // connects to that forward — but hostKeyVerifier was built for the target's real
+            // host:port, so the target's key is still pinned under its real name, and a bastion
+            // that answered with a different key would be rejected, not silently trusted.
+            String connectHost = connection.getHost();
+            int connectPort = connection.getPort();
+            if (JumpHostSupport.isActive(connection)) {
+                jumpTunnel = JumpHostSupport.open(
+                    connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
+                connectHost = jumpTunnel.localHost();
+                connectPort = jumpTunnel.localPort();
+                logger.info("Connecting to {} via jump server {}",
+                    connection.getDisplayName(), connection.getJumpServer().getHost());
+            }
+
+            session = client.connect(username, connectHost, connectPort)
                     .verify(Duration.ofSeconds(timeoutSeconds))
                     .getSession();
             
@@ -457,6 +475,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
             logger.warn("Error closing SSH connection: {}", e.getMessage());
         } finally {
             session = null;
+            if (jumpTunnel != null) {
+                jumpTunnel.close();
+                jumpTunnel = null;
+            }
         }
         logger.info("Disconnected from {}", connection.getDisplayName());
     }
