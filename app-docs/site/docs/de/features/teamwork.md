@@ -112,7 +112,7 @@ Wenn in der freigegebenen Datei Inline-Geheimnisse gefunden werden, entfernt Kor
 
 Sobald eine Quelle synchronisiert ist:
 
-1. Öffnen Sie **Verbindungen verwalten…** (oder drücken Sie ++Strg+M++).
+1. Öffnen Sie **Verbindungen verwalten…** (oder drücken Sie ++ctrl+m++).
 2. Teamwork-Verbindungen werden in der Baumstruktur mit der Bezeichnung **[Teamwork]** und ihrer Quell-ID angezeigt.
 3. Klicken Sie auf eine Teamwork-Verbindung, um sie anzuzeigen oder zu verwenden.
 4. **Kann nicht direkt bearbeitet werden** – Teamwork-Verbindungen sind schreibgeschützt, es sei denn, ihre Quelle ist als beschreibbar markiert und Sie besitzen Bearbeitungsrechte (bestimmt durch `teamworkRole`).

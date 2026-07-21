@@ -21,7 +21,7 @@ KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen,
 
 ## Erstellen eines Backups
 
-1. Öffnen Sie **Bearbeiten → Backup erstellen...** oder drücken Sie ++Strg+Umschalt+B++ (Befehl+Umschalt+B unter macOS)
+1. Öffnen Sie **Bearbeiten → Backup erstellen...** oder drücken Sie ++ctrl+shift+b++ (Befehl+Umschalt+B unter macOS)
 2. Wählen Sie ein Zielverzeichnis für die Sicherungsdatei
 3. Das Backup wird mit der unter **Einstellungen → Backup** konfigurierten Verschlüsselungsmethode erstellt.
 

@@ -11,17 +11,17 @@ Ein neues korTTY-Fenster: die Menüleiste, der Terminalbereich (in dem Sitzungsr
 Das Hauptfenster von korTTY hat diese Bereiche:
 
 - **Menüleiste** – Datei · Bearbeiten · Verbindungen · Sicherheit · Konfiguration · Tools · Plugins · Anzeigen · Teamwork · KI · Hilfe. Alle Funktionen sind hier und über [Tastaturkürzel](../reference/keyboard-shortcuts.md)] erreichbar. Ein Live-Menü **JobScheduler-Status** erscheint nach *Hilfe*, wenn ein geplanter Eintrag aktiv ist.
-- **Tab-Leiste** – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++Strg+T++ opens Quick Connect for a new tab; ++Strg+Tab++ / ++Strg+Umschalt+Tab++ Tabs wechseln.
-- **Dashboard** (umschalten ++Strg+Umschalt+D++) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokoll-Badges und KI-Agent-Badges auflistet. Siehe [Dashboard](#dashboard) unten.
+- **Tab-Leiste** – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++ctrl+t++ öffnet Quick Connect für eine neue Registerkarte; ++ctrl+tab++ / ++ctrl+shift+tab++ Schalterlaschen.
+- **Dashboard** (umschalten ++ctrl+shift+d++) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Sehen [Armaturenbrett](#dashboard) unten.
 - **Terminalbereich** – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.
 - **Statusleiste** – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.
 
 !!! tip "Nur korTTY Applikationsfenster"
-    Drücken Sie zum Wiederherstellen erneut ++Strg+Umschalt+f++ (or **View → Terminal-only Fullscreen**) to show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, so the desktop and other windows stop competing for attention. **View → Hide terminal scrollbars in fullscreen** removes the scrollbars too. A transparent terminal background becomes opaque while fullscreen is active and returns to its saved level when you leave. Press ++Strg+Umschalt+F++.
+    Drücken Sie ++ctrl+shift+f++ (oder **Ansicht → Nur Terminal-Vollbild**), um das gesamte korTTY-Fenster – Menüs, Registerkarten und Statusleiste inklusive – in seiner vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund anzuzeigen, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. **Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden** entfernt auch die Bildlaufleisten. Ein transparenter Terminalhintergrund wird undurchsichtig, während der Vollbildmodus aktiv ist, und kehrt beim Verlassen auf die gespeicherte Ebene zurück. Drücken Sie erneut ++ctrl+shift+f++, um die Wiederherstellung durchzuführen.
 
 ## Dashboard
 
-Schalten Sie das Dashboard mit ++Strg+Umschalt+D++ oder **Ansicht → Dashboard anzeigen** um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.
+Schalten Sie das Dashboard mit ++ctrl+shift+d++ oder **Ansicht → Dashboard anzeigen** um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.
 
 In der Kopfzeile wird der Titel des Bedienfelds mit zwei Schaltflächen angezeigt: einem Umschalter zum Reduzieren/Erweitern (reduziert alles, während ein Knoten geöffnet ist, erweitert alles andere) und einer Schaltfläche „Aktualisieren“. Darunter sind die Verbindungen als Baum organisiert:
 

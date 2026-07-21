@@ -17,7 +17,7 @@ Der Snippet Manager umfasst die folgenden Funktionen:
 ## Öffnen des Snippet-Managers
 
 - **Menü:** Extras → Snippet-Manager
-- **Verknüpfung:** ++Strg+Umschalt+s++ (++cmd+Umschalt+S++ unter macOS)
+- **Verknüpfung:** ++ctrl+shift+s++ (++cmd+shift+s++ auf macOS)
 
 ## Snippets erstellen und bearbeiten
 
@@ -41,7 +41,7 @@ Die Symbolleiste des Snippet-Editors bietet:
 - **AI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
 - **AI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
 - **Einzeiler** – Als Terminal-Einzeiler exportieren.
-- **Editor-Zoom** – Passen Sie die Textgröße mit ++Strg+Plus++ and ++Strg+Minus++ an.
+- **Editor-Zoom** – Passen Sie die Textgröße mit ++ctrl+plus++ und ++ctrl+minus++ an.
 - **Editor-Profile** – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.
 - **Hintergrundhelligkeit** – Editor-Hintergrund anpassen.
 - **Zeilenumbruch** – Zeilenumbruch ein-/ausschalten.

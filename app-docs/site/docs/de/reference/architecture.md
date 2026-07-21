@@ -26,14 +26,16 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **Modul** | **Zweck** | **Schlüsselklassen** |
 |---|---|---|
 | **Kern** | SSH-Konnektivität, gemeinsamer interaktiver Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
-| **ai** | Signierter Modell-/Prompt-Katalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp-Prozessleasings und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller` |
+| **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswWissensspeicher`, `RagRuntimeService` |
-| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalPane`, `ConnectionDialog`, `SFTPManagerDialog`, `SnippetEditor` |
-| **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `Connection`, `Credential`, `Snippet`, `JobScheduleEntry` |
-| **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobScheduler`, `JobExecutor`, `JobJournal` |
-| **Sicherheit** | Master-Passwort, Verschlüsselung/Entschlüsselung, SSH-Schlüsselverwaltung | `MasterPasswordManager`, `AES256GCMEncryption`, `SSHKeyManager` |
-| **Persistenz** | XML-Serialisierung, Datei-E/A, Repository-Muster | `XMLConnectionRepository`, `CredentialRepository`, `JobSchedulerPersistence` |
+| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
+| **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `WissensspeicherdCredential`, `Snippet`, `JobSchedule` |
+| **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
+| **Sicherheit** | Master-Passwort, Verschlüsselung/Entschlüsselung, Passwort-Tresor | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
+| **Persistenz** | XML-Serialisierung, Datei-E/A, Repository-Muster | `XMLConnectionRepository`, `HistoryStorage` |
 | **Plugin** | Terminaleffekt-Plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
+| **Leistung** | Aktivitätsbewusstes Schlaf- und App-Nap-Management pro Plattform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
+| **Telemetrie** | Opt-in anonyme Nutzungsereignisse | `TelemetryService`, `Telemetry` |
 | **Teamarbeit** | Funktionen für Zusammenarbeit und Fernzugriff | Teambasierte Sitzungsfreigabe und -koordination |
 | **jmx** | Überwachung der Java-Verwaltungserweiterungen | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **Update** | Versionsprüfung und Update-Benachrichtigungen | Update-Dienst und Versionsmetadaten |
@@ -58,7 +60,7 @@ Der Build-Prozess automatisch:
 4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierung, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
-Nach dem Klonen ist kein Netzwerkzugriff erforderlich. Alle Build-Schritte sind deterministisch und reproduzierbar.
+Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.
 
 ## Persistenz und Konfiguration
 
@@ -230,24 +232,28 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 
 | **Kategorie** | **Bibliothek** | **Version** | **Zweck** |
 |---|---|---|---|
-| **SSH** | Apache SSHD (Core, Common, SFTP) | 2.12.0 | SSH-Protokollimplementierung |
+| **SSH** | Apache SSHD (Core, Common, SFTP) | 2.19.0 | SSH-Protokollimplementierung |
+| | BouncyCastle (bcprov, bcpkix) | 1,85 | Kryptografieanbieter und SSH-Schlüsselanalyse |
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA-Schlüsselunterstützung |
 | **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angehefteter korTTY-Grenzpatch | Terminal-Emulator-Engine |
-| | Lanterna | 3.1.2 | Textbasierte UI-Komponenten |
+| | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0.12.25 | PTY-Zuteilung für Mosh |
-| **Daten** | Jakarta XML Bind | 4.0 | JAXB-Serialisierung |
-| | Gson | 2.13.2 | JSON-Analyse |
-| | zip4j | 2.11.5 | ZIP-Verschlüsselung |
-| **Archiv** | Apache Commons Compress | 1.25.0 | TAR, BZ2, XZ-Unterstützung |
-| | Tukaani xz | 1,9 | XZ-Komprimierung |
+| **Plattform** | JNA (JNA, JNA-Plattform) | 5.19.1 | Native Desktop-Energieverwaltungsintegration |
+| **Daten** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB-Serialisierung |
+| | Gson | 2.14.0 | JSON-Analyse |
+| | zip4j | 2.11.6 | ZIP-Verschlüsselung |
+| | jtokkit | 1.1.0 | Tokenzählung für AI-Anfragen |
+| | PDFBox | 3.0.8 | PDF-Export und RAG-Textextraktion |
+| **Archiv** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ-Unterstützung |
+| | Tukaani xz | 1.12 | XZ-Komprimierung |
 | **UI** | JavaFX | 21 | Anwendungsframework |
 | | Monaco-Editor | 0.55.1 | Code-Editor-Komponente |
 | | Mermaid | 11.16.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.35.0 | Java-Codeformatierung |
-| **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Kunstbanner |
+| **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
-| **Protokollierung** | SLF4J / Logback | 2.0.9 / 1.4.14 | Strukturierte Protokollierung |
+| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.5.38 | Strukturierte Protokollierung |
 | **Optional** | mosh4j | 2.0.2 | Mosh-Protokoll (dynamisch geladen) |
 | **Lokale KI** | llama.cpp `llama-server` | Quellfixiertes Laufzeitpaket | Lokaler GGUF-Chat-Vervollständigungs- und Einbettungs-Sidecar |
 

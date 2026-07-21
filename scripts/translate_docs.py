@@ -46,7 +46,7 @@ CACHE = SITE / ".docs-translate-cache"
 TARGET = "de"
 # Bump whenever masking/format-preservation rules change so cached pages are
 # regenerated with the new rules instead of silently keeping stale Markdown.
-TRANSLATION_FORMAT_VERSION = "5"
+TRANSLATION_FORMAT_VERSION = "8"
 
 # Asset subtrees that are generated/staged elsewhere — never copy or translate.
 SKIP_DIRS = {"diagrams", "screenshots"}
@@ -64,7 +64,11 @@ INLINE_PATTERNS = [
     re.compile(r"(?<!!)\[(?=[^\]\n]+\]\([^)]*\))"),  # opening [ of a normal Markdown link
     re.compile(r"\]\([^)]*\)"),            # the ](url) part of a link — keep the URL
     re.compile(r"`[^`]+`"),                # inline code
-    re.compile(r"\+\+[^+]+\+\+"),          # ++key++ keyboard
+    # ++key++ and ++ctrl+shift+a++ keyboard keys. The inner alternation is required: a plain
+    # [^+]+ cannot span the separating "+" of a chord, so every multi-key shortcut went to the
+    # translator unmasked and came back localized ("++Strg+Umschalt+D++"), which the keys
+    # extension does not render — 90 such chords across 15 pages before this was fixed.
+    re.compile(r"\+\+[^+\s]+(?:\+[^+\s]+)*\+\+"),
     re.compile(r"<[^>]+>"),                # HTML tags
     re.compile(r"\{[^}]*\}"),              # {: attr } / { .class } attribute lists
     re.compile(r"\$\{[^}]+\}|\{\d+\}"),    # ${var} / {0} placeholders
@@ -223,6 +227,12 @@ GLOSSARY_DE = [
     ("Öffnen Sie eine neue Ausgabe", "Öffnen Sie ein neues Issue"),
     ("Öffnen Sie das Problem", "Öffnen Sie das Issue"),
     ("ein Problem zu eröffnen", "ein Issue zu eröffnen"),
+    # "ASCII art" is a product term. MT renders it as "ASCII-Kunst" and, for the bare heading,
+    # as "ASCII Art.-Nr" — reading "Artikelnummer", an article number.
+    ("ASCII Art.-Nr", "ASCII-Art"),
+    ("ASCII-Kunstbanner", "ASCII-Art-Banner"),
+    ("ASCII-Kunst", "ASCII-Art"),
+    ("ASCII Kunst", "ASCII-Art"),
 ]
 
 
@@ -230,6 +240,23 @@ def apply_glossary(text: str) -> str:
     for a, b in GLOSSARY_DE:
         text = text.replace(a, b)
     return text
+
+
+# A heading marker is masked as a placeholder, and the translator is free to move a placeholder
+# to wherever the target language wants that word. German fronts the noun phrase, so
+# "### AI result tab features" came back as "Funktionen der ### AI-Ergebnisregisterkarte" — no
+# longer a heading at all, just a line with hashes in the middle of it.
+_LEADING_HEADING = re.compile(r"^(\s*)(#{1,6})\s")
+
+
+def reanchor_leading_marker(translated: str, masked_source: str) -> str:
+    """Pulls a heading marker back to the start of the line when translation displaced it."""
+    source_match = _LEADING_HEADING.match(masked_source)
+    if not source_match or _LEADING_HEADING.match(translated):
+        return translated
+    indent, marker = source_match.group(1), source_match.group(2)
+    stripped = re.sub(rf"\s*{re.escape(marker)}\s*", " ", translated, count=1).strip()
+    return f"{indent}{marker} {stripped}" if stripped else translated
 
 
 def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> tuple[str, int, int]:
@@ -281,8 +308,12 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
             # list item's indented continuation paragraph (e.g. the "grid cards"
             # layout on index.md) depends on that indent to stay nested under its
             # item — restore whatever indentation the original line had.
-            indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip(" "))]
+            # Capture the English line before it is overwritten: `masked` has already had its
+            # heading marker replaced by a placeholder, so it cannot tell us the line was a heading.
+            source_line = lines[idx]
+            indent = source_line[:len(source_line) - len(source_line.lstrip(" "))]
             lines[idx] = indent + translated.lstrip(" ") if indent else translated
+            lines[idx] = reanchor_leading_marker(lines[idx], source_line)
     return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses)
 
 
