@@ -273,8 +273,13 @@ public class SshTtyConnector implements ObservableTtyConnector {
                     connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
                 connectHost = jumpTunnel.localHost();
                 connectPort = jumpTunnel.localPort();
-                logger.info("Connecting to {} via jump server {}",
-                    connection.getDisplayName(), connection.getJumpServer().getHost());
+                // Log raw host:port rather than connection.getDisplayName(): the latter can fall back
+                // to "username@host", and CodeQL's coarse sensitive-data heuristic treats any getter on
+                // ServerConnection as tainted once the class holds an encryptedPassword field. Host/port
+                // carry no credential and give the same diagnostic value.
+                logger.info("Connecting to {}:{} via jump server {}:{}",
+                    connection.getHost(), connection.getPort(),
+                    connection.getJumpServer().getHost(), connection.getJumpServer().getPort());
             }
 
             session = client.connect(username, connectHost, connectPort)
