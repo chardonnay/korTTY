@@ -154,7 +154,6 @@ Profilspezifische Internetzugriffsstrategie für KI-Anfragen. Jeder Modus erford
 - **Deaktiviert** (Standard): Kein Internetzugang.
 - **KorTTY Tavily Tool**: Integrierte Websuche mit direkter Tavily-API (erfordert Tavily-API-Schlüssel).
 - **LM Studio Tavily MCP**: Websuche über eine LM Studio Tavily MCP-Instanz (erfordert Tavily-API-Schlüssel und MCP-Server-Label).
-- **LM Studio Tavily MCP**: Websuche über eine LM Studio Tavily MCP-Instanz (erfordert Tavily-API-Schlüssel und MCP-Server-Label).
 - **Bright Data Web MCP**: Strukturierte Datenextraktion und Browsing über Bright Data Web MCP (erfordert Bright Data API-Token und MCP-Server-Label).
 - **Brave Search MCP**: Suche über Brave Search MCP (erfordert den Brave Search API-Schlüssel und die MCP-Plugin-ID im `mcp/<server_label>`-Format).
 - **SearXNG MCP**: Suche über eine SearXNG MCP-Instanz (erfordert SearXNG-URL und MCP-Plugin-ID im `mcp/<server_label>`-Format).
