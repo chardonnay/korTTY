@@ -40,7 +40,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *JobScheduler Security Controls*: Require pinned SSH host keys by default, allow explicit per-job host-key verification disablement, store server/group sudo passwords encrypted, and block secret-dependent jobs while the master password is locked
 * *Interactive SSH Host-Key Trust*: Terminal, SFTP and Mosh bootstrap connections use a shared persistent per-host:port TOFU store with a default-deny first-use prompt and hard blocking on key changes
 * *JobScheduler Script, SFTP, and Rsync Actions*: Run SnippetManager scripts with searchable script selection and additional per-job parameters; show only fields used by the selected scheduler action; upload, download, sync, delete, rename, mkdir, chmod, chown, remote-copy, and archive via SFTP; synchronize one or more directories via external `rsync` over SSH
-* *ASCII Art Banner*: Generate FIGlet banners with multiple styles (Tools menu)
+* *ASCII Art*: Generate FIGlet banners with multiple styles, or let the AI draw an ASCII picture from a subject word with a retry button for new variations; shared zoomable preview (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
 * *Dashboard State Storage*: Automatic restoration of dashboard state
 * *Backup & Restore*: Create encrypted backups (password or GPG) and import them

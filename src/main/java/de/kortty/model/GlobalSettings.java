@@ -589,6 +589,10 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry asciiArtDialogGeometry;
 
+    /** Last preview zoom level of the ASCII Art dialog, in px. */
+    @XmlElement
+    private double asciiArtPreviewFontSize = 12.0;
+
     /** Last window geometry of the alternative snippet solutions dialog. */
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
@@ -2389,6 +2393,9 @@ public class GlobalSettings {
     
     public WindowGeometry getAsciiArtDialogGeometry() { return asciiArtDialogGeometry; }
     public void setAsciiArtDialogGeometry(WindowGeometry asciiArtDialogGeometry) { this.asciiArtDialogGeometry = asciiArtDialogGeometry; }
+
+    public double getAsciiArtPreviewFontSize() { return asciiArtPreviewFontSize; }
+    public void setAsciiArtPreviewFontSize(double asciiArtPreviewFontSize) { this.asciiArtPreviewFontSize = asciiArtPreviewFontSize; }
 
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {

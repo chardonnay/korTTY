@@ -5521,6 +5521,7 @@ public class MainWindow {
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
             case GENERATE_SNIPPET_ONE_LINER -> I18n.get("snippets.oneliner.compact");
             case GENERATE_SNIPPET_MERMAID -> I18n.get("snippets.ai.diagram.menu");
+            case GENERATE_ASCII_ART -> I18n.get("asciiArt.ai.action");
         };
     }
 
@@ -7615,7 +7616,7 @@ public class MainWindow {
     private void showAsciiArtBanner() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ascii_art"));
         try {
-            AsciiArtBannerDialog dialog = new AsciiArtBannerDialog();
+            AsciiArtBannerDialog dialog = new AsciiArtBannerDialog(this);
             dialog.initOwner(stage);
             dialog.showAndWait();
         } catch (Exception e) {

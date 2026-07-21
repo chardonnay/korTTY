@@ -44,7 +44,8 @@ public final class AiInternetPromptSupport {
                 SECURITY_REVIEW_SNIPPET_CODE,
                 APPLY_SNIPPET_SECURITY_FIXES,
                 GENERATE_SNIPPET_ONE_LINER,
-                GENERATE_SNIPPET_MERMAID -> false;
+                GENERATE_SNIPPET_MERMAID,
+                GENERATE_ASCII_ART -> false;
         };
     }
 
