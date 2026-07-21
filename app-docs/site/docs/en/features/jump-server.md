@@ -12,6 +12,11 @@ A jump server (bastion host) acts as an intermediate gateway to reach servers on
 
 korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.
 
+Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP.
+
+!!! warning
+    Mosh connections are not carried through a jump server. Mosh's SSH bootstrap hops through the bastion, but its ongoing session uses UDP, which the jump server's SSH tunnel does not forward — so a Mosh connection whose target is only reachable through the bastion will not complete. Use the SSH protocol for such targets.
+
 ## Configuration
 
 To configure a jump server for a connection:

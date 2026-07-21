@@ -12,13 +12,18 @@ Ein Jump-Server (Bastion-Host) fungiert als Zwischengateway, um Server in einem 
 
 korTTY authentifiziert sich beim Jump-Server mit den eigenen Anmeldeinformationen des Jump-Servers, öffnet einen Tunnel dadurch und öffnet dann die echte SSH-Sitzung zum Zielhost über diesen Tunnel. Die Anmeldeinformationen des Ziels werden nur für das Ziel verwendet, und die Anmeldeinformationen des Jump-Servers werden nur für den Jump-Server verwendet – keinem Host wird das Kennwort oder der Schlüssel des anderen angeboten.
 
+Sowohl SSH-Terminal- als auch SFTP-Verbindungen zur Zielroute über den Jump-Server; Für SFTP muss nichts extra konfiguriert werden.
+
+!!! warning
+    Mosh-Verbindungen werden nicht über einen Jump-Server übertragen. Moshs SSH-Bootstrap springt durch die Bastion, aber seine laufende Sitzung verwendet UDP, das der SSH-Tunnel des Jump-Servers nicht weiterleitet – sodass eine Mosh-Verbindung, deren Ziel nur über die Bastion erreichbar ist, nicht hergestellt wird. Verwenden Sie für solche Ziele das SSH-Protokoll.
+
 ## Konfiguration
 
 So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
 1. Öffnen Sie den *Verbindungsmanager* und bearbeiten (oder erstellen) Sie eine Verbindung.
 2. Gehen Sie zur Registerkarte **Jump-Server**.
-3. Aktivieren Sie **Jump Server**.
+3. **Jump-Server** aktivieren.
 4. Geben Sie die Details des Jump-Servers ein:
     - **Host** – Hostname oder IP-Adresse des Jump-Servers
     - **Port** – SSH-Port (Standard: 22)
