@@ -17,8 +17,12 @@ import java.util.concurrent.TimeUnit;
  * (Windows). On domain-joined Windows machines the reported groups include AD groups, which is how
  * policy rules can target directory groups without an LDAP client.
  *
- * <p>Group membership is determined once, on first use, with a short timeout; any failure degrades
- * to an empty set (the user then only matches TOML-defined groups and user rules).
+ * <p>Group membership is determined <b>once</b>, lazily on first use, and cached. The cost — a
+ * single short-lived subprocess, time-boxed to {@link #GROUP_LOOKUP_TIMEOUT_SECONDS}s and drained
+ * on a daemon thread so a stuck child can never block past the timeout — is only incurred by
+ * policies that actually reference groups a user isn't a TOML member of. A policy with no group
+ * rules never spawns a process. Any failure or timeout degrades to an empty set, so the user then
+ * matches only TOML-defined groups and user rules (fail-closed for group-scoped relaxations).
  */
 public final class OsUserIdentity implements PolicyIdentity {
 
@@ -61,16 +65,30 @@ public final class OsUserIdentity implements PolicyIdentity {
         String[] command = windows
             ? new String[] {"whoami", "/groups", "/fo", "csv", "/nh"}
             : new String[] {"id", "-Gn"};
+        Process process = null;
         try {
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            // Drain stdout on a daemon thread. Reading inline would block until the child closes
+            // its stream, so a child that hangs with stdout open would wait forever and defeat the
+            // timeout below; draining separately lets waitFor() govern the total wait.
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), Charset.defaultCharset()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append('\n');
+            Process reading = process;
+            Thread drain = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(reading.getInputStream(), Charset.defaultCharset()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        synchronized (output) {
+                            output.append(line).append('\n');
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // Stream closed on destroy/timeout — whatever was captured is used as-is.
                 }
-            }
+            }, "os-group-lookup-drain");
+            drain.setDaemon(true);
+            drain.start();
+
             if (!process.waitFor(GROUP_LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 logger.warn("OS group lookup timed out; policy group rules match TOML groups only");
@@ -81,9 +99,15 @@ public final class OsUserIdentity implements PolicyIdentity {
                     process.exitValue());
                 return Set.of();
             }
-            return windows ? parseWindowsGroups(output.toString()) : parseUnixGroups(output.toString());
+            drain.join(TimeUnit.SECONDS.toMillis(1));  // let the drain flush the (tiny) buffered output
+            synchronized (output) {
+                return windows ? parseWindowsGroups(output.toString()) : parseUnixGroups(output.toString());
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            if (process != null) {
+                process.destroyForcibly();
+            }
             return Set.of();
         } catch (Exception e) {
             logger.warn("OS group lookup failed; policy group rules match TOML groups only", e);

@@ -43,6 +43,9 @@ public final class PolicyManager {
             result.warnings().forEach(warning -> logger.warn("Policy: {}", warning));
             if (result.isValid()) {
                 PolicyIdentity identity = new OsUserIdentity();
+                // resolve() consults identity.osGroups() only for rules that reference a group the
+                // user is not a TOML member of; that first read spawns one short, time-boxed
+                // subprocess (see OsUserIdentity). Policies without group rules incur no such cost.
                 EffectivePolicy resolved = EffectivePolicy.resolve(result.file(), identity);
                 logger.info("Enterprise policy active from {} (organization: {}, user: {})",
                     path, resolved.organization().orElse("-"), identity.userName());
