@@ -433,6 +433,22 @@ public class GlobalSettings {
     @XmlElement
     private Double aiAgentPanelSideWidth;
 
+    /** Where the file-browser sidebar is docked: HIDDEN (default), LEFT or RIGHT. */
+    @XmlElement
+    private String fileBrowserPosition = "HIDDEN";
+
+    /** Persisted width of the docked file-browser sidebar (null = default). */
+    @XmlElement
+    private Double fileBrowserWidth;
+
+    /** Whether the file browser shows dotfiles/hidden entries. */
+    @XmlElement
+    private boolean fileBrowserShowHidden = false;
+
+    /** Last directory the file-browser tree was rooted at (null/blank = home). */
+    @XmlElement
+    private String fileBrowserLastRoot;
+
     /** Persisted state of the inline terminal-agent "Expand all" activity detail option. */
     @XmlElement
     private boolean terminalAgentPanelExpandAll = false;
@@ -1708,6 +1724,51 @@ public class GlobalSettings {
 
     public void setAiAgentPanelSideWidth(double width) {
         this.aiAgentPanelSideWidth = Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(width, AI_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    /**
+     * Allowed range and default for the docked file-browser sidebar width. Kept in sync with
+     * {@code LocalFileBrowserManager}'s clamp and {@code MainWindow}'s FILE_BROWSER_* constants
+     * so the persisted value never diverges from what the UI enforces.
+     */
+    public static final double FILE_BROWSER_MIN_WIDTH = 160.0;
+    public static final double FILE_BROWSER_MAX_WIDTH = 420.0;
+    public static final double FILE_BROWSER_DEFAULT_WIDTH = 220.0;
+
+    /** File-browser sidebar placement: "HIDDEN" (default), "LEFT" or "RIGHT". */
+    public String getFileBrowserPosition() {
+        return fileBrowserPosition != null ? fileBrowserPosition : "HIDDEN";
+    }
+
+    public void setFileBrowserPosition(String fileBrowserPosition) {
+        this.fileBrowserPosition = fileBrowserPosition;
+    }
+
+    /** Docked file-browser sidebar width, clamped to the allowed range (default 220). */
+    public double getFileBrowserWidth() {
+        double value = fileBrowserWidth != null ? fileBrowserWidth : FILE_BROWSER_DEFAULT_WIDTH;
+        return Math.max(FILE_BROWSER_MIN_WIDTH, Math.min(value, FILE_BROWSER_MAX_WIDTH));
+    }
+
+    public void setFileBrowserWidth(double width) {
+        this.fileBrowserWidth = Math.max(FILE_BROWSER_MIN_WIDTH, Math.min(width, FILE_BROWSER_MAX_WIDTH));
+    }
+
+    public boolean isFileBrowserShowHidden() {
+        return fileBrowserShowHidden;
+    }
+
+    public void setFileBrowserShowHidden(boolean fileBrowserShowHidden) {
+        this.fileBrowserShowHidden = fileBrowserShowHidden;
+    }
+
+    /** Last directory the file browser was rooted at; null or blank means the user's home. */
+    public String getFileBrowserLastRoot() {
+        return fileBrowserLastRoot;
+    }
+
+    public void setFileBrowserLastRoot(String fileBrowserLastRoot) {
+        this.fileBrowserLastRoot = fileBrowserLastRoot;
     }
 
     public boolean isTerminalAgentPanelExpandAll() {

@@ -1184,6 +1184,8 @@
       
         
       
+        
+      
     
     
     
@@ -1356,6 +1358,34 @@
     
   
     SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/file-browser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File browser
   
 
     
@@ -1937,6 +1967,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#file-browser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File browser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#jump-server-bastion-host" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2086,7 +2127,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#file-browser" class="md-nav__link">
+  <a href="#file-browser_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         File browser
@@ -2751,6 +2792,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#file-browser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File browser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#jump-server-bastion-host" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2900,7 +2952,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#file-browser" class="md-nav__link">
+  <a href="#file-browser_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         File browser
@@ -3474,6 +3526,14 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is shown in the footer.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="file-browser">File browser<a class="headerlink" href="#file-browser" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The menu-bar File Browser was rebuilt as a proper file manager</strong> — the docked sidebar (<strong>View → File Browser</strong>) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See <a href="../features/file-browser.html">File browser</a>.</li>
+<li><strong>Faster and safer to use</strong> — directories load in the background so a large or network-mounted folder no longer freezes the window, refreshing keeps expanded folders open, and you can sort by name, size or date. Inline rename (<span class="keys"><kbd class="key-f2">F2</kbd></span>), <em>Copy Path</em>, keyboard navigation, and dragging files into the panel to copy or move them were added.</li>
+<li><strong>Delete asks first — Trash or permanent</strong> — deleting an entry now prompts to either move it to the system Trash (reversible) or delete it permanently, instead of silently removing it forever. Copy, move, archive and delete all run in the background so a large folder no longer freezes the window.</li>
+<li><strong>The panel remembers itself</strong> — its side, width, <em>show hidden files</em> state and last directory are restored on the next launch.</li>
+<li><strong>The SFTP file manager matches the new look</strong> — its toolbar and file-type icons now use the same icon set and styling as the file browser (no change to how it works).</li>
+</ul>
 <h3 id="jump-server-bastion-host">Jump server (bastion host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Jump server hopping is now implemented</strong> — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.</li>
@@ -3576,7 +3636,7 @@
 <li><strong>Clearer sections</strong> — each improvement section (Security / Optimization / Design / Dependencies) now carries a colour-coded icon, and the summary block no longer shows a selection accent bar it never needed.</li>
 <li><strong>Clearer change reviews</strong> — in the <em>review changes</em> window, the "Why these parts changed" cards now show each finding's colour-coded category icon and the line range it affects (for example <em>Lines 23–40</em>); the on-hover explanations in the diff are more reliable — matching tolerates re-indented or case-shifted lines, and reasons whose anchor cannot be found are attached to the remaining changed blocks instead of silently disappearing.</li>
 </ul>
-<h3 id="file-browser">File browser<a class="headerlink" href="#file-browser" title="Permanent link">&para;</a></h3>
+<h3 id="file-browser_1">File browser<a class="headerlink" href="#file-browser_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Clearer context-menu label</strong> — right-clicking a file in the local <strong>file browser</strong> (View menu) now offers <strong>Open in Snippet Editor</strong> instead of the misleading <em>Load as text file</em> (the action already opened the snippet editor), matching the terminal context menu.</li>
 </ul>

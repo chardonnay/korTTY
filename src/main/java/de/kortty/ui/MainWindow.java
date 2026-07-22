@@ -761,7 +761,13 @@ public class MainWindow {
             if (globalSettings.isRememberDashboardState()) {
                 globalSettings.setDashboardVisible(dashboardVisible);
             }
-            
+
+            // Save file-browser placement + width on close
+            if (fileBrowserManager != null) {
+                globalSettings.setFileBrowserPosition(fileBrowserManager.getPosition().name());
+                globalSettings.setFileBrowserWidth(fileBrowserManager.getPreferredWidth());
+            }
+
             // Save settings BEFORE confirmClose (which might exit the app)
             try {
                 app.getGlobalSettingsManager().save();
@@ -1992,6 +1998,8 @@ public class MainWindow {
 
         // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
         applyPersistedAiAgentPlacement();
+        // Restore the persisted file-browser placement (hidden/left/right) and width.
+        applyPersistedFileBrowser();
         updateForegroundActivity();
 
         // Mark startup as complete after a short delay to allow UI to settle
@@ -3351,6 +3359,7 @@ public class MainWindow {
             Telemetry.track(TelemetryEvents.FILE_BROWSER_TOGGLED,
                 Map.of("position", current.name().toLowerCase(Locale.ROOT)));
         }
+        persistFileBrowserState();
     }
 
     private void onFileBrowserPositionChanged(LocalFileBrowserManager.Position position) {
@@ -3411,6 +3420,51 @@ public class MainWindow {
             Math.min(FILE_BROWSER_MAX_WIDTH, fileBrowserManager.getPreferredWidth()));
         localFileBrowser.setPrefWidth(clampedWidth);
         fileBrowserManager.setPreferredWidth(clampedWidth);
+    }
+
+    private void applyPersistedFileBrowser() {
+        try {
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings == null) {
+                return;
+            }
+            ensureFileBrowserManager();
+            fileBrowserManager.setPreferredWidth(settings.getFileBrowserWidth());
+            LocalFileBrowserManager.Position position =
+                parseFileBrowserPosition(settings.getFileBrowserPosition());
+            if (position != LocalFileBrowserManager.Position.HIDDEN) {
+                fileBrowserManager.show(position); // fires onFileBrowserPositionChanged → docks
+            } else {
+                syncFileBrowserMenuItems(LocalFileBrowserManager.Position.HIDDEN);
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply persisted file browser state: {}", e.getMessage());
+        }
+    }
+
+    private static LocalFileBrowserManager.Position parseFileBrowserPosition(String value) {
+        if (value != null) {
+            try {
+                return LocalFileBrowserManager.Position.valueOf(value);
+            } catch (IllegalArgumentException ignored) {
+                // fall back to hidden
+            }
+        }
+        return LocalFileBrowserManager.Position.HIDDEN;
+    }
+
+    private void persistFileBrowserState() {
+        if (fileBrowserManager == null) {
+            return;
+        }
+        try {
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            settings.setFileBrowserPosition(fileBrowserManager.getPosition().name());
+            settings.setFileBrowserWidth(fileBrowserManager.getPreferredWidth());
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not persist file browser state: {}", e.getMessage());
+        }
     }
 
     private void syncFileBrowserMenuItems(LocalFileBrowserManager.Position position) {
