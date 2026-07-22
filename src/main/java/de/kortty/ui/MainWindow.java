@@ -5654,6 +5654,12 @@ public class MainWindow {
         TerminalView.TerminalAgentRunContext runContext,
         String selectedText
     ) {
+        // Handler installation is already skipped under a deny policy; this guard covers any
+        // other invocation path.
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.DENY) {
+            return;
+        }
         String selectedFileName;
         try {
             selectedFileName = RemoteTextFileSelectionSupport.normalizeSelectedFileName(selectedText);
@@ -5846,10 +5852,18 @@ public class MainWindow {
         SshTtyConnector connector,
         TerminalRemoteTextFile remoteFile
     ) {
+        // Policy read-only mode: the file may be loaded and saved as a snippet, but never written
+        // back to the target system — the remote actions are locked in the dialog.
+        boolean remoteWriteAllowed = de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.ALLOW;
         openTerminalTextFileInSnippetEditor(terminalTab, remoteFile,
             I18n.get("sftp.snippetEditor.overwriteRemote"),
-            draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft),
-            draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft));
+            remoteWriteAllowed
+                ? draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft)
+                : null,
+            remoteWriteAllowed
+                ? draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft)
+                : null);
     }
 
     private void openTerminalLocalTextFileInSnippetEditor(TerminalTab terminalTab, TerminalRemoteTextFile localFile) {
@@ -5938,8 +5952,18 @@ public class MainWindow {
     }
 
     private boolean overwriteTerminalRemoteTextFile(SshTtyConnector connector, String remotePath, Snippet draft) throws Exception {
+        requireTerminalRemoteWriteAllowed();
         uploadTerminalRemoteTextFile(connector, remotePath, draft.getContent());
         return true;
+    }
+
+    /** Backstop for the policy's read-only load-into-snippet-editor mode. */
+    private static void requireTerminalRemoteWriteAllowed() {
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            != de.kortty.policy.LoadIntoEditorMode.ALLOW) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                I18n.get("policy.terminal.loadReadOnly"));
+        }
     }
 
     private boolean saveTerminalRemoteTextFileAs(
@@ -5948,6 +5972,7 @@ public class MainWindow {
         String originalFileName,
         Snippet draft
     ) throws Exception {
+        requireTerminalRemoteWriteAllowed();
         Optional<String> response = callOnFxThread(() -> {
             TextInputDialog dialog = new TextInputDialog(originalFileName);
             DialogThemeHelper.applyTheme(dialog);

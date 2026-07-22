@@ -1665,7 +1665,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         ExternalFileAction action,
         String successMessage,
         boolean markFileSaved) {
-        if (button == null || action == null) {
+        if (button == null) {
+            return;
+        }
+        if (action == null) {
+            // No action supplied — currently only the enterprise policy's read-only mode for
+            // remote write-back. Keep the button visible but locked, so the restriction is evident.
+            button.setDisable(true);
+            button.setTooltip(new Tooltip(I18n.get("policy.terminal.loadReadOnly")));
             return;
         }
         button.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
