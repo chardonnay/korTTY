@@ -45,7 +45,7 @@ Wenn der Baum den Fokus hat:
 | ++f2++ | Benennen Sie das ausgewählte Element inline um |
 | ++backspace++ | Gehen Sie zum übergeordneten Verzeichnis |
 | ++cmd+r++ / ++ctrl+r++ | Aktualisieren |
-| ++delete++ oder ++cmd+backspace++ | Verschieben Sie die Auswahl in den Papierkorb |
+| ++delete++ oder ++cmd+backspace++ | Löschen Sie die Auswahl (wählen Sie „Papierkorb“ oder „Permanent“). |
 | ++cmd+c++ / ++ctrl+c++, ++cmd+v++ / ++ctrl+v++ | Dateien kopieren und einfügen |
 | ++cmd+f++ / ++ctrl+f++ | Springen Sie zum Filterfeld |
 
@@ -58,7 +58,7 @@ Rechtsklick auf einen Eintrag öffnet das vollständige Menü:
 - **Umbenennen** – direkt umbenennen; ein Namenskonflikt wird durch Anhängen von ` (2)`, ` (3)`, … aufgelöst.
 - **Kopieren** / **Ausschneiden** / **Einfügen** – innerhalb des Browsers verschieben oder kopieren.
 - **Pfad kopieren** – den absoluten Pfad des Objekts in die Zwischenablage kopieren.
-- **Löschen** – die Auswahl nach einer Bestätigung in den Papierkorb verschieben (nichts wird endgültig gelöscht). Unterstützt das Betriebssystem keinen Papierkorb, meldet die Aktion dies, statt zu löschen.
+- **Löschen** – eine Bestätigungsaufforderung bietet **In den Papierkorb verschieben** oder **Endgültig löschen**. Das Verschieben in den Papierkorb ist rückgängig zu machen; Die dauerhafte Löschung kann nicht rückgängig gemacht werden. Auf einem System ohne Papierkorb wird nur die dauerhafte Löschung angeboten. Der Löschvorgang läuft im Hintergrund, sodass das Fenster bei einem großen Ordner nicht einfriert.
 - **Neuer Ordner** / **Neue Datei** – ein Objekt anlegen.
 - **Eigentümer / Gruppe / Berechtigungen setzen** – Eigentümer und POSIX-Berechtigungen ändern (sofern das Dateisystem dies unterstützt).
 - **Archiv** – die Auswahl in ein `ZIP`-, `TAR`- oder `TAR.GZ`-Archiv packen.

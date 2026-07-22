@@ -8,7 +8,7 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 - **The menu-bar File Browser was rebuilt as a proper file manager** — the docked sidebar (**View → File Browser**) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See [File browser](../features/file-browser.md).
 - **Faster and safer to use** — directories load in the background so a large or network-mounted folder no longer freezes the window, refreshing keeps expanded folders open, and you can sort by name, size or date. Inline rename (++f2++), *Copy Path*, keyboard navigation, and dragging files into the panel to copy or move them were added.
-- **Delete now moves to the Trash** — deleting an entry asks for confirmation and moves it to the system Trash instead of removing it permanently.
+- **Delete asks first — Trash or permanent** — deleting an entry now prompts to either move it to the system Trash (reversible) or delete it permanently, instead of silently removing it forever. Copy, move, archive and delete all run in the background so a large folder no longer freezes the window.
 - **The panel remembers itself** — its side, width, *show hidden files* state and last directory are restored on the next launch.
 - **The SFTP file manager matches the new look** — its toolbar and file-type icons now use the same icon set and styling as the file browser (no change to how it works).
 

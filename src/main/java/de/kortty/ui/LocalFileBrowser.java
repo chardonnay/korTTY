@@ -16,6 +16,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
@@ -1479,48 +1480,78 @@ public class LocalFileBrowser extends VBox {
         }
     }
 
+    private enum DeleteMode { TRASH, PERMANENT }
+
     private void deleteSelectedFiles() {
         if (selectedItems.isEmpty()) {
             return;
         }
-        if (!Desktop.isDesktopSupported()
-            || !Desktop.getDesktop().isSupported(Desktop.Action.MOVE_TO_TRASH)) {
-            setStatus(I18n.get("filebrowser.error.trashNotSupported"));
-            return;
+        boolean trashSupported = Desktop.isDesktopSupported()
+            && Desktop.getDesktop().isSupported(Desktop.Action.MOVE_TO_TRASH);
+        DeleteMode mode = confirmDelete(selectedItems.size(), trashSupported);
+        if (mode == null) {
+            return; // cancelled
         }
-        if (!confirmMoveToTrash(selectedItems.size())) {
-            return;
-        }
-        List<FileNode> targets = List.copyOf(selectedItems);
-        int trashed = 0;
-        for (FileNode node : targets) {
-            try {
-                if (Desktop.getDesktop().moveToTrash(node.file())) {
-                    trashed++;
-                } else {
-                    setStatus(I18n.get("filebrowser.error.trashNotSupported"));
-                }
-            } catch (SecurityException | IllegalArgumentException e) {
-                setStatus(I18n.get("filebrowser.error.delete") + ": " + e.getMessage());
-            }
-        }
+        boolean permanent = mode == DeleteMode.PERMANENT;
+        List<File> targets = selectedItems.stream().map(FileNode::file).collect(Collectors.toList());
         selectedItems.clear();
-        refresh();
-        if (trashed > 0) {
-            setStatus(I18n.get("filebrowser.trashed", trashed));
-        }
+        runFileOperation(() -> {
+            int done = 0;
+            String error = null;
+            for (File file : targets) {
+                try {
+                    if (permanent) {
+                        Path path = file.toPath();
+                        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+                            deleteDirectory(path);
+                        } else {
+                            Files.delete(path);
+                        }
+                        done++;
+                    } else if (Desktop.getDesktop().moveToTrash(file)) {
+                        done++;
+                    } else {
+                        error = I18n.get("filebrowser.error.trashNotSupported");
+                    }
+                } catch (IOException | SecurityException | IllegalArgumentException e) {
+                    error = I18n.get("filebrowser.error.delete") + ": " + e.getMessage();
+                }
+            }
+            if (error != null) {
+                return error;
+            }
+            return I18n.get(permanent ? "filebrowser.deleted" : "filebrowser.trashed", done);
+        });
     }
 
-    private boolean confirmMoveToTrash(int count) {
+    /** Asks whether to trash or permanently delete; returns {@code null} if the user cancels. */
+    private DeleteMode confirmDelete(int count, boolean trashSupported) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(I18n.get("filebrowser.delete.confirm.title"));
-        alert.setHeaderText(I18n.get("filebrowser.delete.confirm.header"));
-        alert.setContentText(I18n.get("filebrowser.delete.confirm.content", count));
+        alert.setTitle(I18n.get("filebrowser.context.delete"));
+        alert.setHeaderText(null);
+        alert.setContentText(I18n.get(
+            trashSupported ? "filebrowser.delete.content" : "filebrowser.delete.contentNoTrash", count));
+        ButtonType trashButton =
+            new ButtonType(I18n.get("filebrowser.delete.confirm.title"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType permanentButton =
+            new ButtonType(I18n.get("filebrowser.delete.permanent"), ButtonBar.ButtonData.OTHER);
+        if (trashSupported) {
+            alert.getButtonTypes().setAll(trashButton, permanentButton, ButtonType.CANCEL);
+        } else {
+            alert.getButtonTypes().setAll(permanentButton, ButtonType.CANCEL);
+        }
         DialogThemeHelper.applyTheme(alert);
         if (getScene() != null && getScene().getWindow() != null) {
             alert.initOwner(getScene().getWindow());
         }
-        return alert.showAndWait().filter(button -> button == ButtonType.OK).isPresent();
+        ButtonType result = alert.showAndWait().orElse(ButtonType.CANCEL);
+        if (result == trashButton) {
+            return DeleteMode.TRASH;
+        }
+        if (result == permanentButton) {
+            return DeleteMode.PERMANENT;
+        }
+        return null;
     }
 
     private static void deleteDirectory(Path directory) throws IOException {

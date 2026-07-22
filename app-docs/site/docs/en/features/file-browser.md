@@ -45,7 +45,7 @@ When the tree has focus:
 | ++f2++ | Rename the selected item inline |
 | ++backspace++ | Go up to the parent directory |
 | ++cmd+r++ / ++ctrl+r++ | Refresh |
-| ++delete++ or ++cmd+backspace++ | Move the selection to the Trash |
+| ++delete++ or ++cmd+backspace++ | Delete the selection (choose Trash or permanent) |
 | ++cmd+c++ / ++ctrl+c++, ++cmd+v++ / ++ctrl+v++ | Copy and paste files |
 | ++cmd+f++ / ++ctrl+f++ | Jump to the filter field |
 
@@ -58,7 +58,7 @@ Right-click an entry for the full menu:
 - **Rename** — rename inline; a name clash is resolved by appending ` (2)`, ` (3)`, …
 - **Copy** / **Cut** / **Paste** — move or copy within the browser.
 - **Copy Path** — copy the item's absolute path to the clipboard.
-- **Delete** — move the selection to the system Trash after a confirmation prompt (nothing is deleted permanently). If the operating system does not support Trash, the action reports that instead of deleting.
+- **Delete** — a confirmation prompt offers **Move to Trash** or **Delete Permanently**. Moving to the Trash is reversible; permanent deletion cannot be undone. On a system without a Trash, only permanent deletion is offered. The deletion runs in the background so a large folder does not freeze the window.
 - **New Folder** / **New File** — create an item.
 - **Set owner / group / permissions** — change ownership and POSIX permissions (where the filesystem supports it).
 - **Archive** — pack the selection into a `ZIP`, `TAR` or `TAR.GZ` archive.
