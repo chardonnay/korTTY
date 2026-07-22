@@ -86,9 +86,7 @@ final class AiTableRowViewerDialog {
         status.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
         Button copyButton = new Button(I18n.get("ai.result.copy"));
         copyButton.setOnAction(e -> {
-            ClipboardContent content = new ClipboardContent();
-            content.putString(buildClipboardText(headers, values));
-            Clipboard.getSystemClipboard().setContent(content);
+            de.kortty.core.KorttyClipboard.setText(buildClipboardText(headers, values));
             status.setText(I18n.get("ai.workflow.copied"));
         });
         Button smallerButton = new Button("A−");

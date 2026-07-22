@@ -990,9 +990,7 @@ public class SwarmAgentTab extends Tab {
 
     private void copyConversation() {
         String text = exportService.buildPlainTextExport(SwarmChatExportSupport.toChatMessages(messageEntries));
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text != null ? text : "");
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(text != null ? text : "");
         showChatStatus(I18n.get("ai.swarm.chat.copied"));
     }
 

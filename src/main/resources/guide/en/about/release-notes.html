@@ -451,6 +451,8 @@
       
         
       
+        
+      
     
     
     
@@ -615,6 +617,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/enterprise-policy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/hardening-options.html" class="md-nav__link">
         
   
@@ -687,7 +717,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -709,14 +739,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_6">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1967,6 +1997,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#file-browser" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2792,6 +2833,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#file-browser" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3526,6 +3578,10 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>The full, version-by-version changelog. The version this guide was built for is shown in the footer.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Administrators can now manage korTTY through a policy file</strong> — a <code>kortty-policy.toml</code> in the installation directory (admin-writable only) can restrict servers users may connect to (allow/deny lists with host globs, ports, single IPs, CIDR networks and IP ranges, enforced for terminals, SFTP, QuickConnect, jump hosts and scheduled jobs), disable or restrict features (AI Agent/Chat/Swarm/Planning, Teamwork, plugins, update checks, telemetry, terminal recording), force the master password and host-key verification, confine korTTY to an internal clipboard so text copied in other applications cannot be pasted into korTTY (while copy &amp; paste within korTTY keeps working), control logging (directory, format as text or JSON lines, retention, gzip compression and rotation caps), and preconfigure read-only AI profiles (with encrypted API keys via <code>korTTY --encrypt-policy-value</code>), local AI models, script headers and teamwork sources. Rules target individual users, policy-defined groups or OS/AD groups with user &gt; group &gt; everyone precedence; locked settings appear grayed out with a "Managed by your organization" hint, and an invalid policy file puts korTTY into a fail-safe lockdown instead of silently enforcing nothing. See <a href="../reference/enterprise-policy.html">Enterprise policy</a>.</li>
+</ul>
 <h3 id="file-browser">File browser<a class="headerlink" href="#file-browser" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>The menu-bar File Browser was rebuilt as a proper file manager</strong> — the docked sidebar (<strong>View → File Browser</strong>) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See <a href="../features/file-browser.html">File browser</a>.</li>

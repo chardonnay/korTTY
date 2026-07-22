@@ -237,6 +237,19 @@ final class LocalModelManagerPane extends VBox {
                     }
                 }));
         }
+        // Enterprise policy: disabling the whole section is robust against child buttons being
+        // re-enabled by refresh()/status updates — a disabled parent always wins.
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        if (!policy.runtimeDownloadsAllowed()) {
+            runtimes.setDisable(true);
+            Tooltip.install(runtimes, new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
+        if (!policy.modelDownloadsAllowed()) {
+            hub.setDisable(true);
+            Tooltip.install(hub, new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
         refresh();
     }
 
@@ -1884,6 +1897,9 @@ final class LocalModelManagerPane extends VBox {
     }
 
     void openSetupWizard() {
+        if (isLocalAiSetupForbidden()) {
+            return;
+        }
         LocalAiSetupWizardDialog wizard = new LocalAiSetupWizardDialog(
             owner,
             detectedMemory(),
@@ -1893,7 +1909,16 @@ final class LocalModelManagerPane extends VBox {
         modelsChanged.run();
     }
 
+    /** The guided setup downloads a runtime and a model — both must be policy-allowed. */
+    private static boolean isLocalAiSetupForbidden() {
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        return !policy.runtimeDownloadsAllowed() || !policy.modelDownloadsAllowed();
+    }
+
     void openEmbeddingSetupWizard() {
+        if (isLocalAiSetupForbidden()) {
+            return;
+        }
         LocalAiSetupWizardDialog wizard = new LocalAiSetupWizardDialog(
             owner,
             detectedMemory(),

@@ -1,0 +1,3182 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/reference/enterprise-policy.html">
+      
+      
+        <link rel="prev" href="config-files.html">
+      
+      
+        <link rel="next" href="hardening-options.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Enterprise policy - korTTY Guide</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#enterprise-policy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Guide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Enterprise policy
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../de/reference/enterprise-policy.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    korTTY Guide
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First launch — master password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main window overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menu reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard shortcuts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise policy
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="enterprise-policy.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-location-and-security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File location and security model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#users-groups-and-rule-precedence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users, groups and rule precedence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server access control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [meta]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [groups]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule]] scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleservers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.servers]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulefeatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.features]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesecurity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.security]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleteamwork-rulesnippets-ruleai-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.teamwork], [rule.snippets], [rule.ai-profiles]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleai-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.ai-runtime]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleupdates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.updates]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleterminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.terminal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin-provided-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin-provided objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-clipboard-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal clipboard mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encrypted-api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encrypted API keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardening options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH Tunnels (Port Forwarding)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/file-browser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File browser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects (workspaces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamwork (shared connections)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security — credentials, keys & encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal recording
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII art
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal effect plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Languages & dynamic translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback & support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anonymous data for application optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-location-and-security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File location and security model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#users-groups-and-rule-precedence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users, groups and rule precedence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server access control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [meta]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [groups]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule]] scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleservers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.servers]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulefeatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.features]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesecurity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.security]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleteamwork-rulesnippets-ruleai-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.teamwork], [rule.snippets], [rule.ai-profiles]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleai-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.ai-runtime]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleupdates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.updates]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleterminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.terminal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin-provided-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin-provided objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-clipboard-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal clipboard mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encrypted-api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encrypted API keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h1>
+<p>In managed environments an administrator can restrict or preconfigure korTTY through a single TOML file, <code>kortty-policy.toml</code>, placed in the installation directory. Users cannot change or bypass it: the file is only read from the admin-writable installation folder, locked settings appear grayed out with a "Managed by your organization" hint, and hand-editing <code>global-settings.xml</code> is undone on the next load. This chapter explains where the file lives, how rules target users, groups and servers, and documents every available parameter with examples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Without a <code>kortty-policy.toml</code> nothing changes — korTTY behaves exactly as before. The shipped <code>policy/kortty-policy.toml.example</code> is a fully commented template with everything disabled.</p>
+</div>
+<h2 id="file-location-and-security-model">File location and security model<a class="headerlink" href="#file-location-and-security-model" title="Permanent link">&para;</a></h2>
+<p>korTTY loads the policy exclusively from the <code>policy/</code> folder of its installation directory — the folder that also holds the application jar — and never from <code>~/.kortty/</code> or any other user-writable location. A ready-to-copy template ships as <code>policy/kortty-policy.toml.example</code>; copy it to <code>kortty-policy.toml</code> in the same folder and restart korTTY (there is no hot reload).</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Policy file location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td><code>/Applications/KorTTY.app/Contents/app/policy/kortty-policy.toml</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>C:\Program Files\KorTTY\app\policy\kortty-policy.toml</code></td>
+</tr>
+<tr>
+<td>Linux (deb/rpm)</td>
+<td><code>/opt/kortty/lib/app/policy/kortty-policy.toml</code></td>
+</tr>
+</tbody>
+</table>
+<p>The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with <code>-Dkortty.policy.file=/path/to/policy.toml</code>.</p>
+<p>If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.</p>
+<h2 id="users-groups-and-rule-precedence">Users, groups and rule precedence<a class="headerlink" href="#users-groups-and-rule-precedence" title="Permanent link">&para;</a></h2>
+<p>Rules target the current OS login name (matched lowercase). Group membership comes from two sources at once: groups defined in the policy's <code>[groups]</code> table, and the user's OS-level group memberships. On domain-joined Windows machines the OS groups include Active Directory groups, so rules can target AD groups directly — both fully qualified (<code>ACME\Operations</code>) and as the bare name (<code>operations</code>) — without any directory server configuration.</p>
+<p>Each <code>[[rule]]</code> block optionally names <code>users</code> and/or <code>groups</code>; a rule naming neither applies to every user. Per setting, the most specific tier that sets it wins: <strong>user beats group beats everyone</strong>. That is the familiar group-policy pattern — lock everything down in a baseline rule for everyone, then relax individual settings for a trusted group. When several rules of the same tier set the same key, the most restrictive value applies (<code>deny</code> over <code>read-only</code> over <code>confirm</code> over <code>allow</code>); for server rules, a connection must pass every applicable restriction of the winning tier. The order of rules in the file has no significance.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[meta]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">schema-version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">organization</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ACME Corp&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">[groups]</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">devs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bob&quot;</span><span class="p">]</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># applies to ALL users</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;company-baseline&quot;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># group tier: relaxes the baseline for ops</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ops-exception&quot;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">groups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ops&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;ACME</span><span class="se">\\</span><span class="s2">Operations&quot;</span><span class="p">]</span><span class="w">  </span><span class="c1"># policy group OR OS/AD group</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="n">ai-agent-execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;confirm&quot;</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># user tier: beats eve&#39;s group</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="n">users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;eve&quot;</span><span class="p">]</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span></code></pre></div>
+<h2 id="server-access-control">Server access control<a class="headerlink" href="#server-access-control" title="Permanent link">&para;</a></h2>
+<p>The <code>[rule.servers]</code> table restricts which servers a user may connect to — as an allow-list (<code>mode = "allow"</code>: only listed servers are reachable) or a deny-list (<code>mode = "deny"</code>: listed servers are blocked). The restriction is enforced centrally for every connection path: saved connections, QuickConnect, session restore, SFTP, teamwork-shared connections, AI swarm targets and scheduled jobs, including the jump host of a connection. Blocked connections stay visible in the connection manager but are grayed out with a lock marker, and any connect attempt shows a clear policy message.</p>
+<p>Patterns match the host string exactly as configured in the connection — korTTY never resolves DNS for policy checks, so host names and IP addresses are separate namespaces: if a server is reachable both ways, list both.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern form</th>
+<th>Example</th>
+<th>Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exact host name</td>
+<td><code>db01.acme.com</code></td>
+<td>that host, case-insensitive, any port</td>
+</tr>
+<tr>
+<td>Host-name glob</td>
+<td><code>*.prod.acme.com</code>, <code>web-??.acme.com</code></td>
+<td><code>*</code> = any characters, <code>?</code> = one character</td>
+</tr>
+<tr>
+<td>Host with port</td>
+<td><code>vault.acme.com:22</code></td>
+<td>only connections to that port</td>
+</tr>
+<tr>
+<td>Single IP address</td>
+<td><code>192.168.10.42</code>, <code>2001:db8::1</code></td>
+<td>that address (IPv4 or IPv6)</td>
+</tr>
+<tr>
+<td>IP with port</td>
+<td><code>192.168.10.42:22</code>, <code>[2001:db8::1]:22</code></td>
+<td>IPv6 ports require the bracket form</td>
+</tr>
+<tr>
+<td>CIDR network</td>
+<td><code>10.99.0.0/16</code>, <code>2001:db8::/32</code></td>
+<td>every address in the network</td>
+</tr>
+<tr>
+<td>IP range</td>
+<td><code>10.20.0.100-10.20.0.199</code></td>
+<td>inclusive from–to range</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="k">[rule.servers]</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="n">mode</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">hosts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.prod.acme.com&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;vault.acme.com:22&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;192.168.10.42&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;10.99.0.0/16&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;10.20.0.100-10.20.0.199&quot;</span><span class="p">]</span>
+</span></code></pre></div>
+<h2 id="parameter-reference">Parameter reference<a class="headerlink" href="#parameter-reference" title="Permanent link">&para;</a></h2>
+<h3 id="meta"><code>[meta]</code><a class="headerlink" href="#meta" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Required</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema-version</code></td>
+<td>integer</td>
+<td><code>1</code></td>
+<td>yes</td>
+<td>Rejected (lockdown) when this korTTY does not understand the version</td>
+</tr>
+<tr>
+<td><code>organization</code></td>
+<td>string</td>
+<td>free text</td>
+<td>no</td>
+<td>Shown in every "Managed by your organization" hint and dialog</td>
+</tr>
+</tbody>
+</table>
+<h3 id="groups"><code>[groups]</code><a class="headerlink" href="#groups" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;group-name&gt;</code></td>
+<td>array of user names</td>
+<td>Defines a policy group; rules referencing the name target its members. OS/AD groups match automatically and need no entry here</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rule-scope"><code>[[rule]]</code> scope<a class="headerlink" href="#rule-scope" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>Optional label used in log messages</td>
+</tr>
+<tr>
+<td><code>users</code></td>
+<td>array of user names</td>
+<td>Targets the listed OS login names (user tier)</td>
+</tr>
+<tr>
+<td><code>groups</code></td>
+<td>array of group names</td>
+<td>Targets members of policy groups and/or OS/AD groups (group tier); a rule with neither <code>users</code> nor <code>groups</code> applies to everyone</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleservers"><code>[rule.servers]</code><a class="headerlink" href="#ruleservers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Allow-list or deny-list semantics for <code>hosts</code></td>
+</tr>
+<tr>
+<td><code>hosts</code></td>
+<td>array of patterns</td>
+<td>see table above</td>
+<td>Non-empty list of server patterns</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rulefeatures"><code>[rule.features]</code><a class="headerlink" href="#rulefeatures" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Restricts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Master switch: <code>deny</code> disables every AI capability at once</td>
+</tr>
+<tr>
+<td><code>ai-agent</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI Agent (menu, terminal context menu, keyboard shortcut, headless job runs)</td>
+</tr>
+<tr>
+<td><code>ai-chat</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI chat, Saved Chats and the terminal-selection AI actions</td>
+</tr>
+<tr>
+<td><code>ai-swarm</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI Swarm, including scheduled swarm jobs</td>
+</tr>
+<tr>
+<td><code>ai-planning</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI Planning</td>
+</tr>
+<tr>
+<td><code>teamwork</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Teamwork shared-connections sync (service is not started, menu locked)</td>
+</tr>
+<tr>
+<td><code>plugins</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Plugin loading and the Plugins menu (e.g. terminal effects)</td>
+</tr>
+<tr>
+<td><code>ai-agent-execution</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
+<td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rulesecurity"><code>[rule.security]</code><a class="headerlink" href="#rulesecurity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>require-master-password</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>Forces the master-password gate at startup; the setting is locked</td>
+</tr>
+<tr>
+<td><code>enforce-host-key-check</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>SSH host key verification cannot be disabled anywhere — globally, per group or per connection</td>
+</tr>
+<tr>
+<td><code>allow-telemetry</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Forbids anonymous usage statistics</td>
+</tr>
+<tr>
+<td><code>allow-terminal-recording</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Forbids terminal session recording, including the session-level toggle</td>
+</tr>
+<tr>
+<td><code>clipboard-mode</code></td>
+<td>string</td>
+<td><code>system</code>, <code>internal</code></td>
+<td><code>internal</code> confines korTTY to its own in-memory clipboard — see below</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleteamwork-rulesnippets-ruleai-profiles"><code>[rule.teamwork]</code>, <code>[rule.snippets]</code>, <code>[rule.ai-profiles]</code><a class="headerlink" href="#ruleteamwork-rulesnippets-ruleai-profiles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow-custom-sources</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Users cannot add teamwork sources; only <code>[[teamwork-source]]</code> entries remain</td>
+</tr>
+<tr>
+<td><code>allow-custom-script-headers</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Users cannot create script headers; only <code>[[script-header]]</code> entries remain</td>
+</tr>
+<tr>
+<td><code>allow-create</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Users cannot create AI profiles (buttons and wizard are locked)</td>
+</tr>
+<tr>
+<td><code>allow-edit</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Users cannot edit their existing AI profiles either</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow-runtime-downloads</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>No llama.cpp/MLX runtime downloads or update checks</td>
+</tr>
+<tr>
+<td><code>allow-model-downloads</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>The Hugging Face model browser and downloads are disabled</td>
+</tr>
+<tr>
+<td><code>allow-user-models</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Only admin-provisioned <code>[[ai-runtime.model]]</code> entries can be loaded by embedded AI profiles</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleupdates"><code>[rule.updates]</code><a class="headerlink" href="#ruleupdates" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Disables the automatic update check and the manual check in the About dialog</td>
+</tr>
+<tr>
+<td><code>feed-url</code></td>
+<td>string</td>
+<td>http(s) URL</td>
+<td>Update checks query this endpoint instead of GitHub; it must return the same JSON shape as the GitHub <code>releases/latest</code> API (<code>tag_name</code>, <code>assets[]</code> with <code>name</code> and <code>browser_download_url</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleterminal"><code>[rule.terminal]</code><a class="headerlink" href="#ruleterminal" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>load-into-snippet-editor</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>read-only</code>, <code>deny</code></td>
+<td><code>read-only</code> keeps loading remote files into the snippet editor but forbids writing back to the target system; <code>deny</code> removes the feature entirely</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
+<p>korTTY rotates its log daily (<code>kortty.YYYY-MM-DD.log</code>); this table controls where the files go, how long they live, how they are formatted and how rotation is capped. Directory and retention are forced into the corresponding (then locked) user settings; format, compression and the rotation caps have no user setting and act directly. The configuration is applied before the very first log line of a start, so even startup logging follows the admin's scheme.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>directory</code></td>
+<td>string</td>
+<td>absolute or <code>~/</code>-relative path</td>
+<td>Log directory (default <code>~/.kortty/logs</code>); the setting is locked</td>
+</tr>
+<tr>
+<td><code>retention-days</code></td>
+<td>integer</td>
+<td><code>0</code> = keep forever</td>
+<td>Rotated logs older than N days are deleted; the setting is locked</td>
+</tr>
+<tr>
+<td><code>compress</code></td>
+<td>boolean</td>
+<td>default <code>true</code></td>
+<td>Gzip rotated logs after one day</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td>string</td>
+<td><code>text</code>, <code>json</code></td>
+<td><code>json</code> writes one structured JSON object per event (logback JSON encoder — convenient for SIEM/central log collection)</td>
+</tr>
+<tr>
+<td><code>rotation-max-files</code></td>
+<td>integer</td>
+<td><code>0</code> = unlimited</td>
+<td>Keep at most N rotated daily files</td>
+</tr>
+<tr>
+<td><code>rotation-total-size-mb</code></td>
+<td>integer</td>
+<td><code>0</code> = uncapped</td>
+<td>Cap the total size of all rotated files (oldest deleted first)</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/log/kortty&quot;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;json&quot;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When several same-tier rules configure logging, each key resolves separately: shorter retention and tighter caps win, compression on wins, <code>json</code> wins over <code>text</code>. In practice, put the logging configuration into a single all-users rule. The chosen directory must be writable by the user running korTTY.</p>
+</div>
+<h3 id="admin-provided-objects">Admin-provided objects<a class="headerlink" href="#admin-provided-objects" title="Permanent link">&para;</a></h3>
+<p>These top-level tables define objects that appear read-only for every user, marked "Provided by your organization". They are rebuilt from the policy on every start and are never written into the user's configuration files — removing them from the policy removes them from korTTY.</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Keys</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[[script-header]]</code></td>
+<td><code>name</code>, <code>content</code></td>
+<td>Immutable script header in the snippet system's Script-Header category</td>
+</tr>
+<tr>
+<td><code>[[ai-profile]]</code></td>
+<td><code>id</code>, <code>name</code>, <code>provider</code>, <code>endpoint</code>, <code>model</code>, <code>api-key-encrypted</code></td>
+<td><code>id</code> must start with <code>policy-</code>; <code>provider</code> is one of <code>anthropic</code>, <code>openai-compatible</code>, <code>lm-studio</code>, <code>embedded-llama</code>, <code>embedded-mlx</code> (embedded providers read <code>model</code> as the local model id)</td>
+</tr>
+<tr>
+<td><code>[[ai-runtime.model]]</code></td>
+<td><code>name</code>, <code>runtime</code>, <code>source</code></td>
+<td><code>runtime</code> is <code>llama</code> or <code>mlx</code>; <code>source</code> is an absolute local/UNC path, or for GGUF models an http(s) URL that korTTY downloads once at startup</td>
+</tr>
+<tr>
+<td><code>[[teamwork-source]]</code></td>
+<td><code>name</code>, <code>type</code>, <code>url</code></td>
+<td><code>type</code> is <code>git</code> or <code>shared-file</code>; injected as a read-only teamwork source</td>
+</tr>
+</tbody>
+</table>
+<h2 id="internal-clipboard-mode">Internal clipboard mode<a class="headerlink" href="#internal-clipboard-mode" title="Permanent link">&para;</a></h2>
+<p>With <code>clipboard-mode = "internal"</code> korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste <em>within</em> korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.</p>
+<p>The mode covers the terminal (shortcuts, context menu, middle-click), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
+<div class="admonition note">
+<p class="admonition-title">Scope</p>
+<p>The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click <em>Paste</em> entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.</p>
+</div>
+<h2 id="encrypted-api-keys">Encrypted API keys<a class="headerlink" href="#encrypted-api-keys" title="Permanent link">&para;</a></h2>
+<p>An AI profile's API key never appears in plain text in the policy. The administrator encrypts it once from a terminal — the command prints a <code>kortty-enc:v1:</code> value for the <code>api-key-encrypted</code> key:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+</span></code></pre></div>
+<p>Users see only "API key provided by your organization" in the profile; the key is decrypted in memory at the moment a request is made.</p>
+<div class="admonition warning">
+<p class="admonition-title">Security scope</p>
+<p>The envelope uses AES-256-GCM with an application-wide key, so it protects against casual disclosure (shoulder surfing, config diffs, backups) and detects tampering — it is not hard secrecy, since anyone with the korTTY binary could recover the application key. The installation directory's OS permissions remain the actual security boundary; prefer per-user keys via the normal profile flow when that boundary is not enough.</p>
+</div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and remedy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Startup dialog "Organization policy could not be loaded"</td>
+<td>The policy file has a syntax error or invalid value; the dialog and the log name the exact position. korTTY stays in fail-safe lockdown until the file is fixed</td>
+</tr>
+<tr>
+<td>Policy seems ignored</td>
+<td>The file is not named <code>kortty-policy.toml</code>, not in the installation's <code>policy/</code> folder, or korTTY was not restarted. The log's startup lines state which policy file (if any) was loaded</td>
+</tr>
+<tr>
+<td>A rule does not apply to a user</td>
+<td>Rule scoping is lowercase OS login names; check <code>[groups]</code> membership and remember that a more specific tier (user &gt; group &gt; everyone) overrides less specific rules</td>
+</tr>
+<tr>
+<td>Warning "policy file is writable by the current user"</td>
+<td>The installation directory permissions are too open — the enforcement model relies on admin-only write access</td>
+</tr>
+<tr>
+<td>Admin model does not appear</td>
+<td>See the log: GGUF URL downloads happen in the background at startup, and registration requires an installed llama.cpp runtime; MLX sources must be local safetensors directories</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.5.2</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

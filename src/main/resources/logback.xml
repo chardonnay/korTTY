@@ -12,8 +12,14 @@
         <file>${KORTTY_LOG_DIR}/kortty.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>${KORTTY_LOG_DIR}/kortty.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- Enterprise policy rotation caps ([rule.logging]); 0 = unlimited/uncapped. -->
+            <maxHistory>${kortty.log.maxHistory:-0}</maxHistory>
+            <totalSizeCap>${kortty.log.totalSizeCap:-0}</totalSizeCap>
         </rollingPolicy>
-        <encoder>
+        <!-- Encoder class is selected by the enterprise logging policy ([rule.logging] format):
+             the default pattern encoder, or logback's JSON encoder. The <pattern> child is only
+             read by the pattern encoder; the JSON encoder ignores it. -->
+        <encoder class="${kortty.log.encoderClass:-ch.qos.logback.classic.encoder.PatternLayoutEncoder}">
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>

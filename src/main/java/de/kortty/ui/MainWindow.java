@@ -1488,12 +1488,31 @@ public class MainWindow {
         aiSwarm.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
         aiSwarm.setOnAction(e -> showAiSwarm());
 
+        // Policy-denied AI features stay permanently disabled: they are excluded from the sync
+        // lists (which would re-enable them) and locked with the managed-by-organization hint.
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         toolsAiMenuItems.add(aiManager);
-        toolsAiMenuItems.add(savedChats);
-        toolsAiMenuItems.add(aiAgent);
-        toolsAiMenuItems.add(aiPlanning);
-        toolsAiMenuItems.add(aiSwarm);
-        toolsAiAgentExecutionMenuItems.add(aiAgent);
+        if (policy.aiChatAllowed()) {
+            toolsAiMenuItems.add(savedChats);
+        } else {
+            savedChats.setDisable(true);
+        }
+        if (policy.aiAgentAllowed()) {
+            toolsAiMenuItems.add(aiAgent);
+            toolsAiAgentExecutionMenuItems.add(aiAgent);
+        } else {
+            aiAgent.setDisable(true);
+        }
+        if (policy.aiPlanningAllowed()) {
+            toolsAiMenuItems.add(aiPlanning);
+        } else {
+            aiPlanning.setDisable(true);
+        }
+        if (policy.aiSwarmAllowed()) {
+            toolsAiMenuItems.add(aiSwarm);
+        } else {
+            aiSwarm.setDisable(true);
+        }
 
         aiMenu.getItems().addAll(aiManager, savedChats, aiAgent, aiPlanning, aiSwarm);
         return aiMenu;
@@ -1504,6 +1523,9 @@ public class MainWindow {
 
         MenuItem teamworkSettings = new MenuItem(I18n.get("menu.teamwork.settings"));
         teamworkSettings.setOnAction(e -> showTeamworkSettings());
+        if (!de.kortty.policy.PolicyManager.effective().teamworkAllowed()) {
+            teamworkSettings.setDisable(true);
+        }
 
         teamworkMenu.getItems().add(teamworkSettings);
         return teamworkMenu;
@@ -1513,6 +1535,9 @@ public class MainWindow {
         Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
         MenuItem terminalEffects = new MenuItem(I18n.get("menu.plugins.terminalEffects"));
         terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
+        if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+            terminalEffects.setDisable(true);
+        }
         pluginsMenu.getItems().add(terminalEffects);
         return pluginsMenu;
     }
@@ -2069,6 +2094,15 @@ public class MainWindow {
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
+        // Central UI gate for the enterprise server policy — covers saved connections, session
+        // restore, teamwork-shared connections and multi/swarm opens. SessionManager repeats the
+        // check as a non-UI backstop.
+        java.util.Optional<String> blockedTarget =
+            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+        if (blockedTarget.isPresent()) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blockedTarget.get());
+            return null;
+        }
         try {
             if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 terminalEffectPluginId = null;
@@ -2253,7 +2287,16 @@ public class MainWindow {
             if (result.connection() == null) {
                 return;
             }
-            
+
+            // Enterprise server policy: reject a blocked target before prompting for a password
+            // or persisting the connection (openConnectionAndReturnTab would catch it anyway).
+            java.util.Optional<String> quickConnectBlocked =
+                de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(result.connection());
+            if (quickConnectBlocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(quickConnectBlocked.get());
+                return;
+            }
+
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
             if (!result.connection().isLocalShell()
@@ -4156,6 +4199,10 @@ public class MainWindow {
                                             null,
                                             sessionState.getTerminalEffectPluginId(),
                                             sessionState.getTerminalEffectAnimationSpeed());
+                                    if (restoredTab == null) {
+                                        // Blocked by the enterprise server policy.
+                                        continue;
+                                    }
                                     restoredTab.getTerminalView().restorePrimaryTimestampEntries(
                                             sessionState.getTerminalTimestamps());
                                     // Restore tab group (not connection group)
@@ -4558,6 +4605,14 @@ public class MainWindow {
         updateStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         manualUpdateCheckButton.setOnAction(event ->
             runManualUpdateCheck(manualUpdateCheckButton, updateProgress, updateStatusLabel));
+        de.kortty.policy.EffectivePolicy updatePolicy = de.kortty.policy.PolicyManager.effective();
+        if (!updatePolicy.updatesEnabled()) {
+            manualUpdateCheckButton.setDisable(true);
+            manualUpdateCheckButton.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        } else if (updatePolicy.updateFeedUrl().isPresent()) {
+            updateStatusLabel.setText(I18n.get("policy.update.managedFeed"));
+        }
 
         HBox updateCheckBox = new HBox(10, manualUpdateCheckButton, updateProgress);
         updateCheckBox.setAlignment(Pos.CENTER_LEFT);
@@ -5036,6 +5091,10 @@ public class MainWindow {
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
+        }
         if (profile == null || profile.getEncryptedApiKey() == null || profile.getEncryptedApiKey().isBlank()) {
             return null;
         }
@@ -5539,18 +5598,29 @@ public class MainWindow {
     }
 
     private void installAiSelectionHandler(TerminalTab terminalTab) {
-        terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
-            handleAiSelectionAction(terminalTab, action, profile, selectedText));
-        terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
-            loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
-        terminalTab.getTerminalView().setAiAgentHandler(runContext ->
-            requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
-        terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
-            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
-        terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
-            requestAiPlanningForTab(terminalTab, null, null, runContext));
-        terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
-            handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
+        // Handlers left unset for policy-denied features make the corresponding terminal
+        // context-menu items disappear entirely (TerminalView builds items from handler presence).
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        if (policy.aiChatAllowed()) {
+            terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
+                handleAiSelectionAction(terminalTab, action, profile, selectedText));
+        }
+        if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
+            terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
+                loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
+        }
+        if (policy.aiAgentAllowed()) {
+            terminalTab.getTerminalView().setAiAgentHandler(runContext ->
+                requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
+            terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
+                requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
+            terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
+                handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
+        }
+        if (policy.aiPlanningAllowed()) {
+            terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
+                requestAiPlanningForTab(terminalTab, null, null, runContext));
+        }
         terminalTab.getTerminalView().setMenuBarRestoreHandler(
             () -> menuBar != null && !menuBar.isVisible(),
             () -> toggleMenuBarVisibility(true));
@@ -5584,6 +5654,12 @@ public class MainWindow {
         TerminalView.TerminalAgentRunContext runContext,
         String selectedText
     ) {
+        // Handler installation is already skipped under a deny policy; this guard covers any
+        // other invocation path.
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.DENY) {
+            return;
+        }
         String selectedFileName;
         try {
             selectedFileName = RemoteTextFileSelectionSupport.normalizeSelectedFileName(selectedText);
@@ -5776,10 +5852,18 @@ public class MainWindow {
         SshTtyConnector connector,
         TerminalRemoteTextFile remoteFile
     ) {
+        // Policy read-only mode: the file may be loaded and saved as a snippet, but never written
+        // back to the target system — the remote actions are locked in the dialog.
+        boolean remoteWriteAllowed = de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.ALLOW;
         openTerminalTextFileInSnippetEditor(terminalTab, remoteFile,
             I18n.get("sftp.snippetEditor.overwriteRemote"),
-            draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft),
-            draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft));
+            remoteWriteAllowed
+                ? draft -> overwriteTerminalRemoteTextFile(connector, remoteFile.remotePath(), draft)
+                : null,
+            remoteWriteAllowed
+                ? draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft)
+                : null);
     }
 
     private void openTerminalLocalTextFileInSnippetEditor(TerminalTab terminalTab, TerminalRemoteTextFile localFile) {
@@ -5868,8 +5952,18 @@ public class MainWindow {
     }
 
     private boolean overwriteTerminalRemoteTextFile(SshTtyConnector connector, String remotePath, Snippet draft) throws Exception {
+        requireTerminalRemoteWriteAllowed();
         uploadTerminalRemoteTextFile(connector, remotePath, draft.getContent());
         return true;
+    }
+
+    /** Backstop for the policy's read-only load-into-snippet-editor mode. */
+    private static void requireTerminalRemoteWriteAllowed() {
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            != de.kortty.policy.LoadIntoEditorMode.ALLOW) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                I18n.get("policy.terminal.loadReadOnly"));
+        }
     }
 
     private boolean saveTerminalRemoteTextFileAs(
@@ -5878,6 +5972,7 @@ public class MainWindow {
         String originalFileName,
         Snippet draft
     ) throws Exception {
+        requireTerminalRemoteWriteAllowed();
         Optional<String> response = callOnFxThread(() -> {
             TextInputDialog dialog = new TextInputDialog(originalFileName);
             DialogThemeHelper.applyTheme(dialog);
@@ -7846,7 +7941,8 @@ public class MainWindow {
     }
 
     private void showAiWizard() {
-        if (!isAiFeaturesEnabled()) {
+        if (!isAiFeaturesEnabled()
+            || !de.kortty.policy.PolicyManager.effective().aiProfileCreateAllowed()) {
             return;
         }
         try {

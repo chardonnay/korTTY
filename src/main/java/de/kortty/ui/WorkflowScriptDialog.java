@@ -506,9 +506,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         if (content.isBlank()) {
             return;
         }
-        ClipboardContent clipboardContent = new ClipboardContent();
-        clipboardContent.putString(content);
-        Clipboard.getSystemClipboard().setContent(clipboardContent);
+        de.kortty.core.KorttyClipboard.setText(content);
         setStatus(I18n.get("ai.workflow.copied"), false);
     }
 

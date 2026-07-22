@@ -233,9 +233,7 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAi
             }
             text.append('\n');
         }
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text.toString().strip());
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(text.toString().strip());
 
         String original = I18n.get("snippets.copyClipboard");
         button.setText(I18n.get("snippets.copied"));

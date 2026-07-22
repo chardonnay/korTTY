@@ -587,8 +587,6 @@ public class AsciiArtBannerDialog extends ThemeAwareDialog<Void> {
     private void copyToClipboard() {
         String text = activePreviewArea().getText();
         if (text == null || text.isEmpty()) return;
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(text);
     }
 }

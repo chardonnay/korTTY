@@ -301,7 +301,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     setStyle("");
                     return;
                 }
-                setText(profileListDisplayName(item) + "\n" + buildAiProfileUsageInline(item));
+                String managedSuffix = item.isPolicyManaged()
+                    ? " 🔒 " + I18n.get("policy.aiProfile.managed")
+                    : "";
+                setText(profileListDisplayName(item) + managedSuffix + "\n" + buildAiProfileUsageInline(item));
                 AiTokenWarningLevel warningLevel = AiTokenUsageManager.refreshUsage(item).warningLevel();
                 setTextFill(switch (warningLevel) {
                     case YELLOW -> Color.web("#b7791f");
@@ -607,8 +610,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         testButton.setOnAction(event -> testSelectedProfile());
         applyButtonIcon(testButton, ICON_TEST);
 
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        var selectedProfileProperty = profileListView.getSelectionModel().selectedItemProperty();
+
         Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        deleteButton.disableProperty().bind(profileListView.getSelectionModel().selectedItemProperty().isNull());
+        // Policy-managed profiles are read-only: never deletable, never editable.
+        deleteButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() == null
+                || selectedProfileProperty.get().isPolicyManaged(),
+            selectedProfileProperty));
         deleteButton.setOnAction(event -> deleteSelectedProfile());
         applyButtonIcon(deleteButton, ICON_DELETE);
 
@@ -617,9 +627,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         applyButtonIcon(refreshButton, ICON_REFRESH);
 
         Button saveButton = new Button(I18n.get("settings.save"));
-        saveButton.disableProperty().bind(profileListView.getSelectionModel().selectedItemProperty().isNull());
+        saveButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() == null
+                || selectedProfileProperty.get().isPolicyManaged()
+                || !policy.aiProfileEditAllowed(),
+            selectedProfileProperty));
         saveButton.setOnAction(event -> saveProfiles());
         applyButtonIcon(saveButton, ICON_SAVE);
+
+        // The editor form follows the same rule as the save button.
+        editorScrollPane.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() != null
+                && (selectedProfileProperty.get().isPolicyManaged() || !policy.aiProfileEditAllowed()),
+            selectedProfileProperty));
 
         Button aiSkillsButton = new Button(I18n.get("ai.manager.openSkills"));
         aiSkillsButton.setOnAction(event -> ownerWindow.showAiSkillsSettings());
@@ -628,6 +648,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         Button wizardButton = new Button(I18n.get("ai.wizard.button"));
         wizardButton.setOnAction(event -> openProfileWizard());
         applyButtonIcon(wizardButton, ICON_WIZARD);
+
+        if (!policy.aiProfileCreateAllowed()) {
+            addButton.setDisable(true);
+            addButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
+            wizardButton.setDisable(true);
+            wizardButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
+        }
 
         HBox actionBar = new HBox(8, wizardButton, addButton, testButton, deleteButton, refreshButton, saveButton, aiSkillsButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
@@ -834,6 +861,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void openProfileWizard() {
+        if (!de.kortty.policy.PolicyManager.effective().aiProfileCreateAllowed()) {
+            return;
+        }
         AiProfileWizardDialog wizard = new AiProfileWizardDialog(ownerWindow);
         wizard.initOwner(ownerWindow.getStage());
         wizard.showAndWait().ifPresent(created -> {
@@ -851,6 +881,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void addProfile() {
+        if (!de.kortty.policy.PolicyManager.effective().aiProfileCreateAllowed()) {
+            return;
+        }
         snapshotSelectedProfileState();
         AiProfile profile = new AiProfile();
         profile.setId(UUID.randomUUID().toString());
@@ -1759,6 +1792,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private String getPlainApiKey(AiProfile profile) {
         if (profile == null) {
             return null;
+        }
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
         }
         if (profile.getId() != null) {
             String plain = plainApiKeysByProfileId.get(profile.getId());

@@ -231,9 +231,7 @@ public class SnippetDescriptionDialog extends ThemeAwareDialog<Void> {
 
     private void copyToClipboard(String text) {
         String value = Objects.requireNonNullElse(text, "");
-        ClipboardContent content = new ClipboardContent();
-        content.putString(value);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(value);
     }
 
     private static int clampFontSize(int size) {

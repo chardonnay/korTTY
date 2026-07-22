@@ -49,8 +49,12 @@ public class TeamworkSettingsDialog extends ThemeAwareDialog<Void> {
         typeCol.setCellValueFactory(c -> new SimpleStringProperty(
             c.getValue().getType() == TeamworkSourceType.GIT ? "Git" : I18n.get("teamwork.settings.sharedFile")));
         TableColumn<TeamworkSourceConfig, String> locationCol = new TableColumn<>(I18n.get("teamwork.settings.location"));
-        locationCol.setCellValueFactory(c -> new SimpleStringProperty(
-            c.getValue().getLocation() != null ? c.getValue().getLocation() : ""));
+        locationCol.setCellValueFactory(c -> {
+            String location = c.getValue().getLocation() != null ? c.getValue().getLocation() : "";
+            return new SimpleStringProperty(c.getValue().isPolicyManaged()
+                ? "🔒 " + location + " — " + I18n.get("policy.teamwork.managedSource")
+                : location);
+        });
         locationCol.setMinWidth(180);
         locationCol.setPrefWidth(320);
         TableColumn<TeamworkSourceConfig, Integer> intervalCol = new TableColumn<>(I18n.get("teamwork.settings.intervalColumn"));
@@ -76,9 +80,17 @@ public class TeamworkSettingsDialog extends ThemeAwareDialog<Void> {
         removeButton.setOnAction(e -> removeSelected());
         enableDisableButton.setOnAction(e -> toggleEnabledSelected());
 
-        editButton.disableProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
-        removeButton.disableProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
-        enableDisableButton.disableProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
+        // Policy-provided sources are read-only; adding own sources can be forbidden entirely.
+        var selectedSources = table.getSelectionModel().getSelectedItems();
+        java.util.concurrent.Callable<Boolean> selectionLocked = () -> selectedSources.isEmpty()
+            || selectedSources.stream().anyMatch(s -> s != null && s.isPolicyManaged());
+        editButton.disableProperty().bind(Bindings.createBooleanBinding(selectionLocked, selectedSources));
+        removeButton.disableProperty().bind(Bindings.createBooleanBinding(selectionLocked, selectedSources));
+        enableDisableButton.disableProperty().bind(Bindings.createBooleanBinding(selectionLocked, selectedSources));
+        if (!de.kortty.policy.PolicyManager.effective().customTeamworkSourcesAllowed()) {
+            addButton.setDisable(true);
+            addButton.setTooltip(new Tooltip(I18n.get("policy.teamwork.createForbidden")));
+        }
 
         VBox left = new VBox(10,
             new Label(I18n.get("teamwork.settings.sources")),

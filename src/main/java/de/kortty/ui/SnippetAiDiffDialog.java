@@ -324,9 +324,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     }
 
     private void copyReplacementText() {
-        ClipboardContent content = new ClipboardContent();
-        content.putString(replacementText);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(replacementText);
     }
 
     // ---- Explanations panel (themed HTML) -------------------------------------------------------

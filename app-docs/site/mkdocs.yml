@@ -107,6 +107,7 @@ nav:
       - reference/keyboard-shortcuts.md
       - reference/architecture.md
       - reference/config-files.md
+      - reference/enterprise-policy.md
       - reference/hardening-options.md
       - Settings:
           - reference/settings/index.md

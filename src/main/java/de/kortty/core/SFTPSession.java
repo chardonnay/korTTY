@@ -69,7 +69,12 @@ public class SFTPSession {
      * Establishes the SFTP connection.
      */
     public void connect() throws Exception {
-        logger.info("Connecting SFTP to {}@{}:{}", 
+        de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
+            logger.warn("Blocked SFTP session to {} by enterprise policy", target);
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Connection to " + target + " is blocked by your organization's policy");
+        });
+        logger.info("Connecting SFTP to {}@{}:{}",
                 connection.getUsername(), connection.getHost(), connection.getPort());
         
         client = SshClient.setUpDefaultClient();

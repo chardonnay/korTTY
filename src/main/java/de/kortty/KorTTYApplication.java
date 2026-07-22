@@ -101,10 +101,45 @@ public class KorTTYApplication extends Application {
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     private volatile boolean shuttingDown = false;
+    private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
+        // Admin console mode: encrypt a sensitive policy-file value (e.g. an AI-profile API key)
+        // into the kortty-enc:v1: envelope, without starting JavaFX.
+        if (args.length > 0 && "--encrypt-policy-value".equals(args[0])) {
+            runEncryptPolicyValue(args);
+            return;
+        }
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
         launch(args);
+    }
+
+    /**
+     * Console routine behind {@code korTTY --encrypt-policy-value [value]}. Reads the plaintext
+     * from the argument, or interactively (echo-free where a console is available) when omitted,
+     * and prints the envelope for the admin to paste into kortty-policy.toml.
+     */
+    private static void runEncryptPolicyValue(String[] args) {
+        String plaintext;
+        if (args.length > 1) {
+            plaintext = args[1];
+        } else if (System.console() != null) {
+            char[] chars = System.console().readPassword("Value to encrypt: ");
+            plaintext = chars == null ? "" : new String(chars);
+        } else {
+            try (java.util.Scanner scanner = new java.util.Scanner(System.in)) {
+                System.out.print("Value to encrypt: ");
+                plaintext = scanner.hasNextLine() ? scanner.nextLine() : "";
+            }
+        }
+        if (plaintext.isEmpty()) {
+            System.err.println("No value given — nothing to encrypt.");
+            System.exit(1);
+        }
+        System.out.println(de.kortty.policy.PolicyValueCipher.encrypt(plaintext));
+        // Explicit exit: the logging bootstrap in the static initializer may have started
+        // non-daemon threads that would otherwise keep this console-only invocation alive.
+        System.exit(0);
     }
     
     public static KorTTYApplication getInstance() {
@@ -114,6 +149,10 @@ public class KorTTYApplication extends Application {
     @Override
     public void init() throws Exception {
         instance = this;
+
+        // Load the enterprise policy FIRST — the settings managers constructed below must see the
+        // clamp before their first load, so a policy-managed value can never leak through.
+        policyManager = de.kortty.policy.PolicyManager.initialize();
 
         // Remove the retired diagram renderer's app-owned download cache and abandoned work
         // directories before loading persisted application data. Cleanup is deliberately
@@ -142,6 +181,8 @@ public class KorTTYApplication extends Application {
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
+        globalSettingsManager.setPolicyClamp(
+            new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
@@ -279,16 +320,24 @@ public class KorTTYApplication extends Application {
             // knowledge-source synchronization for this application session.
             de.kortty.rag.RagCoordinator.startDefault();
 
-            try {
-                terminalEffectPluginManager.load();
-            } catch (Exception e) {
-                logger.warn("Failed to load terminal effect plugins", e);
+            if (de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+                try {
+                    terminalEffectPluginManager.load();
+                } catch (Exception e) {
+                    logger.warn("Failed to load terminal effect plugins", e);
+                }
+            } else {
+                logger.info("Plugins disabled by enterprise policy — skipping plugin load");
             }
-            
+
             // Start teamwork sync and recycle bin (separate try-catch for accurate error context)
             try {
-                teamworkSyncService = new TeamworkSyncService(getConfigDirectory(), globalSettingsManager);
-                teamworkSyncService.start();
+                if (de.kortty.policy.PolicyManager.effective().teamworkAllowed()) {
+                    teamworkSyncService = new TeamworkSyncService(getConfigDirectory(), globalSettingsManager);
+                    teamworkSyncService.start();
+                } else {
+                    logger.info("Teamwork disabled by enterprise policy — sync service not started");
+                }
             } catch (Exception e) {
                 logger.warn("TeamworkSyncService failed to start (configDirectory={}, globalSettingsManager={})",
                     getConfigDirectory(), globalSettingsManager, e);
@@ -305,10 +354,23 @@ public class KorTTYApplication extends Application {
             // already persisted here, and the error appender is live during window construction.
             telemetryService.start();
 
+            // Internal-clipboard mode: redirect copy/cut/paste shortcuts of native text controls
+            // and WebViews on every window (no-op in system clipboard mode).
+            de.kortty.policy.PolicyClipboardGuard.install();
+
+            // An installed but invalid policy file has put the app into fail-safe lockdown —
+            // tell the user before the (restricted) main window appears.
+            if (policyManager != null && policyManager.hasLoadFailure()) {
+                policyManager.loadResult().ifPresent(
+                    de.kortty.policy.PolicyUiSupport::showMalformedPolicyDialog);
+            }
+
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             startLlamaRuntimeUpdateCoordinator();
+            // Register/download admin-provisioned local AI models in the background.
+            new de.kortty.policy.PolicyRuntimeProvisioner(getConfigDirectory()).provisionAsync();
             registerMacDesktopHandlers();
             // The AWT Taskbar Dock menu only attaches to a real .app bundle's Dock
             // tile (not a `./gradlew run` JVM), and initializing AWT there would also
@@ -680,6 +742,10 @@ public class KorTTYApplication extends Application {
         if (globalSettingsManager == null || globalSettingsManager.getSettings() == null) {
             return;
         }
+        if (!de.kortty.policy.PolicyManager.effective().runtimeDownloadsAllowed()) {
+            logger.info("AI runtime downloads disabled by enterprise policy — update coordinators not started");
+            return;
+        }
         de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator coordinator =
             de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator.getDefault();
         if (llamaRuntimeStatusSubscription != null) {
@@ -963,6 +1029,10 @@ public class KorTTYApplication extends Application {
     
     public GlobalSettingsManager getGlobalSettingsManager() {
         return globalSettingsManager;
+    }
+
+    public de.kortty.policy.PolicyManager getPolicyManager() {
+        return policyManager;
     }
     
     public ThemeManager getThemeManager() {

@@ -451,6 +451,8 @@
       
         
       
+        
+      
     
     
     
@@ -615,6 +617,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/enterprise-policy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unternehmenspolitik
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/hardening-options.html" class="md-nav__link">
         
   
@@ -687,7 +717,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -709,14 +739,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_6">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1967,6 +1997,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#unternehmensrichtlinie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unternehmensrichtlinie
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dateibrowser" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2792,6 +2833,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#unternehmensrichtlinie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unternehmensrichtlinie
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dateibrowser" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3526,6 +3578,10 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Administratoren können korTTY jetzt über eine Richtliniendatei verwalten</strong> – ein <code>kortty-policy.toml</code> im Installationsverzeichnis (nur für Administratoren beschreibbar) kann Server einschränken, zu denen Benutzer eine Verbindung herstellen dürfen (Zulassungs-/Verweigerungslisten mit Host-Globs, Ports, einzelnen IPs, CIDR-Netzwerken und IP-Bereichen, erzwungen für Terminals, SFTP, QuickConnect, Jump-Hosts und geplante Jobs), Funktionen deaktivieren oder einschränken (KI-Agent/Chat/Schwarm/Planung, Teamwork, Plugins, Update). Überprüfungen, Telemetrie, Terminalaufzeichnung), die Überprüfung des Hauptkennworts und des Hostschlüssels erzwingen, korTTY auf eine interne Zwischenablage beschränken, damit in anderen Anwendungen kopierter Text nicht in korTTY eingefügt werden kann (während das Kopieren und Einfügen in korTTY weiterhin funktioniert), die Protokollierung steuern (Verzeichnis, Format als Text oder JSON-Zeilen, Aufbewahrung, gzip-Komprimierung und Rotationsbeschränkungen) und schreibgeschützte KI-Profile (mit verschlüsselten API-Schlüsseln über <code>korTTY --encrypt-policy-value</code>), lokale KI-Modelle, Skript-Header und Teamwork-Quellen vorkonfigurieren. Regeln richten sich an einzelne Benutzer, richtliniendefinierte Gruppen oder OS/AD-Gruppen mit Benutzer &gt; Gruppe &gt; jeder hat Vorrang; Gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt, und eine ungültige Richtliniendatei versetzt korTTY in eine ausfallsichere Sperre, anstatt stillschweigend nichts durchzusetzen. Siehe <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a>.</li>
+</ul>
 <h3 id="dateibrowser">Dateibrowser<a class="headerlink" href="#dateibrowser" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Der Menü-Dateibrowser wurde zu einem echten Dateimanager umgebaut</strong> – die andockbare Seitenleiste (<strong>Ansicht → Dateibrowser</strong>) erhielt eine Navigationsleiste (Zurück / Vor / Hoch / Home / Aktualisieren, Neuer Ordner / Datei), eine editierbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann – auch oberhalb des Home-Verzeichnisses –, ein Filterfeld, typabhängige Symbole mit Symlink-Markierung und eine Fußzeile, die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>

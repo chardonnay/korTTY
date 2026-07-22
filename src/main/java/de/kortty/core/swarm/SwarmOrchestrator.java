@@ -63,6 +63,12 @@ public final class SwarmOrchestrator {
         SwarmCallback userCallback,
         SwarmRunControl control) {
 
+        // Enterprise policy backstop for every swarm entry point (UI and headless job runs).
+        if (!de.kortty.policy.PolicyManager.effective().aiSwarmAllowed()) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "AI Swarm is disabled by your organization's policy");
+        }
+
         long start = System.currentTimeMillis();
         Map<String, SwarmModels.SwarmAgentState> states = new ConcurrentHashMap<>();
         CountingCallback callback = new CountingCallback(userCallback, states);

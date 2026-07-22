@@ -1,0 +1,165 @@
+# =====================================================================================
+# korTTY enterprise policy — TEMPLATE
+#
+# To activate: copy this file to `kortty-policy.toml` in the SAME `policy/` folder of the
+# korTTY installation directory, uncomment and adapt the sections you need, and restart
+# korTTY. The file is only honored from the installation directory (admin-writable only) —
+# never from the user's profile — so keep the OS permissions restrictive: that is the
+# actual security boundary. Changes take effect on the next start of korTTY.
+#
+# Everything in this template is commented out: shipping it unchanged enforces nothing.
+# If the file exists but is invalid, korTTY starts in fail-safe lockdown (every managed
+# feature denied, no server connections) and shows the parse error, so a typo can never
+# silently disable enforcement.
+#
+# Full documentation: korTTY guide → Reference → "Enterprise policy".
+# =====================================================================================
+
+# --- Required header -----------------------------------------------------------------
+# [meta]
+# schema-version = 1                  # required; this korTTY understands version 1
+# organization = "ACME Corp"          # optional; shown in "Managed by your organization" hints
+
+# --- Groups (optional) ---------------------------------------------------------------
+# Users are matched by their OS login name (lowercase). Groups referenced in rules can be
+# defined here — additionally, the user's OS/AD group memberships match automatically, so
+# on domain-joined machines you can target AD groups directly ("ACME\\Operations" or the
+# bare "operations"), without defining them here.
+# [groups]
+# devs = ["alice", "bob"]
+# ops  = ["carol", "dave"]
+
+# --- Rules ---------------------------------------------------------------------------
+# Each [[rule]] targets users/groups; a rule with neither `users` nor `groups` applies to
+# EVERY user. Precedence per setting: user > group > everyone — the most specific tier
+# that sets a key wins, so you can lock down globally and relax per group. When several
+# rules of the same tier conflict, the most restrictive value applies.
+
+# [[rule]]
+# name = "company-baseline"           # optional, used in log messages
+#
+#   # Server access: "allow" = only listed servers may be connected to (allow-list),
+#   # "deny" = listed servers are blocked (deny-list). Patterns match the configured host
+#   # string (no DNS lookups): exact host names, globs, an optional :port suffix, single
+#   # IPs, CIDR networks and inclusive IP ranges (IPv4 + IPv6; IPv6 with port uses
+#   # bracket form [2001:db8::1]:22). Jump hosts are checked too. Applies to terminals,
+#   # SFTP, QuickConnect and scheduled jobs.
+#   [rule.servers]
+#   mode  = "deny"
+#   hosts = [
+#     "*.prod.acme.com",              # host-name glob
+#     "vault.acme.com:22",            # exact host, only port 22
+#     "192.168.10.42",                # single IP address
+#     "10.99.0.0/16",                 # CIDR network
+#     "10.20.0.100-10.20.0.199",      # inclusive IP range
+#   ]
+#
+#   # Feature switches: "allow" | "deny".
+#   [rule.features]
+#   ai = "allow"                      # master switch; "deny" disables every AI capability
+#   ai-agent = "deny"                 # the terminal AI agent
+#   ai-chat = "allow"                 # AI chat, saved chats and terminal-selection actions
+#   ai-swarm = "deny"                 # multi-host AI swarm
+#   ai-planning = "deny"              # AI planning
+#   teamwork = "deny"                 # shared-connections sync
+#   plugins = "deny"                  # plugins (e.g. terminal effects)
+#   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
+#   # command set needs interactive approval; auto-approve is defeated), "read-only"
+#   # (the agent may plan and chat but never executes commands).
+#   ai-agent-execution = "read-only"
+#
+#   [rule.security]
+#   require-master-password = true    # force the master-password gate at startup
+#   enforce-host-key-check = true     # host key verification cannot be disabled anywhere
+#   allow-telemetry = false           # forbid anonymous usage data
+#   allow-terminal-recording = false  # forbid terminal session recording
+#   # "internal" confines korTTY to its own in-memory clipboard: text copied in other
+#   # applications cannot be pasted into korTTY, korTTY copies never reach the OS
+#   # clipboard, and copy/paste WITHIN korTTY keeps working (terminals, SFTP, editors).
+#   clipboard-mode = "internal"       # "system" (default) | "internal"
+#
+#   [rule.teamwork]
+#   allow-custom-sources = false      # only the [[teamwork-source]] entries below
+#
+#   [rule.snippets]
+#   allow-custom-script-headers = false   # only the [[script-header]] entries below
+#
+#   [rule.ai-profiles]
+#   allow-create = false              # users cannot create AI profiles
+#   allow-edit = false                # users cannot edit their existing profiles either
+#
+#   [rule.ai-runtime]
+#   allow-runtime-downloads = false   # no llama.cpp/MLX runtime downloads or updates
+#   allow-model-downloads = false     # no Hugging Face model downloads
+#   allow-user-models = false         # only [[ai-runtime.model]] entries are loadable
+#
+#   [rule.updates]
+#   enabled = false                   # disables the auto-check AND the About-dialog check
+#   # ...or redirect to your own server instead of GitHub (must serve the GitHub
+#   # releases-latest JSON shape — see the guide chapter):
+#   # feed-url = "https://intranet.acme.com/kortty/releases/latest.json"
+#
+#   [rule.terminal]
+#   # Terminal "Load into snippet editor": "allow", "read-only" (loading works, but
+#   # writing back to the remote system is forbidden) or "deny".
+#   load-into-snippet-editor = "read-only"
+#
+#   # Where and how korTTY writes its log files. Directory and retention are forced into
+#   # the (locked) user settings; format, compression and rotation apply directly.
+#   [rule.logging]
+#   directory = "/var/log/kortty"     # absolute or ~/-relative; default ~/.kortty/logs
+#   retention-days = 30               # delete rotated logs after N days (0 = keep forever)
+#   compress = true                   # gzip rotated logs after one day (default true)
+#   format = "json"                   # "text" (default) | "json" (one JSON object per line)
+#   rotation-max-files = 14           # keep at most N rotated daily files (0 = unlimited)
+#   rotation-total-size-mb = 512      # cap total size of rotated files in MB (0 = uncapped)
+
+# A more specific rule can relax the baseline for a group or single users:
+# [[rule]]
+# name = "ops-exception"
+# groups = ["ops", "ACME\\Operations"]    # TOML group OR OS/AD group
+# users  = ["eve"]
+#   [rule.features]
+#   ai-agent = "allow"
+#   ai-agent-execution = "confirm"
+#   [rule.servers]
+#   mode = "allow"
+#   hosts = ["*.acme.com", "10.0.0.0/8"]
+
+# --- Admin-provided objects (global, read-only for users) ----------------------------
+
+# Immutable script headers, shown in the snippet system's Script-Header category:
+# [[script-header]]
+# name = "ACME Bash Header"
+# content = """
+# #!/usr/bin/env bash
+# set -euo pipefail
+# # (c) ACME Corp — do not remove
+# """
+
+# Preconfigured AI profiles (id must start with "policy-"). The API key is stored in the
+# encrypted kortty-enc:v1: envelope — create it with:  korTTY --encrypt-policy-value
+# (protects against casual disclosure; the installation directory's OS permissions remain
+# the actual security boundary). provider: "anthropic", "openai-compatible", "lm-studio",
+# "embedded-llama" or "embedded-mlx" (embedded providers use `model` as the local model id).
+# [[ai-profile]]
+# id       = "policy-acme-llm"
+# name     = "ACME internal LLM"
+# provider = "openai-compatible"
+# endpoint = "https://llm.acme.internal/v1"
+# model    = "acme-70b"
+# api-key-encrypted = "kortty-enc:v1:..."
+
+# Admin-provisioned local models, registered automatically at startup. GGUF (llama) models
+# may come from an absolute local/UNC path or an http(s) URL (downloaded once); MLX models
+# must point to a local safetensors directory.
+# [[ai-runtime.model]]
+# name    = "acme-llama-q4"
+# runtime = "llama"                   # "llama" | "mlx"
+# source  = "https://models.acme.internal/llama-3.3-70b-q4.gguf"
+
+# Preconfigured teamwork sources (read-only for users):
+# [[teamwork-source]]
+# name = "ACME shared connections"
+# type = "git"                        # "git" | "shared-file"
+# url  = "https://git.acme.internal/it/kortty-connections.git"

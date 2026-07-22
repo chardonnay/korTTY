@@ -22,22 +22,36 @@ public class GlobalSettingsManager {
     private final Path configDir;
     private GlobalSettings settings;
     private long loadedSettingsLastModifiedMillis;
-    
+    private de.kortty.policy.PolicyClamp policyClamp;
+
     public GlobalSettingsManager(Path configDir) {
         this.configDir = configDir;
         this.settings = new GlobalSettings();
     }
-    
+
+    /**
+     * Installs the enterprise-policy clamp. Every subsequent load (including
+     * {@link #reloadIfChanged()}) re-applies the forced values, so a hand-edited
+     * {@code global-settings.xml} can never override a policy-managed setting.
+     */
+    public synchronized void setPolicyClamp(de.kortty.policy.PolicyClamp policyClamp) {
+        this.policyClamp = policyClamp;
+        if (policyClamp != null) {
+            policyClamp.apply(settings);
+        }
+    }
+
     /**
      * Loads settings from XML file.
      */
     public synchronized void load() throws Exception {
         Path settingsFile = settingsFile();
-        
+
         if (!Files.exists(settingsFile)) {
             logger.info("Settings file not found, using defaults");
             this.settings = new GlobalSettings();
             this.loadedSettingsLastModifiedMillis = 0L;
+            applyPolicyClamp();
             return;
         }
         
@@ -66,6 +80,7 @@ public class GlobalSettingsManager {
             this.settings = new GlobalSettings();
         } finally {
             this.loadedSettingsLastModifiedMillis = lastModifiedMillis;
+            applyPolicyClamp();
         }
     }
     
@@ -91,9 +106,21 @@ public class GlobalSettingsManager {
         );
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        marshaller.marshal(settings, settingsFile.toFile());
+        if (policyClamp != null) {
+            // Re-clamp forced values and swap in filtered lists so policy-managed objects never
+            // reach the user XML; the live lists are left untouched (no in-place mutation that a
+            // concurrent reader could trip over) and restored right after marshaling.
+            de.kortty.policy.PolicyClamp.MarshalScope scope = policyClamp.beforeSave(settings);
+            try {
+                marshaller.marshal(settings, settingsFile.toFile());
+            } finally {
+                policyClamp.afterSave(scope);
+            }
+        } else {
+            marshaller.marshal(settings, settingsFile.toFile());
+        }
         this.loadedSettingsLastModifiedMillis = lastModifiedMillis(settingsFile);
-        
+
         logger.info("Saved global settings to {}", settingsFile);
     }
     
@@ -109,6 +136,12 @@ public class GlobalSettingsManager {
 
     public synchronized GlobalSettings getSettings() {
         return settings;
+    }
+
+    private void applyPolicyClamp() {
+        if (policyClamp != null) {
+            policyClamp.apply(settings);
+        }
     }
 
     private Path settingsFile() {

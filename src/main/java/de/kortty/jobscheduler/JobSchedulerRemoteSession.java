@@ -173,6 +173,11 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     }
 
     public void connect() throws Exception {
+        // Headless job runs must respect the enterprise server policy like interactive connects.
+        de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Connection to " + target + " is blocked by your organization's policy");
+        });
         validateConnection();
         client = SshClient.setUpDefaultClient();
         client.setUserAuthFactories(buildUserAuthFactories(connection));

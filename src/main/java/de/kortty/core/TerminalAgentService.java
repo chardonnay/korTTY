@@ -367,6 +367,15 @@ public class TerminalAgentService {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(ui, "ui");
 
+        // Enterprise policy backstop: with the agent denied or forced read-only, no run may
+        // execute regardless of which UI path constructed the request.
+        de.kortty.policy.EffectivePolicy agentPolicy = de.kortty.policy.PolicyManager.effective();
+        if (!agentPolicy.aiAgentAllowed()
+            || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.READ_ONLY) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "The AI agent is disabled by your organization's policy");
+        }
+
         String runId = requestedRunId != null && !requestedRunId.isBlank()
             ? requestedRunId
             : UUID.randomUUID().toString();
@@ -376,7 +385,10 @@ public class TerminalAgentService {
             publishAgentProfile(ui, runId, profile);
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
-            boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets();
+            // Policy mode CONFIRM overrides any request-level opt-out and defeats the
+            // auto-approve bypass — every mutating command set must be approved interactively.
+            boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets()
+                || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM;
             boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
             cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
 

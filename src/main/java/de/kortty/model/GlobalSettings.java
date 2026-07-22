@@ -1232,6 +1232,19 @@ public class GlobalSettings {
         normalizeAiProfiles();
     }
 
+    /**
+     * Swaps the AI-profile list reference and returns the previous one, <b>without</b> running
+     * {@link #normalizeAiProfiles()}. Used only by the enterprise-policy marshal path
+     * ({@code PolicyClamp}) to persist a filtered list — policy-managed profiles excluded — while
+     * leaving the live list untouched for concurrent readers, and without letting normalization
+     * null out default-profile ids that point at a (temporarily absent) policy-managed profile.
+     */
+    public java.util.List<AiProfile> exchangeAiProfilesForMarshal(java.util.List<AiProfile> replacement) {
+        java.util.List<AiProfile> previous = this.aiProfiles;
+        this.aiProfiles = replacement;
+        return previous;
+    }
+
     public boolean isAiSkillsEnabled() {
         return aiSkillsEnabled;
     }
@@ -2595,6 +2608,17 @@ public class GlobalSettings {
     
     public void setTeamworkSources(java.util.List<TeamworkSourceConfig> teamworkSources) {
         this.teamworkSources = teamworkSources;
+    }
+
+    /**
+     * Swaps the teamwork-source list reference and returns the previous one. Counterpart of
+     * {@link #exchangeAiProfilesForMarshal} for the enterprise-policy marshal path.
+     */
+    public java.util.List<TeamworkSourceConfig> exchangeTeamworkSourcesForMarshal(
+            java.util.List<TeamworkSourceConfig> replacement) {
+        java.util.List<TeamworkSourceConfig> previous = this.teamworkSources;
+        this.teamworkSources = replacement;
+        return previous;
     }
     
     public int getTeamworkDefaultCheckIntervalMinutes() {

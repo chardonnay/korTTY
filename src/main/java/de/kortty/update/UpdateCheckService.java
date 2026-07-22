@@ -99,6 +99,12 @@ public class UpdateCheckService {
     }
 
     public UpdateCheckResult checkManually() {
+        // Enterprise policy backstop: with updates denied, manual checks are refused too (the
+        // About-dialog button is already disabled; this covers any other caller).
+        if (!de.kortty.policy.PolicyManager.effective().updatesEnabled()) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Update checks are disabled by your organization's policy");
+        }
         return checkForUpdate(UpdateCheckRunType.MANUAL);
     }
 

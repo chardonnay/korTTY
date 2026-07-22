@@ -249,9 +249,7 @@ final class GuideAskPanel extends VBox {
         if (lastAnswerMarkdown == null || lastAnswerMarkdown.isBlank()) {
             return;
         }
-        ClipboardContent content = new ClipboardContent();
-        content.putString(lastAnswerMarkdown);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(lastAnswerMarkdown);
         // Brief inline confirmation on the button itself, then restore the label.
         copyButton.setText(I18n.get("guide.ask.copied"));
         copyButton.setDisable(true);

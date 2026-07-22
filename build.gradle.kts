@@ -354,6 +354,9 @@ dependencies {
     // Password strength (zxcvbn – offline, no network)
     implementation("com.nulab-inc:zxcvbn:1.9.0")
     
+    // TOML parsing for the enterprise admin policy file (kortty-policy.toml)
+    implementation("org.tomlj:tomlj:1.1.1")
+
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.knuddels:jtokkit:1.1.0")
@@ -413,6 +416,11 @@ application {
 tasks.named<JavaExec>("run") {
     dependsOn("copyBundledFormatters")
     systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("bundled-formatters").get().asFile.absolutePath)
+    // Dev-only enterprise-policy testing: ./gradlew run -Pkortty.policyFile=/path/policy.toml
+    // (the override is ignored in packaged builds — see PolicyLocator).
+    (findProperty("kortty.policyFile") as String?)?.let {
+        systemProperty("kortty.policy.file", it)
+    }
 }
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
@@ -1536,6 +1544,12 @@ tasks.register<Sync>("prepareJpackage") {
         into("mosh4j")
         include("release-$mosh4jVersion-${mosh4jArch()}/**")
         include("deps/$mosh4jProtobufJar")
+    }
+    // Enterprise policy template: ships as policy/kortty-policy.toml.example next to the app jar
+    // (nothing is active by default — admins copy it to kortty-policy.toml in the same folder,
+    // which is exactly where PolicyLocator looks).
+    from("package/policy") {
+        into("policy")
     }
     doLast {
         val libsDir = jpackageInput.get().asFile.resolve("libs")
