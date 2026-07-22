@@ -792,9 +792,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         if (selectedText == null || selectedText.isEmpty()) {
             return;
         }
-        ClipboardContent content = new ClipboardContent();
-        content.putString(selectedText);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(selectedText);
     }
 
     private void commitJournalRetentionEditorValue() {

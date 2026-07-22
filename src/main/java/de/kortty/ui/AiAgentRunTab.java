@@ -71,9 +71,7 @@ public class AiAgentRunTab extends Tab {
 
         Button copyButton = new Button(I18n.get("ai.agent.run.copy"));
         copyButton.setOnAction(event -> {
-            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
-            content.putString(transcriptArea.getText());
-            javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+            de.kortty.core.KorttyClipboard.setText(transcriptArea.getText());
             statusLabel.setText(I18n.get("ai.agent.run.copy.done"));
         });
 

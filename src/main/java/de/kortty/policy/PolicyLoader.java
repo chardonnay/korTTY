@@ -37,7 +37,7 @@ public final class PolicyLoader {
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates", "terminal");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
-        "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording");
+        "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
     private static final Set<String> RULE_TEAMWORK_KEYS = Set.of("allow-custom-sources");
     private static final Set<String> SNIPPETS_KEYS = Set.of("allow-custom-script-headers");
     private static final Set<String> AI_PROFILES_KEYS = Set.of("allow-create", "allow-edit");
@@ -249,6 +249,15 @@ public final class PolicyLoader {
         builder.enforceHostKeyCheck(getBoolean(security, "enforce-host-key-check", securityContext));
         builder.allowTelemetry(getBoolean(security, "allow-telemetry", securityContext));
         builder.allowTerminalRecording(getBoolean(security, "allow-terminal-recording", securityContext));
+        String clipboardMode = getString(security, "clipboard-mode", securityContext);
+        if (clipboardMode != null) {
+            ClipboardMode mode = ClipboardMode.fromToml(clipboardMode);
+            if (mode == null) {
+                errors.add(securityContext + ": clipboard-mode must be \"system\" or \"internal\"");
+            } else {
+                builder.clipboardMode(mode);
+            }
+        }
     }
 
     private void parseRuleFlag(TomlTable rule, String tableKey, Set<String> knownKeys, String context,

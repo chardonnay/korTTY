@@ -19,5 +19,6 @@ public enum ManagedSetting {
     AI_PROFILES,
     AI_RUNTIME,
     LOAD_INTO_SNIPPET_EDITOR,
-    SERVER_ACCESS
+    SERVER_ACCESS,
+    CLIPBOARD
 }

@@ -354,6 +354,10 @@ public class KorTTYApplication extends Application {
             // already persisted here, and the error appender is live during window construction.
             telemetryService.start();
 
+            // Internal-clipboard mode: redirect copy/cut/paste shortcuts of native text controls
+            // and WebViews on every window (no-op in system clipboard mode).
+            de.kortty.policy.PolicyClipboardGuard.install();
+
             // An installed but invalid policy file has put the app into fail-safe lockdown —
             // tell the user before the (restricted) main window appears.
             if (policyManager != null && policyManager.hasLoadFailure()) {

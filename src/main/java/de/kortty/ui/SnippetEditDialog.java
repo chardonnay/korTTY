@@ -4879,9 +4879,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void copyOneLinerToClipboard(String line) {
-        ClipboardContent clip = new ClipboardContent();
-        clip.putString(line);
-        Clipboard.getSystemClipboard().setContent(clip);
+        de.kortty.core.KorttyClipboard.setText(line);
         setStatus(I18n.get("snippets.oneliner.success"));
     }
 

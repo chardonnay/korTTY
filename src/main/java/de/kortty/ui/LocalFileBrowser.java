@@ -628,9 +628,7 @@ public class LocalFileBrowser extends VBox {
         if (node == null) {
             return;
         }
-        ClipboardContent content = new ClipboardContent();
-        content.putString(node.file().getAbsolutePath());
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(node.file().getAbsolutePath());
         setStatus(I18n.get("filebrowser.path.copied"));
     }
 

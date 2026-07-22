@@ -129,6 +129,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `enforce-host-key-check` | boolean | `true` | Die Überprüfung des SSH-Hostschlüssels kann nirgendwo deaktiviert werden – global, pro Gruppe oder pro Verbindung |
 | `allow-telemetry` | boolean | `false` | Verbietet anonyme Nutzungsstatistiken |
 | `allow-terminal-recording` | boolean | `false` | Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene |
+| `clipboard-mode` | Zeichenfolge | `system`, `internal` | `internal` beschränkt korTTY auf seine eigene Zwischenablage im Speicher – siehe unten |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
 
@@ -170,6 +171,15 @@ Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer sc
 | `[[ai-profile]]` | `id`, `name`, `provider`, `endpoint`, `model`, `api-key-encrypted` | `id` muss mit `policy-` beginnen; `provider` ist einer von `anthropic`, `openai-compatible`, `lm-studio`, `embedded-llama`, `embedded-mlx` (eingebettete Anbieter lesen `model` als lokale Modell-ID) |
 | `[[ai-runtime.model]]` | `name`, `runtime`, `source` | `runtime` Ist `llama` oder `mlx`; `source` ist ein absoluter lokaler/UNC-Pfad oder für GGUF-Modelle eine http(s)-URL, die korTTY einmal beim Start herunterlädt |
 | `[[teamwork-source]]` | `name`, `type`, `url` | `type` Ist `git` oder `shared-file`; als schreibgeschützte Teamwork-Quelle eingefügt |
+
+## Interner Zwischenablagemodus
+
+Mit `clipboard-mode = "internal"` trennt sich korTTY vollständig von der Zwischenablage des Betriebssystems und verwendet stattdessen seine eigene Zwischenablage im Arbeitsspeicher: In einer anderen Anwendung kopierter Text kann nirgendwo in korTTY eingefügt werden, und in korTTY kopierter Text gelangt nie in die Zwischenablage des Betriebssystems – während das Kopieren, Ausschneiden und Einfügen *innerhalb* von korTTY weiterhin überall funktioniert, da Terminals, SFTP-Ansichten, der Snippet-Editor und alle Dialoge denselben internen Puffer verwenden. Da es sich hierbei um reine Anwendungslogik handelt und keine Betriebssystem-Zwischenablage-Isolations-API beteiligt ist, verhält es sich unter macOS, Windows und Linux identisch, einschließlich der X11-Primärauswahl (Einfügen mit mittlerem Klick): Das Einfügen von Inhalten mit mittlerem Klick aus anderen Anwendungen ist blockiert, das Einfügen mit mittlerem Klick von korTTY-internen Kopien funktioniert weiterhin.
+
+Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable `${clipboard}` und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.
+
+!!! note "Scope"
+    Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein harter Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-*Einfüge*-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.
 
 ## Verschlüsselte API-Schlüssel
 

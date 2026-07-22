@@ -493,6 +493,12 @@ final class SnippetDiagramView extends VBox {
             statusLabel.setText(I18n.get("snippets.ai.diagram.export.failed", "invalid PNG"));
             return;
         }
+        // Images cannot live in the internal clipboard; internal mode leaves the OS clipboard
+        // untouched, so image copy is unavailable there.
+        if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+            statusLabel.setText(de.kortty.policy.PolicyUiSupport.managedByOrganizationText());
+            return;
+        }
         ClipboardContent content = new ClipboardContent();
         content.putImage(image);
         Clipboard.getSystemClipboard().setContent(content);
@@ -503,9 +509,7 @@ final class SnippetDiagramView extends VBox {
         if (currentMermaid == null || currentMermaid.isBlank()) {
             return;
         }
-        ClipboardContent content = new ClipboardContent();
-        content.putString(currentMermaid);
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(currentMermaid);
         statusLabel.setText(I18n.get("snippets.ai.diagram.copyMermaid.ready"));
     }
 

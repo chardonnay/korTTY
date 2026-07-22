@@ -42,6 +42,7 @@ class PolicyLoaderTest {
           enforce-host-key-check = true
           allow-telemetry = false
           allow-terminal-recording = false
+          clipboard-mode = "internal"
           [rule.teamwork]
           allow-custom-sources = false
           [rule.snippets]
@@ -136,6 +137,7 @@ class PolicyLoaderTest {
         assertThat(baseline.enforceHostKeyCheck()).isTrue();
         assertThat(baseline.allowTelemetry()).isFalse();
         assertThat(baseline.allowTerminalRecording()).isFalse();
+        assertThat(baseline.clipboardMode()).isEqualTo(ClipboardMode.INTERNAL);
         assertThat(baseline.allowCustomTeamworkSources()).isFalse();
         assertThat(baseline.allowCustomScriptHeaders()).isFalse();
         assertThat(baseline.aiProfileAllowCreate()).isFalse();
@@ -341,6 +343,20 @@ class PolicyLoaderTest {
             """.formatted(PolicyValueCipher.encrypt("sk-test"))));
         assertThat(valid.isValid()).isTrue();
         assertThat(valid.file().aiProfiles().get(0).apiKeyEncrypted()).startsWith("kortty-enc:v1:");
+    }
+
+    @Test
+    void invalidClipboardModeIsAnError() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.security]
+            clipboard-mode = "airgapped"
+            """));
+        assertThat(result.isValid()).isFalse();
+        assertThat(result.errors().get(0)).contains("clipboard-mode must be \"system\" or \"internal\"");
     }
 
     @Test

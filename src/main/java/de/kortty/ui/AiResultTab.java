@@ -1497,10 +1497,20 @@ public class AiResultTab extends Tab {
         copyImageButton.setTooltip(new Tooltip(I18n.get("ai.result.image.copy")));
         copyImageButton.setStyle("-fx-padding: 3 8 3 8;");
         copyImageButton.setOnAction(e -> {
+            // Images cannot live in the internal clipboard; in internal mode the OS clipboard
+            // must stay untouched, so image copy is unavailable.
+            if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+                return;
+            }
             ClipboardContent clipboardContent = new ClipboardContent();
             clipboardContent.putImage(image);
             Clipboard.getSystemClipboard().setContent(clipboardContent);
         });
+        if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+            copyImageButton.setDisable(true);
+            copyImageButton.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox header = new HBox(8, imageLabel, spacer, copyImageButton);
@@ -1954,9 +1964,7 @@ public class AiResultTab extends Tab {
     }
 
     private void copyToClipboard(String value) {
-        ClipboardContent content = new ClipboardContent();
-        content.putString(value != null ? value : "");
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(value != null ? value : "");
     }
 
     private void saveCodeBlockAsSnippet(String language, String code) {

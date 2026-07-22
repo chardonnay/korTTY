@@ -850,6 +850,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#internal-clipboard-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal clipboard mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#encrypted-api-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2447,6 +2458,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#internal-clipboard-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal clipboard mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#encrypted-api-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2792,6 +2814,12 @@
 <td><code>false</code></td>
 <td>Forbids terminal session recording, including the session-level toggle</td>
 </tr>
+<tr>
+<td><code>clipboard-mode</code></td>
+<td>string</td>
+<td><code>system</code>, <code>internal</code></td>
+<td><code>internal</code> confines korTTY to its own in-memory clipboard — see below</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ruleteamwork-rulesnippets-ruleai-profiles"><code>[rule.teamwork]</code>, <code>[rule.snippets]</code>, <code>[rule.ai-profiles]</code><a class="headerlink" href="#ruleteamwork-rulesnippets-ruleai-profiles" title="Permanent link">&para;</a></h3>
@@ -2939,6 +2967,13 @@
 </tr>
 </tbody>
 </table>
+<h2 id="internal-clipboard-mode">Internal clipboard mode<a class="headerlink" href="#internal-clipboard-mode" title="Permanent link">&para;</a></h2>
+<p>With <code>clipboard-mode = "internal"</code> korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste <em>within</em> korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.</p>
+<p>The mode covers the terminal (shortcuts, context menu, middle-click), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
+<div class="admonition note">
+<p class="admonition-title">Scope</p>
+<p>The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click <em>Paste</em> entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.</p>
+</div>
 <h2 id="encrypted-api-keys">Encrypted API keys<a class="headerlink" href="#encrypted-api-keys" title="Permanent link">&para;</a></h2>
 <p>An AI profile's API key never appears in plain text in the policy. The administrator encrypts it once from a terminal — the command prints a <code>kortty-enc:v1:</code> value for the <code>api-key-encrypted</code> key:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value

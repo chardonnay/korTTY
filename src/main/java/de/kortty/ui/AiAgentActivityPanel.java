@@ -790,9 +790,7 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void copyToClipboard(String value) {
-        ClipboardContent content = new ClipboardContent();
-        content.putString(value != null ? value : "");
-        Clipboard.getSystemClipboard().setContent(content);
+        de.kortty.core.KorttyClipboard.setText(value != null ? value : "");
     }
 
     private void openSnippetEditor(String text, TerminalAgentModels.AgentActivity activity) {

@@ -18,6 +18,7 @@ import java.util.Set;
  * @param agentExecution             agent execution mode, or null
  * @param requireMasterPassword      force the master-password startup gate
  * @param enforceHostKeyCheck        forbid disabling host key verification at any scope
+ * @param clipboardMode              INTERNAL confines korTTY to its own in-memory clipboard
  * @param allowTelemetry             false forbids telemetry
  * @param allowTerminalRecording     false forbids terminal recording
  * @param allowCustomTeamworkSources false restricts teamwork to policy-provided sources
@@ -40,6 +41,7 @@ public record PolicyRule(
     AgentExecutionMode agentExecution,
     Boolean requireMasterPassword,
     Boolean enforceHostKeyCheck,
+    ClipboardMode clipboardMode,
     Boolean allowTelemetry,
     Boolean allowTerminalRecording,
     Boolean allowCustomTeamworkSources,
@@ -78,6 +80,7 @@ public record PolicyRule(
         private AgentExecutionMode agentExecution;
         private Boolean requireMasterPassword;
         private Boolean enforceHostKeyCheck;
+        private ClipboardMode clipboardMode;
         private Boolean allowTelemetry;
         private Boolean allowTerminalRecording;
         private Boolean allowCustomTeamworkSources;
@@ -99,6 +102,7 @@ public record PolicyRule(
         public Builder agentExecution(AgentExecutionMode value) { this.agentExecution = value; return this; }
         public Builder requireMasterPassword(Boolean value) { this.requireMasterPassword = value; return this; }
         public Builder enforceHostKeyCheck(Boolean value) { this.enforceHostKeyCheck = value; return this; }
+        public Builder clipboardMode(ClipboardMode value) { this.clipboardMode = value; return this; }
         public Builder allowTelemetry(Boolean value) { this.allowTelemetry = value; return this; }
         public Builder allowTerminalRecording(Boolean value) { this.allowTerminalRecording = value; return this; }
         public Builder allowCustomTeamworkSources(Boolean value) { this.allowCustomTeamworkSources = value; return this; }
@@ -114,7 +118,7 @@ public record PolicyRule(
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
-                requireMasterPassword, enforceHostKeyCheck, allowTelemetry, allowTerminalRecording,
+                requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
                 allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor);

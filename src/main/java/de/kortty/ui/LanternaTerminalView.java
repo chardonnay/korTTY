@@ -235,8 +235,13 @@ public class LanternaTerminalView extends BorderPane {
     public void pasteFromClipboard() {
         if (ttyConnector != null && ttyConnector.isConnected()) {
             try {
-                String clipboard = (String) Toolkit.getDefaultToolkit()
-                        .getSystemClipboard().getData(java.awt.datatransfer.DataFlavor.stringFlavor);
+                String clipboard;
+                if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+                    clipboard = de.kortty.core.KorttyClipboard.getText();
+                } else {
+                    clipboard = (String) Toolkit.getDefaultToolkit()
+                            .getSystemClipboard().getData(java.awt.datatransfer.DataFlavor.stringFlavor);
+                }
                 if (clipboard != null) ttyConnector.write(clipboard);
             } catch (Exception e) {
                 logger.error("Error pasting from clipboard", e);

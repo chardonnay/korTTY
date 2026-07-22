@@ -423,14 +423,11 @@ public class SnippetManager {
             builtins.put("hostname", "localhost");
         }
         
-        // Clipboard content (must be called on FX thread or cached before)
+        // Clipboard content (must be called on FX thread or cached before). Honors the
+        // enterprise policy's internal clipboard mode.
         try {
-            Clipboard clipboard = Clipboard.getSystemClipboard();
-            if (clipboard.hasString()) {
-                builtins.put("clipboard", clipboard.getString());
-            } else {
-                builtins.put("clipboard", "");
-            }
+            String clipboardText = KorttyClipboard.getText();
+            builtins.put("clipboard", clipboardText != null ? clipboardText : "");
         } catch (Exception e) {
             builtins.put("clipboard", "");
         }

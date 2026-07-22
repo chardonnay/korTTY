@@ -132,9 +132,7 @@ public final class SwarmWorkflowScriptDialog {
         Button generateButton = new Button(I18n.get("ai.workflow.generate"));
         Button copyButton = new Button(I18n.get("ai.workflow.copy"));
         copyButton.setOnAction(e -> {
-            ClipboardContent content = new ClipboardContent();
-            content.putString(preview.textProperty().getValue());
-            Clipboard.getSystemClipboard().setContent(content);
+            de.kortty.core.KorttyClipboard.setText(preview.textProperty().getValue());
             status.setText(I18n.get("ai.workflow.copied"));
         });
         Button saveSnippetButton = new Button(I18n.get("ai.result.saveSnippet"));

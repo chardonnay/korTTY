@@ -850,6 +850,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#interner-zwischenablagemodus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interner Zwischenablagemodus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verschlusselte-api-schlussel" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2447,6 +2458,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#interner-zwischenablagemodus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interner Zwischenablagemodus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verschlusselte-api-schlussel" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2792,6 +2814,12 @@
 <td><code>false</code></td>
 <td>Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene</td>
 </tr>
+<tr>
+<td><code>clipboard-mode</code></td>
+<td>Zeichenfolge</td>
+<td><code>system</code>, <code>internal</code></td>
+<td><code>internal</code> beschränkt korTTY auf seine eigene Zwischenablage im Speicher – siehe unten</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ruleteamwork-rulesnippets-ruleai-profiles"><code>[rule.teamwork]</code>, <code>[rule.snippets]</code>, <code>[rule.ai-profiles]</code><a class="headerlink" href="#ruleteamwork-rulesnippets-ruleai-profiles" title="Permanent link">&para;</a></h3>
@@ -2939,6 +2967,13 @@
 </tr>
 </tbody>
 </table>
+<h2 id="interner-zwischenablagemodus">Interner Zwischenablagemodus<a class="headerlink" href="#interner-zwischenablagemodus" title="Permanent link">&para;</a></h2>
+<p>Mit <code>clipboard-mode = "internal"</code> trennt sich korTTY vollständig von der Zwischenablage des Betriebssystems und verwendet stattdessen seine eigene Zwischenablage im Arbeitsspeicher: In einer anderen Anwendung kopierter Text kann nirgendwo in korTTY eingefügt werden, und in korTTY kopierter Text gelangt nie in die Zwischenablage des Betriebssystems – während das Kopieren, Ausschneiden und Einfügen <em>innerhalb</em> von korTTY weiterhin überall funktioniert, da Terminals, SFTP-Ansichten, der Snippet-Editor und alle Dialoge denselben internen Puffer verwenden. Da es sich hierbei um reine Anwendungslogik handelt und keine Betriebssystem-Zwischenablage-Isolations-API beteiligt ist, verhält es sich unter macOS, Windows und Linux identisch, einschließlich der X11-Primärauswahl (Einfügen mit mittlerem Klick): Das Einfügen von Inhalten mit mittlerem Klick aus anderen Anwendungen ist blockiert, das Einfügen mit mittlerem Klick von korTTY-internen Kopien funktioniert weiterhin.</p>
+<p>Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable <code>${clipboard}</code> und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.</p>
+<div class="admonition note">
+<p class="admonition-title">Scope</p>
+<p>Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein harter Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-<em>Einfüge</em>-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.</p>
+</div>
 <h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
 <p>Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value

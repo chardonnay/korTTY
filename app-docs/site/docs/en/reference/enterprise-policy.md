@@ -129,6 +129,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection |
 | `allow-telemetry` | boolean | `false` | Forbids anonymous usage statistics |
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
+| `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
 
@@ -170,6 +171,15 @@ These top-level tables define objects that appear read-only for every user, mark
 | `[[ai-profile]]` | `id`, `name`, `provider`, `endpoint`, `model`, `api-key-encrypted` | `id` must start with `policy-`; `provider` is one of `anthropic`, `openai-compatible`, `lm-studio`, `embedded-llama`, `embedded-mlx` (embedded providers read `model` as the local model id) |
 | `[[ai-runtime.model]]` | `name`, `runtime`, `source` | `runtime` is `llama` or `mlx`; `source` is an absolute local/UNC path, or for GGUF models an http(s) URL that korTTY downloads once at startup |
 | `[[teamwork-source]]` | `name`, `type`, `url` | `type` is `git` or `shared-file`; injected as a read-only teamwork source |
+
+## Internal clipboard mode
+
+With `clipboard-mode = "internal"` korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste *within* korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.
+
+The mode covers the terminal (shortcuts, context menu, middle-click), the code editor, all copy buttons, the `${clipboard}` snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.
+
+!!! note "Scope"
+    The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click *Paste* entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.
 
 ## Encrypted API keys
 

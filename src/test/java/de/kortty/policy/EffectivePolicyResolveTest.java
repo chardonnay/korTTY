@@ -183,6 +183,28 @@ class EffectivePolicyResolveTest {
     }
 
     @Test
+    void clipboardModeResolvesWithInternalAsRestrictive() {
+        PolicyRule system = PolicyRule.builder()
+            .groups(Set.of("g"))
+            .clipboardMode(ClipboardMode.SYSTEM)
+            .build();
+        PolicyRule internal = PolicyRule.builder()
+            .groups(Set.of("g"))
+            .clipboardMode(ClipboardMode.INTERNAL)
+            .build();
+        PolicyFile file = file(Map.of("g", Set.of("u")), system, internal);
+
+        EffectivePolicy policy = EffectivePolicy.resolve(file, identity("u"));
+        assertThat(policy.clipboardMode()).isEqualTo(ClipboardMode.INTERNAL);
+        assertThat(policy.isManaged(ManagedSetting.CLIPBOARD)).isTrue();
+
+        // Unset -> system, unmanaged.
+        EffectivePolicy unset = EffectivePolicy.resolve(file(Map.of()), identity("u"));
+        assertThat(unset.clipboardMode()).isEqualTo(ClipboardMode.SYSTEM);
+        assertThat(unset.isManaged(ManagedSetting.CLIPBOARD)).isFalse();
+    }
+
+    @Test
     void unknownUserGetsOnlyAllTierRules() {
         PolicyRule allRule = PolicyRule.builder().updatesEnabled(false).build();
         PolicyRule scoped = PolicyRule.builder()

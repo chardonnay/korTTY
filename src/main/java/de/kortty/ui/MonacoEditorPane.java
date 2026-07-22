@@ -361,14 +361,38 @@ public class MonacoEditorPane extends StackPane {
     }
 
     public void cut() {
+        // Internal clipboard mode: WebKit's own clipboard bridge would reach the OS clipboard,
+        // so perform the edit against korTTY's internal buffer instead.
+        if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+            String selected = getSelectedText();
+            if (selected != null && !selected.isEmpty()) {
+                de.kortty.core.KorttyClipboard.setText(selected);
+                replaceSelection("");
+            }
+            return;
+        }
         runWhenReady("window.korttyMonaco.cut();");
     }
 
     public void copy() {
+        if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+            String selected = getSelectedText();
+            if (selected != null && !selected.isEmpty()) {
+                de.kortty.core.KorttyClipboard.setText(selected);
+            }
+            return;
+        }
         runWhenReady("window.korttyMonaco.copy();");
     }
 
     public void paste() {
+        if (de.kortty.core.KorttyClipboard.isInternalMode()) {
+            String text = de.kortty.core.KorttyClipboard.getText();
+            if (text != null && !text.isEmpty()) {
+                replaceSelection(text);
+            }
+            return;
+        }
         runWhenReady("window.korttyMonaco.paste();");
     }
 

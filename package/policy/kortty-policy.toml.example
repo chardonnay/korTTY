@@ -73,6 +73,10 @@
 #   enforce-host-key-check = true     # host key verification cannot be disabled anywhere
 #   allow-telemetry = false           # forbid anonymous usage data
 #   allow-terminal-recording = false  # forbid terminal session recording
+#   # "internal" confines korTTY to its own in-memory clipboard: text copied in other
+#   # applications cannot be pasted into korTTY, korTTY copies never reach the OS
+#   # clipboard, and copy/paste WITHIN korTTY keeps working (terminals, SFTP, editors).
+#   clipboard-mode = "internal"       # "system" (default) | "internal"
 #
 #   [rule.teamwork]
 #   allow-custom-sources = false      # only the [[teamwork-source]] entries below

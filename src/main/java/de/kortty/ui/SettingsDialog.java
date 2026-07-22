@@ -4207,6 +4207,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         undoItem.setAccelerator(undoShortcut);
         undoItem.setOnAction(event -> runAiSkillEditorEditAction(aiSkillContentArea::undo));
 
+        // aiSkillContentArea is a MonacoEditorPane whose cut/copy/paste are policy-aware
+        // (internal clipboard mode).
         MenuItem cutItem = new MenuItem(I18n.get("editor.context.cut"));
         cutItem.setAccelerator(cutShortcut);
         cutItem.setOnAction(event -> runAiSkillEditorEditAction(aiSkillContentArea::cut));
@@ -4226,7 +4228,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             undoItem.setDisable(!editable || !aiSkillContentArea.isUndoAvailable());
             cutItem.setDisable(!editable || !hasSelection);
             copyItem.setDisable(!hasSelection);
-            pasteItem.setDisable(!editable || !Clipboard.getSystemClipboard().hasString());
+            pasteItem.setDisable(!editable || !de.kortty.core.KorttyClipboard.hasText());
         });
         return menu;
     }

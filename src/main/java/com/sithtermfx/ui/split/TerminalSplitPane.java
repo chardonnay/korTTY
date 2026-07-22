@@ -236,7 +236,9 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request) {
-        SithTermFxWidget widget = new SithTermFxWidget(80, 24, settingsProviderFactory.get());
+        // KorttyTermWidget routes terminal copy/paste through the policy-aware clipboard handler
+        // (enterprise internal-clipboard mode).
+        SithTermFxWidget widget = new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
         widgetConfigurator.accept(widget);
         TtyConnector connector = connectorFactory.createConnectorForSplit(request);
         if (connector != null) {

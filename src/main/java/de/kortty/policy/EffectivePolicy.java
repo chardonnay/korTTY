@@ -25,7 +25,8 @@ public final class EffectivePolicy {
 
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
-        new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false, true, true,
+        new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
+        ClipboardMode.SYSTEM, true, true,
         true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
@@ -36,6 +37,7 @@ public final class EffectivePolicy {
     private final AgentExecutionMode agentExecution;
     private final boolean requireMasterPassword;
     private final boolean enforceHostKeyCheck;
+    private final ClipboardMode clipboardMode;
     private final boolean allowTelemetry;
     private final boolean allowTerminalRecording;
     private final boolean allowCustomTeamworkSources;
@@ -58,6 +60,7 @@ public final class EffectivePolicy {
     private EffectivePolicy(boolean fromPolicyFile, boolean lockdown, String organization,
                             Map<PolicyFeature, PolicyDecision> features, AgentExecutionMode agentExecution,
                             boolean requireMasterPassword, boolean enforceHostKeyCheck,
+                            ClipboardMode clipboardMode,
                             boolean allowTelemetry, boolean allowTerminalRecording,
                             boolean allowCustomTeamworkSources, boolean allowCustomScriptHeaders,
                             boolean aiProfileCreateAllowed, boolean aiProfileEditAllowed,
@@ -77,6 +80,7 @@ public final class EffectivePolicy {
         this.agentExecution = agentExecution;
         this.requireMasterPassword = requireMasterPassword;
         this.enforceHostKeyCheck = enforceHostKeyCheck;
+        this.clipboardMode = clipboardMode;
         this.allowTelemetry = allowTelemetry;
         this.allowTerminalRecording = allowTerminalRecording;
         this.allowCustomTeamworkSources = allowCustomTeamworkSources;
@@ -112,7 +116,7 @@ public final class EffectivePolicy {
             denied.put(feature, PolicyDecision.DENY);
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
-            true, true, false, false, false, false, false, false, false, false, false,
+            true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false,
             false, null, LoadIntoEditorMode.DENY, List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
@@ -161,6 +165,8 @@ public final class EffectivePolicy {
 
         Boolean requireMasterPassword = resolver.resolveRequire(PolicyRule::requireMasterPassword);
         Boolean enforceHostKeyCheck = resolver.resolveRequire(PolicyRule::enforceHostKeyCheck);
+        ClipboardMode clipboardMode = resolver.resolve(
+            PolicyRule::clipboardMode, ClipboardMode::mostRestrictive);
         Boolean allowTelemetry = resolver.resolveAllow(PolicyRule::allowTelemetry);
         Boolean allowTerminalRecording = resolver.resolveAllow(PolicyRule::allowTerminalRecording);
         Boolean allowCustomTeamworkSources = resolver.resolveAllow(PolicyRule::allowCustomTeamworkSources);
@@ -180,6 +186,9 @@ public final class EffectivePolicy {
 
         markManaged(managed, ManagedSetting.MASTER_PASSWORD, requireMasterPassword);
         markManaged(managed, ManagedSetting.HOST_KEY_CHECK, enforceHostKeyCheck);
+        if (clipboardMode != null) {
+            managed.add(ManagedSetting.CLIPBOARD);
+        }
         markManaged(managed, ManagedSetting.TELEMETRY, allowTelemetry);
         markManaged(managed, ManagedSetting.TERMINAL_RECORDING, allowTerminalRecording);
         markManaged(managed, ManagedSetting.TEAMWORK, allowCustomTeamworkSources);
@@ -205,6 +214,7 @@ public final class EffectivePolicy {
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
+            orDefault(clipboardMode, ClipboardMode.SYSTEM),
             orDefault(allowTelemetry, true), orDefault(allowTerminalRecording, true),
             orDefault(allowCustomTeamworkSources, true), orDefault(allowCustomScriptHeaders, true),
             orDefault(aiProfileAllowCreate, true), orDefault(aiProfileAllowEdit, true),
@@ -272,6 +282,10 @@ public final class EffectivePolicy {
 
     public boolean enforceHostKeyCheck() {
         return enforceHostKeyCheck;
+    }
+
+    public ClipboardMode clipboardMode() {
+        return clipboardMode;
     }
 
     public boolean telemetryAllowed() {
