@@ -354,6 +354,9 @@ dependencies {
     // Password strength (zxcvbn – offline, no network)
     implementation("com.nulab-inc:zxcvbn:1.9.0")
     
+    // TOML parsing for the enterprise admin policy file (kortty-policy.toml)
+    implementation("org.tomlj:tomlj:1.1.1")
+
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.knuddels:jtokkit:1.1.0")
