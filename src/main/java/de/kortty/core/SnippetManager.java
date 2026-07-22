@@ -113,6 +113,28 @@ public class SnippetManager {
         if (operatingSystems.isEmpty()) {
             operatingSystems.addAll(DEFAULT_OPERATING_SYSTEMS);
         }
+        injectPolicyScriptHeaders();
+    }
+
+    /**
+     * (Re)builds the admin-provided script headers from the enterprise policy: stable
+     * {@code policy-header-*} ids, flagged {@link Snippet#isPolicyManaged() policyManaged}, and
+     * replacing any same-id leftovers. Runs on every load so the headers are self-healing against
+     * any edit of the user's snippets XML; they are stripped again in {@link #save()}.
+     */
+    private void injectPolicyScriptHeaders() {
+        snippets.removeIf(snippet -> snippet != null
+            && (snippet.isPolicyManaged()
+                || (snippet.getId() != null && snippet.getId().startsWith("policy-header-"))));
+        int index = 0;
+        for (de.kortty.policy.PolicyFile.ScriptHeader header
+                : de.kortty.policy.PolicyManager.effective().scriptHeaders()) {
+            Snippet snippet = new Snippet(header.name(), header.content(), "bash");
+            snippet.setId("policy-header-" + (++index));
+            snippet.setCategory(SCRIPT_HEADER_CATEGORY);
+            snippet.setPolicyManaged(true);
+            snippets.add(snippet);
+        }
     }
     
     public void save() throws Exception {
@@ -121,7 +143,11 @@ public class SnippetManager {
         try {
             discardUnsupportedDiagramSources();
             SnippetsWrapper wrapper = new SnippetsWrapper();
-            wrapper.setSnippets(new ArrayList<>(snippets));
+            // Policy-provided script headers never reach the user XML — they are rebuilt from the
+            // policy file on every load.
+            wrapper.setSnippets(snippets.stream()
+                .filter(snippet -> snippet == null || !snippet.isPolicyManaged())
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
             wrapper.setCategories(new ArrayList<>(categories));
             wrapper.setOperatingSystems(new ArrayList<>(operatingSystems));
             
@@ -170,23 +196,43 @@ public class SnippetManager {
     
     public void addSnippet(Snippet snippet) {
         Objects.requireNonNull(snippet, "snippet");
+        requireScriptHeaderCreationAllowed(snippet);
         ensureUniqueSnippetName(snippet, null);
         snippets.add(snippet);
         logger.info("Added snippet: {}", snippet.getName());
     }
-    
+
     public void removeSnippet(Snippet snippet) {
+        requireNotPolicyManaged(snippet);
         snippets.remove(snippet);
         logger.info("Removed snippet: {}", snippet.getName());
     }
-    
+
     public void updateSnippet(Snippet snippet) {
         Objects.requireNonNull(snippet, "snippet");
+        requireNotPolicyManaged(snippet);
         ensureUniqueSnippetName(snippet, snippet.getId());
         int index = snippets.indexOf(snippet);
         if (index >= 0) {
             snippets.set(index, snippet);
             logger.info("Updated snippet: {}", snippet.getName());
+        }
+    }
+
+    private static void requireNotPolicyManaged(Snippet snippet) {
+        if (snippet != null && snippet.isPolicyManaged()) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Script headers provided by your organization's policy cannot be changed");
+        }
+    }
+
+    private static void requireScriptHeaderCreationAllowed(Snippet snippet) {
+        if (snippet.getCategory() != null
+            && SCRIPT_HEADER_CATEGORY.equalsIgnoreCase(snippet.getCategory())
+            && !snippet.isPolicyManaged()
+            && !de.kortty.policy.PolicyManager.effective().customScriptHeadersAllowed()) {
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Creating script headers is disabled by your organization's policy");
         }
     }
     

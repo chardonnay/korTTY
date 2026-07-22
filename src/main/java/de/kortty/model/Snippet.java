@@ -61,6 +61,13 @@ public class Snippet {
     @XmlElement
     private Integer historyMaxSize; // null = use global default
 
+    /**
+     * True for snippets injected from the enterprise policy (admin script headers). Never
+     * persisted — policy snippets are rebuilt from the policy file on every load.
+     */
+    @XmlTransient
+    private boolean policyManaged;
+
     public Snippet() {
         this.id = java.util.UUID.randomUUID().toString();
         this.createdAt = System.currentTimeMillis();
@@ -134,6 +141,10 @@ public class Snippet {
     public Integer getHistoryMaxSize() { return historyMaxSize; }
 
     public void setHistoryMaxSize(Integer historyMaxSize) { this.historyMaxSize = historyMaxSize; }
+
+    public boolean isPolicyManaged() { return policyManaged; }
+
+    public void setPolicyManaged(boolean policyManaged) { this.policyManaged = policyManaged; }
 
     /**
      * Increments usage count and updates last used timestamp.

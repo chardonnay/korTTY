@@ -359,13 +359,16 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             boolean hasSelection = !selected.isEmpty();
             boolean hasSingle = selected.size() == 1;
             
-            editBtn.setDisable(!hasSingle);
-            deleteBtn.setDisable(!hasSelection);
+            // Admin-provided script headers are read-only: usable, but never editable/deletable.
+            boolean anyPolicyManaged = selected.stream()
+                .anyMatch(snippet -> snippet != null && snippet.isPolicyManaged());
+            editBtn.setDisable(!hasSingle || anyPolicyManaged);
+            deleteBtn.setDisable(!hasSelection || anyPolicyManaged);
             copyBtn.setDisable(!hasSingle);
             insertEditorBtn.setDisable(!hasSingle);
             insertTermBtn.setDisable(!hasSingle);
             insertTermWithParamsBtn.setDisable(!hasSingle);
-            favBtn.setDisable(!hasSelection);
+            favBtn.setDisable(!hasSelection || anyPolicyManaged);
             exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
         });
         
