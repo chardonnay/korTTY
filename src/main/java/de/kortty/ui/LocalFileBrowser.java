@@ -49,8 +49,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
 
 import java.awt.Desktop;
 import java.io.DataOutputStream;
@@ -75,7 +73,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -693,8 +690,13 @@ public class LocalFileBrowser extends VBox {
                 return;
             }
             if (!renameRequested) {
-                // Only enter rename on an explicit request (context menu / F2),
-                // never from a single- or double-click on the row.
+                // Only enter rename on an explicit request (context menu / F2), never from a
+                // single- or double-click. The default cell behavior may already have set the
+                // TreeView's editingItem before calling this; clear it so the refused edit does
+                // not linger and block a later explicit rename of the same item.
+                if (getTreeView() != null) {
+                    Platform.runLater(() -> getTreeView().edit(null));
+                }
                 return;
             }
             renameRequested = false;
