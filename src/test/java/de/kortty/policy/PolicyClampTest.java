@@ -121,6 +121,57 @@ class PolicyClampTest {
     }
 
     @Test
+    void managedProfilesAndTeamworkSourcesAreInjectedButNeverPersisted() throws Exception {
+        PolicyFile file = new PolicyFile(1, "ACME", java.util.Map.of(), List.of(),
+            List.of(),
+            List.of(new PolicyFile.AiProfileDef("policy-acme-llm", "ACME LLM", "openai-compatible",
+                "https://llm.acme.internal/v1", "acme-70b",
+                PolicyValueCipher.encrypt("sk-managed"))),
+            List.of(),
+            List.of(new PolicyFile.TeamworkSourceDef("ACME shared", "git",
+                "https://git.acme.internal/kortty.git")));
+        EffectivePolicy policy = EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(new PolicyClamp(policy));
+        manager.load();
+
+        var profile = manager.getSettings().getAiProfiles().stream()
+            .filter(p -> "policy-acme-llm".equals(p.getId())).findFirst().orElseThrow();
+        assertThat(profile.isPolicyManaged()).isTrue();
+        assertThat(profile.getApiUrl()).isEqualTo("https://llm.acme.internal/v1");
+        assertThat(PolicyAiProfileSupport.apiKeyOverride(profile)).isEqualTo("sk-managed");
+
+        var source = manager.getSettings().getTeamworkSources().stream()
+            .filter(s -> s.getId().startsWith("policy-teamwork-")).findFirst().orElseThrow();
+        assertThat(source.isPolicyManaged()).isTrue();
+        assertThat(source.isReadOnly()).isTrue();
+
+        manager.save();
+        String xml = Files.readString(configDir.resolve("global-settings.xml"));
+        assertThat(xml).doesNotContain("policy-acme-llm");
+        assertThat(xml).doesNotContain("git.acme.internal");
+        assertThat(xml).doesNotContain("kortty-enc:");
+
+        // Restored in memory after the save, and re-injected on a fresh load.
+        assertThat(manager.getSettings().getAiProfiles().stream()
+            .anyMatch(p -> "policy-acme-llm".equals(p.getId()))).isTrue();
+        manager.load();
+        assertThat(manager.getSettings().getAiProfiles().stream()
+            .anyMatch(p -> "policy-acme-llm".equals(p.getId()))).isTrue();
+    }
+
+    @Test
     void withoutPolicyFileTheClampIsInert() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
         manager.setPolicyClamp(new PolicyClamp(EffectivePolicy.unrestricted()));

@@ -3,6 +3,7 @@ package de.kortty.model;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 
 import java.util.Objects;
@@ -35,6 +36,13 @@ public class TeamworkSourceConfig {
 
     @XmlElement
     private boolean enabled = true;
+
+    /**
+     * True for sources injected from the enterprise policy. Never persisted — policy sources are
+     * rebuilt from the policy file on every settings load.
+     */
+    @XmlTransient
+    private boolean policyManaged;
 
     public TeamworkSourceConfig() {
         this.id = UUID.randomUUID().toString();
@@ -84,6 +92,14 @@ public class TeamworkSourceConfig {
 
     public void setReadOnly(boolean readOnly) {
         this.readOnly = readOnly;
+    }
+
+    public boolean isPolicyManaged() {
+        return policyManaged;
+    }
+
+    public void setPolicyManaged(boolean policyManaged) {
+        this.policyManaged = policyManaged;
     }
 
     public boolean isEnabled() {

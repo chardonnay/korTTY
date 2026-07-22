@@ -5083,6 +5083,10 @@ public class MainWindow {
     }
 
     private String getAiApiKeyPlain(AiProfile profile) {
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
+        }
         if (profile == null || profile.getEncryptedApiKey() == null || profile.getEncryptedApiKey().isBlank()) {
             return null;
         }
@@ -7904,7 +7908,8 @@ public class MainWindow {
     }
 
     private void showAiWizard() {
-        if (!isAiFeaturesEnabled()) {
+        if (!isAiFeaturesEnabled()
+            || !de.kortty.policy.PolicyManager.effective().aiProfileCreateAllowed()) {
             return;
         }
         try {

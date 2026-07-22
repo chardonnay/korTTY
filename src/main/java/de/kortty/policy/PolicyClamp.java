@@ -76,22 +76,37 @@ public final class PolicyClamp {
         applyManagedTeamworkSources(settings);
     }
 
-    // Managed-object injection is added with the AI-profile / teamwork phases; the hooks exist so
-    // GlobalSettingsManager never needs to change again.
+    // ---- managed objects: rebuilt from the policy on every load, stripped before every save ----
 
     private void applyManagedAiProfiles(GlobalSettings settings) {
-        // Implemented in the AI-profile phase.
+        java.util.List<de.kortty.model.AiProfile> profiles = settings.getAiProfiles();
+        profiles.removeIf(profile -> profile != null
+            && (profile.isPolicyManaged()
+                || (profile.getId() != null
+                    && profile.getId().startsWith(PolicyFile.AI_PROFILE_ID_PREFIX))));
+        for (PolicyFile.AiProfileDef def : policy.aiProfiles()) {
+            profiles.add(PolicyAiProfileSupport.toAiProfile(def));
+        }
     }
 
     private void stripManagedAiProfiles(GlobalSettings settings) {
-        // Implemented in the AI-profile phase.
+        settings.getAiProfiles().removeIf(
+            profile -> profile != null && profile.isPolicyManaged());
     }
 
     private void applyManagedTeamworkSources(GlobalSettings settings) {
-        // Implemented in the teamwork phase.
+        java.util.List<de.kortty.model.TeamworkSourceConfig> sources = settings.getTeamworkSources();
+        sources.removeIf(source -> source != null
+            && (source.isPolicyManaged()
+                || (source.getId() != null && source.getId().startsWith("policy-teamwork-"))));
+        int index = 0;
+        for (PolicyFile.TeamworkSourceDef def : policy.teamworkSources()) {
+            sources.add(PolicyAiProfileSupport.toTeamworkSource(def, ++index));
+        }
     }
 
     private void stripManagedTeamworkSources(GlobalSettings settings) {
-        // Implemented in the teamwork phase.
+        settings.getTeamworkSources().removeIf(
+            source -> source != null && source.isPolicyManaged());
     }
 }

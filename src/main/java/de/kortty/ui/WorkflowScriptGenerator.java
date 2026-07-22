@@ -398,6 +398,10 @@ public final class WorkflowScriptGenerator {
     }
 
     private String resolveApiKey(AiProfile profile) {
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
+        }
         String encrypted = profile.getEncryptedApiKey();
         if (encrypted == null || encrypted.isBlank()) {
             return null;

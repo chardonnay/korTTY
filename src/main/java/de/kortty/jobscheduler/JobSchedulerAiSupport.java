@@ -133,7 +133,10 @@ public class JobSchedulerAiSupport {
     }
 
     AiPromptService createAiService(AiProfile profile) {
-        String apiKey = decryptSecret(profile.getEncryptedApiKey(), "AI API key");
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        String apiKey = policyKey != null
+            ? policyKey
+            : decryptSecret(profile.getEncryptedApiKey(), "AI API key");
         var service = AiServiceFactory.create(
             profile,
             apiKey,

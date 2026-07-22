@@ -5274,6 +5274,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (profile == null) {
             return null;
         }
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
+        }
         String profileId = profile.getId();
         if (profileId != null) {
             String plainApiKey = aiPlainApiKeysByProfileId.get(profileId);

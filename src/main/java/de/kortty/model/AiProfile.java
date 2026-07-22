@@ -5,6 +5,7 @@ import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,6 +109,20 @@ public class AiProfile {
     @XmlElement
     private Long usedTotalTokens = 0L;
 
+    /**
+     * True for profiles injected from the enterprise policy. Never persisted — policy profiles are
+     * rebuilt from the policy file on every settings load.
+     */
+    @XmlTransient
+    private boolean policyManaged;
+
+    /**
+     * The admin-provided API key in its {@code kortty-enc:v1:} envelope; decrypted only at the
+     * moment of use (see {@code PolicyAiProfileSupport.apiKeyOverride}). Never persisted.
+     */
+    @XmlTransient
+    private String policyEncryptedApiKey;
+
     public AiProfile() {
     }
 
@@ -144,6 +159,24 @@ public class AiProfile {
         this.usedPromptTokens = source.usedPromptTokens;
         this.usedCompletionTokens = source.usedCompletionTokens;
         this.usedTotalTokens = source.usedTotalTokens;
+        this.policyManaged = source.policyManaged;
+        this.policyEncryptedApiKey = source.policyEncryptedApiKey;
+    }
+
+    public boolean isPolicyManaged() {
+        return policyManaged;
+    }
+
+    public void setPolicyManaged(boolean policyManaged) {
+        this.policyManaged = policyManaged;
+    }
+
+    public String getPolicyEncryptedApiKey() {
+        return policyEncryptedApiKey;
+    }
+
+    public void setPolicyEncryptedApiKey(String policyEncryptedApiKey) {
+        this.policyEncryptedApiKey = policyEncryptedApiKey;
     }
 
     public String getId() {
