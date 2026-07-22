@@ -664,7 +664,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sshKeepAliveCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.sshKeepAlive.tooltip")));
 
         disableHostKeyCheckAllCheck = new CheckBox(I18n.get("settings.terminal.hostKeyCheck.disableAll"));
-        
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            disableHostKeyCheckAllCheck, de.kortty.policy.ManagedSetting.HOST_KEY_CHECK);
+
         sshKeepAliveIntervalSpinner = new Spinner<>(5, 600, settings.getSshKeepAliveInterval(), 5);
         sshKeepAliveIntervalSpinner.setEditable(true);
         sshKeepAliveIntervalSpinner.setPrefWidth(100);
@@ -736,6 +738,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalRecordingAlwaysEnabledCheck.setSelected(globalSettings != null && globalSettings.isTerminalRecordingEnabled());
         terminalRecordingAlwaysEnabledCheck.setTooltip(
             new Tooltip(I18n.get("settings.video.recordingAlwaysEnabled.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            terminalRecordingAlwaysEnabledCheck, de.kortty.policy.ManagedSetting.TERMINAL_RECORDING);
 
         terminalRecordingCaptureColorsCheck = new CheckBox(I18n.get("settings.video.captureColors"));
         terminalRecordingCaptureColorsCheck.setSelected(
@@ -1130,6 +1134,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         requireMasterPasswordOnStartupCheck = new CheckBox(I18n.get("settings.security.masterPassword.requireOnStartup"));
         requireMasterPasswordOnStartupCheck.setSelected(globalSettings != null ? globalSettings.isRequireMasterPasswordOnStartup() : true);
         requireMasterPasswordOnStartupCheck.setTooltip(new Tooltip(I18n.get("settings.security.masterPassword.requireOnStartup.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            requireMasterPasswordOnStartupCheck, de.kortty.policy.ManagedSetting.MASTER_PASSWORD);
         
         Label masterPasswordWarningLabel = new Label(I18n.get("settings.security.masterPassword.warning"));
         masterPasswordWarningLabel.setWrapText(true);
@@ -1174,6 +1180,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         telemetryEnabledCheck = new CheckBox(I18n.get("settings.telemetry.enable"));
         telemetryEnabledCheck.setSelected(globalSettings != null && globalSettings.isTelemetryEnabled());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            telemetryEnabledCheck, de.kortty.policy.ManagedSetting.TELEMETRY);
         telemetryEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.telemetry.enable.tooltip")));
         Button telemetryLearnMoreButton = new Button("?");
         telemetryLearnMoreButton.setMinWidth(Region.USE_PREF_SIZE);
@@ -1401,10 +1409,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Tab aiTab = new Tab(I18n.get("settings.tab.ai"));
         VBox aiRoot = new VBox(12);
         aiRoot.setPadding(new Insets(20));
+        if (de.kortty.policy.PolicyUiSupport.anyManaged(
+                de.kortty.policy.ManagedSetting.AI_FEATURES,
+                de.kortty.policy.ManagedSetting.AGENT_EXECUTION,
+                de.kortty.policy.ManagedSetting.AGENT_CONFIRM_MUTATING,
+                de.kortty.policy.ManagedSetting.AI_PROFILES,
+                de.kortty.policy.ManagedSetting.AI_RUNTIME)) {
+            aiRoot.getChildren().add(de.kortty.policy.PolicyUiSupport.managedTabBanner());
+        }
 
         aiFeaturesEnabledCheck = new CheckBox(I18n.get("settings.ai.featuresEnabled"));
         aiFeaturesEnabledCheck.setStyle("-fx-font-weight: bold;");
         aiFeaturesEnabledCheck.setSelected(globalSettings == null || globalSettings.isAiFeaturesEnabled());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            aiFeaturesEnabledCheck, de.kortty.policy.ManagedSetting.AI_FEATURES);
         aiRoot.getChildren().add(aiFeaturesEnabledCheck);
 
         Label aiFeaturesHint = new Label(I18n.get("settings.ai.featuresEnabled.hint"));
@@ -1423,6 +1441,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiTerminalAgentExecutionEnabledCheck = new CheckBox(I18n.get("settings.ai.terminalAgentExecutionEnabled"));
         aiTerminalAgentExecutionEnabledCheck.setSelected(globalSettings == null || globalSettings.isTerminalAgentExecutionEnabled());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            aiTerminalAgentExecutionEnabledCheck, de.kortty.policy.ManagedSetting.AGENT_EXECUTION);
         aiRoot.getChildren().add(aiTerminalAgentExecutionEnabledCheck);
 
         Label aiTerminalAgentExecutionHint = new Label(I18n.get("settings.ai.terminalAgentExecutionEnabled.hint"));
@@ -1434,6 +1454,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new CheckBox(I18n.get("settings.ai.terminalAgentConfirmMutatingCommandSets"));
         aiTerminalAgentConfirmMutatingCommandSetsCheck.setSelected(
             globalSettings != null && globalSettings.isTerminalAgentConfirmMutatingCommandSets());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            aiTerminalAgentConfirmMutatingCommandSetsCheck,
+            de.kortty.policy.ManagedSetting.AGENT_CONFIRM_MUTATING);
         aiRoot.getChildren().add(aiTerminalAgentConfirmMutatingCommandSetsCheck);
 
         Label aiTerminalAgentConfirmMutatingHint =

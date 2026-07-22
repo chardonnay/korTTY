@@ -425,6 +425,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             .filter(c -> java.util.Objects.equals(c.value(), stored))
             .findFirst().orElse(hostKeyCheckCombo.getItems().get(0)));
         hostKeyCheckCombo.setTooltip(new Tooltip(I18n.get("connEdit.hostKeyCheck.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            hostKeyCheckCombo, de.kortty.policy.ManagedSetting.HOST_KEY_CHECK);
         connectionGrid.add(new Label(I18n.get("connEdit.hostKeyCheck")), 0, row);
         connectionGrid.add(hostKeyCheckCombo, 1, row++);
 

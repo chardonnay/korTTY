@@ -726,6 +726,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             new HostKeyChoice(Boolean.TRUE, I18n.get("connEdit.hostKeyCheck.disable")));
         hostKeyCheckCombo.setValue(hostKeyCheckCombo.getItems().get(0));
         hostKeyCheckCombo.setTooltip(new Tooltip(I18n.get("connEdit.hostKeyCheck.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            hostKeyCheckCombo, de.kortty.policy.ManagedSetting.HOST_KEY_CHECK);
         timeoutGrid.add(new Label(I18n.get("connEdit.hostKeyCheck")), 0, 2);
         timeoutGrid.add(hostKeyCheckCombo, 1, 2);
         collapsibleSections.getChildren().add(

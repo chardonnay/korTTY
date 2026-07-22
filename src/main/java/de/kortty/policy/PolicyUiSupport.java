@@ -50,10 +50,23 @@ public final class PolicyUiSupport {
 
     /** A banner label for settings tabs that contain locked controls. */
     public static Label managedTabBanner() {
-        Label banner = new Label(I18n.get("policy.settings.tabBanner"));
+        Label banner = new Label("🔒 " + I18n.get("policy.settings.tabBanner"));
         banner.setWrapText(true);
         banner.getStyleClass().add("policy-managed-banner");
+        banner.setStyle("-fx-font-size: 11px; -fx-text-fill: #8a6d3b; -fx-background-color: #fcf8e3; "
+            + "-fx-padding: 6 10 6 10; -fx-background-radius: 4;");
         return banner;
+    }
+
+    /** True when any of the given settings is policy-managed (banner condition for a tab). */
+    public static boolean anyManaged(ManagedSetting... settings) {
+        EffectivePolicy policy = PolicyManager.effective();
+        for (ManagedSetting setting : settings) {
+            if (policy.isManaged(setting)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Modal dialog shown when a connection is blocked by the server policy. */
