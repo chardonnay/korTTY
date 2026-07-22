@@ -326,6 +326,12 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
     last_synced_ref: "4b57258"
+  - path: app-docs/site/docs/en/reference/enterprise-policy.md
+    owns_i18n: [policy.]
+    owns_code: [src/main/java/de/kortty/policy, package/policy]
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "b13f8ea"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]

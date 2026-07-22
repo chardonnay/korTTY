@@ -1540,6 +1540,12 @@ tasks.register<Sync>("prepareJpackage") {
         include("release-$mosh4jVersion-${mosh4jArch()}/**")
         include("deps/$mosh4jProtobufJar")
     }
+    // Enterprise policy template: ships as policy/kortty-policy.toml.example next to the app jar
+    // (nothing is active by default — admins copy it to kortty-policy.toml in the same folder,
+    // which is exactly where PolicyLocator looks).
+    from("package/policy") {
+        into("policy")
+    }
     doLast {
         val libsDir = jpackageInput.get().asFile.resolve("libs")
         val forbidden = listOf(

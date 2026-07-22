@@ -12,13 +12,13 @@
         <meta name="author" content="korTTY">
       
       
-        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/reference/hardening-options.html">
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/de/reference/enterprise-policy.html">
       
       
-        <link rel="prev" href="enterprise-policy.html">
+        <link rel="prev" href="config-files.html">
       
       
-        <link rel="next" href="settings/index.html">
+        <link rel="next" href="hardening-options.html">
       
       
         
@@ -33,7 +33,7 @@
     
     
       
-        <title>Härtemöglichkeiten - korTTY Anleitung</title>
+        <title>Unternehmenspolitik - korTTY Anleitung</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#hartungsoptionen" class="md-skip">
+        <a href="#unternehmensrichtlinie" class="md-skip">
           Zum Inhalt
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Härtemöglichkeiten
+              Unternehmenspolitik
             
           </span>
         </div>
@@ -132,7 +132,7 @@
 
 <div class="md-header__option">
   <a class="md-header__button md-icon kt-lang-switch"
-     href="../../en/reference/hardening-options.html"
+     href="../../en/reference/enterprise-policy.html"
      title="English" hreflang="en">
     <span class="kt-lang-code">EN</span>
   </a>
@@ -616,34 +616,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="enterprise-policy.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Unternehmenspolitik
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -663,7 +635,7 @@
   <span class="md-ellipsis">
     
   
-    Härtemöglichkeiten
+    Unternehmenspolitik
   
 
     
@@ -674,14 +646,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="hardening-options.html" class="md-nav__link md-nav__link--active">
+      <a href="enterprise-policy.html" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Härtemöglichkeiten
+    Unternehmenspolitik
   
 
     
@@ -707,10 +679,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#wo-sie-erscheinen" class="md-nav__link">
+  <a href="#dateispeicherort-und-sicherheitsmodell" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Wo sie erscheinen
+        Dateispeicherort und Sicherheitsmodell
       
     </span>
   </a>
@@ -718,10 +690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#wie-sie-angewendet-werden" class="md-nav__link">
+  <a href="#benutzer-gruppen-und-regelprioritat" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Wie sie angewendet werden
+        Benutzer, Gruppen und Regelpriorität
       
     </span>
   </a>
@@ -729,10 +701,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#die-beiden-gruppen" class="md-nav__link">
+  <a href="#server-zugriffskontrolle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Die beiden Gruppen
+        Server-Zugriffskontrolle
       
     </span>
   </a>
@@ -740,22 +712,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optionsreferenz" class="md-nav__link">
+  <a href="#parameterreferenz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optionsreferenz
+        Parameterreferenz
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Optionsreferenz">
+    <nav class="md-nav" aria-label="Parameterreferenz">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#verhaltenserhaltende-verhartung" class="md-nav__link">
+  <a href="#meta" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verhaltenserhaltende Verhärtung
+        [meta]
       
     </span>
   </a>
@@ -763,10 +735,109 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#verhaltens-interaktive-anderungen" class="md-nav__link">
+  <a href="#groups" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verhaltens-/interaktive Änderungen
+        [groups]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-bereich" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule]] Bereich
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleservers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.servers]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulefeatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.features]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesecurity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.security]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleteamwork-rulesnippets-ruleai-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.teamwork], [rule.snippets], [rule.ai-profiles]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleai-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.ai-runtime]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleupdates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.updates]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleterminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.terminal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von Admin bereitgestellte Objekte
       
     </span>
   </a>
@@ -779,10 +850,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tipps" class="md-nav__link">
+  <a href="#verschlusselte-api-schlussel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tipps
+        Verschlüsselte API-Schlüssel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fehlerbehebung
       
     </span>
   </a>
@@ -793,6 +875,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Härtemöglichkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2166,10 +2276,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#wo-sie-erscheinen" class="md-nav__link">
+  <a href="#dateispeicherort-und-sicherheitsmodell" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Wo sie erscheinen
+        Dateispeicherort und Sicherheitsmodell
       
     </span>
   </a>
@@ -2177,10 +2287,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#wie-sie-angewendet-werden" class="md-nav__link">
+  <a href="#benutzer-gruppen-und-regelprioritat" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Wie sie angewendet werden
+        Benutzer, Gruppen und Regelpriorität
       
     </span>
   </a>
@@ -2188,10 +2298,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#die-beiden-gruppen" class="md-nav__link">
+  <a href="#server-zugriffskontrolle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Die beiden Gruppen
+        Server-Zugriffskontrolle
       
     </span>
   </a>
@@ -2199,22 +2309,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optionsreferenz" class="md-nav__link">
+  <a href="#parameterreferenz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optionsreferenz
+        Parameterreferenz
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Optionsreferenz">
+    <nav class="md-nav" aria-label="Parameterreferenz">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#verhaltenserhaltende-verhartung" class="md-nav__link">
+  <a href="#meta" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verhaltenserhaltende Verhärtung
+        [meta]
       
     </span>
   </a>
@@ -2222,10 +2332,109 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#verhaltens-interaktive-anderungen" class="md-nav__link">
+  <a href="#groups" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verhaltens-/interaktive Änderungen
+        [groups]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rule-bereich" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule]] Bereich
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleservers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.servers]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulefeatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.features]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesecurity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.security]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleteamwork-rulesnippets-ruleai-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.teamwork], [rule.snippets], [rule.ai-profiles]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleai-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.ai-runtime]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleupdates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.updates]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ruleterminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.terminal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von Admin bereitgestellte Objekte
       
     </span>
   </a>
@@ -2238,10 +2447,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tipps" class="md-nav__link">
+  <a href="#verschlusselte-api-schlussel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tipps
+        Verschlüsselte API-Schlüssel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fehlerbehebung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fehlerbehebung
       
     </span>
   </a>
@@ -2265,148 +2485,500 @@
 
 
 
-<h1 id="hartungsoptionen">Härtungsoptionen<a class="headerlink" href="#hartungsoptionen" title="Permanent link">&para;</a></h1>
-<p><strong>Härtungsoptionen</strong> sind eine Reihe von Techniken in Produktionsqualität, die Sie von der KI in ein von ihr generiertes oder neu geschriebenes Skript einbauen lassen können. Anstatt jedes Mal die gleiche Anweisung („Fehlerbehandlung hinzufügen“, „Wiederausführbar machen“, „Geben Sie ihm einen <code>--help</code>“) von Hand zu schreiben, kreuzen Sie die gewünschten Techniken an und KorTTY wandelt jede einzelne in eine präzise Regel um, die an die KI-Eingabeaufforderung angehängt wird. Das Ergebnis ist ein Skript, das sich wie etwas verhält, das ein sorgfältiger Ingenieur ausliefern würde: Es schlägt laut statt lautlos fehl, bereinigt sich selbst, protokolliert, was es tut, und kann ohne Überraschungen erneut ausgeführt werden.</p>
-<p>Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein Skript generiert oder verbessert, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.</p>
-<h2 id="wo-sie-erscheinen">Wo sie erscheinen<a class="headerlink" href="#wo-sie-erscheinen" title="Permanent link">&para;</a></h2>
-<p>Das Bedienfeld <strong>Härtungsoptionen</strong> wird an folgenden Stellen angezeigt:</p>
+<h1 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h1>
+<p>In verwalteten Umgebungen kann ein Administrator korTTY über eine einzige TOML-Datei, <code>kortty-policy.toml</code>, die im Installationsverzeichnis abgelegt wird, einschränken oder vorkonfigurieren. Benutzer können es nicht ändern oder umgehen: Die Datei wird nur aus dem vom Administrator beschreibbaren Installationsordner gelesen, gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt und die manuelle Bearbeitung von <code>global-settings.xml</code> wird beim nächsten Laden rückgängig gemacht. In diesem Kapitel wird erläutert, wo sich die Datei befindet, wie Regeln auf Benutzer, Gruppen und Server abzielen und alle verfügbaren Parameter anhand von Beispielen dokumentiert werden.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Ohne <code>kortty-policy.toml</code> ändert sich nichts – korTTY verhält sich genauso wie zuvor. Bei der ausgelieferten Vorlage <code>policy/kortty-policy.toml.example</code> handelt es sich um eine vollständig kommentierte Vorlage, bei der alles deaktiviert ist.</p>
+</div>
+<h2 id="dateispeicherort-und-sicherheitsmodell">Dateispeicherort und Sicherheitsmodell<a class="headerlink" href="#dateispeicherort-und-sicherheitsmodell" title="Permanent link">&para;</a></h2>
+<p>korTTY lädt die Richtlinie ausschließlich aus dem Ordner <code>policy/</code> seines Installationsverzeichnisses – dem Ordner, der auch das Anwendungs-JAR enthält – und niemals aus <code>~/.kortty/</code> oder einem anderen vom Benutzer beschreibbaren Speicherort. Eine kopierfertige Vorlage wird als <code>policy/kortty-policy.toml.example</code> geliefert; Kopieren Sie es nach <code>kortty-policy.toml</code> im selben Ordner und starten Sie korTTY neu (es gibt kein Hot-Reload).</p>
 <table>
 <thead>
 <tr>
-<th>Wo</th>
-<th>Wie es aussieht</th>
-<th>Wird angewendet, wenn</th>
+<th>Plattform</th>
+<th>Speicherort der Richtliniendatei</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Terminal → Workflow-Skript generieren</strong> (die Schaltfläche <em>Workflow</em> nach der Ausführung eines Agenten)</td>
-<td>Reduzierbares Bedienfeld <em>Härtungsoptionen</em> (standardmäßig ausgeblendet)</td>
-<td>Sie klicken auf <em>Generieren</em></td>
+<td>macOS</td>
+<td><code>/Applications/KorTTY.app/Contents/app/policy/kortty-policy.toml</code></td>
 </tr>
 <tr>
-<td><strong>KI-Schwarm → Multi-Server-Workflow generieren</strong></td>
-<td>Gleiches zusammenklappbares Panel</td>
-<td>Sie generieren das Multiserver-Skript</td>
+<td>Windows</td>
+<td><code>C:\Program Files\KorTTY\app\policy\kortty-policy.toml</code></td>
 </tr>
 <tr>
-<td><strong>Snippet-Editor → AI-Code → Robustheit verbessern</strong></td>
-<td>Optionsfeld mit allen angekreuzten Kästchen</td>
-<td>Sie bestätigen den Dialog</td>
-</tr>
-<tr>
-<td><strong>Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…</strong></td>
-<td>Optionsfeld plus ein Freitext-Anweisungsfeld</td>
-<td>Sie bestätigen den Dialog</td>
-</tr>
-<tr>
-<td><strong>Snippet-Editor → AI-Code → Vollständige Code-Analyse</strong></td>
-<td>Reduzierbares Bedienfeld „Härtungsoptionen“ am unteren Rand des Fensters mit einer Live-Anzahl <strong>(N)</strong> der aktivierten Optionen im Titel; korTTY merkt sich, ob Sie es offen oder geschlossen gelassen haben</td>
-<td>Sie klicken auf <em>Auswahl übernehmen</em></td>
+<td>Linux (deb/rpm)</td>
+<td><code>/opt/kortty/lib/app/policy/kortty-policy.toml</code></td>
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">Wird nicht für jede Aktion angezeigt</p>
-<p><em>Lesbarkeit verbessern</em> und <em>Leistung verbessern</em> zeigen absichtlich <strong>keine</strong> Härtungsoptionen an – diese Aktionen sollen nah am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: <em>Robustheit verbessern</em>, <em>Benutzerdefinierte Verbesserung</em>, <em>Vollständige Codeanalyse</em> und die beiden Workflow-Skriptgeneratoren.</p>
+<p>Das Durchsetzungsmodell basiert auf den Dateiberechtigungen des Betriebssystems: Das Installationsverzeichnis darf nur von Administratoren beschreibbar sein, was für die oben genannten Speicherorte die Standardeinstellung ist. korTTY protokolliert zusätzlich eine Warnung, wenn die aktive Richtliniendatei vom aktuellen Benutzer beschreibbar ist. Während der Entwicklung (niemals in einer Paketinstallation) kann eine Richtlinie mit <code>-Dkortty.policy.file=/path/to/policy.toml</code> getestet werden.</p>
+<p>Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY mit einer ausfallsicheren Sperre: Alle durch Richtlinien steuerbaren Funktionen werden verweigert, keine Serververbindung ist erlaubt und ein Startdialog benennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann daher niemals stillschweigend die Durchsetzung verhindern. Eine ungültige Regel lehnt die gesamte Datei ab; Unbekannte Schlüssel erzeugen nur Protokollwarnungen, daher sperrt eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aus.</p>
+<h2 id="benutzer-gruppen-und-regelprioritat">Benutzer, Gruppen und Regelpriorität<a class="headerlink" href="#benutzer-gruppen-und-regelprioritat" title="Permanent link">&para;</a></h2>
+<p>Regeln zielen auf den aktuellen Anmeldenamen des Betriebssystems ab (entspricht Kleinbuchstaben). Die Gruppenmitgliedschaft stammt aus zwei Quellen gleichzeitig: Gruppen, die in der Tabelle <code>[groups]</code> der Richtlinie definiert sind, und den Gruppenmitgliedschaften des Benutzers auf Betriebssystemebene. Auf in die Domäne eingebundenen Windows-Computern umfassen die Betriebssystemgruppen Active Directory-Gruppen, sodass Regeln direkt auf AD-Gruppen abzielen können – sowohl vollständig qualifiziert (<code>ACME\Operations</code>) als auch als bloßer Name (<code>operations</code>) – ohne dass eine Verzeichnisserverkonfiguration erforderlich ist.</p>
+<p>Jeder <code>[[rule]]</code>-Block benennt optional <code>users</code> und/oder <code>groups</code>; Eine Regel, die keine Benennung vornimmt, gilt für jeden Benutzer. Pro Einstellung gewinnt die spezifischste Stufe, die sie festlegt: <strong>Benutzer schlägt Gruppe schlägt alle</strong>. Das ist das bekannte Gruppenrichtlinienmuster: Sperren Sie alles in einer Grundregel für alle und lockern Sie dann die individuellen Einstellungen für eine vertrauenswürdige Gruppe. Wenn mehrere Regeln derselben Ebene denselben Schlüssel festlegen, gilt der restriktivste Wert (<code>deny</code> über <code>read-only</code> über <code>confirm</code> über <code>allow</code>); Gemäß den Serverregeln muss eine Verbindung alle geltenden Einschränkungen der Gewinnerstufe erfüllen. Die Reihenfolge der Regeln in der Datei hat keine Bedeutung.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[meta]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">schema-version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">organization</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ACME Corp&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">[groups]</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">devs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bob&quot;</span><span class="p">]</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># applies to ALL users</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;company-baseline&quot;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># group tier: relaxes the baseline for ops</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ops-exception&quot;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">groups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ops&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;ACME</span><span class="se">\\</span><span class="s2">Operations&quot;</span><span class="p">]</span><span class="w">  </span><span class="c1"># policy group OR OS/AD group</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="n">ai-agent-execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;confirm&quot;</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">[[rule]]</span><span class="w">                              </span><span class="c1"># user tier: beats eve&#39;s group</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="n">users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;eve&quot;</span><span class="p">]</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span></code></pre></div>
+<h2 id="server-zugriffskontrolle">Server-Zugriffskontrolle<a class="headerlink" href="#server-zugriffskontrolle" title="Permanent link">&para;</a></h2>
+<p>Die <code>[rule.servers]</code>-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (<code>mode = "allow"</code>: nur aufgelistete Server sind erreichbar) oder als Sperrliste (<code>mode = "deny"</code>: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, Sitzungswiederherstellung, SFTP, gemeinsam genutzte Teamwork-Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Verbindungsmanager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.</p>
+<p>Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindung konfiguriert ist – korTTY löst DNS nie für Richtlinienprüfungen auf, daher sind Hostnamen und IP-Adressen separate Namespaces: Wenn ein Server in beide Richtungen erreichbar ist, listen Sie beide auf.</p>
+<table>
+<thead>
+<tr>
+<th>Musterform</th>
+<th>Beispiel</th>
+<th>Entspricht</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Genauer Hostname</td>
+<td><code>db01.acme.com</code></td>
+<td>dieser Host, ohne Berücksichtigung der Groß-/Kleinschreibung, jeder Port</td>
+</tr>
+<tr>
+<td>Hostname-Glob</td>
+<td><code>*.prod.acme.com</code>, <code>web-??.acme.com</code></td>
+<td><code>*</code> = beliebige Zeichen, <code>?</code> = ein Zeichen</td>
+</tr>
+<tr>
+<td>Host mit Port</td>
+<td><code>vault.acme.com:22</code></td>
+<td>nur Verbindungen zu diesem Port</td>
+</tr>
+<tr>
+<td>Einzelne IP-Adresse</td>
+<td><code>192.168.10.42</code>, <code>2001:db8::1</code></td>
+<td>, die Adresse (IPv4 oder IPv6)</td>
+</tr>
+<tr>
+<td>IP mit Port</td>
+<td><code>192.168.10.42:22</code>, <code>[2001:db8::1]:22</code></td>
+<td>IPv6-Ports erfordern die Halterungsform</td>
+</tr>
+<tr>
+<td>CIDR-Netzwerk</td>
+<td><code>10.99.0.0/16</code>, <code>2001:db8::/32</code></td>
+<td>jede Adresse im Netzwerk</td>
+</tr>
+<tr>
+<td>IP-Bereich</td>
+<td><code>10.20.0.100-10.20.0.199</code></td>
+<td>inklusive Von–Bis-Bereich</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="k">[rule.servers]</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="n">mode</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">hosts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.prod.acme.com&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;vault.acme.com:22&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;192.168.10.42&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;10.99.0.0/16&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;10.20.0.100-10.20.0.199&quot;</span><span class="p">]</span>
+</span></code></pre></div>
+<h2 id="parameterreferenz">Parameterreferenz<a class="headerlink" href="#parameterreferenz" title="Permanent link">&para;</a></h2>
+<h3 id="meta"><code>[meta]</code><a class="headerlink" href="#meta" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Erforderlich</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema-version</code></td>
+<td>ganze Zahl</td>
+<td><code>1</code></td>
+<td>Ja</td>
+<td>Abgelehnt (Sperrung), wenn dieser korTTY die Version nicht versteht</td>
+</tr>
+<tr>
+<td><code>organization</code></td>
+<td>Zeichenfolge</td>
+<td>Freitext</td>
+<td>Nein</td>
+<td>Wird in jedem Hinweis und Dialog „Von Ihrer Organisation verwaltet“ angezeigt</td>
+</tr>
+</tbody>
+</table>
+<h3 id="groups"><code>[groups]</code><a class="headerlink" href="#groups" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;group-name&gt;</code></td>
+<td>Array von Benutzernamen</td>
+<td>Definiert eine Richtliniengruppe; Regeln, die auf den Namen verweisen, zielen auf seine Mitglieder ab. OS/AD-Gruppen passen automatisch zusammen und benötigen hier keinen Eintrag</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rule-bereich"><code>[[rule]]</code> Bereich<a class="headerlink" href="#rule-bereich" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Zeichenfolge</td>
+<td>Optionale Bezeichnung, die in Protokollnachrichten verwendet wird</td>
+</tr>
+<tr>
+<td><code>users</code></td>
+<td>Array von Benutzernamen</td>
+<td>Zielt auf die aufgelisteten Betriebssystem-Anmeldenamen (Benutzerebene)</td>
+</tr>
+<tr>
+<td><code>groups</code></td>
+<td>Array von Gruppennamen</td>
+<td>Zielt auf Mitglieder von Richtliniengruppen und/oder OS/AD-Gruppen (Gruppenebene) ab; Eine Regel mit weder <code>users</code> noch <code>groups</code> gilt für alle</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleservers"><code>[rule.servers]</code><a class="headerlink" href="#ruleservers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Semantik der Zulassungs- oder Ablehnungsliste für <code>hosts</code></td>
+</tr>
+<tr>
+<td><code>hosts</code></td>
+<td>Array von Mustern</td>
+<td>siehe Tabelle oben</td>
+<td>Nicht leere Liste von Servermustern</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rulefeatures"><code>[rule.features]</code><a class="headerlink" href="#rulefeatures" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Beschränkt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Hauptschalter: <code>deny</code> deaktiviert alle AI-Funktionen auf einmal.</td>
+</tr>
+<tr>
+<td><code>ai-agent</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI Agent (Menü, Terminal-Kontextmenü, Tastaturkürzel, Headless-Job-Ausführungen)</td>
+</tr>
+<tr>
+<td><code>ai-chat</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>KI-Chat, gespeicherte Chats und die Terminalauswahl-KI-Aktionen</td>
+</tr>
+<tr>
+<td><code>ai-swarm</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>KI-Schwarm, einschließlich geplanter Schwarmjobs</td>
+</tr>
+<tr>
+<td><code>ai-planning</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>AI-Planung</td>
+</tr>
+<tr>
+<td><code>teamwork</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Synchronisierung freigegebener Teamwork-Verbindungen (Dienst ist nicht gestartet, Menü gesperrt)</td>
+</tr>
+<tr>
+<td><code>plugins</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte)</td>
+</tr>
+<tr>
+<td><code>ai-agent-execution</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
+<td><code>confirm</code> erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; <code>read-only</code> lässt den Agenten planen und chatten, aber niemals Befehle ausführen</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rulesecurity"><code>[rule.security]</code><a class="headerlink" href="#rulesecurity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>require-master-password</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>Erzwingt das Master-Passwort-Gate beim Start; Die Einstellung ist gesperrt</td>
+</tr>
+<tr>
+<td><code>enforce-host-key-check</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>Die Überprüfung des SSH-Hostschlüssels kann nirgendwo deaktiviert werden – global, pro Gruppe oder pro Verbindung</td>
+</tr>
+<tr>
+<td><code>allow-telemetry</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Verbietet anonyme Nutzungsstatistiken</td>
+</tr>
+<tr>
+<td><code>allow-terminal-recording</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleteamwork-rulesnippets-ruleai-profiles"><code>[rule.teamwork]</code>, <code>[rule.snippets]</code>, <code>[rule.ai-profiles]</code><a class="headerlink" href="#ruleteamwork-rulesnippets-ruleai-profiles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow-custom-sources</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Benutzer können keine Teamwork-Quellen hinzufügen; Es verbleiben nur die Einträge <code>[[teamwork-source]]</code> und</td>
+</tr>
+<tr>
+<td><code>allow-custom-script-headers</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Benutzer können keine Skript-Header erstellen; Es verbleiben nur die Einträge <code>[[script-header]]</code> und</td>
+</tr>
+<tr>
+<td><code>allow-create</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt)</td>
+</tr>
+<tr>
+<td><code>allow-edit</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow-runtime-downloads</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Keine llama.cpp/MLX-Laufzeit-Downloads oder Update-Prüfungen</td>
+</tr>
+<tr>
+<td><code>allow-model-downloads</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Der Browser und die Downloads des Hugging Face-Modells sind deaktiviert</td>
+</tr>
+<tr>
+<td><code>allow-user-models</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Nur vom Administrator bereitgestellte <code>[[ai-runtime.model]]</code>-Einträge können von eingebetteten AI-Profilen geladen werden</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleupdates"><code>[rule.updates]</code><a class="headerlink" href="#ruleupdates" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Deaktiviert die automatische Update-Prüfung und die manuelle Prüfung im Info-Dialog</td>
+</tr>
+<tr>
+<td><code>feed-url</code></td>
+<td>Zeichenfolge</td>
+<td>http(s)-URL</td>
+<td>Aktualisierungsprüfungen fragen diesen Endpunkt anstelle von GitHub ab; Es muss dieselbe JSON-Form zurückgeben wie die GitHub <code>releases/latest</code>-API (<code>tag_name</code>, <code>assets[]</code> mit <code>name</code> und <code>browser_download_url</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ruleterminal"><code>[rule.terminal]</code><a class="headerlink" href="#ruleterminal" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>load-into-snippet-editor</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>read-only</code>, <code>deny</code></td>
+<td><code>read-only</code> Lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; <code>deny</code> entfernt die Funktion vollständig</td>
+</tr>
+</tbody>
+</table>
+<h3 id="von-admin-bereitgestellte-objekte">Von Admin bereitgestellte Objekte<a class="headerlink" href="#von-admin-bereitgestellte-objekte" title="Permanent link">&para;</a></h3>
+<p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
+<table>
+<thead>
+<tr>
+<th>Tabelle</th>
+<th>Schlüssel</th>
+<th>Notizen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[[script-header]]</code></td>
+<td><code>name</code>, <code>content</code></td>
+<td>Unveränderlicher Skript-Header in der Script-Header-Kategorie des Snippet-Systems</td>
+</tr>
+<tr>
+<td><code>[[ai-profile]]</code></td>
+<td><code>id</code>, <code>name</code>, <code>provider</code>, <code>endpoint</code>, <code>model</code>, <code>api-key-encrypted</code></td>
+<td><code>id</code> muss mit <code>policy-</code> beginnen; <code>provider</code> ist einer von <code>anthropic</code>, <code>openai-compatible</code>, <code>lm-studio</code>, <code>embedded-llama</code>, <code>embedded-mlx</code> (eingebettete Anbieter lesen <code>model</code> als lokale Modell-ID)</td>
+</tr>
+<tr>
+<td><code>[[ai-runtime.model]]</code></td>
+<td><code>name</code>, <code>runtime</code>, <code>source</code></td>
+<td><code>runtime</code> Ist <code>llama</code> oder <code>mlx</code>; <code>source</code> ist ein absoluter lokaler/UNC-Pfad oder für GGUF-Modelle eine http(s)-URL, die korTTY einmal beim Start herunterlädt</td>
+</tr>
+<tr>
+<td><code>[[teamwork-source]]</code></td>
+<td><code>name</code>, <code>type</code>, <code>url</code></td>
+<td><code>type</code> Ist <code>git</code> oder <code>shared-file</code>; als schreibgeschützte Teamwork-Quelle eingefügt</td>
+</tr>
+</tbody>
+</table>
+<h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
+<p>Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+</span></code></pre></div>
+<p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
+<div class="admonition warning">
+<p class="admonition-title">Sicherheitsbereich</p>
+<p>Der Umschlag verwendet AES-256-GCM mit einem anwendungsweiten Schlüssel und schützt so vor zufälliger Offenlegung (Schulterzugriff, Konfigurationsunterschiede, Backups) und erkennt Manipulationen – es handelt sich nicht um strenge Geheimhaltung, da jeder mit der korTTY-Binärdatei den Anwendungsschlüssel wiederherstellen könnte. Die Betriebssystemberechtigungen des Installationsverzeichnisses bleiben die eigentliche Sicherheitsgrenze; Bevorzugen Sie benutzerspezifische Schlüssel über den normalen Profilfluss, wenn diese Grenze nicht ausreicht.</p>
 </div>
-<p>Jede Option ist <strong>standardmäßig aktiviert</strong>. Deaktivieren Sie diejenigen, die Sie nicht möchten. Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.</p>
-<p>Unterhalb der Optionen helfen Ihnen drei Schaltflächen bei der Verwaltung der Auswahl:</p>
-<ul>
-<li><strong>Alle</strong> – kreuzen Sie jede Option an.</li>
-<li><strong>Löschen</strong> – alle Optionen deaktivieren (ohne Härtungsregeln generieren/anwenden).</li>
-<li><strong>Speichern</strong> – aktuelle Auswahl dauerhaft speichern. Von da an wird jedes Härtungsfenster mit Ihrer gespeicherten Auswahl anstelle der allgemeinen Standardeinstellung geöffnet – Sie können also Ihre bevorzugte Härtung einmal festlegen und sie überall anwenden.</li>
-</ul>
-<h2 id="wie-sie-angewendet-werden">Wie sie angewendet werden<a class="headerlink" href="#wie-sie-angewendet-werden" title="Permanent link">&para;</a></h2>
-<p>Jede angekreuzte Option wird zu genau einer Anweisungszeile, die KorTTY an die an die KI gesendete Anfrage anhängt (unter <em>Diese Härtungstechniken anwenden:</em> im Snippet-Editor oder <em>ZUSÄTZLICHE ANFORDERUNGEN:</em> im Workflow-Generator). Die KI wird dann aufgefordert, diese Regeln bei der Erstellung des Drehbuchs einzuhalten.</p>
-<p>Der Wortlaut jeder Regel passt sich der Zielsprache an:</p>
-<ul>
-<li><strong>Imperative Skripte</strong> – Bash, Python, Perl, Ruby, PowerShell, Windows-CMD und AppleScript erhalten die imperative Formulierung (Flags, Traps, Exit-Codes, …).</li>
-<li><strong>Deklarative Artefakte</strong> – Ansible-Playbooks und Snippets, deren Sprache <code>YAML</code>/<code>YML</code> ist oder <code>ansible</code> enthält, erhalten stattdessen Ansible-idiomatische Formulierungen (<code>block</code>/<code>rescue</code>/<code>always</code>, <code>assert</code>, <code>vars:</code>, Prüfmodus, …).</li>
-</ul>
-<p>Die <em>Idee</em> jeder Option ist also überall gleich, aber ein Bash-Skript erhält eine <code>set -euo pipefail</code>-Stilregel, während ein Ansible-Playbook eine <code>assert</code>/<code>failed_when</code>-Stilregel für genau dasselbe Kontrollkästchen erhält.</p>
-<h2 id="die-beiden-gruppen">Die beiden Gruppen<a class="headerlink" href="#die-beiden-gruppen" title="Permanent link">&para;</a></h2>
-<p>Die elf Optionen lassen sich aufgrund ihrer Auswirkung auf das Skript in zwei Gruppen einteilen:</p>
-<ul>
-<li><strong>Verhaltenserhaltende Härtung</strong> (die ersten sieben) fügen nur Dokumentation, Protokollierung, Struktur und Sicherheitsnetze hinzu. Sie machen das Skript stabiler und leichter lesbar, <strong>ohne seine eigentliche Funktion zu ändern</strong>. Diese können bei fast jedem Drehbuch bedenkenlos aktiviert bleiben.</li>
-<li><strong>Verhaltens-/interaktive Änderungen</strong> (die letzten vier) können den Kontrollfluss ändern oder eine Befehlszeilenschnittstelle hinzufügen – Vorbedingungs-Gates, Erkennung erneuter Ausführung, ein Probelaufmodus, Argumentanalyse. Lassen Sie sie weg, wenn Sie möchten, dass die Umschreibung so nah wie möglich am ursprünglichen Verhalten bleibt.</li>
-</ul>
-<h2 id="optionsreferenz">Optionsreferenz<a class="headerlink" href="#optionsreferenz" title="Permanent link">&para;</a></h2>
-<p>Jede Option unten listet auf, wozu sie dient und welche genaue Regel KorTTY an die KI sendet – für imperative Skripte und für Ansible-Playbooks.</p>
-<h3 id="verhaltenserhaltende-verhartung">Verhaltenserhaltende Verhärtung<a class="headerlink" href="#verhaltenserhaltende-verhartung" title="Permanent link">&para;</a></h3>
-<h4 id="strikter-modus-abbruch-bei-fehler">Strikter Modus (Abbruch bei Fehler)<a class="headerlink" href="#strikter-modus-abbruch-bei-fehler" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Stoppen Sie das Skript in dem Moment, in dem etwas schief geht, anstatt blind in einem halb gescheiterten Zustand fortzufahren.</li>
-<li><strong>Imperative Skripte</strong> – Aktivieren Sie den Strict-/Abort-on-Error-Modus der Sprache (z. B. <code>set -euo pipefail</code> in Bash, <code>Set-StrictMode -Version Latest</code> mit <code>$ErrorActionPreference = 'Stop'</code> in PowerShell, <code>use strict; use warnings;</code> in Perl).</li>
-<li><strong>Ansible-Playbooks</strong> – Validieren Sie die Voraussetzungen mit <code>assert</code>/<code>failed_when</code>, damit die Wiedergabe aufgrund eines fehlerhaften Zustands sofort fehlschlägt.</li>
-</ul>
-<h4 id="fehlerfalle-und-bereinigung">Fehlerfalle und Bereinigung<a class="headerlink" href="#fehlerfalle-und-bereinigung" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Gewährleisten, dass ein Fehler klar gemeldet wird und dass jeder temporäre Status (temporäre Dateien, Bereitstellungen, Sperren) bereinigt wird, selbst wenn das Skript abgebrochen wird.</li>
-<li><strong>Imperative Skripte</strong> – Fügen Sie einen Fehler-Trap-/<code>finally</code>-/<code>ensure</code>-Block hinzu, der Fehler meldet und den temporären Status bereinigt.</li>
-<li><strong>Ansible-Playbooks</strong> – Verwenden Sie <code>block</code>/<code>rescue</code>/<code>always</code>, damit Fehler abgefangen werden und die Bereinigung immer ausgeführt wird.</li>
-</ul>
-<h4 id="sinnvolle-exit-codes">Sinnvolle Exit-Codes<a class="headerlink" href="#sinnvolle-exit-codes" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), sagen, <em>warum</em> es fehlgeschlagen ist, nicht nur <em>dass</em> es fehlgeschlagen ist.</li>
-<li><strong>Imperative Skripte</strong> – Verwenden Sie unterschiedliche, dokumentierte Exit-Codes ungleich Null für unterschiedliche Fehlerklassen.</li>
-<li><strong>Ansible Playbooks</strong> – Sorgen Sie dafür, dass fehlgeschlagene Aufgaben mit einer klaren Nachricht (<code>any_errors_fatal</code>, wo sinnvoll) das Spiel stoppen.</li>
-</ul>
-<h4 id="protokollierung-verbose">Protokollierung (<code>--verbose</code>)<a class="headerlink" href="#protokollierung-verbose" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Machen Sie den Fortschritt des Skripts sichtbar und debuggbar, ohne die normale Ausgabe zu überladen.</li>
-<li><strong>Imperative Skripte</strong> – Senden Sie Protokollnachrichten mit Zeitstempel an stderr und unterstützen Sie ein <code>--verbose</code>/<code>-v</code>-Flag.</li>
-<li><strong>Ansible-Playbooks</strong> – Verwenden Sie das <code>debug</code>-Modul für die Fortschrittsausgabe (sichtbar mit <code>-v</code>).</li>
-</ul>
-<h4 id="konfigurationsblock-fur-literale">Konfigurationsblock für Literale<a class="headerlink" href="#konfigurationsblock-fur-literale" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.</li>
-<li><strong>Imperative Skripte</strong> – Heben Sie alle Literale (Pfade, Hosts, Pakete) in einen klar kommentierten Konfigurationsblock oben.</li>
-<li><strong>Ansible-Playbooks</strong> – Heben Sie alle Literale oben in einen <code>vars:</code>-Block.</li>
-</ul>
-<h4 id="abschlieende-zusammenfassung">Abschließende Zusammenfassung<a class="headerlink" href="#abschlieende-zusammenfassung" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Schließen Sie mit einem kurzen Bericht ab, damit der Bediener auf einen Blick sehen kann, was passiert ist.</li>
-<li><strong>Imperative Skripte</strong> – Drucken Sie eine abschließende Zusammenfassung dessen, was getan wurde (mit Erfolgs-/Misserfolgszählung).</li>
-<li><strong>Ansible-Playbooks</strong> – Beenden Sie mit einer <code>debug</code>-Zusammenfassung dessen, was sich geändert hat.</li>
-</ul>
-<h4 id="style-guide-linter-reinigen">Style-Guide / Linter reinigen<a class="headerlink" href="#style-guide-linter-reinigen" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Erstellen Sie Code, der den Standard-Linter der Sprache überwindet, sodass er konsistent liest und häufige Fehler vermeidet.</li>
-<li><strong>Imperative Skripte</strong> – Befolgen Sie den Sprach-Styleguide und halten Sie ihn sauber (z. B. ShellCheck-clean für Bash).</li>
-<li><strong>Ansible-Playbooks</strong> – Befolgen Sie die <code>ansible-lint</code>-Konventionen und verwenden Sie vollständig qualifizierte Modulnamen.</li>
-</ul>
-<h3 id="verhaltens-interaktive-anderungen">Verhaltens-/interaktive Änderungen<a class="headerlink" href="#verhaltens-interaktive-anderungen" title="Permanent link">&para;</a></h3>
-<h4 id="vorbedingungsprufungen">Vorbedingungsprüfungen<a class="headerlink" href="#vorbedingungsprufungen" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Machen Sie schnell einen Fehler, bevor Sie irgendetwas anfassen, wenn die Umgebung nicht bereit ist – ein fehlender Befehl, unzureichende Berechtigungen oder kein Netzwerk.</li>
-<li><strong>Imperative Skripte</strong> – Überprüfen Sie vor der Arbeit die erforderlichen Befehle, Berechtigungen (root/sudo) und Konnektivität.</li>
-<li><strong>Ansible-Playbooks</strong> – Fügen Sie vor jeder Änderung <code>pre_tasks</code>/<code>assert</code>-Prüfungen für erforderliche Berechtigungen, Pakete und Konnektivität hinzu.</li>
-</ul>
-<h4 id="idempotenz-abgeschlossene-schritte-uberspringen">Idempotenz (abgeschlossene Schritte überspringen)<a class="headerlink" href="#idempotenz-abgeschlossene-schritte-uberspringen" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Machen Sie das Skript sicher für die zweite Ausführung: Schritte, die bereits ausgeführt wurden, werden erkannt und übersprungen, anstatt wiederholt zu werden oder einen Fehler zu verursachen.</li>
-<li><strong>Imperative Skripte</strong> – Erkennen Sie bereits abgeschlossene Schritte und überspringen Sie sie, damit das Skript sicher erneut ausgeführt werden kann.</li>
-<li><strong>Ansible-Playbooks</strong> – Stellen Sie sicher, dass das Playbook vollständig idempotent ist (sichere erneute Ausführung; verlassen Sie sich auf Modul-Idempotenz und <code>creates</code>/<code>removes</code>).</li>
-</ul>
-<h4 id="abgesicherter-modus-dry-run-bestatigen">Abgesicherter Modus (<code>--dry-run</code> + bestätigen)<a class="headerlink" href="#abgesicherter-modus-dry-run-bestatigen" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Lassen Sie den Bediener eine Vorschau dessen anzeigen, was das Skript tun würde, ohne irgendwelche Änderungen vorzunehmen, und bitten Sie um Bestätigung, bevor etwas destruktives geschieht.</li>
-<li><strong>Imperative Skripte</strong> – Unterstützen Sie ein <code>--dry-run</code>-Flag, das beabsichtigte Aktionen ohne Ausführung ausgibt und vor destruktiven Vorgängen bestätigt (unterdrückbar mit <code>--yes</code>).</li>
-<li><strong>Ansible-Playbooks</strong> – Unterstützt den Prüfmodus (<code>--check</code>) und schützt destruktive Aufgaben, sodass ein Probelauf keine Änderungen vornimmt.</li>
-</ul>
-<h4 id="-help-argumentanalyse"><code>--help</code> &amp; Argumentanalyse<a class="headerlink" href="#-help-argumentanalyse" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Wofür es ist</strong> – Verwandeln Sie das Skript in ein richtiges Befehlszeilentool mit dokumentierten, überschreibbaren Eingaben anstelle von fest codierten Werten.</li>
-<li><strong>Imperative Skripte</strong> – Stellen Sie eine <code>--help</code>/usage-Nachricht bereit und analysieren Sie Befehlszeilenargumente für die konfigurierbaren Werte.</li>
-<li><strong>Ansible-Playbooks</strong> – Dokumentieren Sie alle Variablen und wie Sie sie über <code>--extra-vars</code> am Anfang der Datei überschreiben können.</li>
-</ul>
-<h2 id="tipps">Tipps<a class="headerlink" href="#tipps" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Beginnen Sie mit den Standardeinstellungen (alle aktiviert) für ein wegwerfbares oder persönliches Skript – die verhaltenserhaltende Gruppe kostet Sie nichts und die interaktive Gruppe macht das Skript benutzerfreundlicher.</li>
-<li>Für eine Umschreibung, bei der Sie den kleinstmöglichen Unterschied wünschen, deaktivieren Sie die vier Verhaltensoptionen und behalten Sie nur die verhaltenserhaltende Gruppe bei.</li>
-<li>Die Optionen sind unabhängig – Sie können jede beliebige Kombination ankreuzen. KorTTY sendet nur Regeln für die angekreuzten Kästchen.</li>
-</ul>
+<h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Ursache und Abhilfe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Startdialog „Organisationsrichtlinie konnte nicht geladen werden“</td>
+<td>Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf; Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist</td>
+</tr>
+<tr>
+<td>Richtlinie scheint ignoriert zu werden</td>
+<td>Die Datei heißt nicht <code>kortty-policy.toml</code>, befindet sich nicht im <code>policy/</code>-Ordner der Installation oder korTTY wurde nicht neu gestartet. Die Startzeilen des Protokolls geben an, welche Richtliniendatei (falls vorhanden) geladen wurde</td>
+</tr>
+<tr>
+<td>Eine Regel gilt nicht für einen Benutzer</td>
+<td>Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen <code>[groups]</code> Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer &gt; Gruppe &gt; Jeder) weniger spezifische Regeln außer Kraft setzt</td>
+</tr>
+<tr>
+<td>Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“</td>
+<td>Die Berechtigungen für das Installationsverzeichnis sind zu offen – das Durchsetzungsmodell basiert auf ausschließlich Administrator-Schreibzugriff</td>
+</tr>
+<tr>
+<td>Das Admin-Modell wird nicht angezeigt</td>
+<td>Sehen Sie sich das Protokoll an: GGUF-URL-Downloads erfolgen beim Start im Hintergrund und für die Registrierung ist eine installierte llama.cpp-Laufzeit erforderlich. MLX-Quellen müssen lokale Safetensors-Verzeichnisse sein</td>
+</tr>
+</tbody>
+</table>
 
 
 

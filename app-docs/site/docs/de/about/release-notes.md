@@ -4,6 +4,10 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 
 ## v2.5.2
 
+### Unternehmensrichtlinie
+
+- **Administratoren können korTTY jetzt über eine Richtliniendatei verwalten** – ein `kortty-policy.toml` im Installationsverzeichnis (nur für Administratoren beschreibbar) kann Server einschränken, zu denen Benutzer eine Verbindung herstellen dürfen (Zulassungs-/Verweigerungslisten mit Host-Globs, Ports, einzelnen IPs, CIDR-Netzwerken und IP-Bereichen, erzwungen für Terminals, SFTP, QuickConnect, Jump-Hosts und geplante Jobs), Funktionen deaktivieren oder einschränken (KI-Agent/Chat/Schwarm/Planung, Teamwork, Plugins, Update). Überprüfungen, Telemetrie, Terminalaufzeichnung), erzwingen Sie die Überprüfung des Master-Passworts und des Host-Schlüssels und konfigurieren Sie schreibgeschützte KI-Profile (mit verschlüsselten API-Schlüsseln über `korTTY --encrypt-policy-value`), lokale KI-Modelle, Skript-Header und Teamwork-Quellen vor. Regeln richten sich an einzelne Benutzer, richtliniendefinierte Gruppen oder OS/AD-Gruppen mit Benutzer &gt; Gruppe &gt; jeder hat Vorrang; Gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt, und eine ungültige Richtliniendatei versetzt korTTY in eine ausfallsichere Sperre, anstatt stillschweigend nichts durchzusetzen. Siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md).
+
 ### Dateibrowser
 
 - **Der Menü-Dateibrowser wurde zu einem echten Dateimanager umgebaut** – die andockbare Seitenleiste (**Ansicht → Dateibrowser**) erhielt eine Navigationsleiste (Zurück / Vor / Hoch / Home / Aktualisieren, Neuer Ordner / Datei), eine editierbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann – auch oberhalb des Home-Verzeichnisses –, ein Filterfeld, typabhängige Symbole mit Symlink-Markierung und eine Fußzeile, die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe [Dateibrowser](../features/file-browser.md).

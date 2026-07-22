@@ -4,6 +4,10 @@ The full, version-by-version changelog. The version this guide was built for is 
 
 ## v2.5.2
 
+### Enterprise policy
+
+- **Administrators can now manage korTTY through a policy file** — a `kortty-policy.toml` in the installation directory (admin-writable only) can restrict servers users may connect to (allow/deny lists with host globs, ports, single IPs, CIDR networks and IP ranges, enforced for terminals, SFTP, QuickConnect, jump hosts and scheduled jobs), disable or restrict features (AI Agent/Chat/Swarm/Planning, Teamwork, plugins, update checks, telemetry, terminal recording), force the master password and host-key verification, and preconfigure read-only AI profiles (with encrypted API keys via `korTTY --encrypt-policy-value`), local AI models, script headers and teamwork sources. Rules target individual users, policy-defined groups or OS/AD groups with user &gt; group &gt; everyone precedence; locked settings appear grayed out with a "Managed by your organization" hint, and an invalid policy file puts korTTY into a fail-safe lockdown instead of silently enforcing nothing. See [Enterprise policy](../reference/enterprise-policy.md).
+
 ### File browser
 
 - **The menu-bar File Browser was rebuilt as a proper file manager** — the docked sidebar (**View → File Browser**) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See [File browser](../features/file-browser.md).
