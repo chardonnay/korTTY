@@ -67,15 +67,19 @@ class MlxRuntimeLocatorTest {
         // No interpreter at all.
         assertThat(new MlxRuntimeLocator(runtimeRoot).locateActive()).isEmpty();
 
-        // Interpreter present but not executable.
+        // Interpreter present but not executable. Skipped on Windows/NTFS: there is no POSIX
+        // executable bit to revoke via File.setExecutable(false) (it returns false there instead of
+        // taking effect), and MLX is Apple-Silicon-only so this case never occurs on that OS anyway.
         Path python = Files.createDirectories(packageDirectory.resolve("python").resolve("bin"))
             .resolve("python3");
         Files.writeString(python, "interpreter");
-        assertThat(python.toFile().setExecutable(false)).isTrue();
-        assertThat(new MlxRuntimeLocator(runtimeRoot).locateActive()).isEmpty();
+        if (!isWindows()) {
+            assertThat(python.toFile().setExecutable(false)).isTrue();
+            assertThat(new MlxRuntimeLocator(runtimeRoot).locateActive()).isEmpty();
+            assertThat(python.toFile().setExecutable(true)).isTrue();
+        }
 
         // Executable interpreter but no launcher script.
-        assertThat(python.toFile().setExecutable(true)).isTrue();
         assertThat(new MlxRuntimeLocator(runtimeRoot).locateActive()).isEmpty();
 
         // Complete package resolves.
@@ -103,5 +107,9 @@ class MlxRuntimeLocatorTest {
         assertThat(python.toFile().setExecutable(true)).isTrue();
         Files.writeString(packageDirectory.resolve("kortty_mlx_server.py"), "# launcher");
         return packageDirectory;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
     }
 }

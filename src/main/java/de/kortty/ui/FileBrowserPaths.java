@@ -27,7 +27,9 @@ final class FileBrowserPaths {
                 return "~";
             }
             if (normalized.startsWith(normalizedHome)) {
-                return "~/" + normalizedHome.relativize(normalized);
+                String relative = normalizedHome.relativize(normalized).toString();
+                String separator = normalized.getFileSystem().getSeparator();
+                return "~/" + (separator.equals("/") ? relative : relative.replace(separator, "/"));
             }
         }
         return normalized.toString();

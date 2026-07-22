@@ -22,7 +22,12 @@ class FileBrowserPathsTest {
 
     @Test
     void keepsPathsOutsideHomeAbsolute() {
-        assertThat(FileBrowserPaths.abbreviateHome(Paths.get("/opt/tools"), HOME)).isEqualTo("/opt/tools");
+        // Built (not hardcoded) so the expectation matches this OS's own separator/root, the same
+        // way HOME.resolve("Projects/korTTY") does above: a literal "/opt/tools" only round-trips
+        // through Path.toAbsolutePath().normalize().toString() on POSIX.
+        Path outside = HOME.resolveSibling("opt-tools");
+        assertThat(FileBrowserPaths.abbreviateHome(outside, HOME))
+            .isEqualTo(outside.toAbsolutePath().normalize().toString());
         assertThat(FileBrowserPaths.abbreviateHome(null, HOME)).isEmpty();
     }
 

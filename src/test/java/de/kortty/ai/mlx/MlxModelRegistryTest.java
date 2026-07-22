@@ -100,7 +100,7 @@ class MlxModelRegistryTest {
                 {"id": "dup", "modelDirectory": "%s"}
               ]
             }
-            """.formatted(directory.resolve("first"), directory.resolve("second")));
+            """.formatted(jsonEscape(directory.resolve("first")), jsonEscape(directory.resolve("second"))));
 
         MlxRegistryException duplicate = expectThrows(
             MlxRegistryException.class,
@@ -122,5 +122,10 @@ class MlxModelRegistryTest {
 
     private static MlxModel modelWithIdle(String id, Path modelDirectory, int minutes) {
         return new MlxModel(id, id, modelDirectory, MlxModel.MODEL_DEFAULT_CONTEXT_SIZE, minutes, null);
+    }
+
+    /** Escapes a path for embedding as a JSON string value; Windows paths contain raw backslashes. */
+    private static String jsonEscape(Path path) {
+        return path.toString().replace("\\", "\\\\");
     }
 }

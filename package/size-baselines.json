@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "release": "v2.4.3",
+  "release": "v2.6.0",
   "minimum_reduction_percent": 15,
   "budget_tolerance_percent": 2,
   "artifacts": {
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
-      "verified_bytes": 135407306,
+      "verified_bytes": 138598980,
       "budget_bytes": 152043520
     },
     "macos-x86_64-dmg": {
