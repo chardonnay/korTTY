@@ -101,10 +101,42 @@ public class KorTTYApplication extends Application {
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     private volatile boolean shuttingDown = false;
+    private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
+        // Admin console mode: encrypt a sensitive policy-file value (e.g. an AI-profile API key)
+        // into the kortty-enc:v1: envelope, without starting JavaFX.
+        if (args.length > 0 && "--encrypt-policy-value".equals(args[0])) {
+            runEncryptPolicyValue(args);
+            return;
+        }
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
         launch(args);
+    }
+
+    /**
+     * Console routine behind {@code korTTY --encrypt-policy-value [value]}. Reads the plaintext
+     * from the argument, or interactively (echo-free where a console is available) when omitted,
+     * and prints the envelope for the admin to paste into kortty-policy.toml.
+     */
+    private static void runEncryptPolicyValue(String[] args) {
+        String plaintext;
+        if (args.length > 1) {
+            plaintext = args[1];
+        } else if (System.console() != null) {
+            char[] chars = System.console().readPassword("Value to encrypt: ");
+            plaintext = chars == null ? "" : new String(chars);
+        } else {
+            try (java.util.Scanner scanner = new java.util.Scanner(System.in)) {
+                System.out.print("Value to encrypt: ");
+                plaintext = scanner.hasNextLine() ? scanner.nextLine() : "";
+            }
+        }
+        if (plaintext.isEmpty()) {
+            System.err.println("No value given — nothing to encrypt.");
+            System.exit(1);
+        }
+        System.out.println(de.kortty.policy.PolicyValueCipher.encrypt(plaintext));
     }
     
     public static KorTTYApplication getInstance() {
@@ -114,6 +146,10 @@ public class KorTTYApplication extends Application {
     @Override
     public void init() throws Exception {
         instance = this;
+
+        // Load the enterprise policy FIRST — the settings managers constructed below must see the
+        // clamp before their first load, so a policy-managed value can never leak through.
+        policyManager = de.kortty.policy.PolicyManager.initialize();
 
         // Remove the retired diagram renderer's app-owned download cache and abandoned work
         // directories before loading persisted application data. Cleanup is deliberately
@@ -142,6 +178,8 @@ public class KorTTYApplication extends Application {
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
+        globalSettingsManager.setPolicyClamp(
+            new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
@@ -304,6 +342,13 @@ public class KorTTYApplication extends Application {
             // Start telemetry before the main window: consent from the setup dialog is
             // already persisted here, and the error appender is live during window construction.
             telemetryService.start();
+
+            // An installed but invalid policy file has put the app into fail-safe lockdown —
+            // tell the user before the (restricted) main window appears.
+            if (policyManager != null && policyManager.hasLoadFailure()) {
+                policyManager.loadResult().ifPresent(
+                    de.kortty.policy.PolicyUiSupport::showMalformedPolicyDialog);
+            }
 
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
@@ -963,6 +1008,10 @@ public class KorTTYApplication extends Application {
     
     public GlobalSettingsManager getGlobalSettingsManager() {
         return globalSettingsManager;
+    }
+
+    public de.kortty.policy.PolicyManager getPolicyManager() {
+        return policyManager;
     }
     
     public ThemeManager getThemeManager() {
