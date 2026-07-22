@@ -172,6 +172,32 @@ class PolicyClampTest {
     }
 
     @Test
+    void loggingDirectoryAndRetentionAreClamped() throws Exception {
+        PolicyRule rule = PolicyRule.builder()
+            .logging(new PolicyRule.LoggingRule("/var/log/kortty", 14, null, null, null, null))
+            .build();
+        PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(rule),
+            List.of(), List.of(), List.of(), List.of());
+        EffectivePolicy policy = EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(new PolicyClamp(policy));
+        manager.load();
+        assertThat(manager.getSettings().getLogDirectoryPath()).isEqualTo("/var/log/kortty");
+        assertThat(manager.getSettings().getLogRetentionDays()).isEqualTo(14);
+    }
+
+    @Test
     void withoutPolicyFileTheClampIsInert() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
         manager.setPolicyClamp(new PolicyClamp(EffectivePolicy.unrestricted()));

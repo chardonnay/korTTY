@@ -73,6 +73,26 @@ class LoggingConfigurationTest {
     }
 
     @Test
+    void maintenanceSkipsCompressionWhenPolicyDisablesIt() throws Exception {
+        Path logDir = Files.createTempDirectory("kortty-log-nocompress");
+        Path oldLog = logDir.resolve("kortty.2026-05-18.log");
+        try {
+            Files.writeString(oldLog, "old log\n", StandardCharsets.UTF_8);
+            Instant now = Instant.parse("2026-05-20T12:00:00Z");
+            Files.setLastModifiedTime(oldLog, FileTime.from(now.minusSeconds(25 * 60 * 60)));
+
+            LoggingConfiguration.maintainLogDirectory(
+                logDir, GlobalSettings.DEFAULT_LOG_RETENTION_DAYS, now, false);
+
+            assertThat(Files.exists(oldLog)).isTrue();
+            assertThat(Files.exists(logDir.resolve("kortty.2026-05-18.log.gz"))).isFalse();
+        } finally {
+            deleteIfExists(oldLog);
+            Files.deleteIfExists(logDir);
+        }
+    }
+
+    @Test
     void maintenanceCompressesRotatedLogsOlderThanTwentyFourHours() throws Exception {
         Path logDir = Files.createTempDirectory("kortty-log-maintenance");
         Path oldLog = logDir.resolve("kortty.2026-05-18.log");

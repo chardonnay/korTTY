@@ -30,6 +30,13 @@ import java.util.zip.GZIPOutputStream;
 public final class LoggingConfiguration {
 
     public static final String LOG_DIR_PROPERTY = "kortty.log.dir";
+    /** logback.xml: maximum number of rotated daily files kept (0 = unlimited). */
+    public static final String LOG_MAX_HISTORY_PROPERTY = "kortty.log.maxHistory";
+    /** logback.xml: total size cap over all rotated files, logback FileSize syntax (0 = uncapped). */
+    public static final String LOG_TOTAL_SIZE_CAP_PROPERTY = "kortty.log.totalSizeCap";
+    /** logback.xml: fully-qualified encoder class for the FILE appender (pattern vs JSON). */
+    public static final String LOG_ENCODER_CLASS_PROPERTY = "kortty.log.encoderClass";
+    private static final String JSON_ENCODER_CLASS = "ch.qos.logback.classic.encoder.JsonEncoder";
     public static final String DEFAULT_LOG_DIRECTORY_NAME = "logs";
     private static final String SETTINGS_FILE = "global-settings.xml";
     private static final Duration COMPRESSION_AGE = Duration.ofHours(24);
@@ -41,12 +48,25 @@ public final class LoggingConfiguration {
     }
 
     public static void bootstrapFromPersistedSettings(Path configDir) {
+        // Enterprise policy overrides for logging — read logger-free (see PolicyBootstrap): this
+        // runs before logback initializes, so even the first log lines land in the admin's
+        // directory, format and rotation scheme.
+        de.kortty.policy.PolicyRule.LoggingRule policyLogging =
+            de.kortty.policy.PolicyBootstrap.peekQuietly().logging();
         try {
             PersistedLogSettings settings = readPersistedLogSettings(configDir);
-            Path logDirectory = resolveLogDirectory(settings.logDirectoryPath(), configDir);
+            String directorySetting = policyLogging.directory() != null
+                ? policyLogging.directory()
+                : settings.logDirectoryPath();
+            int retentionDays = policyLogging.retentionDays() != null
+                ? policyLogging.retentionDays()
+                : settings.logRetentionDays();
+            Path logDirectory = resolveLogDirectory(directorySetting, configDir);
             System.setProperty(LOG_DIR_PROPERTY, logDirectory.toString());
+            applyPolicyLogbackProperties(policyLogging);
             Files.createDirectories(logDirectory);
-            maintainLogDirectory(logDirectory, settings.logRetentionDays(), Instant.now());
+            maintainLogDirectory(logDirectory, retentionDays, Instant.now(),
+                isCompressionEnabled(policyLogging));
         } catch (Exception ignored) {
             Path fallback = defaultLogDirectory(configDir);
             System.setProperty(LOG_DIR_PROPERTY, fallback.toString());
@@ -59,11 +79,44 @@ public final class LoggingConfiguration {
     }
 
     public static void applyRuntimeSettings(GlobalSettings settings, Path configDir) throws Exception {
+        // The directory/retention fields in GlobalSettings are already policy-clamped; format and
+        // rotation come straight from the policy.
+        de.kortty.policy.PolicyRule.LoggingRule policyLogging =
+            de.kortty.policy.PolicyManager.effective().logging();
         Path logDirectory = resolveLogDirectory(settings, configDir);
         Files.createDirectories(logDirectory);
         System.setProperty(LOG_DIR_PROPERTY, logDirectory.toString());
+        applyPolicyLogbackProperties(policyLogging);
         reconfigureLogback();
-        maintainLogDirectory(logDirectory, settings != null ? settings.getLogRetentionDays() : GlobalSettings.DEFAULT_LOG_RETENTION_DAYS);
+        maintainLogDirectory(logDirectory,
+            settings != null ? settings.getLogRetentionDays() : GlobalSettings.DEFAULT_LOG_RETENTION_DAYS,
+            Instant.now(),
+            isCompressionEnabled(policyLogging));
+    }
+
+    private static boolean isCompressionEnabled(de.kortty.policy.PolicyRule.LoggingRule policyLogging) {
+        return policyLogging.compress() == null || policyLogging.compress();
+    }
+
+    /**
+     * Feeds the policy's format and rotation caps into logback.xml via its property placeholders.
+     * Set before logback initializes (bootstrap) and before every {@link #reconfigureLogback()},
+     * so the FILE appender is built with the right encoder and rotation from the start — no
+     * fragile post-hoc appender surgery.
+     */
+    private static void applyPolicyLogbackProperties(de.kortty.policy.PolicyRule.LoggingRule policyLogging) {
+        if (policyLogging.format() == de.kortty.policy.LogFormat.JSON) {
+            System.setProperty(LOG_ENCODER_CLASS_PROPERTY, JSON_ENCODER_CLASS);
+        }
+        if (policyLogging.rotationMaxFiles() != null) {
+            System.setProperty(LOG_MAX_HISTORY_PROPERTY, String.valueOf(policyLogging.rotationMaxFiles()));
+        }
+        if (policyLogging.rotationTotalSizeMb() != null) {
+            System.setProperty(LOG_TOTAL_SIZE_CAP_PROPERTY,
+                policyLogging.rotationTotalSizeMb() > 0
+                    ? policyLogging.rotationTotalSizeMb() + "MB"
+                    : "0");
+        }
     }
 
     public static Path defaultLogDirectory(Path configDir) {
@@ -92,6 +145,11 @@ public final class LoggingConfiguration {
     }
 
     static void maintainLogDirectory(Path logDirectory, int retentionDays, Instant now) throws IOException {
+        maintainLogDirectory(logDirectory, retentionDays, now, true);
+    }
+
+    static void maintainLogDirectory(Path logDirectory, int retentionDays, Instant now,
+                                     boolean compressionEnabled) throws IOException {
         if (logDirectory == null || !Files.isDirectory(logDirectory, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
@@ -117,7 +175,8 @@ public final class LoggingConfiguration {
                     continue;
                 }
 
-                if (ROTATED_LOG_PATTERN.matcher(fileName).matches()
+                if (compressionEnabled
+                    && ROTATED_LOG_PATTERN.matcher(fileName).matches()
                     && modified.isBefore(compressionCutoff)) {
                     compressLogFile(file, modifiedTime);
                 }

@@ -58,6 +58,13 @@ class PolicyLoaderTest {
           enabled = false
           [rule.terminal]
           load-into-snippet-editor = "read-only"
+          [rule.logging]
+          directory = "/var/log/kortty"
+          retention-days = 30
+          compress = true
+          format = "json"
+          rotation-max-files = 14
+          rotation-total-size-mb = 512
 
         [[rule]]
         name = "ops-exception"
@@ -145,6 +152,12 @@ class PolicyLoaderTest {
         assertThat(baseline.allowRuntimeDownloads()).isFalse();
         assertThat(baseline.updatesEnabled()).isFalse();
         assertThat(baseline.loadIntoSnippetEditor()).isEqualTo(LoadIntoEditorMode.READ_ONLY);
+        assertThat(baseline.logging().directory()).isEqualTo("/var/log/kortty");
+        assertThat(baseline.logging().retentionDays()).isEqualTo(30);
+        assertThat(baseline.logging().compress()).isTrue();
+        assertThat(baseline.logging().format()).isEqualTo(LogFormat.JSON);
+        assertThat(baseline.logging().rotationMaxFiles()).isEqualTo(14);
+        assertThat(baseline.logging().rotationTotalSizeMb()).isEqualTo(512);
 
         PolicyRule exception = file.rules().get(1);
         assertThat(exception.users()).containsExactly("eve");
@@ -357,6 +370,27 @@ class PolicyLoaderTest {
             """));
         assertThat(result.isValid()).isFalse();
         assertThat(result.errors().get(0)).contains("clipboard-mode must be \"system\" or \"internal\"");
+    }
+
+    @Test
+    void invalidLoggingValuesAreErrors() throws IOException {
+        assertThat(PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.logging]
+            format = "xml"
+            """)).errors().get(0)).contains("format must be \"text\" or \"json\"");
+
+        assertThat(PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.logging]
+            retention-days = -1
+            """)).errors().get(0)).contains("retention-days must be a non-negative integer");
     }
 
     @Test

@@ -34,7 +34,8 @@ public final class PolicyLoader {
         "meta", "groups", "rule", "script-header", "ai-profile", "ai-runtime", "teamwork-source");
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
-        "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates", "terminal");
+        "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
+        "terminal", "logging");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
@@ -45,6 +46,8 @@ public final class PolicyLoader {
         Set.of("allow-runtime-downloads", "allow-model-downloads", "allow-user-models");
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor");
+    private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
+        "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SCRIPT_HEADER_KEYS = Set.of("name", "content");
     private static final Set<String> AI_PROFILE_KEYS =
         Set.of("id", "name", "provider", "endpoint", "model", "api-key-encrypted");
@@ -163,6 +166,7 @@ public final class PolicyLoader {
             parseRuleAiRuntime(table, context, builder);
             parseRuleUpdates(table, context, builder);
             parseRuleTerminal(table, context, builder);
+            parseRuleLogging(table, context, builder);
             rules.add(builder.build());
         }
         return rules;
@@ -334,6 +338,45 @@ public final class PolicyLoader {
                 builder.loadIntoSnippetEditor(mode);
             }
         }
+    }
+
+    private void parseRuleLogging(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "logging", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.logging]";
+        warnUnknownKeys(table, LOGGING_KEYS, tableContext);
+        String directory = getString(table, "directory", tableContext);
+        Integer retentionDays = getNonNegativeInt(table, "retention-days", tableContext);
+        Boolean compress = getBoolean(table, "compress", tableContext);
+        LogFormat format = null;
+        String formatValue = getString(table, "format", tableContext);
+        if (formatValue != null) {
+            format = LogFormat.fromToml(formatValue);
+            if (format == null) {
+                errors.add(tableContext + ": format must be \"text\" or \"json\"");
+            }
+        }
+        Integer rotationMaxFiles = getNonNegativeInt(table, "rotation-max-files", tableContext);
+        Integer rotationTotalSizeMb = getNonNegativeInt(table, "rotation-total-size-mb", tableContext);
+        PolicyRule.LoggingRule logging = new PolicyRule.LoggingRule(
+            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
+        if (!logging.isEmpty()) {
+            builder.logging(logging);
+        }
+    }
+
+    private Integer getNonNegativeInt(TomlTable table, String key, String context) {
+        Long value = getLong(table, key, context);
+        if (value == null) {
+            return null;
+        }
+        if (value < 0 || value > Integer.MAX_VALUE) {
+            errors.add(prefix(context) + key + " must be a non-negative integer");
+            return null;
+        }
+        return value.intValue();
     }
 
     private List<PolicyFile.ScriptHeader> parseScriptHeaders(TomlParseResult toml) {

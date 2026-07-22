@@ -205,6 +205,33 @@ class EffectivePolicyResolveTest {
     }
 
     @Test
+    void loggingResolvesPerFieldWithTighterCapsWinning() {
+        PolicyRule first = PolicyRule.builder()
+            .groups(Set.of("g"))
+            .logging(new PolicyRule.LoggingRule("/var/log/kortty", 30, null, LogFormat.TEXT, 0, 512))
+            .build();
+        PolicyRule second = PolicyRule.builder()
+            .groups(Set.of("g"))
+            .logging(new PolicyRule.LoggingRule(null, 14, false, LogFormat.JSON, 7, 0))
+            .build();
+        PolicyFile file = file(Map.of("g", Set.of("u")), first, second);
+
+        EffectivePolicy policy = EffectivePolicy.resolve(file, identity("u"));
+        assertThat(policy.logging().directory()).isEqualTo("/var/log/kortty");
+        assertThat(policy.logging().retentionDays()).isEqualTo(14);
+        assertThat(policy.logging().compress()).isFalse();
+        assertThat(policy.logging().format()).isEqualTo(LogFormat.JSON);
+        // A cap (7 files, 512 MB) beats "unlimited" (0).
+        assertThat(policy.logging().rotationMaxFiles()).isEqualTo(7);
+        assertThat(policy.logging().rotationTotalSizeMb()).isEqualTo(512);
+        assertThat(policy.isManaged(ManagedSetting.LOGGING)).isTrue();
+
+        EffectivePolicy unset = EffectivePolicy.resolve(file(Map.of()), identity("u"));
+        assertThat(unset.logging().isEmpty()).isTrue();
+        assertThat(unset.isManaged(ManagedSetting.LOGGING)).isFalse();
+    }
+
+    @Test
     void unknownUserGetsOnlyAllTierRules() {
         PolicyRule allRule = PolicyRule.builder().updatesEnabled(false).build();
         PolicyRule scoped = PolicyRule.builder()

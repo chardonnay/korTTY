@@ -834,6 +834,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#admin-provided-objects" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2442,6 +2453,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#admin-provided-objects" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2934,6 +2956,69 @@
 </tr>
 </tbody>
 </table>
+<h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
+<p>korTTY rotates its log daily (<code>kortty.YYYY-MM-DD.log</code>); this table controls where the files go, how long they live, how they are formatted and how rotation is capped. Directory and retention are forced into the corresponding (then locked) user settings; format, compression and the rotation caps have no user setting and act directly. The configuration is applied before the very first log line of a start, so even startup logging follows the admin's scheme.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>directory</code></td>
+<td>string</td>
+<td>absolute or <code>~/</code>-relative path</td>
+<td>Log directory (default <code>~/.kortty/logs</code>); the setting is locked</td>
+</tr>
+<tr>
+<td><code>retention-days</code></td>
+<td>integer</td>
+<td><code>0</code> = keep forever</td>
+<td>Rotated logs older than N days are deleted; the setting is locked</td>
+</tr>
+<tr>
+<td><code>compress</code></td>
+<td>boolean</td>
+<td>default <code>true</code></td>
+<td>Gzip rotated logs after one day</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td>string</td>
+<td><code>text</code>, <code>json</code></td>
+<td><code>json</code> writes one structured JSON object per event (logback JSON encoder — convenient for SIEM/central log collection)</td>
+</tr>
+<tr>
+<td><code>rotation-max-files</code></td>
+<td>integer</td>
+<td><code>0</code> = unlimited</td>
+<td>Keep at most N rotated daily files</td>
+</tr>
+<tr>
+<td><code>rotation-total-size-mb</code></td>
+<td>integer</td>
+<td><code>0</code> = uncapped</td>
+<td>Cap the total size of all rotated files (oldest deleted first)</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/log/kortty&quot;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;json&quot;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When several same-tier rules configure logging, each key resolves separately: shorter retention and tighter caps win, compression on wins, <code>json</code> wins over <code>text</code>. In practice, put the logging configuration into a single all-users rule. The chosen directory must be writable by the user running korTTY.</p>
+</div>
 <h3 id="admin-provided-objects">Admin-provided objects<a class="headerlink" href="#admin-provided-objects" title="Permanent link">&para;</a></h3>
 <p>These top-level tables define objects that appear read-only for every user, marked "Provided by your organization". They are rebuilt from the policy on every start and are never written into the user's configuration files — removing them from the policy removes them from korTTY.</p>
 <table>
@@ -2976,7 +3061,7 @@
 </div>
 <h2 id="encrypted-api-keys">Encrypted API keys<a class="headerlink" href="#encrypted-api-keys" title="Permanent link">&para;</a></h2>
 <p>An AI profile's API key never appears in plain text in the policy. The administrator encrypts it once from a terminal — the command prints a <code>kortty-enc:v1:</code> value for the <code>api-key-encrypted</code> key:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Users see only "API key provided by your organization" in the profile; the key is decrypted in memory at the moment a request is made.</p>
 <div class="admonition warning">

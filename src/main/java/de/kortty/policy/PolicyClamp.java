@@ -50,6 +50,12 @@ public final class PolicyClamp {
             settings.setHostKeyCheckDisabledForAllConnections(false);
             settings.setHostKeyCheckDisabledGroups(java.util.List.of());
         }
+        if (policy.logging().directory() != null) {
+            settings.setLogDirectoryPath(policy.logging().directory());
+        }
+        if (policy.logging().retentionDays() != null) {
+            settings.setLogRetentionDays(policy.logging().retentionDays());
+        }
         applyManagedAiProfiles(settings);
         applyManagedTeamworkSources(settings);
     }

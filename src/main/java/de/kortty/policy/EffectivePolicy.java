@@ -23,11 +23,15 @@ import java.util.function.Function;
  */
 public final class EffectivePolicy {
 
+    private static final PolicyRule.LoggingRule EMPTY_LOGGING =
+        new PolicyRule.LoggingRule(null, null, null, null, null, null);
+
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
         ClipboardMode.SYSTEM, true, true,
         true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
+        EMPTY_LOGGING,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
     private final boolean fromPolicyFile;
@@ -50,6 +54,7 @@ public final class EffectivePolicy {
     private final boolean updatesEnabled;
     private final String updateFeedUrl;
     private final LoadIntoEditorMode loadIntoSnippetEditor;
+    private final PolicyRule.LoggingRule logging;
     private final List<ServerRestriction> serverRestrictions;
     private final Set<ManagedSetting> managedSettings;
     private final List<PolicyFile.ScriptHeader> scriptHeaders;
@@ -67,6 +72,7 @@ public final class EffectivePolicy {
                             boolean allowRuntimeDownloads, boolean allowModelDownloads,
                             boolean allowUserModels, boolean updatesEnabled, String updateFeedUrl,
                             LoadIntoEditorMode loadIntoSnippetEditor,
+                            PolicyRule.LoggingRule logging,
                             List<ServerRestriction> serverRestrictions,
                             Set<ManagedSetting> managedSettings,
                             List<PolicyFile.ScriptHeader> scriptHeaders,
@@ -93,6 +99,7 @@ public final class EffectivePolicy {
         this.updatesEnabled = updatesEnabled;
         this.updateFeedUrl = updateFeedUrl;
         this.loadIntoSnippetEditor = loadIntoSnippetEditor;
+        this.logging = logging;
         this.serverRestrictions = List.copyOf(serverRestrictions);
         this.managedSettings = managedSettings;
         this.scriptHeaders = List.copyOf(scriptHeaders);
@@ -117,7 +124,8 @@ public final class EffectivePolicy {
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false,
-            false, null, LoadIntoEditorMode.DENY, List.of(), EnumSet.allOf(ManagedSetting.class),
+            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING,
+            List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
 
@@ -211,6 +219,11 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.SERVER_ACCESS);
         }
 
+        PolicyRule.LoggingRule logging = resolveLogging(resolver);
+        if (!logging.isEmpty()) {
+            managed.add(ManagedSetting.LOGGING);
+        }
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -220,7 +233,7 @@ public final class EffectivePolicy {
             orDefault(aiProfileAllowCreate, true), orDefault(aiProfileAllowEdit, true),
             orDefault(allowRuntimeDownloads, true), orDefault(allowModelDownloads, true),
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
-            orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), serverRestrictions, managed,
+            orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources());
     }
 
@@ -336,6 +349,11 @@ public final class EffectivePolicy {
         return loadIntoSnippetEditor;
     }
 
+    /** The resolved admin log configuration; all-null fields when logging is not managed. */
+    public PolicyRule.LoggingRule logging() {
+        return logging;
+    }
+
     /**
      * Whether connecting to {@code host:port} is permitted. In lockdown nothing is; without server
      * restrictions everything is; otherwise the connection must pass every applicable restriction.
@@ -382,6 +400,45 @@ public final class EffectivePolicy {
         if (resolved != null) {
             managed.add(setting);
         }
+    }
+
+    /**
+     * Per-field logging resolution. Direction of "restrictive" per field: shorter retention and
+     * tighter rotation caps win (a cap beats "unlimited" 0), compression on wins, JSON wins over
+     * text (deterministic), directory picks the lexicographically smallest on a same-tier tie.
+     */
+    private static PolicyRule.LoggingRule resolveLogging(Resolver resolver) {
+        String directory = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().directory() : null,
+            (a, b) -> a.compareTo(b) <= 0 ? a : b);
+        Integer retentionDays = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().retentionDays() : null,
+            EffectivePolicy::tighterCap);
+        Boolean compress = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().compress() : null,
+            (a, b) -> a || b);
+        LogFormat format = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().format() : null,
+            (a, b) -> a.ordinal() >= b.ordinal() ? a : b);
+        Integer rotationMaxFiles = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().rotationMaxFiles() : null,
+            EffectivePolicy::tighterCap);
+        Integer rotationTotalSizeMb = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().rotationTotalSizeMb() : null,
+            EffectivePolicy::tighterCap);
+        return new PolicyRule.LoggingRule(
+            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
+    }
+
+    /** Combines caps where 0 means "unlimited": any cap beats 0, otherwise the smaller cap wins. */
+    private static Integer tighterCap(Integer a, Integer b) {
+        if (a == 0) {
+            return b;
+        }
+        if (b == 0) {
+            return a;
+        }
+        return Math.min(a, b);
     }
 
     private enum Tier { USER, GROUP, ALL, NONE }

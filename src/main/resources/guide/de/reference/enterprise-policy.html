@@ -834,6 +834,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2442,6 +2453,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulelogging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.logging]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2934,6 +2956,69 @@
 </tr>
 </tbody>
 </table>
+<h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
+<p>korTTY rotiert sein Protokoll täglich (<code>kortty.YYYY-MM-DD.log</code>); Diese Tabelle steuert, wohin die Dateien gehen, wie lange sie leben, wie sie formatiert sind und wie die Rotation begrenzt wird. Verzeichnis und Aufbewahrung werden in die entsprechenden (dann gesperrten) Benutzereinstellungen gezwungen; Format, Komprimierung und die Rotationsbeschränkungen haben keine Benutzereinstellung und wirken direkt. Die Konfiguration wird vor der allerersten Protokollzeile eines Starts angewendet, sodass auch die Startprotokollierung dem Schema des Administrators folgt.</p>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>directory</code></td>
+<td>Zeichenfolge</td>
+<td>absoluter oder <code>~/</code>-relativer Pfad</td>
+<td>Protokollverzeichnis (Standard <code>~/.kortty/logs</code>); Die Einstellung ist gesperrt</td>
+</tr>
+<tr>
+<td><code>retention-days</code></td>
+<td>Ganzzahl</td>
+<td><code>0</code> = für immer behalten</td>
+<td>Rotierte Protokolle, die älter als N Tage sind, werden gelöscht; Die Einstellung ist gesperrt</td>
+</tr>
+<tr>
+<td><code>compress</code></td>
+<td>boolean</td>
+<td>Standard <code>true</code></td>
+<td>Gzip rotierte Protokolle nach einem Tag</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td>Zeichenfolge</td>
+<td><code>text</code>, <code>json</code></td>
+<td><code>json</code> schreibt ein strukturiertes JSON-Objekt pro Ereignis (Logback-JSON-Encoder – praktisch für SIEM/zentrale Protokollerfassung)</td>
+</tr>
+<tr>
+<td><code>rotation-max-files</code></td>
+<td>Ganzzahl</td>
+<td><code>0</code> = unbegrenzt</td>
+<td>Behalten Sie höchstens N rotierte tägliche Dateien bei</td>
+</tr>
+<tr>
+<td><code>rotation-total-size-mb</code></td>
+<td>Ganzzahl</td>
+<td><code>0</code> = nicht begrenzt</td>
+<td>Begrenzen Sie die Gesamtgröße aller gedrehten Dateien (älteste zuerst gelöscht)</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/log/kortty&quot;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;json&quot;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Wenn mehrere gleichstufige Regeln die Protokollierung konfigurieren, wird jeder Schlüssel separat aufgelöst: kürzere Aufbewahrung und engere Obergrenzen gewinnen, Komprimierung gewinnt, <code>json</code> gewinnt gegenüber <code>text</code>. In der Praxis fassen Sie die Protokollierungskonfiguration in einer einzigen Regel für alle Benutzer zusammen. Das ausgewählte Verzeichnis muss für den Benutzer, der korTTY ausführt, beschreibbar sein.</p>
+</div>
 <h3 id="von-admin-bereitgestellte-objekte">Von Admin bereitgestellte Objekte<a class="headerlink" href="#von-admin-bereitgestellte-objekte" title="Permanent link">&para;</a></h3>
 <p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
 <table>
@@ -2976,7 +3061,7 @@
 </div>
 <h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
 <p>Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
 <div class="admonition warning">

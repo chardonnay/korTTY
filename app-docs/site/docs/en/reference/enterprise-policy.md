@@ -161,6 +161,33 @@ Patterns match the host string exactly as configured in the connection — korTT
 | --- | --- | --- | --- |
 | `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely |
 
+### `[rule.logging]`
+
+korTTY rotates its log daily (`kortty.YYYY-MM-DD.log`); this table controls where the files go, how long they live, how they are formatted and how rotation is capped. Directory and retention are forced into the corresponding (then locked) user settings; format, compression and the rotation caps have no user setting and act directly. The configuration is applied before the very first log line of a start, so even startup logging follows the admin's scheme.
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `directory` | string | absolute or `~/`-relative path | Log directory (default `~/.kortty/logs`); the setting is locked |
+| `retention-days` | integer | `0` = keep forever | Rotated logs older than N days are deleted; the setting is locked |
+| `compress` | boolean | default `true` | Gzip rotated logs after one day |
+| `format` | string | `text`, `json` | `json` writes one structured JSON object per event (logback JSON encoder — convenient for SIEM/central log collection) |
+| `rotation-max-files` | integer | `0` = unlimited | Keep at most N rotated daily files |
+| `rotation-total-size-mb` | integer | `0` = uncapped | Cap the total size of all rotated files (oldest deleted first) |
+
+```toml
+[[rule]]
+  [rule.logging]
+  directory = "/var/log/kortty"
+  retention-days = 30
+  compress = true
+  format = "json"
+  rotation-max-files = 14
+  rotation-total-size-mb = 512
+```
+
+!!! note
+    When several same-tier rules configure logging, each key resolves separately: shorter retention and tighter caps win, compression on wins, `json` wins over `text`. In practice, put the logging configuration into a single all-users rule. The chosen directory must be writable by the user running korTTY.
+
 ### Admin-provided objects
 
 These top-level tables define objects that appear read-only for every user, marked "Provided by your organization". They are rebuilt from the policy on every start and are never written into the user's configuration files — removing them from the policy removes them from korTTY.

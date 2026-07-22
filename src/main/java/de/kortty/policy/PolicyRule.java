@@ -31,6 +31,7 @@ import java.util.Set;
  * @param updatesEnabled             false disables update checks and downloads entirely
  * @param updateFeedUrl              custom release feed replacing the GitHub endpoint, or null
  * @param loadIntoSnippetEditor      mode for the terminal "load into snippet editor" feature, or null
+ * @param logging                    admin log configuration from {@code [rule.logging]}, or null
  */
 public record PolicyRule(
     String name,
@@ -53,7 +54,8 @@ public record PolicyRule(
     Boolean allowUserModels,
     Boolean updatesEnabled,
     String updateFeedUrl,
-    LoadIntoEditorMode loadIntoSnippetEditor) {
+    LoadIntoEditorMode loadIntoSnippetEditor,
+    LoggingRule logging) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -64,6 +66,31 @@ public record PolicyRule(
     /** True when the rule names neither users nor groups and therefore applies to everyone. */
     public boolean appliesToAll() {
         return users.isEmpty() && groups.isEmpty();
+    }
+
+    /**
+     * The {@code [rule.logging]} table: where and how log files are written. All fields nullable =
+     * "not set at this tier".
+     *
+     * @param directory          log directory (absolute or {@code ~/}-relative), or null
+     * @param retentionDays      days rotated logs are kept (0 = unlimited), or null
+     * @param compress           whether rotated logs are gzip-compressed after a day, or null
+     * @param format             file log format, or null
+     * @param rotationMaxFiles   maximum number of rotated daily files kept by logback (0 = unlimited), or null
+     * @param rotationTotalSizeMb total size cap over all rotated files in MB (0 = uncapped), or null
+     */
+    public record LoggingRule(
+        String directory,
+        Integer retentionDays,
+        Boolean compress,
+        LogFormat format,
+        Integer rotationMaxFiles,
+        Integer rotationTotalSizeMb) {
+
+        public boolean isEmpty() {
+            return directory == null && retentionDays == null && compress == null
+                && format == null && rotationMaxFiles == null && rotationTotalSizeMb == null;
+        }
     }
 
     /** Builder for tests and the loader — every field defaults to "not set". */
@@ -93,6 +120,7 @@ public record PolicyRule(
         private Boolean updatesEnabled;
         private String updateFeedUrl;
         private LoadIntoEditorMode loadIntoSnippetEditor;
+        private LoggingRule logging;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -115,13 +143,14 @@ public record PolicyRule(
         public Builder updatesEnabled(Boolean value) { this.updatesEnabled = value; return this; }
         public Builder updateFeedUrl(String value) { this.updateFeedUrl = value; return this; }
         public Builder loadIntoSnippetEditor(LoadIntoEditorMode value) { this.loadIntoSnippetEditor = value; return this; }
+        public Builder logging(LoggingRule value) { this.logging = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
                 requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
                 allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
-                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor);
+                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging);
         }
     }
 }

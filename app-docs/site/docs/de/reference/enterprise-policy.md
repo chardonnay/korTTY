@@ -161,6 +161,33 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | --- | --- | --- | --- |
 | `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` Lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig |
 
+### `[rule.logging]`
+
+korTTY rotiert sein Protokoll täglich (`kortty.YYYY-MM-DD.log`); Diese Tabelle steuert, wohin die Dateien gehen, wie lange sie leben, wie sie formatiert sind und wie die Rotation begrenzt wird. Verzeichnis und Aufbewahrung werden in die entsprechenden (dann gesperrten) Benutzereinstellungen gezwungen; Format, Komprimierung und die Rotationsbeschränkungen haben keine Benutzereinstellung und wirken direkt. Die Konfiguration wird vor der allerersten Protokollzeile eines Starts angewendet, sodass auch die Startprotokollierung dem Schema des Administrators folgt.
+
+| Schlüssel | Typ | Werte | Wirkung |
+| --- | --- | --- | --- |
+| `directory` | Zeichenfolge | absoluter oder `~/`-relativer Pfad | Protokollverzeichnis (Standard `~/.kortty/logs`); Die Einstellung ist gesperrt |
+| `retention-days` | Ganzzahl | `0` = für immer behalten | Rotierte Protokolle, die älter als N Tage sind, werden gelöscht; Die Einstellung ist gesperrt |
+| `compress` | boolean | Standard `true` | Gzip rotierte Protokolle nach einem Tag |
+| `format` | Zeichenfolge | `text`, `json` | `json` schreibt ein strukturiertes JSON-Objekt pro Ereignis (Logback-JSON-Encoder – praktisch für SIEM/zentrale Protokollerfassung) |
+| `rotation-max-files` | Ganzzahl | `0` = unbegrenzt | Behalten Sie höchstens N rotierte tägliche Dateien bei |
+| `rotation-total-size-mb` | Ganzzahl | `0` = nicht begrenzt | Begrenzen Sie die Gesamtgröße aller gedrehten Dateien (älteste zuerst gelöscht) |
+
+```toml
+[[rule]]
+  [rule.logging]
+  directory = "/var/log/kortty"
+  retention-days = 30
+  compress = true
+  format = "json"
+  rotation-max-files = 14
+  rotation-total-size-mb = 512
+```
+
+!!! note
+    Wenn mehrere gleichstufige Regeln die Protokollierung konfigurieren, wird jeder Schlüssel separat aufgelöst: kürzere Aufbewahrung und engere Obergrenzen gewinnen, Komprimierung gewinnt, `json` gewinnt gegenüber `text`. In der Praxis fassen Sie die Protokollierungskonfiguration in einer einzigen Regel für alle Benutzer zusammen. Das ausgewählte Verzeichnis muss für den Benutzer, der korTTY ausführt, beschreibbar sein.
+
 ### Von Admin bereitgestellte Objekte
 
 Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.

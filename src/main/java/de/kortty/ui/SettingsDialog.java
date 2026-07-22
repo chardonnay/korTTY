@@ -916,6 +916,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         logDirectoryPathField.setText(effectiveLogDirectory.toString());
         Button logDirectoryBrowseButton = new Button(I18n.get("connEdit.browse"));
         logDirectoryBrowseButton.setOnAction(event -> chooseLogDirectory());
+        if (de.kortty.policy.PolicyManager.effective().logging().directory() != null) {
+            logDirectoryPathField.setDisable(true);
+            logDirectoryPathField.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            logDirectoryBrowseButton.setDisable(true);
+        }
         HBox logDirectoryBox = new HBox(10, logDirectoryPathField, logDirectoryBrowseButton);
         HBox.setHgrow(logDirectoryPathField, Priority.ALWAYS);
         loggingGrid.add(new Label(I18n.get("settings.logging.directory")), 0, loggingRow);
@@ -935,6 +941,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         logRetentionDaysSpinner.setEditable(true);
         logRetentionDaysSpinner.setPrefWidth(120);
         logRetentionDaysSpinner.setTooltip(new Tooltip(I18n.get("settings.logging.retention.tooltip")));
+        if (de.kortty.policy.PolicyManager.effective().logging().retentionDays() != null) {
+            logRetentionDaysSpinner.setDisable(true);
+            logRetentionDaysSpinner.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
         HBox logRetentionBox = new HBox(10, logRetentionDaysSpinner, new Label(I18n.get("common.days")));
         logRetentionBox.setAlignment(Pos.CENTER_LEFT);
         loggingGrid.add(new Label(I18n.get("settings.logging.retention")), 0, loggingRow);

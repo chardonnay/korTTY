@@ -103,6 +103,16 @@
 #   # Terminal "Load into snippet editor": "allow", "read-only" (loading works, but
 #   # writing back to the remote system is forbidden) or "deny".
 #   load-into-snippet-editor = "read-only"
+#
+#   # Where and how korTTY writes its log files. Directory and retention are forced into
+#   # the (locked) user settings; format, compression and rotation apply directly.
+#   [rule.logging]
+#   directory = "/var/log/kortty"     # absolute or ~/-relative; default ~/.kortty/logs
+#   retention-days = 30               # delete rotated logs after N days (0 = keep forever)
+#   compress = true                   # gzip rotated logs after one day (default true)
+#   format = "json"                   # "text" (default) | "json" (one JSON object per line)
+#   rotation-max-files = 14           # keep at most N rotated daily files (0 = unlimited)
+#   rotation-total-size-mb = 512      # cap total size of rotated files in MB (0 = uncapped)
 
 # A more specific rule can relax the baseline for a group or single users:
 # [[rule]]
