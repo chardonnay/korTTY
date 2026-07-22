@@ -1,6 +1,6 @@
 = Release Notes
 
-== v2.5.2
+== v2.6.0
 
 === Mermaid diagrams
 
