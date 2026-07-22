@@ -18,6 +18,11 @@ public final class TerminalRecordingRuntimeState {
     }
 
     public static boolean isTerminalRecordingEnabled(GlobalSettings settings) {
+        // The enterprise policy overrides both the persisted setting (already clamped) and the
+        // session-level toggle, which would otherwise bypass the clamp.
+        if (!de.kortty.policy.PolicyManager.effective().terminalRecordingAllowed()) {
+            return false;
+        }
         return sessionRecordingEnabled || (settings != null && settings.isTerminalRecordingEnabled());
     }
 }

@@ -33,6 +33,11 @@ public final class HostKeyCheckPolicy {
      */
     public static HostKeyCheckMode resolve(
             ServerConnection connection, boolean disabledForAllConnections, Collection<String> disabledGroups) {
+        // Enterprise policy: with enforce-host-key-check active, every scope (global, group,
+        // per-connection) is overridden — checking can never be relaxed.
+        if (de.kortty.policy.PolicyManager.effective().enforceHostKeyCheck()) {
+            return HostKeyCheckMode.STRICT;
+        }
         if (connection == null) {
             return HostKeyCheckMode.STRICT;
         }

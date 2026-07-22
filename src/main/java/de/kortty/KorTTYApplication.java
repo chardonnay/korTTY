@@ -317,16 +317,24 @@ public class KorTTYApplication extends Application {
             // knowledge-source synchronization for this application session.
             de.kortty.rag.RagCoordinator.startDefault();
 
-            try {
-                terminalEffectPluginManager.load();
-            } catch (Exception e) {
-                logger.warn("Failed to load terminal effect plugins", e);
+            if (de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+                try {
+                    terminalEffectPluginManager.load();
+                } catch (Exception e) {
+                    logger.warn("Failed to load terminal effect plugins", e);
+                }
+            } else {
+                logger.info("Plugins disabled by enterprise policy — skipping plugin load");
             }
-            
+
             // Start teamwork sync and recycle bin (separate try-catch for accurate error context)
             try {
-                teamworkSyncService = new TeamworkSyncService(getConfigDirectory(), globalSettingsManager);
-                teamworkSyncService.start();
+                if (de.kortty.policy.PolicyManager.effective().teamworkAllowed()) {
+                    teamworkSyncService = new TeamworkSyncService(getConfigDirectory(), globalSettingsManager);
+                    teamworkSyncService.start();
+                } else {
+                    logger.info("Teamwork disabled by enterprise policy — sync service not started");
+                }
             } catch (Exception e) {
                 logger.warn("TeamworkSyncService failed to start (configDirectory={}, globalSettingsManager={})",
                     getConfigDirectory(), globalSettingsManager, e);

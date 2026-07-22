@@ -1488,12 +1488,31 @@ public class MainWindow {
         aiSwarm.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
         aiSwarm.setOnAction(e -> showAiSwarm());
 
+        // Policy-denied AI features stay permanently disabled: they are excluded from the sync
+        // lists (which would re-enable them) and locked with the managed-by-organization hint.
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         toolsAiMenuItems.add(aiManager);
-        toolsAiMenuItems.add(savedChats);
-        toolsAiMenuItems.add(aiAgent);
-        toolsAiMenuItems.add(aiPlanning);
-        toolsAiMenuItems.add(aiSwarm);
-        toolsAiAgentExecutionMenuItems.add(aiAgent);
+        if (policy.aiChatAllowed()) {
+            toolsAiMenuItems.add(savedChats);
+        } else {
+            savedChats.setDisable(true);
+        }
+        if (policy.aiAgentAllowed()) {
+            toolsAiMenuItems.add(aiAgent);
+            toolsAiAgentExecutionMenuItems.add(aiAgent);
+        } else {
+            aiAgent.setDisable(true);
+        }
+        if (policy.aiPlanningAllowed()) {
+            toolsAiMenuItems.add(aiPlanning);
+        } else {
+            aiPlanning.setDisable(true);
+        }
+        if (policy.aiSwarmAllowed()) {
+            toolsAiMenuItems.add(aiSwarm);
+        } else {
+            aiSwarm.setDisable(true);
+        }
 
         aiMenu.getItems().addAll(aiManager, savedChats, aiAgent, aiPlanning, aiSwarm);
         return aiMenu;
@@ -1504,6 +1523,9 @@ public class MainWindow {
 
         MenuItem teamworkSettings = new MenuItem(I18n.get("menu.teamwork.settings"));
         teamworkSettings.setOnAction(e -> showTeamworkSettings());
+        if (!de.kortty.policy.PolicyManager.effective().teamworkAllowed()) {
+            teamworkSettings.setDisable(true);
+        }
 
         teamworkMenu.getItems().add(teamworkSettings);
         return teamworkMenu;
@@ -1513,6 +1535,9 @@ public class MainWindow {
         Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
         MenuItem terminalEffects = new MenuItem(I18n.get("menu.plugins.terminalEffects"));
         terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
+        if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+            terminalEffects.setDisable(true);
+        }
         pluginsMenu.getItems().add(terminalEffects);
         return pluginsMenu;
     }
@@ -5561,18 +5586,29 @@ public class MainWindow {
     }
 
     private void installAiSelectionHandler(TerminalTab terminalTab) {
-        terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
-            handleAiSelectionAction(terminalTab, action, profile, selectedText));
-        terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
-            loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
-        terminalTab.getTerminalView().setAiAgentHandler(runContext ->
-            requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
-        terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
-            requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
-        terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
-            requestAiPlanningForTab(terminalTab, null, null, runContext));
-        terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
-            handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
+        // Handlers left unset for policy-denied features make the corresponding terminal
+        // context-menu items disappear entirely (TerminalView builds items from handler presence).
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        if (policy.aiChatAllowed()) {
+            terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
+                handleAiSelectionAction(terminalTab, action, profile, selectedText));
+        }
+        if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
+            terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
+                loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
+        }
+        if (policy.aiAgentAllowed()) {
+            terminalTab.getTerminalView().setAiAgentHandler(runContext ->
+                requestAiAgentForTab(terminalTab, false, null, null, false, false, runContext));
+            terminalTab.getTerminalView().setAiAgentAskHandler((runContext, selectedText) ->
+                requestAiAgentForTab(terminalTab, true, null, null, false, false, runContext, selectedText));
+            terminalTab.getTerminalView().setTerminalAgentShortcutHandler((rawCommand, runContext) ->
+                handleTerminalAgentShortcut(terminalTab, rawCommand, runContext));
+        }
+        if (policy.aiPlanningAllowed()) {
+            terminalTab.getTerminalView().setAiPlanningHandler(runContext ->
+                requestAiPlanningForTab(terminalTab, null, null, runContext));
+        }
         terminalTab.getTerminalView().setMenuBarRestoreHandler(
             () -> menuBar != null && !menuBar.isVisible(),
             () -> toggleMenuBarVisibility(true));
