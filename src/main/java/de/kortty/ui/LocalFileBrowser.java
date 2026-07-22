@@ -255,7 +255,7 @@ public class LocalFileBrowser extends VBox {
     private void setRoot(Path root) {
         currentRoot = root;
         currentDirectory = root;
-        rootItem = toTreeItem(nodeFor(root));
+        rootItem = toTreeItem(rootNode(root));
         treeView.setRoot(rootItem);
         rootItem.setExpanded(true);
         if (pathBar != null) {
@@ -549,39 +549,40 @@ public class LocalFileBrowser extends VBox {
         if (targetDir == null || files == null || files.isEmpty()) {
             return false;
         }
-        boolean any = false;
-        for (File file : files) {
-            Path source = file.toPath();
-            Path sourceParent = source.getParent();
-            if (targetDir.equals(sourceParent)) {
-                continue;
-            }
-            boolean directory = Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS);
-            if (directory && targetDir.startsWith(source)) {
-                continue;
-            }
-            try {
-                Path destination = FileBrowserPaths.uniqueDestination(targetDir, file.getName());
-                if (move) {
-                    if (directory) {
-                        moveDirectory(source, destination);
-                    } else {
-                        Files.move(source, destination);
-                    }
-                } else if (directory) {
-                    copyDirectory(source, destination);
-                } else {
-                    Files.copy(source, destination);
+        List<File> sources = List.copyOf(files);
+        runFileOperation(() -> {
+            String error = null;
+            for (File file : sources) {
+                Path source = file.toPath();
+                Path sourceParent = source.getParent();
+                if (targetDir.equals(sourceParent)) {
+                    continue;
                 }
-                any = true;
-            } catch (IOException | SecurityException e) {
-                setStatus(I18n.get("filebrowser.error.drop") + ": " + e.getMessage());
+                boolean directory = Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS);
+                if (directory && targetDir.startsWith(source)) {
+                    continue;
+                }
+                try {
+                    Path destination = FileBrowserPaths.uniqueDestination(targetDir, file.getName());
+                    if (move) {
+                        if (directory) {
+                            moveDirectory(source, destination);
+                        } else {
+                            Files.move(source, destination);
+                        }
+                    } else if (directory) {
+                        copyDirectory(source, destination);
+                    } else {
+                        Files.copy(source, destination);
+                    }
+                } catch (IOException | SecurityException e) {
+                    error = I18n.get("filebrowser.error.drop") + ": " + e.getMessage();
+                }
             }
-        }
-        if (any) {
-            refresh();
-        }
-        return any;
+            return error;
+        });
+        // The drop was accepted; the copy/move runs asynchronously and refreshes when done.
+        return true;
     }
 
     private void renameSelected() {
@@ -1198,11 +1199,42 @@ public class LocalFileBrowser extends VBox {
         }
         List<TreeItem<FileNode>> items = children.stream().map(this::toTreeItem).collect(Collectors.toList());
         parent.getChildren().setAll(items);
-        setStatus("");
+        clearAccessError();
         restorePendingExpansion(items);
         if (rootLevel) {
             updateCounts();
         }
+    }
+
+    /**
+     * Clears only a stale "access denied" message, so a status set by a file operation
+     * (which finishes by calling {@link #refresh()}) is not wiped by the reload that follows.
+     */
+    private void clearAccessError() {
+        if (statusLabel != null && I18n.get("filebrowser.error.accessDenied").equals(statusLabel.getText())) {
+            setStatus("");
+        }
+    }
+
+    /**
+     * Runs a filesystem mutation off the FX thread with the loading overlay shown, then refreshes
+     * the tree. The supplier returns a status message to display when done (or {@code null}); an
+     * unexpected exception surfaces its message instead. Keeps large copy/move/archive operations
+     * from freezing the UI.
+     */
+    private void runFileOperation(Supplier<String> operation) {
+        showLoading(true);
+        CompletableFuture
+            .supplyAsync(operation)
+            .whenComplete((message, throwable) -> Platform.runLater(() -> {
+                refresh();
+                if (throwable != null) {
+                    Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                    setStatus(cause.getMessage() != null ? cause.getMessage() : cause.toString());
+                } else if (message != null && !message.isBlank()) {
+                    setStatus(message);
+                }
+            }));
     }
 
     private Set<Path> captureExpandedPaths() {
@@ -1258,6 +1290,16 @@ public class LocalFileBrowser extends VBox {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Cheap node for the navigable tree root: it is known to be a directory, so this skips the
+     * size/date/symlink stat calls {@link #nodeFor(Path)} makes — those would run on the FX thread
+     * in {@link #setRoot(Path)} and could stall on a slow or network-mounted root. The children are
+     * still stat-ed off-thread by {@link #listChildren}.
+     */
+    private static FileNode rootNode(Path path) {
+        return new FileNode(path.toFile(), true, false, false, false, false, false, 0, 0);
     }
 
     private static FileNode nodeFor(Path path) {
@@ -1322,29 +1364,34 @@ public class LocalFileBrowser extends VBox {
             return;
         }
         Path target = selectedTargetDirectory();
-        for (File source : clipboardFiles) {
-            try {
-                Path destination = target.resolve(source.getName());
-                if (clipboardCut) {
-                    if (source.isDirectory()) {
-                        moveDirectory(source.toPath(), destination);
-                    } else {
-                        Files.move(source.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                } else if (source.isDirectory()) {
-                    copyDirectory(source.toPath(), destination);
-                } else {
-                    Files.copy(source.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
-                }
-            } catch (IOException | SecurityException e) {
-                setStatus(I18n.get("filebrowser.error.paste") + ": " + e.getMessage());
-            }
-        }
-        if (clipboardCut) {
+        List<File> sources = List.copyOf(clipboardFiles);
+        boolean cut = clipboardCut;
+        if (cut) {
             clipboardFiles.clear();
             clipboardCut = false;
         }
-        refresh();
+        runFileOperation(() -> {
+            String error = null;
+            for (File source : sources) {
+                try {
+                    Path destination = target.resolve(source.getName());
+                    if (cut) {
+                        if (source.isDirectory()) {
+                            moveDirectory(source.toPath(), destination);
+                        } else {
+                            Files.move(source.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    } else if (source.isDirectory()) {
+                        copyDirectory(source.toPath(), destination);
+                    } else {
+                        Files.copy(source.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } catch (IOException | SecurityException e) {
+                    error = I18n.get("filebrowser.error.paste") + ": " + e.getMessage();
+                }
+            }
+            return error;
+        });
     }
 
     private Path selectedTargetDirectory() {
@@ -1863,25 +1910,28 @@ public class LocalFileBrowser extends VBox {
         if (selectedItems.isEmpty()) {
             return;
         }
+        List<File> files = selectedItems.stream().map(FileNode::file).collect(Collectors.toList());
         Path archivePath = selectedTargetDirectory().resolve("archive." + format);
-        try {
-            if ("zip".equals(format)) {
-                archiveToZip(archivePath);
-            } else if ("tar".equals(format)) {
-                archiveToTar(archivePath, false);
-            } else if ("tgz".equals(format)) {
-                archiveToTar(archivePath, true);
+        runFileOperation(() -> {
+            try {
+                if ("zip".equals(format)) {
+                    archiveToZip(archivePath, files);
+                } else if ("tar".equals(format)) {
+                    archiveToTar(archivePath, false, files);
+                } else if ("tgz".equals(format)) {
+                    archiveToTar(archivePath, true, files);
+                }
+                return I18n.get("filebrowser.archive.created") + ": " + archivePath.getFileName();
+            } catch (IOException | SecurityException e) {
+                return I18n.get("filebrowser.error.archive") + ": " + e.getMessage();
             }
-            setStatus(I18n.get("filebrowser.archive.created") + ": " + archivePath.getFileName());
-        } catch (IOException | SecurityException e) {
-            setStatus(I18n.get("filebrowser.error.archive") + ": " + e.getMessage());
-        }
+        });
     }
 
-    private void archiveToZip(Path zipPath) throws IOException {
+    private void archiveToZip(Path zipPath, List<File> files) throws IOException {
         try (var zipOutput = new java.util.zip.ZipOutputStream(Files.newOutputStream(zipPath))) {
-            for (FileNode node : selectedItems) {
-                addToZip(zipOutput, node.file().toPath(), "");
+            for (File file : files) {
+                addToZip(zipOutput, file.toPath(), "");
             }
         }
     }
@@ -1905,12 +1955,12 @@ public class LocalFileBrowser extends VBox {
         }
     }
 
-    private void archiveToTar(Path tarPath, boolean gzip) throws IOException {
+    private void archiveToTar(Path tarPath, boolean gzip, List<File> files) throws IOException {
         try (var output = Files.newOutputStream(tarPath);
              var compressedOutput = gzip ? new java.util.zip.GZIPOutputStream(output) : output;
              var dataOutput = new DataOutputStream(compressedOutput)) {
-            for (FileNode node : selectedItems) {
-                addToTar(dataOutput, node.file().toPath(), "");
+            for (File file : files) {
+                addToTar(dataOutput, file.toPath(), "");
             }
         }
     }
