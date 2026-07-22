@@ -1184,6 +1184,8 @@
       
         
       
+        
+      
     
     
     
@@ -1356,6 +1358,34 @@
     
   
     SFTP-Dateimanager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/file-browser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dateibrowser
   
 
     
@@ -1937,6 +1967,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#dateibrowser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateibrowser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#jump-server-bastion-host" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2086,7 +2127,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#dateibrowser" class="md-nav__link">
+  <a href="#dateibrowser_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Dateibrowser
@@ -2751,6 +2792,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#dateibrowser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateibrowser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#jump-server-bastion-host" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2900,7 +2952,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#dateibrowser" class="md-nav__link">
+  <a href="#dateibrowser_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Dateibrowser
@@ -3474,6 +3526,14 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v252">v2.5.2<a class="headerlink" href="#v252" title="Permanent link">&para;</a></h2>
+<h3 id="dateibrowser">Dateibrowser<a class="headerlink" href="#dateibrowser" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Der Menü-Dateibrowser wurde zu einem echten Dateimanager umgebaut</strong> – die andockbare Seitenleiste (<strong>Ansicht → Dateibrowser</strong>) erhielt eine Navigationsleiste (Zurück / Vor / Hoch / Home / Aktualisieren, Neuer Ordner / Datei), eine editierbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann – auch oberhalb des Home-Verzeichnisses –, ein Filterfeld, typabhängige Symbole mit Symlink-Markierung und eine Fußzeile, die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>
+<li><strong>Schneller und sicherer zu verwenden</strong> – Verzeichnisse werden im Hintergrund geladen, sodass das Fenster bei großen oder im Netzwerk bereitgestellten Ordnern nicht mehr einfriert. Durch die Aktualisierung bleiben erweiterte Ordner geöffnet und Sie können nach Name, Größe oder Datum sortieren. Inline-Umbenennung (<span class="keys"><kbd class="key-f2">F2</kbd></span>), <em>Pfad kopieren</em>, Tastaturnavigation und Ziehen von Dateien in das Bedienfeld zum Kopieren oder Verschieben wurden hinzugefügt.</li>
+<li><strong>Löschen verschiebt jetzt in den Papierkorb</strong> – das Löschen eines Eintrags fragt nach und verschiebt ihn in den Papierkorb des Systems, statt ihn endgültig zu entfernen.</li>
+<li><strong>Die Leiste merkt sich ihren Zustand</strong> – Seite, Breite, der Zustand <em>Versteckte Dateien anzeigen</em> und das zuletzt geöffnete Verzeichnis werden beim nächsten Start wiederhergestellt.</li>
+<li><strong>Der SFTP-Dateimanager passt zum neuen Look</strong> – seine Werkzeugleiste und Dateityp-Symbole nutzen nun denselben Symbolsatz und Stil wie der Dateibrowser (ohne Änderung der Funktionsweise).</li>
+</ul>
 <h3 id="jump-server-bastion-host">Jump-Server (Bastion-Host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Jump-Server-Hopping ist jetzt implementiert</strong> – eine Verbindung mit einem aktivierten Jump-Server wird über die Bastion geleitet: korTTY authentifiziert sich beim Jump-Host mit seinen eigenen Anmeldeinformationen, öffnet einen Tunnel und öffnet über ihn die echte SSH-Sitzung zum Ziel. Zuvor sammelte die Registerkarte „Jump-Server“ Host, Benutzernamen und Passwort, verwarf sie jedoch beim Speichern und stellte eine direkte Verbindung zum Ziel her – eine Verbindung konnte beim direkten Herstellen einer Bastion-Routing-Verbindung aussehen. Die Registerkarte behält nun jedes Feld bei (mit dem Master-Passwort verschlüsseltes Passwort) und fügt einen Authentifizierungsselektor für das Passwort oder eine unverschlüsselte SSH-Schlüsseldatei hinzu.</li>
@@ -3576,7 +3636,7 @@
 <li><strong>Klarere Abschnitte</strong> – Jeder Verbesserungsabschnitt (Sicherheit / Optimierung / Design / Abhängigkeiten) trägt jetzt ein farbcodiertes Symbol und im Zusammenfassungsblock wird keine Auswahlakzentleiste mehr angezeigt, die nie benötigt wurde.</li>
 <li><strong>Eindeutigere Änderungsüberprüfungen</strong> – im Fenster <em>Änderungen überprüfen</em> zeigen die Karten „Warum sich diese Teile geändert haben“ jetzt das farbcodierte Kategoriesymbol jedes Ergebnisses und den Zeilenbereich an, auf den es sich auswirkt (z. B. <em>Zeilen 23–40</em>); Die On-Hover-Erklärungen im Diff sind zuverlässiger – beim Matching werden neu eingerückte oder zwischen Groß- und Kleinschreibung geänderte Zeilen toleriert, und Gründe, deren Anker nicht gefunden werden kann, werden an die verbleibenden geänderten Blöcke angehängt, anstatt stillschweigend zu verschwinden.</li>
 </ul>
-<h3 id="dateibrowser">Dateibrowser<a class="headerlink" href="#dateibrowser" title="Permanent link">&para;</a></h3>
+<h3 id="dateibrowser_1">Dateibrowser<a class="headerlink" href="#dateibrowser_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Klarere Beschriftung des Kontextmenüs</strong> – Wenn Sie mit der rechten Maustaste auf eine Datei im lokalen <strong>Dateibrowser</strong> (Menü „Ansicht“) klicken, wird jetzt <strong>Im Snippet-Editor öffnen</strong> anstelle des irreführenden <em>Als Textdatei laden</em> (die Aktion öffnete bereits den Snippet-Editor) angezeigt, passend zum Terminal-Kontextmenü.</li>
 </ul>
