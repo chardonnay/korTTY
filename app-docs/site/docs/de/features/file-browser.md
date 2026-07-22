@@ -11,7 +11,7 @@ Der Dateibrowser ist eine andockbare Seitenleiste, die neben dem Terminal das **
 Blenden Sie die Leiste über die Menüleiste ein:
 
 | Menüpunkt | Tastenkürzel |
-|-----------|--------------|
+|-----------|----------|
 | **Ansicht → Dateibrowser → Links anzeigen** | ++shift+cmd+b++ / ++shift+ctrl+b++ |
 | **Ansicht → Dateibrowser → Rechts anzeigen** | ++shift+cmd+r++ / ++shift+ctrl+r++ |
 
@@ -22,7 +22,7 @@ Erneutes Auswählen des Punktes blendet die Leiste wieder aus. Ein ziehbarer Tre
 Werkzeugleiste und Pfadleiste bestimmen, wo der Baum verwurzelt ist:
 
 | Bedienelement | Aktion |
-|---------------|--------|
+|---------|--------|
 | Zurück / Vor | Zu einem zuvor besuchten Verzeichnis zurückkehren |
 | Hoch | Den Baum im übergeordneten Verzeichnis verwurzeln (auch oberhalb Ihres Home-Verzeichnisses) |
 | Home | Den Baum im Home-Verzeichnis verwurzeln |
@@ -40,14 +40,14 @@ Verzeichnisse werden im Hintergrund geladen, sodass ein großes oder über das N
 Wenn der Baum den Fokus hat:
 
 | Tastenkürzel | Aktion |
-|--------------|--------|
-| ++enter++ | Datei öffnen oder Ordner auf-/zuklappen |
-| ++f2++ | Ausgewähltes Objekt direkt umbenennen |
-| ++backspace++ | Zum übergeordneten Verzeichnis wechseln |
+|----------|--------|
+| ++enter++ | Öffnen Sie eine Datei oder erweitern/reduzieren Sie einen Ordner |
+| ++f2++ | Benennen Sie das ausgewählte Element inline um |
+| ++backspace++ | Gehen Sie zum übergeordneten Verzeichnis |
 | ++cmd+r++ / ++ctrl+r++ | Aktualisieren |
-| ++delete++ oder ++cmd+backspace++ | Auswahl in den Papierkorb verschieben |
+| ++delete++ oder ++cmd+backspace++ | Verschieben Sie die Auswahl in den Papierkorb |
 | ++cmd+c++ / ++ctrl+c++, ++cmd+v++ / ++ctrl+v++ | Dateien kopieren und einfügen |
-| ++cmd+f++ / ++ctrl+f++ | Zum Filterfeld springen |
+| ++cmd+f++ / ++ctrl+f++ | Springen Sie zum Filterfeld |
 
 ## Dateioperationen
 
