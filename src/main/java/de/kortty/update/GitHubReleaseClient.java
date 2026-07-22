@@ -33,10 +33,21 @@ public class GitHubReleaseClient implements ReleaseClient {
         this.httpClient = httpClient;
     }
 
+    /**
+     * The release endpoint: the enterprise policy's custom feed URL when configured (must serve
+     * the GitHub releases-latest JSON shape — documented in the enterprise-policy guide chapter),
+     * otherwise the korTTY GitHub repository.
+     */
+    static URI releaseEndpoint() {
+        return de.kortty.policy.PolicyManager.effective().updateFeedUrl()
+            .map(URI::create)
+            .orElse(LATEST_RELEASE_URI);
+    }
+
     @Override
     public UpdateRelease fetchLatestRelease() throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(LATEST_RELEASE_URI)
+            .uri(releaseEndpoint())
             .timeout(REQUEST_TIMEOUT)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")

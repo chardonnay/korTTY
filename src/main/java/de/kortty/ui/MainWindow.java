@@ -4605,6 +4605,14 @@ public class MainWindow {
         updateStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         manualUpdateCheckButton.setOnAction(event ->
             runManualUpdateCheck(manualUpdateCheckButton, updateProgress, updateStatusLabel));
+        de.kortty.policy.EffectivePolicy updatePolicy = de.kortty.policy.PolicyManager.effective();
+        if (!updatePolicy.updatesEnabled()) {
+            manualUpdateCheckButton.setDisable(true);
+            manualUpdateCheckButton.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        } else if (updatePolicy.updateFeedUrl().isPresent()) {
+            updateStatusLabel.setText(I18n.get("policy.update.managedFeed"));
+        }
 
         HBox updateCheckBox = new HBox(10, manualUpdateCheckButton, updateProgress);
         updateCheckBox.setAlignment(Pos.CENTER_LEFT);

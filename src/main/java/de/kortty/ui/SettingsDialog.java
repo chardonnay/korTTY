@@ -963,6 +963,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         updateChecksEnabledCheck = new CheckBox(I18n.get("settings.updates.automatic"));
         updateChecksEnabledCheck.setSelected(globalSettings == null || globalSettings.isUpdateChecksEnabled());
         updateChecksEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.updates.automatic.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            updateChecksEnabledCheck, de.kortty.policy.ManagedSetting.UPDATES);
         updatesGrid.add(updateChecksEnabledCheck, 0, updatesRow++, 2, 1);
 
         updateCheckIntervalSlider = new Slider(
