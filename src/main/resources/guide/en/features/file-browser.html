@@ -2272,7 +2272,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-delete">Del</kbd></span> or <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span></td>
-<td>Move the selection to the Trash</td>
+<td>Delete the selection (choose Trash or permanent)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-v">V</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-v">V</kbd></span></td>
@@ -2292,7 +2292,7 @@
 <li><strong>Rename</strong> — rename inline; a name clash is resolved by appending <code>(2)</code>, <code>(3)</code>, …</li>
 <li><strong>Copy</strong> / <strong>Cut</strong> / <strong>Paste</strong> — move or copy within the browser.</li>
 <li><strong>Copy Path</strong> — copy the item's absolute path to the clipboard.</li>
-<li><strong>Delete</strong> — move the selection to the system Trash after a confirmation prompt (nothing is deleted permanently). If the operating system does not support Trash, the action reports that instead of deleting.</li>
+<li><strong>Delete</strong> — a confirmation prompt offers <strong>Move to Trash</strong> or <strong>Delete Permanently</strong>. Moving to the Trash is reversible; permanent deletion cannot be undone. On a system without a Trash, only permanent deletion is offered. The deletion runs in the background so a large folder does not freeze the window.</li>
 <li><strong>New Folder</strong> / <strong>New File</strong> — create an item.</li>
 <li><strong>Set owner / group / permissions</strong> — change ownership and POSIX permissions (where the filesystem supports it).</li>
 <li><strong>Archive</strong> — pack the selection into a <code>ZIP</code>, <code>TAR</code> or <code>TAR.GZ</code> archive.</li>
