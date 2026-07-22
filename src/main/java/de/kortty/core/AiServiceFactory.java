@@ -89,6 +89,7 @@ public final class AiServiceFactory {
             if (embeddedModelId == null) {
                 throw new IllegalStateException("Select a local GGUF model for the embedded llama.cpp profile.");
             }
+            requirePolicyAllowedModel(embeddedModelId);
             LlamaModelRegistry.inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
                 .find(embeddedModelId)
                 .filter(model -> model.getPurpose() != LlamaModelPurpose.CHAT)
@@ -128,6 +129,7 @@ public final class AiServiceFactory {
             if (embeddedModelId == null) {
                 throw new IllegalStateException("Select a local MLX model for the embedded MLX profile.");
             }
+            requirePolicyAllowedModel(embeddedModelId);
             AiInternetAccessMode mode = profile.getInternetAccessMode();
             if (mode == null) {
                 throw new IllegalStateException("AI internet access mode must be configured.");
@@ -379,6 +381,20 @@ public final class AiServiceFactory {
         return reasoningEffortOverride != null
             ? reasoningEffortOverride
             : AiReasoningSupport.normalizeForProfile(profile);
+    }
+
+    /**
+     * With {@code allow-user-models = false}, only models provisioned by the enterprise policy
+     * (id prefix {@code policy-}) may be loaded — enforced here, at the single backend choke point,
+     * so no picker or hand-edited profile can bypass it.
+     */
+    private static void requirePolicyAllowedModel(String embeddedModelId) {
+        if (!de.kortty.policy.PolicyManager.effective().userModelsAllowed()
+            && !embeddedModelId.startsWith(
+                de.kortty.policy.PolicyRuntimeProvisioner.POLICY_MODEL_ID_PREFIX)) {
+            throw new IllegalStateException(
+                "Only local models provided by your organization's policy can be used.");
+        }
     }
 
     private static String trimToNull(String value) {

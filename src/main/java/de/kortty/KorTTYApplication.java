@@ -362,6 +362,8 @@ public class KorTTYApplication extends Application {
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             startLlamaRuntimeUpdateCoordinator();
+            // Register/download admin-provisioned local AI models in the background.
+            new de.kortty.policy.PolicyRuntimeProvisioner(getConfigDirectory()).provisionAsync();
             registerMacDesktopHandlers();
             // The AWT Taskbar Dock menu only attaches to a real .app bundle's Dock
             // tile (not a `./gradlew run` JVM), and initializing AWT there would also
@@ -731,6 +733,10 @@ public class KorTTYApplication extends Application {
 
     private void startLlamaRuntimeUpdateCoordinator() {
         if (globalSettingsManager == null || globalSettingsManager.getSettings() == null) {
+            return;
+        }
+        if (!de.kortty.policy.PolicyManager.effective().runtimeDownloadsAllowed()) {
+            logger.info("AI runtime downloads disabled by enterprise policy — update coordinators not started");
             return;
         }
         de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator coordinator =
