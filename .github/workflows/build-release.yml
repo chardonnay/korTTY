@@ -172,13 +172,19 @@ jobs:
             echo "::error::KORTTY_LLAMA_RUNTIME_PUBLIC_KEY must never contain private key material."
             exit 1
           fi
-          if [ -z "${KORTTY_AI_CATALOG_PUBLIC_KEY:-}" ]; then
-            echo "::error::Repository variable KORTTY_AI_CATALOG_PUBLIC_KEY is required for release builds."
-            exit 1
-          fi
-          if printf '%s' "$KORTTY_AI_CATALOG_PUBLIC_KEY" | grep -qi 'PRIVATE KEY'; then
+          # The AI model/prompt catalog trust root is optional, unlike the llama runtime key above:
+          # chardonnay/kortty-ai-catalog and its signing pipeline don't exist yet, so there is nothing
+          # for a key to verify. Leaving the variable unset just means generateAiCatalogReleaseConfig
+          # skips embedding a trust root and the packaged app falls back to the bundled bootstrap
+          # catalog (see build.gradle.kts's aiCatalogPublicKey comment). Only a *malformed* value
+          # (set but not a public key) fails the build. Once the catalog repo and its signing
+          # environment exist, drop this early-exit block and require the variable like the one above.
+          if [ -n "${KORTTY_AI_CATALOG_PUBLIC_KEY:-}" ] && printf '%s' "$KORTTY_AI_CATALOG_PUBLIC_KEY" | grep -qi 'PRIVATE KEY'; then
             echo "::error::KORTTY_AI_CATALOG_PUBLIC_KEY must never contain private key material."
             exit 1
+          fi
+          if [ -z "${KORTTY_AI_CATALOG_PUBLIC_KEY:-}" ]; then
+            echo "::warning::Repository variable KORTTY_AI_CATALOG_PUBLIC_KEY is not set; shipping without the remote AI catalog trust root, the app will use the bundled bootstrap catalog."
           fi
           # The Gradle resource generator performs the authoritative X.509 Ed25519 decode and
           # therefore fails the release before any unsigned/updatable application is packaged.
