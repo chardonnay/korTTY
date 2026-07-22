@@ -416,6 +416,11 @@ application {
 tasks.named<JavaExec>("run") {
     dependsOn("copyBundledFormatters")
     systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("bundled-formatters").get().asFile.absolutePath)
+    // Dev-only enterprise-policy testing: ./gradlew run -Pkortty.policyFile=/path/policy.toml
+    // (the override is ignored in packaged builds — see PolicyLocator).
+    (findProperty("kortty.policyFile") as String?)?.let {
+        systemProperty("kortty.policy.file", it)
+    }
 }
 
 // ==================== SithTermFX from source (no GitHub token required) ====================

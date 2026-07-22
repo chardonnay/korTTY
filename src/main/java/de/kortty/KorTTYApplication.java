@@ -137,6 +137,9 @@ public class KorTTYApplication extends Application {
             System.exit(1);
         }
         System.out.println(de.kortty.policy.PolicyValueCipher.encrypt(plaintext));
+        // Explicit exit: the logging bootstrap in the static initializer may have started
+        // non-daemon threads that would otherwise keep this console-only invocation alive.
+        System.exit(0);
     }
     
     public static KorTTYApplication getInstance() {
