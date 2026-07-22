@@ -1,6 +1,11 @@
 package de.kortty.policy;
 
+import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.TeamworkSourceConfig;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Forces policy-managed values onto a {@link GlobalSettings} instance. Called by
@@ -20,11 +25,28 @@ public final class PolicyClamp {
         this.policy = policy;
     }
 
-    /** Applies every forced scalar value. Managed-object injection lives in dedicated appliers. */
+    /**
+     * The list references temporarily swapped out for a marshal, so {@link #afterSave} can restore
+     * the live lists without any in-place mutation of the settings a concurrent reader may hold.
+     */
+    public record MarshalScope(GlobalSettings settings,
+                               List<AiProfile> savedAiProfiles,
+                               List<TeamworkSourceConfig> savedTeamworkSources) {
+        static final MarshalScope NONE = new MarshalScope(null, null, null);
+    }
+
+    /** Applies every forced scalar value and (re)injects policy-managed objects. */
     public void apply(GlobalSettings settings) {
         if (!policy.fromPolicyFile()) {
             return;
         }
+        applyScalars(settings);
+        applyManagedAiProfiles(settings);
+        applyManagedTeamworkSources(settings);
+    }
+
+    /** Forces every policy-controlled scalar value; never touches the managed-object lists. */
+    private void applyScalars(GlobalSettings settings) {
         if (!policy.aiAllowed()) {
             settings.setAiFeaturesEnabled(false);
         }
@@ -56,36 +78,43 @@ public final class PolicyClamp {
         if (policy.logging().retentionDays() != null) {
             settings.setLogRetentionDays(policy.logging().retentionDays());
         }
-        applyManagedAiProfiles(settings);
-        applyManagedTeamworkSources(settings);
     }
 
     /**
-     * Removes policy-managed objects before the settings are marshaled to the user XML and
-     * re-applies scalar clamps. Call {@link #afterSave(GlobalSettings)} once marshaling is done.
+     * Prepares {@code settings} for marshaling: re-forces the scalar clamps (defense in depth) and
+     * swaps the managed-object lists for filtered copies that exclude policy-managed entries, so
+     * they never reach the user XML. Crucially the live lists are <b>not mutated in place</b> — a
+     * concurrent reader iterating {@code getAiProfiles()} on another thread can never see a
+     * {@link java.util.ConcurrentModificationException}. Always pair with
+     * {@link #afterSave(MarshalScope)} in a {@code finally} block.
      */
-    public void beforeSave(GlobalSettings settings) {
+    public MarshalScope beforeSave(GlobalSettings settings) {
         if (!policy.fromPolicyFile()) {
-            return;
+            return MarshalScope.NONE;
         }
-        apply(settings);
-        stripManagedAiProfiles(settings);
-        stripManagedTeamworkSources(settings);
+        applyScalars(settings);
+        List<AiProfile> savedProfiles = settings.exchangeAiProfilesForMarshal(
+            withoutManaged(settings.getAiProfiles(),
+                profile -> profile != null && profile.isPolicyManaged()));
+        List<TeamworkSourceConfig> savedSources = settings.exchangeTeamworkSourcesForMarshal(
+            withoutManaged(settings.getTeamworkSources(),
+                source -> source != null && source.isPolicyManaged()));
+        return new MarshalScope(settings, savedProfiles, savedSources);
     }
 
-    /** Restores the managed objects stripped by {@link #beforeSave(GlobalSettings)}. */
-    public void afterSave(GlobalSettings settings) {
-        if (!policy.fromPolicyFile()) {
+    /** Restores the live lists swapped out by {@link #beforeSave(GlobalSettings)}. */
+    public void afterSave(MarshalScope scope) {
+        if (scope == null || scope.settings() == null) {
             return;
         }
-        applyManagedAiProfiles(settings);
-        applyManagedTeamworkSources(settings);
+        scope.settings().exchangeAiProfilesForMarshal(scope.savedAiProfiles());
+        scope.settings().exchangeTeamworkSourcesForMarshal(scope.savedTeamworkSources());
     }
 
-    // ---- managed objects: rebuilt from the policy on every load, stripped before every save ----
+    // ---- managed objects: rebuilt from the policy on every load ----
 
     private void applyManagedAiProfiles(GlobalSettings settings) {
-        java.util.List<de.kortty.model.AiProfile> profiles = settings.getAiProfiles();
+        List<AiProfile> profiles = settings.getAiProfiles();
         profiles.removeIf(profile -> profile != null
             && (profile.isPolicyManaged()
                 || (profile.getId() != null
@@ -95,13 +124,8 @@ public final class PolicyClamp {
         }
     }
 
-    private void stripManagedAiProfiles(GlobalSettings settings) {
-        settings.getAiProfiles().removeIf(
-            profile -> profile != null && profile.isPolicyManaged());
-    }
-
     private void applyManagedTeamworkSources(GlobalSettings settings) {
-        java.util.List<de.kortty.model.TeamworkSourceConfig> sources = settings.getTeamworkSources();
+        List<TeamworkSourceConfig> sources = settings.getTeamworkSources();
         sources.removeIf(source -> source != null
             && (source.isPolicyManaged()
                 || (source.getId() != null && source.getId().startsWith("policy-teamwork-"))));
@@ -111,8 +135,14 @@ public final class PolicyClamp {
         }
     }
 
-    private void stripManagedTeamworkSources(GlobalSettings settings) {
-        settings.getTeamworkSources().removeIf(
-            source -> source != null && source.isPolicyManaged());
+    /** A new list with the managed entries removed; the source list is only read, never mutated. */
+    private static <T> List<T> withoutManaged(List<T> source, java.util.function.Predicate<T> managed) {
+        List<T> filtered = new ArrayList<>(source.size());
+        for (T element : source) {
+            if (!managed.test(element)) {
+                filtered.add(element);
+            }
+        }
+        return filtered;
     }
 }

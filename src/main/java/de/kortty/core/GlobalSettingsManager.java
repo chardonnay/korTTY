@@ -107,13 +107,14 @@ public class GlobalSettingsManager {
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         if (policyClamp != null) {
-            // Re-clamp forced values and strip policy-managed objects so they never reach the
-            // user XML; restore the objects right after marshaling.
-            policyClamp.beforeSave(settings);
+            // Re-clamp forced values and swap in filtered lists so policy-managed objects never
+            // reach the user XML; the live lists are left untouched (no in-place mutation that a
+            // concurrent reader could trip over) and restored right after marshaling.
+            de.kortty.policy.PolicyClamp.MarshalScope scope = policyClamp.beforeSave(settings);
             try {
                 marshaller.marshal(settings, settingsFile.toFile());
             } finally {
-                policyClamp.afterSave(settings);
+                policyClamp.afterSave(scope);
             }
         } else {
             marshaller.marshal(settings, settingsFile.toFile());

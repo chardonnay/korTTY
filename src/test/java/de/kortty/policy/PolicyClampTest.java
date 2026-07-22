@@ -205,4 +205,88 @@ class PolicyClampTest {
         assertThat(manager.getSettings().isAiFeaturesEnabled()).isTrue();
         assertThat(manager.getSettings().isUpdateChecksEnabled()).isTrue();
     }
+
+    private static PolicyClamp clampWithManagedProfile() {
+        PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(),
+            List.of(),
+            List.of(new PolicyFile.AiProfileDef("policy-acme-llm", "ACME LLM", "openai-compatible",
+                "https://llm.acme.internal/v1", "acme-70b", null)),
+            List.of(), List.of());
+        EffectivePolicy policy = EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+        return new PolicyClamp(policy);
+    }
+
+    @Test
+    void concurrentReaderDuringSaveNeverSeesConcurrentModification() throws Exception {
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(clampWithManagedProfile());
+        manager.load();
+        // A user profile alongside the injected policy-managed one, so the list is non-trivial.
+        de.kortty.model.AiProfile userProfile = new de.kortty.model.AiProfile();
+        userProfile.setId("user-1");
+        userProfile.setName("Mine");
+        manager.getSettings().getAiProfiles().add(userProfile);
+
+        java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        // Reader iterating the live list the way any getSettings() consumer would, off the FX thread.
+        Thread reader = new Thread(() -> {
+            try {
+                while (!stop.get()) {
+                    long count = manager.getSettings().getAiProfiles().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(de.kortty.model.AiProfile::getId)
+                        .count();
+                    assertThat(count).isAtLeast(1L);
+                }
+            } catch (Throwable t) {
+                failure.set(t);
+            }
+        });
+        reader.start();
+        try {
+            for (int i = 0; i < 400; i++) {
+                manager.save();
+            }
+        } finally {
+            stop.set(true);
+            reader.join(5000);
+        }
+        if (failure.get() != null) {
+            throw new AssertionError("Concurrent reader failed during save", failure.get());
+        }
+        // The managed profile is still absent from the persisted XML and present in memory.
+        assertThat(Files.readString(configDir.resolve("global-settings.xml")))
+            .doesNotContain("policy-acme-llm");
+        assertThat(manager.getSettings().getAiProfiles().stream()
+            .anyMatch(p -> "policy-acme-llm".equals(p.getId()))).isTrue();
+        assertThat(manager.getSettings().getAiProfiles().stream()
+            .anyMatch(p -> "user-1".equals(p.getId()))).isTrue();
+    }
+
+    @Test
+    void defaultProfilePointingAtAManagedProfileSurvivesSave() throws Exception {
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(clampWithManagedProfile());
+        manager.load();
+        // The user selects the policy-managed profile as their default.
+        manager.getSettings().setDefaultAiProfileId("policy-acme-llm");
+
+        manager.save();
+
+        // Stripping the managed profile for marshal must not null the default id (which it would
+        // if the list were swapped through the normalizing setter).
+        assertThat(manager.getSettings().getDefaultAiProfileId()).isEqualTo("policy-acme-llm");
+    }
 }

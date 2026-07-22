@@ -1,5 +1,6 @@
 package de.kortty.policy;
 
+import de.kortty.core.JumpHostSupport;
 import de.kortty.model.JumpServer;
 import de.kortty.model.ServerConnection;
 
@@ -21,9 +22,14 @@ public final class ServerAccessPolicy {
             return Optional.empty();
         }
         EffectivePolicy policy = PolicyManager.effective();
-        JumpServer jump = connection.getJumpServer();
-        if (jump != null && !policy.isServerAllowed(jump.getHost(), jump.getPort())) {
-            return Optional.of(jump.getHost() + ":" + jump.getPort());
+        // Only an actually-used jump host is checked: a connection routes through its jump server
+        // only when it is enabled and has a host (JumpHostSupport.isActive). A disabled/blank jump
+        // server is never contacted, so it must not block the connection.
+        if (JumpHostSupport.isActive(connection)) {
+            JumpServer jump = connection.getJumpServer();
+            if (!policy.isServerAllowed(jump.getHost(), jump.getPort())) {
+                return Optional.of(jump.getHost() + ":" + jump.getPort());
+            }
         }
         if (!policy.isServerAllowed(connection.getHost(), connection.getPort())) {
             return Optional.of(connection.getHost() + ":" + connection.getPort());
