@@ -23,8 +23,16 @@ public class SessionManager {
     
     /**
      * Creates a new SSH session.
+     *
+     * @throws de.kortty.policy.PolicyRestrictionException when the target (or its jump host) is
+     *         blocked by the enterprise policy — defense in depth behind the UI gates
      */
     public SSHSession createSession(ServerConnection connection, String password) {
+        de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
+            logger.warn("Blocked session to {} by enterprise policy", target);
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Connection to " + target + " is blocked by your organization's policy");
+        });
         String sessionId = UUID.randomUUID().toString();
         SSHSession session = new SSHSession(sessionId, connection, password);
         activeSessions.put(sessionId, session);

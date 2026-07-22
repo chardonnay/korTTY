@@ -2069,6 +2069,15 @@ public class MainWindow {
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
+        // Central UI gate for the enterprise server policy — covers saved connections, session
+        // restore, teamwork-shared connections and multi/swarm opens. SessionManager repeats the
+        // check as a non-UI backstop.
+        java.util.Optional<String> blockedTarget =
+            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+        if (blockedTarget.isPresent()) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blockedTarget.get());
+            return null;
+        }
         try {
             if (!TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 terminalEffectPluginId = null;
@@ -2253,7 +2262,16 @@ public class MainWindow {
             if (result.connection() == null) {
                 return;
             }
-            
+
+            // Enterprise server policy: reject a blocked target before prompting for a password
+            // or persisting the connection (openConnectionAndReturnTab would catch it anyway).
+            java.util.Optional<String> quickConnectBlocked =
+                de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(result.connection());
+            if (quickConnectBlocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(quickConnectBlocked.get());
+                return;
+            }
+
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
             if (!result.connection().isLocalShell()
@@ -4156,6 +4174,10 @@ public class MainWindow {
                                             null,
                                             sessionState.getTerminalEffectPluginId(),
                                             sessionState.getTerminalEffectAnimationSpeed());
+                                    if (restoredTab == null) {
+                                        // Blocked by the enterprise server policy.
+                                        continue;
+                                    }
                                     restoredTab.getTerminalView().restorePrimaryTimestampEntries(
                                             sessionState.getTerminalTimestamps());
                                     // Restore tab group (not connection group)

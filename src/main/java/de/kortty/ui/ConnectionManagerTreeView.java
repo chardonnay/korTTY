@@ -243,6 +243,24 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     }
     
     /**
+     * Grays out and tooltips a connection whose target (or jump host) is blocked by the
+     * enterprise server policy. Connecting is refused centrally; the marking just makes the
+     * restriction visible instead of leaving the user to find out on connect.
+     */
+    private static void markIfPolicyBlocked(TreeCell<ConnectionTreeItem.ItemData> cell,
+                                            ConnectionTreeItem.ItemData item) {
+        ServerConnection connection = item.getConnection();
+        if (connection == null
+            || de.kortty.policy.ServerAccessPolicy.isAllowed(connection)) {
+            return;
+        }
+        cell.setText("🚫 " + item.getDisplayName());
+        cell.setTextFill(Color.GRAY);
+        cell.setTooltip(new Tooltip(I18n.get("policy.server.blocked.title") + " — "
+            + de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+    }
+
+    /**
      * Sets up drag and drop functionality for moving connections between groups.
      */
     private void setupDragAndDrop() {
@@ -263,18 +281,19 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             setFont(Font.font(getFont().getFamily(), 10));
                         } else {
                             setText("🔌 " + item.getDisplayName());
+                            markIfPolicyBlocked(this, item);
                         }
                     }
                 }
             };
-            
+
             // Drag detected (only for non-placeholder connections)
             cell.setOnDragDetected(event -> {
-                if (!cell.isEmpty() && cell.getItem() != null && 
-                    !cell.getItem().isGroup() && 
+                if (!cell.isEmpty() && cell.getItem() != null &&
+                    !cell.getItem().isGroup() &&
                     cell.getItem().getConnection() != null &&
                     !cell.getItem().getConnection().isPlaceholder()) {
-                    
+
                     Dragboard db = cell.startDragAndDrop(TransferMode.MOVE);
                     ClipboardContent content = new ClipboardContent();
                     content.putString(cell.getItem().getConnection().getId());
@@ -369,6 +388,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             if (!selectionOnly) {
                                 setContextMenu(createConnectionContextMenu());
                             }
+                            markIfPolicyBlocked(this, item);
                         }
                     }
                 }
