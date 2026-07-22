@@ -130,6 +130,7 @@ nav:
       - features/tunnels.md
       - features/jump-server.md
       - features/sftp.md
+      - features/file-browser.md
       - features/snippets.md
       - features/jobscheduler.md
       - features/projects.md

@@ -221,7 +221,12 @@ public class SFTPManagerTab extends Tab {
     private VBox createContent() {
         VBox mainBox = new VBox(10);
         mainBox.setPadding(new Insets(10));
-        
+        mainBox.getStyleClass().add("file-browser-panel");
+        java.net.URL fileBrowserStyles = SFTPManagerTab.class.getResource("/styles/filebrowser.css");
+        if (fileBrowserStyles != null) {
+            mainBox.getStylesheets().add(fileBrowserStyles.toExternalForm());
+        }
+
         // Status bar with timeout indicator and progress bar
         HBox statusBox = new HBox(10);
         statusBox.setAlignment(Pos.CENTER_LEFT);
@@ -264,6 +269,44 @@ public class SFTPManagerTab extends Tab {
         return mainBox;
     }
     
+    /** Icon tint shared with the local file browser (matches its resolveIconColor). */
+    private static String fileBrowserIconColor() {
+        return AppDesignStyleSupport.isCustomAppDesignActive()
+            ? AppDesignStyleSupport.activeTextColor()
+            : "#abb2bf";
+    }
+
+    /** Applies a shared flat toolbar glyph + style class to an SFTP toolbar button. */
+    private static void styleToolbarButton(javafx.scene.control.ButtonBase button, String glyph) {
+        FileBrowserIcons.applyToolbarIcon(button, glyph, fileBrowserIconColor());
+        button.getStyleClass().add("file-browser-toolbar-button");
+        button.setGraphicTextGap(6);
+    }
+
+    /**
+     * Renders the Type column as a shared file-browser type glyph instead of the emoji from
+     * {@link SftpFileItem#getType()}. Sorting is unaffected (it keys off isFile()+name, not this cell).
+     */
+    private static void installTypeIconCell(TableColumn<SftpFileItem, String> column) {
+        column.setCellFactory(col -> new javafx.scene.control.TableCell<SftpFileItem, String>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                SftpFileItem item = getTableRow() == null ? null : getTableRow().getItem();
+                if (empty || item == null) {
+                    setGraphic(null);
+                    setText(null);
+                    return;
+                }
+                String name = item.getName() != null ? item.getName() : "";
+                FileBrowserIcons.IconKind kind = FileBrowserIcons.kindFor(name, !item.isFile(), false, false);
+                setGraphic(FileBrowserIcons.treeIcon(kind, fileBrowserIconColor(), name.startsWith("."), false, "#21252b"));
+                setText(null);
+                setAlignment(Pos.CENTER);
+            }
+        });
+    }
+
     private HBox createButtonBox() {
         HBox buttonBox = new HBox(0);
         buttonBox.setAlignment(Pos.CENTER);
@@ -277,22 +320,25 @@ public class SFTPManagerTab extends Tab {
         Label localLabel = new Label(I18n.get("sftp.localSystem"));
         localLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
         
-        Button refreshLocalButton = new Button("⟳ " + I18n.get("sftp.refresh"));
+        Button refreshLocalButton = new Button(I18n.get("sftp.refresh"));
+        styleToolbarButton(refreshLocalButton, FileBrowserIcons.REFRESH);
         refreshLocalButton.setTooltip(new Tooltip(I18n.get("sftp.refreshLocal")));
         refreshLocalButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshLocal();
         });
-        
-        Button deleteLocalButton = new Button("🗑 " + I18n.get("sftp.delete"));
+
+        Button deleteLocalButton = new Button(I18n.get("sftp.delete"));
+        styleToolbarButton(deleteLocalButton, FileBrowserIcons.DELETE);
         deleteLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
         deleteLocalButton.setDisable(true);
         deleteLocalButton.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteLocalSelected();
         });
-        
-        Button ownerLocalButton = new Button("🔐 " + I18n.get("sftp.permissionsShort"));
+
+        Button ownerLocalButton = new Button(I18n.get("sftp.permissionsShort"));
+        styleToolbarButton(ownerLocalButton, FileBrowserIcons.LOCK);
         ownerLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.setOwner")));
         ownerLocalButton.setDisable(true);
         ownerLocalButton.setOnAction(e -> {
@@ -325,22 +371,25 @@ public class SFTPManagerTab extends Tab {
         Label remoteLabel = new Label(I18n.get("sftp.remoteLabel"));
         remoteLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
         
-        Button refreshRemoteButton = new Button("⟳ " + I18n.get("sftp.refresh"));
+        Button refreshRemoteButton = new Button(I18n.get("sftp.refresh"));
+        styleToolbarButton(refreshRemoteButton, FileBrowserIcons.REFRESH);
         refreshRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.refreshRemote")));
         refreshRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshRemote();
         });
-        
-        Button deleteRemoteButton = new Button("🗑 " + I18n.get("sftp.delete"));
+
+        Button deleteRemoteButton = new Button(I18n.get("sftp.delete"));
+        styleToolbarButton(deleteRemoteButton, FileBrowserIcons.DELETE);
         deleteRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
         deleteRemoteButton.setDisable(true);
         deleteRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteRemoteSelected();
         });
-        
-        Button ownerRemoteButton = new Button("🔐 " + I18n.get("sftp.permissionsShort"));
+
+        Button ownerRemoteButton = new Button(I18n.get("sftp.permissionsShort"));
+        styleToolbarButton(ownerRemoteButton, FileBrowserIcons.LOCK);
         ownerRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.setOwner")));
         ownerRemoteButton.setDisable(true);
         ownerRemoteButton.setOnAction(e -> {
@@ -352,15 +401,17 @@ public class SFTPManagerTab extends Tab {
         remoteSep1.setOrientation(javafx.geometry.Orientation.VERTICAL);
         remoteSep1.setPadding(new Insets(0, 5, 0, 5));
         
-        Button uploadButton = new Button("⬆ " + I18n.get("sftp.upload"));
+        Button uploadButton = new Button(I18n.get("sftp.upload"));
+        styleToolbarButton(uploadButton, FileBrowserIcons.UPLOAD);
         uploadButton.setTooltip(new Tooltip(I18n.get("sftp.uploading", "...")));
         uploadButton.setDisable(true);
         uploadButton.setOnAction(e -> {
             resetAutoCloseTimer();
             uploadSelected();
         });
-        
-        Button downloadButton = new Button("⬇ " + I18n.get("sftp.download"));
+
+        Button downloadButton = new Button(I18n.get("sftp.download"));
+        styleToolbarButton(downloadButton, FileBrowserIcons.DOWNLOAD);
         downloadButton.setTooltip(new Tooltip(I18n.get("sftp.downloading", "...")));
         downloadButton.setDisable(true);
         downloadButton.setOnAction(e -> {
@@ -372,7 +423,8 @@ public class SFTPManagerTab extends Tab {
         remoteSep2.setOrientation(javafx.geometry.Orientation.VERTICAL);
         remoteSep2.setPadding(new Insets(0, 5, 0, 5));
         
-        Button archiveButton = new Button("📦 " + I18n.get("sftp.archive"));
+        Button archiveButton = new Button(I18n.get("sftp.archive"));
+        styleToolbarButton(archiveButton, FileBrowserIcons.ARCHIVE_BOX);
         archiveButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.archive")));
         archiveButton.setDisable(true);
         archiveButton.setOnAction(e -> {
@@ -447,10 +499,14 @@ public class SFTPManagerTab extends Tab {
         localPathField.setEditable(true);
         localPathField.setOnAction(e -> navigateLocal(localPathField.getText()));
         
-        Button upButton = new Button("↑");
+        Button upButton = new Button();
+        styleToolbarButton(upButton, FileBrowserIcons.UP);
+        upButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.up")));
         upButton.setOnAction(e -> navigateLocalUp());
-        
-        Button homeButton = new Button("~");
+
+        Button homeButton = new Button();
+        styleToolbarButton(homeButton, FileBrowserIcons.HOME);
+        homeButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.home")));
         homeButton.setOnAction(e -> navigateLocal(System.getProperty("user.home")));
         
         pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), localPathField, upButton, homeButton);
@@ -466,6 +522,7 @@ public class SFTPManagerTab extends Tab {
         // File table
         localTable = new TableView<>();
         localTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        localTable.getStyleClass().add("file-browser-table");
         
         // Column order: Name, Type, Size, Date, User, Group, Permissions
         TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -516,6 +573,7 @@ public class SFTPManagerTab extends Tab {
         permColumn.setMaxWidth(100);
         permColumn.setSortable(true);
         
+        installTypeIconCell(typeColumn);
         localTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Context menu for local table
@@ -599,10 +657,14 @@ public class SFTPManagerTab extends Tab {
         remotePathField.setEditable(true);
         remotePathField.setOnAction(e -> navigateRemote(remotePathField.getText()));
         
-        Button upButton = new Button("↑");
+        Button upButton = new Button();
+        styleToolbarButton(upButton, FileBrowserIcons.UP);
+        upButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.up")));
         upButton.setOnAction(e -> navigateRemoteUp());
-        
-        Button homeButton = new Button("~");
+
+        Button homeButton = new Button();
+        styleToolbarButton(homeButton, FileBrowserIcons.HOME);
+        homeButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.home")));
         homeButton.setOnAction(e -> navigateRemote("~"));
         
         pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
@@ -618,6 +680,7 @@ public class SFTPManagerTab extends Tab {
         // File table
         remoteTable = new TableView<>();
         remoteTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        remoteTable.getStyleClass().add("file-browser-table");
         
         // Column order: Name, Type, Size, Date, User, Group, Permissions
         TableColumn<SftpFileItem, String> nameColumn = new TableColumn<>(I18n.get("sftp.column.name"));
@@ -668,6 +731,7 @@ public class SFTPManagerTab extends Tab {
         permColumn.setMaxWidth(100);
         permColumn.setSortable(true);
         
+        installTypeIconCell(typeColumn);
         remoteTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Double-click to navigate, right-click for context menu

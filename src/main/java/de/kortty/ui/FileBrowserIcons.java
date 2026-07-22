@@ -69,6 +69,16 @@ final class FileBrowserIcons {
         + "M11 14 H13 V18 H11 Z";
     static final String ARCHIVE_BOX =
         "M3 4 H21 V8 H3 Z M4 9 H20 V20 H4 Z M9.5 11 H14.5 V13 H9.5 Z";
+    // Copied verbatim from ButtonIcons so the sidebar toolbar and the SFTP manager
+    // share one glyph source for refresh/delete/download.
+    static final String REFRESH =
+        "M17.65 6.35 C16.2 4.9 14.21 4 12 4 C7.58 4 4 7.58 4 12 C4 16.42 7.58 20 12 20 "
+        + "C15.73 20 18.84 17.45 19.73 14 H17.65 C16.83 16.33 14.61 18 12 18 C8.69 18 6 15.31 6 12 "
+        + "C6 8.69 8.69 6 12 6 C13.66 6 15.14 6.69 16.22 7.78 L13 11 H20 V4 Z";
+    static final String DELETE = "M7 8 H17 L16 21 H8 Z M9 4 H15 L16 6 H19 V8 H5 V6 H8 Z";
+    static final String DOWNLOAD =
+        "M11 3 H13 V12.17 L16.59 8.59 L18 10 L12 16 L6 10 L7.41 8.59 L11 12.17 Z M5 18 H19 V20 H5 Z";
+    static final String SORT = "M3 5 H21 V7 H3 Z M3 11 H15 V13 H3 Z M3 17 H9 V19 H3 Z";
 
     private static final Set<String> CODE_EXTENSIONS = Set.of(
         "java", "kt", "kts", "py", "js", "ts", "jsx", "tsx", "mjs", "sh", "bash", "zsh",

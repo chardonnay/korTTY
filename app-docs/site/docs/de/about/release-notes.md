@@ -4,6 +4,14 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 
 ## v2.5.2
 
+### Dateibrowser
+
+- **Der Menü-Dateibrowser wurde zu einem echten Dateimanager umgebaut** – die andockbare Seitenleiste (**Ansicht → Dateibrowser**) erhielt eine Navigationsleiste (Zurück / Vor / Hoch / Home / Aktualisieren, Neuer Ordner / Datei), eine editierbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann – auch oberhalb des Home-Verzeichnisses –, ein Filterfeld, typabhängige Symbole mit Symlink-Markierung und eine Fußzeile, die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe [Dateibrowser](../features/file-browser.md).
+- **Schneller und sicherer zu bedienen** – Verzeichnisse werden im Hintergrund geladen, sodass ein großes oder über das Netzwerk eingebundenes Verzeichnis das Fenster nicht mehr einfriert; beim Aktualisieren bleiben aufgeklappte Ordner offen, und es lässt sich nach Name, Größe oder Datum sortieren. Direktes Umbenennen (++f2++), *Pfad kopieren*, Tastaturnavigation und das Hineinziehen von Dateien zum Kopieren oder Verschieben kamen hinzu.
+- **Löschen verschiebt jetzt in den Papierkorb** – das Löschen eines Eintrags fragt nach und verschiebt ihn in den Papierkorb des Systems, statt ihn endgültig zu entfernen.
+- **Die Leiste merkt sich ihren Zustand** – Seite, Breite, der Zustand *Versteckte Dateien anzeigen* und das zuletzt geöffnete Verzeichnis werden beim nächsten Start wiederhergestellt.
+- **Der SFTP-Dateimanager passt zum neuen Look** – seine Werkzeugleiste und Dateityp-Symbole nutzen nun denselben Symbolsatz und Stil wie der Dateibrowser (ohne Änderung der Funktionsweise).
+
 ### Jump-Server (Bastion-Host)
 
 - **Jump-Server-Hopping ist jetzt implementiert** – eine Verbindung mit einem aktivierten Jump-Server wird über die Bastion geleitet: korTTY authentifiziert sich beim Jump-Host mit seinen eigenen Anmeldeinformationen, öffnet einen Tunnel und öffnet über ihn die echte SSH-Sitzung zum Ziel. Zuvor sammelte die Registerkarte „Jump-Server“ Host, Benutzernamen und Passwort, verwarf sie jedoch beim Speichern und stellte eine direkte Verbindung zum Ziel her – eine Verbindung konnte beim direkten Herstellen einer Bastion-Routing-Verbindung aussehen. Die Registerkarte behält nun jedes Feld bei (mit dem Master-Passwort verschlüsseltes Passwort) und fügt einen Authentifizierungsselektor für das Passwort oder eine unverschlüsselte SSH-Schlüsseldatei hinzu.
