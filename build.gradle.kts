@@ -2618,6 +2618,14 @@ tasks.register<JavaExec>("terminalEffectPreviewSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateAiSkillsTabScreenshot") {
+    group = "build"
+    description = "Renders the AI Manager > AI Skills screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiSkillsTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generatePrivacyTabScreenshot") {
     group = "build"
     description = "Renders the Settings > Privacy tab screenshot for the manual via Scene.snapshot."
