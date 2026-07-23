@@ -30,8 +30,9 @@ Each per-tab page lists settings as a table:
 | [Translation](translation.md) | External or local-AI translation provider, credentials, target language, generate language file |
 | [Video](video.md) | Terminal recording / `ffmpeg` video export |
 | [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, quota, internet tools |
-
-The settings dialog also exposes **SFTP Manager**, **Editor** and **Snippet Editor** tabs, which set file-manager and Monaco-editor defaults (font, colors, cursor) for those tools.
+| [SFTP Manager](sftp.md) | SFTP tab auto-close, remote ZIP defaults, JobScheduler rsync binary |
+| [Editor](editor.md) | Cursor style and color for editor tabs |
+| [Snippet Editor](snippet-editor.md) | Font, color and cursor overrides for snippet windows |
 
 Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, knowledge-source synchronization, and the [AI Skills](ai-skills.md) library live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
 

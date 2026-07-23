@@ -707,6 +707,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1137,6 +1143,90 @@
     
   
     AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet Editor
   
 
     
@@ -3674,6 +3764,7 @@
 </ul>
 <h3 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>korTTY now ships 39 built-in best-practice AI skills</strong> — professional coding conventions (commenting, robustness, pitfalls to avoid, security) for Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell, Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart, HTML, XML, YAML, JSON, Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat and Logstash are added to the skill library on first start and picked automatically by the relevance detection. The library has a search field and shows total/active/inactive counts. Built-ins can be edited, deactivated and hidden but not deleted; unmodified ones update silently with new releases, modified ones show 🔄 <em>Update available</em> with one-click <em>Update to latest shipped version</em> and <em>Reset to shipped version</em>. A personal skill tagged with the same topic (e.g. <code>perl</code>) always takes precedence — the built-in is then grayed out as <em>Overridden by user skill</em> until your skill is removed or deactivated. Switching off skill auto-detection deactivates all built-ins (after confirmation) so prompts never bloat. See <a href="../reference/settings/ai-skills.html">AI Skills</a>.</li>
 <li><strong>The AI Skills library moved into the AI Manager</strong> — the skill list, Markdown editor, import/export and the two global toggles (<em>Enable AI Skills</em>, <em>Automatically send only matching skills</em>) are now the <strong>AI Skills</strong> section of <strong>AI → AI Manager</strong>, next to profiles, local models and knowledge stores; the tab of the same name in <strong>Configuration → Global Settings</strong> and the <em>AI Skills…</em> button in the profile toolbar are gone. Skills are stored unchanged in <code>~/.kortty/global-settings.xml</code>, and a <strong>Save</strong> button writes them right away while pending edits are also saved when the manager window is closed. See <a href="../reference/settings/ai-skills.html">AI Skills</a>.</li>
 </ul>
 <h3 id="integrated-local-ai">Integrated local AI<a class="headerlink" href="#integrated-local-ai" title="Permanent link">&para;</a></h3>
@@ -3738,6 +3829,7 @@
 <li><strong>Clean target-specific native packages</strong> — final package staging removes stale dependency versions, old formatter trees and foreign Mosh architectures; Mosh reuses the application's Bouncy Castle, JNA/pty4j retain only target natives, unused JavaFX/JDK modules and SithTermFX test dependencies are excluded, and the logo animation is stored as a compact 640×360 H.264 video.</li>
 <li><strong>Installer size gates</strong> — release CI emits JSON/Markdown component reports, rejects incomplete app images and mislabeled Windows binaries, requires at least 15% reduction against the committed package baseline, applies the app/DMG limits, and freezes verified sizes with 2% regression tolerance. <code>RPM</code> is measured after signing.</li>
 <li><strong>One local Mermaid renderer for every diagram</strong> — snippet diagrams, full code analysis, workflow generation, exports, and AI-chat Mermaid blocks now share the SHA-256-pinned Mermaid 11.16.0 browser renderer. Snippet flows retain SVG/PNG, clipboard, zoom, theme/background, regeneration, and node-to-code hover references without a Java/Graphviz subprocess or first-use download. Legacy saved diagram payloads are discarded without removing snippets or chats, and the retired renderer cache is deleted safely on upgrade.</li>
+<li><strong>Manual pages for the last three undocumented settings tabs</strong> — <strong>SFTP Manager</strong> (tab auto-close, remote ZIP defaults, JobScheduler rsync binary), <strong>Editor</strong> (cursor style and color) and <strong>Snippet Editor</strong> (font, color and cursor overrides) now have their own reference pages, the master-password dialog is described on the Security page, and the menu and keyboard-shortcut references were rebuilt from the application's own accelerators — they were missing <strong>Edit → Find</strong>, <strong>View → File Browser</strong> and several <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd></span> shortcuts. The coverage gate that is supposed to catch such gaps only read the partial <code>messages_en</code> overlay and therefore reported 100% while 53 settings/menu labels were invisible to it; it now reads the base bundle too.</li>
 <li><strong>Detailed local release-build guide</strong> — a new guide chapter explains the exact common and platform-specific prerequisites, portable self-contained application images, ZIP/TAR archives, DMG/MSI/DEB/RPM installers, Intel Mac builds, signing, notarization, verification and troubleshooting for macOS, Windows and Linux.</li>
 </ul>
 <h3 id="ai-code-analysis">AI Code Analysis<a class="headerlink" href="#ai-code-analysis" title="Permanent link">&para;</a></h3>

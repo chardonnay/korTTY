@@ -2,9 +2,12 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiSkillMarkdownCodec;
+import de.kortty.core.BuiltinAiSkillCatalog;
+import de.kortty.core.BuiltinAiSkillSupport;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
@@ -21,6 +24,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -33,6 +37,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -51,9 +56,15 @@ final class AiSkillsPane extends VBox {
     private final KorTTYApplication app;
     private final Window owner;
 
+    private static final String MUTED_STYLE_CLASS = "ai-skill-muted";
+
     private final CheckBox aiSkillsEnabledCheck;
     private final CheckBox aiSkillAutoDetectionCheck;
+    private final CheckBox showHiddenCheck;
+    private final TextField aiSkillSearchField;
+    private final Label aiSkillCountLabel;
     private final ListView<AiSkill> aiSkillListView;
+    private final Button deleteAiSkillButton;
     private final TextField aiSkillNameField;
     private final TextField aiSkillDescriptionField;
     private final TextField aiSkillTagsField;
@@ -61,10 +72,18 @@ final class AiSkillsPane extends VBox {
     private final ComboBox<AiSkillTarget> aiSkillTargetCombo;
     private final MonacoEditorPane aiSkillContentArea;
     private final Label statusLabel = new Label();
+    private final HBox builtinBanner;
+    private final Label builtinStateLabel;
+    private final Button builtinResetButton;
+    private final Button builtinUpdateButton;
+    private final Button builtinHideToggleButton;
+    private final PauseTransition builtinIndicatorRefresh = new PauseTransition(Duration.millis(300));
 
+    private final BuiltinAiSkillCatalog builtinCatalog = BuiltinAiSkillCatalog.load();
     private final List<AiSkill> aiSkills = new ArrayList<>();
     private AiSkill selectedAiSkill;
     private boolean loadingAiSkillEditor;
+    private boolean revertingAutoDetectionToggle;
 
     AiSkillsPane(KorTTYApplication app, Window owner) {
         this.app = app;
@@ -84,6 +103,19 @@ final class AiSkillsPane extends VBox {
 
         aiSkillAutoDetectionCheck = new CheckBox(I18n.get("settings.aiSkills.autoDetection"));
         aiSkillAutoDetectionCheck.setSelected(globalSettings == null || globalSettings.isAiSkillAutoDetectionEnabled());
+        aiSkillAutoDetectionCheck.selectedProperty().addListener((obs, wasSelected, isSelected) ->
+            onAutoDetectionToggled(wasSelected, isSelected));
+
+        showHiddenCheck = new CheckBox(I18n.get("settings.aiSkills.showHidden"));
+        showHiddenCheck.selectedProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
+
+        aiSkillSearchField = new TextField();
+        aiSkillSearchField.setPromptText(I18n.get("settings.aiSkills.search"));
+        aiSkillSearchField.textProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
+
+        aiSkillCountLabel = new Label();
+        // Deliberately prominent — users must spot the library size at a glance in every theme.
+        aiSkillCountLabel.setStyle("-fx-font-weight: bold;");
 
         aiSkillListView = new ListView<>();
         aiSkillListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -93,17 +125,33 @@ final class AiSkillsPane extends VBox {
             @Override
             protected void updateItem(AiSkill item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? "" : formatAiSkillListText(item));
+                // Cells are recycled — always clear the muted class before conditionally re-adding.
+                getStyleClass().remove(MUTED_STYLE_CLASS);
+                if (empty || item == null) {
+                    setText("");
+                    return;
+                }
+                BuiltinAiSkillSupport.AiSkillStatus status = statusOf(item);
+                setText(AiSkillListFormat.listText(item, status));
+                if (AiSkillListFormat.muted(item, status)) {
+                    getStyleClass().add(MUTED_STYLE_CLASS);
+                }
             }
         });
-        aiSkillListView.getItems().setAll(aiSkills);
+        aiSkillListView.getItems().setAll(visibleAiSkills());
         VBox.setVgrow(aiSkillListView, Priority.ALWAYS);
 
         Button addAiSkillButton = new Button(I18n.get("settings.aiSkills.add"));
         addAiSkillButton.setOnAction(event -> addAiSkill());
-        Button deleteAiSkillButton = new Button(I18n.get("settings.aiSkills.delete"));
-        deleteAiSkillButton.disableProperty().bind(aiSkillListView.getSelectionModel().selectedItemProperty().isNull());
+        deleteAiSkillButton = new Button(I18n.get("settings.aiSkills.delete"));
+        deleteAiSkillButton.setDisable(true);
+        deleteAiSkillButton.setTooltip(new Tooltip(I18n.get("settings.aiSkills.delete.builtinBlocked")));
+        aiSkillListView.getSelectionModel().getSelectedItems().addListener(
+            (javafx.collections.ListChangeListener<AiSkill>) change ->
+                deleteAiSkillButton.setDisable(
+                    !AiSkillListFormat.deleteAllowed(aiSkillListView.getSelectionModel().getSelectedItems())));
         deleteAiSkillButton.setOnAction(event -> deleteSelectedAiSkills());
+        aiSkillListView.setContextMenu(createAiSkillListContextMenu());
         Button importAiSkillButton = new Button(I18n.get("settings.aiSkills.import"));
         importAiSkillButton.setOnAction(event -> importAiSkills());
         Button exportAiSkillButton = new Button(I18n.get("settings.aiSkills.export"));
@@ -117,9 +165,12 @@ final class AiSkillsPane extends VBox {
             sortAiSkillByNameItem,
             sortAiSkillByStatusItem);
 
-        HBox aiSkillSortButtons = new HBox(8, sortAiSkillButton);
+        HBox aiSkillSortButtons = new HBox(8, sortAiSkillButton, showHiddenCheck);
+        aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         HBox aiSkillButtons = new HBox(8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton, exportAiSkillButton);
-        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons, aiSkillListView, aiSkillButtons);
+        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons,
+            aiSkillSearchField, aiSkillListView, aiSkillCountLabel, aiSkillButtons);
+        updateAiSkillCounts();
 
         aiSkillNameField = new TextField();
         aiSkillNameField.setPrefWidth(360);
@@ -153,6 +204,7 @@ final class AiSkillsPane extends VBox {
             if (!loadingAiSkillEditor && selectedAiSkill != null) {
                 selectedAiSkill.setEnabled(newValue);
                 aiSkillListView.refresh();
+                updateAiSkillCounts();
             }
         });
 
@@ -186,10 +238,26 @@ final class AiSkillsPane extends VBox {
         installAiSkillEditorInputGuards();
         aiSkillContentArea.setContextMenu(createAiSkillEditorContextMenu());
         aiSkillContentArea.textProperty().addListener((obs, oldValue, newValue) -> {
-            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+            // Only accept text while the Monaco WebView is booted: during its async boot the
+            // JS side echoes an empty/stale document into the mirror, and writing that into
+            // the selected skill silently wiped skill contents.
+            if (!loadingAiSkillEditor && selectedAiSkill != null && aiSkillContentArea.isReady()) {
                 selectedAiSkill.setContent(newValue);
+                // Debounced: the live "modified" badge must not refresh the list per keystroke.
+                refreshBuiltinIndicatorsSoon();
             }
             Platform.runLater(this::applyAiSkillContentTextStyle);
+        });
+        aiSkillContentArea.readyProperty().addListener((obs, wasReady, isReady) -> {
+            if (isReady) {
+                // Re-sync AFTER all queued boot echoes have been processed, so the editor shows
+                // the currently selected skill even when the selection changed during the boot.
+                Platform.runLater(this::resyncEditorAfterBoot);
+            }
+        });
+        builtinIndicatorRefresh.setOnFinished(event -> {
+            aiSkillListView.refresh();
+            updateBuiltinBanner(selectedAiSkill);
         });
         var aiSkillContentScrollPane = EditorSettingsHelper.createScrollPane(aiSkillContentArea);
         VBox.setVgrow(aiSkillContentScrollPane, Priority.ALWAYS);
@@ -209,7 +277,24 @@ final class AiSkillsPane extends VBox {
         GridPane.setHgrow(aiSkillDescriptionField, Priority.ALWAYS);
         GridPane.setHgrow(aiSkillTagsField, Priority.ALWAYS);
 
+        builtinStateLabel = new Label();
+        builtinStateLabel.setWrapText(true);
+        builtinStateLabel.setStyle("-fx-font-size: 11px;");
+        HBox.setHgrow(builtinStateLabel, Priority.ALWAYS);
+        builtinStateLabel.setMaxWidth(Double.MAX_VALUE);
+        builtinResetButton = new Button(I18n.get("settings.aiSkills.reset"));
+        builtinResetButton.setOnAction(event -> resetSelectedAiSkill());
+        builtinUpdateButton = new Button(I18n.get("settings.aiSkills.update"));
+        builtinUpdateButton.setOnAction(event -> updateSelectedAiSkill());
+        builtinHideToggleButton = new Button(I18n.get("settings.aiSkills.hide"));
+        builtinHideToggleButton.setOnAction(event -> toggleHideSelectedAiSkill());
+        builtinBanner = new HBox(8, builtinStateLabel, builtinResetButton, builtinUpdateButton, builtinHideToggleButton);
+        builtinBanner.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        builtinBanner.setVisible(false);
+        builtinBanner.setManaged(false);
+
         VBox aiSkillEditorBox = new VBox(8,
+            builtinBanner,
             aiSkillEditorGrid,
             new Label(I18n.get("settings.aiSkills.content")),
             aiSkillContentScrollPane);
@@ -235,7 +320,7 @@ final class AiSkillsPane extends VBox {
             selectedAiSkill = newValue;
             loadAiSkillIntoEditor(newValue);
         });
-        if (!aiSkills.isEmpty()) {
+        if (!aiSkillListView.getItems().isEmpty()) {
             aiSkillListView.getSelectionModel().selectFirst();
         } else {
             loadAiSkillIntoEditor(null);
@@ -310,16 +395,19 @@ final class AiSkillsPane extends VBox {
 
     private void addAiSkill() {
         snapshotSelectedAiSkillEditorState();
+        // Clear the search so the new skill is guaranteed visible and immediately editable.
+        aiSkillSearchField.clear();
         AiSkill skill = new AiSkill();
         skill.setName(createDefaultAiSkillName());
         skill.setEnabled(true);
         skill.setTarget(AiSkillTarget.BOTH);
         skill.setContent("");
         aiSkills.add(skill);
-        aiSkillListView.getItems().setAll(aiSkills);
+        aiSkillListView.getItems().setAll(visibleAiSkills());
         aiSkillListView.getSelectionModel().clearSelection();
         aiSkillListView.getSelectionModel().select(skill);
         aiSkillListView.refresh();
+        updateAiSkillCounts();
     }
 
     private String createDefaultAiSkillName() {
@@ -345,6 +433,9 @@ final class AiSkillsPane extends VBox {
 
     private void deleteSelectedAiSkills() {
         List<AiSkill> selected = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+        // Built-ins are never deleted (the provisioner would re-add them on the next start) —
+        // the Delete button is disabled for them, this guard covers any other invocation path.
+        selected.removeIf(skill -> skill == null || skill.isBuiltin());
         if (selected.isEmpty()) {
             return;
         }
@@ -357,14 +448,274 @@ final class AiSkillsPane extends VBox {
             return;
         }
         aiSkills.removeAll(selected);
-        aiSkillListView.getItems().setAll(aiSkills);
-        if (aiSkills.isEmpty()) {
+        aiSkillListView.getItems().setAll(visibleAiSkills());
+        if (aiSkillListView.getItems().isEmpty()) {
             selectedAiSkill = null;
             loadAiSkillIntoEditor(null);
         } else {
             aiSkillListView.getSelectionModel().selectFirst();
         }
         aiSkillListView.refresh();
+        updateAiSkillCounts();
+    }
+
+    /**
+     * Skills shown in the list: hidden built-ins only appear while the filter checkbox is on, and
+     * everything is narrowed by the search query (matched against name, description and tags).
+     */
+    private List<AiSkill> visibleAiSkills() {
+        List<AiSkill> visible = new ArrayList<>();
+        boolean includeHidden = showHiddenCheck != null && showHiddenCheck.isSelected();
+        String query = aiSkillSearchField != null ? aiSkillSearchField.getText() : null;
+        query = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
+        for (AiSkill skill : aiSkills) {
+            if (skill != null && (includeHidden || !skill.isHidden()) && matchesSearch(skill, query)) {
+                visible.add(skill);
+            }
+        }
+        return visible;
+    }
+
+    private boolean matchesSearch(AiSkill skill, String query) {
+        if (query.isEmpty()) {
+            return true;
+        }
+        if (contains(skill.getName(), query) || contains(skill.getDescription(), query)) {
+            return true;
+        }
+        for (String tag : skill.getTags()) {
+            if (contains(tag, query)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean contains(String value, String lowerQuery) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerQuery);
+    }
+
+    /** Updates the "total / active / inactive" summary from the full library (never the filtered view). */
+    private void updateAiSkillCounts() {
+        int total = 0;
+        int active = 0;
+        for (AiSkill skill : aiSkills) {
+            if (skill == null) {
+                continue;
+            }
+            total++;
+            if (skill.isEnabled() && !skill.isHidden()) {
+                active++;
+            }
+        }
+        aiSkillCountLabel.setText(I18n.get("settings.aiSkills.count", total, active, total - active));
+    }
+
+    private BuiltinAiSkillSupport.AiSkillStatus statusOf(AiSkill skill) {
+        return BuiltinAiSkillSupport.statusOf(skill, aiSkills, builtinCatalog);
+    }
+
+    private void refreshBuiltinIndicatorsSoon() {
+        builtinIndicatorRefresh.playFromStart();
+    }
+
+    private void rebuildAiSkillListItems() {
+        List<AiSkill> visible = visibleAiSkills();
+        List<AiSkill> selectedSkills = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+        aiSkillListView.getItems().setAll(visible);
+        aiSkillListView.getSelectionModel().clearSelection();
+        boolean anySelected = false;
+        for (AiSkill skill : selectedSkills) {
+            if (visible.contains(skill)) {
+                aiSkillListView.getSelectionModel().select(skill);
+                anySelected = true;
+            }
+        }
+        if (!anySelected) {
+            if (!visible.isEmpty()) {
+                aiSkillListView.getSelectionModel().selectFirst();
+            } else {
+                selectedAiSkill = null;
+                loadAiSkillIntoEditor(null);
+            }
+        }
+        aiSkillListView.refresh();
+        updateAiSkillCounts();
+    }
+
+    private ContextMenu createAiSkillListContextMenu() {
+        MenuItem resetItem = new MenuItem(I18n.get("settings.aiSkills.reset"));
+        resetItem.setOnAction(event -> resetSelectedAiSkill());
+        MenuItem updateItem = new MenuItem(I18n.get("settings.aiSkills.update"));
+        updateItem.setOnAction(event -> updateSelectedAiSkill());
+        MenuItem hideItem = new MenuItem(I18n.get("settings.aiSkills.hide"));
+        hideItem.setOnAction(event -> hideSelectedAiSkills(true));
+        MenuItem unhideItem = new MenuItem(I18n.get("settings.aiSkills.unhide"));
+        unhideItem.setOnAction(event -> hideSelectedAiSkills(false));
+        MenuItem deleteItem = new MenuItem(I18n.get("settings.aiSkills.delete"));
+        deleteItem.setOnAction(event -> deleteSelectedAiSkills());
+        MenuItem exportItem = new MenuItem(I18n.get("settings.aiSkills.export"));
+        exportItem.setOnAction(event -> exportAiSkills());
+
+        ContextMenu menu = new ContextMenu(
+            resetItem, updateItem, hideItem, unhideItem, new SeparatorMenuItem(), deleteItem, exportItem);
+        menu.setOnShowing(event -> {
+            List<AiSkill> selected = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
+            AiSkill single = selected.size() == 1 ? selected.get(0) : null;
+            BuiltinAiSkillSupport.AiSkillStatus singleStatus = single != null ? statusOf(single) : null;
+            boolean singleModified = single != null && single.isBuiltin()
+                && BuiltinAiSkillSupport.isModified(single);
+            resetItem.setDisable(!singleModified);
+            updateItem.setDisable(singleStatus == null || singleStatus.state()
+                != BuiltinAiSkillSupport.BuiltinSkillState.BUILTIN_UPDATE_AVAILABLE);
+            hideItem.setDisable(selected.stream().noneMatch(s -> s != null && s.isBuiltin() && !s.isHidden()));
+            unhideItem.setDisable(selected.stream().noneMatch(s -> s != null && s.isHidden()));
+            deleteItem.setDisable(!AiSkillListFormat.deleteAllowed(selected));
+        });
+        return menu;
+    }
+
+    private void resetSelectedAiSkill() {
+        snapshotSelectedAiSkillEditorState();
+        AiSkill skill = selectedAiSkill;
+        if (skill == null || !skill.isBuiltin() || !BuiltinAiSkillSupport.isModified(skill)) {
+            return;
+        }
+        if (!confirmBuiltinAction("reset", skill)) {
+            return;
+        }
+        BuiltinAiSkillSupport.reset(skill);
+        loadAiSkillIntoEditor(skill);
+        rebuildAiSkillListItems();
+        updateBuiltinBanner(skill);
+        statusLabel.setText(I18n.get("settings.aiSkills.reset.done"));
+    }
+
+    private void updateSelectedAiSkill() {
+        snapshotSelectedAiSkillEditorState();
+        AiSkill skill = selectedAiSkill;
+        if (skill == null || !skill.isBuiltin()) {
+            return;
+        }
+        if (!confirmBuiltinAction("update", skill)) {
+            return;
+        }
+        if (BuiltinAiSkillSupport.replaceWithLatest(skill, builtinCatalog)) {
+            loadAiSkillIntoEditor(skill);
+            rebuildAiSkillListItems();
+            updateBuiltinBanner(skill);
+            statusLabel.setText(I18n.get("settings.aiSkills.update.done"));
+        }
+    }
+
+    private boolean confirmBuiltinAction(String actionKey, AiSkill skill) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("settings.aiSkills." + actionKey + ".title"));
+        confirm.setHeaderText(I18n.get("settings.aiSkills." + actionKey + ".header",
+            skill.getName() != null ? skill.getName() : ""));
+        confirm.setContentText(I18n.get("settings.aiSkills." + actionKey + ".content"));
+        DialogThemeHelper.applyTheme(confirm);
+        return confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    private void toggleHideSelectedAiSkill() {
+        AiSkill skill = selectedAiSkill;
+        if (skill == null || !BuiltinAiSkillSupport.canHide(skill)) {
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        boolean hide = !skill.isHidden();
+        skill.setHidden(hide);
+        rebuildAiSkillListItems();
+        updateBuiltinBanner(selectedAiSkill);
+        statusLabel.setText(I18n.get(hide ? "settings.aiSkills.hide.done" : "settings.aiSkills.unhide.done", 1));
+    }
+
+    private void hideSelectedAiSkills(boolean hide) {
+        snapshotSelectedAiSkillEditorState();
+        List<AiSkill> affected = new ArrayList<>();
+        for (AiSkill skill : aiSkillListView.getSelectionModel().getSelectedItems()) {
+            if (skill == null) {
+                continue;
+            }
+            if (hide ? BuiltinAiSkillSupport.canHide(skill) && !skill.isHidden() : skill.isHidden()) {
+                affected.add(skill);
+            }
+        }
+        if (affected.isEmpty()) {
+            return;
+        }
+        for (AiSkill skill : affected) {
+            skill.setHidden(hide);
+        }
+        rebuildAiSkillListItems();
+        updateBuiltinBanner(selectedAiSkill);
+        statusLabel.setText(I18n.get(hide ? "settings.aiSkills.hide.done" : "settings.aiSkills.unhide.done",
+            affected.size()));
+    }
+
+    private void onAutoDetectionToggled(boolean wasSelected, boolean isSelected) {
+        if (revertingAutoDetectionToggle || !wasSelected || isSelected) {
+            return;
+        }
+        // Product rule: without auto-detection every enabled skill is injected into every
+        // request, so switching it off deactivates all built-ins after an explicit confirmation.
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("settings.aiSkills.autoDetection.disable.title"));
+        confirm.setHeaderText(I18n.get("settings.aiSkills.autoDetection.disable.header"));
+        confirm.setContentText(I18n.get("settings.aiSkills.autoDetection.disable.content"));
+        DialogThemeHelper.applyTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            revertingAutoDetectionToggle = true;
+            try {
+                aiSkillAutoDetectionCheck.setSelected(true);
+            } finally {
+                revertingAutoDetectionToggle = false;
+            }
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        for (AiSkill skill : aiSkills) {
+            if (skill != null && skill.isBuiltin()) {
+                skill.setEnabled(false);
+            }
+        }
+        loadAiSkillIntoEditor(selectedAiSkill);
+        rebuildAiSkillListItems();
+        updateBuiltinBanner(selectedAiSkill);
+        statusLabel.setText(I18n.get("settings.aiSkills.autoDetection.disable.done"));
+    }
+
+    private void updateBuiltinBanner(AiSkill skill) {
+        boolean builtin = skill != null && skill.isBuiltin();
+        builtinBanner.setVisible(builtin);
+        builtinBanner.setManaged(builtin);
+        if (!builtin) {
+            return;
+        }
+        BuiltinAiSkillSupport.AiSkillStatus status = statusOf(skill);
+        builtinStateLabel.setText(builtinHint(status));
+        builtinResetButton.setDisable(!BuiltinAiSkillSupport.isModified(skill));
+        boolean updateAvailable =
+            status.state() == BuiltinAiSkillSupport.BuiltinSkillState.BUILTIN_UPDATE_AVAILABLE;
+        builtinUpdateButton.setVisible(updateAvailable);
+        builtinUpdateButton.setManaged(updateAvailable);
+        builtinHideToggleButton.setText(I18n.get(
+            skill.isHidden() ? "settings.aiSkills.unhide" : "settings.aiSkills.hide"));
+    }
+
+    private String builtinHint(BuiltinAiSkillSupport.AiSkillStatus status) {
+        if (status.hidden()) {
+            return I18n.get("settings.aiSkills.builtin.hint.hidden");
+        }
+        if (status.overridden()) {
+            return I18n.get("settings.aiSkills.builtin.hint.overridden");
+        }
+        return switch (status.state()) {
+            case BUILTIN_MODIFIED -> I18n.get("settings.aiSkills.builtin.hint.modified");
+            case BUILTIN_UPDATE_AVAILABLE -> I18n.get("settings.aiSkills.builtin.hint.updateAvailable");
+            default -> I18n.get("settings.aiSkills.builtin.hint.unmodified");
+        };
     }
 
     private void sortAiSkillsAlphabetically() {
@@ -391,20 +742,21 @@ final class AiSkillsPane extends VBox {
     }
 
     private void refreshAiSkillListAfterSort() {
+        List<AiSkill> visible = visibleAiSkills();
         List<AiSkill> selectedSkills = new ArrayList<>(aiSkillListView.getSelectionModel().getSelectedItems());
         AiSkill currentSkill = selectedAiSkill;
-        aiSkillListView.getItems().setAll(aiSkills);
+        aiSkillListView.getItems().setAll(visible);
         aiSkillListView.getSelectionModel().clearSelection();
         for (AiSkill skill : selectedSkills) {
-            if (aiSkills.contains(skill)) {
+            if (visible.contains(skill)) {
                 aiSkillListView.getSelectionModel().select(skill);
             }
         }
-        if (currentSkill != null && aiSkills.contains(currentSkill)) {
+        if (currentSkill != null && visible.contains(currentSkill)) {
             aiSkillListView.getSelectionModel().select(currentSkill);
             selectedAiSkill = currentSkill;
             loadAiSkillIntoEditor(currentSkill);
-        } else if (!aiSkills.isEmpty()) {
+        } else if (!visible.isEmpty()) {
             aiSkillListView.getSelectionModel().selectFirst();
         } else {
             selectedAiSkill = null;
@@ -432,11 +784,14 @@ final class AiSkillsPane extends VBox {
                 importedSkills.add(imported);
             }
             aiSkills.addAll(importedSkills);
-            aiSkillListView.getItems().setAll(aiSkills);
+            // Clear the search so freshly imported skills are visible and selectable.
+            aiSkillSearchField.clear();
+            aiSkillListView.getItems().setAll(visibleAiSkills());
             if (!importedSkills.isEmpty()) {
                 aiSkillListView.getSelectionModel().clearSelection();
                 aiSkillListView.getSelectionModel().select(aiSkills.get(aiSkills.size() - 1));
             }
+            updateAiSkillCounts();
             showAiSkillInfo(I18n.get("settings.aiSkills.import.success", importedSkills.size()));
         } catch (Exception e) {
             showAiSkillError(I18n.get("settings.aiSkills.import.failed", errorMessage(e)));
@@ -510,8 +865,28 @@ final class AiSkillsPane extends VBox {
         selectedAiSkill.setTagsFromString(aiSkillTagsField.getText());
         selectedAiSkill.setEnabled(aiSkillEnabledCheck.isSelected());
         selectedAiSkill.setTarget(aiSkillTargetCombo.getValue());
-        selectedAiSkill.setContent(aiSkillContentArea.getText());
+        if (aiSkillContentArea.isReady()) {
+            // Before the WebView is booted the mirror may hold a stale boot echo; the skill's
+            // own content is authoritative then (no user edit can have happened yet).
+            selectedAiSkill.setContent(aiSkillContentArea.getText());
+        }
         aiSkillListView.refresh();
+    }
+
+    /** Pushes the selected skill's content into the freshly booted editor (see ready listener). */
+    private void resyncEditorAfterBoot() {
+        if (selectedAiSkill == null) {
+            return;
+        }
+        loadingAiSkillEditor = true;
+        try {
+            aiSkillContentArea.replaceText(
+                selectedAiSkill.getContent() != null ? selectedAiSkill.getContent() : "");
+            applyAiSkillContentTextStyle();
+            aiSkillContentArea.getUndoManager().forgetHistory();
+        } finally {
+            loadingAiSkillEditor = false;
+        }
     }
 
     private void loadAiSkillIntoEditor(AiSkill skill) {
@@ -527,6 +902,7 @@ final class AiSkillsPane extends VBox {
             aiSkillContentArea.replaceText(skill != null && skill.getContent() != null ? skill.getContent() : "");
             applyAiSkillContentTextStyle();
             aiSkillContentArea.getUndoManager().forgetHistory();
+            updateBuiltinBanner(skill);
         } finally {
             loadingAiSkillEditor = false;
         }
@@ -628,21 +1004,8 @@ final class AiSkillsPane extends VBox {
         aiSkillContentArea.setDisable(disabled);
     }
 
-    private String formatAiSkillListText(AiSkill skill) {
-        String name = trimToNull(skill.getName());
-        String status = skill.isEnabled()
-            ? I18n.get("settings.aiSkills.status.enabled")
-            : I18n.get("settings.aiSkills.status.disabled");
-        return (name != null ? name : I18n.get("settings.aiSkills.defaultName"))
-            + "\n"
-            + aiSkillTargetLabel(skill.getTarget())
-            + " - "
-            + status;
-    }
-
     private String aiSkillTargetLabel(AiSkillTarget target) {
-        AiSkillTarget safeTarget = target != null ? target : AiSkillTarget.BOTH;
-        return I18n.get("settings.aiSkills.target." + safeTarget.name().toLowerCase(Locale.ROOT));
+        return AiSkillListFormat.targetLabel(target);
     }
 
     private Path ensureMarkdownExtension(Path path) {

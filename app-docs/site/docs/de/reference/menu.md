@@ -6,18 +6,18 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Neues Fenster | ++ctrl+shift+n++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
 | Neuer Tab | ++ctrl+t++ | Öffnen Sie Quick Connect in einem neuen Terminal-Tab |
-| Projekt öffnen… | ++ctrl+o++ | Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout) |
-| Projekt speichern… | ++ctrl+s++ | Speichern Sie die aktuelle Sitzung als Projekt (`.kortty`) |
-| Schnellverbindung… | ++ctrl+k++ | Stellen Sie eine Verbindung zu einem Host her, ohne ihn vorher zu speichern |
-| Verbindungen verwalten… | | Öffnen Sie den Verbindungsmanager |
-| Verbindungen importieren… | | Import aus MTPuTTY / MobaXterm / PuTTY CM |
-| Verbindungen exportieren… | | Gespeicherte Verbindungen exportieren |
 | Tab schließen | ++ctrl+w++ | Schließen Sie die aktive Terminal-Registerkarte |
 | Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen |
-| Fenster schließen | | Aktuelles Fenster schließen |
+| Neues Fenster | ++ctrl+shift+n++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
+| Fenster schließen | ++ctrl+shift+w++ | Schließen Sie das aktuelle Fenster |
+| Projekt öffnen… | ++ctrl+o++ | Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout) |
+| Projekt speichern… | ++ctrl+s++ | Speichern Sie die aktuelle Sitzung als Projekt (`.kortty`) |
+| Backup erstellen… | ++ctrl+shift+b++ | Erstellen Sie ein verschlüsseltes Backup (ZIP-Passwort oder GPG) |
+| Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
+
+Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#connections).
 
 ## Bearbeiten
 
@@ -26,10 +26,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 | Schneiden | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
-| Alle auswählen | | Alle Terminalinhalte auswählen |
-| Terminal löschen | | Aktives Terminal löschen |
-| Backup erstellen… | ++ctrl+shift+b++ | Erstellen Sie ein verschlüsseltes Backup (ZIP-Passwort oder GPG) |
-| Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
+| Finden… | ++ctrl+f++ | Durchsuchen Sie die aktive Registerkarte (Terminal-Scrollback oder geöffneter Editor). |
 
 ## Verbindungen
 
@@ -97,10 +94,10 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
+| Befehlszeitstempel anzeigen | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
 | Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |
-| Befehlszeitstempel anzeigen | | Inline-Befehlszeitstempel umschalten |
-| Dateibrowser ▸ Links anzeigen | ++ctrl+shift+k++ | Docken Sie den lokalen Dateibrowser links vom Terminal an (deaktivieren Sie ihn, um ihn auszublenden). |
-| Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie den lokalen Dateibrowser rechts neben dem Terminal an (deaktivieren Sie ihn, um ihn auszublenden). |
+| Dateibrowser ▸ Links anzeigen | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
+| Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |

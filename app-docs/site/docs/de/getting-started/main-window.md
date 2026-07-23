@@ -13,6 +13,7 @@ Das Hauptfenster von korTTY hat diese Bereiche:
 - **Menüleiste** – Datei · Bearbeiten · Verbindungen · Sicherheit · Konfiguration · Tools · Plugins · Anzeigen · Teamwork · KI · Hilfe. Alle Funktionen sind hier und über [Tastaturkürzel](../reference/keyboard-shortcuts.md)] erreichbar. Ein Live-Menü **JobScheduler-Status** erscheint nach *Hilfe*, wenn ein geplanter Eintrag aktiv ist.
 - **Tab-Leiste** – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. ++ctrl+t++ öffnet Quick Connect für eine neue Registerkarte; ++ctrl+tab++ / ++ctrl+shift+tab++ Schalterlaschen.
 - **Dashboard** (umschalten ++ctrl+shift+d++) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Sehen [Armaturenbrett](#dashboard) unten.
+- **Dateibrowser** (**Ansicht → Dateibrowser ▸ Links anzeigen / Rechts anzeigen**) – ein andockbarer lokaler Dateimanager mit Navigationssymbolleiste, Pfadleiste, Filter, Typsymbolen und einem Ordner-/Datei-/Auswahlzähler. Beim nächsten Start werden Seite, Breite, Status der versteckten Datei und letztes Verzeichnis wiederhergestellt. Siehe [Dateibrowser](../features/file-browser.md).
 - **Terminalbereich** – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.
 - **Statusleiste** – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.
 

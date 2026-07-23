@@ -89,7 +89,12 @@ public final class AiSkillPromptSupport {
         return new AiSkillPromptSupport(
             settings.isAiSkillsEnabled(),
             settings.isAiSkillAutoDetectionEnabled(),
-            filterConnectionSkills(settings.getAiSkills(), assignedConnectionSkillIds),
+            // Single choke point for every AI prompt path: hidden built-ins and built-ins
+            // overridden by a user skill on the same topic never reach any prompt, including
+            // pinned connection assignments.
+            filterConnectionSkills(
+                BuiltinAiSkillSupport.effectiveSkills(settings.getAiSkills()),
+                assignedConnectionSkillIds),
             pinnedSkillIds);
     }
 

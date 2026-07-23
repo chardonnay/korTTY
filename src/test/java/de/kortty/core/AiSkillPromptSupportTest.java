@@ -227,6 +227,59 @@ class AiSkillPromptSupportTest {
         assertThat(support.appendAgentSkills("base")).contains("Connection rules.");
     }
 
+    @Test
+    void fromSettingsExcludesHiddenAndOverriddenBuiltins() {
+        AiSkill hiddenBuiltin = skill("Bash", true, AiSkillTarget.BOTH, "Quote everything.");
+        hiddenBuiltin.setBuiltinId("builtin.shell.bash");
+        hiddenBuiltin.setBuiltinTopics(List.of("bash"));
+        hiddenBuiltin.setHidden(true);
+        AiSkill overriddenBuiltin = skill("Perl (Perl 5)", true, AiSkillTarget.BOTH, "Use strict.");
+        overriddenBuiltin.setBuiltinId("builtin.lang.perl");
+        overriddenBuiltin.setBuiltinTopics(List.of("perl"));
+        AiSkill overridingUser = skill("My Perl Quality", true, AiSkillTarget.BOTH, "My own perl rules.");
+        overridingUser.setTags(List.of("perl"));
+        AiSkill activeBuiltin = skill("Python", true, AiSkillTarget.BOTH, "Use docstrings.");
+        activeBuiltin.setBuiltinId("builtin.lang.python");
+        activeBuiltin.setBuiltinTopics(List.of("python"));
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(false);
+        settings.setAiSkills(new java.util.ArrayList<>(
+            List.of(hiddenBuiltin, overriddenBuiltin, overridingUser, activeBuiltin)));
+
+        String chat = AiSkillPromptSupport.fromSettings(settings).appendChatSkills("base");
+        String agent = AiSkillPromptSupport.fromSettings(settings).appendAgentSkills("base");
+
+        assertThat(chat).doesNotContain("Quote everything.");
+        assertThat(chat).doesNotContain("Use strict.");
+        assertThat(chat).contains("My own perl rules.");
+        assertThat(chat).contains("Use docstrings.");
+        assertThat(agent).doesNotContain("Quote everything.");
+        assertThat(agent).doesNotContain("Use strict.");
+        assertThat(agent).contains("My own perl rules.");
+    }
+
+    @Test
+    void overriddenBuiltinAssignedToConnectionIsNotPinnedIn() {
+        AiSkill overriddenBuiltin = skill("Perl (Perl 5)", true, AiSkillTarget.BOTH, "Use strict.");
+        overriddenBuiltin.setId("skill-builtin-perl");
+        overriddenBuiltin.setBuiltinId("builtin.lang.perl");
+        overriddenBuiltin.setBuiltinTopics(List.of("perl"));
+        AiSkill overridingUser = skill("My Perl Quality", true, AiSkillTarget.BOTH, "My own perl rules.");
+        overridingUser.setTags(List.of("perl"));
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(false);
+        settings.setAiSkills(new java.util.ArrayList<>(List.of(overriddenBuiltin, overridingUser)));
+
+        // User precedence is global: even a pinned connection assignment must not resurrect it.
+        String prompt = AiSkillPromptSupport.fromSettings(settings, List.of("skill-builtin-perl"))
+            .appendChatSkills("base");
+
+        assertThat(prompt).doesNotContain("Use strict.");
+        assertThat(prompt).contains("My own perl rules.");
+    }
+
     private AiSkill skill(String name, boolean enabled, AiSkillTarget target, String content) {
         AiSkill skill = new AiSkill();
         skill.setName(name);

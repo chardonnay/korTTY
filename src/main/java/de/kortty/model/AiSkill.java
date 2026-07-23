@@ -41,6 +41,22 @@ public class AiSkill {
     @XmlElement
     private String content;
 
+    /** Stable delivery key (e.g. {@code builtin.lang.python}); null for user-created skills. */
+    @XmlElement
+    private String builtinId;
+
+    /** Built-ins cannot be deleted, only hidden; meaningless for user skills. */
+    @XmlElement
+    private boolean hidden;
+
+    /** Delivery-owned topic keys a user skill's tags are matched against to override this built-in. */
+    @XmlElementWrapper(name = "builtinTopics")
+    @XmlElement(name = "topic")
+    private List<String> builtinTopics = new ArrayList<>();
+
+    @XmlElement(name = "builtinBaseline")
+    private AiSkillBuiltinBaseline builtinBaseline;
+
     public AiSkill() {
         this.id = UUID.randomUUID().toString();
     }
@@ -57,6 +73,12 @@ public class AiSkill {
         this.enabled = source.isEnabled();
         setTarget(source.getTarget());
         this.content = source.getContent();
+        setBuiltinId(source.getBuiltinId());
+        this.hidden = source.isHidden();
+        setBuiltinTopics(source.getBuiltinTopics());
+        this.builtinBaseline = source.getBuiltinBaseline() != null
+            ? new AiSkillBuiltinBaseline(source.getBuiltinBaseline())
+            : null;
     }
 
     public String getId() {
@@ -139,6 +161,55 @@ public class AiSkill {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getBuiltinId() {
+        return builtinId;
+    }
+
+    public void setBuiltinId(String builtinId) {
+        this.builtinId = builtinId != null && !builtinId.isBlank() ? builtinId.trim() : null;
+    }
+
+    public boolean isBuiltin() {
+        return builtinId != null;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
+    }
+
+    public List<String> getBuiltinTopics() {
+        if (builtinTopics == null) {
+            builtinTopics = new ArrayList<>();
+        }
+        return builtinTopics;
+    }
+
+    public void setBuiltinTopics(List<String> builtinTopics) {
+        List<String> normalized = new ArrayList<>();
+        if (builtinTopics != null) {
+            for (String topic : builtinTopics) {
+                String trimmed = topic != null ? topic.trim() : "";
+                if (!trimmed.isBlank()
+                    && normalized.stream().noneMatch(existing -> existing.equalsIgnoreCase(trimmed))) {
+                    normalized.add(trimmed);
+                }
+            }
+        }
+        this.builtinTopics = normalized;
+    }
+
+    public AiSkillBuiltinBaseline getBuiltinBaseline() {
+        return builtinBaseline;
+    }
+
+    public void setBuiltinBaseline(AiSkillBuiltinBaseline builtinBaseline) {
+        this.builtinBaseline = builtinBaseline;
     }
 
     private void normalizeTags() {

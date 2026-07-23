@@ -707,6 +707,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1137,6 +1143,90 @@
     
   
     KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Editor
   
 
     
@@ -3624,21 +3714,21 @@
 <h2 id="v260">v2.6.0<a class="headerlink" href="#v260" title="Permanent link">&para;</a></h2>
 <h3 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Administratoren können korTTY jetzt über eine Richtliniendatei verwalten</strong> – ein <code>kortty-policy.toml</code> im Installationsverzeichnis (nur für Administratoren beschreibbar) kann Server einschränken, zu denen Benutzer eine Verbindung herstellen dürfen (Zulassungs-/Verweigerungslisten mit Host-Globs, Ports, einzelnen IPs, CIDR-Netzwerken und IP-Bereichen, erzwungen für Terminals, SFTP, QuickConnect, Jump-Hosts und geplante Jobs), Funktionen deaktivieren oder einschränken (KI-Agent/Chat/Schwarm/Planung, Teamwork, Plugins, Update). Überprüfungen, Telemetrie, Terminalaufzeichnung), die Überprüfung des Hauptkennworts und des Hostschlüssels erzwingen, korTTY auf eine interne Zwischenablage beschränken, damit in anderen Anwendungen kopierter Text nicht in korTTY eingefügt werden kann (während das Kopieren und Einfügen in korTTY weiterhin funktioniert), die Protokollierung steuern (Verzeichnis, Format als Text oder JSON-Zeilen, Aufbewahrung, gzip-Komprimierung und Rotationsbeschränkungen) und schreibgeschützte KI-Profile (mit verschlüsselten API-Schlüsseln über <code>korTTY --encrypt-policy-value</code>), lokale KI-Modelle, Skript-Header und Teamwork-Quellen vorkonfigurieren. Regeln richten sich an einzelne Benutzer, richtliniendefinierte Gruppen oder OS/AD-Gruppen mit Benutzer &gt; Gruppe &gt; jeder hat Vorrang; Gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt, und eine ungültige Richtliniendatei versetzt korTTY in eine ausfallsichere Sperre, anstatt stillschweigend nichts durchzusetzen. Siehe <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a>.</li>
+<li><strong>Administratoren können korTTY jetzt über eine Richtliniendatei verwalten</strong> – ein <code>kortty-policy.toml</code> im Installationsverzeichnis (nur für Administratoren beschreibbar) kann Server einschränken, zu denen Benutzer eine Verbindung herstellen dürfen (Zulassungs-/Verweigerungslisten mit Host-Globs, Ports, einzelnen IPs, CIDR-Netzwerken und IP-Bereichen, erzwungen für Terminals, SFTP, QuickConnect, Jump-Hosts und geplante Jobs), Funktionen deaktivieren oder einschränken (KI-Agent/Chat/Schwarm/Planung, Teamwork, Plugins, Update). Überprüfungen, Telemetrie, Terminalaufzeichnung), das Hauptkennwort und die Überprüfung des Hostschlüssels erzwingen, korTTY auf eine interne Zwischenablage beschränken, damit in anderen Anwendungen kopierter Text nicht in korTTY eingefügt werden kann (während das Kopieren und Einfügen in korTTY weiterhin funktioniert), die Protokollierung steuern (Verzeichnis, Format als Text oder JSON-Zeilen, Aufbewahrung, gzip-Komprimierung und Rotationsbeschränkungen) und schreibgeschützte KI-Profile (mit verschlüsselten API-Schlüsseln über <code>korTTY --encrypt-policy-value</code>), lokale KI-Modelle, Skript-Header und Teamwork-Quellen vorkonfigurieren. Regeln richten sich an einzelne Benutzer, richtliniendefinierte Gruppen oder OS/AD-Gruppen mit Benutzer &gt; Gruppe &gt; jeder hat Vorrang; Gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt, und eine ungültige Richtliniendatei versetzt korTTY in eine ausfallsichere Sperre, anstatt stillschweigend nichts durchzusetzen. Siehe <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a>.</li>
 </ul>
 <h3 id="dateibrowser">Dateibrowser<a class="headerlink" href="#dateibrowser" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Der Menü-Dateibrowser wurde zu einem echten Dateimanager umgebaut</strong> – die andockbare Seitenleiste (<strong>Ansicht → Dateibrowser</strong>) erhielt eine Navigationsleiste (Zurück / Vor / Hoch / Home / Aktualisieren, Neuer Ordner / Datei), eine editierbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann – auch oberhalb des Home-Verzeichnisses –, ein Filterfeld, typabhängige Symbole mit Symlink-Markierung und eine Fußzeile, die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>
+<li><strong>Die Menüleiste des Dateibrowsers wurde zu einem richtigen Dateimanager umgebaut</strong> – die angedockte Seitenleiste (<strong>Ansicht → Dateibrowser</strong>) erhielt eine Navigationssymbolleiste (zurück/vorwärts/aufwärts/Startseite/Aktualisieren, neuer Ordner/neue Datei), eine bearbeitbare Pfadleiste, die den Baum in jedem Verzeichnis verwurzeln kann, auch über Ihrem Home-Ordner, ein Filterfeld, typbewusste Symbole mit einem symbolischen Link-Badge und eine Fußzeile, die die Ordner, Dateien und Auswahl im aktuellen Verzeichnis zählt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>
 <li><strong>Schneller und sicherer zu verwenden</strong> – Verzeichnisse werden im Hintergrund geladen, sodass das Fenster bei großen oder im Netzwerk bereitgestellten Ordnern nicht mehr einfriert. Durch die Aktualisierung bleiben erweiterte Ordner geöffnet und Sie können nach Name, Größe oder Datum sortieren. Inline-Umbenennung (<span class="keys"><kbd class="key-f2">F2</kbd></span>), <em>Pfad kopieren</em>, Tastaturnavigation und Ziehen von Dateien in das Bedienfeld zum Kopieren oder Verschieben wurden hinzugefügt.</li>
 <li><strong>Beim Löschen wird zuerst nachgefragt – Papierkorb oder dauerhaft</strong> – Wenn Sie einen Eintrag löschen, werden Sie jetzt aufgefordert, ihn entweder in den Papierkorb des Systems zu verschieben (umkehrbar) oder dauerhaft zu löschen, anstatt ihn stillschweigend für immer zu entfernen. Kopieren, Verschieben, Archivieren und Löschen werden alle im Hintergrund ausgeführt, sodass ein großer Ordner das Fenster nicht mehr einfriert.</li>
-<li><strong>Die Leiste merkt sich ihren Zustand</strong> – Seite, Breite, der Zustand <em>Versteckte Dateien anzeigen</em> und das zuletzt geöffnete Verzeichnis werden beim nächsten Start wiederhergestellt.</li>
-<li><strong>Der SFTP-Dateimanager passt zum neuen Look</strong> – seine Werkzeugleiste und Dateityp-Symbole nutzen nun denselben Symbolsatz und Stil wie der Dateibrowser (ohne Änderung der Funktionsweise).</li>
+<li><strong>Das Panel merkt sich sich selbst</strong> – seine Seite, Breite, Status <em>versteckte Dateien anzeigen</em> und letztes Verzeichnis werden beim nächsten Start wiederhergestellt.</li>
+<li><strong>Der SFTP-Dateimanager entspricht dem neuen Erscheinungsbild</strong> – seine Symbolleiste und Dateitypsymbole verwenden jetzt denselben Symbolsatz und Stil wie der Dateibrowser (keine Änderung an der Funktionsweise).</li>
 </ul>
 <h3 id="jump-server-bastion-host">Jump-Server (Bastion-Host)<a class="headerlink" href="#jump-server-bastion-host" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Jump-Server-Hopping ist jetzt implementiert</strong> – eine Verbindung mit einem aktivierten Jump-Server wird über die Bastion geleitet: korTTY authentifiziert sich beim Jump-Host mit seinen eigenen Anmeldeinformationen, öffnet einen Tunnel und öffnet über ihn die echte SSH-Sitzung zum Ziel. Zuvor sammelte die Registerkarte „Jump-Server“ Host, Benutzernamen und Passwort, verwarf sie jedoch beim Speichern und stellte eine direkte Verbindung zum Ziel her – eine Verbindung konnte beim direkten Herstellen einer Bastion-Routing-Verbindung aussehen. Die Registerkarte behält nun jedes Feld bei (mit dem Master-Passwort verschlüsseltes Passwort) und fügt einen Authentifizierungsselektor für das Passwort oder eine unverschlüsselte SSH-Schlüsseldatei hinzu.</li>
-<li><strong>Die Bastion ist verifiziert und die Anmeldeinformationen werden getrennt gehalten</strong> – der Schlüssel des Jump-Hosts durchläuft die gleiche Aufforderung zur Vertrauenswürdigkeit bei der ersten Verwendung und das gleiche Pinning wie jeder andere Host, das Ziel wird weiterhin unter seinem eigenen Namen durch den Tunnel verifiziert und keinem Host wird jemals das Passwort oder der Schlüssel des anderen angeboten. Das schreibgeschützte <em>Auto-Command</em>-Feld wurde entfernt; Ein echter Tunnel ersetzt das „Type SSH on the Bastion“-Muster, für das er stand.</li>
-<li><strong>SFTP wird nun ebenfalls über den Jump-Server geleitet</strong> – Dateiübertragungsverbindungen springen genauso über die Bastion wie Terminalsitzungen.</li>
+<li><strong>Die Bastion ist verifiziert und die Anmeldeinformationen werden getrennt gehalten</strong> – der Schlüssel des Jump-Hosts durchläuft die gleiche Aufforderung zur Vertrauenswürdigkeit bei der ersten Verwendung und die gleiche Anheftung wie jeder andere Host, das Ziel wird weiterhin unter seinem eigenen Namen durch den Tunnel verifiziert und keinem Host wird jemals das Passwort oder der Schlüssel des anderen angeboten. Das schreibgeschützte <em>Auto-Command</em>-Feld wurde entfernt; Ein echter Tunnel ersetzt das „Type SSH on the Bastion“-Muster, für das er stand.</li>
+<li><strong>SFTP leitet jetzt auch über den Jump-Server weiter</strong> – Dateiübertragungsverbindungen durchlaufen die Bastion auf die gleiche Weise wie Terminalsitzungen.</li>
 <li><strong>Mosh mit einem Jump-Server wird von vornherein abgelehnt</strong> – eine Mosh-Sitzung läuft über UDP, was der SSH-Tunnel der Bastion nicht weiterleiten kann; Zuvor war der SSH-Bootstrap erfolgreich und die Sitzung blieb dann ohne Daten stehen. Das Herstellen einer Verbindung schlägt jetzt sofort mit einer eindeutigen Meldung fehl und die Registerkarte „Jump-Server“ warnt, sobald die Kombination konfiguriert ist. SFTP für solche Verbindungen leitet immer noch über die Bastion.</li>
 </ul>
 <h3 id="ssh-hostschlusseluberprufung">SSH-Hostschlüsselüberprüfung<a class="headerlink" href="#ssh-hostschlusseluberprufung" title="Permanent link">&para;</a></h3>
@@ -3674,6 +3764,7 @@
 </ul>
 <h3 id="ai-manager">AI-Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>korTTY bietet jetzt 39 integrierte Best-Practice-KI-Fähigkeiten</strong> – professionelle Codierungskonventionen (Kommentierung, Robustheit, zu vermeidende Fallstricke, Sicherheit) für Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell, Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart, HTML, XML, YAML, JSON, Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative und Scripted Pipelines, Filebeat und Logstash werden beim ersten Start zur Skill-Bibliothek hinzugefügt und automatisch von der Relevanzerkennung ausgewählt. Die Bibliothek verfügt über ein Suchfeld und zeigt die Gesamtzahl/aktive/inaktive Anzahl an. Integrierte Funktionen können bearbeitet, deaktiviert und ausgeblendet, aber nicht gelöscht werden; Unveränderte Versionen werden stillschweigend mit neuen Versionen aktualisiert, geänderte Versionen zeigen 🔄 <em>Update verfügbar</em> mit einem Klick <em>Update auf die neueste ausgelieferte Version</em> und <em>Zurücksetzen auf die ausgelieferte Version</em> an. Ein persönlicher Skill, der mit demselben Thema getaggt ist (z. B. <code>perl</code>), hat immer Vorrang – die integrierte Funktion wird dann ausgegraut als <em>Von Benutzer-Skill überschrieben</em>, bis Ihr Skill entfernt oder deaktiviert wird. Durch das Ausschalten der automatischen Fertigkeitserkennung werden alle integrierten Funktionen (nach Bestätigung) deaktiviert, sodass die Eingabeaufforderungen nie überladen werden. Siehe <a href="../reference/settings/ai-skills.html">AI Skills</a>.</li>
 <li><strong>Die AI-Skills-Bibliothek wurde in den AI Manager verschoben</strong> – die Skill-Liste, der Markdown-Editor, Import/Export und die beiden globalen Schalter (<em>AI-Skills aktivieren</em>, <em>Nur passende Skills automatisch senden</em>) sind jetzt der Abschnitt <strong>AI-Skills</strong> von <strong>AI → AI Manager</strong>, neben Profilen, lokalen Modellen und Wissensspeichern; Die gleichnamige Registerkarte in <strong>Konfiguration → Globale Einstellungen</strong> und die Schaltfläche <em>KI-Fähigkeiten…</em> in der Profilsymbolleiste sind verschwunden. Fähigkeiten werden unverändert in <code>~/.kortty/global-settings.xml</code> gespeichert und über die Schaltfläche <strong>Speichern</strong> sofort geschrieben, während ausstehende Änderungen auch gespeichert werden, wenn das Managerfenster geschlossen wird. Siehe <a href="../reference/settings/ai-skills.html">AI Skills</a>.</li>
 </ul>
 <h3 id="integrierte-lokale-ki">Integrierte lokale KI<a class="headerlink" href="#integrierte-lokale-ki" title="Permanent link">&para;</a></h3>
@@ -3713,7 +3804,7 @@
 <h3 id="local-ai-laufzeit-und-backup-lebenszyklus">Local-AI-Laufzeit- und Backup-Lebenszyklus<a class="headerlink" href="#local-ai-laufzeit-und-backup-lebenszyklus" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Unabhängig aktualisierte, widerruf- und rollbacksichere llama.cpp-Pakete</strong> – korTTY CI erkennt Kandidaten-Pins, während das öffentliche <a href="https://github.com/chardonnay/kortty-llama-runtimes">llama.cpp-Laufzeit-Repository </a> den genau überprüften Commit neu erstellt, die komplette CPU/Metal/Vulkan-Plattformmatrix plus authentifizierten Chat, Einbettungen, JSON-Schema, Sleep/Wake, Parallel-Sidecar- und Pinned-Qdrant-Smokes und nur Signierungen ausführt nach geschützter menschlicher Förderung. Der öffentliche Trust-Stamm Ed25519 ist in der Anwendungsquelle angeheftet. Der Manager für lokale Modelle installiert oder aktualisiert das bevorzugte Backend (Metal zuerst unter macOS, CPU zuerst an anderer Stelle mit Vulkan-Fallback), während die Startrichtlinie Aus/Benachrichtigen/Automatisch stabil unterstützt. Verifizierte Abhebungen behalten eine Denylist- und Paketquarantänemarkierung bei, stoppen/binden betroffene Sidecars neu und entfernen unsichere Rollback-Kandidaten; Neue Pakete werden nur im Leerlauf aktiviert und bleiben bis zum ersten echten GGUF/API-Start ausstehend, bei dessen Fehlschlagen die neueste fehlerfreie, nicht widerrufene Version wiederhergestellt wird. Die beiden neuesten bestätigten fehlerfreien Versionen bleiben verfügbar.</li>
-<li><strong>Interaktives SSH/SFTP/Mosh-Hostschlüsselvertrauen</strong> – ein gemeinsamer <code>~/.kortty/ssh-host-keys.properties</code>-Speicher fixiert jeden normalisierten Host und Port mit einem OpenSSH SHA-256-Fingerabdruck. Die erste Nutzung wird verweigert, bis der Benutzer den Fingerabdruck bestätigt. Ein geänderter Schlüssel wird ohne erneuten Authentifizierungsversuch hart blockiert. Der Speicher wird prozessübergreifend atomar zusammengeführt und in verschlüsselte Backups einbezogen, während die separaten unbeaufsichtigten Hostschlüssel-Pins von JobScheduler unverändert bleiben.</li>
+<li><strong>Interaktives SSH/SFTP/Mosh-Hostschlüsselvertrauen</strong> – ein gemeinsamer <code>~/.kortty/ssh-host-keys.properties</code>-Speicher fixiert jeden normalisierten Host und Port mit einem OpenSSH SHA-256-Fingerabdruck. Die erste Nutzung wird verweigert, bis der Benutzer den Fingerabdruck bestätigt; Ein geänderter Schlüssel wird ohne erneuten Authentifizierungsversuch hart blockiert. Der Speicher wird prozessübergreifend atomar zusammengeführt und in verschlüsselte Backups einbezogen, während die separaten unbeaufsichtigten Hostschlüssel-Pins von JobScheduler unverändert bleiben.</li>
 <li><strong>Terminal- und Diagnosehärtung</strong> – die SithTermFX-Hyperlinkgrenze in der unteren Zeile ist gepatcht und regressionsgetestet, geteilte Handshakes bleiben vom JavaFX-Thread fern und die Testprotokollierung schreibt keine Stack-Traces für negative Fälle mehr in das Live-Verzeichnis <code>~/.kortty/logs</code> eines Entwicklers. Bei Laufzeitinstallationsfehlern bleiben jetzt vollständige Ursachen und Stack-Traces in <code>kortty.log</code> erhalten.</li>
 <li><strong>Portable Konfiguration ohne riesige Backups</strong> – verschlüsselte Backups umfassen lokale Modellregistrierungen, Text-/Codierungs-/RAG-Einstellungen und Wissensquellen-Metadaten, während GGUF-Gewichte, native Laufzeiten, temporäre Sidecars, Originaldokumente und regenerierbare HNSW-Snapshots ausgeschlossen sind. Die Anleitung enthält eine vollständige Dokumentation zu lokalem Modell, RAG, Sicherheit, Installation, Verpackung und Wiederherstellung sowie ein neues Indexierungs-/Abrufdiagramm.</li>
 </ul>
@@ -3738,12 +3829,13 @@
 <li><strong>Zielspezifische native Pakete bereinigen</strong> – Durch die endgültige Paketbereitstellung werden veraltete Abhängigkeitsversionen, alte Formatierungsbäume und fremde Mosh-Architekturen entfernt. Mosh verwendet das Bouncy Castle der Anwendung wieder, JNA/pty4j behält nur Ziel-Natives bei, ungenutzte JavaFX/JDK-Module und SithTermFX-Testabhängigkeiten werden ausgeschlossen und die Logo-Animation wird als kompaktes 640×360 H.264-Video gespeichert.</li>
 <li><strong>Installer-Größengrenzen</strong> – Release CI gibt JSON-/Markdown-Komponentenberichte aus, lehnt unvollständige App-Images und falsch beschriftete Windows-Binärdateien ab, erfordert eine Reduzierung um mindestens 15 % gegenüber der festgeschriebenen Paketbasislinie, wendet die App-/DMG-Grenzwerte an und friert überprüfte Größen mit einer Regressionstoleranz von 2 % ein. <code>RPM</code> wird nach dem Signieren gemessen.</li>
 <li><strong>Ein lokaler Mermaid-Renderer für jedes Diagramm</strong> – Snippet-Diagramme, vollständige Codeanalyse, Workflow-Generierung, Exporte und AI-Chat-Mermaid-Blöcke teilen sich jetzt den SHA-256-fixierten Mermaid 11.16.0-Browser-Renderer. Snippet-Flows behalten SVG/PNG-, Zwischenablage-, Zoom-, Design-/Hintergrund-, Regenerations- und Knoten-zu-Code-Hover-Referenzen bei, ohne dass ein Java/Graphviz-Unterprozess oder ein Download bei der ersten Verwendung erforderlich ist. Ältere gespeicherte Diagrammnutzlasten werden verworfen, ohne Snippets oder Chats zu entfernen, und der veraltete Renderer-Cache wird beim Upgrade sicher gelöscht.</li>
+<li><strong>Anleitungseiten für die letzten drei undokumentierten Einstellungsregisterkarten</strong> – <strong>SFTP-Manager</strong> (Tab automatisch schließen, Remote-ZIP-Standardeinstellungen, JobScheduler-Rsync-Binärdatei), <strong>Editor</strong> (Cursorstil und -farbe) und <strong>Snippet-Editor</strong> (Schriftart, Farbe und Cursorüberschreibungen) verfügen jetzt über eigene Referenzseiten, das Master-Passwort-Dialogfeld wird auf der Seite „Sicherheit“ beschrieben und die Menü- und Tastaturkürzelreferenzen wurden aus neu erstellt Eigene Beschleuniger der Anwendung – ihnen fehlten <strong>Bearbeiten → Suchen</strong>, <strong>Ansicht → Dateibrowser</strong> und mehrere <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd></span>-Verknüpfungen. Das Coverage Gate, das solche Lücken auffangen soll, las nur die teilweise <code>messages_en</code>-Überlagerung und meldete daher 100 %, während 53 Einstellungen/Menübezeichnungen für es unsichtbar waren; Es liest jetzt auch das Basispaket.</li>
 <li><strong>Ausführlicher lokaler Release-Build-Anleitung</strong> – ein neues Anleitungkapitel erklärt die genauen allgemeinen und plattformspezifischen Voraussetzungen, tragbare, eigenständige Anwendungsimages, ZIP/TAR-Archive, DMG/MSI/DEB/RPM-Installationsprogramme, Intel Mac-Builds, Signierung, Beglaubigung, Verifizierung und Fehlerbehebung für macOS, Windows und Linux.</li>
 </ul>
 <h3 id="ai-codeanalyse">AI-Codeanalyse<a class="headerlink" href="#ai-codeanalyse" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Wählen Sie die KI-Textsprache in jedem Snippet-Editor</strong> – ein neuer <strong>KI-Textsprachen-Selektor</strong> steuert die Rechtschreibkorrektur sowie neue oder neu geschriebene Codekommentare und benutzerseitige Zeichenfolgen unabhängig von der korTTY-Schnittstelle und der Programmiersprache. Analyseberichte, Verbesserungsbeschreibungen und Diagrammbeschriftungen folgen weiterhin der Oberflächensprache; <strong>Ausgewählte anwenden</strong> verwendet die separate Auswahl für den generierten Code. Eine Änderung kann für diesen Editor vorübergehend bleiben oder als Standard für zukünftige Editoren gespeichert werden.</li>
-<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke; <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
+<li><strong>Eine Anfrage für Analyse und Diagramm</strong> – wenn Sie <strong>Vollständige Codeanalyse</strong> öffnen oder auf <strong>Erneut ausführen</strong> klicken, wird jetzt eine kombinierte KI-Anfrage für den Bericht und sein anfängliches Mermaid-Flussdiagramm gesendet, anstatt das Snippet zweimal zu senden. Die kombinierte Eingabeaufforderung verwendet jetzt dasselbe vollständige Beispiel für ein eingeschränktes Flussdiagramm wie <strong>Neugenerieren</strong>, einschließlich sinnvoller Entscheidungen und Verzweigungen. Ein ungültiges oder fehlendes Mermaid-Ergebnis wird ohne versteckten Wiederholungsversuch lokal zurückgesetzt, und das lokale Fallback erkennt eingerückte bedingte Blöcke. <strong>Regenerieren</strong> bleibt eine explizite reine Diagrammanforderung und verwendet das aktive Analyseprofil.</li>
 <li><strong>Die Massenauswahl ändert keine Abhängigkeiten mehr</strong> – das klar gekennzeichnete Steuerelement <strong>Alle Verbesserungen auswählen</strong> schaltet jetzt nur noch Sicherheits-, Optimierungs- und Designvorschläge um. Jede Abhängigkeit behält ihren unabhängigen ausgewählten oder nicht ausgewählten Status.</li>
 <li><strong>Wählen Sie die KI-Fähigkeiten für eine Analyse aus</strong> – das Fenster <strong>Vollständige Codeanalyse</strong> zeigt jetzt an, welche KI-Fähigkeiten enthalten waren, als Chips mit einem <em>(automatisch ausgewählten)</em> oder <em>(manuell)</em>-Abzeichen, und ermöglicht Ihnen, sie mit einer <strong>durchsuchbaren</strong> Auswahl zu ändern (nach Name, Beschreibung oder Tags filtern). Ihre Änderungen werden bei der nächsten <strong>Wiederholung</strong> wirksam, sodass ein bewusster Klick eine Analyse mit genau den von Ihnen ausgewählten Fähigkeiten ausführt. korTTY wählt außerdem vor der ersten Analyse automatisch die für das Snippet relevanten Fähigkeiten aus, sodass der Satz sofort aussagekräftig ist.</li>
 <li><strong>Härtungsoptionen zeigen eine Zählung an und merken sich ihren Status</strong> – der Titel des Panels <em>Härtungsoptionen</em> zeigt jetzt an, wie viele Optionen aktiviert sind (z. B. <em>Härtungsoptionen (11)</em>), und das Fenster merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben.</li>
@@ -3897,7 +3989,7 @@
 </ul>
 <h3 id="lokale-shell-verbindungen">Lokale Shell-Verbindungen<a class="headerlink" href="#lokale-shell-verbindungen" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Öffnen Sie die Shell des lokalen Computers in einer Terminal-Registerkarte (kein Netzwerk)</strong> – ein neues <strong>Local Shell</strong>-Protokoll erzeugt ein lokales Pseudo-Terminal (PTY) über pty4j, anstatt eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong> wählen; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> verwendet (wobei auf <code>/bin/zsh</code> oder <code>/bin/bash</code> zurückgegriffen wird). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash), und ein optionales Startverzeichnis kann festgelegt werden. Die lokale Shell kann sowohl in Quick Connect als auch im Verbindungsmanager ausgewählt werden; Für diese Verbindungen sind Host/Port/Benutzername/Authentifizierung nicht erforderlich und in den Dialogen deaktiviert.</li>
+<li><strong>Öffnen Sie die Shell des lokalen Computers in einer Terminal-Registerkarte (kein Netzwerk)</strong> – ein neues <strong>Local Shell</strong>-Protokoll erzeugt ein lokales Pseudo-Terminal (PTY) über pty4j, anstatt eine Verbindung zu einem Remote-Host herzustellen. Unter Windows können Sie <strong>PowerShell</strong> (Standard) oder <strong>cmd.exe</strong> wählen; Unter macOS/Linux wird standardmäßig Ihr <code>$SHELL</code> verwendet (wobei auf <code>/bin/zsh</code> oder <code>/bin/bash</code> zurückgegriffen wird). Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, Git Bash), und ein optionales Startverzeichnis kann festgelegt werden. Die lokale Shell kann sowohl in Quick Connect als auch im Verbindungsmanager ausgewählt werden. Für diese Verbindungen sind Host/Port/Benutzername/Authentifizierung nicht erforderlich und in den Dialogen deaktiviert.</li>
 <li><strong>Git Bash/Cygwin/WSL-Voreinstellungen</strong> unter Windows – werden jeweils nur angeboten, wenn sie tatsächlich installiert sind (Git Bash/Cygwin über ihre üblichen Installationsorte / <code>PATH</code>; WSL nur, wenn <code>wsl.exe</code> vorhanden und mindestens eine Distribution installiert ist). Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade mit Leerzeichen (wie <code>"C:\Program Files\Git\bin\bash.exe"</code>) korrekt gestartet werden.</li>
 <li><strong>Gemeinsame Connector-Hooks</strong> – Terminalaufzeichnung/-protokollierung und die AI-Eingabe-/Daten-Hooks wurden auf eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle übertragen, sodass sie auch für lokale Shells funktionieren. Nur-SSH-Kanal-Funktionen bleiben nur SSH-Kanal.</li>
 <li><strong>AI Agent &amp; Planning in lokalen Shells</strong> – die Befehlsausführungs-Engine des Agenten wurde hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen jetzt in lokalen Shells unter Windows, macOS und Linux: Befehle werden in der Shell der Verbindung ausgeführt (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder <code>$SHELL</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformorientiert und es gilt der bestehende Genehmigungsablauf. Einschränkungen für lokale Shells: keine <code>sudo</code>/Administrator-Erhöhung unter Windows und keine Live-Nachverfolgung des Arbeitsverzeichnisses. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</li>
