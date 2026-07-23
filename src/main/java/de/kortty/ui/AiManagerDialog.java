@@ -134,6 +134,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private AiProfile selectedProfile;
     private String defaultProfileId;
     private boolean updatingDefaultProfileSelection;
+    /** Set while the editor form is being populated; suppresses form-driven writes back into the profile. */
+    private boolean loadingProfile;
 
     public AiManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -378,7 +380,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         reasoningCombo.setConverter(createReasoningConverter());
         reasoningCombo.setPrefWidth(220);
         reasoningCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (selectedProfile != null) {
+            // Rebuilding the item list transiently nulls the value; only a real user pick counts.
+            if (selectedProfile != null && !loadingProfile && newValue != null) {
                 selectedProfile.setReasoningEffort(newValue);
             }
         });
@@ -1190,7 +1193,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
         reasoningCombo.getItems().setAll(options);
         reasoningCombo.getSelectionModel().select(selected);
-        if (selectedProfile != null) {
+        if (selectedProfile != null && !loadingProfile) {
             selectedProfile.setReasoningEffort(selected);
         }
     }
@@ -1531,7 +1534,23 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         updateTokenUsagePreview();
     }
 
+    /**
+     * Populates the editor form from a profile. Filling the connection-mode, URL, CLI and model
+     * widgets fires their change listeners, which rebuild the reasoning options from the widget
+     * state that is still mid-update. Those rebuilds must not write back into the profile, or the
+     * persisted reasoning level is replaced by whatever the half-populated form implies (typically
+     * Disabled) before this method gets to apply the stored one.
+     */
     private void loadSelectedProfile(AiProfile profile) {
+        loadingProfile = true;
+        try {
+            applySelectedProfileToForm(profile);
+        } finally {
+            loadingProfile = false;
+        }
+    }
+
+    private void applySelectedProfileToForm(AiProfile profile) {
         if (profile == null) {
             profileNameField.clear();
             connectionModeCombo.setValue(AiConnectionMode.HTTP_API);

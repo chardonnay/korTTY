@@ -623,6 +623,10 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
 
+    /** Last window geometry of the snippet "AI code analysis" dialog. */
+    @XmlElement
+    private WindowGeometry snippetCodeAnalysisDialogGeometry;
+
     /** Last window geometry of the Generate Workflow Script dialog. */
     @XmlElement
     private WindowGeometry workflowScriptDialogGeometry;
@@ -2522,6 +2526,11 @@ public class GlobalSettings {
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
+    }
+
+    public WindowGeometry getSnippetCodeAnalysisDialogGeometry() { return snippetCodeAnalysisDialogGeometry; }
+    public void setSnippetCodeAnalysisDialogGeometry(WindowGeometry snippetCodeAnalysisDialogGeometry) {
+        this.snippetCodeAnalysisDialogGeometry = snippetCodeAnalysisDialogGeometry;
     }
 
     public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }

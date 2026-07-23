@@ -420,11 +420,10 @@ public final class SnippetAiDialogsSmoke {
             new SnippetAiResponseSupport.ScriptImprovement(
                 "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
                 "Quote the expansion.", 2);
-        SnippetAiResponseSupport.FullCodeAnalysis fullAnalysis =
-            new SnippetAiResponseSupport.FullCodeAnalysis(
-                new SnippetAiResponseSupport.ScriptAnalysis(
-                    "Prints one value.", List.of(), List.of(improvement)),
-                new SnippetAiResponseSupport.MermaidDiagram("Flow", ""));
+        SnippetAiResponseSupport.ScriptAnalysis fullAnalysis =
+            new SnippetAiResponseSupport.ScriptAnalysis(
+                "Prints one value.", List.of(), List.of(improvement));
+        AtomicBoolean diagramProviderCalled = new AtomicBoolean();
         AtomicBoolean applyProviderCalled = new AtomicBoolean();
         AtomicBoolean applyClicked = new AtomicBoolean();
         AtomicBoolean previewShown = new AtomicBoolean();
@@ -444,7 +443,10 @@ public final class SnippetAiDialogsSmoke {
             null,
             null,
             null,
-            request -> new SnippetAiResponseSupport.MermaidDiagram("Flow", ""),
+            request -> {
+                diagramProviderCalled.set(true);
+                return new SnippetAiResponseSupport.MermaidDiagram("Flow", "");
+            },
             request -> fullAnalysis,
             request -> {
                 applyProviderCalled.set(true);
@@ -514,6 +516,9 @@ public final class SnippetAiDialogsSmoke {
                 }
                 if (!applyProviderCalled.get()) {
                     throw new AssertionError("Full-code-analysis apply provider was not invoked");
+                }
+                if (!diagramProviderCalled.get()) {
+                    throw new AssertionError("Full-code-analysis did not run the dedicated diagram request on open");
                 }
                 if (!previewShown.get()) {
                     throw new AssertionError("Full-code-analysis did not show the review-diff window");

@@ -155,20 +155,14 @@ public final class AiPromptBuilder {
         }
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return "You analyze a code snippet in depth for a developer. "
-                + "Return exactly one JSON object with keys summary, dependencies, improvements, title, mermaid, and codeReferences. "
+                + "Return exactly one JSON object with keys summary, dependencies, and improvements. "
                 + "summary is a short plain-language explanation of what the script does. "
                 + "dependencies is an array of external dependencies the script relies on (other scripts, "
                 + "programs or services); each has id, name, kind (script|program|service), purpose and "
                 + "suggestion (how to reduce or replace this dependency). "
                 + "improvements is an array of concrete, individually-applicable improvements; each has id, "
                 + "category (security|optimization|design), severity, title, detail, recommendation and optionally line. "
-                + "mermaid must start with exactly 'flowchart TD', use stable start_1 and stop_1 terminal nodes, "
-                + "separately declared quoted action or decision nodes, --> edges, optional yes/no edge labels, and class statements only. "
-                + "Every Mermaid node must have exactly one semantic class: setup, work, success, or failure. "
-                + "Represent meaningful decisions, branches, and loop outcomes that are present in the code; do not collapse conditional control flow into one generic action. "
-                + "codeReferences must map every action and decision node to nodeId, its exact visible label, startLine, and endLine; "
-                + "never map start_1 or stop_1. Use only 1-based lines from the provided line-numbered snippet. "
-                + "Do not include Mermaid frontmatter, directives, comments, custom styles, callbacks, URLs, images, icons, HTML, or subgraphs. "
+                + "Use only 1-based line numbers from the provided line-numbered snippet. "
                 + "Only report what the provided code supports; use empty arrays when nothing applies. "
                 + "Write human-readable text in language code " + languageCode + ". "
                 + "Do not rewrite code and do not include Markdown outside the JSON object.";
@@ -337,22 +331,14 @@ public final class AiPromptBuilder {
                     + "The replacement must be the full updated snippet content. "
                     + "Add one changes entry per edited region; anchor must be a line copied verbatim from replacement.\n");
             case ANALYZE_SNIPPET_CODE -> prompt.append(
-                "Analyze the provided snippet in depth and generate its compact Mermaid logical-structure flowchart.\n"
+                "Analyze the provided snippet in depth.\n"
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"summary\": \"...\", "
                     + "\"dependencies\": [ { \"id\": \"D1\", \"name\": \"curl\", \"kind\": \"program\", \"purpose\": \"...\", \"suggestion\": \"...\" } ], "
-                    + "\"improvements\": [ { \"id\": \"SEC-1\", \"category\": \"security\", \"severity\": \"high\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ], "
-                    + "\"title\": \"...\", \"mermaid\": \"" + RESTRICTED_MERMAID_JSON_VALUE + "\", "
-                    + "\"codeReferences\": [ { \"nodeId\": \"work_1\", \"label\": \"Run main command\", \"startLine\": 12, \"endLine\": 14 } ] }\n"
+                    + "\"improvements\": [ { \"id\": \"SEC-1\", \"category\": \"security\", \"severity\": \"high\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ] }\n"
                     + "summary explains what the script does. Each dependency lists an external script/program/service and a suggestion to reduce or replace it.\n"
                     + "Use category values security, optimization or design for improvements. Return empty arrays when nothing applies.\n"
-                    + "For conditional code, follow this restricted Mermaid structure and replace the example labels with code-specific labels:\n"
-                    + RESTRICTED_MERMAID_EXAMPLE
-                    + "The Mermaid source must start with flowchart TD and use stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminals.\n"
-                    + "Use only separately declared quoted action/decision nodes, --> edges, optional yes/no edge labels, and class statements.\n"
-                    + "Preserve meaningful decisions, branches, and loop outcomes visible in the snippet instead of reducing them to one generic main-action node.\n"
-                    + "Assign every node exactly one of setup, work, success, and failure. Do not use frontmatter, directives, comments, custom styles, callbacks, URLs, media, HTML, or subgraphs.\n"
-                    + "Create one 1-based codeReferences entry for every action and decision node except start_1 and stop_1; nodeId and label must exactly match the declaration.\n");
+                    + "Use only 1-based line numbers from the line-numbered snippet context.\n");
             case APPLY_SNIPPET_IMPROVEMENTS -> prompt.append(
                 "Apply only the selected improvements to the full snippet.\n"
                     + "Return exactly one JSON object with this shape:\n"

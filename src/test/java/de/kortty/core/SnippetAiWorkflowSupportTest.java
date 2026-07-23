@@ -270,25 +270,26 @@ class SnippetAiWorkflowSupportTest {
         assertThat(aiService.lastRequest.conversationContext()).contains("Diagram label language: de");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo ok");
+        // The user prompt appends the raw snippet once as the generic script-context block; the
+        // context must not carry a second raw copy on top of the line-numbered one.
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
+        String userPrompt = AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
+        int rawSnippetOffset = userPrompt.indexOf("echo ok\n");
+        assertThat(rawSnippetOffset).isAtLeast(0);
     }
 
     @Test
-    void combinedCodeAnalysisExecutesAndRecordsUsageExactlyOnce() throws Exception {
+    void codeAnalysisExecutesAndRecordsUsageExactlyOnce() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "summary": "Prints a greeting.",
               "dependencies": [],
-              "improvements": [],
-              "title": "Greeting flow",
-              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
-              "codeReferences": [
-                { "nodeId": "work_1", "label": "Print greeting", "startLine": 1, "endLine": 1 }
-              ]
+              "improvements": []
             }
             """);
         int[] recordedUsages = {0};
 
-        SnippetAiResponseSupport.FullCodeAnalysis result =
+        SnippetAiResponseSupport.ScriptAnalysis result =
             SnippetAiWorkflowSupport.analyzeSnippetCode(
                 aiService,
                 (request, executionResult) -> recordedUsages[0]++,
@@ -304,10 +305,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("de");
         assertThat(aiService.lastRequest.conversationContext())
             .contains("Natural language for the analysis: de");
-        assertThat(aiService.lastRequest.conversationContext())
-            .contains("Diagram label language: de");
-        assertThat(result.analysis().summary()).isEqualTo("Prints a greeting.");
-        assertThat(result.diagram().isUsable()).isTrue();
+        assertThat(result.summary()).isEqualTo("Prints a greeting.");
     }
 
     @Test
@@ -359,45 +357,12 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void combinedCodeAnalysisDoesNotRetryWhenMermaidIsUnsafe() throws Exception {
-        CapturingAiService aiService = new CapturingAiService("""
-            {
-              "summary": "Prints a greeting.",
-              "dependencies": [],
-              "improvements": [],
-              "title": "Unsafe flow",
-              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Print greeting\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    click work_1 href \\\"https://example.com\\\"\\n    class start_1,stop_1 setup\\n    class work_1 work",
-              "codeReferences": []
-            }
-            """);
-        int[] recordedUsages = {0};
-
-        SnippetAiResponseSupport.FullCodeAnalysis result =
-            SnippetAiWorkflowSupport.analyzeSnippetCode(
-                aiService,
-                (request, executionResult) -> recordedUsages[0]++,
-                "echo hello",
-                "bash",
-                null,
-                "en",
-                null);
-
-        assertThat(aiService.executionCount).isEqualTo(1);
-        assertThat(recordedUsages[0]).isEqualTo(1);
-        assertThat(result.analysis().isUsable()).isTrue();
-        assertThat(result.diagram().isUsable()).isFalse();
-    }
-
-    @Test
-    void combinedCodeAnalysisPromptIncludesLineNumbersAndOneRawSnippetBlock() throws Exception {
+    void codeAnalysisPromptIncludesLineNumbersAndOneRawSnippetBlock() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "summary": "Prints two lines.",
               "dependencies": [],
-              "improvements": [],
-              "title": "Output flow",
-              "mermaid": "",
-              "codeReferences": []
+              "improvements": []
             }
             """);
         String snippet = "echo one\necho two";
@@ -417,18 +382,12 @@ class SnippetAiWorkflowSupportTest {
         assertThat(completePrompt).contains("\"summary\"");
         assertThat(completePrompt).contains("\"dependencies\"");
         assertThat(completePrompt).contains("\"improvements\"");
-        assertThat(completePrompt).contains("\"title\"");
-        assertThat(completePrompt).contains("\"mermaid\"");
-        assertThat(completePrompt).contains("\"codeReferences\"");
-        assertThat(completePrompt).contains("flowchart TD");
-        assertThat(completePrompt).contains("decision_1 -->|yes| success_1");
-        assertThat(completePrompt).contains("decision_1 -->|no| failure_1");
-        assertThat(completePrompt).doesNotContain("\"mermaid\": \"flowchart TD\\n...\"");
-        assertThat(completePrompt).contains("frontmatter");
-        assertThat(completePrompt).contains("callbacks");
-        assertThat(completePrompt).contains("URLs");
-        assertThat(completePrompt).contains("HTML");
-        assertThat(completePrompt).contains("Represent meaningful decisions, branches, and loop outcomes");
+        // The diagram now comes from a dedicated GENERATE_SNIPPET_MERMAID request; the analysis
+        // prompt must stay free of any Mermaid instructions.
+        assertThat(completePrompt).doesNotContain("mermaid");
+        assertThat(completePrompt).doesNotContain("Mermaid");
+        assertThat(completePrompt).doesNotContain("codeReferences");
+        assertThat(completePrompt).doesNotContain("flowchart TD");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo one");
         assertThat(aiService.lastRequest.conversationContext()).contains("2 | echo two");

@@ -18,6 +18,7 @@ import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalRecordingFormat;
 import de.kortty.model.TerminalRecordingScope;
+import de.kortty.model.WindowGeometry;
 import org.testng.annotations.Test;
 
 import java.nio.file.Files;
@@ -41,6 +42,35 @@ class GlobalSettingsManagerTest {
             reloaded.load();
             assertThat(reloaded.getSettings().getQuickConnectExpandedSections())
                 .containsExactly("terminalAppearance", "ai");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesSnippetCodeAnalysisDialogGeometry() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setSnippetCodeAnalysisDialogGeometry(
+                new WindowGeometry(120.0, 80.0, 1400.0, 900.0));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            WindowGeometry geometry = reloaded.getSettings().getSnippetCodeAnalysisDialogGeometry();
+            assertThat(geometry).isNotNull();
+            assertThat(geometry.getX()).isEqualTo(120.0);
+            assertThat(geometry.getY()).isEqualTo(80.0);
+            assertThat(geometry.getWidth()).isEqualTo(1400.0);
+            assertThat(geometry.getHeight()).isEqualTo(900.0);
+
+            // A settings file written before this element existed must still load, with no geometry.
+            GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy"));
+            legacy.save();
+            legacy.load();
+            assertThat(legacy.getSettings().getSnippetCodeAnalysisDialogGeometry()).isNull();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

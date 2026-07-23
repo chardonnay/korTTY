@@ -7,6 +7,7 @@ import de.kortty.core.SnippetAnalysisExportService;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.WindowGeometry;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -36,6 +37,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -191,10 +193,14 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         });
         getDialogPane().setPrefWidth(1160);
         getDialogPane().setPrefHeight(720);
+        restoreGeometry();
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
         setOnShown(event -> diagramView.loadIfNeeded());
+        setOnCloseRequest(event -> persistGeometry());
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            // Read the stage bounds before disposing anything below; the window is still sized.
+            persistGeometry();
             diagramView.dispose();
             // Unload the findings page so its WebKit engine releases its native memory.
             findingsView.getEngine().loadContent("");
@@ -641,6 +647,52 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             return settings.getCodeAnalysisFontSize();
         }
         return DEFAULT_FONT_SIZE;
+    }
+
+    /**
+     * Restores the window position and size the user last left this dialog at. The stage exists
+     * only once the dialog is showing, so the bounds are applied in a DIALOG_SHOWING handler while
+     * the pane's preferred size covers the initial layout pass.
+     */
+    private void restoreGeometry() {
+        try {
+            GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+            WindowGeometry geometry = settings != null ? settings.getSnippetCodeAnalysisDialogGeometry() : null;
+            if (geometry == null || geometry.getWidth() <= 100 || geometry.getHeight() <= 100) {
+                return;
+            }
+            getDialogPane().setPrefWidth(geometry.getWidth());
+            getDialogPane().setPrefHeight(geometry.getHeight());
+            setOnShowing(event -> {
+                if (dialogStage() instanceof Stage stage) {
+                    stage.setX(geometry.getX());
+                    stage.setY(geometry.getY());
+                    stage.setWidth(geometry.getWidth());
+                    stage.setHeight(geometry.getHeight());
+                }
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void persistGeometry() {
+        try {
+            if (!(dialogStage() instanceof Stage stage)) {
+                return;
+            }
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager != null ? manager.getSettings() : null;
+            if (settings != null) {
+                settings.setSnippetCodeAnalysisDialogGeometry(
+                    new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private Window dialogStage() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
     }
 
     private void persistFontSize() {

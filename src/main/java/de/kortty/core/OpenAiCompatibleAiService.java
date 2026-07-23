@@ -55,6 +55,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private final HttpClient httpClient;
     private final TavilyWebSearchTool webSearchTool;
     private final AiSkillPromptSupport skillPromptSupport;
+    private Integer defaultMaxCompletionTokens;
 
     public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey) {
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED);
@@ -207,6 +208,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         this.httpClient = httpClient;
         this.webSearchTool = webSearchTool;
         this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
+    }
+
+    /**
+     * Sends an explicit {@code max_tokens} with every chat request. Servers that default the field
+     * generously (OpenAI, llama.cpp) don't need this, but {@code mlx_lm.server} caps an absent
+     * {@code max_tokens} at 512 completion tokens — a reasoning model then spends the whole budget
+     * on its chain-of-thought and returns no answer at all.
+     */
+    public void setDefaultMaxCompletionTokens(Integer maxCompletionTokens) {
+        this.defaultMaxCompletionTokens = maxCompletionTokens;
     }
 
     @Override
@@ -930,6 +941,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         root.add("messages", messages);
         root.addProperty("temperature", temperature);
+        if (defaultMaxCompletionTokens != null) {
+            root.addProperty("max_tokens", defaultMaxCompletionTokens);
+        }
         appendReasoningEffort(root);
         if (jsonResponseFormat) {
             JsonObject responseFormat = new JsonObject();
