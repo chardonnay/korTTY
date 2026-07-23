@@ -99,6 +99,8 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
 | Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |
 | Befehlszeitstempel anzeigen | | Inline-Befehlszeitstempel umschalten |
+| Dateibrowser ▸ Links anzeigen | ++ctrl+shift+k++ | Docken Sie den lokalen Dateibrowser links vom Terminal an (deaktivieren Sie ihn, um ihn auszublenden). |
+| Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie den lokalen Dateibrowser rechts neben dem Terminal an (deaktivieren Sie ihn, um ihn auszublenden). |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |
