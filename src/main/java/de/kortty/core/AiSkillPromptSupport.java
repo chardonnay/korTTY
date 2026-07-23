@@ -205,7 +205,11 @@ public final class AiSkillPromptSupport {
     }
 
     private static boolean includeChatSkills(AiRequest request) {
-        return request == null || request.includeAiSkills();
+        if (request == null) {
+            return true;
+        }
+        AiAction action = request.action();
+        return request.includeAiSkills() && (action == null || action.allowsAiSkills());
     }
 
     private static String normalizedPrompt(String systemPrompt) {
