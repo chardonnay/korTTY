@@ -15,7 +15,7 @@ import java.util.Base64
 import java.util.zip.ZipFile
 
 group = "de.kortty"
-version = "2.6.0"
+version = "2.7.0"
 
 // Resolved JDK major for this build. Native release packaging defaults to 25;
 // the property remains available for explicit compatibility builds. Hoisted to

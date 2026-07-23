@@ -2,7 +2,7 @@
 
 The full, version-by-version changelog. The version this guide was built for is shown in the footer.
 
-## v2.6.0
+## v2.7.0
 
 ### Enterprise policy
 

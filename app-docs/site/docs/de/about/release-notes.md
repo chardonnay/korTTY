@@ -2,7 +2,7 @@
 
 Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
-## v2.6.0
+## v2.7.0
 
 ### Unternehmensrichtlinie
 
