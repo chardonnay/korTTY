@@ -78,4 +78,20 @@ public enum AiAction {
             default -> false;
         };
     }
+
+    /**
+     * Whether user-defined AI skills may be attached to this action's prompt. The selection
+     * text-transform actions — spelling correction and translation — are mechanical natural-language
+     * edits that return a strict JSON list of segment replacements. User skills (coding style, tooling,
+     * chat behaviour) add no value there and only inflate the prompt; on small local reasoning models
+     * that extra bulk is enough to make the model spend its whole reply on reasoning and return no
+     * answer ({@code ReasoningOnlyReplyException}). Skills are therefore never included for these
+     * actions, regardless of the request's {@code includeAiSkills} flag.
+     */
+    public boolean allowsAiSkills() {
+        return switch (this) {
+            case CORRECT_SNIPPET_SELECTION_TEXT, TRANSLATE_SNIPPET_SELECTION_TEXT -> false;
+            default -> true;
+        };
+    }
 }

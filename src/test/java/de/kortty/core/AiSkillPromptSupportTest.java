@@ -141,6 +141,28 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void selectionTextTransformActionsNeverIncludeChatSkills() {
+        AiSkill chatSkill = skill("Chat Skill", true, AiSkillTarget.BOTH, "Use strict Bash.");
+        AiSkillPromptSupport support = new AiSkillPromptSupport(true, false, List.of(chatSkill));
+
+        // Both actions default includeAiSkills=true via the shared workflow constructor, yet the
+        // mechanical NL transforms must not carry skills — the extra bulk breaks small local models.
+        for (AiAction action : List.of(
+            AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT, AiAction.CORRECT_SNIPPET_SELECTION_TEXT)) {
+            AiRequest request = new AiRequest(
+                action, "# Kommentar", "box", "it", null, "Snippet language: bash");
+            assertThat(request.includeAiSkills()).isTrue();
+
+            String prompt = support.appendChatSkills("base", request);
+            String block = support.buildChatSkillBlock(request);
+
+            assertThat(prompt).isEqualTo("base");
+            assertThat(block).isEmpty();
+        }
+        assertThat(support.drainSkillUsages()).isEmpty();
+    }
+
+    @Test
     void appendAgentSkillsRecordsAndDrainsUsedSkills() {
         AiSkill skill = skill("Agent Skill", true, AiSkillTarget.AGENT, "Prefer safe commands.");
         AiSkillPromptSupport support = new AiSkillPromptSupport(true, List.of(skill));
