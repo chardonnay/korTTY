@@ -155,6 +155,9 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
                 return result != null && result.content() != null && !result.content().isBlank();
             });
         } catch (Exception e) {
+            // The caller only sees a boolean, so without this the model's own reason for refusing
+            // the test (rejected parameter, missing model directory, dead sidecar) is lost entirely.
+            logger.warn("Embedded MLX connection test failed for model '{}': {}", modelId, e.toString());
             return false;
         }
     }

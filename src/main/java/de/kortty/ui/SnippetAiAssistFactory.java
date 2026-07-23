@@ -112,7 +112,8 @@ final class SnippetAiAssistFactory {
             result != null ? result.content() : null,
             snippetLanguage,
             scriptContent);
-        return new SnippetEditDialog.SuggestedSnippetMetadata(metadata.fileName(), metadata.description(), metadata.language());
+        return new SnippetEditDialog.SuggestedSnippetMetadata(
+            metadata.fileName(), metadata.description(), metadata.language(), metadata.textLanguage());
     }
 
     private static String correctSnippetDescription(

@@ -22,6 +22,7 @@ public final class MonacoLanguageSupport {
             case "terraform" -> "hcl";
             case "groovy" -> "java";
             case "javascript", "js" -> "javascript";
+            case "typescript", "ts" -> "typescript";
             case "powershell", "ps1" -> "powershell";
             case "dockerfile" -> "dockerfile";
             case "cfengine3" -> "cfengine3";

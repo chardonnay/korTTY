@@ -6,6 +6,7 @@ import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiSkillRelevanceSelector;
 import de.kortty.core.CodeFormatterService;
+import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetEditorProfileSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiTextSupport;
@@ -130,6 +131,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MenuItem improveReadabilityItem;
     private final MenuItem improveRobustnessItem;
     private final MenuItem improvePerformanceItem;
+    private final MenuItem improveCommentsItem;
+    private MenuItem improveCommentsContextItem;
     private final MenuItem improveCustomItem;
     private final MenuItem securityCheckItem;
     private final MenuItem diagramItem;
@@ -235,7 +238,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
     
     private static final List<String> LANGUAGES = List.of(
-        "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
+        "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "typescript", "groovy",
         "powershell", "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
         "markdown", "asciidoctor", "dockerfile"
     );
@@ -507,7 +510,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
-    public record SuggestedSnippetMetadata(String fileName, String description, String language) {
+    /** @param textLanguage ISO 639-1 code of the natural language used in the snippet's own text, or null. */
+    public record SuggestedSnippetMetadata(
+        String fileName, String description, String language, String textLanguage) {
     }
 
     public record AiAssist(
@@ -644,6 +649,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         languageCombo = new ComboBox<>();
         languageCombo.getItems().addAll(LANGUAGES);
+        languageCombo.getItems().addAll(loadCustomCodeLanguages());
         languageCombo.setValue("plain");
         languageCombo.setPrefWidth(200);
         languageCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -706,8 +712,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         aiSkillsRow.setVisible(skillsShow);
         aiSkillsRow.setManaged(skillsShow);
 
-        aiAdditionalInstructionsBox = new VBox(6, aiCodeTextLanguageRow, aiSkillsRow, instructionsSubBox);
-        boolean aiBoxShow = languagePickerShow || instructionsEnabled || skillsShow;
+        aiAdditionalInstructionsBox = new VBox(6, aiSkillsRow, instructionsSubBox);
+        boolean aiBoxShow = instructionsEnabled || skillsShow;
         aiAdditionalInstructionsBox.setVisible(aiBoxShow);
         aiAdditionalInstructionsBox.setManaged(aiBoxShow);
 
@@ -899,12 +905,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         formGrid.add(nameField, 1, 0);
         GridPane.setHgrow(nameField, Priority.ALWAYS);
         
+        Button addCodeLanguageButton = new Button("+");
+        addCodeLanguageButton.setId("snippet-add-code-language");
+        addCodeLanguageButton.setTooltip(new Tooltip(I18n.get("snippets.codeLanguage.add")));
+        addCodeLanguageButton.setOnAction(event -> promptForCustomCodeLanguage());
+
         HBox langCatBox = new HBox(10);
+        langCatBox.setAlignment(Pos.CENTER_LEFT);
         langCatBox.getChildren().addAll(
-            new Label(I18n.get("snippets.language") + ":"), languageCombo,
+            new Label(I18n.get("snippets.codeLanguage") + ":"), languageCombo, addCodeLanguageButton,
             new Label(I18n.get("snippets.category") + ":"), categoryCombo
         );
-        formGrid.add(langCatBox, 0, 1, 2, 1);
+        // Text language sits directly below the code language: both describe the snippet, while the
+        // skills/instructions box below the toolbar is about the next AI request.
+        VBox languageBox = new VBox(6, langCatBox, aiCodeTextLanguageRow);
+        formGrid.add(languageBox, 0, 1, 2, 1);
         
         formGrid.add(new Label(I18n.get("snippets.tags") + ":"), 0, 2);
         formGrid.add(tagsField, 1, 2);
@@ -1004,6 +1019,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         improveRobustnessItem.setOnAction(e -> { trackSnippetAiAction("code_improve_robustness"); runImproveRobustness(); });
         improvePerformanceItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.performance"));
         improvePerformanceItem.setOnAction(e -> { trackSnippetAiAction("code_improve_performance"); runCodeImprovement(I18n.get("snippets.ai.code.improve.performance.theme")); });
+        improveCommentsItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.comments"));
+        improveCommentsItem.setOnAction(e -> { trackSnippetAiAction("code_improve_comments"); runCommentOptimization(); });
         improveCustomItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
         improveCustomItem.setOnAction(e -> { trackSnippetAiAction("code_improve_custom"); runCustomCodeImprovement(); });
         securityCheckItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
@@ -1019,6 +1036,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             improveReadabilityItem,
             improveRobustnessItem,
             improvePerformanceItem,
+            improveCommentsItem,
             improveCustomItem,
             new SeparatorMenuItem(),
             securityCheckItem,
@@ -2426,6 +2444,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         codeAssistantContextItem.setOnAction(e -> runCodeAssistant());
         MenuItem reviewCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
         reviewCodeContextItem.setOnAction(e -> runCodeReview());
+        improveCommentsContextItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.comments"));
+        improveCommentsContextItem.setOnAction(e -> {
+            trackSnippetAiAction("code_improve_comments");
+            runCommentOptimization();
+        });
         MenuItem improveCustomContextItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
         improveCustomContextItem.setOnAction(e -> runCustomCodeImprovement());
         MenuItem securityCheckContextItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
@@ -2463,6 +2486,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 completeCodeContextItem,
                 codeAssistantContextItem,
                 reviewCodeContextItem,
+                improveCommentsContextItem,
                 improveCustomContextItem,
                 securityCheckContextItem,
                 diagramContextItem,
@@ -2495,6 +2519,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             completeCodeContextItem.setDisable(!hasContent || !hasCompletionProvider() || aiBusy);
             codeAssistantContextItem.setDisable(!hasContent || !hasCodeAssistantProvider() || aiBusy);
             reviewCodeContextItem.setDisable(!hasContent || !hasCodeAnalysisProviders() || aiBusy);
+            improveCommentsContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || aiBusy);
             diagramContextItem.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
@@ -2611,6 +2636,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         improveReadabilityItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improveRobustnessItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improvePerformanceItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
+        improveCommentsItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improveCustomItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         securityCheckItem.setDisable(busy || !hasContent || !hasSecurityProviders());
         diagramItem.setDisable(busy || !hasContent || !hasDiagramProvider());
@@ -2695,7 +2721,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
 
         HBox row = new HBox(8,
-            new Label(I18n.get("snippets.ai.language.label")),
+            new Label(I18n.get("snippets.textLanguage") + ":"),
             aiCodeTextLanguageCombo,
             rememberAiCodeTextLanguageCheckBox);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -2777,6 +2803,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         HBox row = new HBox(8, new Label(I18n.get("snippets.ai.skills.picker.label")), aiSkillsMenuButton);
         row.setAlignment(Pos.CENTER_LEFT);
         return row;
+    }
+
+    /**
+     * Selects the natural language the AI read out of the snippet's comments and printed output.
+     * A language korTTY has no translation for is still offered — {@code findOption} synthesizes an
+     * entry for an unknown code — so a Swedish script can be marked as Swedish. This only preselects
+     * the picker for this editor; it never overwrites the stored default, which stays the user's
+     * explicit choice via "Remember as default".
+     */
+    private void applyDetectedTextLanguage(String textLanguageCode) {
+        if (textLanguageCode == null || textLanguageCode.isBlank() || aiCodeTextLanguageCombo == null) {
+            return;
+        }
+        AiLanguageSupport.LanguageOption detected =
+            AiLanguageSupport.findOption(aiCodeTextLanguageCombo.getItems(), textLanguageCode);
+        if (detected == null) {
+            return;
+        }
+        if (!aiCodeTextLanguageCombo.getItems().contains(detected)) {
+            aiCodeTextLanguageCombo.getItems().add(detected);
+        }
+        aiCodeTextLanguageCombo.getSelectionModel().select(detected);
+        aiCodeTextLanguageCode = AiLanguageSupport.resolveFallbackLanguageCode(detected.code());
     }
 
     /** The picker only applies where the {@link MainWindow}-backed assist can pin the selected skills. */
@@ -2908,6 +2957,92 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 applyForcedAiSkills();
                 updateAiSkillsButtonText();
             });
+    }
+
+    // ---- Custom code languages -------------------------------------------------------------------
+
+    /**
+     * The code languages the user added on top of {@link #LANGUAGES}. Unknown language tokens are
+     * already tolerated everywhere downstream — {@code normalizeSnippetLanguage} passes them through
+     * and Monaco falls back to plain text — so no extra validation is needed beyond the token shape.
+     */
+    private static List<String> loadCustomCodeLanguages() {
+        GlobalSettings settings = currentGlobalSettings();
+        if (settings == null) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String language : settings.getCustomSnippetCodeLanguages()) {
+            String normalized = normalizeCustomCodeLanguage(language);
+            if (normalized != null && !LANGUAGES.contains(normalized) && !result.contains(normalized)) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    /** Returns the language token, or {@code null} when the input is not a usable language name. */
+    private static String normalizeCustomCodeLanguage(String language) {
+        if (language == null || language.isBlank()) {
+            return null;
+        }
+        String candidate = SnippetLanguageSupport.normalizeSnippetLanguage(language);
+        return candidate.matches("[a-z0-9][a-z0-9+._-]*") ? candidate : null;
+    }
+
+    private void promptForCustomCodeLanguage() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
+        dialog.setTitle(I18n.get("snippets.codeLanguage.add.title"));
+        dialog.setHeaderText(null);
+        dialog.setContentText(I18n.get("snippets.codeLanguage.add.prompt"));
+        DialogThemeHelper.applyTheme(dialog);
+        String entered = dialog.showAndWait().orElse(null);
+        if (entered == null) {
+            return;
+        }
+        String language = normalizeCustomCodeLanguage(entered);
+        if (language == null) {
+            setStatus(I18n.get("snippets.codeLanguage.add.invalid"));
+            return;
+        }
+        selectCodeLanguage(language);
+        if (persistCustomCodeLanguage(language)) {
+            setStatus(I18n.get("snippets.codeLanguage.added", language));
+        }
+    }
+
+    /** Selects a language in the combo, adding it to the item list first when it is not offered yet. */
+    private void selectCodeLanguage(String language) {
+        if (language == null || language.isBlank()) {
+            return;
+        }
+        if (!languageCombo.getItems().contains(language)) {
+            languageCombo.getItems().add(language);
+        }
+        languageCombo.setValue(language);
+    }
+
+    /** @return {@code true} when the language was newly stored for future snippet editors. */
+    private boolean persistCustomCodeLanguage(String language) {
+        if (LANGUAGES.contains(language)) {
+            return false;
+        }
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager != null ? manager.getSettings() : null;
+            if (settings == null || settings.getCustomSnippetCodeLanguages().contains(language)) {
+                return false;
+            }
+            List<String> languages = new ArrayList<>(settings.getCustomSnippetCodeLanguages());
+            languages.add(language);
+            settings.setCustomSnippetCodeLanguages(languages);
+            manager.save();
+            return true;
+        } catch (Exception e) {
+            logger.warn("Could not store the custom snippet code language", e);
+            return false;
+        }
     }
 
     private static GlobalSettings currentGlobalSettings() {
@@ -3641,6 +3776,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         promptImprovementOptions(I18n.get("snippets.ai.code.improve.robustness"), null, false)
             .ifPresent(options -> runCodeImprovement(
                 withHardeningRules(I18n.get("snippets.ai.code.improve.robustness.theme"), options.hardening())));
+    }
+
+    /**
+     * Comments the selected code without touching the code itself. It runs through the shared
+     * improvement flow, so the result is reviewed in the diff window before it replaces the
+     * selection. The comment language follows the Text language picker, like every other AI action
+     * that writes text into code.
+     */
+    private void runCommentOptimization() {
+        runCodeImprovement(I18n.get("snippets.ai.code.improve.comments.theme"));
     }
 
     private void runCustomCodeImprovement() {
@@ -4588,11 +4733,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if ((overwriteExisting || !languageUserEdited) && metadata.language() != null && !metadata.language().isBlank()) {
             programmaticLanguageUpdate = true;
             try {
-                languageCombo.setValue(SnippetLanguageSupport.normalizeSnippetLanguage(metadata.language()));
+                // The model may name a language the built-in list does not offer; selectCodeLanguage
+                // adds it to the combo so the detected value is visible instead of silently blank.
+                selectCodeLanguage(SnippetLanguageSupport.normalizeSnippetLanguage(metadata.language()));
             } finally {
                 programmaticLanguageUpdate = false;
             }
         }
+        applyDetectedTextLanguage(metadata.textLanguage());
         if ((overwriteExisting || !descriptionUserEdited) && metadata.description() != null && !metadata.description().isBlank()) {
             programmaticDescriptionUpdate = true;
             try {

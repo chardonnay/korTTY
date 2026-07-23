@@ -22,7 +22,7 @@ public final class SnippetLanguageSupport {
      * Anything else (its raw-passthrough default branch) is off-list, unbounded text.
      */
     private static final Set<String> KNOWN_LANGUAGES = Set.of(
-        "bash", "python", "perl", "ruby", "javascript", "powershell", "groovy", "java",
+        "bash", "python", "perl", "ruby", "javascript", "typescript", "powershell", "groovy", "java",
         "json", "yaml", "xml", "markdown", "asciidoctor", "sql", "dockerfile",
         "properties", "html", "plain");
 
@@ -78,6 +78,7 @@ public final class SnippetLanguageSupport {
             case "pl", "perl" -> "perl";
             case "rb", "ruby" -> "ruby";
             case "js", "javascript", "node", "nodejs" -> "javascript";
+            case "ts", "typescript" -> "typescript";
             case "ps", "ps1", "pwsh", "powershell" -> "powershell";
             case "groovy" -> "groovy";
             case "java" -> "java";
@@ -102,6 +103,7 @@ public final class SnippetLanguageSupport {
             case "pl" -> "perl";
             case "rb" -> "ruby";
             case "js" -> "javascript";
+            case "ts" -> "typescript";
             case "ps", "ps1", "pwsh" -> "powershell";
             case "groovy" -> "groovy";
             case "java" -> "java";
@@ -129,6 +131,7 @@ public final class SnippetLanguageSupport {
             case "perl" -> ".pl";
             case "ruby" -> ".rb";
             case "javascript" -> ".js";
+            case "typescript" -> ".ts";
             case "groovy" -> ".groovy";
             case "powershell" -> ".ps1";
             case "java" -> ".java";

@@ -277,7 +277,7 @@ public final class SnippetAiDialogsSmoke {
             (content, language, responseLanguageCode) -> {
                 metadataLanguage.set(new ProviderLanguage(language, responseLanguageCode));
                 return new SnippetEditDialog.SuggestedSnippetMetadata(
-                    "language-smoke.sh", "Prüft die temporäre Textsprache.", language);
+                    "language-smoke.sh", "Prüft die temporäre Textsprache.", language, null);
             },
             (content, language, description, responseLanguageCode) -> {
                 descriptionLanguage.set(new ProviderLanguage(language, responseLanguageCode));

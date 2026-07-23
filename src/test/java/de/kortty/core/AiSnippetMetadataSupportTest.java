@@ -39,6 +39,36 @@ class AiSnippetMetadataSupportTest {
     }
 
     @Test
+    void parseMetadataResponseReadsTheDetectedTextLanguage() {
+        AiSnippetMetadataSupport.SuggestedSnippetMetadata metadata = AiSnippetMetadataSupport.parseMetadataResponse(
+            """
+            {
+              "fileName": "backup.sh",
+              "description": "Sichert Verzeichnisse.",
+              "language": "bash",
+              "textLanguage": "de"
+            }
+            """,
+            "bash",
+            "#!/bin/bash\n# Sicherung starten\necho \"Sicherung läuft\"");
+
+        assertThat(metadata.textLanguage()).isEqualTo("de");
+    }
+
+    @Test
+    void normalizeTextLanguageReducesModelAnswersToAnIsoCode() {
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("de")).isEqualTo("de");
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("DE-de")).isEqualTo("de");
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("pt_BR")).isEqualTo("pt");
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("German")).isEqualTo("de");
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("Deutsch")).isEqualTo("de");
+        // A script with no readable text must not preselect a language.
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("unknown")).isNull();
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage("")).isNull();
+        assertThat(AiSnippetMetadataSupport.normalizeTextLanguage(null)).isNull();
+    }
+
+    @Test
     void parseMetadataResponseUsesFirstBalancedJsonObjectWhenMultipleObjectsExist() {
         AiSnippetMetadataSupport.SuggestedSnippetMetadata metadata = AiSnippetMetadataSupport.parseMetadataResponse(
             """
