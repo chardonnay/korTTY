@@ -2498,6 +2498,14 @@ tasks.register<JavaExec>("aiManagerModelComboSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerReasoningPersistenceSmoke") {
+    group = "verification"
+    description = "Loads AI Manager profiles and verifies the stored reasoning level survives loading, profile switching and the close-time snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerReasoningPersistenceSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     group = "verification"
     description = "Moves focus into AI Manager content and verifies the selected primary tab remains visibly marked."
