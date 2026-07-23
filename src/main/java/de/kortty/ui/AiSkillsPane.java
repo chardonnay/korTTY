@@ -238,12 +238,22 @@ final class AiSkillsPane extends VBox {
         installAiSkillEditorInputGuards();
         aiSkillContentArea.setContextMenu(createAiSkillEditorContextMenu());
         aiSkillContentArea.textProperty().addListener((obs, oldValue, newValue) -> {
-            if (!loadingAiSkillEditor && selectedAiSkill != null) {
+            // Only accept text while the Monaco WebView is booted: during its async boot the
+            // JS side echoes an empty/stale document into the mirror, and writing that into
+            // the selected skill silently wiped skill contents.
+            if (!loadingAiSkillEditor && selectedAiSkill != null && aiSkillContentArea.isReady()) {
                 selectedAiSkill.setContent(newValue);
                 // Debounced: the live "modified" badge must not refresh the list per keystroke.
                 refreshBuiltinIndicatorsSoon();
             }
             Platform.runLater(this::applyAiSkillContentTextStyle);
+        });
+        aiSkillContentArea.readyProperty().addListener((obs, wasReady, isReady) -> {
+            if (isReady) {
+                // Re-sync AFTER all queued boot echoes have been processed, so the editor shows
+                // the currently selected skill even when the selection changed during the boot.
+                Platform.runLater(this::resyncEditorAfterBoot);
+            }
         });
         builtinIndicatorRefresh.setOnFinished(event -> {
             aiSkillListView.refresh();
@@ -855,8 +865,28 @@ final class AiSkillsPane extends VBox {
         selectedAiSkill.setTagsFromString(aiSkillTagsField.getText());
         selectedAiSkill.setEnabled(aiSkillEnabledCheck.isSelected());
         selectedAiSkill.setTarget(aiSkillTargetCombo.getValue());
-        selectedAiSkill.setContent(aiSkillContentArea.getText());
+        if (aiSkillContentArea.isReady()) {
+            // Before the WebView is booted the mirror may hold a stale boot echo; the skill's
+            // own content is authoritative then (no user edit can have happened yet).
+            selectedAiSkill.setContent(aiSkillContentArea.getText());
+        }
         aiSkillListView.refresh();
+    }
+
+    /** Pushes the selected skill's content into the freshly booted editor (see ready listener). */
+    private void resyncEditorAfterBoot() {
+        if (selectedAiSkill == null) {
+            return;
+        }
+        loadingAiSkillEditor = true;
+        try {
+            aiSkillContentArea.replaceText(
+                selectedAiSkill.getContent() != null ? selectedAiSkill.getContent() : "");
+            applyAiSkillContentTextStyle();
+            aiSkillContentArea.getUndoManager().forgetHistory();
+        } finally {
+            loadingAiSkillEditor = false;
+        }
     }
 
     private void loadAiSkillIntoEditor(AiSkill skill) {

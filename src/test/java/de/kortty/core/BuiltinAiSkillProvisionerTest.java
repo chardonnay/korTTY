@@ -172,6 +172,37 @@ class BuiltinAiSkillProvisionerTest {
     }
 
     @Test
+    void blankContentIsHealedFromTheBaseline() {
+        GlobalSettings settings = new GlobalSettings();
+        AiSkill shipped = shippedSkill("builtin.shell.bash", "Bash", "Quote everything.");
+        BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        // Simulates the editor-boot race that wiped skill contents with an empty string.
+        AiSkill damaged = settings.getAiSkills().get(0);
+        damaged.setContent("");
+        damaged.setEnabled(false);
+
+        BuiltinAiSkillProvisioner.Result result =
+            BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        assertThat(result.healed()).isEqualTo(1);
+        AiSkill healedSkill = settings.getAiSkills().get(0);
+        assertThat(healedSkill.getContent()).isEqualTo("Quote everything.");
+        assertThat(healedSkill.isEnabled()).isFalse();
+        assertThat(BuiltinAiSkillSupport.isModified(healedSkill)).isFalse();
+
+        // A blank baseline must never trigger the heal (nothing to restore from).
+        AiSkill blankShipped = shippedSkill("builtin.lang.empty", "Empty", "x");
+        GlobalSettings other = new GlobalSettings();
+        BuiltinAiSkillProvisioner.sync(other, catalogOf(bundled(blankShipped, 1)));
+        other.getAiSkills().get(0).setContent("");
+        other.getAiSkills().get(0).getBuiltinBaseline().setContent("  ");
+        BuiltinAiSkillProvisioner.Result untouched =
+            BuiltinAiSkillProvisioner.sync(other, catalogOf(bundled(blankShipped, 1)));
+        assertThat(untouched.healed()).isEqualTo(0);
+    }
+
+    @Test
     void duplicateBuiltinIdsAreHealedKeepingTheModifiedCopy() {
         GlobalSettings settings = new GlobalSettings();
         AiSkill shipped = shippedSkill("builtin.shell.bash", "Bash", "Quote everything.");
