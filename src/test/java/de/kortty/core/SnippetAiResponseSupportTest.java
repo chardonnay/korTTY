@@ -476,13 +476,13 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void parseFullCodeAnalysisReadsFlatPayloadFromThinkProseAndFence() {
-        SnippetAiResponseSupport.FullCodeAnalysis result = SnippetAiResponseSupport.parseFullCodeAnalysis(
+    void parseScriptAnalysisReadsPayloadFromThinkProseAndFence() {
+        SnippetAiResponseSupport.ScriptAnalysis result = SnippetAiResponseSupport.parseScriptAnalysis(
             """
             <think>
             I should first sketch {summary, dependencies, improvements} before returning the final object.
             </think>
-            Here is the requested combined result (the internal shape is {key: value}):
+            Here is the requested result (the internal shape is {key: value}):
             ```json
             {
               "summary": "Downloads and verifies a release asset.",
@@ -491,71 +491,49 @@ class SnippetAiResponseSupportTest {
               ],
               "improvements": [
                 { "id": "SEC-1", "category": "security", "severity": "high", "title": "Verify checksum", "detail": "The asset is trusted without verification.", "recommendation": "Check its checksum.", "line": 2 }
-              ],
-              "title": "Release download flow",
-              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Download asset\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
-              "codeReferences": [
-                { "nodeId": "work_1", "label": "Download asset", "startLine": 2, "endLine": 2 }
               ]
             }
             ```
             """);
 
-        assertThat(result.analysis().summary()).isEqualTo("Downloads and verifies a release asset.");
-        assertThat(result.analysis().dependencies()).hasSize(1);
-        assertThat(result.analysis().dependencies().get(0).name()).isEqualTo("curl");
-        assertThat(result.analysis().improvements()).hasSize(1);
-        assertThat(result.analysis().improvements().get(0).category()).isEqualTo("security");
-        assertThat(result.diagram().title()).isEqualTo("Release download flow");
-        assertThat(result.diagram().isUsable()).isTrue();
-        assertThat(result.diagram().codeReferences()).containsExactly(
-            new SnippetDiagramSupport.SourceCodeReference("work_1", "Download asset", 2, 2));
+        assertThat(result.summary()).isEqualTo("Downloads and verifies a release asset.");
+        assertThat(result.dependencies()).hasSize(1);
+        assertThat(result.dependencies().get(0).name()).isEqualTo("curl");
+        assertThat(result.improvements()).hasSize(1);
+        assertThat(result.improvements().get(0).category()).isEqualTo("security");
     }
 
     @Test
-    void parseFullCodeAnalysisPreservesUsableAnalysisWhenMermaidIsMissingUnsafeOrTooLarge() {
-        SnippetAiResponseSupport.FullCodeAnalysis missingDiagram =
-            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+    void parseMermaidDiagramRejectsMissingUnsafeOrTooLargeMermaid() {
+        SnippetAiResponseSupport.MermaidDiagram missingDiagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
                 {
                   "summary": "Prints a greeting.",
                   "dependencies": [],
-                  "improvements": [
-                    { "id": "DES-1", "category": "design", "severity": "low", "title": "Extract greeting", "recommendation": "Use a function." }
-                  ]
+                  "improvements": []
                 }
                 """);
-        SnippetAiResponseSupport.FullCodeAnalysis unsafeDiagram =
-            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+        SnippetAiResponseSupport.MermaidDiagram unsafeDiagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
                 {
-                  "summary": "Prints a greeting.",
-                  "dependencies": [],
-                  "improvements": [],
                   "title": "Unsafe flow",
                   "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    click work_1 href \\\"https://example.com\\\"\\n    class start_1,stop_1 setup\\n    class work_1 work",
                   "codeReferences": []
                 }
                 """);
         String tooLargeMermaid = "flowchart TD\n" + "    work_1[\"Run\"]\n".repeat(2_000);
-        SnippetAiResponseSupport.FullCodeAnalysis tooLargeDiagram =
-            SnippetAiResponseSupport.parseFullCodeAnalysis("""
+        SnippetAiResponseSupport.MermaidDiagram tooLargeDiagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
                 {
-                  "summary": "Prints a greeting.",
-                  "dependencies": [],
-                  "improvements": [],
                   "title": "Oversized flow",
                   "mermaid": %s,
                   "codeReferences": []
                 }
                 """.formatted(new com.google.gson.Gson().toJson(tooLargeMermaid)));
 
-        assertThat(missingDiagram.analysis().isUsable()).isTrue();
-        assertThat(missingDiagram.analysis().improvements()).hasSize(1);
-        assertThat(missingDiagram.diagram().isUsable()).isFalse();
-        assertThat(unsafeDiagram.analysis().isUsable()).isTrue();
-        assertThat(unsafeDiagram.analysis().summary()).isEqualTo("Prints a greeting.");
-        assertThat(unsafeDiagram.diagram().isUsable()).isFalse();
-        assertThat(tooLargeDiagram.analysis().isUsable()).isTrue();
-        assertThat(tooLargeDiagram.diagram().isUsable()).isFalse();
+        assertThat(missingDiagram.isUsable()).isFalse();
+        assertThat(unsafeDiagram.isUsable()).isFalse();
+        assertThat(tooLargeDiagram.isUsable()).isFalse();
     }
 
     @Test

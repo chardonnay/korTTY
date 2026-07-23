@@ -273,7 +273,7 @@ final class SnippetAiAssistFactory {
             request.additionalInstructions());
     }
 
-    private static SnippetAiResponseSupport.FullCodeAnalysis analyzeSnippetCode(
+    private static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
         MainWindow ownerWindow,
         ServerConnection connection,
         SnippetEditDialog.CodeAnalysisRequest request,

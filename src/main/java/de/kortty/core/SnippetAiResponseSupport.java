@@ -198,17 +198,6 @@ public final class SnippetAiResponseSupport {
         }
     }
 
-    /**
-     * One response from the rich full-code-analysis flow: the written analysis and the initial flow diagram
-     * are generated together so the snippet is sent to the configured AI provider only once.
-     */
-    public record FullCodeAnalysis(ScriptAnalysis analysis, MermaidDiagram diagram) {
-        public FullCodeAnalysis {
-            analysis = analysis != null ? analysis : new ScriptAnalysis("", List.of(), List.of());
-            diagram = diagram != null ? diagram : new MermaidDiagram("", "");
-        }
-    }
-
     private static String normalizeImprovementCategory(String category) {
         String value = category != null ? category.trim().toLowerCase() : "";
         return switch (value) {
@@ -879,11 +868,6 @@ public final class SnippetAiResponseSupport {
         }
         String summary = firstString(object, "summary", "explanation", "description", "overview");
         return new ScriptAnalysis(summary, parseScriptDependencies(object), parseScriptImprovements(object));
-    }
-
-    /** Parses the shared flat JSON object returned by {@code ANALYZE_SNIPPET_CODE}. */
-    public static FullCodeAnalysis parseFullCodeAnalysis(String responseText) {
-        return new FullCodeAnalysis(parseScriptAnalysis(responseText), parseMermaidDiagram(responseText));
     }
 
     private static List<ScriptImprovement> parseScriptImprovements(JsonObject object) {

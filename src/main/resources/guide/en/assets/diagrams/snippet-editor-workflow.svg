@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Snippet editor and Mermaid diagram workflow</title>
-  <desc id="desc">Flow from the Monaco snippet editor through one combined full-analysis response or local Mermaid fallback, the secure centralized renderer, the shared viewer and exports, and snippet persistence; reports follow the interface language while generated code text uses the selected AI text language.</desc>
+  <desc id="desc">Flow from the Monaco snippet editor through a full-analysis request plus a separate dedicated diagram request (or the local Mermaid fallback), the secure centralized renderer, the shared viewer and exports, and snippet persistence; reports follow the interface language while generated code text uses the selected AI text language.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -32,7 +32,7 @@
   <path class="grid" d="M 0 120 H 1280 M 0 240 H 1280 M 0 360 H 1280 M 0 480 H 1280 M 0 600 H 1280 M 160 0 V 720 M 320 0 V 720 M 480 0 V 720 M 640 0 V 720 M 800 0 V 720 M 960 0 V 720 M 1120 0 V 720" opacity="0.25"/>
 
   <text class="title" x="42" y="52">Snippet Editor + Mermaid Workflow</text>
-  <text class="subtitle" x="42" y="80">One full-analysis request returns report data, Mermaid source and code references for the secure shared renderer.</text>
+  <text class="subtitle" x="42" y="80">The full-analysis request returns the report; a separate diagram-only request supplies the Mermaid source for the secure shared renderer.</text>
 
   <rect class="panel" x="35" y="125" width="270" height="380"/>
   <rect class="header" x="35" y="125" width="270" height="50"/>
@@ -53,15 +53,15 @@
 
   <rect class="panel" x="350" y="125" width="270" height="380"/>
   <rect class="header" x="350" y="125" width="270" height="50"/>
-  <text class="panelTitle" x="377" y="157">2. Combined response</text>
+  <text class="panelTitle" x="377" y="157">2. Two AI requests</text>
   <rect class="box ai" x="380" y="198" width="210" height="70"/>
-  <text class="label" x="422" y="222">AI response</text>
+  <text class="label" x="424" y="222">Analysis request</text>
   <text class="detail" x="401" y="242">summary + deps + improvements</text>
-  <text class="detail" x="400" y="258">title + mermaid + references</text>
+  <text class="detail" x="422" y="258">report data only</text>
   <rect class="box ai" x="380" y="291" width="210" height="70"/>
-  <text class="label" x="416" y="315">Restricted flowchart</text>
-  <text class="detail" x="405" y="335">flowchart TD, quoted labels</text>
-  <text class="detail" x="397" y="351">setup/work/success/failure</text>
+  <text class="label" x="426" y="315">Diagram request</text>
+  <text class="detail" x="402" y="335">dedicated, same as Regenerate</text>
+  <text class="detail" x="399" y="351">flowchart TD + code references</text>
   <rect class="box secure" x="380" y="384" width="210" height="70"/>
   <text class="label" x="412" y="408">Local fallback</text>
   <text class="detail" x="406" y="428">same dialect without AI</text>
@@ -116,5 +116,5 @@
   <path class="dash" d="M 1113 505 V 555"/>
   <path class="dash" d="M 170 505 V 540 H 318 V 580"/>
 
-  <text class="note" x="42" y="694">Analysis follows the UI language; applied code uses the selected AI text language. Regenerate requests only a fresh diagram.</text>
+  <text class="note" x="42" y="694">Analysis follows the UI language; applied code uses the selected AI text language. The diagram request starts when the window opens; Regenerate repeats it.</text>
 </svg>

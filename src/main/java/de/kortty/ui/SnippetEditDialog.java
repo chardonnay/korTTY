@@ -68,7 +68,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -320,7 +319,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface CodeAnalysisProvider {
-        SnippetAiResponseSupport.FullCodeAnalysis analyze(CodeAnalysisRequest request) throws Exception;
+        SnippetAiResponseSupport.ScriptAnalysis analyze(CodeAnalysisRequest request) throws Exception;
     }
 
     @FunctionalInterface
@@ -3418,9 +3417,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
-     * The rich "AI Code Review": one combined provider call returns the summary, dependencies, categorized
-     * improvements and initial Mermaid diagram surfaced in {@link SnippetCodeAnalysisDialog}. The user's
-     * selected improvements/dependency suggestions are applied via {@link #runImprovementFixes}.
+     * The rich "AI Code Review": the provider call returns the summary, dependencies and categorized
+     * improvements surfaced in {@link SnippetCodeAnalysisDialog}; the Mermaid diagram is fetched by a
+     * separate dedicated request when the dialog opens (better diagram quality than a combined request,
+     * and the analysis is visible while the diagram loads). The user's selected improvements/dependency
+     * suggestions are applied via {@link #runImprovementFixes}.
      */
     private void runCodeReview(String aiProfileId) {
         if (!hasCodeAnalysisProviders() || !ensureSnippetAiDataNoticeAccepted(false)) {
@@ -3438,9 +3439,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String analysisLanguageCode = resolveAnalysisLanguageCode();
         String extra = additionalInstructions();
 
-        Task<SnippetAiResponseSupport.FullCodeAnalysis> task = new Task<>() {
+        Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
             @Override
-            protected SnippetAiResponseSupport.FullCodeAnalysis call() throws Exception {
+            protected SnippetAiResponseSupport.ScriptAnalysis call() throws Exception {
                 return aiAssist.codeAnalysisProvider().analyze(new CodeAnalysisRequest(
                     fullContent, language, analysisLanguageCode, extra, aiProfileId));
             }
@@ -3453,27 +3454,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
-            SnippetAiResponseSupport.FullCodeAnalysis result = task.getValue();
-            if (result == null || !result.analysis().isUsable()) {
+            SnippetAiResponseSupport.ScriptAnalysis result = task.getValue();
+            if (result == null || !result.isUsable()) {
                 setStatus(I18n.get("snippets.ai.review.failed"));
                 return;
             }
-            SnippetDiagramView.DiagramSource initialDiagram = initialAnalysisDiagramSource(
-                result.diagram(), fullContent, language);
-            // The first load uses the diagram already returned by the combined analysis. Only an explicit
-            // "Regenerate" consumes the supplier again and starts a dedicated diagram request.
-            AtomicReference<SnippetDiagramView.DiagramSource> firstDiagram = new AtomicReference<>(initialDiagram);
-            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () -> {
-                SnippetDiagramView.DiagramSource memoized = firstDiagram.getAndSet(null);
-                return memoized != null
-                    ? CompletableFuture.completedFuture(memoized)
-                    : generateDiagramMermaid(
-                        fullContent, language, resolveAnalysisLanguageCode(), aiProfileId);
-            };
+            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () ->
+                generateDiagramMermaid(fullContent, language, resolveAnalysisLanguageCode(), aiProfileId);
             SnippetCodeAnalysisDialog dialog = new SnippetCodeAnalysisDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 currentSnippetName(),
-                result.analysis(),
+                result,
                 diagramLoader,
                 aiProfileId,
                 profileSwitchingSupported() ? this::runCodeReview : null,
@@ -3502,20 +3493,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    private SnippetDiagramView.DiagramSource initialAnalysisDiagramSource(
-            SnippetAiResponseSupport.MermaidDiagram diagram,
-            String fullContent,
-            String language) {
-        if (diagram != null && diagram.isUsable()) {
-            return new SnippetDiagramView.DiagramSource(diagram.mermaid(), fullContent, diagram.codeReferences());
-        }
-        return new SnippetDiagramView.DiagramSource(
-            SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language),
-            fullContent,
-            List.of());
-    }
-
-    /** Generates a fresh diagram after an explicit Regenerate click, with a local fallback on failure. */
+    /** Generates the analysis diagram (initial load and explicit Regenerate), with a local fallback on failure. */
     private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagramMermaid(
         String fullContent, String language, String fallback, String aiProfileId) {
         CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();

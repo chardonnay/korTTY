@@ -335,10 +335,12 @@ public final class SnippetAiWorkflowSupport {
     }
 
     /**
-     * Rich code analysis plus the initial Mermaid flowchart, returned by one provider request so the full
-     * snippet and its enabled AI skills are not sent twice.
+     * Rich code analysis without any Mermaid payload. The flowchart is fetched by a separate dedicated
+     * {@link AiAction#GENERATE_SNIPPET_MERMAID} request once the analysis dialog opens: the focused
+     * diagram prompt yields markedly better flowcharts on local models than the former combined request,
+     * and the diagram loads asynchronously while the analysis is already visible.
      */
-    public static SnippetAiResponseSupport.FullCodeAnalysis analyzeSnippetCode(
+    public static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
         AiService aiService,
         UsageRecorder usageRecorder,
         String fullContent,
@@ -358,9 +360,9 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        SnippetAiResponseSupport.FullCodeAnalysis analysis =
-            SnippetAiResponseSupport.parseFullCodeAnalysis(result != null ? result.content() : null);
-        if (!analysis.analysis().isUsable()) {
+        SnippetAiResponseSupport.ScriptAnalysis analysis =
+            SnippetAiResponseSupport.parseScriptAnalysis(result != null ? result.content() : null);
+        if (!analysis.isUsable()) {
             throw new IllegalStateException("AI code analysis returned no usable analysis.");
         }
         return analysis;
@@ -620,7 +622,6 @@ public final class SnippetAiWorkflowSupport {
             + "Explain in plain language what the script does. List external dependencies (other scripts, "
             + "programs or services) with a reduce-or-replace suggestion for each. List concrete, individually-"
             + "applicable improvements categorized as security, optimization or design. Only report what this code supports.\n"
-            + mermaidRequirements(fallbackLanguageCode)
             + "Line-numbered snippet:\n"
             + lineNumberedTextBlock(fullContent);
     }
