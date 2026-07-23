@@ -114,7 +114,8 @@ final class AiSkillsPane extends VBox {
         aiSkillSearchField.textProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
 
         aiSkillCountLabel = new Label();
-        aiSkillCountLabel.setStyle("-fx-font-size: 11px;");
+        // Deliberately prominent — users must spot the library size at a glance in every theme.
+        aiSkillCountLabel.setStyle("-fx-font-weight: bold;");
 
         aiSkillListView = new ListView<>();
         aiSkillListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
