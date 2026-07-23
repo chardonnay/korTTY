@@ -707,6 +707,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1137,6 +1143,90 @@
     
   
     KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Editor
   
 
     
@@ -3738,6 +3828,7 @@
 <li><strong>Zielspezifische native Pakete bereinigen</strong> – Durch die endgültige Paketbereitstellung werden veraltete Abhängigkeitsversionen, alte Formatierungsbäume und fremde Mosh-Architekturen entfernt. Mosh verwendet das Bouncy Castle der Anwendung wieder, JNA/pty4j behält nur Ziel-Natives bei, ungenutzte JavaFX/JDK-Module und SithTermFX-Testabhängigkeiten werden ausgeschlossen und die Logo-Animation wird als kompaktes 640×360 H.264-Video gespeichert.</li>
 <li><strong>Installer-Größengrenzen</strong> – Release CI gibt JSON-/Markdown-Komponentenberichte aus, lehnt unvollständige App-Images und falsch beschriftete Windows-Binärdateien ab, erfordert eine Reduzierung um mindestens 15 % gegenüber der festgeschriebenen Paketbasislinie, wendet die App-/DMG-Grenzwerte an und friert überprüfte Größen mit einer Regressionstoleranz von 2 % ein. <code>RPM</code> wird nach dem Signieren gemessen.</li>
 <li><strong>Ein lokaler Mermaid-Renderer für jedes Diagramm</strong> – Snippet-Diagramme, vollständige Codeanalyse, Workflow-Generierung, Exporte und AI-Chat-Mermaid-Blöcke teilen sich jetzt den SHA-256-fixierten Mermaid 11.16.0-Browser-Renderer. Snippet-Flows behalten SVG/PNG-, Zwischenablage-, Zoom-, Design-/Hintergrund-, Regenerations- und Knoten-zu-Code-Hover-Referenzen bei, ohne dass ein Java/Graphviz-Unterprozess oder ein Download bei der ersten Verwendung erforderlich ist. Ältere gespeicherte Diagrammnutzlasten werden verworfen, ohne Snippets oder Chats zu entfernen, und der veraltete Renderer-Cache wird beim Upgrade sicher gelöscht.</li>
+<li><strong>Anleitungseiten für die letzten drei undokumentierten Einstellungsregisterkarten</strong> – <strong>SFTP-Manager</strong> (Tab automatisch schließen, Remote-ZIP-Standardeinstellungen, JobScheduler-Rsync-Binärdatei), <strong>Editor</strong> (Cursorstil und -farbe) und <strong>Snippet-Editor</strong> (Schriftart, Farbe und Cursorüberschreibungen) verfügen jetzt über eigene Referenzseiten, das Master-Passwort-Dialogfeld wird auf der Seite „Sicherheit“ beschrieben und die Menü- und Tastaturkürzelreferenzen wurden aus neu erstellt Eigene Beschleuniger der Anwendung – ihnen fehlten <strong>Bearbeiten → Suchen</strong>, <strong>Ansicht → Dateibrowser</strong> und mehrere <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd></span>-Verknüpfungen. Das Coverage Gate, das solche Lücken auffangen soll, las nur die teilweise <code>messages_en</code>-Überlagerung und meldete daher 100 %, während 53 Einstellungen/Menübezeichnungen für es unsichtbar waren; Es liest jetzt auch das Basispaket.</li>
 <li><strong>Ausführlicher lokaler Release-Build-Anleitung</strong> – ein neues Anleitungkapitel erklärt die genauen allgemeinen und plattformspezifischen Voraussetzungen, tragbare, eigenständige Anwendungsimages, ZIP/TAR-Archive, DMG/MSI/DEB/RPM-Installationsprogramme, Intel Mac-Builds, Signierung, Beglaubigung, Verifizierung und Fehlerbehebung für macOS, Windows und Linux.</li>
 </ul>
 <h3 id="ai-codeanalyse">AI-Codeanalyse<a class="headerlink" href="#ai-codeanalyse" title="Permanent link">&para;</a></h3>

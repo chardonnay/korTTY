@@ -7,22 +7,39 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | Verknüpfung | Aktion |
 | --- | --- |
 | ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
-| ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+w++ | Tab schließen |
+| ++ctrl+shift+n++ | Neues Fenster |
+| ++ctrl+shift+w++ | Fenster schließen |
 | ++ctrl+tab++ | Nächste Registerkarte |
 | ++ctrl+shift+tab++ | Vorheriger Tab |
 | ++ctrl+o++ | Projekt öffnen |
 | ++ctrl+s++ | Projekt speichern |
-| ++ctrl+k++ | Schnellverbindung |
-| ++ctrl+shift+d++ | Dashboard umschalten |
-| ++ctrl+shift+l++ | Menüleiste ein-/ausblenden |
-| ++ctrl+shift+k++ | Dateibrowser: Links anzeigen |
-| ++ctrl+shift+r++ | Dateibrowser: Rechts anzeigen |
-| ++ctrl+shift+y++ | Öffnen Sie AI Manager |
-| ++ctrl+alt+s++ | Öffnen Sie den KI-Schwarm |
+| ++ctrl+shift+b++ | Backup erstellen |
+| ++ctrl+q++ | Aufhören |
 | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | ++ctrl+c++ | Kopie |
 | ++ctrl+v++ | Paste |
+| ++ctrl+f++ | Suchen Sie im aktiven Tab |
+| ++ctrl+k++ | Schnellverbindung |
+| ++ctrl+m++ | Verbindungen verwalten |
+| ++ctrl+shift+u++ | SFTP-Client |
+| ++ctrl+shift+p++ | Anmeldeinformationen verwalten |
+| ++ctrl+shift+g++ | GPG-Schlüssel verwalten |
+| ++ctrl+shift+i++ | SSH-Schlüssel verwalten |
+| ++ctrl+comma++ | Globale Einstellungen |
+| ++ctrl+shift+s++ | Snippet-Manager |
+| ++ctrl+shift+j++ | JobScheduler |
+| ++ctrl+shift+v++ | Videomanager |
+| ++ctrl+shift+e++ | Terminalaufzeichnung starten/stoppen |
+| ++ctrl+shift+a++ | ASCII-Art |
+| ++ctrl+shift+y++ | Öffnen Sie AI Manager |
+| ++ctrl+alt+a++ | Öffnen Sie AI Agent |
+| ++ctrl+alt+p++ | Öffnen Sie KI-Planung |
+| ++ctrl+alt+s++ | Öffnen Sie den KI-Schwarm |
+| ++ctrl+shift+d++ | Dashboard umschalten |
+| ++ctrl+shift+t++ | Befehlszeitstempel umschalten |
+| ++ctrl+shift+l++ | Menüleiste ein-/ausblenden |
+| ++ctrl+shift+r++ | Docken Sie den Dateibrowser rechts an |
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Herauszoomen |
 | ++alt+0++ | Zoom zurücksetzen |
@@ -31,8 +48,10 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
-| ++ctrl+shift+b++ | Backup erstellen |
-| ++ctrl+q++ | Aufhören |
+
+!!! warning "Zwei Elemente teilen sich ++ctrl+shift+b++"
+    **Backup erstellen** und **Auf der linken Seite anzeigen** des Dateibrowsers deklarieren es beide, also nur einer von ihnen
+    reagiert auf die Taste. Docken Sie stattdessen den Dateibrowser links über **Ansicht → Dateibrowser** an.
 
 ## Terminal-KI-Agent
 

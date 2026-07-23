@@ -888,6 +888,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1318,6 +1324,90 @@
     
   
     KI-Fähigkeiten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP-Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet-Editor
   
 
     
@@ -2376,44 +2466,9 @@
 </thead>
 <tbody>
 <tr>
-<td>Neues Fenster</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
-<td>Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster</td>
-</tr>
-<tr>
 <td>Neuer Tab</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
 <td>Öffnen Sie Quick Connect in einem neuen Terminal-Tab</td>
-</tr>
-<tr>
-<td>Projekt öffnen…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
-<td>Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout)</td>
-</tr>
-<tr>
-<td>Projekt speichern…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
-<td>Speichern Sie die aktuelle Sitzung als Projekt (<code>.kortty</code>)</td>
-</tr>
-<tr>
-<td>Schnellverbindung…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
-<td>Stellen Sie eine Verbindung zu einem Host her, ohne ihn vorher zu speichern</td>
-</tr>
-<tr>
-<td>Verbindungen verwalten…</td>
-<td></td>
-<td>Öffnen Sie den Verbindungsmanager</td>
-</tr>
-<tr>
-<td>Verbindungen importieren…</td>
-<td></td>
-<td>Import aus MTPuTTY / MobaXterm / PuTTY CM</td>
-</tr>
-<tr>
-<td>Verbindungen exportieren…</td>
-<td></td>
-<td>Gespeicherte Verbindungen exportieren</td>
 </tr>
 <tr>
 <td>Tab schließen</td>
@@ -2426,9 +2481,34 @@
 <td>Alle Tabs im aktuellen Fenster schließen</td>
 </tr>
 <tr>
+<td>Neues Fenster</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
+<td>Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster</td>
+</tr>
+<tr>
 <td>Fenster schließen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
+<td>Schließen Sie das aktuelle Fenster</td>
+</tr>
+<tr>
+<td>Projekt öffnen…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+<td>Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout)</td>
+</tr>
+<tr>
+<td>Projekt speichern…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
+<td>Speichern Sie die aktuelle Sitzung als Projekt (<code>.kortty</code>)</td>
+</tr>
+<tr>
+<td>Backup erstellen…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
+<td>Erstellen Sie ein verschlüsseltes Backup (ZIP-Passwort oder GPG)</td>
+</tr>
+<tr>
+<td>Sicherung importieren…</td>
 <td></td>
-<td>Aktuelles Fenster schließen</td>
+<td>Wiederherstellung aus einer Sicherungsdatei</td>
 </tr>
 <tr>
 <td>Aufhören</td>
@@ -2437,6 +2517,7 @@
 </tr>
 </tbody>
 </table>
+<p>Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü <a href="#connections">Connections</a>.</p>
 <h2 id="bearbeiten">Bearbeiten<a class="headerlink" href="#bearbeiten" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2463,24 +2544,9 @@
 <td>In das Terminal einfügen</td>
 </tr>
 <tr>
-<td>Alle auswählen</td>
-<td></td>
-<td>Alle Terminalinhalte auswählen</td>
-</tr>
-<tr>
-<td>Terminal löschen</td>
-<td></td>
-<td>Aktives Terminal löschen</td>
-</tr>
-<tr>
-<td>Backup erstellen…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
-<td>Erstellen Sie ein verschlüsseltes Backup (ZIP-Passwort oder GPG)</td>
-</tr>
-<tr>
-<td>Sicherung importieren…</td>
-<td></td>
-<td>Wiederherstellung aus einer Sicherungsdatei</td>
+<td>Finden…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
+<td>Durchsuchen Sie die aktive Registerkarte (Terminal-Scrollback oder geöffneter Editor).</td>
 </tr>
 </tbody>
 </table>
@@ -2655,14 +2721,19 @@
 <td>Schalten Sie das Verbindungs-Dashboard um</td>
 </tr>
 <tr>
+<td>Befehlszeitstempel anzeigen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Schalten Sie die Inline-Befehlszeitstempel um</td>
+</tr>
+<tr>
 <td>Menüleiste anzeigen</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
 <td>Schalten Sie die Menüleiste um</td>
 </tr>
 <tr>
-<td>Befehlszeitstempel anzeigen</td>
-<td></td>
-<td>Inline-Befehlszeitstempel umschalten</td>
+<td>Dateibrowser ▸ Links anzeigen / Rechts anzeigen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-r">R</kbd></span> (Rechts)</td>
+<td>Docken Sie das Lokal an <a href="../features/file-browser.html">Dateibrowser</a> auf dieser Seite; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet. Der linke Eintrag deklariert <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span>, was „Create Backup“ bereits beansprucht, also verwenden Sie das Menü dafür.</td>
 </tr>
 <tr>
 <td>Dateibrowser ▸ Links anzeigen</td>

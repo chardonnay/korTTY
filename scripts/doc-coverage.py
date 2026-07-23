@@ -33,22 +33,41 @@ MANIFEST = REPO_ROOT / "app-docs" / "doc-manifest.yaml"
 
 
 def load_feature_keys(cfg: dict) -> list[str]:
-    src = REPO_ROOT / cfg["i18n_source"]
+    """The settings./menu. keys a page must document.
+
+    Reads the union of `i18n_source` and the base bundle, for the reason spelled out in
+    `load_all_keys`: `messages.properties` is the English source of truth and
+    `messages_en.properties` only overlays part of it. Reading the overlay alone hid 53
+    settings/menu keys (the File Browser view menu, the SFTP/Editor/Snippet Editor tabs,
+    the master-password dialog, ...) from this gate while it still reported 100%.
+    """
     prefixes = tuple(cfg.get("required_prefixes", []))
     ignore_suffixes = tuple(cfg.get("ignore_suffixes", []))
     ignore_keys = set(cfg.get("ignore_keys", []))
     keys: list[str] = []
-    for line in src.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key = line.split("=", 1)[0].strip()
-        if not key.startswith(prefixes):
-            continue
-        if key.endswith(ignore_suffixes) or key in ignore_keys:
-            continue
-        keys.append(key)
+    for src in _key_sources(cfg):
+        for line in src.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key = line.split("=", 1)[0].strip()
+            if not key.startswith(prefixes):
+                continue
+            if key.endswith(ignore_suffixes) or key in ignore_keys:
+                continue
+            keys.append(key)
     return sorted(set(keys))
+
+
+def _key_sources(cfg: dict) -> list[Path]:
+    """`i18n_source` plus the base bundle, in a stable order, skipping what does not exist."""
+    candidates = [REPO_ROOT / cfg["i18n_source"],
+                  REPO_ROOT / "src/main/resources/i18n/messages.properties"]
+    seen: list[Path] = []
+    for src in candidates:
+        if src.exists() and src not in seen:
+            seen.append(src)
+    return seen
 
 
 def load_all_keys(cfg: dict) -> set[str]:
@@ -62,12 +81,8 @@ def load_all_keys(cfg: dict) -> set[str]:
     source of truth — `ResourceBundle` falls back to it — while `messages_en.properties` is a
     partial overlay, so a few hundred keys exist solely in the base bundle.
     """
-    sources = {REPO_ROOT / cfg["i18n_source"],
-               REPO_ROOT / "src/main/resources/i18n/messages.properties"}
     keys: set[str] = set()
-    for src in sources:
-        if not src.exists():
-            continue
+    for src in _key_sources(cfg):
         for line in src.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:

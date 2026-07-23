@@ -125,6 +125,9 @@ nav:
           - reference/settings/video.md
           - reference/settings/ai.md
           - reference/settings/ai-skills.md
+          - reference/settings/sftp.md
+          - reference/settings/editor.md
+          - reference/settings/snippet-editor.md
   - Features:
       - features/connections.md
       - features/terminal.md

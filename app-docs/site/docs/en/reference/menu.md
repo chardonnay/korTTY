@@ -6,18 +6,18 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 
 | Item | Shortcut | Description |
 | --- | --- | --- |
-| New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
 | New Tab | ++ctrl+t++ | Open Quick Connect in a new terminal tab |
-| Open Project… | ++ctrl+o++ | Restore a saved project (windows, tabs, layout) |
-| Save Project… | ++ctrl+s++ | Save the current session as a project (`.kortty`) |
-| Quick Connect… | ++ctrl+k++ | Connect to a host without saving it first |
-| Manage Connections… | | Open the Connection Manager |
-| Import Connections… | | Import from MTPuTTY / MobaXterm / PuTTY CM |
-| Export Connections… | | Export saved connections |
 | Close Tab | ++ctrl+w++ | Close the active terminal tab |
 | Close All Tabs | | Close every tab in the current window |
-| Close Window | | Close the current window |
+| New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
+| Close Window | ++ctrl+shift+w++ | Close the current window |
+| Open Project… | ++ctrl+o++ | Restore a saved project (windows, tabs, layout) |
+| Save Project… | ++ctrl+s++ | Save the current session as a project (`.kortty`) |
+| Create Backup… | ++ctrl+shift+b++ | Create an encrypted backup (ZIP password or GPG) |
+| Import Backup… | | Restore from a backup file |
 | Quit | ++ctrl+q++ | Exit korTTY |
+
+Connection entries (Quick Connect, Manage/Import/Export Connections) live in the [Connections](#connections) menu.
 
 ## Edit
 
@@ -26,10 +26,7 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Cut | ++ctrl+x++ | Cut (disabled for terminal tabs) |
 | Copy | ++ctrl+c++ | Copy the terminal selection |
 | Paste | ++ctrl+v++ | Paste into the terminal |
-| Select All | | Select all terminal content |
-| Clear Terminal | | Clear the active terminal |
-| Create Backup… | ++ctrl+shift+b++ | Create an encrypted backup (ZIP password or GPG) |
-| Import Backup… | | Restore from a backup file |
+| Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor) |
 
 ## Connections
 
@@ -97,10 +94,10 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Item | Shortcut | Description |
 | --- | --- | --- |
 | Show Dashboard | ++ctrl+shift+d++ | Toggle the connections dashboard |
+| Show Command Timestamps | ++ctrl+shift+t++ | Toggle inline command timestamps |
 | Show Menu Bar | ++ctrl+shift+l++ | Toggle the menu bar |
-| Show Command Timestamps | | Toggle inline command timestamps |
-| File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local file browser to the left of the terminal (uncheck to hide it) |
-| File Browser ▸ Show on Right | ++ctrl+shift+r++ | Dock the local file browser to the right of the terminal (uncheck to hide it) |
+| File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local [file browser](../features/file-browser.md) to the left of the terminal; unchecking the active side hides it |
+| File Browser ▸ Show on Right | ++ctrl+shift+r++ | Dock the local [file browser](../features/file-browser.md) to the right of the terminal; unchecking the active side hides it |
 | Zoom In | ++alt+plus++ | Increase terminal font size |
 | Zoom Out | ++alt+minus++ | Decrease terminal font size |
 | Reset Zoom | ++alt+0++ | Reset terminal font size |

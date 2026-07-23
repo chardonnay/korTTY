@@ -888,6 +888,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1318,6 +1324,90 @@
     
   
     AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet Editor
   
 
     
@@ -2376,44 +2466,9 @@
 </thead>
 <tbody>
 <tr>
-<td>New Window</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
-<td>Open an additional, independent main window</td>
-</tr>
-<tr>
 <td>New Tab</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
 <td>Open Quick Connect in a new terminal tab</td>
-</tr>
-<tr>
-<td>Open Project…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
-<td>Restore a saved project (windows, tabs, layout)</td>
-</tr>
-<tr>
-<td>Save Project…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
-<td>Save the current session as a project (<code>.kortty</code>)</td>
-</tr>
-<tr>
-<td>Quick Connect…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
-<td>Connect to a host without saving it first</td>
-</tr>
-<tr>
-<td>Manage Connections…</td>
-<td></td>
-<td>Open the Connection Manager</td>
-</tr>
-<tr>
-<td>Import Connections…</td>
-<td></td>
-<td>Import from MTPuTTY / MobaXterm / PuTTY CM</td>
-</tr>
-<tr>
-<td>Export Connections…</td>
-<td></td>
-<td>Export saved connections</td>
 </tr>
 <tr>
 <td>Close Tab</td>
@@ -2426,9 +2481,34 @@
 <td>Close every tab in the current window</td>
 </tr>
 <tr>
+<td>New Window</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
+<td>Open an additional, independent main window</td>
+</tr>
+<tr>
 <td>Close Window</td>
-<td></td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
 <td>Close the current window</td>
+</tr>
+<tr>
+<td>Open Project…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+<td>Restore a saved project (windows, tabs, layout)</td>
+</tr>
+<tr>
+<td>Save Project…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
+<td>Save the current session as a project (<code>.kortty</code>)</td>
+</tr>
+<tr>
+<td>Create Backup…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
+<td>Create an encrypted backup (ZIP password or GPG)</td>
+</tr>
+<tr>
+<td>Import Backup…</td>
+<td></td>
+<td>Restore from a backup file</td>
 </tr>
 <tr>
 <td>Quit</td>
@@ -2437,6 +2517,7 @@
 </tr>
 </tbody>
 </table>
+<p>Connection entries (Quick Connect, Manage/Import/Export Connections) live in the <a href="#connections">Connections</a> menu.</p>
 <h2 id="edit">Edit<a class="headerlink" href="#edit" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2463,24 +2544,9 @@
 <td>Paste into the terminal</td>
 </tr>
 <tr>
-<td>Select All</td>
-<td></td>
-<td>Select all terminal content</td>
-</tr>
-<tr>
-<td>Clear Terminal</td>
-<td></td>
-<td>Clear the active terminal</td>
-</tr>
-<tr>
-<td>Create Backup…</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
-<td>Create an encrypted backup (ZIP password or GPG)</td>
-</tr>
-<tr>
-<td>Import Backup…</td>
-<td></td>
-<td>Restore from a backup file</td>
+<td>Find…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
+<td>Search the active tab (terminal scrollback or open editor)</td>
 </tr>
 </tbody>
 </table>
@@ -2655,14 +2721,19 @@
 <td>Toggle the connections dashboard</td>
 </tr>
 <tr>
+<td>Show Command Timestamps</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Toggle inline command timestamps</td>
+</tr>
+<tr>
 <td>Show Menu Bar</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
 <td>Toggle the menu bar</td>
 </tr>
 <tr>
-<td>Show Command Timestamps</td>
-<td></td>
-<td>Toggle inline command timestamps</td>
+<td>File Browser ▸ Show on Left / Show on Right</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-r">R</kbd></span> (right)</td>
+<td>Dock the local <a href="../features/file-browser.html">file browser</a> on that side; unchecking the active side hides it. The left entry declares <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-b">B</kbd></span>, which Create Backup already claims, so use the menu for it.</td>
 </tr>
 <tr>
 <td>File Browser ▸ Show on Left</td>
