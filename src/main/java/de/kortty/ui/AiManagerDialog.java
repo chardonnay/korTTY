@@ -98,6 +98,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final AiLocalPreferencesPane localPreferencesPane;
     private final LocalModelManagerPane localModelManagerPane;
     private final RagKnowledgeStorePane knowledgeStorePane;
+    private final AiSkillsPane aiSkillsPane;
     private final ComboBox<AiProfile> defaultProfileCombo;
     private final TextField profileNameField;
     private final ComboBox<AiConnectionMode> connectionModeCombo;
@@ -165,6 +166,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         }
         knowledgeStorePane = ragPane;
+        aiSkillsPane = new AiSkillsPane(app, owner);
 
         profileListView = buildProfileListView();
         defaultProfileCombo = new ComboBox<>();
@@ -213,6 +215,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             buildProfilesTab(),
             buildLocalModelsTab(),
             buildKnowledgeStoresTab(),
+            buildAiSkillsTab(),
             buildLocalPreferencesTab());
         primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
         tabPane.getTabs().addAll(primaryTabs);
@@ -242,11 +245,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
             try {
                 if (app != null && app.getGlobalSettingsManager() != null) {
+                    aiSkillsPane.save(true); // quiet: no status/alerts while the dialog is closing
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
                 }
             } catch (Exception ignored) {
                 // Best-effort persistence on close.
             }
+            aiSkillsPane.close();
         });
 
         refreshAll();
@@ -644,10 +649,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 && (selectedProfileProperty.get().isPolicyManaged() || !policy.aiProfileEditAllowed()),
             selectedProfileProperty));
 
-        Button aiSkillsButton = new Button(I18n.get("ai.manager.openSkills"));
-        aiSkillsButton.setOnAction(event -> ownerWindow.showAiSkillsSettings());
-        applyButtonIcon(aiSkillsButton, ICON_SKILLS);
-
         Button wizardButton = new Button(I18n.get("ai.wizard.button"));
         wizardButton.setOnAction(event -> openProfileWizard());
         applyButtonIcon(wizardButton, ICON_WIZARD);
@@ -659,7 +660,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             wizardButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
         }
 
-        HBox actionBar = new HBox(8, wizardButton, addButton, testButton, deleteButton, refreshButton, saveButton, aiSkillsButton);
+        HBox actionBar = new HBox(8, wizardButton, addButton, testButton, deleteButton, refreshButton, saveButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
 
         VBox root = new VBox(10, actionBar, content);
@@ -668,6 +669,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         Tab tab = new Tab(I18n.get("ai.manager.tab.profiles"));
         tab.setContent(root);
+        return tab;
+    }
+
+    private Tab buildAiSkillsTab() {
+        Tab tab = new Tab(I18n.get("settings.tab.aiSkills"));
+        tab.setContent(aiSkillsPane);
+        // Defer the Monaco WebView boot (native WebKit + JS bridge + web workers) until the tab is
+        // actually shown, so merely opening the AI Manager never spins up that path.
+        tab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (Boolean.TRUE.equals(isSelected)) {
+                aiSkillsPane.activateEditor();
+            }
+        });
         return tab;
     }
 
@@ -857,7 +871,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private static final String ICON_DELETE = ButtonIcons.DELETE;
     private static final String ICON_REFRESH = ButtonIcons.REFRESH;
     private static final String ICON_SAVE = ButtonIcons.SAVE;
-    private static final String ICON_SKILLS = ButtonIcons.SKILLS;
 
     private static void applyButtonIcon(Button button, String svgPathData) {
         ButtonIcons.apply(button, svgPathData);

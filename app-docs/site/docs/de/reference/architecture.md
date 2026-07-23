@@ -367,7 +367,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Terminale Auswirkungen**: `TerminalEffectPlugin` implementieren und über `ServiceLoader` registrieren (siehe `TERMINAL_EFFECT_PLUGINS.adoc`)
 2. **Benutzerdefinierte Formatierer**: Unterstützung für neue Sprachen im Snippet-Editor hinzugefügt
-3. **KI-Fähigkeiten**: Importieren Sie benutzerdefinierte KI-Befehlssätze über `Settings → AI Skills`
+3. **KI-Fähigkeiten**: Importieren Sie benutzerdefinierte KI-Befehlssätze über `AI → AI Manager → AI Skills`
 
 ### Für Integratoren
 

@@ -2085,6 +2085,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integrated-local-ai" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2932,6 +2943,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integrated-local-ai" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3649,6 +3671,10 @@
 <li><strong>Add your own code languages</strong> — a <strong>+</strong> button beside the code-language list takes any language name that is missing and stores it permanently, so it is offered in every future snippet editor. Self-added languages drive the AI prompts and the file extension; highlighting falls back to plain text when korTTY ships no grammar for them.</li>
 <li><strong>AI suggestion fills both language fields</strong> — besides the file name and description, <strong>AI suggestion</strong> now also detects the natural language of the snippet's comments and printed output (<code>echo</code>, <code>print</code>, <code>printf</code>, <code>Write-Host</code>, …) and preselects it as the text language, adding it to the list when korTTY has no interface translation for it. A detected code language missing from the list is likewise added instead of being silently dropped.</li>
 <li><strong>New AI action: Optimize code comments</strong> — available from the <strong>AI Code</strong> menu and from the editor's right-click menu on a selection. The AI inserts explanations of what the selected code does and why, directly above or beside the lines they belong to and in the language's own comment syntax, replaces outdated or misleading comments, and leaves every executable line untouched. Comments are written in the editor's <strong>Text language</strong>, and the result is shown in the usual before/after preview before it replaces the selection.</li>
+</ul>
+<h3 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The AI Skills library moved into the AI Manager</strong> — the skill list, Markdown editor, import/export and the two global toggles (<em>Enable AI Skills</em>, <em>Automatically send only matching skills</em>) are now the <strong>AI Skills</strong> section of <strong>AI → AI Manager</strong>, next to profiles, local models and knowledge stores; the tab of the same name in <strong>Configuration → Global Settings</strong> and the <em>AI Skills…</em> button in the profile toolbar are gone. Skills are stored unchanged in <code>~/.kortty/global-settings.xml</code>, and a <strong>Save</strong> button writes them right away while pending edits are also saved when the manager window is closed. See <a href="../reference/settings/ai-skills.html">AI Skills</a>.</li>
 </ul>
 <h3 id="integrated-local-ai">Integrated local AI<a class="headerlink" href="#integrated-local-ai" title="Permanent link">&para;</a></h3>
 <ul>

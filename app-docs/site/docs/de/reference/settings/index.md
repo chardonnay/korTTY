@@ -30,11 +30,10 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |
 | [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Argumentation, Quote, Internet-Tools |
-| [KI-Fähigkeiten](ai-skills.md) | Fähigkeitsdefinitionen, automatische Erkennung, Import/Export |
 
 Im Einstellungsdialog werden auch die Registerkarten **SFTP-Manager**, **Editor** und **Snippet-Editor** angezeigt, die die Standardeinstellungen für Dateimanager und Monaco-Editor (Schriftart, Farben, Cursor) für diese Tools festlegen.
 
-Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie und Wissensquellensynchronisierung live in **AI > AI Manager** und nicht im globalen Einstellungsfenster; sehen [Lokale Modelle](../../features/local-models.md) Und [RAG-Wissensspeicher](../../features/rag.md).
+Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und das [KI-Fähigkeiten](ai-skills.md) Bibliothek live in **AI > AI Manager** und nicht im globalen Einstellungsfenster; sehen [Lokale Modelle](../../features/local-models.md) Und [RAG-Wissensspeicher](../../features/rag.md).
 
 !!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.
