@@ -147,7 +147,7 @@ Der Bericht und das Flussdiagramm werden durch **zwei separate KI-Anfragen** gen
 
 Die Zusammenfassung, Abhängigkeiten, Verbesserungsbeschreibungen und Diagrammbeschriftungen verwenden die aktuelle korTTY-Schnittstellensprache. Die separate **KI-Textsprache** wird erst relevant, nachdem Sie auf **Ausgewählte anwenden** geklickt haben: Sie steuert die natürliche Sprache neu generierter oder umgeschriebener Kommentare und benutzerbezogener Zeichenfolgen im resultierenden Code.
 
-Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld.
+Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld. Die Größe des Fensters ist frei veränderbar und korTTY merkt sich seine Position und Größe über Sitzungen hinweg – auch wenn **Erneut ausführen** das Fenster durch eine neue Analyse ersetzt.
 
 **Symbolleiste:**
 
