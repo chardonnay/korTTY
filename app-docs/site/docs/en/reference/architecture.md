@@ -367,7 +367,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Terminal Effects**: Implement `TerminalEffectPlugin` and register via `ServiceLoader` (see `TERMINAL_EFFECT_PLUGINS.adoc`)
 2. **Custom Formatters**: Add support in the snippet editor for new languages
-3. **AI Skills**: Import custom AI instruction sets via `Settings → AI Skills`
+3. **AI Skills**: Import custom AI instruction sets via `AI → AI Manager → AI Skills`
 
 ### For Integrators
 

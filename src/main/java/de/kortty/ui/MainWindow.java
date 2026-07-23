@@ -2584,21 +2584,9 @@ public class MainWindow {
     }
     
     private void showSettings() {
-        showSettings(false);
-    }
-
-    /** Opens the settings dialog on the AI Skills tab (reachable from the AI Manager). */
-    void showAiSkillsSettings() {
-        showSettings(true);
-    }
-
-    private void showSettings(boolean selectAiSkillsTab) {
         SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
-        if (selectAiSkillsTab) {
-            dialog.selectAiSkillsTab();
-        }
 
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {

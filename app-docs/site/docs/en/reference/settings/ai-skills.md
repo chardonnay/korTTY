@@ -4,7 +4,10 @@ title: AI Skills
 
 # AI Skills
 
-Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via **Configuration → Global Settings → AI Skills**; stored in `~/.kortty/global-settings.xml`.
+Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via **AI → AI Manager → AI Skills**; stored in `~/.kortty/global-settings.xml`.
+
+!!! note "Moved out of Global Settings"
+    The skill library used to be a tab in **Configuration → Global Settings**. It now lives in the **AI Manager**, next to profiles, local models and knowledge stores. The stored data and the settings file are unchanged.
 
 ![AI Skills settings tab](../../assets/screenshots/settings/ai-skills.png)
 
@@ -15,6 +18,7 @@ Configure custom AI skills that enhance AI interactions. This tab lets you manag
 | Enable AI Skills | toggle | — | On | `aiSkillsEnabled` |
 | Automatically send only matching skills | toggle | — | On | `aiSkillAutoDetectionEnabled` |
 | Sort | menu button | Alphabetical, Status (enabled first) | — | — |
+| Save | button | Writes the library to the global settings file | — | — |
 
 ## Skill Editor Fields
 
@@ -41,7 +45,7 @@ When you select or create a skill, the right panel shows per-skill fields. Each 
     - **Connection**: Available to both AI Chat and AI Agent, but only on the connections the skill is assigned to. Such skills are always sent on those connections and bypass auto-detection.
 
 !!! note "Skill lifecycle"
-    Skills are stored as XML elements within the global settings file. Use **Import** to load skills from markdown files and **Export** to save selected skills as markdown files. The skill list can be sorted alphabetically by name or by status (enabled first).
+    Skills are stored as XML elements within the global settings file. Use **Import** to load skills from markdown files and **Export** to save selected skills as markdown files. The skill list can be sorted alphabetically by name or by status (enabled first). **Save** persists the library immediately and confirms next to the button; pending edits are also written when the AI Manager window is closed.
 
 !!! note "Choosing skills per request"
     This tab manages the global library. Which of these enabled skills apply to a given action is chosen elsewhere: the snippet editor's **AI skills** picker pins your selection to every snippet AI action, and the **Full code analysis** window shows the included skills as chips — labelled *(auto-selected)* or *(manual)* — with a searchable picker whose changes take effect on the next re-run. See [Snippets → AI skills](../../features/snippets.md#ai-skills).

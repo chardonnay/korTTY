@@ -98,7 +98,7 @@ Wichtiges Verhalten:
 
 KI-Fähigkeiten sind wiederverwendbare lokale Anweisungsblöcke, die korTTY zu KI-Anfragen hinzufügen kann. Verwenden Sie sie für dauerhafte Präferenzen wie Codierungsstandards, Überprüfungsregeln, Betriebsrichtlinien oder sprachspezifische Stilrichtlinien.
 
-Öffnen Sie **Bearbeiten > Globale Einstellungen > KI-Fähigkeiten**.
+Öffnen Sie **KI > KI-Manager > KI-Fähigkeiten**. Die Bibliothek wurde aus dem globalen Einstellungsdialog hierher verschoben. **Speichern** schreibt es sofort und ausstehende Änderungen werden auch gespeichert, wenn der AI Manager geschlossen wird.
 
 ### Fertigkeitsfelder
 

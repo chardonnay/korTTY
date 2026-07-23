@@ -98,7 +98,7 @@ Important behavior:
 
 AI Skills are reusable local instruction blocks that korTTY can add to AI requests. Use them for persistent preferences such as coding standards, review rules, operational policies, or language-specific style guidance.
 
-Open **Edit > Global Settings > AI Skills**.
+Open **AI > AI Manager > AI Skills**. The library moved here from the global settings dialog; **Save** writes it immediately, and pending edits are also saved when the AI Manager is closed.
 
 ### Skill fields
 

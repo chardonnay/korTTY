@@ -2168,7 +2168,11 @@
 
 
 <h1 id="ai-skills">AI Skills<a class="headerlink" href="#ai-skills" title="Permanent link">&para;</a></h1>
-<p>Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via <strong>Configuration → Global Settings → AI Skills</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via <strong>AI → AI Manager → AI Skills</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Moved out of Global Settings</p>
+<p>The skill library used to be a tab in <strong>Configuration → Global Settings</strong>. It now lives in the <strong>AI Manager</strong>, next to profiles, local models and knowledge stores. The stored data and the settings file are unchanged.</p>
+</div>
 <p><img alt="AI Skills settings tab" src="../../assets/screenshots/settings/ai-skills.png" /></p>
 <h2 id="global-settings">Global Settings<a class="headerlink" href="#global-settings" title="Permanent link">&para;</a></h2>
 <table>
@@ -2200,6 +2204,13 @@
 <td>Sort</td>
 <td>menu button</td>
 <td>Alphabetical, Status (enabled first)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Save</td>
+<td>button</td>
+<td>Writes the library to the global settings file</td>
 <td>—</td>
 <td>—</td>
 </tr>
@@ -2278,7 +2289,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill lifecycle</p>
-<p>Skills are stored as XML elements within the global settings file. Use <strong>Import</strong> to load skills from markdown files and <strong>Export</strong> to save selected skills as markdown files. The skill list can be sorted alphabetically by name or by status (enabled first).</p>
+<p>Skills are stored as XML elements within the global settings file. Use <strong>Import</strong> to load skills from markdown files and <strong>Export</strong> to save selected skills as markdown files. The skill list can be sorted alphabetically by name or by status (enabled first). <strong>Save</strong> persists the library immediately and confirms next to the button; pending edits are also written when the AI Manager window is closed.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Choosing skills per request</p>

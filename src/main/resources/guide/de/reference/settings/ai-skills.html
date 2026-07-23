@@ -2168,7 +2168,11 @@
 
 
 <h1 id="ki-fahigkeiten">KI-Fähigkeiten<a class="headerlink" href="#ki-fahigkeiten" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie benutzerdefinierte KI-Fähigkeiten, die KI-Interaktionen verbessern. Auf dieser Registerkarte können Sie eine Bibliothek mit Markdown-basierten Fertigkeiten verwalten, die automatisch oder manuell in KI-Anfragen einbezogen werden. Öffnen über <strong>Konfiguration → Globale Einstellungen → KI-Fähigkeiten</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie benutzerdefinierte KI-Fähigkeiten, die KI-Interaktionen verbessern. Auf dieser Registerkarte können Sie eine Bibliothek mit Markdown-basierten Fertigkeiten verwalten, die automatisch oder manuell in KI-Anfragen einbezogen werden. Öffnen über <strong>KI → KI-Manager → KI-Fähigkeiten</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<div class="admonition note">
+<p class="admonition-title">Aus den globalen Einstellungen entfernt</p>
+<p>Die Skill-Bibliothek war früher eine Registerkarte unter <strong>Konfiguration → Globale Einstellungen</strong>. Es befindet sich jetzt im <strong>AI Manager</strong>, neben Profilen, lokalen Modellen und Wissensspeichern. Die gespeicherten Daten und die Einstellungsdatei bleiben unverändert.</p>
+</div>
 <p><img alt="AI Skills settings tab" src="../../assets/screenshots/settings/ai-skills.png" /></p>
 <h2 id="globale-einstellungen">Globale Einstellungen<a class="headerlink" href="#globale-einstellungen" title="Permanent link">&para;</a></h2>
 <table>
@@ -2202,6 +2206,13 @@
 <td>Alphabetisch, Status (zuerst aktiviert)</td>
 <td>Alphabetisch</td>
 <td>—</td>
+</tr>
+<tr>
+<td>Schaltfläche „Speichern“</td>
+<td></td>
+<td>Schreibt die Bibliothek in die globale Einstellungsdatei</td>
+<td>–</td>
+<td>–</td>
 </tr>
 </tbody>
 </table>
@@ -2278,7 +2289,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill-Lebenszyklus</p>
-<p>Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden.</p>
+<p>Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden. <strong>Speichern</strong> speichert die Bibliothek sofort und bestätigt neben der Schaltfläche; Ausstehende Änderungen werden auch geschrieben, wenn das AI Manager-Fenster geschlossen wird.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Auswahl der Fähigkeiten pro Anfrage</p>

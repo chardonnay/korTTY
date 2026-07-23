@@ -30,11 +30,10 @@ Each per-tab page lists settings as a table:
 | [Translation](translation.md) | External or local-AI translation provider, credentials, target language, generate language file |
 | [Video](video.md) | Terminal recording / `ffmpeg` video export |
 | [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, quota, internet tools |
-| [AI Skills](ai-skills.md) | Skill definitions, auto-detection, import/export |
 
 The settings dialog also exposes **SFTP Manager**, **Editor** and **Snippet Editor** tabs, which set file-manager and Monaco-editor defaults (font, colors, cursor) for those tools.
 
-Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, and knowledge-source synchronization live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
+Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, knowledge-source synchronization, and the [AI Skills](ai-skills.md) library live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
 
 !!! info "Completeness"
     The per-tab pages enumerate every individual setting. Coverage is verified automatically against the application's setting keys, so no setting is left undocumented.
