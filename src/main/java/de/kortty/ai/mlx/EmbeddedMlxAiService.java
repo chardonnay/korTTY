@@ -26,6 +26,13 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
 
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedMlxAiService.class);
 
+    /**
+     * Explicit completion budget sent with every request. Generous upper bound only — generation
+     * still ends at the model's stop token; without it mlx_lm.server defaults to 512 tokens, which
+     * reasoning models exhaust inside their chain-of-thought on complex tasks.
+     */
+    static final int MAX_COMPLETION_TOKENS = 8192;
+
     private final String modelId;
     private final AiReasoningEffort reasoningEffort;
     private final TavilyWebSearchTool webSearchTool;
@@ -191,6 +198,10 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
                 reasoningEffort,
                 webSearchTool,
                 skillPromptSupport);
+            // mlx_lm.server caps an absent max_tokens at 512 completion tokens; reasoning models
+            // (gpt-oss) burn that entire budget in their analysis channel on complex tasks such as
+            // the snippet code analysis and deterministically return a reasoning-only reply.
+            delegate.setDefaultMaxCompletionTokens(MAX_COMPLETION_TOKENS);
             return call.invoke(delegate);
         }
     }

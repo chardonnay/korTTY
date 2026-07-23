@@ -241,6 +241,22 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void buildPromptRequestBodySendsMaxTokensOnlyWhenConfigured() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        assertThat(service.buildPromptRequestBody("system", "user")).doesNotContain("\"max_tokens\"");
+
+        // Embedded MLX sets this so mlx_lm.server's 512-token default cannot starve a reasoning
+        // model's answer; the connection test's own explicit 128 must still win.
+        service.setDefaultMaxCompletionTokens(8192);
+        assertThat(service.buildPromptRequestBody("system", "user")).contains("\"max_tokens\":8192");
+        assertThat(service.buildConnectionTestRequestBody()).contains("\"max_tokens\":128");
+    }
+
+    @Test
     void executePromptIncludesActiveAgentSkills() throws Exception {
         AiSkill skill = new AiSkill();
         skill.setName("Agent Skill");

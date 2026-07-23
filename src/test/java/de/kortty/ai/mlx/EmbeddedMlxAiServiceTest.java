@@ -61,6 +61,10 @@ class EmbeddedMlxAiServiceTest {
             // mlx-lm loads the request's "model" value as a path or Hugging Face id; the sidecar
             // must keep serving the one directory it was started with.
             assertThat(requestBody.get().has("model")).isFalse();
+            // mlx_lm.server caps an absent max_tokens at 512 completion tokens, which reasoning
+            // models exhaust inside their chain-of-thought; the explicit budget prevents that.
+            assertThat(requestBody.get().get("max_tokens").getAsInt())
+                .isEqualTo(EmbeddedMlxAiService.MAX_COMPLETION_TOKENS);
             assertThat(manager.status("test-model").orElseThrow().activeLeases()).isEqualTo(0);
         } finally {
             server.stop(0);
