@@ -658,13 +658,13 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
+        // No extra raw copy here: the user prompt already carries the snippet once as the generic
+        // script-context block, and the line-numbered block below is what codeReferences need.
+        // A third copy only inflated the prompt and slowed local prefill without adding signal.
         return "Snippet language: " + snippetLanguage + "\n"
             + mermaidRequirements(fallbackLanguageCode)
             + "Line-numbered snippet:\n"
-            + lineNumberedTextBlock(fullContent)
-            + "\n"
-            + "Full snippet:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+            + lineNumberedTextBlock(fullContent);
     }
 
     private static String mermaidRequirements(String fallbackLanguageCode) {

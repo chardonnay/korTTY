@@ -270,6 +270,12 @@ class SnippetAiWorkflowSupportTest {
         assertThat(aiService.lastRequest.conversationContext()).contains("Diagram label language: de");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo ok");
+        // The user prompt appends the raw snippet once as the generic script-context block; the
+        // context must not carry a second raw copy on top of the line-numbered one.
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
+        String userPrompt = AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
+        int rawSnippetOffset = userPrompt.indexOf("echo ok\n");
+        assertThat(rawSnippetOffset).isAtLeast(0);
     }
 
     @Test
