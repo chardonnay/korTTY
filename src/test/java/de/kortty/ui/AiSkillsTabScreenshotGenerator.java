@@ -143,6 +143,10 @@ public final class AiSkillsTabScreenshotGenerator {
         ListView<AiSkill> listView = (ListView<AiSkill>) rawField(pane, "aiSkillListView");
         listView.getItems().setAll(skills);
         listView.getSelectionModel().selectFirst();
+
+        // The count summary is normally kept in sync by every mutating action; the demo list
+        // bypasses all of them via reflection, so recompute it once for an accurate capture.
+        invoke(pane, "updateAiSkillCounts");
     }
 
     private static AiSkill demoSkill(String name, String description, String tags) {
@@ -182,6 +186,12 @@ public final class AiSkillsTabScreenshotGenerator {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private static void invoke(Object target, String methodName) throws Exception {
+        var method = target.getClass().getDeclaredMethod(methodName);
+        method.setAccessible(true);
+        method.invoke(target);
     }
 
     private static String stack(Throwable t) {
