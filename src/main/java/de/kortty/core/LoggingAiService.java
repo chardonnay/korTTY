@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,20 +36,27 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
     private final String provider;
     private final String model;
     private final String profile;
+    private final String reasoning;
 
-    private LoggingAiService(AiService delegate, String provider, String model, String profile) {
+    private LoggingAiService(
+        AiService delegate, String provider, String model, String profile, String reasoning) {
         this.delegate = delegate;
         this.provider = provider;
         this.model = model;
         this.profile = profile;
+        this.reasoning = reasoning;
     }
 
     /**
      * Wraps {@code delegate} in a logging decorator, deriving stable provider/model/profile labels
      * from the profile. Returns {@code null} when {@code delegate} is {@code null} so callers can
      * pass a possibly-absent service straight through.
+     *
+     * @param effortInUse the reasoning level this service actually sends, already normalized against
+     *                    what the model offers — not necessarily the level stored on the profile
      */
-    static AiService wrap(AiService delegate, AiProfile profile, String modelName) {
+    static AiService wrap(
+        AiService delegate, AiProfile profile, String modelName, AiReasoningEffort effortInUse) {
         if (delegate == null) {
             return null;
         }
@@ -62,7 +70,9 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
         String profileLabel = profile != null
             ? firstNonBlank(profile.getName(), profile.getId(), "unnamed")
             : "unnamed";
-        return new LoggingAiService(delegate, providerLabel, modelLabel, profileLabel);
+        AiReasoningEffort effort = effortInUse != null ? effortInUse : AiReasoningEffort.DISABLED;
+        return new LoggingAiService(
+            delegate, providerLabel, modelLabel, profileLabel, effort.name().toLowerCase(java.util.Locale.ROOT));
     }
 
     @Override
@@ -146,8 +156,8 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     private AiExecutionResult logged(String action, int inputChars, Call call) throws Exception {
-        LOG.info("AI request sent: action={} provider={} model='{}' profile='{}' inputChars={}",
-            action, provider, model, profile, inputChars);
+        LOG.info("AI request sent: action={} provider={} model='{}' profile='{}' reasoningEffort={} inputChars={}",
+            action, provider, model, profile, reasoning, inputChars);
         long startNanos = System.nanoTime();
         try {
             AiExecutionResult result = call.run();
@@ -155,10 +165,34 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
                 action, model, elapsedMillis(startNanos), tokenSummary(result), reasoningFlag(result));
             return result;
         } catch (Exception failure) {
-            LOG.warn("AI request failed: action={} provider={} model='{}' after {} ms: {}",
-                action, provider, model, elapsedMillis(startNanos), failure.toString());
+            // The message carries the model's own error text (the server's error.message, or the raw
+            // body when it is not JSON). Walking the cause chain keeps that text visible when a
+            // wrapper exception replaced it — that detail is the only way to tell a rejected
+            // parameter, an unloaded model and a broken endpoint apart from the log alone.
+            LOG.warn("AI request failed: action={} provider={} model='{}' reasoningEffort={} after {} ms: {}{}",
+                action, provider, model, reasoning, elapsedMillis(startNanos),
+                failure.toString(), causeChain(failure));
             throw failure;
         }
+    }
+
+    /** " | caused by: …" for every distinct nested message, empty when the failure has no cause. */
+    private static String causeChain(Throwable failure) {
+        StringBuilder chain = new StringBuilder();
+        Throwable cause = failure != null ? failure.getCause() : null;
+        String previousMessage = failure != null ? failure.getMessage() : null;
+        int depth = 0;
+        while (cause != null && depth < 5) {
+            String message = cause.getMessage();
+            if (message != null && !message.isBlank() && !message.equals(previousMessage)) {
+                chain.append(" | caused by: ").append(cause.getClass().getSimpleName())
+                    .append(": ").append(message);
+                previousMessage = message;
+            }
+            cause = cause.getCause();
+            depth++;
+        }
+        return chain.toString();
     }
 
     private static long elapsedMillis(long startNanos) {

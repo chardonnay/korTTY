@@ -138,6 +138,9 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
         try {
             return withDelegate(OpenAiCompatibleAiService::testConnection);
         } catch (Exception e) {
+            // The caller only sees a boolean, so without this the model's own reason for refusing
+            // the test (rejected parameter, missing model file, dead sidecar) is lost entirely.
+            logger.warn("Embedded llama.cpp connection test failed for model '{}': {}", modelId, e.toString());
             return false;
         }
     }

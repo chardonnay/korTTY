@@ -118,7 +118,14 @@ If a selected Metal or Vulkan model requires a different package from the active
 
 After the configured idle time, llama.cpp releases the model tensors from RAM/VRAM and korTTY marks the model as sleeping while retaining the lightweight process. The next request acquires a runtime lease and wakes the model automatically. **Stop selected** terminates only idle sidecars; an active generation is never interrupted by model removal or a normal stop request.
 
-To make this activity visible, korTTY records the request and model lifecycle in `kortty.log` (under the log directory configured in **Configuration > Global Settings > Logging**, default `~/.kortty/logs`). Every AI request logs one `AI request sent` line and a matching `AI request done` / `AI request failed` line with the action, provider, model, approximate input size, duration and token count — metadata only, never the prompt or response text. Local models additionally log when a model is `Loaded`, `Unloaded … (sleeping)` after the idle timeout, or `Unloaded … sidecar stopped`, for both the llama.cpp and MLX runtimes. All of these are `INFO` lines, so they appear with the default log level.
+To make this activity visible, korTTY records the request and model lifecycle in `kortty.log` (under the log directory configured in **Configuration > Global Settings > Logging**, default `~/.kortty/logs`). Every AI request logs one `AI request sent` line and a matching `AI request done` / `AI request failed` line with the action, provider, model, **the reasoning level the request actually uses** (`reasoningEffort=`), approximate input size, duration and token count — metadata only, never the prompt or response text. Local models additionally log when a model is `Loaded`, `Unloaded … (sleeping)` after the idle timeout, or `Unloaded … sidecar stopped`, for both the llama.cpp and MLX runtimes. All of these are `INFO` lines, so they appear with the default log level.
+
+Errors reported by the model itself are logged too, so a failing request can be diagnosed from the log alone:
+
+- `AI request failed` carries the server's own error text (its `error.message`, or the raw response body when it is not JSON) and appends `| caused by: …` for each nested message, which is what distinguishes a rejected request parameter from an unloaded model or an unreachable endpoint.
+- A connection test that the model refuses logs the reason as `Embedded MLX/llama.cpp connection test failed`; previously the caller only saw a failed test with no explanation.
+- When the reasoning level stored in the profile is not one the model offers, korTTY logs a warning naming the configured level, the level used instead and the levels actually available, and then sends the request at the substitute level. Without that line the request would silently run at a different level than the AI Manager shows.
+- A local sidecar that fails to start or exits unexpectedly logs the tail of its own server log, so the runtime's error output ends up in `kortty.log` as well.
 
 ## Text, coding, translation, and embedding roles
 

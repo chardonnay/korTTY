@@ -9,6 +9,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiReasoningEffort;
 import java.util.List;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -122,7 +123,7 @@ public class LoggingAiServiceTest {
     public void wrappedPromptServiceStaysAiPromptServiceAndSkillTracker() {
         AiService wrapped = LoggingAiService.wrap(
             new PromptTrackingService(new AiExecutionResult("ok", null), List.of()),
-            profile(), "qwen2.5-coder-7b");
+            profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         // Regression guard: the terminal agent, planning, workflow, guide, and job-scheduler paths all
         // check `instanceof AiPromptService`, and skill tracking checks `instanceof AiSkillUsageTracker`.
@@ -135,7 +136,7 @@ public class LoggingAiServiceTest {
     public void logsExecuteJsonPromptMetadataAndDelegatesWithoutLeakingContent() throws Exception {
         AiExecutionResult expected = new AiExecutionResult("{\"ok\":true}", new AiTokenUsage(30, 10, 40), null);
         PromptTrackingService inner = new PromptTrackingService(expected, List.of());
-        AiPromptService service = (AiPromptService) LoggingAiService.wrap(inner, profile(), "qwen2.5-coder-7b");
+        AiPromptService service = (AiPromptService) LoggingAiService.wrap(inner, profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         AiExecutionResult actual =
             service.executeJsonPrompt("SYSTEM-" + SECRET_PROMPT, "USER-" + SECRET_PROMPT);
@@ -157,7 +158,7 @@ public class LoggingAiServiceTest {
     public void logsExecutePromptOnce() throws Exception {
         AiExecutionResult expected = new AiExecutionResult("answer", null);
         AiPromptService service = (AiPromptService) LoggingAiService.wrap(
-            new PromptTrackingService(expected, List.of()), profile(), "qwen2.5-coder-7b");
+            new PromptTrackingService(expected, List.of()), profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         service.executePrompt("sys", "user");
 
@@ -170,7 +171,7 @@ public class LoggingAiServiceTest {
         List<AiSkillPromptSupport.SkillUsage> sentinel = new java.util.ArrayList<>();
         AiSkillUsageTracker tracker = (AiSkillUsageTracker) LoggingAiService.wrap(
             new PromptTrackingService(new AiExecutionResult("ok", null), sentinel),
-            profile(), "qwen2.5-coder-7b");
+            profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         assertThat(tracker.drainSkillUsages()).isSameInstanceAs(sentinel);
     }
@@ -179,7 +180,7 @@ public class LoggingAiServiceTest {
     public void logsSubmitAndCompletionMetadataAndReturnsDelegateResult() throws Exception {
         AiExecutionResult expected =
             new AiExecutionResult(SECRET_RESPONSE, new AiTokenUsage(120, 40, 160), "thinking...");
-        AiService service = LoggingAiService.wrap(delegate(request -> expected), profile(), "qwen2.5-coder-7b");
+        AiService service = LoggingAiService.wrap(delegate(request -> expected), profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         AiExecutionResult actual = service.execute(request());
 
@@ -200,7 +201,7 @@ public class LoggingAiServiceTest {
     public void neverLogsPromptOrResponseContent() throws Exception {
         AiExecutionResult result =
             new AiExecutionResult(SECRET_RESPONSE, new AiTokenUsage(10, 5, 15), SECRET_RESPONSE);
-        AiService service = LoggingAiService.wrap(delegate(r -> result), profile(), "qwen2.5-coder-7b");
+        AiService service = LoggingAiService.wrap(delegate(r -> result), profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         service.execute(request());
 
@@ -215,7 +216,7 @@ public class LoggingAiServiceTest {
         RuntimeException boom = new IllegalStateException("model offline");
         AiService service = LoggingAiService.wrap(delegate(r -> {
             throw boom;
-        }), profile(), "qwen2.5-coder-7b");
+        }), profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         Throwable thrown = expectThrows(IllegalStateException.class, () -> service.execute(request()));
 
@@ -240,7 +241,7 @@ public class LoggingAiServiceTest {
             public boolean testConnection() {
                 return true;
             }
-        }, profile(), "qwen2.5-coder-7b");
+        }, profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         assertThat(service.testConnection()).isTrue();
         assertThat(appender.list).isEmpty();
@@ -249,7 +250,7 @@ public class LoggingAiServiceTest {
     @Test
     public void completionWithoutUsageReportsTokensNotAvailable() throws Exception {
         AiService service = LoggingAiService.wrap(
-            delegate(r -> new AiExecutionResult("ok", null)), profile(), "qwen2.5-coder-7b");
+            delegate(r -> new AiExecutionResult("ok", null)), profile(), "qwen2.5-coder-7b", AiReasoningEffort.MEDIUM);
 
         service.execute(request());
 
@@ -258,14 +259,44 @@ public class LoggingAiServiceTest {
     }
 
     @Test
+    public void logsTheReasoningEffortTheRequestActuallyUses() throws Exception {
+        AiService service = LoggingAiService.wrap(
+            delegate(r -> new AiExecutionResult("ok", null)), profile(), "gpt-oss-20b",
+            AiReasoningEffort.HIGH);
+
+        service.execute(request());
+
+        assertThat(appender.list.get(0).getFormattedMessage()).contains("reasoningEffort=high");
+    }
+
+    @Test
+    public void failureLogCarriesTheModelsOwnErrorTextFromTheCauseChain() {
+        // What the local server answered must survive into the log even when a wrapper exception
+        // replaced the message — that text is the only way to tell rejected-parameter errors apart.
+        IllegalStateException failure = new IllegalStateException(
+            "Local AI request failed",
+            new java.io.IOException("AI API error 400: unknown reasoning effort 'ultra'"));
+        AiService service = LoggingAiService.wrap(delegate(r -> {
+            throw failure;
+        }), profile(), "gpt-oss-20b", AiReasoningEffort.HIGH);
+
+        expectThrows(IllegalStateException.class, () -> service.execute(request()));
+
+        String logged = appender.list.get(1).getFormattedMessage();
+        assertThat(logged).contains("AI request failed");
+        assertThat(logged).contains("reasoningEffort=high");
+        assertThat(logged).contains("caused by: IOException: AI API error 400: unknown reasoning effort 'ultra'");
+    }
+
+    @Test
     public void wrapReturnsNullWhenDelegateIsNull() {
-        assertThat(LoggingAiService.wrap(null, profile(), "model")).isNull();
+        assertThat(LoggingAiService.wrap(null, profile(), "model", AiReasoningEffort.LOW)).isNull();
     }
 
     @Test
     public void nullProfileFallsBackToSafeLabels() throws Exception {
         AiService service = LoggingAiService.wrap(
-            delegate(r -> new AiExecutionResult("ok", null)), null, null);
+            delegate(r -> new AiExecutionResult("ok", null)), null, null, null);
 
         service.execute(request());
 

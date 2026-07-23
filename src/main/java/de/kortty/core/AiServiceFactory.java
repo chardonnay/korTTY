@@ -20,11 +20,15 @@ import de.kortty.rag.RagRuntimeService;
 import java.net.URI;
 import java.util.Locale;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builds the correct AI service implementation for a configured profile.
  */
 public final class AiServiceFactory {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AiServiceFactory.class);
 
     private static final String OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions";
     private static final String MISSING_MODEL_MESSAGE = "AI model must be configured.";
@@ -115,7 +119,7 @@ public final class AiServiceFactory {
                 }
                 webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
             }
-            return decorate(profile, embeddedModelId, new EmbeddedLlamaAiService(
+            return decorate(profile, embeddedModelId, effectiveReasoningEffort(profile, reasoningEffortOverride), new EmbeddedLlamaAiService(
                 embeddedModelId,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
                 webSearchTool,
@@ -148,7 +152,7 @@ public final class AiServiceFactory {
                 }
                 webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
             }
-            return decorate(profile, embeddedModelId, new EmbeddedMlxAiService(
+            return decorate(profile, embeddedModelId, effectiveReasoningEffort(profile, reasoningEffortOverride), new EmbeddedMlxAiService(
                 embeddedModelId,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
                 webSearchTool,
@@ -168,7 +172,7 @@ public final class AiServiceFactory {
                 && (modelSelectionMode == AiModelSelectionMode.DEFAULT || model == null)) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return decorate(profile, model,
+            return decorate(profile, model, effectiveReasoningEffort(profile, reasoningEffortOverride),
                 new LocalCliAiService(profileWithReasoning(profile, reasoningEffortOverride), effectiveSkillSupport));
         }
         String apiUrl = trimToNull(profile.getApiUrl());
@@ -180,7 +184,7 @@ public final class AiServiceFactory {
             if (anthropicModel == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return decorate(profile, anthropicModel, new AnthropicAiService(
+            return decorate(profile, anthropicModel, effectiveReasoningEffort(profile, reasoningEffortOverride), new AnthropicAiService(
                 apiUrl,
                 anthropicModel,
                 apiKey,
@@ -213,7 +217,7 @@ public final class AiServiceFactory {
             if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return decorate(profile, model, new LmStudioNativeAiService(
+            return decorate(profile, model, effectiveReasoningEffort(profile, reasoningEffortOverride), new LmStudioNativeAiService(
                 apiUrl,
                 serviceModel,
                 modelSelectionMode,
@@ -239,7 +243,7 @@ public final class AiServiceFactory {
                 throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);
             }
         }
-        return decorate(profile, model, new OpenAiCompatibleAiService(
+        return decorate(profile, model, effectiveReasoningEffort(profile, reasoningEffortOverride), new OpenAiCompatibleAiService(
             normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
             serviceModel,
             modelSelectionMode,
@@ -249,7 +253,8 @@ public final class AiServiceFactory {
             effectiveSkillSupport));
     }
 
-    private static AiService decorate(AiProfile profile, String modelName, AiService service) {
+    private static AiService decorate(
+        AiProfile profile, String modelName, AiReasoningEffort effortInUse, AiService service) {
         AiPromptPreset configured = profile != null ? profile.getPromptPreset() : AiPromptPreset.AUTO;
         AiPromptPreset resolved = AiPromptPresetSupport.resolve(configured, modelName);
         AiService optimized = resolved == AiPromptPreset.GENERIC
@@ -269,7 +274,7 @@ public final class AiServiceFactory {
         }
         // Outermost wrapper: logs request submit/complete/fail (metadata only) so the whole request
         // lifecycle — including any RAG retrieval and preset optimization above — is timed as one.
-        return LoggingAiService.wrap(composed, profile, modelName);
+        return LoggingAiService.wrap(composed, profile, modelName, effortInUse);
     }
 
     /**
@@ -378,9 +383,34 @@ public final class AiServiceFactory {
         AiProfile profile,
         AiReasoningEffort reasoningEffortOverride) {
 
-        return reasoningEffortOverride != null
-            ? reasoningEffortOverride
-            : AiReasoningSupport.normalizeForProfile(profile);
+        if (reasoningEffortOverride != null) {
+            return reasoningEffortOverride;
+        }
+        AiReasoningEffort configured = profile != null ? profile.getReasoningEffort() : null;
+        AiReasoningEffort effective = AiReasoningSupport.normalizeForProfile(profile);
+        if (configured != null && configured != effective) {
+            // The stored level is not among the ones this model/provider offers, so it is dropped
+            // before the request. Without this line the request simply runs at a different level
+            // than the profile shows, with nothing in the log to explain the difference.
+            LOG.warn("AI reasoning effort {} is not available for profile '{}' (model '{}', {});"
+                    + " using {} instead. Available: {}",
+                configured,
+                profile != null ? firstNonBlank(profile.getName(), profile.getId(), "unnamed") : "unnamed",
+                profile != null ? firstNonBlank(profile.getEmbeddedModelId(), profile.getModel(), "auto") : "auto",
+                profile != null && profile.getConnectionMode() != null ? profile.getConnectionMode() : "UNKNOWN",
+                effective,
+                AiReasoningSupport.availableEfforts(profile));
+        }
+        return effective;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 
     /**
