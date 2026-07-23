@@ -1607,7 +1607,9 @@ public class MainWindow {
         // File Browser submenu
         Menu fileBrowserMenu = new Menu(I18n.get("menu.view.fileBrowser"));
         CheckMenuItem fileBrowserLeftItem = new CheckMenuItem(I18n.get("menu.view.fileBrowser.left"));
-        fileBrowserLeftItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        // Not Shift+B: that is the File menu's "Create Backup...", which is registered first and
+        // would swallow this accelerator (JavaFX keeps only the first match per scene).
+        fileBrowserLeftItem.setAccelerator(new KeyCodeCombination(KeyCode.K, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         fileBrowserLeftItem.setOnAction(e -> {
             if (fileBrowserLeftItem.isSelected()) {
                 toggleFileBrowser(LocalFileBrowserManager.Position.LEFT);

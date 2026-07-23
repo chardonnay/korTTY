@@ -16,6 +16,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+shift+d++ | Dashboard umschalten |
 | ++ctrl+shift+l++ | Menüleiste ein-/ausblenden |
+| ++ctrl+shift+k++ | Dateibrowser: Links anzeigen |
+| ++ctrl+shift+r++ | Dateibrowser: Rechts anzeigen |
 | ++ctrl+shift+y++ | Öffnen Sie AI Manager |
 | ++ctrl+alt+s++ | Öffnen Sie den KI-Schwarm |
 | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |

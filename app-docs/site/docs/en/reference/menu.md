@@ -99,6 +99,8 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Show Dashboard | ++ctrl+shift+d++ | Toggle the connections dashboard |
 | Show Menu Bar | ++ctrl+shift+l++ | Toggle the menu bar |
 | Show Command Timestamps | | Toggle inline command timestamps |
+| File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local file browser to the left of the terminal (uncheck to hide it) |
+| File Browser ▸ Show on Right | ++ctrl+shift+r++ | Dock the local file browser to the right of the terminal (uncheck to hide it) |
 | Zoom In | ++alt+plus++ | Increase terminal font size |
 | Zoom Out | ++alt+minus++ | Decrease terminal font size |
 | Reset Zoom | ++alt+0++ | Reset terminal font size |

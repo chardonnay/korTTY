@@ -16,6 +16,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+k++ | Quick Connect |
 | ++ctrl+shift+d++ | Toggle Dashboard |
 | ++ctrl+shift+l++ | Show / Hide Menu Bar |
+| ++ctrl+shift+k++ | File Browser: Show on Left |
+| ++ctrl+shift+r++ | File Browser: Show on Right |
 | ++ctrl+shift+y++ | Open AI Manager |
 | ++ctrl+alt+s++ | Open AI Swarm |
 | ++ctrl+x++ | Cut (disabled for terminal tabs) |
