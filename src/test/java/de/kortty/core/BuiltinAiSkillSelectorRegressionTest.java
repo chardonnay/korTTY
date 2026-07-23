@@ -74,7 +74,11 @@ class BuiltinAiSkillSelectorRegressionTest {
         Map.entry("builtin.devops.jenkins-declarative", "write a declarative jenkinsfile with stages"),
         Map.entry("builtin.devops.jenkins-scripted", "convert my scripted jenkins job"),
         Map.entry("builtin.observability.filebeat", "configure filebeat.yml multiline for stack traces"),
-        Map.entry("builtin.observability.logstash", "my logstash grok pattern fails to parse"));
+        Map.entry("builtin.observability.logstash", "my logstash grok pattern fails to parse"),
+        Map.entry("builtin.markup.html", "add alt attributes to this html page"),
+        Map.entry("builtin.markup.xml", "validate this xml file against its xsd"),
+        Map.entry("builtin.markup.yaml", "fix the indentation in my config.yml"),
+        Map.entry("builtin.markup.json", "why does package.json fail to parse"));
 
     private static List<AiSkill> catalogSkills() {
         return BuiltinAiSkillCatalog.load().entries().stream()

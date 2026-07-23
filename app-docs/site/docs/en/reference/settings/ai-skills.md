@@ -39,7 +39,7 @@ When you select or create a skill, the right panel shows per-skill fields. Each 
 
 ## Built-in skills
 
-korTTY ships 35 built-in best-practice skills covering shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), programming languages (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart) and automation/observability tools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat, Logstash). Each skill carries professional guidance on code commenting, robustness, common pitfalls to avoid, and language-specific security practices. They are added to the library on first start and appear with a **Built-in** badge.
+korTTY ships 39 built-in best-practice skills covering shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), programming languages (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart), markup and data formats (HTML, XML, YAML, JSON) and automation/observability tools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat, Logstash). Each skill carries professional guidance on code commenting, robustness, common pitfalls to avoid, and language-specific security practices. They are added to the library on first start and appear with a **Built-in** badge.
 
 Built-in skills behave like your own skills — they can be edited, deactivated and assigned to connections — with these differences:
 

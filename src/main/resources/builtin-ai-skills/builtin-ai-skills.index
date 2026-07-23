@@ -25,6 +25,10 @@ builtin.lang.sql.md
 builtin.lang.swift.md
 builtin.lang.typescript.md
 builtin.lang.visual-basic.md
+builtin.markup.html.md
+builtin.markup.json.md
+builtin.markup.xml.md
+builtin.markup.yaml.md
 builtin.observability.filebeat.md
 builtin.observability.logstash.md
 builtin.shell.bash.md

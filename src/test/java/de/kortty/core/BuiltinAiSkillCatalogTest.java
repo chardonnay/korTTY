@@ -17,7 +17,7 @@ import static com.google.common.truth.Truth.assertThat;
 /** Shipping gate for the bundled skill catalog: every release must pass this. */
 class BuiltinAiSkillCatalogTest {
 
-    private static final int EXPECTED_SKILL_COUNT = 35;
+    private static final int EXPECTED_SKILL_COUNT = 39;
     private static final Pattern VALID_BUILTIN_ID = Pattern.compile("[a-z0-9][a-z0-9._-]{0,63}");
 
     @Test
