@@ -49,6 +49,30 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesCustomSnippetCodeLanguages() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setCustomSnippetCodeLanguages(List.of("kotlin", "rust"));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getCustomSnippetCodeLanguages())
+                .containsExactly("kotlin", "rust").inOrder();
+
+            // Settings written before this element existed must load with an empty, non-null list.
+            GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy-lang"));
+            legacy.save();
+            legacy.load();
+            assertThat(legacy.getSettings().getCustomSnippetCodeLanguages()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesSnippetCodeAnalysisDialogGeometry() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

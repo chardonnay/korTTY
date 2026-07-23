@@ -3,6 +3,8 @@ package de.kortty.core;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.util.Locale;
+
 /**
  * Parses and normalizes AI-generated snippet metadata.
  */
@@ -11,7 +13,13 @@ public final class AiSnippetMetadataSupport {
     private AiSnippetMetadataSupport() {
     }
 
-    public record SuggestedSnippetMetadata(String fileName, String description, String language) {
+    /**
+     * @param language     the detected code language (bash, python, …)
+     * @param textLanguage the ISO 639-1 code of the natural language used in the snippet's comments
+     *                     and printed output, or {@code null} when the script carries no readable text
+     */
+    public record SuggestedSnippetMetadata(
+        String fileName, String description, String language, String textLanguage) {
     }
 
     public static SuggestedSnippetMetadata parseMetadataResponse(String responseText, String fallbackLanguage, String content) {
@@ -25,12 +33,51 @@ public final class AiSnippetMetadataSupport {
             return new SuggestedSnippetMetadata(
                 SnippetLanguageSupport.sanitizeFileName(fileName, normalizedLanguage),
                 normalizeDescription(description),
-                normalizedLanguage);
+                normalizedLanguage,
+                normalizeTextLanguage(getString(root, "textLanguage")));
         }
         return new SuggestedSnippetMetadata(
             SnippetLanguageSupport.sanitizeFileName(null, normalizedFallbackLanguage),
             normalizeDescription(responseText),
-            normalizedFallbackLanguage);
+            normalizedFallbackLanguage,
+            null);
+    }
+
+    /**
+     * Reduces the model's answer to a bare ISO 639-1 code. Models answer this field with anything from
+     * {@code "de"} through {@code "de-DE"} to {@code "German"}, and with filler like {@code "unknown"}
+     * or {@code "none"} when a script prints no human-readable text at all — all of which must not end
+     * up selected as a language.
+     */
+    public static String normalizeTextLanguage(String proposedTextLanguage) {
+        if (proposedTextLanguage == null) {
+            return null;
+        }
+        String candidate = proposedTextLanguage.trim().toLowerCase(Locale.ROOT);
+        int separator = candidate.indexOf(candidate.contains("-") ? '-' : '_');
+        if (separator > 0) {
+            candidate = candidate.substring(0, separator);
+        }
+        if (candidate.length() > 2) {
+            String fromDisplayName = languageCodeForDisplayName(candidate);
+            candidate = fromDisplayName != null ? fromDisplayName : "";
+        }
+        if (candidate.length() != 2 || !candidate.chars().allMatch(Character::isLetter)) {
+            return null;
+        }
+        return candidate;
+    }
+
+    /** Maps an English or endonym language name ("German", "Deutsch") to its ISO 639-1 code. */
+    private static String languageCodeForDisplayName(String displayName) {
+        for (String isoLanguage : Locale.getISOLanguages()) {
+            Locale locale = Locale.forLanguageTag(isoLanguage);
+            if (displayName.equalsIgnoreCase(locale.getDisplayLanguage(Locale.ENGLISH))
+                || displayName.equalsIgnoreCase(locale.getDisplayLanguage(locale))) {
+                return isoLanguage;
+            }
+        }
+        return null;
     }
 
     public static String normalizeDescription(String description) {

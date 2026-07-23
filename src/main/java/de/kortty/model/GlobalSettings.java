@@ -241,6 +241,11 @@ public class GlobalSettings {
     @XmlElement(name = "section")
     private java.util.List<String> quickConnectExpandedSections = new java.util.ArrayList<>();
 
+    /** Code languages the user added to the snippet editor's built-in list, normalized and lowercased. */
+    @XmlElementWrapper(name = "customSnippetCodeLanguages")
+    @XmlElement(name = "language")
+    private java.util.List<String> customSnippetCodeLanguages = new java.util.ArrayList<>();
+
     /** Preferred AI profile used when no explicit profile is selected by the user. */
     @XmlElement
     private String defaultAiProfileId;
@@ -1303,6 +1308,20 @@ public class GlobalSettings {
     public void setQuickConnectExpandedSections(java.util.List<String> quickConnectExpandedSections) {
         this.quickConnectExpandedSections = quickConnectExpandedSections != null
             ? new java.util.ArrayList<>(quickConnectExpandedSections)
+            : new java.util.ArrayList<>();
+    }
+
+    /** User-added snippet code languages, in the order they were added (never null). */
+    public java.util.List<String> getCustomSnippetCodeLanguages() {
+        if (customSnippetCodeLanguages == null) {
+            customSnippetCodeLanguages = new java.util.ArrayList<>();
+        }
+        return customSnippetCodeLanguages;
+    }
+
+    public void setCustomSnippetCodeLanguages(java.util.List<String> customSnippetCodeLanguages) {
+        this.customSnippetCodeLanguages = customSnippetCodeLanguages != null
+            ? new java.util.ArrayList<>(customSnippetCodeLanguages)
             : new java.util.ArrayList<>();
     }
 

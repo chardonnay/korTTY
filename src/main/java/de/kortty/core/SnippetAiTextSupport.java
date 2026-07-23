@@ -452,7 +452,7 @@ public final class SnippetAiTextSupport {
         return switch (normalizedLanguage != null ? normalizedLanguage.toLowerCase(Locale.ROOT) : "plain") {
             case "bash", "python", "perl", "ruby", "powershell", "dockerfile", "yaml", "properties" ->
                 new CommentFormat("#", null, false);
-            case "java", "javascript", "groovy" -> new CommentFormat("//", null, false);
+            case "java", "javascript", "typescript", "groovy" -> new CommentFormat("//", null, false);
             case "sql" -> new CommentFormat("--", null, false);
             case "xml", "html" -> new CommentFormat("<!--", "-->", true);
             default -> null;

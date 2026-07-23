@@ -2070,7 +2070,8 @@ public class AiResultTab extends Tab {
             result != null ? result.content() : null,
             snippetLanguage,
             code);
-        return new SnippetEditDialog.SuggestedSnippetMetadata(metadata.fileName(), metadata.description(), metadata.language());
+        return new SnippetEditDialog.SuggestedSnippetMetadata(
+            metadata.fileName(), metadata.description(), metadata.language(), metadata.textLanguage());
     }
 
     private String correctSnippetDescription(

@@ -50,7 +50,9 @@ public final class AiPromptBuilder {
             : "en";
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_METADATA) {
             return "You generate metadata for reusable code snippets. "
-                + "Return exactly one JSON object with the keys fileName, description, and language. "
+                + "Return exactly one JSON object with the keys fileName, description, language, and textLanguage. "
+                + "language is the snippet's programming language; textLanguage is the ISO 639-1 code of the natural "
+                + "language its comments and printed output are written in, which is independent of the description language. "
                 + "The description must be written in language code " + languageCode + ". "
                 + "Do not use Markdown or add explanations outside the JSON object.";
         }
@@ -260,7 +262,11 @@ public final class AiPromptBuilder {
                     + "Return exactly one JSON object with these keys:\n"
                     + "- fileName: an ASCII file name with a suitable extension for the script language\n"
                     + "- description: one short, precise sentence for the snippet manager\n"
-                    + "- language: the best matching snippet language identifier such as bash, python, perl, ruby, javascript, groovy, powershell, java, sql, json, yaml, xml, markdown, properties, html, dockerfile, or plain\n"
+                    + "- language: the best matching snippet language identifier such as bash, python, perl, ruby, javascript, typescript, groovy, powershell, java, sql, json, yaml, toml, xml, markdown, asciidoctor, properties, html, dockerfile, or plain\n"
+                    + "- textLanguage: the ISO 639-1 code (two letters, e.g. en, de, fr) of the natural language "
+                    + "the script's own comments and printed output are written in — judge it from comment text and "
+                    + "the strings passed to echo, print, printf, Write-Host and similar; use null when the script "
+                    + "contains no human-readable text at all\n"
                     + "Use only letters, digits, dash, underscore, and dot in fileName.\n");
             case CORRECT_SNIPPET_DESCRIPTION -> prompt.append(
                 "Correct spelling and grammar in the snippet description.\n"

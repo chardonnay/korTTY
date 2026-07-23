@@ -78,6 +78,7 @@ class SnippetLanguageSupportTest {
             "pl", "perl",
             "rb", "ruby",
             "js", "javascript", "node", "nodejs",
+            "ts", "typescript",
             "ps", "ps1", "pwsh", "powershell",
             "groovy",
             "java",
@@ -96,6 +97,14 @@ class SnippetLanguageSupportTest {
         for (String alias : representativeAliases) {
             assertThat(SnippetLanguageSupport.telemetryLanguageToken(alias, "")).isNotEqualTo("other");
         }
+    }
+
+    @Test
+    void typeScriptIsARecognizedSnippetLanguage() {
+        assertThat(SnippetLanguageSupport.normalizeSnippetLanguage("ts")).isEqualTo("typescript");
+        assertThat(SnippetLanguageSupport.detectFileLanguage("client.ts", "const x: number = 1;"))
+            .isEqualTo("typescript");
+        assertThat(SnippetLanguageSupport.defaultFileExtension("typescript")).isEqualTo(".ts");
     }
 
     @Test

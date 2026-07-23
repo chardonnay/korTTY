@@ -2074,6 +2074,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#snippet-editor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet editor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integrated-local-ai" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2910,6 +2921,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#snippet-editor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet editor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integrated-local-ai" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3619,6 +3641,14 @@
 <h3 id="power-management">Power management<a class="headerlink" href="#power-management" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Activity-based power management</strong> — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate <code>caffeinate</code> helper so the korTTY process remains eligible for App Nap. On macOS and Windows, <strong>Configuration &gt; Prevent System Sleep</strong> keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.</li>
+</ul>
+<h3 id="snippet-editor">Snippet editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Code language and Text language are now two labelled fields</strong> — the snippet editor's <strong>Language</strong> field was renamed to <strong>Code language</strong>, and the AI text-language picker moved up from below the toolbar to sit directly beneath it as <strong>Text language</strong>. Both describe the snippet itself: one the programming language and syntax highlighting, the other the natural language korTTY writes into the code (comments, user-facing strings, spelling).</li>
+<li><strong>TypeScript is selectable</strong> — TypeScript joins the code-language list, with its own <code>.ts</code> extension, Monaco highlighting and Prettier formatting (the formatter already supported it, but no snippet could be marked as TypeScript).</li>
+<li><strong>Add your own code languages</strong> — a <strong>+</strong> button beside the code-language list takes any language name that is missing and stores it permanently, so it is offered in every future snippet editor. Self-added languages drive the AI prompts and the file extension; highlighting falls back to plain text when korTTY ships no grammar for them.</li>
+<li><strong>AI suggestion fills both language fields</strong> — besides the file name and description, <strong>AI suggestion</strong> now also detects the natural language of the snippet's comments and printed output (<code>echo</code>, <code>print</code>, <code>printf</code>, <code>Write-Host</code>, …) and preselects it as the text language, adding it to the list when korTTY has no interface translation for it. A detected code language missing from the list is likewise added instead of being silently dropped.</li>
+<li><strong>New AI action: Optimize code comments</strong> — available from the <strong>AI Code</strong> menu and from the editor's right-click menu on a selection. The AI inserts explanations of what the selected code does and why, directly above or beside the lines they belong to and in the language's own comment syntax, replaces outdated or misleading comments, and leaves every executable line untouched. Comments are written in the editor's <strong>Text language</strong>, and the result is shown in the usual before/after preview before it replaces the selection.</li>
 </ul>
 <h3 id="integrated-local-ai">Integrated local AI<a class="headerlink" href="#integrated-local-ai" title="Permanent link">&para;</a></h3>
 <ul>

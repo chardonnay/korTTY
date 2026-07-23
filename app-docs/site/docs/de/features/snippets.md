@@ -24,7 +24,8 @@ Der Snippet Manager umfasst die folgenden Funktionen:
 1. Klicken Sie auf **Hinzufügen** (oder **Bearbeiten**, um ein vorhandenes Snippet zu ändern).
 2. Füllen Sie die Felder aus:
    - **Name** – Ein beschreibender Name.
-   - **Sprache** – Wählen Sie die Programmiersprache aus (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML und mehr). Aktiviert die Syntaxhervorhebung.
+   - **Codesprache** – Wählen Sie die Programmiersprache aus (Bash, Python, Java, JavaScript, TypeScript, SQL, XML, JSON, YAML und mehr). Aktiviert die Syntaxhervorhebung. Die Schaltfläche ***** neben der Liste fügt eine Sprache hinzu, die noch nicht angeboten wird: Geben Sie den Namen einmal ein und er wird gespeichert und in jedem zukünftigen Snippet-Editor angeboten. Für die KI-Eingabeaufforderungen und die Dateierweiterung wird eine selbst hinzugefügte Sprache verwendet; Die Syntaxhervorhebung greift auf einfachen Text zurück, es sei denn, korTTY liefert zufällig eine Grammatik dafür.
+   - **Textsprache** – Die natürliche Sprache korTTY schreibt in den Code selbst: neue oder korrigierte Kommentare, benutzerbezogene Zeichenfolgen und Rechtschreibkorrekturen. Es ist unabhängig von der korTTY-Schnittstellensprache. Aktivieren Sie **Als Standard speichern**, um die Auswahl für zukünftige Snippets beizubehalten. andernfalls gilt es nur für diesen Editor.
    - **Kategorie** – Wählen Sie eine vorhandene Kategorie aus oder geben Sie eine neue ein. Die feste, nicht löschbare Kategorie *Script-Header* enthält wiederverwendbare Header-Vorlagen für generierte Workflow-Skripte.
    - **System** – Wählen Sie optional ein Zielbetriebssystem (Beliebig, Linux, macOS, Windows). Automatische Einstellung bei Erstellung über *Workflow-Skript generieren* basierend auf dem geprüften Betriebssystem des Agenten; Sie können es für jedes Snippet manuell überschreiben.
    - **Tags** – Durch Kommas getrennte Schlüsselwörter für die Suche (z. B. `docker, deploy, backup`).
@@ -39,7 +40,7 @@ Die Symbolleiste des Snippet-Editors bietet:
 - **Formatierungscode** – Formatieren Sie den Inhalt mit lokalen Formatierern oder KI-gestützter Formatierung.
 - **Syntax prüfen** – Validieren Sie die Syntax (lokal oder KI-unterstützt).
 - **AI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
-- **AI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
+- **AI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung, Kommentare oder eine benutzerdefinierte Anweisung), überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
 - **Einzeiler** – Als Terminal-Einzeiler exportieren.
 - **Editor-Zoom** – Passen Sie die Textgröße mit ++ctrl+plus++ und ++ctrl+minus++ an.
 - **Editor-Profile** – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.
@@ -91,16 +92,18 @@ Wenn AI konfiguriert ist, bietet der Snippet-Editor zusätzliche Aktionen:
 
 ### AI-Vorschläge
 
-- **AI-Vorschlag** – Erzeugt einen Dateinamen, eine Beschreibung und eine passende Sprache aus dem aktuellen Codeinhalt.
+- **AI-Vorschlag** – Erzeugt einen Dateinamen, eine Beschreibung, **Codesprache** und **Textsprache** aus dem aktuellen Codeinhalt. Eine erkannte Codesprache, die noch nicht in der Liste enthalten ist, wird dieser hinzugefügt, sodass die Erkennung niemals stillschweigend verworfen wird.
 - **Korrekte Schreibweise** – Im Beschreibungsfeld; sendet nur Beschreibungstext an die KI.
 
-### AI Textsprache
+### Textsprache
 
-Wenn AI konfiguriert ist, wählt **AI-Textsprache** unterhalb der Editor-Symbolleiste die natürliche Sprache für die Rechtschreibkorrektur sowie für neue oder neu geschriebene Codekommentare und benutzerbezogene Zeichenfolgen. Es ist sowohl von der korTTY-Schnittstellensprache als auch vom **Sprachselektor** des Snippets unabhängig, der weiterhin die Programmiersprache und die Syntaxhervorhebung definiert. Analyseberichte, Verbesserungsbeschreibungen und Analysediagrammbeschriftungen folgen immer der korTTY-Schnittstellensprache; Wenn Sie auf **Ausgewählte anwenden** klicken, steuert die separate Auswahl Kommentare und benutzerbezogene Zeichenfolgen im generierten Code.
+Wenn KI konfiguriert ist, wählt **Textsprache** – direkt unter **Codesprache** im Editorformular – die natürliche Sprache für die Rechtschreibkorrektur sowie für neue oder umgeschriebene Codekommentare und benutzerseitige Zeichenfolgen. Es ist sowohl von der korTTY-Schnittstellensprache als auch vom **Code-Sprache**-Selektor unabhängig, der weiterhin die Programmiersprache und die Syntaxhervorhebung definiert. Analyseberichte, Verbesserungsbeschreibungen und Analysediagrammbeschriftungen folgen immer der korTTY-Schnittstellensprache; Wenn Sie auf **Ausgewählte anwenden** klicken, steuert die separate Auswahl Kommentare und benutzerbezogene Zeichenfolgen im generierten Code.
+
+Die Liste enthält korTTYs eigene Schnittstellensprachen sowie alle von Ihnen hinzugefügten [AI-generierten Sprachen ](../reference/settings/translation.md). **KI-Vorschlag** kann es auch für Sie ausfüllen: Es liest die Kommentare des Snippets und seine gedruckte Ausgabe (`echo`, `print`, `printf`, `Write-Host` und ähnliches) und wählt die gefundene Sprache vor – einschließlich einer Sprache, für die korTTY keine Schnittstellenübersetzung hat, die dann der Liste hinzugefügt wird. Ein Skript ohne für Menschen lesbaren Text lässt die aktuelle Auswahl unberührt.
 
 Lassen Sie **Als Standard speichern** deaktiviert, um eine vorübergehende Auswahl zu treffen, die nur für das aktuelle Editorfenster gilt. Markieren Sie es, um die ausgewählte Sprache als Standard für neu geöffnete Snippet-Editoren zu speichern; Dadurch wird die bestehende **Standardsprache für AI-Text im Code**-Einstellung unter *Einstellungen → AI* aktualisiert. Andere bereits geöffnete Editorfenster behalten ihre eigene Auswahl.
 
-Die Rechtschreibkorrektur verwendet die ausgewählte Sprache für Grammatik- und Rechtschreibregeln, ohne den Text zu übersetzen. **Auswahl übersetzen…** behält seinen separaten Zielsprachendialog bei und wählt zunächst die aktuelle AI-Textsprache aus. Lokale Formatierer und Syntaxprüfungen sind davon nicht betroffen.
+Die Rechtschreibkorrektur verwendet die ausgewählte Sprache für Grammatik- und Rechtschreibregeln, ohne den Text zu übersetzen. **Auswahl übersetzen…** behält seinen separaten Zielsprachendialog bei und wählt zunächst die aktuelle Textsprache aus. Lokale Formatierer und Syntaxprüfungen sind davon nicht betroffen.
 
 ### AI Textmenü
 
@@ -128,6 +131,7 @@ Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu
 - **AI Complete** / **Auto AI Complete** – Code-Vervollständigung am Cursor (siehe [AI Code-Vervollständigungen](#ai-code-completions) oben).
 - **Vollständige Codeanalyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten.
 - **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungsoptionen](../reference/hardening-options.md) vor der Ausführung.
+- **Codekommentare optimieren** – Kommentiert den **ausgewählten** Codebereich: Die KI fügt mithilfe der spracheigenen Kommentarsyntax direkt über oder neben den Zeilen, zu denen sie gehören, Erklärungen dazu ein, was der Code tut und warum, und ersetzt veraltete oder irreführende Kommentare. Ausführbarer Code bleibt unberührt. Die Kommentare sind in der **Textsprache** des Herausgebers verfasst. Verfügbar im Menü **AI-Code** und im Kontextmenü des Editors auf eine Auswahl.
 - **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung mit denselben [Hardening-Optionen](../reference/hardening-options.md) neu.
 - **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten.
 - **Diagramm** – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.
@@ -145,7 +149,7 @@ Alle Verbesserungsaktionen schreiben nur die ausgewählte Region neu, also **wä
 
 Der Bericht und das Flussdiagramm werden durch **zwei separate KI-Anfragen** generiert: Die Analyseanforderung gibt die Zusammenfassung, Abhängigkeiten und Verbesserungen zurück, und sobald das Fenster geöffnet wird, startet der Diagrammbereich seine eigene dedizierte Diagrammanforderung – dieselbe fokussierte Anforderung, die **Regenerate** verwendet – während ein Spinner angezeigt wird. Wenn das Diagramm aus der Analyseanforderung herausgehalten wird, entstehen deutlich originalgetreuere Flussdiagramme, insbesondere bei lokalen Modellen, und der Bericht ist lesbar, während das Diagramm noch geladen wird. Bei jeder **Wiederholung** werden beide Anforderungen mit dem ausgewählten Profil und den KI-Fähigkeiten wiederholt. Der Mermaid-Vertrag verlangt vom Modell, sinnvolle Entscheidungen, Verzweigungen und Schleifenergebnisse beizubehalten, anstatt bedingten Code in einem generischen Schritt zusammenzufassen. Wenn die Diagrammanforderung fehlschlägt oder keine sichere, verwendbare Mermaid-Quelle zurückgibt, behält korTTY die Analyse bei und zeigt sein deterministisches lokales Fallback-Diagramm an, ohne stillschweigend eine weitere Anfrage zu senden. Der Fallback erkennt auch eingerückte bedingte Blöcke in gängigen Skriptsprachen.
 
-Die Zusammenfassung, Abhängigkeiten, Verbesserungsbeschreibungen und Diagrammbeschriftungen verwenden die aktuelle korTTY-Schnittstellensprache. Die separate **KI-Textsprache** wird erst relevant, nachdem Sie auf **Ausgewählte anwenden** geklickt haben: Sie steuert die natürliche Sprache neu generierter oder umgeschriebener Kommentare und benutzerbezogener Zeichenfolgen im resultierenden Code.
+Die Zusammenfassung, Abhängigkeiten, Verbesserungsbeschreibungen und Diagrammbeschriftungen verwenden die aktuelle korTTY-Schnittstellensprache. Die separate **Textsprache** wird erst relevant, nachdem Sie auf **Ausgewählte anwenden** geklickt haben: Sie steuert die natürliche Sprache neu generierter oder umgeschriebener Kommentare und benutzerbezogener Zeichenfolgen im resultierenden Code.
 
 Am oberen Rand des Fensters verläuft eine Symbolleiste, der Bericht und das Flussdiagramm füllen die beiden Bereiche darunter aus, und in der Fußzeile befindet sich eine Skript-Kopfzeilenauswahl sowie ein ausklappbares Härtungsfeld. Die Größe des Fensters ist frei veränderbar und korTTY merkt sich seine Position und Größe über Sitzungen hinweg – auch wenn **Erneut ausführen** das Fenster durch eine neue Analyse ersetzt.
 

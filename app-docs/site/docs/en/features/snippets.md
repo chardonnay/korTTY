@@ -24,7 +24,8 @@ The Snippet Manager includes the following features:
 1. Click **Add** (or **Edit** to modify an existing snippet).
 2. Fill in the fields:
    - **Name** — A descriptive name.
-   - **Language** — Select the programming language (Bash, Python, Java, JavaScript, SQL, XML, JSON, YAML, and more). Enables syntax highlighting.
+   - **Code language** — Select the programming language (Bash, Python, Java, JavaScript, TypeScript, SQL, XML, JSON, YAML, and more). Enables syntax highlighting. The **+** button next to the list adds a language that is not offered yet: type its name once and it is stored and offered in every future snippet editor. A self-added language is used for the AI prompts and the file extension; syntax highlighting falls back to plain text unless korTTY happens to ship a grammar for it.
+   - **Text language** — The natural language korTTY writes into the code itself: new or corrected comments, user-facing strings, and spelling corrections. It is independent of the korTTY interface language. Tick **Remember as default** to keep the choice for future snippets; otherwise it applies to this editor only.
    - **Category** — Select an existing category or type a new one. The fixed non-deletable *Script-Header* category contains reusable header templates for generated workflow scripts.
    - **System** — Optionally select a target operating system (Any, Linux, macOS, Windows). Auto-set when created via *Generate Workflow Script* based on the agent's probed OS; you can manually override it for any snippet.
    - **Tags** — Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
@@ -39,7 +40,7 @@ The snippet editor toolbar provides:
 - **Format Code** — Format the content using local formatters or AI-assisted formatting.
 - **Check Syntax** — Validate the syntax (local or AI-assisted).
 - **AI Text** — Correct spelling, translate, or generate technical descriptions.
-- **AI Code** — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, or a custom instruction), check security, or generate diagrams.
+- **AI Code** — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, comments, or a custom instruction), check security, or generate diagrams.
 - **One-liner** — Export as a terminal one-liner.
 - **Editor zoom** — Adjust text size with ++ctrl+plus++ and ++ctrl+minus++.
 - **Editor profiles** — Switch between built-in IntelliJ-inspired profiles and custom color schemes.
@@ -91,16 +92,18 @@ If AI is configured, the snippet editor offers additional actions:
 
 ### AI suggestions
 
-- **AI suggestion** — Generates a file name, description, and matching language from the current code content.
+- **AI suggestion** — Generates a file name, description, **Code language** and **Text language** from the current code content. A detected code language that is not in the list yet is added to it, so the detection is never silently dropped.
 - **Correct spelling** — On the description field; sends only description text to the AI.
 
-### AI text language
+### Text language
 
-When AI is configured, **AI text language** below the editor toolbar chooses the natural language for spelling correction and for new or rewritten code comments and user-facing strings. It is independent of both the korTTY interface language and the snippet's **Language** selector, which continues to define the programming language and syntax highlighting. Analysis reports, improvement descriptions and analysis-diagram labels always follow the korTTY interface language; when you click **Apply selected**, the separate choice controls comments and user-facing strings in the generated code.
+When AI is configured, **Text language** — directly below **Code language** in the editor form — chooses the natural language for spelling correction and for new or rewritten code comments and user-facing strings. It is independent of both the korTTY interface language and the **Code language** selector, which continues to define the programming language and syntax highlighting. Analysis reports, improvement descriptions and analysis-diagram labels always follow the korTTY interface language; when you click **Apply selected**, the separate choice controls comments and user-facing strings in the generated code.
+
+The list offers korTTY's own interface languages plus any [AI-generated language](../reference/settings/translation.md) you have added. **AI suggestion** can also fill it for you: it reads the snippet's comments and its printed output (`echo`, `print`, `printf`, `Write-Host` and similar) and preselects the language it finds — including a language korTTY has no interface translation for, which is then added to the list. A script without any human-readable text leaves the current choice untouched.
 
 Leave **Remember as default** unticked for a temporary choice that applies only to the current editor window. Tick it to save the selected language as the default for newly opened snippet editors; this updates the existing **Default language for AI text in code** setting under *Settings → AI*. Other editor windows that are already open keep their own selection.
 
-Spelling correction uses the selected language for grammar and spelling rules without translating the text. **Translate selection…** keeps its separate target-language dialog and initially selects the current AI text language. Local formatters and syntax checks are unaffected.
+Spelling correction uses the selected language for grammar and spelling rules without translating the text. **Translate selection…** keeps its separate target-language dialog and initially selects the current text language. Local formatters and syntax checks are unaffected.
 
 ### AI Text menu
 
@@ -128,6 +131,7 @@ The **AI Code** menu groups the actions that read or rewrite the code itself:
 - **AI Complete** / **Auto AI Complete** — Code completion at the cursor (see [AI Code completions](#ai-code-completions) above).
 - **Full code analysis** — Opens a rich analysis window: a plain-language summary of what the script does, its external dependencies, categorized improvement suggestions you can tick and apply, and an auto-generated flow diagram. See [Full code analysis](#full-code-analysis) below.
 - **Improve readability / robustness / performance** — Rewrites the **selected** code region toward one goal without unrelated changes. *Improve robustness* additionally offers [Hardening options](../reference/hardening-options.md) before it runs.
+- **Optimize code comments** — Comments the **selected** code region: the AI inserts explanations of what the code does and why directly above or beside the lines they belong to, using the language's own comment syntax, and replaces outdated or misleading comments. Executable code stays untouched. The comments are written in the editor's **Text language**. Available from the **AI Code** menu and from the editor's right-click menu on a selection.
 - **Custom improvement…** — Rewrites the selected code region following a free-text instruction you type, with the same [Hardening options](../reference/hardening-options.md).
 - **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See [Security Check](#security-check) below.
 - **Diagram** — Generates and saves a persisted Mermaid logical-structure flowchart for the snippet.
@@ -145,7 +149,7 @@ All improvement actions rewrite the selected region only, so **select a code reg
 
 The report and the flow diagram are generated by **two separate AI requests**: the analysis request returns the summary, dependencies and improvements, and as soon as the window opens the diagram pane starts its own dedicated diagram request — the same focused request **Regenerate** uses — while a spinner is shown. Keeping the diagram out of the analysis request produces markedly more faithful flowcharts, especially with local models, and the report is readable while the diagram is still loading. Each **Re-run** repeats both requests with the selected profile and AI Skills. The Mermaid contract asks the model to retain meaningful decisions, branches and loop outcomes instead of collapsing conditional code into one generic step. If the diagram request fails or returns no safe, usable Mermaid source, korTTY keeps the analysis and shows its deterministic local fallback diagram without silently sending another request; the fallback also recognizes indented conditional blocks in common scripting languages.
 
-The summary, dependencies, improvement descriptions and diagram labels use the current korTTY interface language. The separate **AI text language** becomes relevant only after you click **Apply selected**: it controls the natural language of newly generated or rewritten comments and user-facing strings in the resulting code.
+The summary, dependencies, improvement descriptions and diagram labels use the current korTTY interface language. The separate **Text language** becomes relevant only after you click **Apply selected**: it controls the natural language of newly generated or rewritten comments and user-facing strings in the resulting code.
 
 A toolbar runs along the top of the window, the report and flow diagram fill the two panes below it, and a script-header selector plus a collapsible hardening panel sit in the footer. The window is freely resizable, and korTTY remembers its position and size across sessions — including when **Re-run** replaces the window with a fresh analysis.
 
