@@ -815,7 +815,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
         if (globalSettings != null && globalSettings.getAiSkills() != null) {
             for (AiSkill skill : globalSettings.getAiSkills()) {
-                if (skill != null && skill.getId() != null) {
+                // Hidden built-ins never appear in assignment UIs; assigned-but-hidden ids
+                // survive via unavailableAssignedAiSkillIds below.
+                if (skill != null && skill.getId() != null && !skill.isHidden()) {
                     connectionSkills.add(skill);
                 }
             }

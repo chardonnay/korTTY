@@ -1948,6 +1948,17 @@ public class GlobalSettings {
             AiSkillTarget target = skill.getTarget();
             skill.setTarget(target != null ? target : AiSkillTarget.BOTH);
             skill.setTags(skill.getTags());
+            skill.setBuiltinId(skill.getBuiltinId());
+            if (!skill.isBuiltin()) {
+                // User skills can never be hidden or carry delivery metadata; repairs hand-edited XML.
+                skill.setHidden(false);
+                skill.setBuiltinBaseline(null);
+                skill.setBuiltinTopics(java.util.List.of());
+            } else if (skill.getBuiltinBaseline() != null) {
+                AiSkillBuiltinBaseline baseline = skill.getBuiltinBaseline();
+                baseline.setTarget(baseline.getTarget());
+                baseline.setVersion(baseline.getVersion());
+            }
             normalized.add(skill);
         }
         aiSkills = normalized;

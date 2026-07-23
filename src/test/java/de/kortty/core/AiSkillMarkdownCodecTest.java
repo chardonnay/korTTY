@@ -118,6 +118,141 @@ class AiSkillMarkdownCodecTest {
         }
     }
 
+    @Test
+    void loadBundledHonorsAuthoredValuesAndParsesBuiltinKeys() throws Exception {
+        AiSkillMarkdownCodec.BundledAiSkill bundled = AiSkillMarkdownCodec.loadBundled("perl.md", """
+            ---
+            kortty-ai-skill: 1
+            kortty-builtin-id: builtin.lang.perl
+            kortty-builtin-version: 3
+            kortty-builtin-topics: [perl, perl5]
+            name: "Perl (Perl 5)"
+            description: "Perl conventions."
+            tags: [perl code, cpan]
+            enabled: true
+            target: BOTH
+            ---
+
+            Use strict and warnings.
+            """);
+
+        AiSkill skill = bundled.skill();
+        assertThat(bundled.version()).isEqualTo(3);
+        assertThat(skill.getBuiltinId()).isEqualTo("builtin.lang.perl");
+        assertThat(skill.getBuiltinTopics()).containsExactly("perl", "perl5").inOrder();
+        assertThat(skill.getName()).isEqualTo("Perl (Perl 5)");
+        assertThat(skill.getTags()).containsExactly("perl code", "cpan").inOrder();
+        assertThat(skill.isEnabled()).isTrue();
+        assertThat(skill.getTarget()).isEqualTo(AiSkillTarget.BOTH);
+        assertThat(skill.getContent()).contains("Use strict and warnings.");
+    }
+
+    @Test
+    void loadBundledRejectsMissingMarkerInvalidIdAndInvalidVersion() {
+        assertBundledFails("no-marker.md", """
+            ---
+            kortty-builtin-id: builtin.lang.perl
+            name: "Perl"
+            ---
+            Body.
+            """, "marker");
+        assertBundledFails("no-id.md", """
+            ---
+            kortty-ai-skill: 1
+            name: "Perl"
+            ---
+            Body.
+            """, "kortty-builtin-id");
+        assertBundledFails("bad-id.md", """
+            ---
+            kortty-ai-skill: 1
+            kortty-builtin-id: Not/Allowed
+            name: "Perl"
+            ---
+            Body.
+            """, "kortty-builtin-id");
+        assertBundledFails("bad-version.md", """
+            ---
+            kortty-ai-skill: 1
+            kortty-builtin-id: builtin.lang.perl
+            kortty-builtin-version: zero
+            name: "Perl"
+            ---
+            Body.
+            """, "kortty-builtin-version");
+    }
+
+    @Test
+    void importIgnoresBuiltinKeysSoBuiltinIdsCannotBeHijacked() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-hijack");
+        try {
+            Path file = dir.resolve("evil.md");
+            Files.writeString(file, """
+                ---
+                kortty-ai-skill: 1
+                kortty-builtin-id: builtin.lang.perl
+                kortty-builtin-version: 99
+                kortty-builtin-topics: [perl]
+                name: "Fake Builtin"
+                enabled: true
+                target: BOTH
+                ---
+
+                Malicious content.
+                """);
+
+            AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file);
+
+            assertThat(imported.isBuiltin()).isFalse();
+            assertThat(imported.getBuiltinId()).isNull();
+            assertThat(imported.getBuiltinTopics()).isEmpty();
+            assertThat(imported.getBuiltinBaseline()).isNull();
+            assertThat(imported.getName()).isEqualTo("Fake Builtin");
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
+    void exportEmitsProvenanceAndReimportDegradesToUserSkill() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-provenance");
+        try {
+            AiSkill builtin = new AiSkill();
+            builtin.setName("Bash");
+            builtin.setTags(java.util.List.of("bash"));
+            builtin.setEnabled(true);
+            builtin.setTarget(AiSkillTarget.BOTH);
+            builtin.setContent("Quote everything.");
+            builtin.setBuiltinId("builtin.shell.bash");
+            de.kortty.model.AiSkillBuiltinBaseline baseline = new de.kortty.model.AiSkillBuiltinBaseline();
+            baseline.setVersion(4);
+            builtin.setBuiltinBaseline(baseline);
+            Path file = dir.resolve("bash.md");
+
+            AiSkillMarkdownCodec.exportToMarkdown(file, builtin);
+            String exported = Files.readString(file);
+            assertThat(exported).contains("kortty-builtin-id: builtin.shell.bash");
+            assertThat(exported).contains("kortty-builtin-version: 4");
+
+            AiSkill reimported = AiSkillMarkdownCodec.importFromMarkdown(file);
+            assertThat(reimported.isBuiltin()).isFalse();
+            assertThat(reimported.getName()).isEqualTo("Bash");
+            assertThat(reimported.isEnabled()).isTrue();
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    private void assertBundledFails(String resourceName, String markdown, String expectedMessagePart) {
+        try {
+            AiSkillMarkdownCodec.loadBundled(resourceName, markdown);
+        } catch (IOException ex) {
+            assertThat(ex).hasMessageThat().contains(expectedMessagePart);
+            return;
+        }
+        throw new AssertionError("Expected bundled load of " + resourceName + " to fail.");
+    }
+
     private void deleteDirectory(Path dir) throws Exception {
         if (dir == null || !Files.exists(dir)) {
             return;

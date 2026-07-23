@@ -39,6 +39,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+d++ | Dashboard umschalten |
 | ++ctrl+shift+t++ | Befehlszeitstempel umschalten |
 | ++ctrl+shift+l++ | Menüleiste ein-/ausblenden |
+| ++ctrl+shift+k++ | Docken Sie den Dateibrowser links an |
 | ++ctrl+shift+r++ | Docken Sie den Dateibrowser rechts an |
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Herauszoomen |
@@ -49,10 +50,6 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++f12++ | Vollbild umschalten |
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 
-!!! warning "Zwei Elemente teilen sich ++ctrl+shift+b++"
-    **Backup erstellen** und **Auf der linken Seite anzeigen** des Dateibrowsers deklarieren es beide, also nur einer von ihnen
-    reagiert auf die Taste. Docken Sie stattdessen den Dateibrowser links über **Ansicht → Dateibrowser** an.
-
 ## Terminal-KI-Agent
 
 | Verknüpfung | Aktion |
@@ -61,8 +58,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | `agent ` + ++tab++ (an der Shell-Eingabeaufforderung) | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen (neueste zuerst) |
 | ++esc++ oder ++ctrl+c++ (während eines Laufs) | Brechen Sie die Registerkarte der ausgewählten Agentenausführung ab |
 | ++ctrl+r++ (während eines Laufs) | Schalten Sie die Denkdetails für den ausgewählten Lauf um |
-| ⏸ (Aktivitätsbereich) | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
-| ▶️ (Aktivitätsbereich) | Einen angehaltenen Lauf fortsetzen |
+| ⏸ (Aktivitätsfeld) | Unterbrechen Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
+| ▶️ (Aktivitätsfeld) | Einen angehaltenen Lauf fortsetzen |
 
 !!! note
     Die vollständige, immer aktuelle Shortcut-Liste wird aus den Beschleunigerdefinitionen der Anwendung generiert. Wenn eine Verknüpfung hier von der in der App angezeigten abweicht, ist die App maßgeblich.

@@ -1071,7 +1071,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
             if (settings != null && settings.getAiSkills() != null) {
                 for (de.kortty.model.AiSkill skill : settings.getAiSkills()) {
-                    if (skill != null && skill.getId() != null) {
+                    if (skill != null && skill.getId() != null && !skill.isHidden()) {
                         connectionSkills.add(skill);
                     }
                 }

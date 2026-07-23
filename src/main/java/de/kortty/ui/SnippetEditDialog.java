@@ -2843,7 +2843,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         List<de.kortty.model.AiSkill> result = new ArrayList<>();
         for (de.kortty.model.AiSkill skill : settings.getAiSkills()) {
-            if (skill != null && skill.isEnabled() && skill.getId() != null
+            if (skill != null && skill.isEnabled() && !skill.isHidden() && skill.getId() != null
                 && skill.getContent() != null && !skill.getContent().isBlank()) {
                 result.add(skill);
             }

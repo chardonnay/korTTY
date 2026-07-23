@@ -980,3 +980,13 @@
     -fx-border-radius: 0 0 4 4;
     -fx-padding: 8;
 }
+
+/* Muted AI-skill list entries (deactivated / overridden / hidden built-ins).
+   Opacity-only so every design overlay (dracula, nord, matrix-terminal, ...)
+   keeps its own .list-cell colors - no color literals, no per-theme rules. */
+.list-cell.ai-skill-muted {
+    -fx-opacity: 0.5;
+}
+.list-cell.ai-skill-muted:selected {
+    -fx-opacity: 0.75;
+}

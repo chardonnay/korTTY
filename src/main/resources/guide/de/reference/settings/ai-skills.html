@@ -1221,6 +1221,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eingebaute-fahigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Fähigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#notizen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2230,6 +2241,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#eingebaute-fahigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eingebaute Fähigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#notizen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2289,6 +2311,13 @@
 <td>—</td>
 <td>Auf</td>
 <td><code>aiSkillAutoDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Versteckte integrierte Fähigkeiten anzeigen</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Aus</td>
+<td>– (Filter anzeigen)</td>
 </tr>
 <tr>
 <td>Sortieren</td>
@@ -2363,6 +2392,20 @@
 </tr>
 </tbody>
 </table>
+<h2 id="eingebaute-fahigkeiten">Eingebaute Fähigkeiten<a class="headerlink" href="#eingebaute-fahigkeiten" title="Permanent link">&para;</a></h2>
+<p>korTTY bietet 35 integrierte Best-Practice-Kenntnisse für Shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), Programmiersprachen (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart) und Automatisierungs-/Beobachtbarkeitstools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative und Scripted Pipelines, Filebeat, Logstash). Jeder Skill bietet professionelle Anleitungen zu Codekommentaren, Robustheit, häufig zu vermeidenden Fallstricken und sprachspezifischen Sicherheitspraktiken. Sie werden beim ersten Start zur Bibliothek hinzugefügt und erscheinen mit einem <strong>integrierten</strong> Abzeichen.</p>
+<p>Integrierte Fertigkeiten verhalten sich wie Ihre eigenen Fertigkeiten – sie können bearbeitet, deaktiviert und Verbindungen zugewiesen werden – mit folgenden Unterschieden:</p>
+<ul>
+<li><strong>Sie können nicht gelöscht, sondern nur ausgeblendet werden.</strong> <em>Ausblenden</em> entfernt eine integrierte Funktion aus der Liste und aus allen Fertigkeitsauswahlen; <em>Versteckte integrierte Fähigkeiten anzeigen</em> zeigt versteckte Einträge an, sodass sie mit <em>Einblenden</em> wiederhergestellt werden können.</li>
+<li><strong>Unveränderte integrierte Funktionen werden automatisch aktualisiert.</strong> Wenn eine neue korTTY-Version verbesserte Skill-Inhalte bereitstellt, werden unveränderte integrierte Funktionen beim Start automatisch ersetzt (Ihre Auswahl zwischen Aktiv/Ausgeblendet bleibt erhalten).</li>
+<li><strong>Geänderte integrierte Funktionen werden nie berührt.</strong> Sobald Sie eine integrierte Funktion bearbeiten, wird für sie das Abzeichen „Integriert (geändert)“ angezeigt und die automatische Aktualisierung wird gestoppt. <em>Auf die ausgelieferte Version zurücksetzen</em> verwirft Ihre Änderungen und stellt die ausgelieferte Version wieder her, auf der Ihre Änderungen basierten. Wenn eine neuere ausgelieferte Version vorhanden ist, wird im Eintrag 🔄 <strong>Update verfügbar</strong> angezeigt und <em>Update auf neueste ausgelieferte Version</em> übernimmt diese.</li>
+<li><strong>Ihre eigenen Fertigkeiten haben immer Vorrang.</strong> Wenn einer Ihrer aktivierten Fertigkeiten ein Tag trägt, das mit dem Thema einer integrierten Fertigkeit übereinstimmt (z. B. eine persönliche Fertigkeit mit der Bezeichnung <code>perl</code>), wird die integrierte Fertigkeit unterdrückt: Sie zeigt <strong>Von Benutzerfertigkeit überschrieben</strong> an, ist ausgegraut und wird nicht mehr mit einer AI-Anfrage gesendet. Durch das Löschen oder Deaktivieren Ihres Skills wird die integrierte Funktion sofort wieder aktiviert.</li>
+<li>Deaktivierte, ausgeblendete und überschriebene Einträge werden ausgegraut dargestellt; Dies funktioniert in jedem Anwendungsdesign-Thema.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Durch das Ausschalten der automatischen Erkennung werden integrierte Funktionen deaktiviert</p>
+<p>Ohne automatische Erkennung wird jeder aktivierte Skill mit jeder KI-Anfrage gesendet, was bei 35 integrierten Skills die Eingabeaufforderungen massiv übersteigen würde. Wenn Sie <strong>Automatisch nur passende Fertigkeiten senden</strong> ausschalten, werden Sie daher nach einer Bestätigung gefragt und anschließend alle integrierten Fertigkeiten deaktiviert. Aktivieren Sie diejenigen, die Sie benötigen, einzeln wieder. In späteren Versionen bereitgestellte integrierte Funktionen sind ebenfalls deaktiviert, wenn die automatische Erkennung deaktiviert ist.</p>
+</div>
 <h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Automatisches Erkennungsverhalten</p>
@@ -2379,7 +2422,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill-Lebenszyklus</p>
-<p>Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden. <strong>Speichern</strong> speichert die Bibliothek sofort und bestätigt neben der Schaltfläche; Ausstehende Änderungen werden auch geschrieben, wenn das AI Manager-Fenster geschlossen wird.</p>
+<p>Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. <strong>Löschen</strong> gilt nur für Ihre eigenen Fähigkeiten; Stattdessen werden integrierte Fähigkeiten ausgeblendet (siehe oben). Zurücksetzen, Aktualisieren, Ausblenden und Einblenden sind über das Kontextmenü der Liste und über das Banner über dem Editor verfügbar, wenn eine integrierte Fertigkeit ausgewählt wird. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden. <strong>Speichern</strong> speichert die Bibliothek sofort und bestätigt neben der Schaltfläche; Ausstehende Änderungen werden auch geschrieben, wenn das AI Manager-Fenster geschlossen wird. Durch das Importieren einer Markdown-Datei wird immer ein unabhängiger Benutzer-Skill erstellt – sogar eine Datei, die aus einem integrierten Skill exportiert wurde.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Auswahl der Fähigkeiten pro Anfrage</p>

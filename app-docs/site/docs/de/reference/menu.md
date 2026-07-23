@@ -96,7 +96,8 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
 | Befehlszeitstempel anzeigen | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
 | Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |
-| Dateibrowser ▸ Links anzeigen / Rechts anzeigen | ++ctrl+shift+r++ (Rechts) | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) auf dieser Seite; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet. Der linke Eintrag deklariert ++ctrl+shift+b++, was „Create Backup“ bereits beansprucht, also verwenden Sie das Menü dafür. |
+| Dateibrowser ▸ Links anzeigen | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
+| Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |

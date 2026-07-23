@@ -295,7 +295,16 @@ public class KorTTYApplication extends Application {
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
                 applyLoggingSettings();
                 applyPersistedPowerManagementSetting(loadedSettings);
-                
+
+                // Sync the bundled AI skill catalog into the settings (add new, auto-update
+                // unmodified built-ins). Must never prevent startup.
+                try {
+                    de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
+                } catch (Exception e) {
+                    logger.warn("Failed to provision built-in AI skills", e);
+                }
+
+
                 // Sync ConfigurationManager with persisted terminal settings
                 // so that all components reading from configManager see the saved values
                 ConnectionSettings savedTermSettings = loadedSettings.getDefaultTerminalSettings();

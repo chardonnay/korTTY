@@ -20,8 +20,62 @@ public final class AiSkillMarkdownCodec {
 
     private static final String MARKER_KEY = "kortty-ai-skill";
     private static final String FORMAT_VERSION = "1";
+    private static final String BUILTIN_ID_KEY = "kortty-builtin-id";
+    private static final String BUILTIN_VERSION_KEY = "kortty-builtin-version";
+    private static final String BUILTIN_TOPICS_KEY = "kortty-builtin-topics";
+    private static final java.util.regex.Pattern BUILTIN_ID_PATTERN =
+        java.util.regex.Pattern.compile("[a-z0-9][a-z0-9._-]{0,63}");
+
+    /** A skill parsed from a bundled resource, together with its shipped delivery version. */
+    public record BundledAiSkill(AiSkill skill, int version) {
+    }
 
     private AiSkillMarkdownCodec() {
+    }
+
+    /**
+     * Trusted load path for skills bundled with the application. Unlike
+     * {@link #importFromMarkdown(Path)} the authored {@code enabled}/{@code target} values are
+     * honored and the {@code kortty-builtin-*} keys are required. User imports never reach this
+     * method, so a builtin id cannot be hijacked via the import dialog.
+     */
+    public static BundledAiSkill loadBundled(String resourceName, String markdown) throws IOException {
+        ParsedMarkdown parsed = parse(markdown);
+        Map<String, String> frontMatter = parsed.frontMatter();
+        if (!FORMAT_VERSION.equals(frontMatter.get(MARKER_KEY))) {
+            throw new IOException("Bundled AI skill " + resourceName + " is missing the "
+                + MARKER_KEY + ": " + FORMAT_VERSION + " marker.");
+        }
+        String builtinId = nonBlank(frontMatter.get(BUILTIN_ID_KEY), "");
+        if (!BUILTIN_ID_PATTERN.matcher(builtinId).matches()) {
+            throw new IOException("Bundled AI skill " + resourceName + " has an invalid "
+                + BUILTIN_ID_KEY + ": " + builtinId);
+        }
+        int version = parseBuiltinVersion(resourceName, frontMatter.get(BUILTIN_VERSION_KEY));
+        AiSkill skill = new AiSkill();
+        skill.setName(nonBlank(frontMatter.get("name"), builtinId));
+        skill.setDescription(frontMatter.get("description"));
+        skill.setTags(parseTags(frontMatter.get("tags")));
+        skill.setEnabled(parseEnabled(frontMatter.get("enabled")));
+        skill.setTarget(parseTarget(frontMatter.get("target")));
+        skill.setContent(parsed.body());
+        skill.setBuiltinId(builtinId);
+        skill.setBuiltinTopics(parseTags(frontMatter.get(BUILTIN_TOPICS_KEY)));
+        return new BundledAiSkill(skill, version);
+    }
+
+    private static int parseBuiltinVersion(String resourceName, String rawVersion) throws IOException {
+        String value = nonBlank(rawVersion, "1");
+        try {
+            int version = Integer.parseInt(value);
+            if (version < 1) {
+                throw new NumberFormatException("must be >= 1");
+            }
+            return version;
+        } catch (NumberFormatException e) {
+            throw new IOException("Bundled AI skill " + resourceName + " has an invalid "
+                + BUILTIN_VERSION_KEY + ": " + rawVersion, e);
+        }
     }
 
     public static AiSkill importFromMarkdown(Path file) throws IOException {
@@ -68,6 +122,15 @@ public final class AiSkillMarkdownCodec {
         StringBuilder markdown = new StringBuilder();
         markdown.append("---\n");
         markdown.append(MARKER_KEY).append(": ").append(FORMAT_VERSION).append("\n");
+        if (skill.isBuiltin()) {
+            // Informational provenance only: importFromMarkdown ignores these keys, so a
+            // re-imported built-in cleanly degrades to an independent user skill.
+            markdown.append(BUILTIN_ID_KEY).append(": ").append(skill.getBuiltinId()).append("\n");
+            if (skill.getBuiltinBaseline() != null) {
+                markdown.append(BUILTIN_VERSION_KEY).append(": ")
+                    .append(skill.getBuiltinBaseline().getVersion()).append("\n");
+            }
+        }
         markdown.append("name: ").append(quoteFrontMatter(nonBlank(skill.getName(), "AI Skill"))).append("\n");
         appendOptionalFrontMatter(markdown, "description", skill.getDescription());
         if (!skill.getTags().isEmpty()) {

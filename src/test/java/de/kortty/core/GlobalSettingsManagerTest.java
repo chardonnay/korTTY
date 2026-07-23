@@ -614,6 +614,95 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesBuiltinAiSkillFields() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-builtin-skill");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiSkill builtin = new AiSkill();
+            builtin.setId("builtin-skill-id");
+            builtin.setName("Bash");
+            builtin.setDescription("Bash conventions.");
+            builtin.setTags(List.of("bash", "shellcheck"));
+            builtin.setContent("Quote every expansion.");
+            builtin.setBuiltinId("builtin.shell.bash");
+            builtin.setHidden(true);
+            builtin.setBuiltinTopics(List.of("bash"));
+            de.kortty.model.AiSkillBuiltinBaseline baseline = new de.kortty.model.AiSkillBuiltinBaseline();
+            baseline.setName("Bash");
+            baseline.setDescription("Bash conventions.");
+            baseline.setTags(List.of("bash", "shellcheck"));
+            baseline.setTarget(AiSkillTarget.BOTH);
+            baseline.setContent("Quote every expansion.");
+            baseline.setVersion(2);
+            builtin.setBuiltinBaseline(baseline);
+            manager.getSettings().setAiSkills(List.of(builtin));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAiSkills()).hasSize(1);
+            AiSkill reloadedSkill = reloaded.getSettings().getAiSkills().get(0);
+            assertThat(reloadedSkill.getId()).isEqualTo("builtin-skill-id");
+            assertThat(reloadedSkill.getBuiltinId()).isEqualTo("builtin.shell.bash");
+            assertThat(reloadedSkill.isHidden()).isTrue();
+            assertThat(reloadedSkill.getBuiltinTopics()).containsExactly("bash");
+            de.kortty.model.AiSkillBuiltinBaseline reloadedBaseline = reloadedSkill.getBuiltinBaseline();
+            assertThat(reloadedBaseline).isNotNull();
+            assertThat(reloadedBaseline.getName()).isEqualTo("Bash");
+            assertThat(reloadedBaseline.getTags()).containsExactly("bash", "shellcheck").inOrder();
+            assertThat(reloadedBaseline.getTarget()).isEqualTo(AiSkillTarget.BOTH);
+            assertThat(reloadedBaseline.getContent()).isEqualTo("Quote every expansion.");
+            assertThat(reloadedBaseline.getVersion()).isEqualTo(2);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void normalizeStripsBuiltinMetadataFromUserSkills() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-user-skill-repair");
+        try {
+            // Hand-edited XML: a skill without builtinId must never be hidden or carry a baseline.
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <aiSkills>
+                        <skill>
+                            <id>user-skill</id>
+                            <name>My Skill</name>
+                            <enabled>true</enabled>
+                            <content>Do things.</content>
+                            <hidden>true</hidden>
+                            <builtinBaseline>
+                                <name>Ghost</name>
+                                <version>4</version>
+                            </builtinBaseline>
+                            <builtinTopics>
+                                <topic>ghost</topic>
+                            </builtinTopics>
+                        </skill>
+                    </aiSkills>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getAiSkills()).hasSize(1);
+            AiSkill skill = reloaded.getSettings().getAiSkills().get(0);
+            assertThat(skill.isBuiltin()).isFalse();
+            assertThat(skill.isHidden()).isFalse();
+            assertThat(skill.getBuiltinBaseline()).isNull();
+            assertThat(skill.getBuiltinTopics()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void loadMigratesLegacyAiConfigurationIntoAiProfiles() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-legacy");
         try {
