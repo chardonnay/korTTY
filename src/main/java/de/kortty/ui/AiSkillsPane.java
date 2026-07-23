@@ -61,6 +61,8 @@ final class AiSkillsPane extends VBox {
     private final CheckBox aiSkillsEnabledCheck;
     private final CheckBox aiSkillAutoDetectionCheck;
     private final CheckBox showHiddenCheck;
+    private final TextField aiSkillSearchField;
+    private final Label aiSkillCountLabel;
     private final ListView<AiSkill> aiSkillListView;
     private final Button deleteAiSkillButton;
     private final TextField aiSkillNameField;
@@ -106,6 +108,13 @@ final class AiSkillsPane extends VBox {
 
         showHiddenCheck = new CheckBox(I18n.get("settings.aiSkills.showHidden"));
         showHiddenCheck.selectedProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
+
+        aiSkillSearchField = new TextField();
+        aiSkillSearchField.setPromptText(I18n.get("settings.aiSkills.search"));
+        aiSkillSearchField.textProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
+
+        aiSkillCountLabel = new Label();
+        aiSkillCountLabel.setStyle("-fx-font-size: 11px;");
 
         aiSkillListView = new ListView<>();
         aiSkillListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -158,7 +167,9 @@ final class AiSkillsPane extends VBox {
         HBox aiSkillSortButtons = new HBox(8, sortAiSkillButton, showHiddenCheck);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         HBox aiSkillButtons = new HBox(8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton, exportAiSkillButton);
-        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons, aiSkillListView, aiSkillButtons);
+        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons,
+            aiSkillSearchField, aiSkillListView, aiSkillCountLabel, aiSkillButtons);
+        updateAiSkillCounts();
 
         aiSkillNameField = new TextField();
         aiSkillNameField.setPrefWidth(360);
@@ -192,6 +203,7 @@ final class AiSkillsPane extends VBox {
             if (!loadingAiSkillEditor && selectedAiSkill != null) {
                 selectedAiSkill.setEnabled(newValue);
                 aiSkillListView.refresh();
+                updateAiSkillCounts();
             }
         });
 
@@ -372,6 +384,8 @@ final class AiSkillsPane extends VBox {
 
     private void addAiSkill() {
         snapshotSelectedAiSkillEditorState();
+        // Clear the search so the new skill is guaranteed visible and immediately editable.
+        aiSkillSearchField.clear();
         AiSkill skill = new AiSkill();
         skill.setName(createDefaultAiSkillName());
         skill.setEnabled(true);
@@ -382,6 +396,7 @@ final class AiSkillsPane extends VBox {
         aiSkillListView.getSelectionModel().clearSelection();
         aiSkillListView.getSelectionModel().select(skill);
         aiSkillListView.refresh();
+        updateAiSkillCounts();
     }
 
     private String createDefaultAiSkillName() {
@@ -430,18 +445,59 @@ final class AiSkillsPane extends VBox {
             aiSkillListView.getSelectionModel().selectFirst();
         }
         aiSkillListView.refresh();
+        updateAiSkillCounts();
     }
 
-    /** Skills shown in the list: hidden built-ins only appear while the filter checkbox is on. */
+    /**
+     * Skills shown in the list: hidden built-ins only appear while the filter checkbox is on, and
+     * everything is narrowed by the search query (matched against name, description and tags).
+     */
     private List<AiSkill> visibleAiSkills() {
         List<AiSkill> visible = new ArrayList<>();
         boolean includeHidden = showHiddenCheck != null && showHiddenCheck.isSelected();
+        String query = aiSkillSearchField != null ? aiSkillSearchField.getText() : null;
+        query = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         for (AiSkill skill : aiSkills) {
-            if (skill != null && (includeHidden || !skill.isHidden())) {
+            if (skill != null && (includeHidden || !skill.isHidden()) && matchesSearch(skill, query)) {
                 visible.add(skill);
             }
         }
         return visible;
+    }
+
+    private boolean matchesSearch(AiSkill skill, String query) {
+        if (query.isEmpty()) {
+            return true;
+        }
+        if (contains(skill.getName(), query) || contains(skill.getDescription(), query)) {
+            return true;
+        }
+        for (String tag : skill.getTags()) {
+            if (contains(tag, query)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean contains(String value, String lowerQuery) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerQuery);
+    }
+
+    /** Updates the "total / active / inactive" summary from the full library (never the filtered view). */
+    private void updateAiSkillCounts() {
+        int total = 0;
+        int active = 0;
+        for (AiSkill skill : aiSkills) {
+            if (skill == null) {
+                continue;
+            }
+            total++;
+            if (skill.isEnabled() && !skill.isHidden()) {
+                active++;
+            }
+        }
+        aiSkillCountLabel.setText(I18n.get("settings.aiSkills.count", total, active, total - active));
     }
 
     private BuiltinAiSkillSupport.AiSkillStatus statusOf(AiSkill skill) {
@@ -473,6 +529,7 @@ final class AiSkillsPane extends VBox {
             }
         }
         aiSkillListView.refresh();
+        updateAiSkillCounts();
     }
 
     private ContextMenu createAiSkillListContextMenu() {
@@ -716,11 +773,14 @@ final class AiSkillsPane extends VBox {
                 importedSkills.add(imported);
             }
             aiSkills.addAll(importedSkills);
+            // Clear the search so freshly imported skills are visible and selectable.
+            aiSkillSearchField.clear();
             aiSkillListView.getItems().setAll(visibleAiSkills());
             if (!importedSkills.isEmpty()) {
                 aiSkillListView.getSelectionModel().clearSelection();
                 aiSkillListView.getSelectionModel().select(aiSkills.get(aiSkills.size() - 1));
             }
+            updateAiSkillCounts();
             showAiSkillInfo(I18n.get("settings.aiSkills.import.success", importedSkills.size()));
         } catch (Exception e) {
             showAiSkillError(I18n.get("settings.aiSkills.import.failed", errorMessage(e)));

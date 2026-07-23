@@ -18,8 +18,11 @@ Konfigurieren Sie benutzerdefinierte KI-Fähigkeiten, die KI-Interaktionen verbe
 | KI-Fähigkeiten aktivieren | umschalten | — | Auf | `aiSkillsEnabled` |
 | Nur passende Fähigkeiten automatisch senden | umschalten | — | Auf | `aiSkillAutoDetectionEnabled` |
 | Versteckte integrierte Fähigkeiten anzeigen | umschalten | – | Aus | – (Filter anzeigen) |
+| Suchfähigkeiten | Text | Filtert die Liste nach Name, Beschreibung oder Tags | – | – (Filter anzeigen) |
 | Sortieren | Dropdown | Alphabetisch, Status (zuerst aktiviert) | Alphabetisch | — |
 | Schaltfläche „Speichern“ | | Schreibt die Bibliothek in die globale Einstellungsdatei | – | – |
+
+Eine Zählzeile unterhalb der Liste fasst die gesamte Bibliothek zusammen – **Gesamt**, **Aktiv** (aktiviert und nicht ausgeblendet) und **Inaktiv/ausgeblendet** – unabhängig von der aktuellen Suche oder dem ausgeblendeten Filter.
 
 ## Felder des Skill-Editors
 

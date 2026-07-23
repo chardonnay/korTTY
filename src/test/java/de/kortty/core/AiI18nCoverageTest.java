@@ -247,6 +247,8 @@ class AiI18nCoverageTest {
         "settings.aiSkills.autoDetection.disable.header",
         "settings.aiSkills.autoDetection.disable.content",
         "settings.aiSkills.autoDetection.disable.done",
+        "settings.aiSkills.search",
+        "settings.aiSkills.count",
         "settings.preview.aiBg",
         "settings.preview.aiRun",
         "settings.preview.aiErr",

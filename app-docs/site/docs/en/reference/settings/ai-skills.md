@@ -18,8 +18,11 @@ Configure custom AI skills that enhance AI interactions. This tab lets you manag
 | Enable AI Skills | toggle | — | On | `aiSkillsEnabled` |
 | Automatically send only matching skills | toggle | — | On | `aiSkillAutoDetectionEnabled` |
 | Show hidden built-in skills | toggle | — | Off | — (view filter) |
+| Search skills | text | Filters the list by name, description or tags | — | — (view filter) |
 | Sort | menu button | Alphabetical, Status (enabled first) | — | — |
 | Save | button | Writes the library to the global settings file | — | — |
+
+A count line below the list summarizes the whole library — **Total**, **Active** (enabled and not hidden), and **Inactive/hidden** — regardless of the current search or hidden filter.
 
 ## Skill Editor Fields
 
