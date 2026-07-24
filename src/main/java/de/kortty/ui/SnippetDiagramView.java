@@ -437,6 +437,19 @@ final class SnippetDiagramView extends VBox {
         spinnerBox.setManaged(true);
     }
 
+    /** Shows a plain status message (no spinner, no error prefix) in the diagram area. */
+    void showNotice(String message) {
+        diagramScroll.setVisible(false);
+        diagramScroll.setManaged(false);
+        spinnerBox.getChildren().stream()
+            .filter(ProgressIndicator.class::isInstance)
+            .map(ProgressIndicator.class::cast)
+            .forEach(indicator -> { indicator.setVisible(false); indicator.setManaged(false); });
+        statusLabel.setText(message);
+        spinnerBox.setVisible(true);
+        spinnerBox.setManaged(true);
+    }
+
     private void showError(String message) {
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);

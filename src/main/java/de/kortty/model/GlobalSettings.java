@@ -104,6 +104,9 @@ public class GlobalSettings {
     private boolean showMenuBar = true; // Show the main menu bar inside the window
 
     @XmlElement
+    private boolean openToolWindowsAsTabs = false; // Open management tool windows as tabs in the main window
+
+    @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
     @XmlElement
@@ -357,6 +360,10 @@ public class GlobalSettings {
     /** Whether the "Hardening options" panel in the AI code-analysis window is expanded. Default: collapsed. */
     @XmlElement
     private Boolean codeAnalysisHardeningExpanded = false;
+
+    /** Whether the AI code-analysis window generates the flow diagram automatically on open. Default: enabled. */
+    @XmlElement
+    private Boolean codeAnalysisDiagramAutoGenerate = true;
 
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
@@ -934,6 +941,14 @@ public class GlobalSettings {
 
     public void setShowMenuBar(boolean showMenuBar) {
         this.showMenuBar = showMenuBar;
+    }
+
+    public boolean isOpenToolWindowsAsTabs() {
+        return openToolWindowsAsTabs;
+    }
+
+    public void setOpenToolWindowsAsTabs(boolean openToolWindowsAsTabs) {
+        this.openToolWindowsAsTabs = openToolWindowsAsTabs;
     }
 
     public boolean isJobSchedulerMenuStatusEnabled() {
@@ -1553,6 +1568,14 @@ public class GlobalSettings {
 
     public void setCodeAnalysisHardeningExpanded(Boolean codeAnalysisHardeningExpanded) {
         this.codeAnalysisHardeningExpanded = codeAnalysisHardeningExpanded;
+    }
+
+    public Boolean getCodeAnalysisDiagramAutoGenerate() {
+        return codeAnalysisDiagramAutoGenerate;
+    }
+
+    public void setCodeAnalysisDiagramAutoGenerate(Boolean codeAnalysisDiagramAutoGenerate) {
+        this.codeAnalysisDiagramAutoGenerate = codeAnalysisDiagramAutoGenerate;
     }
 
     public Integer getWorkflowScriptFontSize() {

@@ -194,6 +194,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     // Window settings
     private final CheckBox rememberWindowGeometryCheck;
     private final CheckBox rememberDashboardStateCheck;
+    private final CheckBox openToolWindowsAsTabsCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -1028,6 +1029,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label dashboardInfoLabel = new Label(I18n.get("settings.window.rememberDashboard.info"));
         dashboardInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
         windowGrid.add(dashboardInfoLabel, 0, windowRow++, 2, 1);
+
+        openToolWindowsAsTabsCheck = new CheckBox(I18n.get("settings.window.toolWindowTabs"));
+        openToolWindowsAsTabsCheck.setSelected(globalSettings != null && globalSettings.isOpenToolWindowsAsTabs());
+        openToolWindowsAsTabsCheck.setTooltip(new Tooltip(I18n.get("settings.window.toolWindowTabs.tooltip")));
+        windowGrid.add(openToolWindowsAsTabsCheck, 0, windowRow++, 2, 1);
+
+        Label toolWindowTabsInfoLabel = new Label(I18n.get("settings.window.toolWindowTabs.info"));
+        toolWindowTabsInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        windowGrid.add(toolWindowTabsInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -2600,6 +2610,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             // Save window settings
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
+            globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
@@ -2699,6 +2710,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("updates", "interval_days", gs::getUpdateCheckIntervalDays, true));
             tracked.add(new TrackedSetting("window", "remember_geometry", gs::isRememberWindowGeometry, true));
             tracked.add(new TrackedSetting("window", "remember_dashboard", gs::isRememberDashboardState, true));
+            tracked.add(new TrackedSetting("window", "tools_as_tabs", gs::isOpenToolWindowsAsTabs, true));
             tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
             tracked.add(new TrackedSetting("security", "require_master_password_on_startup",
                 gs::isRequireMasterPasswordOnStartup, true));

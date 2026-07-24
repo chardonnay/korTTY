@@ -156,7 +156,20 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         // background, regenerate) — same functionality as the standalone "Snippet diagrams" dialog.
         diagramView = new SnippetDiagramView(diagramMermaidSupplier, true);
         Label diagramTitle = new Label(I18n.get("snippets.ai.analysis.diagram.title"));
-        VBox rightPane = new VBox(6, diagramTitle, diagramView);
+        CheckBox autoGenerateBox = new CheckBox(I18n.get("snippets.ai.analysis.diagram.autoGenerate"));
+        autoGenerateBox.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.diagram.autoGenerate.tooltip")));
+        autoGenerateBox.setSelected(loadDiagramAutoGenerate());
+        autoGenerateBox.setOnAction(event -> {
+            persistDiagramAutoGenerate(autoGenerateBox.isSelected());
+            if (autoGenerateBox.isSelected()) {
+                diagramView.loadIfNeeded();
+            }
+        });
+        Region diagramSpacer = new Region();
+        HBox.setHgrow(diagramSpacer, Priority.ALWAYS);
+        HBox diagramHeader = new HBox(8, diagramTitle, diagramSpacer, autoGenerateBox);
+        diagramHeader.setAlignment(Pos.CENTER_LEFT);
+        VBox rightPane = new VBox(6, diagramHeader, diagramView);
         VBox.setVgrow(diagramView, Priority.ALWAYS);
         rightPane.setPadding(new Insets(0, 0, 0, 4));
 
@@ -196,7 +209,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         restoreGeometry();
         setResultConverter(buttonType -> buttonType == applyButton ? readSelection() : null);
 
-        setOnShown(event -> diagramView.loadIfNeeded());
+        setOnShown(event -> startDiagramIfAutoEnabled());
         setOnCloseRequest(event -> persistGeometry());
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
             // Read the stage bounds before disposing anything below; the window is still sized.
@@ -408,6 +421,33 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             GlobalSettings settings = manager.getSettings();
             if (settings != null) {
                 settings.setCodeAnalysisHardeningExpanded(expanded);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Starts the (AI-backed) diagram generation, or shows a hint when auto-generation is disabled. */
+    void startDiagramIfAutoEnabled() {
+        if (loadDiagramAutoGenerate()) {
+            diagramView.loadIfNeeded();
+        } else {
+            diagramView.showNotice(I18n.get("snippets.ai.analysis.diagram.autoGenerate.disabled"));
+        }
+    }
+
+    private boolean loadDiagramAutoGenerate() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        // Null-safe default-true: old settings files without the element keep today's behavior.
+        return settings == null || !Boolean.FALSE.equals(settings.getCodeAnalysisDiagramAutoGenerate());
+    }
+
+    private void persistDiagramAutoGenerate(boolean enabled) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setCodeAnalysisDiagramAutoGenerate(enabled);
                 manager.save();
             }
         } catch (Exception ignored) {
