@@ -111,6 +111,10 @@ Das vollständige Versions-Änderungsprotokoll. Die Version, für die diese Anle
 - **Lokale Shells behalten jetzt das tatsächliche Arbeitsverzeichnis** – nach `cd`, `pushd`, `popd` oder `Set-Location` verwenden **Im Snippet-Editor öffnen** und lokale AI Agent-Ausführungen das aktuelle Verzeichnis der interaktiven Shell, einschließlich Pfaden mit Leerzeichen oder Unicode. Das Verzeichnis wird über den Shell-Prozess unter macOS/Linux oder eine absolut native PowerShell/cmd-Eingabeaufforderung unter Windows aktualisiert, und unsichere oder fremde Pfad-Fallbacks werden mit einem eindeutigen Fehler beendet, anstatt eine gleichnamige Datei im Startverzeichnis zu öffnen oder zu überschreiben.
 - **Eingefügter Text bleibt in Terminal-Agent-Anfragen erhalten** – eingegebener Text und Einfügen in die Zwischenablage teilen sich jetzt einen Eingabefilter auf Connector-Ebene für SSH und lokale Shells. Einfaches Einfügen, Einfügen in Klammern, geteilte UTF-8-Eingabe, Rücktaste und Strg+U werden korrekt verfolgt; Die vollständige Anfrage wird im Agentenverlauf gespeichert und Enter versendet sie genau einmal.
 
+### Snippet-KI-Korrekturen
+
+- **Übersetzung und Rechtschreibkorrektur der Auswahl schlagen auf kleinen lokalen Reasoning-Modellen nicht mehr fehl** – die Aktionen *Auswahl übersetzen...* und *Rechtschreibung in Auswahl korrigieren* im Snippet-Editor haben die aktivierten KI-Skills an die Anfrage angehängt. Bei einem kompakten lokalen Reasoning-Modell (zum Beispiel einem quantisierten Phi-4-mini-Reasoning-Build) konnte der zusätzliche Prompt-Umfang dazu führen, dass das Modell seine gesamte Antwort auf das interne Reasoning verwendet und keine Antwort liefert (*„Das lokale KI-Modell hat keine Antwort erzeugt"*). Diese beiden rein textuellen Transformationen hängen keine KI-Skills mehr an, sodass der Prompt klein bleibt und das Modell antwortet.
+
 ## v2.5.0
 
 ### Verpackung und Dokumentation

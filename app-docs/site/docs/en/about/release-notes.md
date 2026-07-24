@@ -111,6 +111,10 @@ The full, version-by-version changelog. The version this guide was built for is 
 - **Local shells now keep the real working directory** — after `cd`, `pushd`, `popd`, or `Set-Location`, **Open in Snippet Editor** and local AI Agent runs use the interactive shell's current directory, including paths with spaces or Unicode. The directory is refreshed from the shell process on macOS/Linux or an absolute native PowerShell/cmd prompt on Windows, and unsafe or foreign path fallbacks stop with a clear error instead of opening or overwriting a same-named file in the start directory.
 - **Pasted text is retained in terminal agent requests** — typed text and clipboard paste now share one connector-level input filter for SSH and local shells. Plain paste, bracketed paste, split UTF-8 input, Backspace, and Ctrl+U are tracked correctly; the complete request is saved to agent history and Enter dispatches it exactly once.
 
+### Snippet AI fixes
+
+- **Selection translation and spelling correction no longer fail on small local reasoning models** — the snippet editor's *Translate selection…* and *Correct spelling in selection* actions were attaching your enabled AI skills to the request. On a compact local reasoning model (for example a quantized Phi-4-mini reasoning build) the extra prompt bulk could make the model spend its whole reply on internal reasoning and return no answer (*"the local AI model produced no answer"*). These two mechanical text transforms no longer attach AI skills, keeping the prompt small so the model answers.
+
 ## v2.5.0
 
 ### Packaging and documentation

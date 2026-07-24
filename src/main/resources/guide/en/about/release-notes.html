@@ -2240,6 +2240,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#snippet-ai-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet AI fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3098,6 +3109,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#snippet-ai-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet AI fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3818,6 +3840,10 @@
 <ul>
 <li><strong>Local shells now keep the real working directory</strong> — after <code>cd</code>, <code>pushd</code>, <code>popd</code>, or <code>Set-Location</code>, <strong>Open in Snippet Editor</strong> and local AI Agent runs use the interactive shell's current directory, including paths with spaces or Unicode. The directory is refreshed from the shell process on macOS/Linux or an absolute native PowerShell/cmd prompt on Windows, and unsafe or foreign path fallbacks stop with a clear error instead of opening or overwriting a same-named file in the start directory.</li>
 <li><strong>Pasted text is retained in terminal agent requests</strong> — typed text and clipboard paste now share one connector-level input filter for SSH and local shells. Plain paste, bracketed paste, split UTF-8 input, Backspace, and Ctrl+U are tracked correctly; the complete request is saved to agent history and Enter dispatches it exactly once.</li>
+</ul>
+<h3 id="snippet-ai-fixes">Snippet AI fixes<a class="headerlink" href="#snippet-ai-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Selection translation and spelling correction no longer fail on small local reasoning models</strong> — the snippet editor's <em>Translate selection…</em> and <em>Correct spelling in selection</em> actions were attaching your enabled AI skills to the request. On a compact local reasoning model (for example a quantized Phi-4-mini reasoning build) the extra prompt bulk could make the model spend its whole reply on internal reasoning and return no answer (<em>"the local AI model produced no answer"</em>). These two mechanical text transforms no longer attach AI skills, keeping the prompt small so the model answers.</li>
 </ul>
 <h2 id="v250">v2.5.0<a class="headerlink" href="#v250" title="Permanent link">&para;</a></h2>
 <h3 id="packaging-and-documentation">Packaging and documentation<a class="headerlink" href="#packaging-and-documentation" title="Permanent link">&para;</a></h3>
