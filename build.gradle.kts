@@ -2468,6 +2468,14 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("toolTabRenderSmoke") {
+    group = "verification"
+    description = "Hosts the snippet manager/editor as tabs, snapshots them and detects layout loops."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ToolTabRenderSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     group = "verification"
     description = "Shows the terminal AI-agent TAB history popup to verify it renders without throwing."

@@ -103,7 +103,9 @@ public final class DialogHostTabSmoke {
                 "expected the dialog pane to sit in the hidden dialog window's scene after construction");
             DialogHostTab okTab = DialogHostTab.host(tabPane, "probe", okProbe, null);
             check(okProbe.isHostedInTab(), "dialog must report hosted-in-tab");
-            check(okTab.getContent() == okProbe.getDialogPane(), "tab content must be the dialog pane");
+            check(okTab.getContent() instanceof javafx.scene.layout.StackPane holder
+                    && holder.getChildren().contains(okProbe.getDialogPane()),
+                "tab content must be a holder wrapping the dialog pane");
             check(okProbe.getDialogPane().getScene() == stage.getScene(),
                 "dialog pane must live in the main window's scene, got " + okProbe.getDialogPane().getScene());
             check(tabPane.getSelectionModel().getSelectedItem() == okTab, "host tab must be selected");

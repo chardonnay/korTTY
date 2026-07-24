@@ -12,6 +12,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 
 /**
  * Hosts a {@link ThemeAwareDialog}'s pane as a tab in a main window's tab pane instead of a separate
@@ -73,10 +74,34 @@ public class DialogHostTab extends Tab {
         dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> hiddenSeen = true);
         String title = dialog.getTitle();
         setText(title != null && !title.isBlank() ? title : "…");
-        setContent(pane);
+        setContent(buildHolder(pane));
         interceptButtons(pane);
         setOnCloseRequest(this::onTabCloseRequest);
         setOnClosed(event -> finishClose());
+    }
+
+    /**
+     * Wraps the pane so it reliably fills the tab. {@code DialogPane.layoutChildren} RESIZES ITSELF
+     * to its pref/min height bounded by its dialog window's scene height — sane as a window root,
+     * but hosted in a tab the never-shown dialog window reports height 0, so every layout pass the
+     * pane shrinks itself to its min height while the tab content area stretches it back: a per-pulse
+     * tug-of-war that renders as constant flicker and clipped/overlapping controls. Keeping the
+     * pane's min and pref sizes equal to the holder's size makes the pane's own resize land exactly
+     * on the tab area in every branch of that logic, ending the war.
+     */
+    private static StackPane buildHolder(DialogPane pane) {
+        StackPane holder = new StackPane(pane);
+        holder.widthProperty().addListener((obs, oldWidth, width) -> {
+            pane.setMinWidth(width.doubleValue());
+            pane.setPrefWidth(width.doubleValue());
+        });
+        holder.heightProperty().addListener((obs, oldHeight, height) -> {
+            pane.setMinHeight(height.doubleValue());
+            pane.setPrefHeight(height.doubleValue());
+        });
+        pane.setMaxWidth(Double.MAX_VALUE);
+        pane.setMaxHeight(Double.MAX_VALUE);
+        return holder;
     }
 
     /**
