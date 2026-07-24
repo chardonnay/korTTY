@@ -2460,6 +2460,14 @@ tasks.register<JavaExec>("mermaidRendererSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("dialogHostTabSmoke") {
+    group = "verification"
+    description = "Hosts a dialog pane as a main-window tab and verifies the DialogHostTab lifecycle."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.DialogHostTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     group = "verification"
     description = "Shows the terminal AI-agent TAB history popup to verify it renders without throwing."

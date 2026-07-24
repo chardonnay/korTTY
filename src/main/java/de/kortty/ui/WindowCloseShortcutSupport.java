@@ -44,8 +44,14 @@ public final class WindowCloseShortcutSupport {
         if (dialog == null || dialog.getDialogPane() == null) {
             return;
         }
-        dialog.getDialogPane().sceneProperty().addListener((obs, oldScene, newScene) ->
-                installForScene(newScene, dialog::close));
+        dialog.getDialogPane().sceneProperty().addListener((obs, oldScene, newScene) -> {
+            // A tab-hosted pane joins the MAIN window's scene; installing there would overwrite
+            // that scene's close action with dialog::close and break Ctrl+Q for the window.
+            if (dialog instanceof ThemeAwareDialog<?> themed && themed.isHostedInTab()) {
+                return;
+            }
+            installForScene(newScene, dialog::close);
+        });
         installForScene(dialog.getDialogPane().getScene(), dialog::close);
     }
 

@@ -7652,9 +7652,49 @@ public class MainWindow {
     }
     
     
+    // ---- Tool windows as tabs -------------------------------------------------------------------
+
+    /** Whether management tool windows should open as tabs in this window instead of own windows. */
+    private boolean toolTabsEnabled() {
+        GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+        return gs != null && gs.isOpenToolWindowsAsTabs();
+    }
+
+    /**
+     * Returns the tool tab for {@code toolId} in THIS window's tab pane after selecting it, or
+     * {@code null} if the tool is not open here. Scan-based like {@link #openSFTPManagerTab}: tabs
+     * can be dragged between windows, so the live tab list is the only reliable registry.
+     */
+    private DialogHostTab findAndSelectToolTab(String toolId) {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof DialogHostTab hostTab && toolId.equals(hostTab.getToolId())) {
+                tabPane.getSelectionModel().select(hostTab);
+                return hostTab;
+            }
+        }
+        return null;
+    }
+
+    /** Hosts {@code dialog} as a deduped tool tab in this window; see {@link DialogHostTab}. */
+    private DialogHostTab hostToolTab(String toolId, ThemeAwareDialog<?> dialog, Runnable afterClosed) {
+        return DialogHostTab.host(tabPane, toolId, dialog, afterClosed);
+    }
+
     private void showCredentialManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "credentials"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("credentials") != null) {
+                    return;
+                }
+                CredentialManagementDialog dialog = new CredentialManagementDialog(
+                    app.getCredentialManager(),
+                    app.getEnvironmentManager(),
+                    app.getMasterPasswordManager().getMasterPassword()
+                );
+                hostToolTab("credentials", dialog, null);
+                return;
+            }
             CredentialManagementDialog dialog = new CredentialManagementDialog(
                 app.getCredentialManager(),
                 app.getEnvironmentManager(),
