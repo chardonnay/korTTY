@@ -2153,6 +2153,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tool-windows-as-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool windows as tabs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#power-management" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3022,6 +3033,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tool-windows-as-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool windows as tabs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#power-management" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3772,6 +3794,10 @@
 <li><strong>Content-sized, animated panel</strong> — the dashboard sizes its width to the longest entry (bounded), animates open and closed instead of popping in, shows a placeholder when no session is open, and reports "connected of total" in a footer. Its colors follow the active App Design, including per-design status-dot palettes.</li>
 <li><strong>Context menu and group fixes</strong> — the connection context menu adds <strong>Focus</strong> and icons for every action. Tabs opened via "open whole group" now correctly appear under their group, and changing a connection's group in the Connection Manager updates open tabs immediately.</li>
 </ul>
+<h3 id="tool-windows-as-tabs">Tool windows as tabs<a class="headerlink" href="#tool-windows-as-tabs" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Management tools can open as tabs in the main window</strong> — a new <strong>Open tool windows as tabs</strong> option in <a href="../reference/settings/window.html">Window settings</a> makes Snippets, the JobScheduler, the AI Manager, Saved Chats, Credential/GPG/SSH key management, the Video Manager, Teamwork settings and the Terminal Effects manager open as tabs beside your terminal sessions instead of separate windows. The tab always opens in the main window whose menu you used, so with several windows open each collects its own tools — for example the AI Manager as a tab in one window and the JobScheduler in another. Reopening a tool focuses its existing tab, while the snippet editor and the AI code analysis open a new tab per snippet/run so several can sit side by side; tool tabs can be reordered and dragged between windows like any other tab. Off by default — nothing changes unless you enable it.</li>
+</ul>
 <h3 id="power-management">Power management<a class="headerlink" href="#power-management" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Activity-based power management</strong> — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate <code>caffeinate</code> helper so the korTTY process remains eligible for App Nap. On macOS and Windows, <strong>Configuration &gt; Prevent System Sleep</strong> keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.</li>
@@ -3783,6 +3809,7 @@
 <li><strong>Add your own code languages</strong> — a <strong>+</strong> button beside the code-language list takes any language name that is missing and stores it permanently, so it is offered in every future snippet editor. Self-added languages drive the AI prompts and the file extension; highlighting falls back to plain text when korTTY ships no grammar for them.</li>
 <li><strong>AI suggestion fills both language fields</strong> — besides the file name and description, <strong>AI suggestion</strong> now also detects the natural language of the snippet's comments and printed output (<code>echo</code>, <code>print</code>, <code>printf</code>, <code>Write-Host</code>, …) and preselects it as the text language, adding it to the list when korTTY has no interface translation for it. A detected code language missing from the list is likewise added instead of being silently dropped.</li>
 <li><strong>New AI action: Optimize code comments</strong> — available from the <strong>AI Code</strong> menu and from the editor's right-click menu on a selection. The AI inserts explanations of what the selected code does and why, directly above or beside the lines they belong to and in the language's own comment syntax, replaces outdated or misleading comments, and leaves every executable line untouched. Comments are written in the editor's <strong>Text language</strong>, and the result is shown in the usual before/after preview before it replaces the selection.</li>
+<li><strong>Automatic analysis diagrams can be switched off</strong> — the Full Code Analysis window's diagram pane gained a <strong>Generate automatically</strong> checkbox. Untick it and the flow diagram's dedicated AI request no longer starts when the window opens; the pane shows a hint instead and <strong>Regenerate</strong> requests the diagram on demand. The choice is remembered across sessions.</li>
 </ul>
 <h3 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
 <ul>
