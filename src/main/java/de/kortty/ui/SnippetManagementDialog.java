@@ -440,6 +440,9 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     private void saveGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
         try {
             javafx.stage.Window window = getDialogPane().getScene().getWindow();
             if (window instanceof javafx.stage.Stage stage) {

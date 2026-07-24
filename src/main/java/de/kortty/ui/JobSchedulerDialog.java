@@ -2061,6 +2061,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void saveGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
         try {
             Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
             if (window instanceof Stage stage) {

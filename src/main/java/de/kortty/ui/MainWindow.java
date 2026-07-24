@@ -7711,6 +7711,12 @@ public class MainWindow {
     private void showGPGKeyManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "gpg_keys"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("gpgKeys") == null) {
+                    hostToolTab("gpgKeys", new GPGKeyManagementDialog(app.getGpgKeyManager()), null);
+                }
+                return;
+            }
             GPGKeyManagementDialog dialog = new GPGKeyManagementDialog(app.getGpgKeyManager());
             dialog.initOwner(stage);
             dialog.showAndWait();
@@ -7723,6 +7729,12 @@ public class MainWindow {
     private void showTeamworkSettings() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "teamwork_settings"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("teamwork") == null) {
+                    hostToolTab("teamwork", new TeamworkSettingsDialog(stage, app), null);
+                }
+                return;
+            }
             TeamworkSettingsDialog dialog = new TeamworkSettingsDialog(stage, app);
             dialog.showAndWait();
         } catch (Exception e) {
@@ -7737,6 +7749,16 @@ public class MainWindow {
             var manager = app.getTerminalEffectPluginManager();
             if (manager == null) {
                 showError(I18n.get("error.title"), I18n.get("plugin.initError"));
+                return;
+            }
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("terminalEffects") == null) {
+                    hostToolTab("terminalEffects", new TerminalEffectPluginManagerDialog(stage, manager), () -> {
+                        deactivateTerminalEffectsIfDisabled();
+                        deactivateUnavailableTerminalEffects();
+                        updateAllTabContextMenus();
+                    });
+                }
                 return;
             }
             TerminalEffectPluginManagerDialog dialog =
@@ -7780,6 +7802,14 @@ public class MainWindow {
     private void showSSHKeyManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "ssh_keys"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("sshKeys") == null) {
+                    hostToolTab("sshKeys", new SSHKeyManagementDialog(
+                        app.getSSHKeyManager(),
+                        app.getMasterPasswordManager().getMasterPassword()), null);
+                }
+                return;
+            }
             SSHKeyManagementDialog dialog = new SSHKeyManagementDialog(
                 app.getSSHKeyManager(),
                 app.getMasterPasswordManager().getMasterPassword()
@@ -7807,6 +7837,16 @@ public class MainWindow {
     private void showTerminalRecordingManager() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "video_manager"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("recordings") == null) {
+                    TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
+                        app.getGlobalSettingsManager(),
+                        new de.kortty.core.TerminalRecordingService());
+                    dialog.setOnHidden(event -> refreshTerminalRecordingControlsVisibility());
+                    hostToolTab("recordings", dialog, null);
+                }
+                return;
+            }
             TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
                 app.getGlobalSettingsManager(),
                 new de.kortty.core.TerminalRecordingService());
@@ -7849,6 +7889,12 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("snippets") == null) {
+                    hostToolTab("snippets", new SnippetManagementDialog(mgr, this), null);
+                }
+                return;
+            }
             SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
             dialog.initOwner(stage);
             dialog.show();
@@ -7871,6 +7917,21 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "JobScheduler is not initialized.");
                 return;
             }
+            if (toolTabsEnabled()) {
+                DialogHostTab existing = findAndSelectToolTab("jobScheduler");
+                if (existing != null) {
+                    if (draft != null) {
+                        ((JobSchedulerDialog) existing.getHostedDialog()).prefillNewJob(draft);
+                    }
+                    return;
+                }
+                JobSchedulerDialog tabDialog = new JobSchedulerDialog(app, stage);
+                if (draft != null) {
+                    tabDialog.prefillNewJob(draft);
+                }
+                hostToolTab("jobScheduler", tabDialog, null);
+                return;
+            }
             JobSchedulerDialog dialog = new JobSchedulerDialog(app, stage);
             if (draft != null) {
                 dialog.prefillNewJob(draft);
@@ -7888,6 +7949,12 @@ public class MainWindow {
             return;
         }
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("aiManager") == null) {
+                    hostToolTab("aiManager", new AiManagerDialog(this), null);
+                }
+                return;
+            }
             if (aiManagerDialog != null) {
                 if (aiManagerDialog.isShowing()) {
                     bringAiManagerToFront(aiManagerDialog);
@@ -7932,6 +7999,12 @@ public class MainWindow {
             return;
         }
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("savedChats") == null) {
+                    hostToolTab("savedChats", new SavedChatsDialog(this), null);
+                }
+                return;
+            }
             if (savedChatsDialog != null) {
                 if (savedChatsDialog.isShowing()) {
                     bringDialogToFront(savedChatsDialog);
