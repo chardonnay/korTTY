@@ -3014,6 +3014,10 @@ public class MainWindow {
             aiResultTab.disposeRenderedContent();
         } else if (tab instanceof SwarmAgentTab swarmTab) {
             swarmTab.handleTabClosed();
+        } else if (tab instanceof DialogHostTab hostTab) {
+            // Runs the hosted dialog's DIALOG_HIDDEN cleanup (Monaco/WebView disposal, listener
+            // deregistration) that a user-initiated tab close would have triggered.
+            hostTab.disposeOnWindowClose();
         }
     }
     
