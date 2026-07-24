@@ -77,7 +77,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -87,11 +87,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -104,7 +104,7 @@ pages:
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -130,7 +130,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/window.png
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
@@ -212,7 +212,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
@@ -235,7 +235,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java, src/main/java/de/kortty/ui/SnippetAiDiffDialog.java]
     diagrams: [snippet-editor-workflow.svg]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
@@ -244,7 +244,7 @@ pages:
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: [project.]
     owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/features/teamwork.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/teamwork]
@@ -255,7 +255,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "77778e8"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
