@@ -2240,6 +2240,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#snippet-ki-korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-KI-Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3098,6 +3109,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#snippet-ki-korrekturen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet-KI-Korrekturen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3818,6 +3840,10 @@
 <ul>
 <li><strong>Lokale Shells behalten jetzt das tatsächliche Arbeitsverzeichnis</strong> – nach <code>cd</code>, <code>pushd</code>, <code>popd</code> oder <code>Set-Location</code> verwenden <strong>Im Snippet-Editor öffnen</strong> und lokale AI Agent-Ausführungen das aktuelle Verzeichnis der interaktiven Shell, einschließlich Pfaden mit Leerzeichen oder Unicode. Das Verzeichnis wird über den Shell-Prozess unter macOS/Linux oder eine absolut native PowerShell/cmd-Eingabeaufforderung unter Windows aktualisiert, und unsichere oder fremde Pfad-Fallbacks werden mit einem eindeutigen Fehler beendet, anstatt eine gleichnamige Datei im Startverzeichnis zu öffnen oder zu überschreiben.</li>
 <li><strong>Eingefügter Text bleibt in Terminal-Agent-Anfragen erhalten</strong> – eingegebener Text und Einfügen in die Zwischenablage teilen sich jetzt einen Eingabefilter auf Connector-Ebene für SSH und lokale Shells. Einfaches Einfügen, Einfügen in Klammern, geteilte UTF-8-Eingabe, Rücktaste und Strg+U werden korrekt verfolgt; Die vollständige Anfrage wird im Agentenverlauf gespeichert und Enter versendet sie genau einmal.</li>
+</ul>
+<h3 id="snippet-ki-korrekturen">Snippet-KI-Korrekturen<a class="headerlink" href="#snippet-ki-korrekturen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Übersetzung und Rechtschreibkorrektur der Auswahl schlagen auf kleinen lokalen Reasoning-Modellen nicht mehr fehl</strong> – die Aktionen <em>Auswahl übersetzen...</em> und <em>Rechtschreibung in Auswahl korrigieren</em> im Snippet-Editor haben die aktivierten KI-Skills an die Anfrage angehängt. Bei einem kompakten lokalen Reasoning-Modell (zum Beispiel einem quantisierten Phi-4-mini-Reasoning-Build) konnte der zusätzliche Prompt-Umfang dazu führen, dass das Modell seine gesamte Antwort auf das interne Reasoning verwendet und keine Antwort liefert (<em>„Das lokale KI-Modell hat keine Antwort erzeugt"</em>). Diese beiden rein textuellen Transformationen hängen keine KI-Skills mehr an, sodass der Prompt klein bleibt und das Modell antwortet.</li>
 </ul>
 <h2 id="v250">v2.5.0<a class="headerlink" href="#v250" title="Permanent link">&para;</a></h2>
 <h3 id="verpackung-und-dokumentation">Verpackung und Dokumentation<a class="headerlink" href="#verpackung-und-dokumentation" title="Permanent link">&para;</a></h3>
