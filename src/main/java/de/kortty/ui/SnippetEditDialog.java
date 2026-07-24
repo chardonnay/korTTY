@@ -1198,7 +1198,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     flushPendingHistory();
                     allowCloseWithoutUnsavedPrompt = true;
                     setResult(buildNewResultSnippet());
-                    close();
+                    closeDialogOrHostTab();
                 });
             }
             validationButton = okButton;
@@ -1363,7 +1363,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 }
             });
         }
+        MainWindow tabHost = resolveTabHost();
+        if (tabHost != null) {
+            tabHost.hostMultiInstanceToolTab(this);
+            return;
+        }
         show();
+    }
+
+    /**
+     * The main window to host this editor as a tab, or {@code null} to open a normal window.
+     * Tab hosting applies when the global "tool windows as tabs" setting is on AND the owner set
+     * by the call site (main window, snippet-manager tab, SFTP tab, file browser, …) is a main
+     * window's stage. Call sites owned by other windows (e.g. a snippet manager opened as a
+     * dialog, the swarm script window) keep the classic editor window.
+     */
+    private MainWindow resolveTabHost() {
+        try {
+            var settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            if (settings == null || !settings.isOpenToolWindowsAsTabs()) {
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return MainWindow.findByStage(getOwner());
     }
 
     private void saveSnippetWithoutClosing() {
@@ -1819,7 +1843,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         } else {
             setResult(null);
         }
-        close();
+        closeDialogOrHostTab();
     }
 
     private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
@@ -1991,6 +2015,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
     
     private void saveGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
         try {
             javafx.stage.Window window = getDialogPane().getScene().getWindow();
             if (window instanceof javafx.stage.Stage stage) {
@@ -3611,13 +3638,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 SnippetCodeAnalysisDialog.ApplySelection selection = dialog.getResult();
                 if (selection != null && !selection.isEmpty()) {
                     Platform.runLater(() -> {
-                        if (isShowing()) {
+                        if (isOpenAsDialogOrTab()) {
                             runImprovementFixes(selection);
                         }
                     });
                 }
             });
-            dialog.show();
+            // A tab-hosted editor opens the analysis as a NEW tab beside it (one per run); a
+            // windowed editor keeps the classic analysis window. setOnShown never fires for a
+            // hosted pane, so the diagram start is triggered explicitly.
+            MainWindow analysisHost = isHostedInTab()
+                ? MainWindow.findByStage(getDialogPane().getScene() != null
+                    ? getDialogPane().getScene().getWindow() : null)
+                : null;
+            if (analysisHost != null) {
+                analysisHost.hostMultiInstanceToolTab(dialog);
+                dialog.startDiagramIfAutoEnabled();
+            } else {
+                dialog.show();
+            }
             setStatus(I18n.get("snippets.ai.review.ready"));
         });
         task.setOnFailed(event ->

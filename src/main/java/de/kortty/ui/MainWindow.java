@@ -7680,6 +7680,27 @@ public class MainWindow {
         return DialogHostTab.host(tabPane, toolId, dialog, afterClosed);
     }
 
+    /**
+     * Hosts a multi-instance tool (snippet editor, code analysis) as a NEW tab each time — no
+     * dedupe, per the tab-mode UX: any number of editors/analyses may be open side by side.
+     */
+    void hostMultiInstanceToolTab(ThemeAwareDialog<?> dialog) {
+        DialogHostTab.host(tabPane, null, dialog, null);
+    }
+
+    /** The open main window whose stage is {@code window}, or {@code null}. */
+    static MainWindow findByStage(Window window) {
+        if (window == null) {
+            return null;
+        }
+        for (MainWindow openWindow : getOpenWindows()) {
+            if (openWindow.getStage() == window) {
+                return openWindow;
+            }
+        }
+        return null;
+    }
+
     private void showCredentialManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "credentials"));
         try {

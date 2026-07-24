@@ -716,6 +716,9 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     }
 
     private void persistGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
         try {
             if (!(dialogStage() instanceof Stage stage)) {
                 return;
