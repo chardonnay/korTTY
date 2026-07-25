@@ -137,6 +137,26 @@ public class GuideTranslationGenerator {
         }
     }
 
+    /**
+     * Stylesheets, scripts and images the pages reference, relative to the language root.
+     *
+     * <p>Recorded at build time rather than discovered at runtime because the guide lives
+     * inside the jar, where there is no directory listing to walk.
+     */
+    public static List<String> listAssets() throws IOException {
+        try (InputStream in = open(MANIFEST_ROOT + "index.json")) {
+            JsonObject root = JsonParser.parseReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            requireSupportedVersion(root, "index.json");
+            List<String> assets = new ArrayList<>();
+            JsonArray array = root.getAsJsonArray("assets");
+            if (array != null) {
+                array.forEach(element -> assets.add(element.getAsString()));
+            }
+            return List.copyOf(assets);
+        }
+    }
+
     public static PageManifest loadManifest(String page) throws IOException {
         try (InputStream in = open(MANIFEST_ROOT + page + ".json")) {
             JsonObject root = JsonParser.parseReader(
@@ -251,6 +271,11 @@ public class GuideTranslationGenerator {
             TranslationGlossary.forLanguage(target, TranslationGlossary.Scope.HTML);
         if (!glossary.isEmpty()) {
             logger.info("Applying {} glossary correction(s) for {}", glossary.size(), target);
+        }
+
+        int staged = stageAssets(outDir);
+        if (staged > 0) {
+            logger.info("Staged {} guide asset(s) into {}", staged, outDir);
         }
 
         int written = 0;
@@ -398,6 +423,46 @@ public class GuideTranslationGenerator {
             }
         }
         return out;
+    }
+
+    // ----------------------------------------------------------------- assets
+
+    /**
+     * Copies the theme's stylesheets, scripts and images next to the translated pages.
+     *
+     * <p>Required, not an optimisation: a generated page is loaded from the config directory
+     * over {@code file:}, its asset links are relative ({@code ../assets/…}), and a {@code file:}
+     * document cannot reach back into the {@code jar:} the English guide ships in. Without this
+     * the page renders as unstyled text with no images.
+     *
+     * <p>Skips assets already staged and assets absent from the jar — the build deliberately
+     * strips source maps and the lunr segmenters, so a few entries of the inventory never exist.
+     *
+     * @return how many files were copied
+     */
+    int stageAssets(Path outDir) throws IOException {
+        int copied = 0;
+        int missing = 0;
+        for (String asset : listAssets()) {
+            Path target = outDir.resolve(asset);
+            if (Files.isRegularFile(target)) {
+                continue;
+            }
+            try (InputStream in = GuideTranslationGenerator.class
+                    .getResourceAsStream(SOURCE_ROOT + asset)) {
+                if (in == null) {
+                    missing++;
+                    continue;
+                }
+                Files.createDirectories(target.getParent());
+                Files.copy(in, target);
+                copied++;
+            }
+        }
+        if (missing > 0) {
+            logger.debug("{} guide asset(s) are not in the jar and were skipped", missing);
+        }
+        return copied;
     }
 
     // ---------------------------------------------------------------- writing

@@ -2583,6 +2583,16 @@ tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generatedGuideRenderSmoke") {
+    group = "verification"
+    description = "Generates a guide language into build/smoke and verifies it renders with its own styling in a WebView."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GeneratedGuideRenderSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
 tasks.register<JavaExec>("guideTranslationBench") {
     group = "verification"
     description = "Measures speed and quality of translating the bundled guide with the configured local AI profile."

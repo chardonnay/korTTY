@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.GuideLocationResolver;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.WindowGeometry;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Locale;
 
 /**
@@ -147,28 +149,35 @@ public final class GuideViewer {
      * falling back to English and then to an offline-notice page if absent.
      */
     private void loadGuide(WebEngine engine) {
-        String lang = resolveGuideLanguage();
-        URL resource = GuideViewer.class.getResource("/guide/" + lang + "/index.html");
-        if (resource == null && !"en".equals(lang)) {
-            resource = GuideViewer.class.getResource("/guide/en/index.html");
-        }
-        if (resource == null) {
+        String url = GuideLocationResolver.pageUrl(resolveGuideLanguage(), "index.html",
+            configDirectory());
+        if (url == null) {
             logger.warn("Bundled guide not found on classpath; showing online fallback notice");
             engine.loadContent(onlineFallbackHtml());
             return;
         }
-        lastInternalLocation = resource.toExternalForm();
+        lastInternalLocation = url;
         engine.load(lastInternalLocation);
     }
 
-    /** Picks the bundled guide language from the app's current locale; only en+de ship, others fall back to en. */
+    /**
+     * Guide language for the current locale: the bundled English or German tree, or a language
+     * translated locally into the config directory by {@code GuideTranslationGenerator}.
+     */
     private String resolveGuideLanguage() {
         try {
             Locale locale = LanguageManager.getInstance().getCurrentLocale();
-            String code = locale != null ? locale.getLanguage() : "en";
-            return "de".equals(code) ? "de" : "en";
+            return GuideLocationResolver.resolveLanguage(locale, configDirectory());
         } catch (RuntimeException e) {
             return "en";
+        }
+    }
+
+    private static Path configDirectory() {
+        try {
+            return KorTTYApplication.getConfigDirectory();
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 
@@ -225,17 +234,13 @@ public final class GuideViewer {
             path = location.substring(0, hash);
             anchor = location.substring(hash + 1);
         }
-        String lang = resolveGuideLanguage();
-        URL page = GuideViewer.class.getResource("/guide/" + lang + "/" + path);
-        if (page == null && !"en".equals(lang)) {
-            page = GuideViewer.class.getResource("/guide/en/" + path);
-        }
-        if (page == null) {
+        String pageUrl = GuideLocationResolver.pageUrl(resolveGuideLanguage(), path,
+            configDirectory());
+        if (pageUrl == null) {
             logger.warn("Guide citation points to a missing page: {}", location);
             return;
         }
         WebEngine engine = webView.getEngine();
-        String pageUrl = page.toExternalForm();
         String target = anchor != null && !anchor.isBlank() ? pageUrl + "#" + anchor : pageUrl;
         String current = engine.getLocation();
         if (current != null && current.startsWith(pageUrl)) {
@@ -270,6 +275,20 @@ public final class GuideViewer {
                         engine.load(lastInternalLocation);
                     }
                     openExternal(newLoc);
+                });
+                return;
+            }
+            // A locally translated guide is built page by page and its language switcher links
+            // into a sibling tree that is not there, so links into missing pages are routine.
+            // Redirect them to the bundled page instead of showing an empty window.
+            String fallback =
+                GuideLocationResolver.fallbackForMissingGeneratedPage(newLoc, configDirectory());
+            if (fallback != null) {
+                Platform.runLater(() -> {
+                    if (!disposed) {
+                        engine.getLoadWorker().cancel();
+                        engine.load(fallback);
+                    }
                 });
             } else {
                 lastInternalLocation = newLoc;

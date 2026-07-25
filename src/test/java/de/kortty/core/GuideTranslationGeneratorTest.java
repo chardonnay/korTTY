@@ -373,6 +373,68 @@ class GuideTranslationGeneratorTest {
             .isEqualTo(expected);
     }
 
+    // ---------------------------------------------------------------- assets
+
+    /**
+     * The load-bearing property for the viewer: a generated page is opened over {@code file:},
+     * its asset links are relative, and a {@code file:} document cannot reach into the jar. So
+     * every relative asset reference on a generated page must resolve to a real file next to it.
+     */
+    @Test
+    void everyRelativeAssetReferenceOnAGeneratedPageResolvesOnDisk() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir)
+            .generate("xx", List.of("index.html", "features/connections.html"), null, null);
+
+        Path root = tempDir.resolve("guide/xx");
+        java.util.regex.Pattern reference =
+            java.util.regex.Pattern.compile("(?:href|src)=\"((?!https?:|mailto:|#|data:)[^\"]+)\"");
+        int checked = 0;
+        for (String page : List.of("index.html", "features/connections.html")) {
+            Path file = root.resolve(page);
+            java.util.regex.Matcher matcher =
+                reference.matcher(Files.readString(file, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                String target = matcher.group(1).split("#")[0];
+                if (target.isEmpty() || !target.contains("assets/")) {
+                    continue;
+                }
+                Path resolved = file.getParent().resolve(target).normalize();
+                assertWithMessage(page + " -> " + target).that(Files.isRegularFile(resolved)).isTrue();
+                checked++;
+            }
+        }
+        assertThat(checked).isGreaterThan(4);
+    }
+
+    @Test
+    void stagingIsIdempotentAndSkipsAssetsStrippedFromTheJar() throws IOException {
+        GuideTranslationGenerator generator =
+            new GuideTranslationGenerator(new IdentityService(), tempDir);
+        Path outDir = tempDir.resolve("guide/xx");
+        Files.createDirectories(outDir);
+
+        int first = generator.stageAssets(outDir);
+        int second = generator.stageAssets(outDir);
+
+        assertThat(first).isGreaterThan(0);
+        assertThat(second).isEqualTo(0);
+        // The inventory lists source maps that build.gradle.kts strips from the jar, so the
+        // number staged is allowed to be lower than the number recorded — but never zero.
+        assertThat(first).isAtMost(GuideTranslationGenerator.listAssets().size());
+    }
+
+    @Test
+    void aGeneratedTreeIsRecognisedByTheResolver() throws IOException {
+        assertThat(GuideLocationResolver.isGenerated("xx", tempDir)).isFalse();
+
+        new GuideTranslationGenerator(new IdentityService(), tempDir)
+            .generate("xx", List.of("index.html"), null, null);
+
+        assertThat(GuideLocationResolver.isGenerated("xx", tempDir)).isTrue();
+        assertThat(GuideLocationResolver.availableGeneratedLanguages(tempDir)).contains("xx");
+        assertThat(GuideLocationResolver.pageUrl("xx", "index.html", tempDir)).startsWith("file:");
+    }
+
     // --------------------------------------------------------------- fixtures
 
     private static String readBundledPage(String page) throws IOException {

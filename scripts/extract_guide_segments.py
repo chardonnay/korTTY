@@ -486,10 +486,21 @@ def main() -> int:
             rel, len(manifest["segments"]),
             "  (%d overlap dropped)" % stats["dropped_overlap"] if stats["dropped_overlap"] else ""))
 
+    # Asset inventory. A generated language tree has to be self-contained: its pages are
+    # loaded from the config directory over file:, and a file: document cannot pull the
+    # stylesheets and images back out of the jar. The runtime copies this list out of the
+    # classpath; listing it here avoids having to walk the jar at runtime.
+    assets = sorted(
+        path.relative_to(guide_root).as_posix()
+        for path in guide_root.rglob("*")
+        if path.is_file() and path.suffix != ".html"
+        and MANIFEST_DIRNAME not in path.relative_to(guide_root).parts)
     (out_dir / "index.json").write_text(
-        json.dumps({"formatVersion": FORMAT_VERSION, "sourceLang": "en", "pages": index},
+        json.dumps({"formatVersion": FORMAT_VERSION, "sourceLang": "en", "pages": index,
+                    "assets": assets},
                    ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8")
+    print("asset(s) recorded for staging: %d" % len(assets))
 
     distinct_chars = sum(len(t) for t in all_texts)
     print("\n%d page(s), %d segment(s), %d chars" % (len(pages), total_segments, total_chars))
