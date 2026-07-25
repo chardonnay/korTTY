@@ -2583,6 +2583,17 @@ tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("mainWindowTranslationIndicatorSmoke") {
+    group = "verification"
+    description = "Renders the main window while a guide translation runs and checks the menu-bar indicator."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MainWindowTranslationIndicatorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    environment("TEST_MODE_KORTTY", "1")
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
 tasks.register<JavaExec>("translationTabSmoke") {
     group = "verification"
     description = "Builds the Settings Translation tab and asserts the guide-translation section is present and wired."

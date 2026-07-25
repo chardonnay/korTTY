@@ -8,9 +8,10 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
 import java.util.Locale;
@@ -28,8 +29,16 @@ import java.util.Locale;
  */
 final class GuideTranslationIndicator {
 
+    private static final double BAR_WIDTH = 70;
+    private static final double BAR_HEIGHT = 8;
+
     private final HBox node = new HBox(6);
-    private final ProgressBar bar = new ProgressBar(0);
+    // Drawn by hand rather than with a ProgressBar: the control's track is styled through a
+    // sub-structure selector that an inline style cannot reach, so on the dark menu bar it came
+    // out invisible — correctly sized at 70x8 and impossible to see.
+    private final StackPane bar = new StackPane();
+    private final Region barTrack = new Region();
+    private final Region barFill = new Region();
     private final Label label = new Label();
     private final Tooltip tooltip = new Tooltip();
     private final GuideTranslationJob job = GuideTranslationJob.getInstance();
@@ -37,9 +46,17 @@ final class GuideTranslationIndicator {
     private Timeline ticker;
 
     GuideTranslationIndicator() {
-        bar.setPrefWidth(70);
-        bar.setMinWidth(70);
-        bar.setPrefHeight(8);
+        bar.setPrefSize(BAR_WIDTH, BAR_HEIGHT);
+        bar.setMinSize(BAR_WIDTH, BAR_HEIGHT);
+        bar.setMaxSize(BAR_WIDTH, BAR_HEIGHT);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        barTrack.setPrefSize(BAR_WIDTH, BAR_HEIGHT);
+        barTrack.setStyle("-fx-background-color: #ffffff30; -fx-background-radius: 4;");
+        barFill.setPrefHeight(BAR_HEIGHT);
+        barFill.setMaxWidth(0);
+        barFill.setMaxHeight(BAR_HEIGHT);
+        barFill.setStyle("-fx-background-color: #4a9eff; -fx-background-radius: 4;");
+        bar.getChildren().addAll(barTrack, barFill);
         label.setStyle("-fx-font-size: 11px;");
         node.setAlignment(Pos.CENTER_RIGHT);
         node.setPadding(new Insets(0, 10, 0, 10));
@@ -70,7 +87,15 @@ final class GuideTranslationIndicator {
         }
         startTicker();
         setVisible(true);
-        bar.setProgress(snapshot.progress());
+        // A sliver stays visible at 1%, so "started" never looks like "nothing happening".
+        double fraction = Math.max(0, Math.min(1, snapshot.progress()));
+        // The minimum applies from 0% too: the bar only exists while a run is going, and a
+        // running job that draws nothing reads as "nothing is happening".
+        double width = Math.max(3, BAR_WIDTH * fraction);
+        // maxWidth as well as prefWidth: a StackPane stretches its children to its own size, so
+        // the preferred width alone left the bar looking complete from the first update.
+        barFill.setPrefWidth(width);
+        barFill.setMaxWidth(width);
         String language = snapshot.language() != null
             ? Locale.forLanguageTag(snapshot.language()).getDisplayLanguage() : "";
         String percent = snapshot.percent() + "%";
