@@ -48,9 +48,9 @@ val isLinux = osName.contains("linux")
 // application installer and are installed below ~/.kortty/llm/runtime at run time. Keep the tag,
 // full commit and GitHub source-archive digest in lockstep; downloadLlamaCppSource fails closed on
 // any upstream/archive mismatch.
-val llamaCppTag = "b10108"
-val llamaCppCommit = "0a50d9909a3478e82679f505bf8595d1eee4b0a8"
-val llamaCppSourceSha256 = "7b45236631008b1ab55c36502f3ccacba01f98b8e4e2f1e0e4adaf18b6f69dbd"
+val llamaCppTag = "b10121"
+val llamaCppCommit = "555881ebc8b0fc0402b30e09258a32a7bfd13c52"
+val llamaCppSourceSha256 = "fc482e617958f7f65d7555dbef5d4d743464eb853364f738300ae29db62a39c2"
 // Every llama.cpp pin korTTY has shipped: tag -> (upstream commit, source archive SHA-256).
 // verifyLlamaCppPin looks the ACTIVE tag up here and fails when the row is missing or disagrees
 // with the three vals above. A table lookup has no "unless the tag changed" escape hatch, unlike
@@ -61,6 +61,7 @@ val llamaCppSourceSha256 = "7b45236631008b1ab55c36502f3ccacba01f98b8e4e2f1e0e4ad
 // `^val <name> = "..."$` and pinned-artifact-freshness.yml greps the same shape.
 val llamaCppKnownPins = mapOf(
     // NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.
+    "b10121" to ("555881ebc8b0fc0402b30e09258a32a7bfd13c52" to "fc482e617958f7f65d7555dbef5d4d743464eb853364f738300ae29db62a39c2"),
     "b10108" to ("0a50d9909a3478e82679f505bf8595d1eee4b0a8" to "7b45236631008b1ab55c36502f3ccacba01f98b8e4e2f1e0e4adaf18b6f69dbd"),
     "b10103" to ("c588c4f47683e73ad2d69f50480bec6cc85fd0f7" to "10508ac6eda9b3570b62f9a47f506cf8a079ef5bf518f38d7ffb16457f19f22d"),
     "b10088" to ("67b9b0e7f6ce45d929a4411907d3c48ec719e81c" to "3d796790c5ef95b8d766552259290dbfa17b9bedfd45a3936f2fa0c21c72313f"),
