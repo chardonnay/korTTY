@@ -2419,8 +2419,22 @@ val packageSizeReportTest = tasks.register<Exec>("packageSizeReportTest") {
     }
 }
 
+val guideSegmentExtractorTest = tasks.register<Exec>("guideSegmentExtractorTest") {
+    group = "verification"
+    description = "Runs the guide translation-manifest extractor's regression tests."
+    inputs.files("scripts/extract_guide_segments.py", "scripts/test_extract_guide_segments.py")
+    inputs.dir("src/main/resources/guide/en")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_extract_guide_segments.py")
+    } else {
+        commandLine("python3", "scripts/test_extract_guide_segments.py")
+    }
+}
+
 tasks.named("check") {
-    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest)
+    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
+        guideSegmentExtractorTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {

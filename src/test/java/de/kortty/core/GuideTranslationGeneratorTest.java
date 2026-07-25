@@ -1,0 +1,405 @@
+package de.kortty.core;
+
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
+/**
+ * Runs against the real translation manifests on the test classpath, the same way
+ * {@link GuideSearchIndexTest} runs against the real search index. If these fail after a docs
+ * rebuild, the manifests are stale: regenerate them with scripts/extract_guide_segments.py.
+ */
+class GuideTranslationGeneratorTest {
+
+    Path tempDir;
+
+    @BeforeMethod
+    void createTempDir() throws IOException {
+        tempDir = Files.createTempDirectory("kortty-guide-translation-test");
+    }
+
+    @AfterMethod
+    void deleteTempDir() throws IOException {
+        if (tempDir == null || !Files.exists(tempDir)) {
+            return;
+        }
+        try (var paths = Files.walk(tempDir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // best effort; the OS reaps the temp dir anyway
+                }
+            });
+        }
+    }
+
+    // ------------------------------------------------------------ real corpus
+
+    @Test
+    void bundledManifestsCoverEveryPage() throws IOException {
+        List<String> pages = GuideTranslationGenerator.listPages();
+        assertThat(pages).isNotEmpty();
+        assertThat(pages).contains("index.html");
+        assertThat(pages).contains("features/connections.html");
+        for (String page : pages) {
+            assertWithMessage("manifest for " + page)
+                .that(GuideTranslationGenerator.loadManifest(page).segments()).isNotEmpty();
+        }
+    }
+
+    /**
+     * The load-bearing invariant: translating with an identity service must reproduce every
+     * bundled page byte for byte. That exercises UTF-16 offsets, masking and splicing over the
+     * whole real corpus at once — including the seven pages carrying astral emoji, where a
+     * code-point offset would silently shift every later segment.
+     */
+    @Test
+    void identityTranslationReproducesEveryBundledPageExactly() throws IOException {
+        GuideTranslationGenerator generator =
+            new GuideTranslationGenerator(new IdentityService(), tempDir);
+
+        GuideTranslationGenerator.Result result = generator.generate("xx", null, null);
+
+        assertThat(result.pagesSkipped()).isEqualTo(0);
+        assertThat(result.failed()).isEqualTo(0);
+        assertThat(result.pagesWritten()).isEqualTo(GuideTranslationGenerator.listPages().size());
+
+        for (String page : GuideTranslationGenerator.listPages()) {
+            String expected = readBundledPage(page)
+                .replace("<html lang=\"en\"", "<html lang=\"xx\"");
+            String actual = Files.readString(tempDir.resolve("guide/xx").resolve(page),
+                StandardCharsets.UTF_8);
+            assertWithMessage(page).that(actual).isEqualTo(expected);
+        }
+    }
+
+    @Test
+    void headingIdsStayEnglishSoAnchorsKeepResolving() throws IOException {
+        GuideTranslationGenerator generator =
+            new GuideTranslationGenerator(new PrefixService(), tempDir);
+        generator.generate("xx", null, null);
+
+        String translated = Files.readString(
+            tempDir.resolve("guide/xx/features/connections.html"), StandardCharsets.UTF_8);
+
+        // The slug is what cross-page "…#ssh-host-key-verification" links target.
+        assertThat(translated).contains("id=\"ssh-host-key-verification\"");
+        assertThat(translated).contains("href=\"#ssh-host-key-verification\"");
+        // …while the visible heading text did go through the translator.
+        assertThat(translated).contains("[xx]SSH host-key verification");
+    }
+
+    @Test
+    void repeatedSegmentsAreTranslatedOnlyOnce() throws IOException {
+        CountingService service = new CountingService();
+        new GuideTranslationGenerator(service, tempDir).generate("xx", null, null);
+
+        int distinct = service.seen.size();
+        assertThat(distinct).isEqualTo(service.requested);
+        // Navigation repeats on every page and each heading recurs in the TOCs, so the corpus
+        // must collapse substantially; a regression here means the dedup stopped working.
+        assertThat(distinct).isLessThan(totalSegmentOccurrences() * 3 / 4);
+    }
+
+    @Test
+    void translationMemoryLetsASecondRunSkipTheService() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
+
+        CountingService second = new CountingService();
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(second, tempDir).generate("xx", null, null);
+
+        assertThat(second.requested).isEqualTo(0);
+        assertThat(result.reused()).isEqualTo(result.distinctSegments());
+    }
+
+    @Test
+    void progressEndsAtOne() throws IOException {
+        List<Double> reported = new ArrayList<>();
+        new GuideTranslationGenerator(new IdentityService(), tempDir)
+            .generate("xx", reported::add, null);
+
+        assertThat(reported).isNotEmpty();
+        assertThat(reported.getLast()).isEqualTo(1.0);
+        assertThat(reported).isInOrder();
+    }
+
+    @Test
+    void cancellationStopsBeforeWritingEveryPage() throws IOException {
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(new IdentityService(), tempDir)
+                .generate("xx", null, () -> true);
+
+        assertThat(result.pagesWritten()).isEqualTo(0);
+    }
+
+    // -------------------------------------------------------- failure handling
+
+    @Test
+    void aDroppedBatchItemIsRetriedInHalvesInsteadOfLosingThePage() throws IOException {
+        // Fails any batch holding more than one item, mimicking a small local model that
+        // collapses a list; only the single-item retries succeed.
+        TranslationService flaky = new TranslationService() {
+            @Override
+            public String translate(String text, String source, String target) {
+                return text;
+            }
+
+            @Override
+            public List<String> translateBatch(List<String> texts, String source, String target) {
+                return texts.size() == 1 ? List.of("[ok]" + texts.getFirst()) : null;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(flaky, tempDir).generate("xx", null, null);
+
+        assertThat(result.failed()).isEqualTo(0);
+        assertThat(result.pagesWritten()).isGreaterThan(0);
+        assertThat(Files.readString(tempDir.resolve("guide/xx/index.html"), StandardCharsets.UTF_8))
+            .contains("[ok]");
+    }
+
+    @Test
+    void segmentsWhoseMarkupTheModelDestroyedKeepTheirEnglishSource() throws IOException {
+        // Strips every placeholder — the worst realistic local-model failure, because the
+        // markup, not just the wording, would be lost.
+        TranslationService destructive = new TranslationService() {
+            @Override
+            public String translate(String text, String source, String target) {
+                return text.replaceAll("KTPH\\d{3}", "");
+            }
+
+            @Override
+            public List<String> translateBatch(List<String> texts, String source, String target) {
+                List<String> out = new ArrayList<>(texts.size());
+                texts.forEach(text -> out.add(text.replaceAll("KTPH\\d{3}", "")));
+                return out;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(destructive, tempDir).generate("xx", null, null);
+
+        // Segments without markup translate fine; the ones carrying tokens are refused and
+        // fall back to English, so the page still renders.
+        assertThat(result.failed()).isGreaterThan(0);
+        String page = Files.readString(
+            tempDir.resolve("guide/xx/features/connections.html"), StandardCharsets.UTF_8);
+        assertThat(page).contains("<strong>Host key verification</strong>");
+        assertThat(page).contains("id=\"ssh-host-key-verification\"");
+    }
+
+    // ------------------------------------------------------------------ units
+
+    @Test
+    void placeholderCheckAllowsReorderingButRejectsLossAndInvention() {
+        assertThat(GuideTranslationGenerator.placeholdersIntact(
+            "set KTPH000Host keyKTPH001 on the tab", "auf dem Tab KTPH000Host keyKTPH001 setzen"))
+            .isTrue();
+        assertThat(GuideTranslationGenerator.placeholdersIntact(
+            "set KTPH000Host keyKTPH001", "setzen KTPH000Host key")).isFalse();
+        assertThat(GuideTranslationGenerator.placeholdersIntact(
+            "set KTPH000x", "setzen KTPH000x KTPH001")).isFalse();
+        assertThat(GuideTranslationGenerator.placeholdersIntact(
+            "plain text", "einfacher Text")).isTrue();
+    }
+
+    @Test
+    void unmaskRestoresFragmentsInReverseIndexOrder() {
+        assertThat(GuideTranslationGenerator.unmask(
+            "KTPH000bold textKTPH001 tail", List.of("<strong>", "</strong>")))
+            .isEqualTo("<strong>bold text</strong> tail");
+        // A fragment that itself contains a lower-numbered token still resolves.
+        assertThat(GuideTranslationGenerator.unmask(
+            "KTPH001", List.of("&amp;", "<img alt=\"a KTPH000 b\">")))
+            .isEqualTo("<img alt=\"a &amp; b\">");
+    }
+
+    // ------------------------------------------------------- regression guards
+
+    /**
+     * Under a locale whose default numbering system is not latn, String.format("%d") emits
+     * Eastern Arabic digits. The whole run used to produce nothing on such a machine: every
+     * token was rebuilt as KTPH٠٠٠, matched no manifest text, and all 54 pages were skipped.
+     */
+    @Test
+    void aNonLatinDefaultLocaleDoesNotSilentlyProduceAnEmptyTranslation() throws IOException {
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ar-SA"));
+            assertThat(GuideTranslationGenerator.unmask("KTPH000tail", List.of("<b>")))
+                .isEqualTo("<b>tail");
+
+            GuideTranslationGenerator.Result result =
+                new GuideTranslationGenerator(new IdentityService(), tempDir)
+                    .generate("xx", null, null);
+
+            assertThat(result.pagesSkipped()).isEqualTo(0);
+            assertThat(result.pagesWritten())
+                .isEqualTo(GuideTranslationGenerator.listPages().size());
+        } finally {
+            Locale.setDefault(original);
+        }
+    }
+
+    @Test
+    void markupInventedByTheModelIsNeutralisedBeforeItReachesThePage() throws IOException {
+        assertThat(GuideTranslationGenerator.escapeMarkup("a <b>x</b> c"))
+            .isEqualTo("a &lt;b&gt;x&lt;/b&gt; c");
+        // Bare ampersands occur in the real guide ("Feedback & support") and must pass through.
+        assertThat(GuideTranslationGenerator.escapeMarkup("Feedback & support"))
+            .isEqualTo("Feedback & support");
+
+        TranslationService injecting = new TranslationService() {
+            @Override
+            public String translate(String text, String sourceLang, String targetLang) {
+                return "<injected>" + text;
+            }
+
+            @Override
+            public List<String> translateBatch(List<String> texts, String s, String t) {
+                List<String> out = new ArrayList<>(texts.size());
+                texts.forEach(text -> out.add(translate(text, s, t)));
+                return out;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        new GuideTranslationGenerator(injecting, tempDir).generate("xx", null, null);
+
+        String page = Files.readString(tempDir.resolve("guide/xx/index.html"),
+            StandardCharsets.UTF_8);
+        assertThat(page).contains("&lt;injected&gt;");
+        assertThat(page).doesNotContain("<injected>");
+    }
+
+    @Test
+    void aTruncatedMemoryFileIsIgnoredInsteadOfFailingTheRun() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
+        Path memory = tempDir.resolve("guide/xx/translation-memory.json");
+        String full = Files.readString(memory, StandardCharsets.UTF_8);
+        Files.writeString(memory, full.substring(0, full.length() / 2), StandardCharsets.UTF_8);
+
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(new IdentityService(), tempDir)
+                .generate("xx", null, null);
+
+        assertThat(result.reused()).isEqualTo(0);
+        assertThat(result.pagesWritten())
+            .isEqualTo(GuideTranslationGenerator.listPages().size());
+    }
+
+    /** A cancelled run must not report the segments it never attempted as translated. */
+    @Test
+    void cancellationDoesNotInflateTheTranslatedCount() throws IOException {
+        GuideTranslationGenerator.Result result =
+            new GuideTranslationGenerator(new IdentityService(), tempDir)
+                .generate("xx", null, () -> true);
+
+        assertThat(result.translated()).isEqualTo(0);
+        assertThat(result.distinctSegments()).isGreaterThan(0);
+    }
+
+    // --------------------------------------------------------------- fixtures
+
+    private static String readBundledPage(String page) throws IOException {
+        try (var in = GuideTranslationGenerator.class.getResourceAsStream("/guide/en/" + page)) {
+            assertWithMessage("bundled page " + page).that(in).isNotNull();
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static int totalSegmentOccurrences() throws IOException {
+        int total = 0;
+        for (String page : GuideTranslationGenerator.listPages()) {
+            total += GuideTranslationGenerator.loadManifest(page).segments().size();
+        }
+        return total;
+    }
+
+    private static final class IdentityService implements TranslationService {
+        @Override
+        public String translate(String text, String sourceLang, String targetLang) {
+            return text;
+        }
+
+        @Override
+        public List<String> translateBatch(List<String> texts, String sourceLang, String targetLang) {
+            return List.copyOf(texts);
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+    }
+
+    /** Marks translated text so it can be told apart from untouched English. */
+    private static final class PrefixService implements TranslationService {
+        @Override
+        public String translate(String text, String sourceLang, String targetLang) {
+            return "[" + targetLang.toLowerCase(Locale.ROOT) + "]" + text;
+        }
+
+        @Override
+        public List<String> translateBatch(List<String> texts, String sourceLang, String targetLang) {
+            List<String> out = new ArrayList<>(texts.size());
+            texts.forEach(text -> out.add(translate(text, sourceLang, targetLang)));
+            return out;
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+    }
+
+    private static final class CountingService implements TranslationService {
+        final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        int requested;
+
+        @Override
+        public String translate(String text, String sourceLang, String targetLang) {
+            return text;
+        }
+
+        @Override
+        public List<String> translateBatch(List<String> texts, String sourceLang, String targetLang) {
+            requested += texts.size();
+            seen.addAll(texts);
+            return List.copyOf(texts);
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+    }
+}

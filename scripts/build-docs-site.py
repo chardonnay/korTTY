@@ -108,7 +108,33 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     out = BUILD_OUT / lang
     inline_shim(out)
     assert_offline(out)
+    extract_translation_manifests(out, lang)
     return out
+
+
+def extract_translation_manifests(out: Path, lang: str) -> None:
+    """Emit the runtime translation manifests for the English tree.
+
+    Must run here, as the last step over the built HTML: the manifests record byte
+    offsets into these exact pages, and stageGuideIntoResources deletes and re-copies
+    src/main/resources/guide wholesale, so manifests generated anywhere else would be
+    wiped by the next docs build. Only English is extracted — it is the translation
+    source, and the German tree is itself generated.
+    """
+    if lang != "en":
+        return
+    script = REPO_ROOT / "scripts" / "extract_guide_segments.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), "--guide-root", str(out)],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        sys.stdout.write(proc.stdout)
+        sys.stderr.write(proc.stderr)
+        sys.exit(f"FATAL: {script.name} failed with exit code {proc.returncode}")
+    summary = [line for line in proc.stdout.splitlines() if line.startswith(("54 ", "after dedup", "note:"))
+               or " page(s), " in line]
+    for line in summary:
+        print(f"  {line}")
 
 
 def inline_shim(out: Path) -> int:
