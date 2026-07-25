@@ -241,6 +241,7 @@ public class KorTTYApplication extends Application {
             // Otherwise, check the setting
             boolean passwordNotSet = !masterPasswordManager.isPasswordSet();
             boolean requirePasswordOnStartup = globalSettingsManager.getSettings().isRequireMasterPasswordOnStartup();
+            boolean skipPasswordPrompt = globalSettingsManager.getSettings().isSkipMasterPasswordPrompt();
             // Developer/test launch: TEST_MODE_KORTTY=1 starts without the master-password gate.
             // Honored ONLY in non-packaged dev launches (e.g. `./gradlew run`); jpackage sets
             // jpackage.app-path on every platform, so the bypass can never apply to a release binary.
@@ -255,7 +256,27 @@ public class KorTTYApplication extends Application {
                 logger.warn("TEST_MODE_KORTTY ignored in a packaged build — the master-password gate stays active.");
             }
 
-            if (!testMode && (passwordNotSet || requirePasswordOnStartup)) {
+            if (!testMode && skipPasswordPrompt) {
+                // Auto-unlock: the user disabled the startup prompt. Unlock the vault from the
+                // remembered password so encrypted secrets (AI profiles, SSH passwords, credentials)
+                // stay usable — unlike requireMasterPasswordOnStartup=false, which leaves them locked.
+                logger.warn("Master-password prompt disabled — unlocking the vault automatically (insecure)");
+                if (!masterPasswordManager.tryAutoUnlock()) {
+                    // No usable remembered password yet (or it went stale): prompt once, then remember it.
+                    if (!handleMasterPassword(primaryStage)) {
+                        Platform.exit();
+                        return;
+                    }
+                    try {
+                        char[] entered = masterPasswordManager.getMasterPassword();
+                        if (entered != null) {
+                            masterPasswordManager.saveAutoUnlockPassword(entered);
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Could not remember the master password for automatic unlock", e);
+                    }
+                }
+            } else if (!testMode && (passwordNotSet || requirePasswordOnStartup)) {
                 // Show master password dialog
                 if (!handleMasterPassword(primaryStage)) {
                     Platform.exit();
@@ -264,7 +285,7 @@ public class KorTTYApplication extends Application {
             } else {
                 // Password is set but not required on startup
                 // We still need the derived key for decryption, but we can't get it without the password
-                // So we'll skip the dialog and try to proceed - if decryption fails later, 
+                // So we'll skip the dialog and try to proceed - if decryption fails later,
                 // the user will need to enter the password when needed
                 logger.info("Master password required on startup is disabled, skipping dialog");
                 // Note: We can't decrypt credentials/keys without the password, so those features

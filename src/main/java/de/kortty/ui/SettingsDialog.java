@@ -66,7 +66,8 @@ import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
 import de.kortty.security.PasswordStrengthChecker;
-import de.kortty.security.PasswordVault;
+import de.kortty.security.MasterPasswordManager;
+import de.kortty.security.MasterPasswordReEncryptor;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -164,6 +165,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
+    private final CheckBox skipMasterPasswordPromptCheck;
     private final CheckBox telemetryEnabledCheck;
     private final CheckBox temporarySshKeyEnabledCheck;
     
@@ -1152,7 +1154,55 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         securityGrid.add(requireMasterPasswordOnStartupCheck, 0, securityRow++, 2, 1);
         securityGrid.add(masterPasswordWarningLabel, 0, securityRow++, 2, 1);
-        
+
+        // Skip the startup prompt entirely and auto-unlock from a remembered password.
+        // INSECURE — for throwaway/test environments (e.g. a VM) only.
+        skipMasterPasswordPromptCheck = new CheckBox(I18n.get("settings.security.masterPassword.skipPrompt"));
+        skipMasterPasswordPromptCheck.setSelected(globalSettings != null && globalSettings.isSkipMasterPasswordPrompt());
+        skipMasterPasswordPromptCheck.setTooltip(new Tooltip(I18n.get("settings.security.masterPassword.skipPrompt.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            skipMasterPasswordPromptCheck, de.kortty.policy.ManagedSetting.MASTER_PASSWORD);
+
+        Label skipPromptWarningLabel = new Label(I18n.get("settings.security.masterPassword.skipPrompt.warning"));
+        skipPromptWarningLabel.setWrapText(true);
+        skipPromptWarningLabel.setMaxWidth(640);
+        skipPromptWarningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+        skipPromptWarningLabel.setVisible(skipMasterPasswordPromptCheck.isSelected());
+
+        skipMasterPasswordPromptCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                // Require an explicit confirmation before enabling the insecure mode.
+                Alert confirm = new Alert(Alert.AlertType.WARNING);
+                confirm.setTitle(I18n.get("settings.security.masterPassword.skipPrompt.confirm.title"));
+                confirm.setHeaderText(I18n.get("settings.security.masterPassword.skipPrompt.confirm.header"));
+                confirm.setContentText(I18n.get("settings.security.masterPassword.skipPrompt.confirm.content"));
+                ButtonType enableAnyway = new ButtonType(
+                    I18n.get("settings.security.masterPassword.skipPrompt.confirm.enable"), ButtonBar.ButtonData.OK_DONE);
+                confirm.getButtonTypes().setAll(enableAnyway, ButtonType.CANCEL);
+                if (getDialogPane().getScene() != null) {
+                    confirm.initOwner(getDialogPane().getScene().getWindow());
+                }
+                if (confirm.showAndWait().orElse(ButtonType.CANCEL) != enableAnyway) {
+                    skipMasterPasswordPromptCheck.setSelected(false);
+                    return;
+                }
+                // "skip" and "require on startup" are mutually exclusive; skip wins.
+                requireMasterPasswordOnStartupCheck.setSelected(false);
+            }
+            requireMasterPasswordOnStartupCheck.setDisable(newVal);
+            skipPromptWarningLabel.setVisible(newVal);
+            // The "must enter manually" warning is irrelevant while auto-unlock is active.
+            masterPasswordWarningLabel.setVisible(!newVal && !requireMasterPasswordOnStartupCheck.isSelected());
+        });
+        // Match the initial enable/disable state to a persisted "skip" selection.
+        if (skipMasterPasswordPromptCheck.isSelected()) {
+            requireMasterPasswordOnStartupCheck.setDisable(true);
+            masterPasswordWarningLabel.setVisible(false);
+        }
+
+        securityGrid.add(skipMasterPasswordPromptCheck, 0, securityRow++, 2, 1);
+        securityGrid.add(skipPromptWarningLabel, 0, securityRow++, 2, 1);
+
         // Temporary SSH key (Connection Manager + Quick Connect)
         securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
         temporarySshKeyEnabledCheck = new CheckBox(I18n.get("settings.security.temporarySshKeyEnabled"));
@@ -2493,6 +2543,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
+            boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
+            // Only touch the remembered-password file when the option actually changes — or when it
+            // is on but no password was stored yet (the vault was still locked the last time).
+            MasterPasswordManager mpmForAutoUnlock = app != null ? app.getMasterPasswordManager() : null;
+            boolean autoUnlockNeedsUpdate = skipPrompt != globalSettings.isSkipMasterPasswordPrompt()
+                || (skipPrompt && mpmForAutoUnlock != null && !mpmForAutoUnlock.hasAutoUnlockPassword());
+            globalSettings.setSkipMasterPasswordPrompt(skipPrompt);
+            if (autoUnlockNeedsUpdate) {
+                applyAutoUnlockPreference(skipPrompt);
+            }
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
 
             // JVM resource profile: persist in GlobalSettings and mirror to the tiny launch file
@@ -3365,6 +3425,56 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
     
+    /** A save operation that may fail, used by {@link #persistStore}. */
+    @FunctionalInterface
+    private interface StoreSave {
+        void run() throws Exception;
+    }
+
+    /**
+     * Saves one secret store during a master-password change, recording its name in
+     * {@code failures} instead of propagating. Aborting the sequence would leave every store after
+     * the failing one written with the old password while the rest already use the new one.
+     */
+    private void persistStore(List<String> failures, String label, StoreSave save) {
+        try {
+            save.run();
+        } catch (Exception e) {
+            failures.add(label);
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .error("Failed to save {} after the master-password change", label, e);
+        }
+    }
+
+    /**
+     * Persists or removes the remembered master password to match the "skip prompt" setting.
+     * When enabling, the currently unlocked password is stored (obfuscated, owner-only); if the
+     * vault happens to be locked, the startup flow remembers it after the next unlock. When
+     * disabling, any remembered password is deleted so the prompt returns on the next launch.
+     */
+    private void applyAutoUnlockPreference(boolean skipPrompt) {
+        MasterPasswordManager mpm = app != null ? app.getMasterPasswordManager() : null;
+        if (mpm == null) {
+            return;
+        }
+        try {
+            if (skipPrompt) {
+                char[] current = mpm.getMasterPassword();
+                if (current != null && current.length > 0) {
+                    mpm.saveAutoUnlockPassword(current);
+                } else {
+                    org.slf4j.LoggerFactory.getLogger(getClass())
+                        .info("Auto-unlock enabled but vault is locked; password will be remembered on next unlock");
+                }
+            } else {
+                mpm.clearAutoUnlockPassword();
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .warn("Failed to update the remembered master password", e);
+        }
+    }
+
     /**
      * Shows dialog to change master password and re-encrypts all stored passwords.
      */
@@ -3476,79 +3586,110 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             try {
                 // Verify old password and change to new password
                 char[] oldPasswordChars = oldPasswordField.getText().toCharArray();
-                
-                // Change master password
-                app.getMasterPasswordManager().changePassword(oldPasswordChars, newPasswordChars);
-                Telemetry.track(TelemetryEvents.MASTER_PASSWORD_CHANGED);
+                MasterPasswordManager mpm = app.getMasterPasswordManager();
 
-                // Re-encrypt all connection passwords
-                PasswordVault oldVault = new PasswordVault(
-                    app.getMasterPasswordManager().getEncryptionService(),
-                    oldPasswordChars
-                );
-                
-                PasswordVault newVault = new PasswordVault(
-                    app.getMasterPasswordManager().getEncryptionService(),
-                    newPasswordChars
-                );
-                
-                List<ServerConnection> allConnections = configManager.getConnections();
-                int reEncryptedCount = 0;
-                
-                for (ServerConnection connection : allConnections) {
+                // Stage the change in memory only. master.key is the authority for which password
+                // unlocks the vault, so it is rewritten at the very end (the commit point) — if
+                // anything below fails, the old password still matches the data that is on disk.
+                MasterPasswordManager.PendingPasswordChange pending =
+                    mpm.beginPasswordChange(oldPasswordChars, newPasswordChars);
+                boolean committed = false;
+                try {
+                    // Re-encrypt EVERY master-password-derived secret old->new, then persist each store.
+                    // Previously only connection + SSH-key secrets were migrated, silently breaking AI
+                    // profile keys, credentials, RAG and Job Scheduler secrets after a password change.
+                    MasterPasswordReEncryptor reEncryptor = new MasterPasswordReEncryptor(
+                        mpm.getEncryptionService(), oldPasswordChars, newPasswordChars);
+
+                    // In-memory model stores — mutated here, persisted below.
+                    reEncryptor.reEncryptConnections(configManager.getConnections());
+                    SSHKeyManager sshKeyManager = app.getSSHKeyManager();
+                    if (sshKeyManager != null) {
+                        reEncryptor.reEncryptSshKeys(sshKeyManager.getAllKeys());
+                    }
+                    if (credentialManager != null) {
+                        reEncryptor.reEncryptCredentials(credentialManager.getAllCredentials());
+                    }
+                    if (globalSettings != null) {
+                        reEncryptor.reEncryptGlobalSettings(globalSettings);
+                    }
+
+                    // Self-persisting file / JSON stores.
+                    reEncryptor.reEncryptHuggingFaceTokenStore(
+                        new de.kortty.ai.huggingface.HuggingFaceTokenStore(KorTTYApplication.getConfigDirectory()));
                     try {
-                        // Re-encrypt password if exists
-                        String plainPassword = oldVault.retrievePassword(connection);
-                        if (plainPassword != null) {
-                            newVault.storePassword(connection, plainPassword);
-                            reEncryptedCount++;
-                        }
-                        
-                        // Re-encrypt key passphrase if exists (connection-level stored passphrase)
-                        String plainPassphrase = oldVault.retrieveKeyPassphrase(connection);
-                        if (plainPassphrase != null) {
-                            newVault.storeKeyPassphrase(connection, plainPassphrase);
-                            reEncryptedCount++;
-                        }
-                    } catch (Exception e) {
+                        reEncryptor.reEncryptRagStores(new de.kortty.rag.RagConfigurationManager());
+                    } catch (Exception ragEx) {
                         org.slf4j.LoggerFactory.getLogger(getClass())
-                            .warn("Failed to re-encrypt password for connection: {}", connection.getName(), e);
+                            .warn("Could not open the RAG store registry for re-encryption", ragEx);
                     }
-                }
-                
-                // Re-encrypt SSH key passphrases (stored in SSH Key Manager)
-                SSHKeyManager sshKeyManager = app.getSSHKeyManager();
-                if (sshKeyManager != null) {
-                    for (de.kortty.model.SSHKey key : sshKeyManager.getAllKeys()) {
-                        if (key.getEncryptedPassphrase() != null && !key.getEncryptedPassphrase().isBlank()) {
-                            try {
-                                String plain = sshKeyManager.getPassphrase(key, oldPasswordChars);
-                                if (plain != null) {
-                                    sshKeyManager.setPassphrase(key, plain, newPasswordChars);
-                                    reEncryptedCount++;
-                                }
-                            } catch (Exception e) {
-                                org.slf4j.LoggerFactory.getLogger(getClass())
-                                    .warn("Failed to re-encrypt passphrase for SSH key: {}", key.getName(), e);
-                            }
+                    if (app.getJobSchedulerService() != null) {
+                        reEncryptor.reEncryptJobScheduler(app.getJobSchedulerService().getRepository());
+                    }
+
+                    // Persist each store on its own: one failing file must not skip the ones after it,
+                    // which would leave those stores encrypted with the old password.
+                    List<String> failedStores = new ArrayList<>();
+                    persistStore(failedStores, "connections.xml",
+                        () -> configManager.save(mpm.getDerivedKey()));
+                    if (sshKeyManager != null) {
+                        persistStore(failedStores, "ssh-keys.xml", sshKeyManager::save);
+                    }
+                    if (credentialManager != null) {
+                        persistStore(failedStores, "credentials.xml", credentialManager::save);
+                    }
+                    if (globalSettings != null) {
+                        persistStore(failedStores, "global-settings.xml",
+                            () -> app.getGlobalSettingsManager().save());
+                    }
+
+                    // Commit point: every store has been migrated, so the new password may take over.
+                    mpm.commitPasswordChange(pending);
+                    committed = true;
+                    Telemetry.track(TelemetryEvents.MASTER_PASSWORD_CHANGED);
+
+                    // Keep the remembered auto-unlock password in sync with the new master password.
+                    if (globalSettings != null && globalSettings.isSkipMasterPasswordPrompt()) {
+                        try {
+                            mpm.saveAutoUnlockPassword(newPasswordChars);
+                        } catch (Exception ex) {
+                            org.slf4j.LoggerFactory.getLogger(getClass())
+                                .warn("Failed to update remembered password after master-password change", ex);
                         }
                     }
-                    sshKeyManager.save();
+
+                    int reEncryptedCount = reEncryptor.reEncryptedCount();
+                    int problems = reEncryptor.failureCount() + failedStores.size();
+                    if (problems == 0) {
+                        Alert success = new Alert(Alert.AlertType.INFORMATION);
+                        success.setTitle(I18n.get("settings.masterPassword.changed"));
+                        success.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
+                        success.setContentText(
+                            I18n.get("settings.masterPassword.changedMessage", reEncryptedCount));
+                        success.showAndWait();
+                    } else {
+                        // Never report a clean success when some secrets stayed on the old password.
+                        org.slf4j.LoggerFactory.getLogger(getClass())
+                            .warn("Master password changed with {} unmigrated item(s); stores not saved: {}",
+                                problems, failedStores);
+                        Alert partial = new Alert(Alert.AlertType.WARNING);
+                        partial.setTitle(I18n.get("settings.masterPassword.changed"));
+                        partial.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
+                        partial.setContentText(
+                            I18n.get("settings.masterPassword.changedPartial", reEncryptedCount, problems));
+                        partial.showAndWait();
+                    }
+                } finally {
+                    if (!committed) {
+                        // master.key was never rewritten — put the old password back in memory so the
+                        // running session stays consistent with what is on disk.
+                        mpm.rollbackPasswordChange(pending);
+                    }
+                    // Clear sensitive data
+                    java.util.Arrays.fill(oldPasswordChars, '\0');
+                    java.util.Arrays.fill(newPasswordChars, '\0');
                 }
-                
-                // Save connections with new encryption
-                configManager.save(app.getMasterPasswordManager().getDerivedKey());
-                
-                // Clear sensitive data
-                java.util.Arrays.fill(oldPasswordChars, '\0');
-                java.util.Arrays.fill(newPasswordChars, '\0');
-                
-                Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle(I18n.get("settings.masterPassword.changed"));
-                success.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
-                success.setContentText(I18n.get("settings.masterPassword.changedMessage", reEncryptedCount));
-                success.showAndWait();
-                
+
             } catch (SecurityException e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
                 error.setTitle(I18n.get("sftp.error.title"));

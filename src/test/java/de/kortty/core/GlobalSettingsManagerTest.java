@@ -1138,6 +1138,32 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void skipMasterPasswordPromptDefaultsToFalseAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-skip-master-password");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            // Secure default: the startup prompt is never skipped unless explicitly enabled.
+            assertThat(manager.getSettings().isSkipMasterPasswordPrompt()).isFalse();
+
+            manager.getSettings().setSkipMasterPasswordPrompt(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().isSkipMasterPasswordPrompt()).isTrue();
+
+            // A settings file written before this element existed must load as false.
+            GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy-skip"));
+            legacy.save();
+            legacy.load();
+            assertThat(legacy.getSettings().isSkipMasterPasswordPrompt()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void preventSystemSleepDefaultsFalseForLegacyXmlAndPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-power-management");
         try {

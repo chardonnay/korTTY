@@ -67,6 +67,8 @@ public final class PolicyClamp {
         }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
+            // A forced master password rules out the insecure auto-unlock path.
+            settings.setSkipMasterPasswordPrompt(false);
         }
         if (policy.enforceHostKeyCheck()) {
             settings.setHostKeyCheckDisabledForAllConnections(false);

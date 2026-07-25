@@ -2153,8 +2153,8 @@
 <thead>
 <tr>
 <th>Einstellung</th>
-<th>Geben Sie</th>
-<th>ein Werte</th>
+<th>Typ</th>
+<th>Werte</th>
 <th>Standard</th>
 <th>Gespeichert als</th>
 </tr>
@@ -2163,21 +2163,28 @@
 <tr>
 <td>Master-Passwort ändern</td>
 <td>Schaltfläche</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
 </tr>
 <tr>
-<td>Master-Passwort beim Start anfordern</td>
+<td>Master-Passwort beim Start erforderlich</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>requireMasterPasswordOnStartup</code></td>
 </tr>
 <tr>
-<td>Option „Temporären SSH-Schlüssel aktivieren“</td>
+<td>Master-Passwort-Abfrage beim Start deaktivieren (automatische Anmeldung)</td>
 <td>umschalten</td>
-<td>—</td>
+<td>–</td>
+<td>Aus</td>
+<td><code>skipMasterPasswordPrompt</code></td>
+</tr>
+<tr>
+<td>Temporäre SSH-Schlüsseloption aktivieren</td>
+<td>umschalten</td>
+<td>–</td>
 <td>Aus</td>
 <td><code>temporarySshKeyEnabled</code></td>
 </tr>
@@ -2187,9 +2194,24 @@
 <p class="admonition-title">Master-Passwort beim Start</p>
 <p>Wenn „Master-Passwort beim Start erforderlich“ deaktiviert ist, können verschlüsselte Passwörter und SSH-Schlüssel nicht automatisch ohne manuelle Passworteingabe entschlüsselt werden. Dies stellt ein Sicherheitsrisiko dar und sollte nur deaktiviert werden, wenn Sie die Konsequenzen verstehen.</p>
 </div>
+<div class="admonition danger">
+<p class="admonition-title">Auto-Login speichert Ihr Master-Passwort auf der Festplatte</p>
+<p>Wenn Sie „Master-Passwort-Eingabeaufforderung beim Start deaktivieren“ aktivieren, merkt sich korTTY Ihr Master-Passwort – es wird nur verschleiert (nicht sicher verschlüsselt) in <code>~/.kortty/master.autounlock</code> mit Dateiberechtigungen nur für Besitzer gespeichert – und entsperrt den Tresor automatisch bei jedem Start, ohne Dialog. Anders als bei der Deaktivierung der oben genannten Option bleiben verschlüsselte Daten (KI-Profile, SSH-Passwörter, Anmeldeinformationen) nutzbar, da der Tresor tatsächlich entsperrt ist. Der Nachteil: Jeder, der Ihren <code>~/.kortty</code>-Ordner oder ein Backup lesen kann, kann dann <strong>alle</strong> gespeicherten Passwörter, SSH-Schlüssel und API-Schlüssel entschlüsseln – die Dateiberechtigungen sind der einzige verbleibende Schutz. Bei einem brandneuen Profil richtet korTTY automatisch ein Standardpasswort ein, sodass die App ohne Eingaben gestartet werden kann. korTTY bittet Sie um eine Bestätigung, bevor Sie es aktivieren, und ist nur für Wegwerf-/Testumgebungen wie eine VM gedacht. Eine Unternehmensrichtlinie, die ein Hauptkennwort erfordert, setzt diese Option außer Kraft.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Unbeaufsichtigter erster Start (Automatisierungs-/Test-VMs)</p>
+<p>Um korTTY ohne Dialog aufzurufen – selbst bei einem brandneuen Profil, das noch nie freigeschaltet wurde – erstellen Sie <code>~/.kortty/global-settings.xml</code> vor dem ersten Start mit bereits aktivierter Option:</p>
+<div class="language-xml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;yes&quot;?&gt;</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">&lt;globalSettings&gt;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">&lt;skipMasterPasswordPrompt&gt;</span>true<span class="nt">&lt;/skipMasterPasswordPrompt&gt;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">&lt;/globalSettings&gt;</span>
+</span></code></pre></div>
+<p>Beim ersten Start richtet korTTY automatisch ein Standard-Master-Passwort ein und entsperrt den Tresor, sodass für Skript- oder CI-Ausführungen keine Interaktion erforderlich ist. Nur für Einweg-/Testumgebungen gedacht – siehe Sicherheitswarnung oben.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Schaltfläche „Master-Passwort ändern“</p>
-<p>Öffnet einen Dialog, in dem Sie nach dem <strong>Aktuellen Passwort</strong>, dem <strong>Neuen Passwort (mindestens 6 Zeichen)</strong> und einer Wiederholung <strong>Neues Passwort bestätigen</strong> gefragt werden. <strong>Änderung</strong> wendet es an. korTTY lehnt ein falsches aktuelles Passwort, ein neues Passwort mit weniger als sechs Zeichen und eine Nichtübereinstimmung zwischen den beiden neuen Einträgen ab, jeweils mit einer eigenen Nachricht. Bei Erfolg meldet es, wie viele Verbindungspasswörter neu verschlüsselt wurden – jedes gespeicherte Verbindungspasswort wird mit dem neuen Master-Passwort neu verschlüsselt.</p>
+<p>Öffnet einen Dialog, in dem Sie nach dem <strong>Aktuellen Passwort</strong>, dem <strong>Neuen Passwort (mindestens 6 Zeichen)</strong> und einer Wiederholung <strong>Neues Passwort bestätigen</strong> gefragt werden. <strong>Änderung</strong> wendet es an. korTTY lehnt ein falsches aktuelles Passwort, ein neues Passwort mit weniger als sechs Zeichen und eine Nichtübereinstimmung zwischen den beiden neuen Einträgen ab, jeweils mit einer eigenen Nachricht. Bei Erfolg meldet es, wie viele Geheimnisse neu verschlüsselt wurden: Jedes durch ein Master-Passwort geschützte Geheimnis wird mit dem alten Passwort entschlüsselt und mit dem neuen neu verschlüsselt – Verbindungspasswörter und Schlüsselpassphrasen, Jump-Server-Passwörter, SSH-Schlüsselpassphrasen, gespeicherte Anmeldeinformationen, AI-Profil-API-Schlüssel und die anderen AI-/Übersetzungsschlüssel sowie RAG- und Job Scheduler-Geheimnisse – sodass nach der Änderung nichts unlesbar wird.</p>
+<p>Das neue Passwort wird erst übernommen, wenn jeder Wissensspeicher migriert wurde. Bei einem Fehler während der Migration bleibt also das alte Passwort in Kraft, anstatt Sie für die Hälfte Ihrer Daten zu sperren. Wenn ein einzelnes Geheimnis nicht migriert werden kann (z. B. eines, das mit einem anderen Passwort verschlüsselt wurde), lässt korTTY diesen Wert unverändert, meldet, wie viele Elemente betroffen waren, und vermerkt sie im Protokoll – diese Geheimnisse behalten das alte Passwort und müssen manuell neu eingegeben werden.</p>
 </div>
 
 

@@ -41,6 +41,21 @@ public final class RagSecretSupport {
         return storedValue != null && storedValue.startsWith(PREFIX);
     }
 
+    /**
+     * Re-encrypts a stored RAG secret from {@code oldMaster} to {@code newMaster}, preserving the
+     * {@code vault:v1:} envelope. Blank or legacy (un-enveloped) values are returned unchanged.
+     * Used by the master-password change flow, which passes explicit passwords rather than the
+     * in-memory one (which has already been swapped to the new password by then).
+     */
+    public static String reEncrypt(String storedValue, char[] oldMaster, char[] newMaster) throws Exception {
+        if (!isProtected(storedValue)) {
+            return storedValue;
+        }
+        EncryptionService enc = new EncryptionService();
+        String plain = enc.decryptPassword(storedValue.substring(PREFIX.length()), oldMaster);
+        return PREFIX + enc.encryptPassword(plain, newMaster);
+    }
+
     private static char[] masterPassword() {
         KorTTYApplication application = KorTTYApplication.getInstance();
         return application != null && application.getMasterPasswordManager() != null
