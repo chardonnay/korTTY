@@ -10,6 +10,8 @@ import de.kortty.core.CredentialManager;
 import de.kortty.core.JvmLaunchProfileStore;
 import de.kortty.model.JvmResourceProfile;
 import de.kortty.core.DynamicLanguageGenerator;
+import de.kortty.core.GuideTranslationGenerator;
+import de.kortty.core.GuideLocationResolver;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.AiCliArgumentPreset;
 import de.kortty.core.AiCliArgumentTemplate;
@@ -218,6 +220,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ProgressIndicator translationProgressIndicator;
     private Label translationOutdatedLabelRef;
     private Button translationRegenerateOutdatedButtonRef;
+    // Guide translation runs for hours on a local model, so unlike the interface-string
+    // generation it needs a progress bar and a cancel button of its own.
+    private javafx.scene.control.ProgressBar guideTranslationProgress;
+    private Button guideTranslationCancelButton;
+    private Label guideTranslationStatusLabel;
+    private ListView<String> guideTranslationList;
 
     // AI settings
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -1456,6 +1464,55 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
         refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
         translationGrid.add(generatedBox, 1, transRow++);
+
+        // Guide translation. Uses the provider and target language selected above, but is a
+        // separate action: the interface strings take seconds, the guide takes hours on a local
+        // model, so the two must not share one button.
+        translationGrid.add(new javafx.scene.control.Separator(), 0, transRow, 2, 1);
+        transRow++;
+        Label guideSectionLabel = new Label(I18n.get("settings.translation.guide.section"));
+        guideSectionLabel.setStyle("-fx-font-weight: bold;");
+        translationGrid.add(guideSectionLabel, 0, transRow++, 2, 1);
+        Label guideHint = new Label(I18n.get("settings.translation.guide.hint"));
+        guideHint.setWrapText(true);
+        // prefWidth, not maxWidth: inside a GridPane cell the label reports the full text as its
+        // preferred width and is then clipped to one ellipsised line, so the warning about the
+        // multi-hour runtime — the part users most need to read — never appears.
+        guideHint.setPrefWidth(520);
+        guideHint.setMinHeight(Region.USE_PREF_SIZE);
+        guideHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        translationGrid.add(guideHint, 1, transRow++);
+
+        Button guideGenerateButton = new Button(I18n.get("settings.translation.guide.generate"));
+        guideTranslationCancelButton = new Button(I18n.get("settings.translation.guide.cancel"));
+        guideTranslationCancelButton.setVisible(false);
+        guideTranslationProgress = new javafx.scene.control.ProgressBar(0);
+        guideTranslationProgress.setPrefWidth(160);
+        guideTranslationProgress.setVisible(false);
+        guideTranslationStatusLabel = new Label();
+        guideTranslationStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        guideGenerateButton.setOnAction(ev -> generateGuideTranslation(guideGenerateButton));
+        HBox guideActionBox = new HBox(10, guideGenerateButton, guideTranslationProgress,
+            guideTranslationCancelButton);
+        guideActionBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        translationGrid.add(new VBox(4, guideActionBox, guideTranslationStatusLabel), 1, transRow++);
+
+        translationGrid.add(new Label(I18n.get("settings.translation.guide.generated")), 0, transRow);
+        guideTranslationList = new ListView<>();
+        guideTranslationList.setPrefHeight(90);
+        guideTranslationList.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null
+                    : Locale.forLanguageTag(item).getDisplayLanguage() + " (" + item + ")");
+            }
+        });
+        Button guideDeleteButton = new Button(I18n.get("settings.translation.delete"));
+        guideDeleteButton.setOnAction(e -> deleteSelectedGuideTranslation(owner));
+        translationGrid.add(new VBox(5, guideTranslationList, guideDeleteButton), 1, transRow++);
+        refreshGuideTranslationList();
+
         translationTab.setContent(translationGrid);
 
         // AI tab
@@ -5095,6 +5152,149 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 outdatedLabel.setText(I18n.get("settings.translation.outdatedHint", names));
                 outdatedLabel.setVisible(true);
                 regenerateOutdatedBtn.setVisible(true);
+            }
+        }
+    }
+
+    /**
+     * Translates the bundled guide into the selected language.
+     *
+     * <p>Unlike the interface strings this is a long job — hours against a local model — so it
+     * reports real progress and can be cancelled. Cancelling is safe rather than wasteful: the
+     * generator checkpoints its translation memory, so the next run resumes instead of
+     * retranslating what was already done.
+     */
+    private void generateGuideTranslation(Button generateButton) {
+        TranslationApiProvider provider = translationProviderCombo.getValue();
+        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
+        String key = getTranslationApiKeyPlain();
+        if (!keyOptional && (key == null || key.isEmpty())) {
+            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
+            return;
+        }
+        TranslationService service = createTranslationService();
+        Locale target = translationTargetLanguageCombo.getValue();
+        if (service == null || target == null || target.getLanguage() == null
+            || target.getLanguage().isEmpty()) {
+            new Alert(Alert.AlertType.ERROR,
+                I18n.get("settings.translation.guide.error")).showAndWait();
+            return;
+        }
+        String targetLang = target.getLanguage();
+
+        generateButton.setDisable(true);
+        guideTranslationProgress.setProgress(0);
+        guideTranslationProgress.setVisible(true);
+        guideTranslationCancelButton.setVisible(true);
+        guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.progress", 0));
+
+        Task<GuideTranslationGenerator.Result> task = new Task<>() {
+            @Override
+            protected GuideTranslationGenerator.Result call() throws Exception {
+                GuideTranslationGenerator generator = new GuideTranslationGenerator(
+                    service, KorTTYApplication.getConfigDirectory());
+                return generator.generate(targetLang,
+                    fraction -> Platform.runLater(() -> {
+                        guideTranslationProgress.setProgress(fraction);
+                        guideTranslationStatusLabel.setText(I18n.get(
+                            "settings.translation.guide.progress", (int) Math.round(fraction * 100)));
+                    }),
+                    this::isCancelled);
+            }
+        };
+        guideTranslationCancelButton.setOnAction(ev -> {
+            guideTranslationCancelButton.setDisable(true);
+            task.cancel();
+        });
+        Runnable finish = () -> {
+            generateButton.setDisable(false);
+            guideTranslationProgress.setVisible(false);
+            guideTranslationCancelButton.setVisible(false);
+            guideTranslationCancelButton.setDisable(false);
+            refreshGuideTranslationList();
+        };
+        task.setOnSucceeded(ev -> {
+            finish.run();
+            GuideTranslationGenerator.Result result = task.getValue();
+            guideTranslationStatusLabel.setText("");
+            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.guide.success",
+                result.pagesWritten())).showAndWait();
+        });
+        task.setOnCancelled(ev -> {
+            finish.run();
+            guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.cancelled"));
+        });
+        task.setOnFailed(ev -> {
+            finish.run();
+            guideTranslationStatusLabel.setText("");
+            Throwable error = task.getException();
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .error("Guide translation failed", error);
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.guide.error")
+                + (error != null && error.getMessage() != null ? ": " + error.getMessage() : ""))
+                .showAndWait();
+        });
+        Thread worker = new Thread(task, "guide-translation");
+        // Daemon: an hours-long translation must never keep the application from quitting.
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void refreshGuideTranslationList() {
+        if (guideTranslationList == null) {
+            return;
+        }
+        guideTranslationList.getItems().setAll(
+            GuideLocationResolver.availableGeneratedLanguages(KorTTYApplication.getConfigDirectory()));
+    }
+
+    /** Removes a translated guide, its staged assets and its translation memory. */
+    private void deleteSelectedGuideTranslation(Stage owner) {
+        String selected = guideTranslationList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("settings.translation.guide.deleteTitle"));
+        confirm.setHeaderText(I18n.get("settings.translation.guide.deleteConfirm",
+            Locale.forLanguageTag(selected).getDisplayLanguage()));
+        Window dialogOwner = getSettingsDialogOwner(owner);
+        if (dialogOwner != null) {
+            confirm.initOwner(dialogOwner);
+        }
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        java.nio.file.Path root = GuideLocationResolver
+            .generatedRoot(KorTTYApplication.getConfigDirectory()).resolve(selected);
+        try {
+            deleteGeneratedGuideTree(root);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not delete {}", root, e);
+            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.guide.error")).showAndWait();
+        }
+        refreshGuideTranslationList();
+    }
+
+    /**
+     * Deletes one generated guide language directory.
+     *
+     * <p>Recursive deletion of a user directory deserves a guard rather than trust: the path is
+     * re-checked to be a real directory directly beneath the config directory's guide root, so a
+     * malformed or symlinked language entry cannot turn this into a delete of something else.
+     */
+    private static void deleteGeneratedGuideTree(java.nio.file.Path root) throws java.io.IOException {
+        java.nio.file.Path guideRoot = GuideLocationResolver
+            .generatedRoot(KorTTYApplication.getConfigDirectory()).toAbsolutePath().normalize();
+        java.nio.file.Path resolved = root.toAbsolutePath().normalize();
+        if (!resolved.getParent().equals(guideRoot)
+            || !java.nio.file.Files.isDirectory(resolved, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw new java.io.IOException("Refusing to delete " + resolved);
+        }
+        try (java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(resolved)) {
+            for (java.nio.file.Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                java.nio.file.Files.deleteIfExists(path);
             }
         }
     }

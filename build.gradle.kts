@@ -2583,6 +2583,14 @@ tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("translationTabSmoke") {
+    group = "verification"
+    description = "Builds the Settings Translation tab and asserts the guide-translation section is present and wired."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TranslationTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generatedGuideRenderSmoke") {
     group = "verification"
     description = "Generates a guide language into build/smoke and verifies it renders with its own styling in a WebView."
