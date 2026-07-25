@@ -50,7 +50,19 @@ class GuideTranslationI18nCoverageTest {
         "settings.translation.guide.estimateComplete",
         "settings.translation.guide.estimateFailed",
         "settings.translation.guide.profile",
-        "settings.translation.guide.profileDefault");
+        "settings.translation.guide.profileDefault",
+        "settings.translation.guide.alreadyRunning",
+        "guide.translation.indicator.tooltip",
+        "guide.translation.quit.title",
+        "guide.translation.quit.header",
+        "guide.translation.quit.message",
+        "guide.translation.quit.pauseAndQuit",
+        "guide.translation.quit.keepRunning",
+        "guide.translation.outdated.title",
+        "guide.translation.outdated.header",
+        "guide.translation.outdated.message",
+        "guide.translation.outdated.update",
+        "guide.translation.outdated.later");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d+)}");
 

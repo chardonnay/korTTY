@@ -197,6 +197,7 @@ public class MainWindow {
     private final boolean transparentWindowMode;
     private MenuBar menuBar;
     private MenuBar systemMenuBar;
+    private GuideTranslationIndicator guideTranslationIndicator;
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
     private boolean dashboardVisible = false;
@@ -783,6 +784,9 @@ public class MainWindow {
             } else {
                 stopJobSchedulerStatusUpdates();
                 stopAgentStatusIndicatorTimer();
+                if (guideTranslationIndicator != null) {
+                    guideTranslationIndicator.dispose();
+                }
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
@@ -824,6 +828,15 @@ public class MainWindow {
     
     private void setupMenuBar() {
         menuBar = createApplicationMenuBar(MenuBarTarget.WINDOW);
+        // The menu bar goes into a row so a right-aligned indicator can sit beside it. It must be
+        // a SIBLING of the bar, not a menu inside it: applyMenuBarVisibility hides the bar itself,
+        // and a running translation has to stay visible even then.
+        guideTranslationIndicator = new GuideTranslationIndicator();
+        Region menuSpacer = new Region();
+        HBox.setHgrow(menuSpacer, Priority.ALWAYS);
+        HBox menuRow = new HBox(menuBar, menuSpacer, guideTranslationIndicator.getNode());
+        menuRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(menuBar, Priority.NEVER);
         if (isMacOs()) {
             systemMenuBar = createApplicationMenuBar(MenuBarTarget.SYSTEM);
             systemMenuBar.setUseSystemMenuBar(true);
@@ -836,11 +849,11 @@ public class MainWindow {
             clearMenuBarAccelerators(systemMenuBar);
             // Keep a hidden companion menu bar attached to the scene so macOS can
             // continue to show the application menu even when the in-window bar is hidden.
-            VBox menuContainer = new VBox(systemMenuBar, menuBar);
+            VBox menuContainer = new VBox(systemMenuBar, menuRow);
             root.setTop(menuContainer);
             MenuBarSkin.setDefaultSystemMenuBar(systemMenuBar);
         } else {
-            root.setTop(menuBar);
+            root.setTop(menuRow);
         }
         // The menu bar always starts visible; hiding it is session-only and never persisted.
         applyMenuBarVisibility(true);
@@ -3059,6 +3072,9 @@ public class MainWindow {
         if (willCloseApplication() && maybeHandleSchedulerDrainBeforeExit(this, this::fireCloseRequest)) {
             return false;
         }
+        if (willCloseApplication() && !confirmQuitWhileTranslatingGuide()) {
+            return false;
+        }
 
         GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
         if (globalSettings != null && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation()) {
@@ -3085,6 +3101,93 @@ public class MainWindow {
         alert.setContentText(I18n.get("dialog.activeConnectionsMessage", activeConnections));
         
         return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    /**
+     * Asks before quitting while the guide is being translated.
+     *
+     * <p>Worth interrupting for: the run is hours long and invisible once the window is gone, so
+     * quitting silently would look like the work simply vanished. It has not — the translation
+     * memory is checkpointed, so the next start continues from here, and the dialog says so
+     * rather than presenting the choice as losing progress.
+     *
+     * @return true to proceed with quitting
+     */
+    private boolean confirmQuitWhileTranslatingGuide() {
+        de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
+        if (!job.isRunning()) {
+            return true;
+        }
+        de.kortty.core.GuideTranslationJob.Snapshot snapshot = job.snapshot();
+        String language = snapshot.language() != null
+            ? java.util.Locale.forLanguageTag(snapshot.language()).getDisplayLanguage() : "";
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("guide.translation.quit.title"));
+        alert.setHeaderText(I18n.get("guide.translation.quit.header", language, snapshot.percent()));
+        alert.setContentText(I18n.get("guide.translation.quit.message"));
+        alert.getButtonTypes().setAll(
+            new ButtonType(I18n.get("guide.translation.quit.pauseAndQuit"), ButtonBar.ButtonData.OK_DONE),
+            new ButtonType(I18n.get("guide.translation.quit.keepRunning"), ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType choice = alert.showAndWait().orElse(null);
+        boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
+        if (quit) {
+            // Stop at the next batch boundary so the checkpoint on disk is consistent.
+            job.cancel();
+        }
+        return quit;
+    }
+
+    /** Shown at most once per run of the application, not once per window. */
+    private static boolean guideTranslationUpdatePrompted;
+
+    /**
+     * After a release that changed the guide, offers to refresh a locally translated one.
+     *
+     * <p>Cheap to accept and cheaper the less the guide moved: the translation memory is keyed by
+     * the source text, so every sentence that survived the release is reused and only genuinely
+     * new or edited text reaches the model. Deferred a few seconds so it never competes with
+     * startup, and asked once per application run rather than once per window.
+     */
+    private void scheduleOutdatedGuideTranslationCheck() {
+        if (guideTranslationUpdatePrompted || !isForegroundWindow()) {
+            return;
+        }
+        javafx.animation.PauseTransition delay =
+            new javafx.animation.PauseTransition(javafx.util.Duration.seconds(6));
+        delay.setOnFinished(event -> {
+            if (guideTranslationUpdatePrompted || de.kortty.core.GuideTranslationJob.getInstance().isRunning()) {
+                return;
+            }
+            java.util.List<String> outdated = de.kortty.core.GuideTranslationJob.outdatedLanguages(
+                KorTTYApplication.getConfigDirectory(), KorTTYApplication.getAppVersion());
+            if (outdated.isEmpty()) {
+                return;
+            }
+            guideTranslationUpdatePrompted = true;
+            promptGuideTranslationUpdate(outdated.getFirst());
+        });
+        delay.play();
+    }
+
+    private void promptGuideTranslationUpdate(String lang) {
+        String language = java.util.Locale.forLanguageTag(lang).getDisplayLanguage();
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("guide.translation.outdated.title"));
+        alert.setHeaderText(I18n.get("guide.translation.outdated.header"));
+        alert.setContentText(I18n.get("guide.translation.outdated.message", language));
+        alert.getButtonTypes().setAll(
+            new ButtonType(I18n.get("guide.translation.outdated.update"), ButtonBar.ButtonData.OK_DONE),
+            new ButtonType(I18n.get("guide.translation.outdated.later"), ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType choice = alert.showAndWait().orElse(null);
+        if (choice == null || choice.getButtonData() != ButtonBar.ButtonData.OK_DONE) {
+            return;
+        }
+        // The settings dialog owns the provider and profile choice, so send the user there rather
+        // than guessing which service should spend the next few hours.
+        showSettings();
     }
 
     private boolean willCloseApplication() {

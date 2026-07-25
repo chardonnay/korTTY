@@ -227,6 +227,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private Label guideTranslationStatusLabel;
     private ListView<String> guideTranslationList;
     private ComboBox<AiProfile> guideAiProfileCombo;
+    private Runnable guideJobListener;
 
     // AI settings
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -5262,64 +5263,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 I18n.get("settings.translation.guide.error")).showAndWait();
             return;
         }
-        String targetLang = target.getLanguage();
-
+        de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
+        if (!job.start(service, target.getLanguage(), KorTTYApplication.getConfigDirectory())) {
+            new Alert(Alert.AlertType.INFORMATION,
+                I18n.get("settings.translation.guide.alreadyRunning")).showAndWait();
+            return;
+        }
         generateButton.setDisable(true);
         guideTranslationProgress.setProgress(0);
         guideTranslationProgress.setVisible(true);
         guideTranslationCancelButton.setVisible(true);
         guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.progress", 0));
-
-        Task<GuideTranslationGenerator.Result> task = new Task<>() {
-            @Override
-            protected GuideTranslationGenerator.Result call() throws Exception {
-                GuideTranslationGenerator generator = new GuideTranslationGenerator(
-                    service, KorTTYApplication.getConfigDirectory());
-                return generator.generate(targetLang,
-                    fraction -> Platform.runLater(() -> {
-                        guideTranslationProgress.setProgress(fraction);
-                        guideTranslationStatusLabel.setText(I18n.get(
-                            "settings.translation.guide.progress", (int) Math.round(fraction * 100)));
-                    }),
-                    this::isCancelled);
-            }
-        };
         guideTranslationCancelButton.setOnAction(ev -> {
             guideTranslationCancelButton.setDisable(true);
-            task.cancel();
+            job.cancel();
         });
-        Runnable finish = () -> {
-            generateButton.setDisable(false);
-            guideTranslationProgress.setVisible(false);
-            guideTranslationCancelButton.setVisible(false);
-            guideTranslationCancelButton.setDisable(false);
-            refreshGuideTranslationList();
-        };
-        task.setOnSucceeded(ev -> {
-            finish.run();
-            GuideTranslationGenerator.Result result = task.getValue();
-            guideTranslationStatusLabel.setText("");
-            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.guide.success",
-                result.pagesWritten())).showAndWait();
-        });
-        task.setOnCancelled(ev -> {
-            finish.run();
-            guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.cancelled"));
-        });
-        task.setOnFailed(ev -> {
-            finish.run();
-            guideTranslationStatusLabel.setText("");
-            Throwable error = task.getException();
-            org.slf4j.LoggerFactory.getLogger(getClass())
-                .error("Guide translation failed", error);
-            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.guide.error")
-                + (error != null && error.getMessage() != null ? ": " + error.getMessage() : ""))
-                .showAndWait();
-        });
-        Thread worker = new Thread(task, "guide-translation");
-        // Daemon: an hours-long translation must never keep the application from quitting.
-        worker.setDaemon(true);
-        worker.start();
+        observeGuideTranslationJob(generateButton);
     }
 
     /**
@@ -5415,6 +5374,39 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         long hours = minutes / 60;
         long remainder = minutes % 60;
         return remainder == 0 ? hours + " h" : hours + " h " + remainder + " min";
+    }
+
+    /**
+     * Mirrors the application-wide job into this dialog for as long as it stays open.
+     *
+     * <p>The dialog observes the run instead of owning it. A translation lasts hours and the user
+     * has to be able to close this window, keep working, watch progress in the menu bar and be
+     * warned before quitting — none of which survives a task that belongs to a dialog.
+     */
+    private void observeGuideTranslationJob(Button generateButton) {
+        de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
+        if (guideJobListener != null) {
+            job.removeListener(guideJobListener);
+        }
+        guideJobListener = () -> Platform.runLater(() -> {
+            de.kortty.core.GuideTranslationJob.Snapshot snapshot = job.snapshot();
+            if (snapshot.running()) {
+                guideTranslationProgress.setProgress(snapshot.progress());
+                guideTranslationStatusLabel.setText(
+                    I18n.get("settings.translation.guide.progress", snapshot.percent()));
+                return;
+            }
+            generateButton.setDisable(false);
+            guideTranslationProgress.setVisible(false);
+            guideTranslationCancelButton.setVisible(false);
+            guideTranslationCancelButton.setDisable(false);
+            guideTranslationStatusLabel.setText(job.isCancelRequested()
+                ? I18n.get("settings.translation.guide.cancelled") : "");
+            refreshGuideTranslationList();
+            job.removeListener(guideJobListener);
+            guideJobListener = null;
+        });
+        job.addListener(guideJobListener);
     }
 
     /** Null first: the default text profile, matching what the run uses when nothing is picked. */
