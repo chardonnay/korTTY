@@ -140,6 +140,20 @@ public final class TranslationTabSmoke {
         require(estimate.getOnAction() != null, "estimate button is not wired to a handler");
         require(!estimate.isDisabled(), "estimate button should be enabled");
 
+        // The profile picker decides which model spends the next few hours, and its first entry
+        // must be the default so the section behaves as before when nothing is chosen.
+        @SuppressWarnings("unchecked")
+        javafx.scene.control.ComboBox<Object> profileCombo =
+            (javafx.scene.control.ComboBox<Object>) field(dialog, "guideAiProfileCombo");
+        require(profileCombo != null, "AI profile combo missing");
+        require(!profileCombo.getItems().isEmpty(), "AI profile combo is empty");
+        require(profileCombo.getItems().getFirst() == null,
+            "the first entry must be the default profile (null)");
+        require(profileCombo.getValue() == null, "the default profile must be preselected");
+        String rendered = profileCombo.getConverter().toString(null);
+        require(I18n.get("settings.translation.guide.profileDefault").equals(rendered),
+            "default entry renders as '" + rendered + "'");
+
         System.out.println("  section, estimate, start, progress bar, cancel and list all present");
 
         pane.setMinSize(WIDTH, HEIGHT);

@@ -265,7 +265,7 @@ public class GuideTranslationGenerator {
             return new Estimate(0, 0, 0, 0, 0, 0, 0);
         }
 
-        List<String> sample = spreadAcrossLengths(pending, Math.max(1, sampleSize));
+        List<String> sample = spreadAcrossLengths(pending, effectiveSampleSize(sampleSize, pending));
         long sampleChars = sample.stream().mapToLong(String::length).sum();
 
         long started = System.nanoTime();
@@ -301,6 +301,29 @@ public class GuideTranslationGenerator {
         long bySegments = Math.round(bySegmentsNanos / 1_000_000.0);
         return new Estimate(sample.size(), sampleChars, elapsedMillis, pending.size(), pendingChars,
             Math.min(byChars, bySegments), Math.max(byChars, bySegments));
+    }
+
+    /** Batches a sample must span before a projection means anything. */
+    static final int MIN_ESTIMATE_BATCHES = 3;
+
+    /**
+     * Raises a too-small request to something that actually spans several batches.
+     *
+     * <p>A one-batch sample cannot be extrapolated at all: a batch carries a fixed cost — on a
+     * reasoning model, most of it — and dividing that whole cost by a handful of segments
+     * overstates both the per-segment and the per-character rate, so even the range between them
+     * stays wrong. Measured against an embedded 20B model, 8 segments projected 17–25 hours where
+     * 40 segments projected 4h49–5h20 and the truth was near 5h.
+     *
+     * <p>Derived from the batch settings and the corpus rather than hardcoded, so it stays right
+     * when the budget is tuned or the guide changes shape.
+     */
+    private int effectiveSampleSize(int requested, List<String> pending) {
+        long totalChars = pending.stream().mapToLong(String::length).sum();
+        int averageLength = (int) Math.max(1, totalChars / pending.size());
+        int perBatch = Math.min(maxBatchItems, Math.max(1, charBudget / averageLength));
+        int minimum = Math.min(pending.size(), MIN_ESTIMATE_BATCHES * perBatch);
+        return Math.max(Math.max(1, requested), minimum);
     }
 
     /**

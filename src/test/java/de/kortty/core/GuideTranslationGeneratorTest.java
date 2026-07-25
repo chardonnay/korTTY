@@ -383,8 +383,9 @@ class GuideTranslationGeneratorTest {
 
         assertThat(estimate.isComplete()).isFalse();
         assertThat(estimate.isUsable()).isTrue();
-        assertThat(estimate.sampleSegments()).isEqualTo(40);
-        assertThat(service.requested).isEqualTo(40);
+        // At least the request; the floor may raise it so the sample spans several batches.
+        assertThat(estimate.sampleSegments()).isAtLeast(40);
+        assertThat(service.requested).isEqualTo(estimate.sampleSegments());
         // The sample is a small fraction of the corpus, and the projection covers all of it.
         assertThat(estimate.remainingSegments()).isGreaterThan(1000);
         assertThat(estimate.lowMillis()).isAtMost(estimate.highMillis());
@@ -414,6 +415,28 @@ class GuideTranslationGeneratorTest {
         double naiveMean = naive.stream().mapToInt(String::length).average().orElse(0);
         assertWithMessage("spread sampling should beat taking the first 40")
             .that(Math.abs(sampleMean - corpusMean)).isLessThan(Math.abs(naiveMean - corpusMean));
+    }
+
+    /**
+     * A one-batch sample cannot be extrapolated: the batch's fixed cost gets divided by a handful
+     * of segments and inflates every rate. Against a real 20B model, 8 segments projected 17–25
+     * hours where 40 projected 4h49–5h20 and the truth was near 5h.
+     */
+    @Test
+    void aTooSmallSampleIsRaisedToSpanSeveralBatches() throws IOException {
+        CountingService service = new CountingService();
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(service, tempDir).estimate("xx", 3, null);
+
+        assertThat(estimate.sampleSegments()).isGreaterThan(20);
+        assertThat(service.requested).isEqualTo(estimate.sampleSegments());
+    }
+
+    @Test
+    void aGenerousSampleRequestIsHonouredAsGiven() throws IOException {
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(new IdentityService(), tempDir).estimate("xx", 120, null);
+        assertThat(estimate.sampleSegments()).isEqualTo(120);
     }
 
     @Test

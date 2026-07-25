@@ -32,6 +32,8 @@ import java.util.Map;
  * ./gradlew guideTranslationBench                       # 3 representative pages -> German
  * ./gradlew guideTranslationBench --args="--lang fr"
  * ./gradlew guideTranslationBench --args="--pages all --samples 20"
+ * ./gradlew guideTranslationBench --args="--list-profiles"
+ * ./gradlew guideTranslationBench --args="--profile 'my other model' --estimate 40"
  * </pre>
  */
 public final class GuideTranslationBench {
@@ -58,20 +60,34 @@ public final class GuideTranslationBench {
         List<String> allPages = GuideTranslationGenerator.listPages();
         List<String> pages = resolvePages(options.get("pages"), allPages);
 
-        AiProfile profile = resolveProfile();
+        if (options.containsKey("list-profiles")) {
+            listProfiles();
+            return;
+        }
+        AiProfile profile = resolveProfile(options.get("profile"));
         if (profile == null) {
             System.err.println("""
-                No embedded AI profile configured.
+                No usable AI profile.
 
-                This benchmark needs a local model, because that is the case the feature
-                exists for: Settings -> AI -> a profile whose connection mode is
-                EMBEDDED_LLAMA_CPP or EMBEDDED_MLX, selected as the text/default profile.""");
+                Pass --profile <name> to measure a specific one, or --list-profiles to see
+                what is configured. Without --profile the workload's text profile is used, and
+                only when it runs a local model — that is the case this feature exists for:
+                Settings -> AI -> a profile with connection mode EMBEDDED_LLAMA_CPP or
+                EMBEDDED_MLX, selected as the text/default profile.""");
             System.exit(2);
         }
         TranslationService service = buildTranslationService(profile);
         if (service == null) {
             System.err.println("Could not build a translation service from profile '"
-                + profile.getName() + "'. Is an embedded model downloaded and selected?");
+                + profile.getName() + "' (" + profile.getConnectionMode() + ").");
+            if (profile.getConnectionMode().isEmbedded()) {
+                System.err.println("Is the embedded model downloaded and selected?");
+            } else {
+                // No master password prompt exists here, so an encrypted key cannot be unlocked.
+                System.err.println("Non-embedded profiles work here only without a stored API key "
+                    + "(a local HTTP endpoint, say) — the key vault needs the running application. "
+                    + "Use Settings -> Translation to measure a profile that needs a key.");
+            }
             System.exit(2);
         }
 
@@ -80,9 +96,9 @@ public final class GuideTranslationBench {
                 String.valueOf(GuideTranslationGenerator.DEFAULT_ESTIMATE_SAMPLE)));
             System.out.printf("""
                 korTTY guide translation estimate
-                  profile : %s  (%s)
-                  target  : %s
-                  sample  : %d segment(s)
+                  profile          : %s  (%s)
+                  target           : %s
+                  sample requested : %d segment(s) — raised if too small to span several batches
                 %n""", profile.getName(), profile.getConnectionMode(), lang, sampleSize);
             System.out.flush();
             long started = System.nanoTime();
@@ -138,16 +154,49 @@ public final class GuideTranslationBench {
 
     // ------------------------------------------------------------------ setup
 
-    /** The production recipe from SettingsDialog.createLocalAiTranslationService(). */
-    private static AiProfile resolveProfile() throws Exception {
+    /**
+     * The production recipe from SettingsDialog.createLocalAiTranslationService(), extended with
+     * an explicit choice so a second model can be measured without changing the app's settings.
+     *
+     * @param wanted profile name or id to use; null selects the workload's text profile
+     */
+    private static AiProfile resolveProfile(String wanted) throws Exception {
         GlobalSettingsManager manager =
             new GlobalSettingsManager(de.kortty.KorTTYApplication.getConfigDirectory());
         manager.load();
         GlobalSettings settings = manager.getSettings();
+        List<AiProfile> profiles = settings.getAiProfiles() != null
+            ? settings.getAiProfiles() : List.of();
+        if (wanted != null && !wanted.isBlank()) {
+            AiProfile match = profiles.stream()
+                .filter(p -> wanted.equalsIgnoreCase(p.getName()) || wanted.equals(p.getId()))
+                .findFirst().orElse(null);
+            if (match == null) {
+                System.err.println("No AI profile named '" + wanted + "'. Available:");
+                profiles.forEach(p -> System.err.printf("  %-28s %s%n",
+                    p.getName(), p.getConnectionMode()));
+            }
+            return match;
+        }
         AiProfile profile = AiProfileSelectionSupport.workloadProfile(
-            settings.getAiProfiles(), AiWorkload.TEXT, settings.getTextAiProfileId(),
+            profiles, AiWorkload.TEXT, settings.getTextAiProfileId(),
             settings.getCodingAiProfileId(), settings.getDefaultAiProfileId());
         return profile != null && profile.getConnectionMode().isEmbedded() ? profile : null;
+    }
+
+    private static void listProfiles() throws Exception {
+        GlobalSettingsManager manager =
+            new GlobalSettingsManager(de.kortty.KorTTYApplication.getConfigDirectory());
+        manager.load();
+        List<AiProfile> profiles = manager.getSettings().getAiProfiles() != null
+            ? manager.getSettings().getAiProfiles() : List.of();
+        System.out.println("configured AI profiles:");
+        if (profiles.isEmpty()) {
+            System.out.println("  (none)");
+        }
+        profiles.forEach(p -> System.out.printf("  %-28s %-20s %s%n",
+            p.getName(), p.getConnectionMode(),
+            p.getEmbeddedModelId() != null ? p.getEmbeddedModelId() : ""));
     }
 
     private static TranslationService buildTranslationService(AiProfile profile) {
@@ -262,10 +311,13 @@ public final class GuideTranslationBench {
 
     private static Map<String, String> parseArgs(String[] args) {
         Map<String, String> options = new LinkedHashMap<>();
-        for (int i = 0; i < args.length - 1; i++) {
-            if (args[i].startsWith("--")) {
-                options.put(args[i].substring(2), args[i + 1]);
+        for (int i = 0; i < args.length; i++) {
+            if (!args[i].startsWith("--")) {
+                continue;
             }
+            String name = args[i].substring(2);
+            boolean hasValue = i + 1 < args.length && !args[i + 1].startsWith("--");
+            options.put(name, hasValue ? args[i + 1] : "");
         }
         return options;
     }

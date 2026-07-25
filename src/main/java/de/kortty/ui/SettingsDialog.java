@@ -226,6 +226,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private Button guideTranslationCancelButton;
     private Label guideTranslationStatusLabel;
     private ListView<String> guideTranslationList;
+    private ComboBox<AiProfile> guideAiProfileCombo;
 
     // AI settings
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -1491,6 +1492,31 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         guideTranslationProgress.setVisible(false);
         guideTranslationStatusLabel = new Label();
         guideTranslationStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        // Which AI profile does the work. Without this the guide is stuck on the default text
+        // profile, so a user could neither benchmark a second model nor point the run at the one
+        // they actually want spending the next few hours on.
+        translationGrid.add(new Label(I18n.get("settings.translation.guide.profile")), 0, transRow);
+        guideAiProfileCombo = new ComboBox<>();
+        guideAiProfileCombo.setPrefWidth(320);
+        guideAiProfileCombo.setConverter(new javafx.util.StringConverter<AiProfile>() {
+            @Override
+            public String toString(AiProfile profile) {
+                if (profile == null) {
+                    return I18n.get("settings.translation.guide.profileDefault");
+                }
+                // The connection mode is shown, not hidden: it is the difference between an
+                // hours-long local run and sending half a megabyte to a paid endpoint.
+                return profile.getName() + "  (" + profile.getConnectionMode() + ")";
+            }
+
+            @Override
+            public AiProfile fromString(String value) {
+                return null;
+            }
+        });
+        refreshGuideAiProfileCombo();
+        translationGrid.add(guideAiProfileCombo, 1, transRow++);
+
         Button guideEstimateButton = new Button(I18n.get("settings.translation.guide.estimate"));
         guideEstimateButton.setOnAction(ev ->
             estimateGuideTranslation(guideEstimateButton, guideGenerateButton));
@@ -3796,17 +3822,36 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private TranslationService createLocalAiTranslationService() {
+        return createLocalAiTranslationService(null);
+    }
+
+    /**
+     * Builds a translation service from an AI profile.
+     *
+     * <p>With {@code explicitProfile} null this keeps the original contract: the workload's text
+     * profile, and only when it runs a local model — the provider exists for users who cannot
+     * reach a translation API, so silently falling back to a cloud profile would defeat it.
+     *
+     * <p>An explicitly chosen profile is honoured whatever its connection mode. Comparing models
+     * is the reason the choice exists, and the user picking a profile by name has already made
+     * the decision the default path is protecting them from. Its API key is resolved the same way
+     * the rest of the application resolves one.
+     */
+    private TranslationService createLocalAiTranslationService(AiProfile explicitProfile) {
         if (globalSettings == null) {
             return null;
         }
-        AiProfile profile = AiProfileSelectionSupport.workloadProfile(
-            globalSettings.getAiProfiles(),
-            de.kortty.model.AiWorkload.TEXT,
-            globalSettings.getTextAiProfileId(),
-            globalSettings.getCodingAiProfileId(),
-            globalSettings.getDefaultAiProfileId());
-        if (profile == null || !profile.getConnectionMode().isEmbedded()) {
-            return null;
+        AiProfile profile = explicitProfile;
+        if (profile == null) {
+            profile = AiProfileSelectionSupport.workloadProfile(
+                globalSettings.getAiProfiles(),
+                de.kortty.model.AiWorkload.TEXT,
+                globalSettings.getTextAiProfileId(),
+                globalSettings.getCodingAiProfileId(),
+                globalSettings.getDefaultAiProfileId());
+            if (profile == null || !profile.getConnectionMode().isEmbedded()) {
+                return null;
+            }
         }
         // Translation never needs web search, and this call passes a disabled internet
         // configuration; keep the profile's mode from tripping the factory's Tavily-key check.
@@ -3818,7 +3863,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         try {
             service = AiServiceFactory.create(
                 translationProfile,
-                null,
+                // Embedded models need no key; a chosen HTTP profile does.
+                translationProfile.getConnectionMode().isEmbedded()
+                    ? null : resolveProfileApiKey(translationProfile),
                 AiInternetAccessConfiguration.disabled(),
                 AiSkillPromptSupport.disabled());
         } catch (IllegalStateException e) {
@@ -3829,6 +3876,37 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return service instanceof AiPromptService promptService
             ? new LocalAiTranslationService(promptService)
             : null;
+    }
+
+    /** Decrypts an AI profile's stored key; null when it has none or the vault is locked. */
+    private String resolveProfileApiKey(AiProfile profile) {
+        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+        if (policyKey != null) {
+            return policyKey;
+        }
+        String encrypted = profile.getEncryptedApiKey();
+        if (encrypted == null || encrypted.isBlank()) {
+            return null;
+        }
+        try {
+            char[] master = app != null && app.getMasterPasswordManager() != null
+                ? app.getMasterPasswordManager().getMasterPassword() : null;
+            return master == null ? null
+                : new de.kortty.security.EncryptionService().decryptPassword(encrypted, master);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .debug("Could not decrypt the API key of profile {}", profile.getName(), e);
+            return null;
+        }
+    }
+
+    /** The profile the guide translation should use: the one picked in the guide section, or the default. */
+    private TranslationService createGuideTranslationService() {
+        if (translationProviderCombo.getValue() != TranslationApiProvider.LOCAL_AI_PROFILE) {
+            return createTranslationService();
+        }
+        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
+        return createLocalAiTranslationService(chosen);
     }
 
     private String getTranslationApiKeyPlain() {
@@ -5176,7 +5254,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
             return;
         }
-        TranslationService service = createTranslationService();
+        TranslationService service = createGuideTranslationService();
         Locale target = translationTargetLanguageCombo.getValue();
         if (service == null || target == null || target.getLanguage() == null
             || target.getLanguage().isEmpty()) {
@@ -5253,7 +5331,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      * on the run rather than throwaway work.
      */
     private void estimateGuideTranslation(Button estimateButton, Button generateButton) {
-        TranslationService service = createTranslationService();
+        TranslationService service = createGuideTranslationService();
         Locale target = translationTargetLanguageCombo.getValue();
         if (service == null || target == null || target.getLanguage() == null
             || target.getLanguage().isEmpty()) {
@@ -5337,6 +5415,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         long hours = minutes / 60;
         long remainder = minutes % 60;
         return remainder == 0 ? hours + " h" : hours + " h " + remainder + " min";
+    }
+
+    /** Null first: the default text profile, matching what the run uses when nothing is picked. */
+    private void refreshGuideAiProfileCombo() {
+        if (guideAiProfileCombo == null) {
+            return;
+        }
+        AiProfile previous = guideAiProfileCombo.getValue();
+        java.util.List<AiProfile> items = new java.util.ArrayList<>();
+        items.add(null);
+        if (globalSettings != null && globalSettings.getAiProfiles() != null) {
+            items.addAll(globalSettings.getAiProfiles());
+        }
+        guideAiProfileCombo.getItems().setAll(items);
+        guideAiProfileCombo.setValue(items.contains(previous) ? previous : null);
     }
 
     private void refreshGuideTranslationList() {
