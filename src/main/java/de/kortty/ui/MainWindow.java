@@ -3014,6 +3014,10 @@ public class MainWindow {
             aiResultTab.disposeRenderedContent();
         } else if (tab instanceof SwarmAgentTab swarmTab) {
             swarmTab.handleTabClosed();
+        } else if (tab instanceof DialogHostTab hostTab) {
+            // Runs the hosted dialog's DIALOG_HIDDEN cleanup (Monaco/WebView disposal, listener
+            // deregistration) that a user-initiated tab close would have triggered.
+            hostTab.disposeOnWindowClose();
         }
     }
     
@@ -7652,9 +7656,70 @@ public class MainWindow {
     }
     
     
+    // ---- Tool windows as tabs -------------------------------------------------------------------
+
+    /** Whether management tool windows should open as tabs in this window instead of own windows. */
+    private boolean toolTabsEnabled() {
+        GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
+        return gs != null && gs.isOpenToolWindowsAsTabs();
+    }
+
+    /**
+     * Returns the tool tab for {@code toolId} in THIS window's tab pane after selecting it, or
+     * {@code null} if the tool is not open here. Scan-based like {@link #openSFTPManagerTab}: tabs
+     * can be dragged between windows, so the live tab list is the only reliable registry.
+     */
+    private DialogHostTab findAndSelectToolTab(String toolId) {
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof DialogHostTab hostTab && toolId.equals(hostTab.getToolId())) {
+                tabPane.getSelectionModel().select(hostTab);
+                return hostTab;
+            }
+        }
+        return null;
+    }
+
+    /** Hosts {@code dialog} as a deduped tool tab in this window; see {@link DialogHostTab}. */
+    private DialogHostTab hostToolTab(String toolId, ThemeAwareDialog<?> dialog, Runnable afterClosed) {
+        return DialogHostTab.host(tabPane, toolId, dialog, afterClosed);
+    }
+
+    /**
+     * Hosts a multi-instance tool (snippet editor, code analysis) as a NEW tab each time — no
+     * dedupe, per the tab-mode UX: any number of editors/analyses may be open side by side.
+     */
+    void hostMultiInstanceToolTab(ThemeAwareDialog<?> dialog) {
+        DialogHostTab.host(tabPane, null, dialog, null);
+    }
+
+    /** The open main window whose stage is {@code window}, or {@code null}. */
+    static MainWindow findByStage(Window window) {
+        if (window == null) {
+            return null;
+        }
+        for (MainWindow openWindow : getOpenWindows()) {
+            if (openWindow.getStage() == window) {
+                return openWindow;
+            }
+        }
+        return null;
+    }
+
     private void showCredentialManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "credentials"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("credentials") != null) {
+                    return;
+                }
+                CredentialManagementDialog dialog = new CredentialManagementDialog(
+                    app.getCredentialManager(),
+                    app.getEnvironmentManager(),
+                    app.getMasterPasswordManager().getMasterPassword()
+                );
+                hostToolTab("credentials", dialog, null);
+                return;
+            }
             CredentialManagementDialog dialog = new CredentialManagementDialog(
                 app.getCredentialManager(),
                 app.getEnvironmentManager(),
@@ -7671,6 +7736,12 @@ public class MainWindow {
     private void showGPGKeyManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "gpg_keys"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("gpgKeys") == null) {
+                    hostToolTab("gpgKeys", new GPGKeyManagementDialog(app.getGpgKeyManager()), null);
+                }
+                return;
+            }
             GPGKeyManagementDialog dialog = new GPGKeyManagementDialog(app.getGpgKeyManager());
             dialog.initOwner(stage);
             dialog.showAndWait();
@@ -7683,6 +7754,12 @@ public class MainWindow {
     private void showTeamworkSettings() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "teamwork_settings"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("teamwork") == null) {
+                    hostToolTab("teamwork", new TeamworkSettingsDialog(stage, app), null);
+                }
+                return;
+            }
             TeamworkSettingsDialog dialog = new TeamworkSettingsDialog(stage, app);
             dialog.showAndWait();
         } catch (Exception e) {
@@ -7697,6 +7774,16 @@ public class MainWindow {
             var manager = app.getTerminalEffectPluginManager();
             if (manager == null) {
                 showError(I18n.get("error.title"), I18n.get("plugin.initError"));
+                return;
+            }
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("terminalEffects") == null) {
+                    hostToolTab("terminalEffects", new TerminalEffectPluginManagerDialog(stage, manager), () -> {
+                        deactivateTerminalEffectsIfDisabled();
+                        deactivateUnavailableTerminalEffects();
+                        updateAllTabContextMenus();
+                    });
+                }
                 return;
             }
             TerminalEffectPluginManagerDialog dialog =
@@ -7740,6 +7827,14 @@ public class MainWindow {
     private void showSSHKeyManagement() {
         Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "ssh_keys"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("sshKeys") == null) {
+                    hostToolTab("sshKeys", new SSHKeyManagementDialog(
+                        app.getSSHKeyManager(),
+                        app.getMasterPasswordManager().getMasterPassword()), null);
+                }
+                return;
+            }
             SSHKeyManagementDialog dialog = new SSHKeyManagementDialog(
                 app.getSSHKeyManager(),
                 app.getMasterPasswordManager().getMasterPassword()
@@ -7767,6 +7862,16 @@ public class MainWindow {
     private void showTerminalRecordingManager() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "video_manager"));
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("recordings") == null) {
+                    TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
+                        app.getGlobalSettingsManager(),
+                        new de.kortty.core.TerminalRecordingService());
+                    dialog.setOnHidden(event -> refreshTerminalRecordingControlsVisibility());
+                    hostToolTab("recordings", dialog, null);
+                }
+                return;
+            }
             TerminalRecordingManagerDialog dialog = new TerminalRecordingManagerDialog(
                 app.getGlobalSettingsManager(),
                 new de.kortty.core.TerminalRecordingService());
@@ -7809,6 +7914,12 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("snippets") == null) {
+                    hostToolTab("snippets", new SnippetManagementDialog(mgr, this), null);
+                }
+                return;
+            }
             SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
             dialog.initOwner(stage);
             dialog.show();
@@ -7831,6 +7942,21 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "JobScheduler is not initialized.");
                 return;
             }
+            if (toolTabsEnabled()) {
+                DialogHostTab existing = findAndSelectToolTab("jobScheduler");
+                if (existing != null) {
+                    if (draft != null) {
+                        ((JobSchedulerDialog) existing.getHostedDialog()).prefillNewJob(draft);
+                    }
+                    return;
+                }
+                JobSchedulerDialog tabDialog = new JobSchedulerDialog(app, stage);
+                if (draft != null) {
+                    tabDialog.prefillNewJob(draft);
+                }
+                hostToolTab("jobScheduler", tabDialog, null);
+                return;
+            }
             JobSchedulerDialog dialog = new JobSchedulerDialog(app, stage);
             if (draft != null) {
                 dialog.prefillNewJob(draft);
@@ -7848,6 +7974,12 @@ public class MainWindow {
             return;
         }
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("aiManager") == null) {
+                    hostToolTab("aiManager", new AiManagerDialog(this), null);
+                }
+                return;
+            }
             if (aiManagerDialog != null) {
                 if (aiManagerDialog.isShowing()) {
                     bringAiManagerToFront(aiManagerDialog);
@@ -7892,6 +8024,12 @@ public class MainWindow {
             return;
         }
         try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("savedChats") == null) {
+                    hostToolTab("savedChats", new SavedChatsDialog(this), null);
+                }
+                return;
+            }
             if (savedChatsDialog != null) {
                 if (savedChatsDialog.isShowing()) {
                     bringDialogToFront(savedChatsDialog);

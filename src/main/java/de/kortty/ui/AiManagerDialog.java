@@ -282,6 +282,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     /** Persist the current size/position so it is restored next time the dialog opens. */
     private void saveGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
         try {
             Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
             if (window instanceof Stage stage) {

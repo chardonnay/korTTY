@@ -2153,6 +2153,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tool-fenster-als-registerkarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool-Fenster als Registerkarten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#energieverwaltung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3022,6 +3033,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tool-fenster-als-registerkarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool-Fenster als Registerkarten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#energieverwaltung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3772,6 +3794,10 @@
 <li><strong>Inhaltsgroßes, animiertes Panel</strong> – das Dashboard passt seine Breite an den längsten Eintrag an (begrenzt), animiert das Öffnen und Schließen, anstatt einzuspringen, zeigt einen Platzhalter an, wenn keine Sitzung geöffnet ist, und meldet „verbunden mit der Gesamtheit“ in einer Fußzeile. Seine Farben folgen dem aktiven App-Design, einschließlich der Statuspunktpaletten pro Design.</li>
 <li><strong>Kontextmenü- und Gruppenkorrekturen</strong> – Das Verbindungskontextmenü fügt <strong>Fokus</strong> und Symbole für jede Aktion hinzu. Tabs, die über „Ganze Gruppe öffnen“ geöffnet wurden, werden jetzt korrekt unter ihrer Gruppe angezeigt, und beim Ändern der Gruppe einer Verbindung im Verbindungsmanager werden geöffnete Tabs sofort aktualisiert.</li>
 </ul>
+<h3 id="tool-fenster-als-registerkarten">Tool-Fenster als Registerkarten<a class="headerlink" href="#tool-fenster-als-registerkarten" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Verwaltungstools können als Registerkarten im Hauptfenster geöffnet werden</strong> – eine neue Option <strong>Toolfenster als Registerkarten öffnen</strong> in den <a href="../reference/settings/window.html">Fenstereinstellungen</a> sorgt dafür, dass Snippets, der JobScheduler, der AI Manager, gespeicherte Chats, die Verwaltung von Anmeldeinformationen/GPG/SSH-Schlüsseln, der Video Manager, die Teamwork-Einstellungen und der Terminal Effects Manager als Registerkarten neben Ihren Terminalsitzungen statt in separaten Fenstern geöffnet werden. Die Registerkarte wird immer im Hauptfenster geöffnet, dessen Menü Sie verwendet haben. Wenn also mehrere Fenster geöffnet sind, sammelt jedes Fenster seine eigenen Tools – zum Beispiel den AI Manager als Registerkarte in einem Fenster und den JobScheduler in einem anderen. Beim erneuten Öffnen eines Tools wird der vorhandene Tab fokussiert, während der Snippet-Editor und die KI-Codeanalyse pro Snippet/Durchlauf einen neuen Tab öffnen, sodass mehrere nebeneinander angezeigt werden können. Werkzeugregisterkarten können wie jede andere Registerkarte neu angeordnet und zwischen Fenstern gezogen werden. Standardmäßig deaktiviert – es ändert sich nichts, es sei denn, Sie aktivieren es.</li>
+</ul>
 <h3 id="energieverwaltung">Energieverwaltung<a class="headerlink" href="#energieverwaltung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Aktivitätsbasierte Energieverwaltung</strong> – macOS App Nap wird unterdrückt, während ein Scheduler-Job, eine AI-Anfrage oder eine Terminal-Eingabe/Ausgabe aktiv ist (mit einem 60-sekündigen Ende der Terminalaktivität). Hintergrundfenster parken regelmäßige Statusaktualisierungen und Designanimationen, und der Scheduler verfügt über keinen Abfrage-Timer, wenn keine aktivierte zukünftige Ausführung vorhanden ist. Unter macOS wird die Verhinderung des Ruhezustands des Systems an einen separaten <code>caffeinate</code>-Helfer delegiert, sodass der korTTY-Prozess weiterhin für App Nap geeignet ist. Unter macOS und Windows hält <strong>Konfiguration &gt; System-Ruhezustand verhindern</strong> den Computer nur dann wach, wenn ein Terminal angeschlossen ist, ein zukünftiger oder laufender Scheduler-Job existiert oder eine AI-Anfrage aktiv ist; Ohne diese Aktivitäten bleibt der Systemschlaf auch dann verfügbar, wenn die dauerhafte Einstellung aktiviert ist. Der Display-Ruhezustand ist davon nicht betroffen und Linux zeigt die Option als noch nicht unterstützt an.</li>
@@ -3783,6 +3809,7 @@
 <li><strong>Fügen Sie Ihre eigenen Codesprachen hinzu</strong> – eine <strong>*+</strong>-Schaltfläche neben der Liste der Codesprachen übernimmt alle fehlenden Sprachnamen und speichert sie dauerhaft, sodass sie in jedem zukünftigen Snippet-Editor angeboten werden. Selbst hinzugefügte Sprachen steuern die KI-Eingabeaufforderungen und die Dateierweiterung; Die Hervorhebung erfolgt auf einfachen Text, wenn korTTY keine Grammatik für sie bereitstellt.</li>
 <li><strong>AI-Vorschlag füllt beide Sprachfelder</strong> – neben dem Dateinamen und der Beschreibung erkennt <strong>AI-Vorschlag</strong> jetzt auch die natürliche Sprache der Kommentare und der gedruckten Ausgabe des Snippets (<code>echo</code>, <code>print</code>, <code>printf</code>, <code>Write-Host</code>, …) und wählt sie als Textsprache vor und fügt sie der Liste hinzu, wenn korTTY keine Schnittstellenübersetzung dafür hat. Eine erkannte Codesprache, die in der Liste fehlt, wird ebenfalls hinzugefügt, anstatt stillschweigend gelöscht zu werden.</li>
 <li><strong>Neue KI-Aktion: Codekommentare optimieren</strong> – verfügbar im Menü <strong>AI-Code</strong> und im Kontextmenü des Editors für eine Auswahl. Die KI fügt Erklärungen darüber, was der ausgewählte Code tut und warum, direkt über oder neben den Zeilen, zu denen er gehört, und in die eigene Kommentarsyntax der Sprache ein, ersetzt veraltete oder irreführende Kommentare und lässt jede ausführbare Zeile unberührt. Kommentare werden in der <strong>Textsprache</strong> des Editors verfasst und das Ergebnis wird in der gewohnten Vorher-/Nachher-Vorschau angezeigt, bevor es die Auswahl ersetzt.</li>
+<li><strong>Automatische Analysediagramme können ausgeschaltet werden</strong> – im Diagrammbereich des Fensters „Vollständige Codeanalyse“ wurde ein Kontrollkästchen <strong>Automatisch generieren</strong> hinzugefügt. Wenn Sie das Häkchen entfernen, wird die dedizierte KI-Anfrage des Flussdiagramms nicht mehr gestartet, wenn das Fenster geöffnet wird. Stattdessen wird im Bereich ein Hinweis angezeigt und <strong>Regenerieren</strong> fordert das Diagramm bei Bedarf an. Die Auswahl wird sitzungsübergreifend gespeichert.</li>
 </ul>
 <h3 id="ai-manager">AI-Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3883,7 +3910,7 @@
 <li><strong>Die vollständige Codeanalyse zeigt wieder ihre Änderungsvorschau an</strong> – nach <strong>Auswahl anwenden</strong> wartet korTTY nun, bis das Analysefenster vollständig geschlossen ist, und bringt das Side-by-Side-Überprüfungsfenster vor den Snippet-Editor. Der Editor bleibt unverändert, bis <strong>Änderung übernehmen</strong> in dieser Vorschau bestätigt wird.</li>
 <li><strong>Kein Absturz, wenn das Speichern eines Snippets fehlschlägt</strong> – Das Speichern eines Snippets als neuer Eintrag könnte, wenn das Speichern fehlschlägt, beim Versuch, die Fehlermeldung anzuzeigen, mit einem Nullzeigerfehler abstürzen. Der Fehler wird nun sauber gemeldet.</li>
 <li><strong>Bei „Als neues Snippet speichern“ wird kein falscher „Bereits vorhanden“-Fehler mehr angezeigt</strong> – nachdem ein Snippet bearbeitet (z. B. durch Anwenden von Analyseverbesserungen) und unter einem neuen Namen mit <strong>Als neues Snippet speichern</strong> gespeichert wurde, wurde von korTTY fälschlicherweise <em>„Snippet-Name existiert bereits“</em> angezeigt, obwohl das Snippet gerade korrekt gespeichert wurde. Der Dialog übermittelt seinen Speichervorgang nun genau einmal.</li>
-<li><strong>Der Nur-Terminal-Vollbildmodus zeigt jetzt das gesamte korTTY-Fenster an, kein gestrecktes Terminal</strong> – <strong>Ansicht → Nur-Terminal-Vollbild</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>) behält das gesamte korTTY-Fenster – Menüleiste, Registerkarten und Statusleiste inklusive – in der Größe bei, die es vor dem Aufrufen des Modus hatte (Rückfall auf die konfigurierte Fenstergeometrie, als das Fenster bereits im Vollbildmodus war) und zentriert es auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. <strong>Ansicht → Vollbild</strong> verwendet jetzt <span class="keys"><kbd class="key-f12">F12</kbd></span> anstelle von <span class="keys"><kbd class="key-f11">F11</kbd></span>, das macOS systemweit für „Desktop anzeigen“ reserviert.</li>
+<li><strong>Nur-Terminal-Vollbild zeigt jetzt das gesamte korTTY-Fenster an, kein gestrecktes Terminal</strong> – <strong>Ansicht → Nur-Terminal-Vollbild</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>) behält das gesamte korTTY-Fenster – Menüleiste, Registerkarten und Statusleiste inklusive – in der Größe, die es vor dem Aufrufen des Modus hatte (Rückfall auf die konfigurierte Fenstergeometrie, als das Fenster bereits im Vollbildmodus war) und zentriert es auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. <strong>Ansicht → Vollbild</strong> verwendet jetzt <span class="keys"><kbd class="key-f12">F12</kbd></span> anstelle von <span class="keys"><kbd class="key-f11">F11</kbd></span>, das macOS systemweit für „Desktop anzeigen“ reserviert.</li>
 </ul>
 <h2 id="v242">v2.4.2<a class="headerlink" href="#v242" title="Permanent link">&para;</a></h2>
 <h3 id="branding">Branding<a class="headerlink" href="#branding" title="Permanent link">&para;</a></h3>
