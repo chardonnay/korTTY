@@ -62,7 +62,14 @@ class GuideTranslationI18nCoverageTest {
         "guide.translation.outdated.header",
         "guide.translation.outdated.message",
         "guide.translation.outdated.update",
-        "guide.translation.outdated.later");
+        "guide.translation.outdated.later",
+        "settings.translation.guide.error.profile",
+        "settings.translation.guide.error.provider",
+        "settings.translation.guide.error.noLocalProfile",
+        "settings.translation.guide.reasoning.title",
+        "settings.translation.guide.reasoning.header",
+        "settings.translation.guide.reasoning.message",
+        "settings.translation.guide.reasoning.continue");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d+)}");
 

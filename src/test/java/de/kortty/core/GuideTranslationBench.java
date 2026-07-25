@@ -107,6 +107,10 @@ public final class GuideTranslationBench {
             double actualSeconds = (System.nanoTime() - started) / 1_000_000_000.0;
             if (estimate.isComplete()) {
                 System.out.println("nothing left to translate for this language");
+            } else if (!estimate.connectionOk()) {
+                System.out.println("CONNECTION FAILED — the AI profile did not answer the probe "
+                    + "(" + formatDuration(estimate.elapsedMillis() / 1000.0) + " waiting). "
+                    + "No translation was attempted.");
             } else if (!estimate.isUsable()) {
                 System.out.println("the sample produced nothing usable — no projection possible");
             } else {

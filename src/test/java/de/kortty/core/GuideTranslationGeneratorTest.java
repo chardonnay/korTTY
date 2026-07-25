@@ -418,18 +418,31 @@ class GuideTranslationGeneratorTest {
     }
 
     /**
-     * A one-batch sample cannot be extrapolated: the batch's fixed cost gets divided by a handful
-     * of segments and inflates every rate. Against a real 20B model, 8 segments projected 17–25
-     * hours where 40 projected 4h49–5h20 and the truth was near 5h.
+     * The default sample is one full batch — the measurement has to look like the work it
+     * predicts, because on a reasoning model cost is per request rather than per character.
      */
     @Test
-    void aTooSmallSampleIsRaisedToSpanSeveralBatches() throws IOException {
+    void theDefaultSampleIsOneFullBatch() throws IOException {
         CountingService service = new CountingService();
-        GuideTranslationGenerator.Estimate estimate =
-            new GuideTranslationGenerator(service, tempDir).estimate("xx", 3, null);
+        GuideTranslationGenerator.Estimate estimate = new GuideTranslationGenerator(service, tempDir)
+            .estimate("xx", GuideTranslationGenerator.DEFAULT_ESTIMATE_SAMPLE, null);
 
-        assertThat(estimate.sampleSegments()).isGreaterThan(20);
-        assertThat(service.requested).isEqualTo(estimate.sampleSegments());
+        // Bounded by the batch's item cap and its character budget, whichever binds first.
+        assertThat(estimate.sampleSegments())
+            .isAtMost(GuideTranslationGenerator.DEFAULT_MAX_BATCH_ITEMS);
+        assertThat(estimate.sampleChars())
+            .isAtMost((long) GuideTranslationGenerator.ESTIMATE_SAMPLE_CHARS);
+        assertThat(estimate.sampleSegments()).isGreaterThan(1);
+        // One request, not several: that is what keeps the estimate inside a couple of minutes.
+        assertThat(service.calls).isEqualTo(1);
+    }
+
+    /** An explicit request is the caller overriding the default, and is honoured as given. */
+    @Test
+    void anExplicitSampleSizeIsHonoured() throws IOException {
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(new IdentityService(), tempDir).estimate("xx", 3, null);
+        assertThat(estimate.sampleSegments()).isEqualTo(3);
     }
 
     @Test
@@ -692,6 +705,7 @@ class GuideTranslationGeneratorTest {
     private static final class CountingService implements TranslationService {
         final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         int requested;
+        int calls;
 
         @Override
         public String translate(String text, String sourceLang, String targetLang) {
@@ -700,6 +714,7 @@ class GuideTranslationGeneratorTest {
 
         @Override
         public List<String> translateBatch(List<String> texts, String sourceLang, String targetLang) {
+            calls++;
             requested += texts.size();
             seen.addAll(texts);
             return List.copyOf(texts);

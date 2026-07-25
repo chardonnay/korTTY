@@ -210,10 +210,10 @@ public class GuideTranslationGenerator {
      */
     public record Estimate(int sampleSegments, long sampleChars, long elapsedMillis,
                            int remainingSegments, long remainingChars,
-                           long lowMillis, long highMillis) {
+                           long lowMillis, long highMillis, boolean connectionOk) {
 
         public boolean isUsable() {
-            return lowMillis >= 0 && highMillis >= 0;
+            return connectionOk && lowMillis >= 0 && highMillis >= 0;
         }
 
         /** True when the memory already covers the guide and nothing would be translated. */
@@ -222,8 +222,11 @@ public class GuideTranslationGenerator {
         }
     }
 
-    /** Segments sampled by default: enough batches for the per-batch cost to average out. */
-    public static final int DEFAULT_ESTIMATE_SAMPLE = 40;
+    /**
+     * Sample size chosen automatically: one budget-filled batch, so a measurement stays inside a
+     * minute even on a slow local model. Pass a larger number for a tighter but longer estimate.
+     */
+    public static final int DEFAULT_ESTIMATE_SAMPLE = 0;
 
     /**
      * Measures the configured service on a sample of the real corpus and projects the remaining
@@ -262,10 +265,15 @@ public class GuideTranslationGenerator {
             }
         }
         if (pending.isEmpty()) {
-            return new Estimate(0, 0, 0, 0, 0, 0, 0);
+            return new Estimate(0, 0, 0, 0, 0, 0, 0, true);
         }
 
-        List<String> sample = spreadAcrossLengths(pending, effectiveSampleSize(sampleSize, pending));
+        // Exactly one batch, filled to the real budget: the measurement has to look like the work
+        // it predicts. No separate connection probe — on a reasoning model a one-word request is
+        // not cheap (a "Hello" once cost seven minutes), and paying for it twice would put the
+        // estimate past any time a user is willing to wait. A dead endpoint still surfaces fast,
+        // because a refused connection fails immediately rather than after a generation.
+        List<String> sample = sampleOneBatch(pending, sampleSize);
         long sampleChars = sample.stream().mapToLong(String::length).sum();
 
         long started = System.nanoTime();
@@ -283,28 +291,46 @@ public class GuideTranslationGenerator {
             }
         }
         if (translated == 0) {
-            logger.warn("Guide translation estimate produced no usable sample ({} failed)", failed);
+            logger.warn("Guide translation estimate produced nothing usable ({} failed)", failed);
+            // Nothing came back at all: report it as a connection problem rather than a
+            // projection, since that is what the user has to act on.
             return new Estimate(sample.size(), sampleChars, elapsedMillis,
-                pending.size(), pendingChars, -1, -1);
+                pending.size(), pendingChars, -1, -1, false);
         }
 
-        // Two extrapolations: cost per character and cost per segment. They agree when the
-        // service scales with content and diverge when per-request overhead dominates, which is
-        // exactly the uncertainty the range is there to show.
-        //
-        // Scaled from nanoseconds, not from the rounded millisecond figure: a fast service can
-        // finish the sample inside one millisecond, and dividing by that zero would report a
-        // perfectly measurable run as unusable.
-        double byCharsNanos = (double) elapsedNanos / translatedChars * pendingChars;
-        double bySegmentsNanos = (double) elapsedNanos / translated * pending.size();
-        long byChars = Math.round(byCharsNanos / 1_000_000.0);
-        long bySegments = Math.round(bySegmentsNanos / 1_000_000.0);
+        // The rest of the run is however many budget-filled batches the remaining text needs.
+        // On a reasoning model the cost is mostly per REQUEST, so batch count — not character
+        // count — drives the answer, and the sample was sized to be one such request.
+        long batches = Math.max(1, (pendingChars + charBudget - 1) / charBudget);
+        double perBatchOnly = (double) elapsedNanos * batches;
+        double perCharOnly = (double) elapsedNanos / translatedChars * pendingChars;
+
+        // Scaled from nanoseconds, not the rounded millisecond figure: a fast service can finish
+        // the sample inside one millisecond, and dividing by that zero would report a perfectly
+        // measurable run as unusable.
+        long low = Math.round(Math.min(perBatchOnly, perCharOnly) / 1_000_000.0);
+        long high = Math.round(Math.max(perBatchOnly, perCharOnly) / 1_000_000.0);
         return new Estimate(sample.size(), sampleChars, elapsedMillis, pending.size(), pendingChars,
-            Math.min(byChars, bySegments), Math.max(byChars, bySegments));
+            low, high, true);
     }
 
-    /** Batches a sample must span before a projection means anything. */
-    static final int MIN_ESTIMATE_BATCHES = 3;
+    /**
+     * One batch is enough now that the connection probe supplies a second measurement.
+     *
+     * <p>It was three: a lone batch carries a fixed cost — on a reasoning model, most of it — and
+     * dividing that by a handful of segments overstated every rate (8 segments once projected
+     * 17-25 hours where the truth was near 5). The probe times a near-empty request, which is
+     * almost pure overhead, so overhead and per-character cost can be separated from two points
+     * instead of averaged away over many batches.
+     */
+    static final int MIN_ESTIMATE_BATCHES = 1;
+
+    /**
+     * Characters the timed sample holds: one real batch. The measurement has to look like the
+     * work it predicts, because on a reasoning model cost is per request, so a sample that is
+     * not a full batch would project the wrong number of requests.
+     */
+    static final int ESTIMATE_SAMPLE_CHARS = DEFAULT_CHAR_BUDGET;
 
     /**
      * Raises a too-small request to something that actually spans several batches.
@@ -318,12 +344,42 @@ public class GuideTranslationGenerator {
      * <p>Derived from the batch settings and the corpus rather than hardcoded, so it stays right
      * when the budget is tuned or the guide changes shape.
      */
-    private int effectiveSampleSize(int requested, List<String> pending) {
+    /**
+     * Builds one batch's worth of sample, spread across the corpus's range of lengths.
+     *
+     * <p>Sized by ACCUMULATED characters, not by an average. Deriving a count from the mean and
+     * then picking spread segments blew the budget badly — the mean is 107 characters but the
+     * spread deliberately reaches for the longest segment (1463), so a "400 character" sample
+     * came out at 1525 and took eight minutes.
+     */
+    private List<String> sampleOneBatch(List<String> pending, int requested) {
+        if (requested > 0) {
+            return spreadAcrossLengths(pending, Math.min(pending.size(), requested));
+        }
+        // Ask for more candidates than can fit, then keep what stays inside the budget: that
+        // preserves the spread's shape while the budget decides where to stop.
+        List<String> candidates = spreadAcrossLengths(pending,
+            Math.min(pending.size(), maxBatchItems * 2));
+        List<String> picked = new ArrayList<>();
+        long chars = 0;
+        for (String text : candidates) {
+            if (picked.size() >= maxBatchItems) {
+                break;
+            }
+            if (!picked.isEmpty() && chars + text.length() > ESTIMATE_SAMPLE_CHARS) {
+                continue;
+            }
+            picked.add(text);
+            chars += text.length();
+        }
+        return picked.isEmpty() ? List.of(candidates.getFirst()) : List.copyOf(picked);
+    }
+
+    /** How many segments a full batch holds, from the configured budget and the corpus. */
+    private int segmentsPerBatch(List<String> pending) {
         long totalChars = pending.stream().mapToLong(String::length).sum();
-        int averageLength = (int) Math.max(1, totalChars / pending.size());
-        int perBatch = Math.min(maxBatchItems, Math.max(1, charBudget / averageLength));
-        int minimum = Math.min(pending.size(), MIN_ESTIMATE_BATCHES * perBatch);
-        return Math.max(Math.max(1, requested), minimum);
+        int averageLength = (int) Math.max(1, totalChars / Math.max(1, pending.size()));
+        return Math.min(maxBatchItems, Math.max(1, charBudget / averageLength));
     }
 
     /**
@@ -338,6 +394,10 @@ public class GuideTranslationGenerator {
         List<String> sorted = new ArrayList<>(candidates);
         sorted.sort(java.util.Comparator.comparingInt(String::length).thenComparing(text -> text));
         List<String> picked = new ArrayList<>(count);
+        // Evenly spaced, deliberately NOT reaching for the longest segment. Forcing the maximum
+        // in was worth it while a two-point fit needed the lever arm; now that the sample must
+        // simply look like an ordinary batch, the outlier only drags its average away from the
+        // corpus it is meant to represent.
         for (int i = 0; i < count; i++) {
             picked.add(sorted.get((int) ((long) i * sorted.size() / count)));
         }

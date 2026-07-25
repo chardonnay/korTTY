@@ -3901,13 +3901,71 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
-    /** The profile the guide translation should use: the one picked in the guide section, or the default. */
+    /**
+     * The service the guide translation should use.
+     *
+     * <p>An AI profile picked in the guide section wins over the provider dropdown above. Picking
+     * a model by name is an unambiguous instruction to use it, and requiring the provider to be
+     * switched to "local AI profile" as well made the choice look ignored: with the dropdown left
+     * on Google Translate and no API key, choosing a profile produced nothing but "the guide
+     * could not be translated".
+     */
     private TranslationService createGuideTranslationService() {
+        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
+        if (chosen != null) {
+            return createLocalAiTranslationService(chosen);
+        }
         if (translationProviderCombo.getValue() != TranslationApiProvider.LOCAL_AI_PROFILE) {
             return createTranslationService();
         }
+        return createLocalAiTranslationService(null);
+    }
+
+    /**
+     * Warns before letting a reasoning model translate the guide.
+     *
+     * <p>Such a model spends most of its output thinking rather than translating — measured here
+     * at 4.4 output tokens per input token — which turns a run of about an hour into six or more.
+     * Worth interrupting for once, not worth blocking: the user may have no other model.
+     *
+     * @return true to go ahead
+     */
+    private boolean confirmReasoningModel() {
         AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
-        return createLocalAiTranslationService(chosen);
+        if (chosen == null || !de.kortty.core.ReasoningModelHint.likelyReasoningModel(chosen)) {
+            return true;
+        }
+        String model = chosen.getEmbeddedModelId() != null && !chosen.getEmbeddedModelId().isBlank()
+            ? chosen.getEmbeddedModelId() : chosen.getName();
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("settings.translation.guide.reasoning.title"));
+        alert.setHeaderText(I18n.get("settings.translation.guide.reasoning.header", model));
+        alert.setContentText(I18n.get("settings.translation.guide.reasoning.message"));
+        alert.getButtonTypes().setAll(
+            new ButtonType(I18n.get("settings.translation.guide.reasoning.continue"),
+                ButtonBar.ButtonData.OK_DONE),
+            new ButtonType(I18n.get("settings.translation.guide.cancel"),
+                ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType choice = alert.showAndWait().orElse(null);
+        return choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
+    }
+
+    /**
+     * Why no service could be built, in words the user can act on. The generic failure message
+     * was actively misleading here: nothing had been translated, and the cause was a missing API
+     * key for a provider the user had not meant to use.
+     */
+    private String guideTranslationServiceProblem() {
+        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
+        if (chosen != null) {
+            return I18n.get("settings.translation.guide.error.profile", chosen.getName());
+        }
+        TranslationApiProvider provider = translationProviderCombo.getValue();
+        if (provider != TranslationApiProvider.LOCAL_AI_PROFILE) {
+            return I18n.get("settings.translation.guide.error.provider");
+        }
+        return I18n.get("settings.translation.guide.error.noLocalProfile");
     }
 
     private String getTranslationApiKeyPlain() {
@@ -5259,8 +5317,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Locale target = translationTargetLanguageCombo.getValue();
         if (service == null || target == null || target.getLanguage() == null
             || target.getLanguage().isEmpty()) {
-            new Alert(Alert.AlertType.ERROR,
-                I18n.get("settings.translation.guide.error")).showAndWait();
+            new Alert(Alert.AlertType.ERROR, guideTranslationServiceProblem()).showAndWait();
+            return;
+        }
+        if (!confirmReasoningModel()) {
             return;
         }
         de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
@@ -5294,8 +5354,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Locale target = translationTargetLanguageCombo.getValue();
         if (service == null || target == null || target.getLanguage() == null
             || target.getLanguage().isEmpty()) {
-            new Alert(Alert.AlertType.ERROR,
-                I18n.get("settings.translation.guide.error")).showAndWait();
+            new Alert(Alert.AlertType.ERROR, guideTranslationServiceProblem()).showAndWait();
+            return;
+        }
+        if (!confirmReasoningModel()) {
             return;
         }
         String targetLang = target.getLanguage();
