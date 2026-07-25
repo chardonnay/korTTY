@@ -33,6 +33,7 @@ import java.util.Map;
  * ./gradlew guideTranslationBench --args="--lang fr"
  * ./gradlew guideTranslationBench --args="--pages all --samples 20"
  * ./gradlew guideTranslationBench --args="--list-profiles"
+ * ./gradlew guideTranslationBench --args="--model some-mlx-model-id --estimate 0"
  * ./gradlew guideTranslationBench --args="--profile 'my other model' --estimate 40"
  * </pre>
  */
@@ -65,6 +66,13 @@ public final class GuideTranslationBench {
             return;
         }
         AiProfile profile = resolveProfile(options.get("profile"));
+        String modelOverride = options.get("model");
+        if (profile != null && modelOverride != null && !modelOverride.isBlank()) {
+            // On a copy: measuring a second model must not rewrite the user's configuration.
+            profile = new AiProfile(profile);
+            profile.setEmbeddedModelId(modelOverride);
+            System.out.println("model override: " + modelOverride);
+        }
         if (profile == null) {
             System.err.println("""
                 No usable AI profile.

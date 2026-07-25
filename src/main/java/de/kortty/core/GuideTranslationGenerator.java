@@ -268,11 +268,27 @@ public class GuideTranslationGenerator {
             return new Estimate(0, 0, 0, 0, 0, 0, 0, true);
         }
 
+        // Warm-up, deliberately NOT timed. An embedded model is loaded on its first request, and
+        // that load is paid once for the whole run — but timing it as part of the sample and then
+        // multiplying by the batch count charges it hundreds of times over. Measured on
+        // Phi-4-mini-instruct: 26 seconds of loading around 1.8 seconds of actual translation,
+        // which turned a run of minutes into a projection of hours.
+        //
+        // Its RESULT is deliberately ignored. A small instruct model often fails the strict JSON
+        // contract on a one-item request while handling a real batch perfectly well, so treating
+        // a failed warm-up as a dead connection would reject a service that works. Whether the
+        // service actually produces anything is decided by the timed sample below.
+        try {
+            translationService.translateBatch(List.of("Hello"), SOURCE_LANG, target);
+        } catch (RuntimeException e) {
+            logger.debug("Warm-up request failed; the sample will decide", e);
+        }
+        if (isCancelled(cancelled)) {
+            return new Estimate(0, 0, 0, pending.size(), pendingChars, -1, -1, true);
+        }
+
         // Exactly one batch, filled to the real budget: the measurement has to look like the work
-        // it predicts. No separate connection probe — on a reasoning model a one-word request is
-        // not cheap (a "Hello" once cost seven minutes), and paying for it twice would put the
-        // estimate past any time a user is willing to wait. A dead endpoint still surfaces fast,
-        // because a refused connection fails immediately rather than after a generation.
+        // it predicts.
         List<String> sample = sampleOneBatch(pending, sampleSize);
         long sampleChars = sample.stream().mapToLong(String::length).sum();
 

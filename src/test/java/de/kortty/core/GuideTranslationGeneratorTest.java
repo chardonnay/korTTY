@@ -385,7 +385,8 @@ class GuideTranslationGeneratorTest {
         assertThat(estimate.isUsable()).isTrue();
         // At least the request; the floor may raise it so the sample spans several batches.
         assertThat(estimate.sampleSegments()).isAtLeast(40);
-        assertThat(service.requested).isEqualTo(estimate.sampleSegments());
+        // One extra item beyond the sample: the untimed warm-up request.
+        assertThat(service.requested).isEqualTo(estimate.sampleSegments() + 1);
         // The sample is a small fraction of the corpus, and the projection covers all of it.
         assertThat(estimate.remainingSegments()).isGreaterThan(1000);
         assertThat(estimate.lowMillis()).isAtMost(estimate.highMillis());
@@ -433,8 +434,9 @@ class GuideTranslationGeneratorTest {
         assertThat(estimate.sampleChars())
             .isAtMost((long) GuideTranslationGenerator.ESTIMATE_SAMPLE_CHARS);
         assertThat(estimate.sampleSegments()).isGreaterThan(1);
-        // One request, not several: that is what keeps the estimate inside a couple of minutes.
-        assertThat(service.calls).isEqualTo(1);
+        // One warm-up plus one timed batch. The warm-up is what keeps a model's one-off load
+        // out of the timing, where it would otherwise be multiplied by the batch count.
+        assertThat(service.calls).isEqualTo(2);
     }
 
     /** An explicit request is the caller overriding the default, and is honoured as given. */
