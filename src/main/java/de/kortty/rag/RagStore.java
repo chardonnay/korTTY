@@ -74,4 +74,9 @@ public record RagStore(
         return new RagStore(id, displayName, type, localDirectory, endpoint, collectionName,
             apiKey, embeddingModelId, embeddingDimensions, text, coding, autonomous);
     }
+
+    public RagStore withApiKey(String newApiKey) {
+        return new RagStore(id, displayName, type, localDirectory, endpoint, collectionName,
+            newApiKey, embeddingModelId, embeddingDimensions, textEnabled, codingEnabled, autonomousEnabled);
+    }
 }
