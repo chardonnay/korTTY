@@ -2468,13 +2468,17 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("windowTabScreenshotStage") {
+tasks.register<JavaExec>("settingsTabScreenshotStage") {
     group = "documentation"
-    description = "Shows the Settings Window tab on screen for the docs screenshot capture."
+    description = "Shows a chosen Settings tab on screen for the docs screenshot capture " +
+        "(-Pkortty.screenshotTabKey=settings.tab.<name>, default settings.tab.window)."
     dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.WindowTabScreenshotStage")
+    mainClass.set("de.kortty.ui.SettingsTabScreenshotStage")
     classpath = sourceSets.test.get().runtimeClasspath
     args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    (findProperty("kortty.screenshotTabKey") as String?)?.let {
+        systemProperty("kortty.screenshotTabKey", it)
+    }
 }
 
 tasks.register<JavaExec>("toolTabRenderSmoke") {
