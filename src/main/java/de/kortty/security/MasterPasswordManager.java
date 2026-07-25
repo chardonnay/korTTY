@@ -1,14 +1,21 @@
 package de.kortty.security;
 
+import de.kortty.policy.PolicyValueCipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Manages the master password for the application.
@@ -17,7 +24,18 @@ public class MasterPasswordManager {
     
     private static final Logger logger = LoggerFactory.getLogger(MasterPasswordManager.class);
     private static final String MASTER_KEY_FILE = "master.key";
-    
+    /** Obfuscated copy of the master password for the "skip master-password prompt" setting. */
+    private static final String AUTO_UNLOCK_FILE = "master.autounlock";
+    private static final Set<PosixFilePermission> OWNER_ONLY = Set.of(
+        PosixFilePermission.OWNER_READ,
+        PosixFilePermission.OWNER_WRITE);
+    /**
+     * Password used to bootstrap the vault on a brand-new profile when auto-unlock is enabled
+     * (e.g. a fresh VM). It is deliberately NOT a secret — the point of auto-unlock is to run
+     * without one. Documented so the user can still unlock manually if they disable the option.
+     */
+    private static final char[] AUTO_UNLOCK_DEFAULT_PASSWORD = "kortty-auto".toCharArray();
+
     private final Path configDir;
     private final EncryptionService encryptionService;
     
@@ -148,7 +166,127 @@ public class MasterPasswordManager {
     public EncryptionService getEncryptionService() {
         return encryptionService;
     }
-    
+
+    // --- Auto-unlock (the "skip master-password prompt" setting) -------------------------------
+    // The master password is stored obfuscated on disk so the vault can be unlocked at startup
+    // without prompting. This is INSECURE by design: the obfuscation key is embedded in the binary
+    // (see PolicyValueCipher), so the owner-only file permissions are the real security boundary.
+    // Intended for throwaway/test environments only.
+
+    /** Whether a remembered auto-unlock password is stored on disk. */
+    public boolean hasAutoUnlockPassword() {
+        return Files.exists(configDir.resolve(AUTO_UNLOCK_FILE));
+    }
+
+    /**
+     * Remembers {@code password} for automatic unlock by writing an obfuscated copy to
+     * {@code ~/.kortty/master.autounlock} with owner-only permissions.
+     */
+    public void saveAutoUnlockPassword(char[] password) throws IOException {
+        if (password == null || password.length == 0) {
+            throw new IllegalArgumentException("Cannot remember an empty master password.");
+        }
+        String envelope = PolicyValueCipher.encrypt(new String(password));
+        Files.createDirectories(configDir);
+        Path file = configDir.resolve(AUTO_UNLOCK_FILE);
+        Path partial = file.resolveSibling(AUTO_UNLOCK_FILE + ".part");
+        try {
+            Files.writeString(partial, envelope, StandardCharsets.UTF_8);
+            restrictPermissions(partial);
+            try {
+                Files.move(partial, file,
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+            restrictPermissions(file);
+        } finally {
+            Files.deleteIfExists(partial);
+        }
+        logger.info("Master password remembered for automatic unlock");
+    }
+
+    /** Loads the remembered password, or {@code null} if none is stored or it cannot be read. */
+    public char[] loadAutoUnlockPassword() {
+        Path file = configDir.resolve(AUTO_UNLOCK_FILE);
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        try {
+            String envelope = Files.readString(file, StandardCharsets.UTF_8).trim();
+            return PolicyValueCipher.decrypt(envelope).toCharArray();
+        } catch (Exception e) {
+            logger.warn("Could not read the remembered master password (corrupt or tampered)");
+            return null;
+        }
+    }
+
+    /** Removes any remembered auto-unlock password. Idempotent. */
+    public void clearAutoUnlockPassword() {
+        try {
+            Files.deleteIfExists(configDir.resolve(AUTO_UNLOCK_FILE));
+            Files.deleteIfExists(configDir.resolve(AUTO_UNLOCK_FILE + ".part"));
+        } catch (IOException e) {
+            logger.warn("Could not remove the remembered master password file", e);
+        }
+    }
+
+    /**
+     * Attempts to unlock the vault without prompting, for the "skip master-password prompt"
+     * setting. Returns {@code true} only when the manager ended up unlocked (derived key and
+     * master password available for decryption).
+     *
+     * <ol>
+     *   <li>A remembered password exists → verify it; on success the vault is unlocked.</li>
+     *   <li>No remembered password and no master password set yet (fresh profile) → bootstrap a
+     *       non-secret default password and remember it, so a brand-new VM starts with zero input.</li>
+     *   <li>A master password is set but not remembered → return {@code false} so the caller can
+     *       prompt once and then remember it (self-healing).</li>
+     * </ol>
+     */
+    public boolean tryAutoUnlock() {
+        if (hasAutoUnlockPassword()) {
+            char[] remembered = loadAutoUnlockPassword();
+            if (remembered != null) {
+                try {
+                    if (verifyPassword(remembered)) {
+                        return true;
+                    }
+                    logger.warn("Remembered master password no longer matches — discarding it");
+                } catch (Exception e) {
+                    logger.warn("Auto-unlock with the remembered master password failed", e);
+                } finally {
+                    Arrays.fill(remembered, '\0');
+                }
+            }
+            // Stored password missing/corrupt/stale → drop it and fall back to prompting.
+            clearAutoUnlockPassword();
+            return false;
+        }
+        if (!isPasswordSet()) {
+            // Fresh profile (e.g. a new VM): bootstrap a non-secret default so startup needs no input.
+            try {
+                Files.createDirectories(configDir);
+                setupPassword(AUTO_UNLOCK_DEFAULT_PASSWORD.clone());
+                saveAutoUnlockPassword(AUTO_UNLOCK_DEFAULT_PASSWORD.clone());
+                return true;
+            } catch (Exception e) {
+                logger.error("Failed to bootstrap the default auto-unlock password", e);
+                return false;
+            }
+        }
+        // Password is set but we don't know it yet — caller prompts once, then remembers it.
+        return false;
+    }
+
+    private static void restrictPermissions(Path path) throws IOException {
+        try {
+            Files.setPosixFilePermissions(path, OWNER_ONLY);
+        } catch (UnsupportedOperationException ignored) {
+            // Non-POSIX (Windows): protection inherited from the config directory ACL.
+        }
+    }
+
     /**
      * Clears sensitive data from memory.
      */

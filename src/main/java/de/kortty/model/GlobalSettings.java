@@ -178,7 +178,16 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
-    
+
+    /**
+     * When true, korTTY skips the master-password prompt on startup and unlocks the vault
+     * automatically from a remembered password (see {@code de.kortty.security.MasterPasswordManager}).
+     * INSECURE — the master password is stored obfuscated on disk; intended for throwaway/test
+     * environments only. Default: false.
+     */
+    @XmlElement
+    private boolean skipMasterPasswordPrompt = false;
+
     /** When true, temporary SSH key option is shown in Connection Manager and Quick Connect. Default: false. */
     @XmlElement
     private boolean temporarySshKeyEnabled = false;
@@ -1182,7 +1191,15 @@ public class GlobalSettings {
     public void setRequireMasterPasswordOnStartup(boolean requireMasterPasswordOnStartup) {
         this.requireMasterPasswordOnStartup = requireMasterPasswordOnStartup;
     }
-    
+
+    public boolean isSkipMasterPasswordPrompt() {
+        return skipMasterPasswordPrompt;
+    }
+
+    public void setSkipMasterPasswordPrompt(boolean skipMasterPasswordPrompt) {
+        this.skipMasterPasswordPrompt = skipMasterPasswordPrompt;
+    }
+
     public boolean isTemporarySshKeyEnabled() {
         return temporarySshKeyEnabled;
     }

@@ -83,6 +83,23 @@ class PolicyClampTest {
     }
 
     @Test
+    void requireMasterPasswordClampsAwayAutoUnlock() throws Exception {
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(restrictiveClamp());
+        manager.load();
+
+        // A user (or hand-edited XML) turning on the insecure auto-unlock must be overridden by the
+        // forced-master-password policy, both in memory and in the persisted XML.
+        manager.getSettings().setSkipMasterPasswordPrompt(true);
+        manager.save();
+
+        assertThat(manager.getSettings().isSkipMasterPasswordPrompt()).isFalse();
+        assertThat(manager.getSettings().isRequireMasterPasswordOnStartup()).isTrue();
+        assertThat(Files.readString(configDir.resolve("global-settings.xml")))
+            .contains("<skipMasterPasswordPrompt>false</skipMasterPasswordPrompt>");
+    }
+
+    @Test
     void handEditedXmlIsReclampedOnReload() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
         manager.setPolicyClamp(restrictiveClamp());
