@@ -327,6 +327,52 @@ class GuideTranslationGeneratorTest {
         assertThat(result.distinctSegments()).isGreaterThan(0);
     }
 
+    /**
+     * The runtime path must reach the same terminology as the build-time Markdown pipeline:
+     * a guide that calls itself "Handbuch" while the menu says "Anleitung" is worse than an
+     * untranslated one, because the reader cannot tell they are the same thing.
+     */
+    @Test
+    void germanOutputIsCorrectedToTheProductsOwnTerminology() throws IOException {
+        TranslationService callsItHandbuch = new TranslationService() {
+            @Override
+            public String translate(String text, String sourceLang, String targetLang) {
+                return text.replace("korTTY Guide", "korTTY Handbuch");
+            }
+
+            @Override
+            public List<String> translateBatch(List<String> texts, String s, String t) {
+                List<String> out = new ArrayList<>(texts.size());
+                texts.forEach(text -> out.add(translate(text, s, t)));
+                return out;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        new GuideTranslationGenerator(callsItHandbuch, tempDir)
+            .generate("de", List.of("index.html"), null, null);
+
+        String page = Files.readString(tempDir.resolve("guide/de/index.html"),
+            StandardCharsets.UTF_8);
+        assertThat(page).contains("korTTY Anleitung");
+        assertThat(page).doesNotContain("korTTY Handbuch");
+    }
+
+    /** A language with no glossary must be left exactly as the model produced it. */
+    @Test
+    void aLanguageWithoutAGlossaryIsNotRewritten() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir)
+            .generate("xx", List.of("index.html"), null, null);
+
+        String expected = readBundledPage("index.html")
+            .replace("<html lang=\"en\"", "<html lang=\"xx\"");
+        assertThat(Files.readString(tempDir.resolve("guide/xx/index.html"), StandardCharsets.UTF_8))
+            .isEqualTo(expected);
+    }
+
     // --------------------------------------------------------------- fixtures
 
     private static String readBundledPage(String page) throws IOException {

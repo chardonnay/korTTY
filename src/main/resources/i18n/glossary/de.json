@@ -1,0 +1,72 @@
+{
+  "language": "de",
+  "formatVersion": 1,
+  "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
+  "replacements": [
+    {
+      "from": "| Ermöglicht |", "to": "| Aktiviert |", "scope": "markdown",
+      "note": "A bare 'Enabled' column label reads as a verb to MT ('Ermöglicht' = 'enables'); as a settings-table label it is the adjective. Scoped to the cell so prose is untouched."
+    },
+    {
+      "from": "Ermöglicht", "to": "Aktiviert", "scope": "html", "match": "exact",
+      "note": "Same label in rendered HTML, where the table cell is its own segment."
+    },
+
+    { "from": "Meerjungfrau", "to": "Mermaid", "note": "Product/technology names that MT translates literally." },
+    { "from": "meerjungfrau", "to": "Mermaid" },
+    { "from": "Knowledge Stores", "to": "Wissensspeicher" },
+    { "from": "Knowledge Store", "to": "Wissensspeicher" },
+    { "from": "Knowledge-Store", "to": "Wissensspeicher" },
+    { "from": "eines Shops", "to": "eines Wissensspeichers" },
+    { "from": "des Shops", "to": "des Wissensspeichers" },
+    { "from": "Shops", "to": "Wissensspeicher" },
+    { "from": "Shop", "to": "Wissensspeicher" },
+    { "from": "Geschäfts", "to": "Wissensspeichers" },
+    { "from": "Geschäfte", "to": "Wissensspeicher" },
+    { "from": "Geschäft", "to": "Wissensspeicher" },
+    { "from": "Stores", "to": "Wissensspeicher" },
+    { "from": "Store", "to": "Wissensspeicher" },
+    { "from": "HNSW-Diagramm", "to": "HNSW-Graph" },
+    { "from": "Mehr laden", "to": "Weitere laden" },
+    { "from": "**Laden…**", "to": "**Wird ermittelt…**", "scope": "markdown" },
+
+    {
+      "from": "korTTY Guide", "to": "korTTY Anleitung",
+      "note": "'Anleitung' is the product's canonical term, matching menu.help.guide in the interface strings. Without these rows a local model renders it 'Handbuch' and the app disagrees with its own menu."
+    },
+    { "from": "Bedienungsanleitung", "to": "Anleitung" },
+    { "from": "Benutzerhandbuch", "to": "Anleitung" },
+    { "from": "Handbuch", "to": "Anleitung" },
+    { "from": "handbuch", "to": "Anleitung" },
+    { "from": "Leitfaden", "to": "Anleitung" },
+    {
+      "from": "→ Manual", "to": "→ Anleitung",
+      "note": "Handles 'Hilfe → Manual' too, which is why no separate row for it exists: the old table carried one and it was unreachable, since this row had already removed the word 'Manual'."
+    },
+    { "from": "Help → Anleitung", "to": "Hilfe → Anleitung" },
+    { "from": "das Anleitung", "to": "die Anleitung" },
+    { "from": "Das Anleitung", "to": "Die Anleitung" },
+    { "from": "dieses Anleitung", "to": "diese Anleitung" },
+    { "from": "Dieses Anleitung", "to": "Diese Anleitung" },
+    { "from": "ein Anleitung", "to": "eine Anleitung" },
+    { "from": "des Anleitung", "to": "der Anleitung" },
+    { "from": "dem Anleitung", "to": "der Anleitung" },
+
+    {
+      "from": "GitHub-Probleme", "to": "GitHub-Issues",
+      "note": "'GitHub issue' is a proper term — MT renders it as Problem/Ausgabe."
+    },
+    { "from": "GitHub-Problem", "to": "GitHub-Issue" },
+    { "from": "Öffnen Sie eine neue Ausgabe", "to": "Öffnen Sie ein neues Issue" },
+    { "from": "Öffnen Sie das Problem", "to": "Öffnen Sie das Issue" },
+    { "from": "ein Problem zu eröffnen", "to": "ein Issue zu eröffnen" },
+
+    {
+      "from": "ASCII Art.-Nr", "to": "ASCII-Art",
+      "note": "'ASCII art' is a product term. MT renders it 'ASCII-Kunst' and, for the bare heading, 'ASCII Art.-Nr' — reading as Artikelnummer, an article number."
+    },
+    { "from": "ASCII-Kunstbanner", "to": "ASCII-Art-Banner" },
+    { "from": "ASCII-Kunst", "to": "ASCII-Art" },
+    { "from": "ASCII Kunst", "to": "ASCII-Art" }
+  ]
+}

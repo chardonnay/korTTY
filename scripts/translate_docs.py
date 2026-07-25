@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -209,62 +210,44 @@ def translatable_lines(md: str) -> tuple[list[str], list[tuple[int, str, list[st
 # Normalize German renderings of "guide/manual" to the product's canonical term
 # ("Anleitung", matching the app's menu.help.guide=Anleitung) so the DE site never
 # drifts to Handbuch/Leitfaden/Manual. Applied after translation.
-GLOSSARY_DE = [
-    # A bare "Enabled" column label reads as a verb to MT ("Ermöglicht" = "enables"); as a
-    # settings-table label it is the adjective. Scoped to the cell so prose is untouched.
-    ("| Ermöglicht |", "| Aktiviert |"),
-    # Product/technology names that MT tends to translate literally.
-    ("Meerjungfrau", "Mermaid"),
-    ("meerjungfrau", "Mermaid"),
-    ("Knowledge Stores", "Wissensspeicher"),
-    ("Knowledge Store", "Wissensspeicher"),
-    ("Knowledge-Store", "Wissensspeicher"),
-    ("eines Shops", "eines Wissensspeichers"),
-    ("des Shops", "des Wissensspeichers"),
-    ("Shops", "Wissensspeicher"),
-    ("Shop", "Wissensspeicher"),
-    ("Geschäfts", "Wissensspeichers"),
-    ("Geschäfte", "Wissensspeicher"),
-    ("Geschäft", "Wissensspeicher"),
-    ("Stores", "Wissensspeicher"),
-    ("Store", "Wissensspeicher"),
-    ("HNSW-Diagramm", "HNSW-Graph"),
-    ("Mehr laden", "Weitere laden"),
-    ("**Laden…**", "**Wird ermittelt…**"),
-    ("korTTY Guide", "korTTY Anleitung"),
-    ("Bedienungsanleitung", "Anleitung"),
-    ("Benutzerhandbuch", "Anleitung"),
-    ("Handbuch", "Anleitung"),
-    ("handbuch", "Anleitung"),
-    ("Leitfaden", "Anleitung"),
-    ("→ Manual", "→ Anleitung"),
-    ("Help → Anleitung", "Hilfe → Anleitung"),
-    ("Hilfe → Manual", "Hilfe → Anleitung"),
-    ("das Anleitung", "die Anleitung"),
-    ("Das Anleitung", "Die Anleitung"),
-    ("dieses Anleitung", "diese Anleitung"),
-    ("Dieses Anleitung", "Diese Anleitung"),
-    ("ein Anleitung", "eine Anleitung"),
-    ("des Anleitung", "der Anleitung"),
-    ("dem Anleitung", "der Anleitung"),
-    # "GitHub issue" is a proper term — MT renders it as Problem/Ausgabe.
-    ("GitHub-Probleme", "GitHub-Issues"),
-    ("GitHub-Problem", "GitHub-Issue"),
-    ("Öffnen Sie eine neue Ausgabe", "Öffnen Sie ein neues Issue"),
-    ("Öffnen Sie das Problem", "Öffnen Sie das Issue"),
-    ("ein Problem zu eröffnen", "ein Issue zu eröffnen"),
-    # "ASCII art" is a product term. MT renders it as "ASCII-Kunst" and, for the bare heading,
-    # as "ASCII Art.-Nr" — reading "Artikelnummer", an article number.
-    ("ASCII Art.-Nr", "ASCII-Art"),
-    ("ASCII-Kunstbanner", "ASCII-Art-Banner"),
-    ("ASCII-Kunst", "ASCII-Art"),
-    ("ASCII Kunst", "ASCII-Art"),
-]
+#
+# The table itself lives in src/main/resources/i18n/glossary/<lang>.json because the
+# runtime HTML translator (de.kortty.core.TranslationGlossary) needs exactly the same
+# corrections — a second copy here would drift, and each pipeline would still look
+# correct on its own while the app and the website disagreed on the product's own words.
+GLOSSARY_PATH = REPO / "src" / "main" / "resources" / "i18n" / "glossary" / f"{TARGET}.json"
+
+
+def load_glossary(scope: str = "markdown") -> list[tuple[str, str, bool]]:
+    """Ordered (from, to, exact) rows for this scope. Order is load-bearing: a longer term
+    must precede any shorter one it contains."""
+    if not GLOSSARY_PATH.is_file():
+        return []
+    data = json.loads(GLOSSARY_PATH.read_text(encoding="utf-8"))
+    rows: list[tuple[str, str, bool]] = []
+    for row in data.get("replacements", []):
+        if "from" not in row or "to" not in row:
+            continue
+        row_scope = row.get("scope", "any")
+        if row_scope not in ("any", scope):
+            continue
+        rows.append((row["from"], row["to"], row.get("match") == "exact"))
+    return rows
+
+
+_GLOSSARY: list[tuple[str, str, bool]] | None = None
 
 
 def apply_glossary(text: str) -> str:
-    for a, b in GLOSSARY_DE:
-        text = text.replace(a, b)
+    global _GLOSSARY
+    if _GLOSSARY is None:
+        _GLOSSARY = load_glossary("markdown")
+    for source, target, exact in _GLOSSARY:
+        if exact:
+            if text.strip() == source:
+                text = text.replace(source, target, 1)
+        else:
+            text = text.replace(source, target)
     return text
 
 

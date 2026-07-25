@@ -140,5 +140,77 @@ class BundledCorpusTest(unittest.TestCase):
         self.assertEqual(problems, [])
 
 
+class SharedGlossaryTest(unittest.TestCase):
+    """The glossary is a contract between two loaders in two languages.
+
+    scripts/translate_docs.py and de.kortty.core.TranslationGlossary both read this file and
+    both depend on the invariants below. Neither can see the other break them, so they are
+    asserted on the data itself. (translate_docs.py is not imported here: it needs
+    deep_translator, which the system interpreter running these tests does not have.)
+    """
+
+    GLOSSARY_DIR = (_SCRIPT.parent.parent / "src" / "main" / "resources" / "i18n" / "glossary")
+
+    def glossaries(self) -> list[tuple[str, dict]]:
+        import json
+        return [(path.stem, json.loads(path.read_text(encoding="utf-8")))
+                for path in sorted(self.GLOSSARY_DIR.glob("*.json"))]
+
+    def rows_for(self, data: dict, scope: str) -> list[dict]:
+        return [row for row in data["replacements"]
+                if row.get("scope", "any") in ("any", scope)]
+
+    def test_every_row_is_well_formed(self):
+        self.assertTrue(self.glossaries(), "no glossary files found")
+        for name, data in self.glossaries():
+            with self.subTest(language=name):
+                self.assertEqual(data.get("language"), name)
+                self.assertIn("replacements", data)
+                for row in data["replacements"]:
+                    self.assertIn("from", row)
+                    self.assertIn("to", row)
+                    self.assertNotEqual(row["from"], "", "an empty 'from' matches everything")
+                    self.assertIn(row.get("scope", "any"), ("any", "markdown", "html"))
+                    self.assertIn(row.get("match", "substring"), ("substring", "exact"))
+
+    def test_longer_terms_precede_the_shorter_ones_they_contain(self):
+        # Order is the whole reason this is a list and not a map: with "Handbuch" first,
+        # "Benutzerhandbuch" would come out as "BenutzerAnleitung".
+        for name, data in self.glossaries():
+            for scope in ("markdown", "html"):
+                rows = [r for r in self.rows_for(data, scope) if r.get("match") != "exact"]
+                for i, outer in enumerate(rows):
+                    for inner in rows[i + 1:]:
+                        if outer["from"] == inner["from"]:
+                            continue
+                        with self.subTest(language=name, scope=scope, term=inner["from"]):
+                            self.assertNotIn(
+                                outer["from"], inner["from"],
+                                f"{inner['from']!r} contains the earlier {outer['from']!r} and "
+                                f"can never match; move it before it")
+
+    def test_no_duplicate_source_terms_within_a_scope(self):
+        for name, data in self.glossaries():
+            for scope in ("markdown", "html"):
+                terms = [row["from"] for row in self.rows_for(data, scope)]
+                duplicates = {t for t in terms if terms.count(t) > 1}
+                with self.subTest(language=name, scope=scope):
+                    self.assertEqual(duplicates, set())
+
+    def test_no_row_contains_a_placeholder_token(self):
+        # The runtime applies these to masked text; a row mentioning KTPH could eat markup.
+        for name, data in self.glossaries():
+            for row in data["replacements"]:
+                with self.subTest(language=name, term=row["from"]):
+                    self.assertNotIn("KTPH", row["from"])
+                    self.assertNotIn("KTPH", row["to"])
+
+    def test_german_still_maps_the_guide_to_its_canonical_term(self):
+        rows = {row["from"]: row["to"] for _name, data in self.glossaries()
+                for row in data["replacements"] if _name == "de"}
+        self.assertEqual(rows.get("Handbuch"), "Anleitung")
+        self.assertEqual(rows.get("korTTY Guide"), "korTTY Anleitung")
+
+
 if __name__ == "__main__":
     unittest.main()

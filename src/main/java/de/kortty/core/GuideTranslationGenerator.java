@@ -247,13 +247,19 @@ public class GuideTranslationGenerator {
             }
         }
 
+        TranslationGlossary glossary =
+            TranslationGlossary.forLanguage(target, TranslationGlossary.Scope.HTML);
+        if (!glossary.isEmpty()) {
+            logger.info("Applying {} glossary correction(s) for {}", glossary.size(), target);
+        }
+
         int written = 0;
         int skipped = 0;
         for (PageManifest manifest : manifests) {
             if (isCancelled(cancelled)) {
                 break;
             }
-            if (writePage(manifest, target, memory, outDir)) {
+            if (writePage(manifest, target, memory, outDir, glossary)) {
                 written++;
             } else {
                 skipped++;
@@ -402,7 +408,7 @@ public class GuideTranslationGenerator {
      * HTML — writing then would produce a page with text spliced at the wrong offsets.
      */
     private boolean writePage(PageManifest manifest, String target, Map<String, String> memory,
-                              Path outDir) throws IOException {
+                              Path outDir, TranslationGlossary glossary) throws IOException {
         byte[] raw;
         try (InputStream in = open(SOURCE_ROOT + manifest.page())) {
             raw = in.readAllBytes();
@@ -428,6 +434,13 @@ public class GuideTranslationGenerator {
                 return false;
             }
             String translated = memory.get(segment.text());
+            if (translated != null) {
+                // Applied here rather than before storing, so the memory keeps the raw model
+                // output: editing the glossary then takes effect on the next write instead of
+                // invalidating hours of translation.
+                String corrected = glossary.apply(translated);
+                translated = placeholdersIntact(translated, corrected) ? corrected : translated;
+            }
             out.append(html, cursor, segment.startUtf16());
             out.append(translated != null
                 ? unmask(escapeMarkup(translated), segment.fragments())
