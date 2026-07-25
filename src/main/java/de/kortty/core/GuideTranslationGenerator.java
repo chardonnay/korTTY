@@ -434,6 +434,18 @@ public class GuideTranslationGenerator {
                 skipped++;
             }
         }
+        if (written > 0) {
+            // Derived from the pages just written, not translated separately: the index holds as
+            // much text as the guide itself, and a second pass would double an already long run.
+            try {
+                GuideSearchIndexTranslator.rebuild(outDir, target);
+                GuideSearchIndex.invalidate(target);
+            } catch (IOException | RuntimeException e) {
+                // A translated guide with an English index is degraded but usable; failing the
+                // whole run over it would throw away hours of work.
+                logger.warn("Could not rebuild the search index for {}", target, e);
+            }
+        }
         if (progress != null) {
             progress.accept(1.0);
         }

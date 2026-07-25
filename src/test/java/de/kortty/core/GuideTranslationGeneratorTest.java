@@ -508,6 +508,71 @@ class GuideTranslationGeneratorTest {
         assertThat(estimate.lowMillis()).isEqualTo(-1);
     }
 
+    // ----------------------------------------------------------- search index
+
+    /**
+     * A translated guide whose search still answers in English is worse than none: the reader
+     * cannot find the page they are looking at. The index is rebuilt from the translated pages,
+     * so it costs no model time.
+     */
+    @Test
+    void theSearchIndexIsRebuiltFromTheTranslatedPages() throws IOException {
+        new GuideTranslationGenerator(new PrefixService(), tempDir).generate("xx", null, null);
+
+        Path index = tempDir.resolve("guide/xx/search/search_index.json");
+        assertThat(Files.isRegularFile(index)).isTrue();
+        String json = Files.readString(index, StandardCharsets.UTF_8);
+        // PrefixService marks every translated string; the index must carry the marks too.
+        assertThat(json).contains("[xx]");
+
+        GuideSearchIndex parsed = GuideSearchIndex.load("xx", tempDir);
+        assertThat(parsed).isNotNull();
+        assertThat(parsed.entries().size()).isGreaterThan(400);
+        long marked = parsed.entries().stream()
+            .filter(entry -> entry.title().contains("[xx]") || entry.plainText().contains("[xx]"))
+            .count();
+        assertWithMessage("most entries should carry translated text")
+            .that(marked).isGreaterThan(parsed.entries().size() * 3L / 4);
+    }
+
+    /** Locations and anchors must survive, or every search result would lead nowhere. */
+    @Test
+    void rebuiltIndexEntriesStillPointAtRealPagesAndAnchors() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
+
+        GuideSearchIndex translated = GuideSearchIndex.load("xx", tempDir);
+        GuideSearchIndex english = GuideSearchIndex.load("en", tempDir);
+        assertThat(translated).isNotNull();
+        assertThat(english).isNotNull();
+
+        java.util.Set<String> englishLocations = english.entries().stream()
+            .map(GuideSearchIndex.Entry::location).collect(java.util.stream.Collectors.toSet());
+        for (GuideSearchIndex.Entry entry : translated.entries()) {
+            assertWithMessage("location " + entry.location())
+                .that(englishLocations).contains(entry.location());
+            if (entry.anchor() != null) {
+                String page = Files.readString(tempDir.resolve("guide/xx").resolve(entry.pagePath()),
+                    StandardCharsets.UTF_8);
+                assertWithMessage("anchor of " + entry.location())
+                    .that(page).contains("id=\"" + entry.anchor() + "\"");
+            }
+        }
+    }
+
+    @Test
+    void theIndexUsesTheTargetLanguageStemmerWhenOneIsAvailable() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("de", null, null);
+
+        String json = Files.readString(tempDir.resolve("guide/de/search/search_index.json"),
+            StandardCharsets.UTF_8);
+        assertThat(json).contains("\"lang\":[\"de\"]");
+
+        // A language lunr has no stemmer for must stay on English rather than break search.
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
+        assertThat(Files.readString(tempDir.resolve("guide/xx/search/search_index.json"),
+            StandardCharsets.UTF_8)).contains("\"lang\":[\"en\"]");
+    }
+
     // ---------------------------------------------------------------- assets
 
     /**
