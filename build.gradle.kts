@@ -2583,6 +2583,17 @@ tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("guideTranslationBench") {
+    group = "verification"
+    description = "Measures speed and quality of translating the bundled guide with the configured local AI profile."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.GuideTranslationBench")
+    classpath = sourceSets.test.get().runtimeClasspath
+    // A local model is slow; let the reader watch instead of buffering for minutes.
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
 tasks.register<JavaExec>("guideAskPanelSmoke") {
     group = "verification"
     description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png."

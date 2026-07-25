@@ -190,14 +190,27 @@ public class GuideTranslationGenerator {
      */
     public Result generate(String targetLangCode, Consumer<Double> progress,
                            BooleanSupplier cancelled) throws IOException {
+        return generate(targetLangCode, listPages(), progress, cancelled);
+    }
+
+    /**
+     * Translates the given subset of pages. Useful to translate what the reader is about to
+     * open before committing to the whole guide, and to benchmark a local model on a sample
+     * without waiting out the full corpus. The translation memory is shared across runs, so
+     * successive subsets accumulate rather than repeat work.
+     */
+    public Result generate(String targetLangCode, List<String> pages, Consumer<Double> progress,
+                           BooleanSupplier cancelled) throws IOException {
         if (targetLangCode == null || targetLangCode.isBlank()) {
             throw new IllegalArgumentException("targetLangCode is required");
+        }
+        if (pages == null || pages.isEmpty()) {
+            throw new IllegalArgumentException("at least one page is required");
         }
         String target = targetLangCode.trim().toLowerCase(java.util.Locale.ROOT);
         Path outDir = guideDir.resolve(target);
         Files.createDirectories(outDir);
 
-        List<String> pages = listPages();
         List<PageManifest> manifests = new ArrayList<>(pages.size());
         // LinkedHashSet: distinct, but still in page order so a partial run produces
         // readable early pages rather than a scatter of finished fragments.
