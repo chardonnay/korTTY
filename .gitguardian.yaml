@@ -1,0 +1,24 @@
+# GitGuardian secret-scanning configuration.
+#
+# Only verified false positives belong here. Every entry names what the match actually is and why
+# it is not a credential — do not add blanket ignores (e.g. whole main-source directories or the
+# "Generic Password" detector), which would hide a real leak.
+version: 2
+
+secret:
+  ignored-matches:
+    # de/kortty/security/MasterPasswordManager.java — AUTO_UNLOCK_DEFAULT_PASSWORD.
+    # Deliberately NOT a secret: the bootstrap password korTTY sets up on a brand-new profile when
+    # passwordless auto-login is enabled, so a throwaway/test VM starts without any input. The
+    # feature's whole point is running without a secret; it is documented as insecure in the UI,
+    # the guide and the code.
+    - name: korTTY auto-unlock bootstrap password (documented non-secret)
+      match: 2860f7e4fca9048e6b290f37004a79fc09c0da35a7e9c6eef4d6829808a632d2
+
+  ignored-paths:
+    # UI strings, not credentials: the security warnings for the master-password settings are prose
+    # containing the word "password", which trips the generic-password detector.
+    - "src/main/resources/i18n/messages*.properties"
+    # Test fixtures: throwaway passwords created and thrown away inside temp directories.
+    - "src/test/java/de/kortty/security/MasterPasswordManagerAutoUnlockTest.java"
+    - "src/test/java/de/kortty/security/MasterPasswordReEncryptorTest.java"
