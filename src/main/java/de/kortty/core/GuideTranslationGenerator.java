@@ -200,6 +200,127 @@ public class GuideTranslationGenerator {
         return in;
     }
 
+    // -------------------------------------------------------------- estimate
+
+    /**
+     * Result of a sample run. {@code lowMillis}/{@code highMillis} bracket the projection rather
+     * than pretending to a single number: a short sample cannot separate per-batch overhead from
+     * per-character cost, so the two plausible extrapolations are reported as a range. Both are
+     * -1 when the sample produced nothing usable and no projection is possible.
+     */
+    public record Estimate(int sampleSegments, long sampleChars, long elapsedMillis,
+                           int remainingSegments, long remainingChars,
+                           long lowMillis, long highMillis) {
+
+        public boolean isUsable() {
+            return lowMillis >= 0 && highMillis >= 0;
+        }
+
+        /** True when the memory already covers the guide and nothing would be translated. */
+        public boolean isComplete() {
+            return remainingSegments == 0;
+        }
+    }
+
+    /** Segments sampled by default: enough batches for the per-batch cost to average out. */
+    public static final int DEFAULT_ESTIMATE_SAMPLE = 40;
+
+    /**
+     * Measures the configured service on a sample of the real corpus and projects the remaining
+     * work. Exists because the honest answer to "how long will this take" ranges from a minute on
+     * a cloud API to most of a night on a local model, and only the user's own hardware can say.
+     *
+     * <p>The sample is spread across the length distribution rather than taken from the front:
+     * segments range from a two-word table cell to a full paragraph, and the leading pages are
+     * mostly short navigation labels, which would flatter the estimate badly.
+     *
+     * <p>Sampling is real work, not a simulation — translations land in the translation memory,
+     * so the run that follows reuses them instead of repeating them.
+     */
+    public Estimate estimate(String targetLangCode, int sampleSize, BooleanSupplier cancelled)
+            throws IOException {
+        if (targetLangCode == null || targetLangCode.isBlank()) {
+            throw new IllegalArgumentException("targetLangCode is required");
+        }
+        String target = targetLangCode.trim().toLowerCase(java.util.Locale.ROOT);
+        Path outDir = guideDir.resolve(target);
+        Files.createDirectories(outDir);
+
+        LinkedHashSet<String> distinct = new LinkedHashSet<>();
+        for (String page : listPages()) {
+            for (Segment segment : loadManifest(page).segments()) {
+                distinct.add(segment.text());
+            }
+        }
+        Map<String, String> memory = loadMemory(outDir);
+        List<String> pending = new ArrayList<>();
+        long pendingChars = 0;
+        for (String text : distinct) {
+            if (!memory.containsKey(text)) {
+                pending.add(text);
+                pendingChars += text.length();
+            }
+        }
+        if (pending.isEmpty()) {
+            return new Estimate(0, 0, 0, 0, 0, 0, 0);
+        }
+
+        List<String> sample = spreadAcrossLengths(pending, Math.max(1, sampleSize));
+        long sampleChars = sample.stream().mapToLong(String::length).sum();
+
+        long started = System.nanoTime();
+        int failed = translateAll(sample, target, memory, null, cancelled, outDir);
+        long elapsedNanos = System.nanoTime() - started;
+        long elapsedMillis = elapsedNanos / 1_000_000L;
+        saveMemory(outDir, memory);
+
+        int translated = 0;
+        long translatedChars = 0;
+        for (String text : sample) {
+            if (memory.containsKey(text)) {
+                translated++;
+                translatedChars += text.length();
+            }
+        }
+        if (translated == 0) {
+            logger.warn("Guide translation estimate produced no usable sample ({} failed)", failed);
+            return new Estimate(sample.size(), sampleChars, elapsedMillis,
+                pending.size(), pendingChars, -1, -1);
+        }
+
+        // Two extrapolations: cost per character and cost per segment. They agree when the
+        // service scales with content and diverge when per-request overhead dominates, which is
+        // exactly the uncertainty the range is there to show.
+        //
+        // Scaled from nanoseconds, not from the rounded millisecond figure: a fast service can
+        // finish the sample inside one millisecond, and dividing by that zero would report a
+        // perfectly measurable run as unusable.
+        double byCharsNanos = (double) elapsedNanos / translatedChars * pendingChars;
+        double bySegmentsNanos = (double) elapsedNanos / translated * pending.size();
+        long byChars = Math.round(byCharsNanos / 1_000_000.0);
+        long bySegments = Math.round(bySegmentsNanos / 1_000_000.0);
+        return new Estimate(sample.size(), sampleChars, elapsedMillis, pending.size(), pendingChars,
+            Math.min(byChars, bySegments), Math.max(byChars, bySegments));
+    }
+
+    /**
+     * Picks {@code count} entries spread evenly across the length-sorted input, so the sample
+     * mirrors the corpus's mix of short labels and long paragraphs. Deterministic on purpose:
+     * two estimates of the same corpus should be comparable.
+     */
+    static List<String> spreadAcrossLengths(List<String> candidates, int count) {
+        if (candidates.size() <= count) {
+            return List.copyOf(candidates);
+        }
+        List<String> sorted = new ArrayList<>(candidates);
+        sorted.sort(java.util.Comparator.comparingInt(String::length).thenComparing(text -> text));
+        List<String> picked = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            picked.add(sorted.get((int) ((long) i * sorted.size() / count)));
+        }
+        return List.copyOf(picked);
+    }
+
     // ------------------------------------------------------------- generation
 
     /**

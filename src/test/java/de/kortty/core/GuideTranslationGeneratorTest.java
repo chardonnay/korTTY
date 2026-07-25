@@ -373,6 +373,118 @@ class GuideTranslationGeneratorTest {
             .isEqualTo(expected);
     }
 
+    // -------------------------------------------------------------- estimate
+
+    @Test
+    void anEstimateProjectsTheRemainingWorkFromASample() throws IOException {
+        CountingService service = new CountingService();
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(service, tempDir).estimate("xx", 40, null);
+
+        assertThat(estimate.isComplete()).isFalse();
+        assertThat(estimate.isUsable()).isTrue();
+        assertThat(estimate.sampleSegments()).isEqualTo(40);
+        assertThat(service.requested).isEqualTo(40);
+        // The sample is a small fraction of the corpus, and the projection covers all of it.
+        assertThat(estimate.remainingSegments()).isGreaterThan(1000);
+        assertThat(estimate.lowMillis()).isAtMost(estimate.highMillis());
+    }
+
+    /**
+     * The sample must mirror the corpus's mix of lengths. Taking the first N segments would draw
+     * almost only short navigation labels and understate a real run badly.
+     */
+    @Test
+    void theSampleSpansTheCorpusLengthDistribution() throws IOException {
+        List<String> all = new ArrayList<>();
+        for (String page : GuideTranslationGenerator.listPages()) {
+            GuideTranslationGenerator.loadManifest(page).segments()
+                .forEach(segment -> all.add(segment.text()));
+        }
+        List<String> sample = GuideTranslationGenerator.spreadAcrossLengths(all, 40);
+
+        assertThat(sample).hasSize(40);
+        double sampleMean = sample.stream().mapToInt(String::length).average().orElse(0);
+        double corpusMean = all.stream().mapToInt(String::length).average().orElse(0);
+        // Within a factor of two of the corpus average; the naive "first 40" is far outside this.
+        assertThat(sampleMean).isGreaterThan(corpusMean / 2);
+        assertThat(sampleMean).isLessThan(corpusMean * 2);
+
+        List<String> naive = all.subList(0, 40);
+        double naiveMean = naive.stream().mapToInt(String::length).average().orElse(0);
+        assertWithMessage("spread sampling should beat taking the first 40")
+            .that(Math.abs(sampleMean - corpusMean)).isLessThan(Math.abs(naiveMean - corpusMean));
+    }
+
+    @Test
+    void samplingIsDeterministicSoTwoEstimatesAreComparable() {
+        List<String> input = new ArrayList<>();
+        for (int i = 0; i < 500; i++) {
+            input.add("segment " + i + " ".repeat(i % 40));
+        }
+        assertThat(GuideTranslationGenerator.spreadAcrossLengths(input, 20))
+            .isEqualTo(GuideTranslationGenerator.spreadAcrossLengths(input, 20));
+    }
+
+    @Test
+    void aSmallCorpusIsSampledWhole() {
+        List<String> input = List.of("a", "bb", "ccc");
+        assertThat(GuideTranslationGenerator.spreadAcrossLengths(input, 40)).hasSize(3);
+    }
+
+    /** Sampling is real translation: the run that follows must reuse it, not repeat it. */
+    @Test
+    void theSampledSegmentsAreKeptForTheRealRun() throws IOException {
+        GuideTranslationGenerator generator = new GuideTranslationGenerator(new IdentityService(), tempDir);
+        generator.estimate("xx", 40, null);
+
+        GuideTranslationGenerator.Estimate second = generator.estimate("xx", 40, null);
+
+        // The second estimate must sample segments the first did not already translate.
+        assertThat(second.remainingSegments()).isLessThan(
+            GuideTranslationGenerator.listPages().size() * 1000);
+        Path memory = tempDir.resolve("guide/xx/translation-memory.json");
+        assertThat(Files.readString(memory, StandardCharsets.UTF_8).length()).isGreaterThan(100);
+    }
+
+    @Test
+    void anEstimateReportsCompletionInsteadOfAProjectionWhenNothingIsLeft() throws IOException {
+        new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
+
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(new IdentityService(), tempDir).estimate("xx", 40, null);
+
+        assertThat(estimate.isComplete()).isTrue();
+        assertThat(estimate.remainingSegments()).isEqualTo(0);
+    }
+
+    /** A service that translates nothing must report "no projection", not a fabricated one. */
+    @Test
+    void anEstimateFromAFailingServiceIsMarkedUnusable() throws IOException {
+        TranslationService broken = new TranslationService() {
+            @Override
+            public String translate(String text, String sourceLang, String targetLang) {
+                return null;
+            }
+
+            @Override
+            public List<String> translateBatch(List<String> texts, String s, String t) {
+                return null;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return false;
+            }
+        };
+
+        GuideTranslationGenerator.Estimate estimate =
+            new GuideTranslationGenerator(broken, tempDir).estimate("xx", 8, null);
+
+        assertThat(estimate.isUsable()).isFalse();
+        assertThat(estimate.lowMillis()).isEqualTo(-1);
+    }
+
     // ---------------------------------------------------------------- assets
 
     /**

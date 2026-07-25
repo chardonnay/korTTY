@@ -75,6 +75,39 @@ public final class GuideTranslationBench {
             System.exit(2);
         }
 
+        if (options.containsKey("estimate")) {
+            int sampleSize = Integer.parseInt(options.getOrDefault("estimate",
+                String.valueOf(GuideTranslationGenerator.DEFAULT_ESTIMATE_SAMPLE)));
+            System.out.printf("""
+                korTTY guide translation estimate
+                  profile : %s  (%s)
+                  target  : %s
+                  sample  : %d segment(s)
+                %n""", profile.getName(), profile.getConnectionMode(), lang, sampleSize);
+            System.out.flush();
+            long started = System.nanoTime();
+            GuideTranslationGenerator.Estimate estimate =
+                new GuideTranslationGenerator(service, outRoot).estimate(lang, sampleSize, null);
+            double actualSeconds = (System.nanoTime() - started) / 1_000_000_000.0;
+            if (estimate.isComplete()) {
+                System.out.println("nothing left to translate for this language");
+            } else if (!estimate.isUsable()) {
+                System.out.println("the sample produced nothing usable — no projection possible");
+            } else {
+                System.out.printf("""
+                      sample took        %s for %d segment(s) / %d chars
+                      remaining          %d segment(s) / %d chars
+                      PROJECTED FULL RUN %s to %s
+                    %n""", formatDuration(estimate.elapsedMillis() / 1000.0),
+                    estimate.sampleSegments(), estimate.sampleChars(),
+                    estimate.remainingSegments(), estimate.remainingChars(),
+                    formatDuration(estimate.lowMillis() / 1000.0),
+                    formatDuration(estimate.highMillis() / 1000.0));
+            }
+            System.out.printf("  (wall clock of this estimate: %s)%n", formatDuration(actualSeconds));
+            return;
+        }
+
         Recorder recorder = new Recorder(service, samples);
         GuideTranslationGenerator generator =
             new GuideTranslationGenerator(recorder, outRoot, budget, items);

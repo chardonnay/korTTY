@@ -123,14 +123,24 @@ public final class TranslationTabSmoke {
             "cancel must only be armed once a translation is running");
         require(list != null, "translated-guides list missing");
 
-        Button start = buttons(translationTab.getContent()).stream()
+        List<Button> allButtons = buttons(translationTab.getContent());
+        Button start = allButtons.stream()
             .filter(b -> I18n.get("settings.translation.guide.generate").equals(b.getText()))
             .findFirst().orElse(null);
         require(start != null, "start button missing");
         require(start.getOnAction() != null, "start button is not wired to a handler");
         require(!start.isDisabled(), "start button should be enabled");
 
-        System.out.println("  section, start button, progress bar, cancel and list all present");
+        // The estimate is what a user reaches for before committing to a multi-hour run, so it
+        // has to be there and reachable without starting one.
+        Button estimate = allButtons.stream()
+            .filter(b -> I18n.get("settings.translation.guide.estimate").equals(b.getText()))
+            .findFirst().orElse(null);
+        require(estimate != null, "estimate button missing");
+        require(estimate.getOnAction() != null, "estimate button is not wired to a handler");
+        require(!estimate.isDisabled(), "estimate button should be enabled");
+
+        System.out.println("  section, estimate, start, progress bar, cancel and list all present");
 
         pane.setMinSize(WIDTH, HEIGHT);
         pane.setPrefSize(WIDTH, HEIGHT);

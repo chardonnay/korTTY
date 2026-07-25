@@ -43,7 +43,12 @@ class GuideTranslationI18nCoverageTest {
         "settings.translation.guide.cancelled",
         "settings.translation.guide.error",
         "settings.translation.guide.deleteTitle",
-        "settings.translation.guide.deleteConfirm");
+        "settings.translation.guide.deleteConfirm",
+        "settings.translation.guide.estimate",
+        "settings.translation.guide.estimateRunning",
+        "settings.translation.guide.estimateResult",
+        "settings.translation.guide.estimateComplete",
+        "settings.translation.guide.estimateFailed");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d+)}");
 

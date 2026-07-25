@@ -1491,9 +1491,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         guideTranslationProgress.setVisible(false);
         guideTranslationStatusLabel = new Label();
         guideTranslationStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        Button guideEstimateButton = new Button(I18n.get("settings.translation.guide.estimate"));
+        guideEstimateButton.setOnAction(ev ->
+            estimateGuideTranslation(guideEstimateButton, guideGenerateButton));
         guideGenerateButton.setOnAction(ev -> generateGuideTranslation(guideGenerateButton));
-        HBox guideActionBox = new HBox(10, guideGenerateButton, guideTranslationProgress,
-            guideTranslationCancelButton);
+        HBox guideActionBox = new HBox(10, guideEstimateButton, guideGenerateButton,
+            guideTranslationProgress, guideTranslationCancelButton);
         guideActionBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         translationGrid.add(new VBox(4, guideActionBox, guideTranslationStatusLabel), 1, transRow++);
 
@@ -5239,6 +5242,101 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Daemon: an hours-long translation must never keep the application from quitting.
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * Translates a small sample and projects the full run from it.
+     *
+     * <p>Worth a button of its own: the honest answer ranges from a minute on a cloud API to most
+     * of a night on a local model, and nobody should have to start a six-hour job to find that
+     * out. The sample is real translation, kept in the memory, so the estimate is a down payment
+     * on the run rather than throwaway work.
+     */
+    private void estimateGuideTranslation(Button estimateButton, Button generateButton) {
+        TranslationService service = createTranslationService();
+        Locale target = translationTargetLanguageCombo.getValue();
+        if (service == null || target == null || target.getLanguage() == null
+            || target.getLanguage().isEmpty()) {
+            new Alert(Alert.AlertType.ERROR,
+                I18n.get("settings.translation.guide.error")).showAndWait();
+            return;
+        }
+        String targetLang = target.getLanguage();
+        int sampleSize = GuideTranslationGenerator.DEFAULT_ESTIMATE_SAMPLE;
+
+        estimateButton.setDisable(true);
+        generateButton.setDisable(true);
+        guideTranslationProgress.setProgress(-1);
+        guideTranslationProgress.setVisible(true);
+        guideTranslationCancelButton.setVisible(true);
+        guideTranslationStatusLabel.setText(
+            I18n.get("settings.translation.guide.estimateRunning", sampleSize));
+
+        Task<GuideTranslationGenerator.Estimate> task = new Task<>() {
+            @Override
+            protected GuideTranslationGenerator.Estimate call() throws Exception {
+                return new GuideTranslationGenerator(service, KorTTYApplication.getConfigDirectory())
+                    .estimate(targetLang, sampleSize, this::isCancelled);
+            }
+        };
+        guideTranslationCancelButton.setOnAction(ev -> {
+            guideTranslationCancelButton.setDisable(true);
+            task.cancel();
+        });
+        Runnable finish = () -> {
+            estimateButton.setDisable(false);
+            generateButton.setDisable(false);
+            guideTranslationProgress.setVisible(false);
+            guideTranslationProgress.setProgress(0);
+            guideTranslationCancelButton.setVisible(false);
+            guideTranslationCancelButton.setDisable(false);
+        };
+        task.setOnSucceeded(ev -> {
+            finish.run();
+            GuideTranslationGenerator.Estimate estimate = task.getValue();
+            if (estimate.isComplete()) {
+                guideTranslationStatusLabel.setText(
+                    I18n.get("settings.translation.guide.estimateComplete"));
+            } else if (!estimate.isUsable()) {
+                guideTranslationStatusLabel.setText(
+                    I18n.get("settings.translation.guide.estimateFailed"));
+            } else {
+                guideTranslationStatusLabel.setText(I18n.get(
+                    "settings.translation.guide.estimateResult",
+                    formatDuration(estimate.lowMillis()), formatDuration(estimate.highMillis()),
+                    estimate.remainingSegments(), estimate.sampleSegments(),
+                    formatDuration(estimate.elapsedMillis())));
+            }
+        });
+        task.setOnCancelled(ev -> {
+            finish.run();
+            guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.cancelled"));
+        });
+        task.setOnFailed(ev -> {
+            finish.run();
+            Throwable error = task.getException();
+            org.slf4j.LoggerFactory.getLogger(getClass()).error("Guide estimate failed", error);
+            guideTranslationStatusLabel.setText(
+                I18n.get("settings.translation.guide.estimateFailed"));
+        });
+        Thread worker = new Thread(task, "guide-translation-estimate");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Coarse, readable duration — an estimate must not imply second-level precision. */
+    static String formatDuration(long millis) {
+        long seconds = Math.max(0, millis) / 1000;
+        if (seconds < 90) {
+            return seconds + " s";
+        }
+        long minutes = (seconds + 30) / 60;
+        if (minutes < 90) {
+            return minutes + " min";
+        }
+        long hours = minutes / 60;
+        long remainder = minutes % 60;
+        return remainder == 0 ? hours + " h" : hours + " h " + remainder + " min";
     }
 
     private void refreshGuideTranslationList() {
