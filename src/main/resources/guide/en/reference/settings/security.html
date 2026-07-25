@@ -2211,6 +2211,7 @@
 <div class="admonition note">
 <p class="admonition-title">Change Master Password button</p>
 <p>Opens a dialog asking for the <strong>Current Password</strong>, the <strong>New Password (at least 6 characters)</strong> and a <strong>Confirm New Password</strong> repetition; <strong>Change</strong> applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.</p>
+<p>The new password only takes over once every store has been migrated, so an error part-way through leaves the old password in effect instead of locking you out of half your data. If an individual secret cannot be migrated (for example one that was encrypted with a different password), korTTY leaves that value untouched, reports how many items were affected, and notes them in the log — those secrets keep the old password and must be re-entered manually.</p>
 </div>
 
 

@@ -2544,8 +2544,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
+            // Only touch the remembered-password file when the option actually changes — or when it
+            // is on but no password was stored yet (the vault was still locked the last time).
+            MasterPasswordManager mpmForAutoUnlock = app != null ? app.getMasterPasswordManager() : null;
+            boolean autoUnlockNeedsUpdate = skipPrompt != globalSettings.isSkipMasterPasswordPrompt()
+                || (skipPrompt && mpmForAutoUnlock != null && !mpmForAutoUnlock.hasAutoUnlockPassword());
             globalSettings.setSkipMasterPasswordPrompt(skipPrompt);
-            applyAutoUnlockPreference(skipPrompt);
+            if (autoUnlockNeedsUpdate) {
+                applyAutoUnlockPreference(skipPrompt);
+            }
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
 
             // JVM resource profile: persist in GlobalSettings and mirror to the tiny launch file
@@ -3418,9 +3425,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
     
+    /** A save operation that may fail, used by {@link #persistStore}. */
+    @FunctionalInterface
+    private interface StoreSave {
+        void run() throws Exception;
+    }
+
     /**
-     * Shows dialog to change master password and re-encrypts all stored passwords.
+     * Saves one secret store during a master-password change, recording its name in
+     * {@code failures} instead of propagating. Aborting the sequence would leave every store after
+     * the failing one written with the old password while the rest already use the new one.
      */
+    private void persistStore(List<String> failures, String label, StoreSave save) {
+        try {
+            save.run();
+        } catch (Exception e) {
+            failures.add(label);
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .error("Failed to save {} after the master-password change", label, e);
+        }
+    }
+
     /**
      * Persists or removes the remembered master password to match the "skip prompt" setting.
      * When enabling, the currently unlocked password is stored (obfuscated, owner-only); if the
@@ -3450,6 +3475,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    /**
+     * Shows dialog to change master password and re-encrypts all stored passwords.
+     */
     private void changeMasterPassword() {
         Dialog<char[]> passwordDialog = new Dialog<>();
         passwordDialog.setTitle(I18n.get("settings.masterPassword.changeTitle"));
@@ -3558,77 +3586,110 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             try {
                 // Verify old password and change to new password
                 char[] oldPasswordChars = oldPasswordField.getText().toCharArray();
-                
-                // Change master password
-                app.getMasterPasswordManager().changePassword(oldPasswordChars, newPasswordChars);
-                Telemetry.track(TelemetryEvents.MASTER_PASSWORD_CHANGED);
+                MasterPasswordManager mpm = app.getMasterPasswordManager();
 
-                // Re-encrypt EVERY master-password-derived secret old->new, then persist each store.
-                // Previously only connection + SSH-key secrets were migrated, silently breaking AI
-                // profile keys, credentials, RAG and Job Scheduler secrets after a password change.
-                MasterPasswordReEncryptor reEncryptor = new MasterPasswordReEncryptor(
-                    app.getMasterPasswordManager().getEncryptionService(),
-                    oldPasswordChars, newPasswordChars);
-
-                // In-memory model stores — mutated here, persisted below.
-                reEncryptor.reEncryptConnections(configManager.getConnections());
-                SSHKeyManager sshKeyManager = app.getSSHKeyManager();
-                if (sshKeyManager != null) {
-                    reEncryptor.reEncryptSshKeys(sshKeyManager.getAllKeys());
-                }
-                if (credentialManager != null) {
-                    reEncryptor.reEncryptCredentials(credentialManager.getAllCredentials());
-                }
-                if (globalSettings != null) {
-                    reEncryptor.reEncryptGlobalSettings(globalSettings);
-                }
-
-                // Self-persisting file / JSON stores.
-                reEncryptor.reEncryptHuggingFaceTokenStore(
-                    new de.kortty.ai.huggingface.HuggingFaceTokenStore(KorTTYApplication.getConfigDirectory()));
+                // Stage the change in memory only. master.key is the authority for which password
+                // unlocks the vault, so it is rewritten at the very end (the commit point) — if
+                // anything below fails, the old password still matches the data that is on disk.
+                MasterPasswordManager.PendingPasswordChange pending =
+                    mpm.beginPasswordChange(oldPasswordChars, newPasswordChars);
+                boolean committed = false;
                 try {
-                    reEncryptor.reEncryptRagStores(new de.kortty.rag.RagConfigurationManager());
-                } catch (Exception ragEx) {
-                    org.slf4j.LoggerFactory.getLogger(getClass())
-                        .warn("Could not open the RAG store registry for re-encryption", ragEx);
-                }
-                if (app.getJobSchedulerService() != null) {
-                    reEncryptor.reEncryptJobScheduler(app.getJobSchedulerService().getRepository());
-                }
+                    // Re-encrypt EVERY master-password-derived secret old->new, then persist each store.
+                    // Previously only connection + SSH-key secrets were migrated, silently breaking AI
+                    // profile keys, credentials, RAG and Job Scheduler secrets after a password change.
+                    MasterPasswordReEncryptor reEncryptor = new MasterPasswordReEncryptor(
+                        mpm.getEncryptionService(), oldPasswordChars, newPasswordChars);
 
-                // Persist the in-memory model stores with the new encryption.
-                configManager.save(app.getMasterPasswordManager().getDerivedKey());
-                if (sshKeyManager != null) {
-                    sshKeyManager.save();
-                }
-                if (credentialManager != null) {
-                    credentialManager.save();
-                }
-                if (globalSettings != null) {
-                    app.getGlobalSettingsManager().save();
-                }
-                int reEncryptedCount = reEncryptor.reEncryptedCount();
-
-                // Keep the remembered auto-unlock password in sync with the new master password.
-                if (globalSettings != null && globalSettings.isSkipMasterPasswordPrompt()) {
-                    try {
-                        app.getMasterPasswordManager().saveAutoUnlockPassword(newPasswordChars);
-                    } catch (Exception ex) {
-                        org.slf4j.LoggerFactory.getLogger(getClass())
-                            .warn("Failed to update remembered password after master-password change", ex);
+                    // In-memory model stores — mutated here, persisted below.
+                    reEncryptor.reEncryptConnections(configManager.getConnections());
+                    SSHKeyManager sshKeyManager = app.getSSHKeyManager();
+                    if (sshKeyManager != null) {
+                        reEncryptor.reEncryptSshKeys(sshKeyManager.getAllKeys());
                     }
+                    if (credentialManager != null) {
+                        reEncryptor.reEncryptCredentials(credentialManager.getAllCredentials());
+                    }
+                    if (globalSettings != null) {
+                        reEncryptor.reEncryptGlobalSettings(globalSettings);
+                    }
+
+                    // Self-persisting file / JSON stores.
+                    reEncryptor.reEncryptHuggingFaceTokenStore(
+                        new de.kortty.ai.huggingface.HuggingFaceTokenStore(KorTTYApplication.getConfigDirectory()));
+                    try {
+                        reEncryptor.reEncryptRagStores(new de.kortty.rag.RagConfigurationManager());
+                    } catch (Exception ragEx) {
+                        org.slf4j.LoggerFactory.getLogger(getClass())
+                            .warn("Could not open the RAG store registry for re-encryption", ragEx);
+                    }
+                    if (app.getJobSchedulerService() != null) {
+                        reEncryptor.reEncryptJobScheduler(app.getJobSchedulerService().getRepository());
+                    }
+
+                    // Persist each store on its own: one failing file must not skip the ones after it,
+                    // which would leave those stores encrypted with the old password.
+                    List<String> failedStores = new ArrayList<>();
+                    persistStore(failedStores, "connections.xml",
+                        () -> configManager.save(mpm.getDerivedKey()));
+                    if (sshKeyManager != null) {
+                        persistStore(failedStores, "ssh-keys.xml", sshKeyManager::save);
+                    }
+                    if (credentialManager != null) {
+                        persistStore(failedStores, "credentials.xml", credentialManager::save);
+                    }
+                    if (globalSettings != null) {
+                        persistStore(failedStores, "global-settings.xml",
+                            () -> app.getGlobalSettingsManager().save());
+                    }
+
+                    // Commit point: every store has been migrated, so the new password may take over.
+                    mpm.commitPasswordChange(pending);
+                    committed = true;
+                    Telemetry.track(TelemetryEvents.MASTER_PASSWORD_CHANGED);
+
+                    // Keep the remembered auto-unlock password in sync with the new master password.
+                    if (globalSettings != null && globalSettings.isSkipMasterPasswordPrompt()) {
+                        try {
+                            mpm.saveAutoUnlockPassword(newPasswordChars);
+                        } catch (Exception ex) {
+                            org.slf4j.LoggerFactory.getLogger(getClass())
+                                .warn("Failed to update remembered password after master-password change", ex);
+                        }
+                    }
+
+                    int reEncryptedCount = reEncryptor.reEncryptedCount();
+                    int problems = reEncryptor.failureCount() + failedStores.size();
+                    if (problems == 0) {
+                        Alert success = new Alert(Alert.AlertType.INFORMATION);
+                        success.setTitle(I18n.get("settings.masterPassword.changed"));
+                        success.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
+                        success.setContentText(
+                            I18n.get("settings.masterPassword.changedMessage", reEncryptedCount));
+                        success.showAndWait();
+                    } else {
+                        // Never report a clean success when some secrets stayed on the old password.
+                        org.slf4j.LoggerFactory.getLogger(getClass())
+                            .warn("Master password changed with {} unmigrated item(s); stores not saved: {}",
+                                problems, failedStores);
+                        Alert partial = new Alert(Alert.AlertType.WARNING);
+                        partial.setTitle(I18n.get("settings.masterPassword.changed"));
+                        partial.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
+                        partial.setContentText(
+                            I18n.get("settings.masterPassword.changedPartial", reEncryptedCount, problems));
+                        partial.showAndWait();
+                    }
+                } finally {
+                    if (!committed) {
+                        // master.key was never rewritten — put the old password back in memory so the
+                        // running session stays consistent with what is on disk.
+                        mpm.rollbackPasswordChange(pending);
+                    }
+                    // Clear sensitive data
+                    java.util.Arrays.fill(oldPasswordChars, '\0');
+                    java.util.Arrays.fill(newPasswordChars, '\0');
                 }
 
-                // Clear sensitive data
-                java.util.Arrays.fill(oldPasswordChars, '\0');
-                java.util.Arrays.fill(newPasswordChars, '\0');
-                
-                Alert success = new Alert(Alert.AlertType.INFORMATION);
-                success.setTitle(I18n.get("settings.masterPassword.changed"));
-                success.setHeaderText(I18n.get("settings.masterPassword.changedSuccess"));
-                success.setContentText(I18n.get("settings.masterPassword.changedMessage", reEncryptedCount));
-                success.showAndWait();
-                
             } catch (SecurityException e) {
                 Alert error = new Alert(Alert.AlertType.ERROR);
                 error.setTitle(I18n.get("sftp.error.title"));

@@ -14,6 +14,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
@@ -104,34 +105,102 @@ public class MasterPasswordManager {
     }
     
     /**
-     * Changes the master password.
-     * This requires re-encrypting all stored passwords.
+     * A master-password change that has been staged in memory but not yet written to
+     * {@code master.key}. Created by {@link #beginPasswordChange}, finished with
+     * {@link #commitPasswordChange} or undone with {@link #rollbackPasswordChange}.
+     */
+    public static final class PendingPasswordChange {
+        private final byte[] previousSalt;
+        private final String previousHash;
+        private final SecretKey previousDerivedKey;
+        private final char[] previousMasterPassword;
+        private final byte[] newSalt;
+        private final String newHash;
+
+        private PendingPasswordChange(byte[] previousSalt, String previousHash,
+                                      SecretKey previousDerivedKey, char[] previousMasterPassword,
+                                      byte[] newSalt, String newHash) {
+            this.previousSalt = previousSalt;
+            this.previousHash = previousHash;
+            this.previousDerivedKey = previousDerivedKey;
+            this.previousMasterPassword = previousMasterPassword;
+            this.newSalt = newSalt;
+            this.newHash = newHash;
+        }
+    }
+
+    /**
+     * Changes the master password in one step (verify, rewrite {@code master.key}, swap the
+     * in-memory key material). Callers that own encrypted data should prefer the staged
+     * {@link #beginPasswordChange}/{@link #commitPasswordChange} pair so the on-disk password is
+     * only replaced once every secret store has been migrated successfully.
      */
     public void changePassword(char[] oldPassword, char[] newPassword) throws Exception {
+        commitPasswordChange(beginPasswordChange(oldPassword, newPassword));
+    }
+
+    /**
+     * Stages a master-password change: verifies {@code oldPassword} and switches the in-memory key
+     * material to {@code newPassword} so secrets can be re-encrypted and persisted — but leaves
+     * {@code master.key} on disk untouched.
+     *
+     * <p>{@code master.key} is the authority for which password unlocks the vault, so rewriting it
+     * before the secret stores have been migrated would leave the vault keyed to a password the
+     * stored data is not yet encrypted with. Finish with {@link #commitPasswordChange} once every
+     * store is persisted, or {@link #rollbackPasswordChange} to restore the previous state.
+     *
+     * @throws SecurityException if the old password is wrong (nothing is staged)
+     */
+    public PendingPasswordChange beginPasswordChange(char[] oldPassword, char[] newPassword) throws Exception {
         if (!verifyPassword(oldPassword)) {
             throw new SecurityException("Old password is incorrect");
         }
-        
-        // Generate new salt and hash
+
         byte[] newSalt = encryptionService.generateSalt();
         String newHash = encryptionService.hashPassword(newPassword, newSalt);
-        
-        // Update stored credentials
-        Properties props = new Properties();
-        props.setProperty("salt", Base64.getEncoder().encodeToString(newSalt));
-        props.setProperty("hash", newHash);
-        
-        Path keyFile = configDir.resolve(MASTER_KEY_FILE);
-        try (OutputStream out = Files.newOutputStream(keyFile)) {
-            props.store(out, "KorTTY Master Password");
-        }
-        
+        // Capture the current (old) state so the change can be undone without touching the disk.
+        PendingPasswordChange staged = new PendingPasswordChange(
+            salt, storedHash, derivedKey, masterPassword, newSalt, newHash);
+
+        // In-memory only — the caller now re-encrypts every store with the new password.
         salt = newSalt;
         storedHash = newHash;
         derivedKey = encryptionService.deriveKey(newPassword, newSalt);
         this.masterPassword = newPassword.clone();
-        
+
+        logger.info("Master password change staged (master.key not written yet)");
+        return staged;
+    }
+
+    /** Writes the staged password to {@code master.key}, making the change permanent. */
+    public void commitPasswordChange(PendingPasswordChange pending) throws Exception {
+        Objects.requireNonNull(pending, "pending");
+        Properties props = new Properties();
+        props.setProperty("salt", Base64.getEncoder().encodeToString(pending.newSalt));
+        props.setProperty("hash", pending.newHash);
+
+        Path keyFile = configDir.resolve(MASTER_KEY_FILE);
+        try (OutputStream out = Files.newOutputStream(keyFile)) {
+            props.store(out, "KorTTY Master Password");
+        }
+
         logger.info("Master password changed successfully");
+    }
+
+    /**
+     * Undoes a staged change, restoring the in-memory key material to the old password. Safe to
+     * call after a failed migration: {@code master.key} was never rewritten, so the old password
+     * remains the one that unlocks the vault.
+     */
+    public void rollbackPasswordChange(PendingPasswordChange pending) {
+        if (pending == null) {
+            return;
+        }
+        salt = pending.previousSalt;
+        storedHash = pending.previousHash;
+        derivedKey = pending.previousDerivedKey;
+        this.masterPassword = pending.previousMasterPassword;
+        logger.warn("Master password change rolled back — the previous password is still in effect");
     }
     
     private void loadStoredCredentials() throws Exception {
