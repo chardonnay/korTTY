@@ -44,13 +44,27 @@
       "note": "Handles 'Hilfe → Manual' too, which is why no separate row for it exists: the old table carried one and it was unreachable, since this row had already removed the word 'Manual'."
     },
     { "from": "Help → Anleitung", "to": "Hilfe → Anleitung" },
+    {
+      "from": "den ausgewählten übersetzten Anleitung, seine Assets und seinen Suchindex",
+      "to": "die ausgewählte übersetzte Anleitung, ihre Assets und ihren Suchindex",
+      "note": "The rows below repair the agreement that replacing 'Handbuch'/'Leitfaden' leaves behind: those are neuter and masculine, 'Anleitung' is feminine, so every article, adjective ending and possessive around it disagrees afterwards. Longest first, as the ordering invariant requires — this one also carries the possessives."
+    },
+    { "from": "ein übersetztes Anleitung", "to": "eine übersetzte Anleitung" },
+    { "from": "am eigenen Anleitung", "to": "an der eigenen Anleitung" },
+    { "from": "Das integrierte Anleitung", "to": "Die integrierte Anleitung" },
+    { "from": "der integrierte Anleitung", "to": "die integrierte Anleitung" },
+    { "from": "Der spezielle Anleitung", "to": "Die spezielle Anleitung" },
     { "from": "das Anleitung", "to": "die Anleitung" },
     { "from": "Das Anleitung", "to": "Die Anleitung" },
     { "from": "dieses Anleitung", "to": "diese Anleitung" },
     { "from": "Dieses Anleitung", "to": "Diese Anleitung" },
+    { "from": "diesem Anleitung", "to": "dieser Anleitung" },
+    { "from": "Diesem Anleitung", "to": "Dieser Anleitung" },
     { "from": "ein Anleitung", "to": "eine Anleitung" },
     { "from": "des Anleitung", "to": "der Anleitung" },
     { "from": "dem Anleitung", "to": "der Anleitung" },
+    { "from": "den Anleitung", "to": "die Anleitung" },
+    { "from": "im Anleitung", "to": "in der Anleitung" },
 
     {
       "from": "GitHub-Probleme", "to": "GitHub-Issues",
