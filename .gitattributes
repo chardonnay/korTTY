@@ -1,0 +1,30 @@
+# Line-ending policy.
+#
+# Deliberately targeted rather than a repo-wide `* text=auto eol=lf`: gradlew.bat and the FIGlet
+# fonts below are committed with CRLF on purpose, and renormalising the whole tree would rewrite
+# them.
+
+# The bundled guide is hashed byte for byte. scripts/extract_guide_segments.py records a sha256 of
+# every page in the translation manifests, and GuideTranslationGenerator refuses to splice a page
+# whose bytes no longer match — correctly, since stale offsets would cut text mid-tag. A CRLF
+# checkout (git's default on Windows) changes exactly those bytes, so every page is skipped and
+# guide translation silently produces nothing. Pin the guide to LF on every platform.
+src/main/resources/guide/**/*.html text eol=lf
+src/main/resources/guide/**/*.json text eol=lf
+src/main/resources/guide/**/*.js   text eol=lf
+src/main/resources/guide/**/*.css  text eol=lf
+src/main/resources/guide/**/*.svg  text eol=lf
+src/main/resources/guide/**/*.map  text eol=lf
+src/main/resources/guide/**/*.xml  text eol=lf
+
+# Binary payloads shipped alongside those pages. Marked explicitly so no future `text=auto` can
+# corrupt them by guessing.
+src/main/resources/guide/**/*.png binary
+src/main/resources/guide/**/*.mp4 binary
+src/main/resources/guide/**/*.gz  binary
+
+# Committed with CRLF on purpose. `-text` keeps whatever is in the index, on every platform:
+# gradlew.bat is a Windows batch file, and the FIGlet fonts are parsed byte-wise by the ASCII-art
+# renderer, so their line endings are content rather than formatting.
+gradlew.bat                  -text
+src/main/resources/flf/*.flf -text
