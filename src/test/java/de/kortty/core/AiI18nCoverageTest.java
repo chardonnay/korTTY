@@ -447,6 +447,7 @@ class AiI18nCoverageTest {
         "snippets.ai.selectionTranslationFailed",
         "snippets.ai.translate.dialog.title",
         "snippets.ai.translate.dialog.prompt",
+        "snippets.ai.translate.dialog.customHint",
         "snippets.ai.description.generating",
         "snippets.ai.description.generated",
         "snippets.ai.description.generateFailed",

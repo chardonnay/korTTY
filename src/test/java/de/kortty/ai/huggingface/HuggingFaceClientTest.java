@@ -153,7 +153,7 @@ class HuggingFaceClientTest {
             List.of(
                 file("model-Q4_K_M-00002-of-00002.gguf", 2, 2),
                 file("model-Q4_K_M-00001-of-00002.gguf", 1, 2)),
-            null, false, false, 0, 0, null);
+            null, false, false, 0, 0, null, null);
 
         assertThat(model.filesForQuantization("q4_k_m").stream()
             .map(HuggingFaceModelFile::shardIndex).toList()).containsExactly(1, 2).inOrder();
@@ -169,7 +169,7 @@ class HuggingFaceClientTest {
                 file("model-Q4_K_M-00001-of-00002.gguf", 1, 2),
                 file("model-Q4_K_M-00002-of-00002.gguf", 2, 2),
                 complete),
-            null, false, false, 0, 0, null);
+            null, false, false, 0, 0, null, null);
 
         assertThat(model.filesForQuantization("Q4_K_M")).containsExactly(complete);
         assertThat(model.bytesForQuantization("Q4_K_M")).isEqualTo(1);
@@ -183,7 +183,7 @@ class HuggingFaceClientTest {
             List.of(
                 sizedFile("model-Q4_K_M.gguf", 10),
                 sizedFile("model-Q8_0.gguf", 20)),
-            null, false, false, 0, 0, null);
+            null, false, false, 0, 0, null, null);
 
         assertThat(model.bytesForQuantization("Q4_K_M")).isEqualTo(10);
         assertThat(model.bytesForQuantization("Q8_0")).isEqualTo(20);

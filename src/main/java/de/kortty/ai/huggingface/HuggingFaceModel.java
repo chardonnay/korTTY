@@ -23,7 +23,8 @@ public record HuggingFaceModel(
     boolean privateRepository,
     long downloads,
     long likes,
-    Instant lastModified
+    Instant lastModified,
+    Instant createdAt
 ) {
 
     public HuggingFaceModel {
@@ -56,6 +57,21 @@ public record HuggingFaceModel(
 
     public boolean hasPinnedRevision() {
         return revision != null && revision.matches("[0-9a-fA-F]{40}");
+    }
+
+    /**
+     * Whole days since the repository was published, or {@code -1} when the Hub reported no
+     * creation date.
+     *
+     * <p>Deliberately derived from {@code createdAt} rather than {@code lastModified}: a README
+     * edit bumps the modification date without making the weights any newer, while the creation
+     * date is what indicates the model generation a reader is judging.
+     */
+    public long ageInDays(Instant now) {
+        if (createdAt == null || now == null || createdAt.isAfter(now)) {
+            return -1;
+        }
+        return java.time.Duration.between(createdAt, now).toDays();
     }
 
     /**

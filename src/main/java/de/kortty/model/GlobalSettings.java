@@ -334,6 +334,14 @@ public class GlobalSettings {
     @XmlElement
     private String aiCodeTextDefaultLanguage;
 
+    /**
+     * Last target language chosen for "Translate selection" in the snippet editor. Holds either a
+     * language code from the dropdown or a name the user typed, because the value is handed to the
+     * model as prompt text rather than parsed as a locale.
+     */
+    @XmlElement
+    private String snippetTranslationTargetLanguage;
+
     /** Selected color profile id for the AI chat surfaces; null/blank = follow the terminal theme. */
     @XmlElement
     private String chatColorProfileId;
@@ -1611,6 +1619,17 @@ public class GlobalSettings {
         this.aiCodeTextDefaultLanguage =
             aiCodeTextDefaultLanguage != null && !aiCodeTextDefaultLanguage.isBlank()
                 ? aiCodeTextDefaultLanguage.trim()
+                : null;
+    }
+
+    public String getSnippetTranslationTargetLanguage() {
+        return snippetTranslationTargetLanguage;
+    }
+
+    public void setSnippetTranslationTargetLanguage(String snippetTranslationTargetLanguage) {
+        this.snippetTranslationTargetLanguage =
+            snippetTranslationTargetLanguage != null && !snippetTranslationTargetLanguage.isBlank()
+                ? snippetTranslationTargetLanguage.trim()
                 : null;
     }
 

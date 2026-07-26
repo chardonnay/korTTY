@@ -56,6 +56,17 @@ public final class LlamaModel {
     @XmlElement
     private int idleTimeoutMinutes = DEFAULT_IDLE_TIMEOUT_MINUTES;
 
+    /**
+     * ISO-8601 instant the upstream repository was published, or null when unknown.
+     *
+     * <p>Recorded at install time from the Hub, because nothing about a downloaded file reveals
+     * when the model was released — a file timestamp only says when this machine fetched it.
+     * Absent for models installed before this was tracked and for manually imported GGUFs, which
+     * is why every reader must tolerate null.
+     */
+    @XmlElement
+    private String publishedAt;
+
     /** Required by JAXB. Use one of the validated constructors in application code. */
     public LlamaModel() {
     }
@@ -126,6 +137,19 @@ public final class LlamaModel {
             source != null ? source.threadCount : 0,
             source != null ? source.gpuLayers : 0,
             source != null ? source.idleTimeoutMinutes : 0);
+        this.publishedAt = source != null ? source.publishedAt : null;
+    }
+
+    /** Upstream publication instant in ISO-8601, or null when it was never recorded. */
+    public String getPublishedAt() {
+        return publishedAt;
+    }
+
+    /** Copy of this model carrying the upstream publication date. */
+    public LlamaModel withPublishedAt(java.time.Instant published) {
+        LlamaModel copy = new LlamaModel(this);
+        copy.publishedAt = published != null ? published.toString() : null;
+        return copy;
     }
 
     public String getId() {

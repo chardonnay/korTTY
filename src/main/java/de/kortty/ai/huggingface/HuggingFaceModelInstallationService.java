@@ -52,7 +52,10 @@ public final class HuggingFaceModelInstallationService {
             LlamaModel.DEFAULT_CONTEXT_SIZE,
             LlamaModel.AUTO_THREADS,
             LlamaModel.AUTO_GPU_LAYERS,
-            LlamaModel.DEFAULT_IDLE_TIMEOUT_MINUTES);
+            LlamaModel.DEFAULT_IDLE_TIMEOUT_MINUTES)
+            // Captured now or never: once installed, nothing on disk reveals when the model was
+            // released, and the Hub metadata that carries it is not consulted again.
+            .withPublishedAt(model.createdAt());
         registry.register(localModel);
         return localModel;
     }
