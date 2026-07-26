@@ -56,9 +56,17 @@ settings and behavior. Note added/removed/renamed i18n keys.
 - Keep prose factual and concise; match the surrounding style.
 
 ### 5. Update the release notes
-`app-docs/site/docs/en/about/release-notes.md`. If `build.gradle.kts` version is
-newer than the top `## vX.Y.Z`, prepend a new section; else append bullets under
-the current version. Source bullets from `git log <ref>..HEAD` (user-facing prose).
+`app-docs/site/docs/en/about/release-notes.md` holds **exactly one** `## vX.Y.Z`
+section — the current release. The page is translated into every guide language,
+so a growing changelog there costs translation time on text nobody reads twice.
+
+If `build.gradle.kts` version is newer than the top `## vX.Y.Z`, **move** that
+outgoing section to the top of the version list in `app-docs/release-notes-archive.md`
+(not built, not translated) and start a fresh section for the new version; else
+append bullets under the current version. Source bullets from
+`git log <ref>..HEAD` (user-facing prose). Keep the closing "Earlier releases"
+admonition at the bottom of the page, and mirror the same structure in
+`app-docs/site/docs/de/about/release-notes.md`.
 
 ### 6. Refresh diagrams (if a depicted flow changed)
 Edit the SVG to the house style (see AGENTS.md), then:
