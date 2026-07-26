@@ -227,6 +227,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private Label guideTranslationStatusLabel;
     private ListView<String> guideTranslationList;
     private ComboBox<AiProfile> guideAiProfileCombo;
+    private ComboBox<AiProfile> interfaceAiProfileCombo;
     private Runnable guideJobListener;
 
     // AI settings
@@ -1394,6 +1395,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         translationProviderCombo.setPrefWidth(220);
         translationGrid.add(translationProviderCombo, 1, transRow++);
+        // Which AI profile translates the interface strings. The guide section below has the same
+        // choice; without it here the interface strings were stuck on the default text profile and
+        // only when that profile ran a local model — a cloud or CLI profile produced nothing but
+        // "failed to generate language file".
+        translationGrid.add(new Label(I18n.get("settings.translation.profile")), 0, transRow);
+        interfaceAiProfileCombo = new ComboBox<>();
+        interfaceAiProfileCombo.setPrefWidth(320);
+        interfaceAiProfileCombo.setConverter(aiProfileChoiceConverter(
+            "settings.translation.profileDefault"));
+        translationGrid.add(interfaceAiProfileCombo, 1, transRow++);
         translationGrid.add(new Label(I18n.get("settings.translation.apiKey")), 0, transRow);
         translationApiKeyField = new PasswordField();
         translationApiKeyField.setPrefWidth(280);
@@ -1410,10 +1421,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             boolean localAi = newProvider == TranslationApiProvider.LOCAL_AI_PROFILE;
             translationApiKeyField.setDisable(localAi);
             translationApiUrlField.setDisable(localAi);
+            // Inverse of the key/url fields: the profile choice only means anything for the AI provider.
+            interfaceAiProfileCombo.setDisable(!localAi);
         });
         boolean localAiTranslation = translationProviderCombo.getValue() == TranslationApiProvider.LOCAL_AI_PROFILE;
         translationApiKeyField.setDisable(localAiTranslation);
         translationApiUrlField.setDisable(localAiTranslation);
+        interfaceAiProfileCombo.setDisable(!localAiTranslation);
+        refreshAiProfileCombo(interfaceAiProfileCombo);
         Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
         testConnectionButton.setOnAction(e -> testTranslationConnection());
         translationGrid.add(testConnectionButton, 1, transRow++);
@@ -1499,23 +1514,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         translationGrid.add(new Label(I18n.get("settings.translation.guide.profile")), 0, transRow);
         guideAiProfileCombo = new ComboBox<>();
         guideAiProfileCombo.setPrefWidth(320);
-        guideAiProfileCombo.setConverter(new javafx.util.StringConverter<AiProfile>() {
-            @Override
-            public String toString(AiProfile profile) {
-                if (profile == null) {
-                    return I18n.get("settings.translation.guide.profileDefault");
-                }
-                // The connection mode is shown, not hidden: it is the difference between an
-                // hours-long local run and sending half a megabyte to a paid endpoint.
-                return profile.getName() + "  (" + profile.getConnectionMode() + ")";
-            }
-
-            @Override
-            public AiProfile fromString(String value) {
-                return null;
-            }
-        });
-        refreshGuideAiProfileCombo();
+        guideAiProfileCombo.setConverter(aiProfileChoiceConverter(
+            "settings.translation.guide.profileDefault"));
+        refreshAiProfileCombo(guideAiProfileCombo);
         translationGrid.add(guideAiProfileCombo, 1, transRow++);
 
         Button guideEstimateButton = new Button(I18n.get("settings.translation.guide.estimate"));
@@ -3816,14 +3817,46 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 if (key == null || key.isEmpty()) return null;
                 return new YandexTranslationService(key, urlTrimmed);
             case LOCAL_AI_PROFILE:
-                return createLocalAiTranslationService();
+                // A profile picked here is honoured whatever its connection mode; with nothing
+                // picked this stays the local-only default path.
+                return createLocalAiTranslationService(
+                    interfaceAiProfileCombo != null ? interfaceAiProfileCombo.getValue() : null);
             default:
                 return key != null && !key.isEmpty() ? new GoogleTranslationService(key, urlTrimmed) : null;
         }
     }
 
-    private TranslationService createLocalAiTranslationService() {
-        return createLocalAiTranslationService(null);
+    /**
+     * Why a local-AI translation service could not be built, or null when that is not the problem.
+     *
+     * <p>Without this the default path's one refusal — a text profile that does not run a local
+     * model — surfaced as the generic "failed to generate language file", which named neither the
+     * cause nor the fix (pick a profile explicitly).
+     */
+    private String localAiTranslationProblem() {
+        if (translationProviderCombo == null
+            || translationProviderCombo.getValue() != TranslationApiProvider.LOCAL_AI_PROFILE) {
+            return null;
+        }
+        if (interfaceAiProfileCombo != null && interfaceAiProfileCombo.getValue() != null) {
+            return null;
+        }
+        if (globalSettings == null) {
+            return null;
+        }
+        AiProfile textProfile = AiProfileSelectionSupport.workloadProfile(
+            globalSettings.getAiProfiles(),
+            de.kortty.model.AiWorkload.TEXT,
+            globalSettings.getTextAiProfileId(),
+            globalSettings.getCodingAiProfileId(),
+            globalSettings.getDefaultAiProfileId());
+        if (textProfile == null) {
+            return I18n.get("settings.translation.error.noTextProfile");
+        }
+        return textProfile.getConnectionMode().isEmbedded()
+            ? null
+            : I18n.get("settings.translation.error.textProfileNotLocal",
+                textProfile.getName(), textProfile.getConnectionMode().toString());
     }
 
     /**
@@ -3994,7 +4027,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         TranslationService svc = createTranslationService();
         if (svc == null) {
-            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.testFailed")).showAndWait();
+            String problem = localAiTranslationProblem();
+            new Alert(Alert.AlertType.ERROR, problem != null ? problem
+                : I18n.get("settings.translation.error.testFailed")).showAndWait();
             return;
         }
         boolean ok = svc.testConnection();
@@ -5240,7 +5275,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         TranslationService svc = createTranslationService();
         if (svc == null) {
-            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed")).showAndWait();
+            String problem = localAiTranslationProblem();
+            new Alert(Alert.AlertType.ERROR, problem != null ? problem
+                : I18n.get("settings.translation.error.generationFailed")).showAndWait();
             return;
         }
         Locale target = translationTargetLanguageCombo.getValue();
@@ -5472,18 +5509,40 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     /** Null first: the default text profile, matching what the run uses when nothing is picked. */
-    private void refreshGuideAiProfileCombo() {
-        if (guideAiProfileCombo == null) {
+    private void refreshAiProfileCombo(ComboBox<AiProfile> combo) {
+        if (combo == null) {
             return;
         }
-        AiProfile previous = guideAiProfileCombo.getValue();
+        AiProfile previous = combo.getValue();
         java.util.List<AiProfile> items = new java.util.ArrayList<>();
         items.add(null);
         if (globalSettings != null && globalSettings.getAiProfiles() != null) {
             items.addAll(globalSettings.getAiProfiles());
         }
-        guideAiProfileCombo.getItems().setAll(items);
-        guideAiProfileCombo.setValue(items.contains(previous) ? previous : null);
+        combo.getItems().setAll(items);
+        combo.setValue(items.contains(previous) ? previous : null);
+    }
+
+    /**
+     * Renders an AI-profile choice, with {@code null} shown as the supplied "default" label.
+     *
+     * <p>The connection mode is shown, not hidden: it is the difference between an hours-long
+     * local run and sending half a megabyte to a paid endpoint.
+     */
+    private javafx.util.StringConverter<AiProfile> aiProfileChoiceConverter(String defaultLabelKey) {
+        return new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiProfile profile) {
+                return profile == null
+                    ? I18n.get(defaultLabelKey)
+                    : profile.getName() + "  (" + profile.getConnectionMode() + ")";
+            }
+
+            @Override
+            public AiProfile fromString(String value) {
+                return null;
+            }
+        };
     }
 
     private void refreshGuideTranslationList() {
@@ -5565,7 +5624,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         TranslationService svc = createTranslationService();
         if (svc == null) {
-            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
+            String problem = localAiTranslationProblem();
+            new Alert(Alert.AlertType.WARNING, problem != null ? problem
+                : I18n.get("settings.translation.error.noKey")).showAndWait();
             return;
         }
         regenerateButton.setDisable(true);

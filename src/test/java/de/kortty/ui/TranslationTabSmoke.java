@@ -154,7 +154,38 @@ public final class TranslationTabSmoke {
         require(I18n.get("settings.translation.guide.profileDefault").equals(rendered),
             "default entry renders as '" + rendered + "'");
 
+        // The interface strings get the same choice as the guide. Without it that run was pinned to
+        // the default text profile and refused anything but a local model, so a cloud or CLI
+        // profile could not translate the UI at all.
+        @SuppressWarnings("unchecked")
+        javafx.scene.control.ComboBox<Object> interfaceCombo =
+            (javafx.scene.control.ComboBox<Object>) field(dialog, "interfaceAiProfileCombo");
+        require(interfaceCombo != null, "interface AI profile combo missing");
+        require(!interfaceCombo.getItems().isEmpty(), "interface AI profile combo is empty");
+        require(interfaceCombo.getItems().getFirst() == null,
+            "the first entry must be the default profile (null)");
+        require(interfaceCombo.getValue() == null, "the default profile must be preselected");
+        String interfaceRendered = interfaceCombo.getConverter().toString(null);
+        require(I18n.get("settings.translation.profileDefault").equals(interfaceRendered),
+            "default entry renders as '" + interfaceRendered + "'");
+        require(labels.contains(I18n.get("settings.translation.profile")),
+            "interface profile label missing; labels=" + labels);
+
+        // It only means anything for the AI provider, so it tracks that dropdown both ways.
+        @SuppressWarnings("unchecked")
+        javafx.scene.control.ComboBox<de.kortty.model.TranslationApiProvider> providerCombo =
+            (javafx.scene.control.ComboBox<de.kortty.model.TranslationApiProvider>)
+                field(dialog, "translationProviderCombo");
+        require(providerCombo != null, "translation provider combo missing");
+        providerCombo.setValue(de.kortty.model.TranslationApiProvider.GOOGLE_TRANSLATE);
+        require(interfaceCombo.isDisabled(),
+            "profile combo must be disabled while a translation API is selected");
+        providerCombo.setValue(de.kortty.model.TranslationApiProvider.LOCAL_AI_PROFILE);
+        require(!interfaceCombo.isDisabled(),
+            "profile combo must be enabled once the AI provider is selected");
+
         System.out.println("  section, estimate, start, progress bar, cancel and list all present");
+        System.out.println("  interface profile picker present and tracks the provider dropdown");
 
         pane.setMinSize(WIDTH, HEIGHT);
         pane.setPrefSize(WIDTH, HEIGHT);

@@ -2342,6 +2342,13 @@
 <td><code>translationApiProvider</code></td>
 </tr>
 <tr>
+<td>AI profile</td>
+<td>dropdown</td>
+<td>"Default (local text profile)" plus every configured AI profile</td>
+<td>Default (local text profile)</td>
+<td>—</td>
+</tr>
+<tr>
 <td>API Key</td>
 <td>text</td>
 <td>—</td>
@@ -2408,10 +2415,16 @@
 <p><strong>Generated languages:</strong> The "Generated languages" list displays language files that have been created via the Generate Language File button. Each generated file corresponds to a dynamically translated UI in that target language. Use the Delete button to remove a language file, or use Regenerate outdated to update files created with an older app version to include newly added translation keys.</p>
 </div>
 <h2 id="local-translation">Local translation<a class="headerlink" href="#local-translation" title="Permanent link">&para;</a></h2>
-<p>Choose <strong>Local AI text profile</strong> to translate through the embedded llama.cpp profile assigned to the Text/translation role in <strong>AI &gt; AI Manager &gt; Local AI</strong>. API URL and API Key are disabled for this provider because the authenticated loopback endpoint is managed by korTTY. The local model must return one strict JSON <code>translations</code> array with the same number and order of input strings; invalid output stops generation instead of silently misaligning UI labels.</p>
+<p>Choose <strong>Local AI text profile</strong> to translate through an AI profile instead of a translation API. API URL and API Key are disabled for this provider because the profile brings its own endpoint and credentials. The model must return one strict JSON <code>translations</code> array with the same number and order of input strings; a batch that comes back malformed is retried and split in half rather than aborting the run, and a string the model never returns in usable form keeps its English text.</p>
+<p>The <strong>AI profile</strong> dropdown next to it decides which profile does the work:</p>
+<ul>
+<li><strong>A profile you pick</strong> is always used, whatever its connection mode — an embedded llama.cpp or MLX model, a cloud endpoint such as Anthropic or an OpenAI-compatible API, or a local CLI profile. Its API key is resolved the same way the rest of the application resolves one, so the master-password vault must be unlocked when the profile needs an encrypted secret.</li>
+<li><strong>Default (local text profile)</strong> uses the profile assigned to the Text/translation role in <strong>AI &gt; AI Manager</strong>, and only if that profile runs an embedded (local) model. The default never falls back to a cloud profile automatically: this provider exists for people who cannot or do not want to send their interface strings to an external service. If that role holds a cloud or CLI profile, korTTY names it and directs you to this dropdown instead of failing with a generic error.</li>
+</ul>
+<p>This mirrors the <strong>AI profile</strong> dropdown in the guide-translation section below, so both translation jobs can be pointed at the model you want — for example a small local model for the interface strings and a stronger cloud model for the guide, or the same profile for both.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><strong>Credentials:</strong> External providers require their normal API key, except a LibreTranslate endpoint that is explicitly configured without one. Local AI requires no translation-provider key, but its GGUF model and llama.cpp runtime must be installed and the master-password vault must be unlocked when the selected AI profile needs any encrypted secret.</p>
+<p><strong>Credentials:</strong> External providers require their normal API key, except a LibreTranslate endpoint that is explicitly configured without one. Local AI requires no translation-provider key, but an embedded model needs its GGUF/MLX model and runtime installed, and the master-password vault must be unlocked when the selected AI profile needs any encrypted secret.</p>
 </div>
 <h2 id="guide-translation">Guide translation<a class="headerlink" href="#guide-translation" title="Permanent link">&para;</a></h2>
 <p>A second, independent job below translates the bundled offline guide — the same site this page is part of — into the target language selected above, so the in-app <strong>Help → Guide</strong> window and its search can be read fully in that language rather than only the interface labels.</p>
