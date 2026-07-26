@@ -33,6 +33,13 @@ public final class MlxModel {
     /** Optional short label such as {@code 4bit}; informational only, never passed to the sidecar. */
     private String quantizationLabel;
 
+    /**
+     * ISO-8601 instant the upstream repository was published, or null when unknown. Recorded at
+     * install time from the Hub; a downloaded file's own timestamp says only when this machine
+     * fetched it, never when the model was released.
+     */
+    private String publishedAt;
+
     public MlxModel(String id, String displayName, Path modelDirectory) {
         this(id, displayName, modelDirectory, MODEL_DEFAULT_CONTEXT_SIZE, DEFAULT_IDLE_TIMEOUT_MINUTES, null);
     }
@@ -62,6 +69,19 @@ public final class MlxModel {
             source != null ? source.contextSize : 0,
             source != null ? source.idleTimeoutMinutes : 0,
             source != null ? source.quantizationLabel : null);
+        this.publishedAt = source != null ? source.publishedAt : null;
+    }
+
+    /** Upstream publication instant in ISO-8601, or null when it was never recorded. */
+    public String getPublishedAt() {
+        return publishedAt;
+    }
+
+    /** Copy of this model carrying the upstream publication date. */
+    public MlxModel withPublishedAt(java.time.Instant published) {
+        MlxModel copy = new MlxModel(this);
+        copy.publishedAt = published != null ? published.toString() : null;
+        return copy;
     }
 
     public String getId() {

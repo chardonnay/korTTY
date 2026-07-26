@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,10 +49,62 @@ public final class GuideSearchIndex {
         this.entries = List.copyOf(entries);
     }
 
-    /** Loads (and caches) the index for {@code lang}, or {@code null} if the build lacks it. */
+    /** Loads (and caches) the index for {@code lang}, or {@code null} if neither tree has one. */
     public static GuideSearchIndex load(String lang) {
         String normalized = lang != null && !lang.isBlank() ? lang : "en";
-        return CACHE.computeIfAbsent(normalized, GuideSearchIndex::parseResource).orElse(null);
+        return CACHE.computeIfAbsent(normalized, GuideSearchIndex::parseAnywhere).orElse(null);
+    }
+
+    /**
+     * Drops the cached index for {@code lang}. Called after a language is translated: the cache
+     * is process-lifetime and remembers misses too, so without this the AI docs search would keep
+     * answering from the English index for the rest of the session.
+     */
+    public static void invalidate(String lang) {
+        CACHE.remove(lang != null && !lang.isBlank() ? lang : "en");
+    }
+
+    /**
+     * Uncached lookup against an explicit config directory. The cached {@link #load(String)} is
+     * pinned to the application's own directory, which makes it useless to a caller that knows
+     * where the tree is — a test, or code staging a translation elsewhere.
+     */
+    public static GuideSearchIndex load(String lang, Path configDirectory) {
+        String normalized = lang != null && !lang.isBlank() ? lang : "en";
+        return parseAnywhere(normalized, configDirectory).orElse(null);
+    }
+
+    private static Optional<GuideSearchIndex> parseAnywhere(String lang) {
+        return parseAnywhere(lang, appConfigDirectory());
+    }
+
+    private static Path appConfigDirectory() {
+        try {
+            return de.kortty.KorTTYApplication.getConfigDirectory();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Bundled tree first, then a locally translated one under the config directory. */
+    private static Optional<GuideSearchIndex> parseAnywhere(String lang, Path configDirectory) {
+        Optional<GuideSearchIndex> bundled = parseResource(lang);
+        if (bundled.isPresent() || configDirectory == null) {
+            return bundled;
+        }
+        try {
+            Path generated = GuideLocationResolver.generatedRoot(configDirectory)
+                .resolve(lang).resolve("search").resolve("search_index.json");
+            if (!Files.isRegularFile(generated)) {
+                return Optional.empty();
+            }
+            try (InputStream stream = Files.newInputStream(generated)) {
+                return parseStream(stream, generated.toString(), lang);
+            }
+        } catch (Exception e) {
+            logger.debug("Could not read a generated guide search index for {}", lang, e);
+            return Optional.empty();
+        }
     }
 
     public String language() {
@@ -65,9 +119,22 @@ public final class GuideSearchIndex {
         String resourcePath = "/guide/" + lang + "/search/search_index.json";
         try (InputStream stream = GuideSearchIndex.class.getResourceAsStream(resourcePath)) {
             if (stream == null) {
-                logger.warn("Bundled guide search index not found: {}", resourcePath);
+                // Not a warning: a locally translated language legitimately has no bundled index,
+                // and parseAnywhere looks in the config directory next.
+                logger.debug("No bundled guide search index at {}", resourcePath);
                 return Optional.empty();
             }
+            return parseStream(stream, resourcePath, lang);
+        } catch (Exception e) {
+            logger.warn("Could not parse guide search index {}", resourcePath, e);
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<GuideSearchIndex> parseStream(InputStream stream, String label,
+                                                          String lang) {
+        String resourcePath = label;
+        try {
             JsonObject root = JsonParser
                 .parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
                 .getAsJsonObject();

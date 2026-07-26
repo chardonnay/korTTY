@@ -166,11 +166,11 @@ pages:
       - settings/language.png
     last_synced_ref: "03ab38c"
   - path: app-docs/site/docs/en/reference/settings/translation.md
-    owns_i18n: [settings.translation.]
-    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/ui/SettingsDialog.java]
+    owns_i18n: [settings.translation., guide.translation.]
+    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/core/GuideTranslationGenerator.java, src/main/java/de/kortty/core/GuideTranslationJob.java, src/main/java/de/kortty/core/ReasoningModelHint.java, src/main/java/de/kortty/ui/GuideTranslationIndicator.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/translation.png
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "853dbe6"
   - path: app-docs/site/docs/en/reference/settings/video.md
     owns_i18n: [settings.video.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/core/TerminalRecordingRuntimeState.java]

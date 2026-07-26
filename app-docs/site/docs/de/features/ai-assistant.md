@@ -19,7 +19,7 @@ Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows 
 2. Gehe zu **AI**.
 3. Erstellen Sie ein oder mehrere AI-Profile unter **Einstellungen > AI** oder **AI > AI Manager > Profile**. Wählen Sie **HTTP API**, **Local CLI** oder **Integrated llama.cpp** als Verbindungsmodus.
 4. Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus. korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst **AI Manager > Lokale Modelle**, wenn kein GGUF installiert ist.
-5. Konfigurieren Sie optional **Prompt-Optimierung**, **Max. Zeichen**, **Tokenizer**, **Token-Limit**, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten **Begründungsaufwand** und **Internetzugriff** pro Profil. korTTY stellt Argumentationsoptionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.
+5. Konfigurieren Sie optional **Prompt-Optimierung**, **Max. Zeichen**, **Tokenizer**, **Token-Limit**, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten **Begründungsaufwand** und **Internetzugriff** pro Profil. korTTY stellt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Profile ohne unterstützten Reasoning-Modus bleiben deaktiviert.
 6. Klicken Sie auf **AI-Verbindung testen**.
 7. Wählen Sie optional ein **Standardprofil** und weisen Sie dann unter **AI-Manager > Lokale KI** separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.
 8. Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.
@@ -230,14 +230,14 @@ Verwenden Sie **Einstellungen > KI** für globale Verhaltensänderungen und **AI
 
 ## Fragen Sie nach der Anleitung (AI-Dokumentensuche)
 
-Das integrierte Anleitung (**Hilfe > Anleitung**, ++f1++) enthält eine KI-gestützte Suche. Schalten Sie **KI-Suche** in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel *„Wie führe ich den KI-Agenten im Terminalfenster aus?“* – und drücken Sie ++enter++.
+Die integrierte Anleitung (**Hilfe > Anleitung**, ++f1++) enthält eine KI-gestützte Suche. Schalten Sie **KI-Suche** in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel *„Wie führe ich den KI-Agenten im Terminalfenster aus?“* – und drücken Sie ++enter++.
 
 So funktioniert es:
 
 * korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr **Standard-KI-Profil**.
 * Die Antwort wird **ausschließlich aus der Anleitunginhalt** generiert und ist in der App-Sprache verfasst. Wenn die Anleitung die Frage nicht beantwortet, sagt der Assistent dies, anstatt zu raten.
 * Antworten zitieren ihre Quellen: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste **Quellen**, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.
-* Wenn nichts im Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.
+* Wenn nichts in der Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.
 
 Anforderungen:
 

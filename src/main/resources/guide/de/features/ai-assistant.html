@@ -2879,7 +2879,7 @@
 <li>Gehe zu <strong>AI</strong>.</li>
 <li>Erstellen Sie ein oder mehrere AI-Profile unter <strong>Einstellungen &gt; AI</strong> oder <strong>AI &gt; AI Manager &gt; Profile</strong>. Wählen Sie <strong>HTTP API</strong>, <strong>Local CLI</strong> oder <strong>Integrated llama.cpp</strong> als Verbindungsmodus.</li>
 <li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus. korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>AI Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
-<li>Konfigurieren Sie optional <strong>Prompt-Optimierung</strong>, <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Argumentationsoptionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Profile ohne unterstützten Argumentationsmodus bleiben deaktiviert.</li>
+<li>Konfigurieren Sie optional <strong>Prompt-Optimierung</strong>, <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Profile ohne unterstützten Reasoning-Modus bleiben deaktiviert.</li>
 <li>Klicken Sie auf <strong>AI-Verbindung testen</strong>.</li>
 <li>Wählen Sie optional ein <strong>Standardprofil</strong> und weisen Sie dann unter <strong>AI-Manager &gt; Lokale KI</strong> separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.</li>
 <li>Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.</li>
@@ -3099,13 +3099,13 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </ul>
 <p>Verwenden Sie <strong>Einstellungen &gt; KI</strong> für globale Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.</p>
 <h2 id="fragen-sie-nach-der-anleitung-ai-dokumentensuche">Fragen Sie nach der Anleitung (AI-Dokumentensuche)<a class="headerlink" href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" title="Permanent link">&para;</a></h2>
-<p>Das integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
+<p>Die integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
 <p>So funktioniert es:</p>
 <ul>
 <li>korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr <strong>Standard-KI-Profil</strong>.</li>
 <li>Die Antwort wird <strong>ausschließlich aus der Anleitunginhalt</strong> generiert und ist in der App-Sprache verfasst. Wenn die Anleitung die Frage nicht beantwortet, sagt der Assistent dies, anstatt zu raten.</li>
 <li>Antworten zitieren ihre Quellen: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste <strong>Quellen</strong>, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.</li>
-<li>Wenn nichts im Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.</li>
+<li>Wenn nichts in der Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.</li>
 </ul>
 <p>Anforderungen:</p>
 <ul>

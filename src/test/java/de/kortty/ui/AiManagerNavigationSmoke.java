@@ -201,7 +201,9 @@ public final class AiManagerNavigationSmoke {
             false,
             1_250_000,
             4_200,
-            Instant.parse("2026-07-01T12:00:00Z"));
+            Instant.parse("2026-07-01T12:00:00Z"),
+            // Published well before it was last touched, so the snapshot shows a realistic age.
+            Instant.parse("2026-05-28T12:00:00Z"));
         ObservableList<HuggingFaceModel> models = field(pane, "hubModels");
         models.setAll(demoModel);
         ComboBox<String> quantization = field(pane, "quantization");

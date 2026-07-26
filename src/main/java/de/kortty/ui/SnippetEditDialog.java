@@ -4687,6 +4687,39 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return 0;
     }
 
+    /** The target language of the last translation, or null when none was chosen yet. */
+    private String loadRememberedTranslationLanguage() {
+        GlobalSettings settings = currentGlobalSettings();
+        String remembered = settings != null ? settings.getSnippetTranslationTargetLanguage() : null;
+        return remembered != null && !remembered.isBlank() ? remembered.trim() : null;
+    }
+
+    /**
+     * Persists the chosen target language so the dialog reopens on it. A typed language name is
+     * stored verbatim and stays until a different language is chosen, exactly like a listed one.
+     */
+    private void saveRememberedTranslationLanguage(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            return;
+        }
+        GlobalSettings settings = null;
+        String previous = null;
+        try {
+            KorTTYApplication application = KorTTYApplication.getInstance();
+            settings = application.getGlobalSettingsManager().getSettings();
+            if (settings != null) {
+                previous = settings.getSnippetTranslationTargetLanguage();
+                settings.setSnippetTranslationTargetLanguage(languageCode);
+                application.getGlobalSettingsManager().save();
+            }
+        } catch (Exception e) {
+            if (settings != null) {
+                settings.setSnippetTranslationTargetLanguage(previous);
+            }
+            logger.debug("Could not persist the snippet translation language", e);
+        }
+    }
+
     private AiLanguageSupport.LanguageOption promptTranslationLanguage() {
         ThemeAwareDialog<AiLanguageSupport.LanguageOption> dialog = new ThemeAwareDialog<>();
         dialog.setTitle(I18n.get("snippets.ai.translate.dialog.title"));
@@ -4694,25 +4727,75 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             dialog.initOwner(getDialogPane().getScene().getWindow());
         }
         ComboBox<AiLanguageSupport.LanguageOption> comboBox = new ComboBox<>();
+        comboBox.setId("snippet-ai-translate-language");
         comboBox.getItems().setAll(AiLanguageSupport.buildAvailableLanguageOptions(resolveAiTextFallbackLanguageCode()));
         comboBox.setPrefWidth(260);
+        // Editable so a language the list does not carry can simply be typed. The value is handed
+        // to the model as prompt text ("Translate into language code …") and never parsed as a
+        // locale, so a plain language name works exactly as well as a code.
+        comboBox.setEditable(true);
+        comboBox.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(AiLanguageSupport.LanguageOption option) {
+                return option == null ? "" : option.label();
+            }
+
+            @Override
+            public AiLanguageSupport.LanguageOption fromString(String text) {
+                String typed = text == null ? "" : text.trim();
+                if (typed.isEmpty()) {
+                    return null;
+                }
+                // Typing the label of a listed language must select that language rather than
+                // create a second, free-text entry that means the same thing.
+                for (AiLanguageSupport.LanguageOption option : comboBox.getItems()) {
+                    if (typed.equalsIgnoreCase(option.label()) || typed.equalsIgnoreCase(option.code())) {
+                        return option;
+                    }
+                }
+                return new AiLanguageSupport.LanguageOption(typed, typed);
+            }
+        });
+
+        // Remembered choice first, the AI-text default only when nothing was chosen yet.
+        String remembered = loadRememberedTranslationLanguage();
         AiLanguageSupport.LanguageOption selection = AiLanguageSupport.findOption(
             comboBox.getItems(),
-            resolveAiTextFallbackLanguageCode());
+            remembered != null ? remembered : resolveAiTextFallbackLanguageCode());
+        if (selection == null && remembered != null) {
+            // A previously typed free-text language is not in the list; keep it as its own entry.
+            selection = new AiLanguageSupport.LanguageOption(remembered, remembered);
+        }
         if (selection != null && !comboBox.getItems().contains(selection)) {
             comboBox.getItems().add(selection);
         }
         comboBox.getSelectionModel().select(selection);
+        Label customLanguageHint = new Label(I18n.get("snippets.ai.translate.dialog.customHint"));
+        customLanguageHint.setWrapText(true);
+        customLanguageHint.setMaxWidth(320);
+        customLanguageHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
         VBox content = new VBox(10,
             new Label(I18n.get("snippets.ai.translate.dialog.prompt")),
-            comboBox);
+            comboBox,
+            customLanguageHint);
         content.setPadding(new Insets(14));
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK
-            ? comboBox.getSelectionModel().getSelectedItem()
-            : null);
-        return dialog.showAndWait().orElse(null);
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != ButtonType.OK) {
+                return null;
+            }
+            // Read the editor too: a typed value that was never committed with Enter would
+            // otherwise be silently dropped in favour of the previous selection.
+            AiLanguageSupport.LanguageOption chosen = comboBox.getConverter()
+                .fromString(comboBox.getEditor().getText());
+            return chosen != null ? chosen : comboBox.getSelectionModel().getSelectedItem();
+        });
+        AiLanguageSupport.LanguageOption result = dialog.showAndWait().orElse(null);
+        if (result != null) {
+            saveRememberedTranslationLanguage(result.code());
+        }
+        return result;
     }
 
     private void beginMetadataGeneration(boolean overwriteExisting) {

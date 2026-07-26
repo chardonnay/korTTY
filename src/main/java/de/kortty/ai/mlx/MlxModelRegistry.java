@@ -217,13 +217,24 @@ public final class MlxModelRegistry {
 
     private static MlxModel parseModel(JsonObject json) {
         String directory = stringMember(json, "modelDirectory");
-        return new MlxModel(
+        MlxModel model = new MlxModel(
             stringMember(json, "id"),
             stringMember(json, "displayName"),
             directory != null ? Path.of(directory) : null,
             intMember(json, "contextSize", MlxModel.MODEL_DEFAULT_CONTEXT_SIZE),
             intMember(json, "idleTimeoutMinutes", MlxModel.DEFAULT_IDLE_TIMEOUT_MINUTES),
             stringMember(json, "quantizationLabel"));
+        // Absent in registries written before publication dates were tracked; an unparsable value
+        // is dropped rather than failing the load, since the date is informational only.
+        String published = stringMember(json, "publishedAt");
+        if (published != null && !published.isBlank()) {
+            try {
+                model = model.withPublishedAt(java.time.Instant.parse(published.trim()));
+            } catch (java.time.format.DateTimeParseException ignored) {
+                // Keep the model without a date: it is informational, never load-bearing.
+            }
+        }
+        return model;
     }
 
     private static JsonObject toJson(MlxModel model) {
@@ -235,6 +246,9 @@ public final class MlxModelRegistry {
         json.addProperty("idleTimeoutMinutes", model.getIdleTimeoutMinutes());
         if (model.getQuantizationLabel() != null) {
             json.addProperty("quantizationLabel", model.getQuantizationLabel());
+        }
+        if (model.getPublishedAt() != null) {
+            json.addProperty("publishedAt", model.getPublishedAt());
         }
         return json;
     }

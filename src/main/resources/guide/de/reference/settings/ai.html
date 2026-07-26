@@ -2502,7 +2502,7 @@
 
 
 <h1 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Argumentationsebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über <strong>Konfiguration → Globale Einstellungen → AI</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Reasoning-Ebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über <strong>Konfiguration → Globale Einstellungen → AI</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
 <p><img alt="AI settings tab" src="../../assets/screenshots/settings/ai.png" /></p>
 <h2 id="core-einstellungen">Core-Einstellungen<a class="headerlink" href="#core-einstellungen" title="Permanent link">&para;</a></h2>
 <table>
@@ -2906,7 +2906,7 @@
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
 <h3 id="ai-profile_1">AI-Profile<a class="headerlink" href="#ai-profile_1" title="Permanent link">&para;</a></h3>
-<p>KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Argumentationseinstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:</p>
+<p>KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Reasoning-Einstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:</p>
 <ul>
 <li><strong>HTTP-API</strong>: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (API-URL, Modellnamen und optionalen API-Schlüssel angeben).</li>
 <li><strong>Lokale CLI</strong>: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).</li>
@@ -2969,18 +2969,18 @@
 <h3 id="prompt-optimierungsvoreinstellungen">Prompt-Optimierungsvoreinstellungen<a class="headerlink" href="#prompt-optimierungsvoreinstellungen" title="Permanent link">&para;</a></h3>
 <p><strong>Automatisch (Modellerkennung)</strong> löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; <strong>Allgemein</strong> fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.</p>
 <h3 id="begrundungsaufwandsstufen">Begründungsaufwandsstufen<a class="headerlink" href="#begrundungsaufwandsstufen" title="Permanent link">&para;</a></h3>
-<p>Der Argumentationsaufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:</p>
+<p>Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:</p>
 <ul>
 <li><strong>Deaktiviert</strong>: Kein Begründungsparameter gesendet; Das Modell verwendet sein Standardverhalten.</li>
-<li><strong>Keine</strong>: Argumentation explizit deaktivieren (<code>reasoning: "none"</code> senden).</li>
-<li><strong>Minimal</strong>: Leichte Argumentation; schnellste Ausführung.</li>
-<li><strong>Niedrig</strong>: Argumentation mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.</li>
+<li><strong>Keine</strong>: Reasoning explizit deaktivieren (<code>reasoning: "none"</code> senden).</li>
+<li><strong>Minimal</strong>: Leichtes Reasoning; schnellste Ausführung.</li>
+<li><strong>Niedrig</strong>: Reasoning mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.</li>
 <li><strong>Mittel</strong>: Mittlerer Aufwand; angemessene Tiefe.</li>
 <li><strong>Hoch</strong>: Hoher Aufwand; gründlichere Begründung.</li>
-<li><strong>Extra hoch</strong>: Maximaler Argumentationsaufwand; am langsamsten, aber am umfassendsten.</li>
+<li><strong>Extra hoch</strong>: Maximaler Reasoning-Aufwand; am langsamsten, aber am umfassendsten.</li>
 </ul>
 <p>Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche <strong>Begründungsoptionen aktualisieren</strong>, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln.</p>
-<p>Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Argumentationsebene <strong>erweitertes Denken</strong> mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Die Argumentation des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.</p>
+<p>Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene <strong>erweitertes Denken</strong> mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.</p>
 <h3 id="token-kontingentverwaltung">Token-Kontingentverwaltung<a class="headerlink" href="#token-kontingentverwaltung" title="Permanent link">&para;</a></h3>
 <p>Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrollen:</p>
 <ul>

@@ -58,7 +58,7 @@ class LocalModelManagerPanePurposeTest {
             first.id(), first.author(), "fedcba9876543210fedcba9876543210fedcba98",
             first.license(), first.architecture(), first.contextLength(), first.ggufBytes(),
             first.quantizations(), first.files(), first.tags(), first.gated(), first.privateRepository(),
-            first.downloads(), first.likes(), first.lastModified());
+            first.downloads(), first.likes(), first.lastModified(), first.createdAt());
 
         assertThat(LocalModelManagerPane.sameHubModel(first, newer)).isFalse();
     }
@@ -125,7 +125,7 @@ class LocalModelManagerPanePurposeTest {
     private static HuggingFaceModel hubModel(List<HuggingFaceModelFile> files) {
         return new HuggingFaceModel(
             "owner/model", "owner", REVISION, "apache-2.0", "test", 4096, -1,
-            null, files, Set.of("gguf"), false, false, 0, 0, null);
+            null, files, Set.of("gguf"), false, false, 0, 0, null, null);
     }
 
     private static HuggingFaceModelFile hubFile(

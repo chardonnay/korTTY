@@ -66,7 +66,7 @@ class HuggingFaceModelInstallationServiceTest {
             HuggingFaceModel model = new HuggingFaceModel(
                 "owner/model", "owner", REVISION, "apache-2.0", "test", 8192,
                 gguf.length, Set.of("Q4_K_M"), List.of(file), Set.of("gguf"),
-                false, false, 1, 1, null);
+                false, false, 1, 1, null, null);
             LlamaModelRegistry registry = LlamaModelRegistry.inDirectory(root.resolve("llm"));
             HuggingFaceModelDownloader downloader = new HuggingFaceModelDownloader(
                 HttpClient.newHttpClient(), HuggingFaceTokenProvider.anonymous(), Runnable::run);

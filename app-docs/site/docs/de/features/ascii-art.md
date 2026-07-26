@@ -38,7 +38,7 @@ Anstelle einer Beschriftung fordert diese Registerkarte ein Modell auf, das Moti
 Für die Registerkarte ist mindestens ein konfiguriertes AI-Profil und der aktivierte AI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an. Fehler und „Kein brauchbares Bild“-Antworten werden in derselben Statuszeile gemeldet.
 
 !!! note
-    Das Modell wird nur nach druckbarem ASCII gefragt, höchstens 60 Zeichen pro Zeile und 30 Zeilen hoch, damit ein Ergebnis in der Vorschau lesbar bleibt. Antworten werden bereinigt, bevor sie angezeigt werden: Ein umschlossener Codeblock wird entpackt, Argumentationsblöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten.
+    Das Modell wird nur nach druckbarem ASCII gefragt, höchstens 60 Zeichen pro Zeile und 30 Zeilen hoch, damit ein Ergebnis in der Vorschau lesbar bleibt. Antworten werden bereinigt, bevor sie angezeigt werden: Ein umschlossener Codeblock wird entpackt, Reasoning-Blöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten.
 
 ## Vorschauzoom
 

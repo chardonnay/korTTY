@@ -1,0 +1,119 @@
+{
+  "language": "de",
+  "formatVersion": 1,
+  "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
+  "replacements": [
+    {
+      "from": "| Ermöglicht |", "to": "| Aktiviert |", "scope": "markdown",
+      "note": "A bare 'Enabled' column label reads as a verb to MT ('Ermöglicht' = 'enables'); as a settings-table label it is the adjective. Scoped to the cell so prose is untouched."
+    },
+    {
+      "from": "Ermöglicht", "to": "Aktiviert", "scope": "html", "match": "exact",
+      "note": "Same label in rendered HTML, where the table cell is its own segment."
+    },
+
+    { "from": "Meerjungfrau", "to": "Mermaid", "note": "Product/technology names that MT translates literally." },
+    { "from": "meerjungfrau", "to": "Mermaid" },
+    { "from": "Knowledge Stores", "to": "Wissensspeicher" },
+    { "from": "Knowledge Store", "to": "Wissensspeicher" },
+    { "from": "Knowledge-Store", "to": "Wissensspeicher" },
+    { "from": "eines Shops", "to": "eines Wissensspeichers" },
+    { "from": "des Shops", "to": "des Wissensspeichers" },
+    { "from": "Shops", "to": "Wissensspeicher" },
+    { "from": "Shop", "to": "Wissensspeicher" },
+    { "from": "Geschäfts", "to": "Wissensspeichers" },
+    { "from": "Geschäfte", "to": "Wissensspeicher" },
+    { "from": "Geschäft", "to": "Wissensspeicher" },
+    { "from": "Stores", "to": "Wissensspeicher" },
+    { "from": "Store", "to": "Wissensspeicher" },
+    { "from": "HNSW-Diagramm", "to": "HNSW-Graph" },
+    { "from": "Mehr laden", "to": "Weitere laden" },
+    { "from": "**Laden…**", "to": "**Wird ermittelt…**", "scope": "markdown" },
+
+    {
+      "from": "korTTY Guide", "to": "korTTY Anleitung",
+      "note": "'Anleitung' is the product's canonical term, matching menu.help.guide in the interface strings. Without these rows a local model renders it 'Handbuch' and the app disagrees with its own menu."
+    },
+    { "from": "Bedienungsanleitung", "to": "Anleitung" },
+    { "from": "Benutzerhandbuch", "to": "Anleitung" },
+    { "from": "Handbuch", "to": "Anleitung" },
+    { "from": "handbuch", "to": "Anleitung" },
+    { "from": "Leitfaden", "to": "Anleitung" },
+    {
+      "from": "→ Manual", "to": "→ Anleitung",
+      "note": "Handles 'Hilfe → Manual' too, which is why no separate row for it exists: the old table carried one and it was unreachable, since this row had already removed the word 'Manual'."
+    },
+    { "from": "Help → Anleitung", "to": "Hilfe → Anleitung" },
+    {
+      "from": "den ausgewählten übersetzten Anleitung, seine Assets und seinen Suchindex",
+      "to": "die ausgewählte übersetzte Anleitung, ihre Assets und ihren Suchindex",
+      "note": "The rows below repair the agreement that replacing 'Handbuch'/'Leitfaden' leaves behind: those are neuter and masculine, 'Anleitung' is feminine, so every article, adjective ending and possessive around it disagrees afterwards. Longest first, as the ordering invariant requires — this one also carries the possessives."
+    },
+    { "from": "ein übersetztes Anleitung", "to": "eine übersetzte Anleitung" },
+    { "from": "am eigenen Anleitung", "to": "an der eigenen Anleitung" },
+    { "from": "Das integrierte Anleitung", "to": "Die integrierte Anleitung" },
+    { "from": "der integrierte Anleitung", "to": "die integrierte Anleitung" },
+    { "from": "Der spezielle Anleitung", "to": "Die spezielle Anleitung" },
+    { "from": "das Anleitung", "to": "die Anleitung" },
+    { "from": "Das Anleitung", "to": "Die Anleitung" },
+    { "from": "dieses Anleitung", "to": "diese Anleitung" },
+    { "from": "Dieses Anleitung", "to": "Diese Anleitung" },
+    { "from": "diesem Anleitung", "to": "dieser Anleitung" },
+    { "from": "Diesem Anleitung", "to": "Dieser Anleitung" },
+    { "from": "ein Anleitung", "to": "eine Anleitung" },
+    { "from": "des Anleitung", "to": "der Anleitung" },
+    { "from": "dem Anleitung", "to": "der Anleitung" },
+    { "from": "den Anleitung", "to": "die Anleitung" },
+    { "from": "im Anleitung", "to": "in der Anleitung" },
+
+    {
+      "from": "GitHub-Probleme", "to": "GitHub-Issues",
+      "note": "'GitHub issue' is a proper term — MT renders it as Problem/Ausgabe."
+    },
+    { "from": "GitHub-Problem", "to": "GitHub-Issue" },
+    { "from": "Öffnen Sie eine neue Ausgabe", "to": "Öffnen Sie ein neues Issue" },
+    { "from": "Öffnen Sie das Problem", "to": "Öffnen Sie das Issue" },
+    { "from": "ein Problem zu eröffnen", "to": "ein Issue zu eröffnen" },
+
+    {
+      "from": "ASCII Art.-Nr", "to": "ASCII-Art",
+      "note": "'ASCII art' is a product term. MT renders it 'ASCII-Kunst' and, for the bare heading, 'ASCII Art.-Nr' — reading as Artikelnummer, an article number."
+    },
+    { "from": "ASCII-Kunstbanner", "to": "ASCII-Art-Banner" },
+    { "from": "ASCII-Kunst", "to": "ASCII-Art" },
+    { "from": "ASCII Kunst", "to": "ASCII-Art" },
+
+    {
+      "from": "Diese Argumentation ist", "to": "Dieses Reasoning ist",
+      "note": "'Reasoning' (the AI-model capability, as in 'reasoning model'/'reasoning effort') renders as 'Argumentation' — rhetorical argumentation, a different concept entirely. The app's own UI never translates this sense (settings.ai.reasoning=Reasoning:, every guide.translation.guide.reasoning.* key), so the docs must not either. Four exact-phrase rows fix the grammatical agreement MT produces when it inflects 'Argumentation' (feminine, 'die') for what should read as the neuter loanword 'Reasoning' ('das'/'dieses'); the plain compound rows below then cover every other occurrence."
+    },
+    { "from": "Die Argumentation des Modells", "to": "Das Reasoning des Modells" },
+    { "from": "Getrennte Argumentation wird", "to": "Getrenntes Reasoning wird" },
+    { "from": "Leichte Argumentation;", "to": "Leichtes Reasoning;" },
+
+    { "from": "Argumentationsmodellen", "to": "Reasoning-Modellen" },
+    { "from": "Argumentationsmodelle", "to": "Reasoning-Modelle" },
+    { "from": "Argumentationsmodells", "to": "Reasoning-Modells" },
+    { "from": "Argumentationsmodell", "to": "Reasoning-Modell" },
+    { "from": "Argumentationsebenen", "to": "Reasoning-Ebenen" },
+    { "from": "Argumentationsebene", "to": "Reasoning-Ebene" },
+    { "from": "Argumentationsoptionen", "to": "Reasoning-Optionen" },
+    { "from": "Argumentationsaufwand", "to": "Reasoning-Aufwand" },
+    { "from": "Argumentationsanalyse", "to": "Reasoning-Analyse" },
+    { "from": "Argumentationsspuren", "to": "Reasoning-Spuren" },
+    { "from": "Argumentationseinstellungen", "to": "Reasoning-Einstellungen" },
+    { "from": "Argumentationsblöcke", "to": "Reasoning-Blöcke" },
+    { "from": "Argumentationsantworten", "to": "Reasoning-Antworten" },
+    {
+      "from": "Argumentationskette", "to": "Gedankenkette",
+      "note": "Maps to the term the corpus already uses repeatedly for the same underlying concept ('chain-of-thought' -> 'Gedankenkette' elsewhere in local-models.md and release-notes.md) instead of introducing a third German rendering of the same idea."
+    },
+    { "from": "Argumentations-/Denkmodus", "to": "Reasoning-/Denkmodus" },
+    { "from": "Argumentations-Tokens", "to": "Reasoning-Tokens" },
+    { "from": "Argumentationsmodus", "to": "Reasoning-Modus" },
+    {
+      "from": "Argumentation", "to": "Reasoning",
+      "note": "Bare form, last: every compound above still contains this substring, so it must run after all of them or it would truncate 'Argumentationsmodell' into 'Reasoningsmodell' etc."
+    }
+  ]
+}

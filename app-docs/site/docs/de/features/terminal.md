@@ -4,7 +4,7 @@ title: Terminalsitzungen
 
 # Terminalsitzungen
 
-KorTTY bietet eine Terminalschnittstelle mit Registerkarten, die mehrere gleichzeitige SSH-Verbindungen, geteilte Bildschirmlayouts und interaktive Terminalverwaltungsfunktionen unterstützt. In diesem Anleitung werden Registerkartenvorgänge, die Unterstützung mehrerer Fenster, die Anpassung des Terminals und erweiterte Sitzungsfunktionen behandelt.
+KorTTY bietet eine Terminalschnittstelle mit Registerkarten, die mehrere gleichzeitige SSH-Verbindungen, geteilte Bildschirmlayouts und interaktive Terminalverwaltungsfunktionen unterstützt. In dieser Anleitung werden Registerkartenvorgänge, die Unterstützung mehrerer Fenster, die Anpassung des Terminals und erweiterte Sitzungsfunktionen behandelt.
 
 ## Sitzungslebenszyklus
 
@@ -74,7 +74,7 @@ Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native ma
 
 Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#local-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
 
-- **++ctrl+d++ schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.** Diese Windows-Shells werden bei EOF nicht beendet, sodass ++ctrl+d++ andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung bei – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
+- **++ctrl+d++ schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.** Diese Windows-Shells werden bei EOF nicht beendet, sodass ++ctrl+d++ andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
 - **Bestätigung schließen** verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.
 - **Das aktuelle Verzeichnis folgt der interaktiven Shell.** Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach `cd`, `pushd`, `popd` oder `Set-Location` löst **Im Snippet-Editor öffnen** einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.
 - **Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.** Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der `agent ...`-Anfrage bleibt und Enter ihn genau einmal versendet.

@@ -94,6 +94,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
@@ -301,6 +302,29 @@ final class LocalModelManagerPane extends VBox {
     record RuntimeRow(RuntimeKind kind, String version, String backend, String state) {
     }
 
+    /**
+     * The bare version out of a runtime package id, for the table's Version column.
+     *
+     * <p>Both runtimes name their packages {@code <runtime>-<version>-kortty<n>} with the MLX one
+     * additionally carrying platform and architecture — {@code mlx-0.31.3-kortty2-macos-aarch64}
+     * and {@code llama-b10103-kortty2}. Only the version segment is interesting at a glance; the
+     * full id still appears in the runtime update prompts and the log.
+     *
+     * <p>An id that does not match is returned unchanged. If the naming ever changes, showing the
+     * raw id is honest, whereas returning a guessed fragment would quietly display the wrong
+     * version.
+     */
+    static String runtimeVersionLabel(String runtimeId) {
+        if (runtimeId == null || runtimeId.isBlank()) {
+            return "—";
+        }
+        java.util.regex.Matcher matcher = RUNTIME_VERSION.matcher(runtimeId.trim());
+        return matcher.matches() ? matcher.group(1) : runtimeId.trim();
+    }
+
+    private static final java.util.regex.Pattern RUNTIME_VERSION =
+        java.util.regex.Pattern.compile("^(?:llama|mlx)-(.+?)-kortty[0-9]+(?:-.*)?$");
+
     enum RuntimeKind {
         LLAMA("llama.cpp"),
         MLX("MLX");
@@ -328,7 +352,8 @@ final class LocalModelManagerPane extends VBox {
             RuntimeRow::backend);
         TableColumn<RuntimeRow, String> state = column(I18n.get("ai.local.models.column.state"),
             RuntimeRow::state);
-        version.setMinWidth(220);
+        version.setMinWidth(110);
+        version.setMaxWidth(160);
         runtimeTable.getColumns().addAll(List.of(runtime, version, backend, state));
         // Two fixed rows (one per runtime kind); the table must not grab vertical space from the
         // model tables below.
@@ -612,6 +637,8 @@ final class LocalModelManagerPane extends VBox {
             model -> model.idleTimeoutMinutes() == 0
                 ? I18n.get("ai.local.models.never")
                 : I18n.get("ai.local.models.minutes", model.idleTimeoutMinutes()));
+        TableColumn<InstalledModel, String> age = column(I18n.get("ai.local.models.column.age"),
+            model -> formatAgeInDays(model.ageInDays(Instant.now())));
         TableColumn<InstalledModel, String> state = column(I18n.get("ai.local.models.column.state"), this::runtimeState);
         name.setMinWidth(170);
         name.setPrefWidth(260);
@@ -622,8 +649,9 @@ final class LocalModelManagerPane extends VBox {
         purpose.setMaxWidth(190);
         backend.setMaxWidth(100);
         idle.setMaxWidth(130);
+        age.setMaxWidth(110);
         state.setMaxWidth(120);
-        installedTable.getColumns().addAll(List.of(name, file, purpose, backend, idle, state));
+        installedTable.getColumns().addAll(List.of(name, file, purpose, backend, idle, age, state));
         installDefaultContextMenu();
     }
 
@@ -674,6 +702,25 @@ final class LocalModelManagerPane extends VBox {
         int idleTimeoutMinutes() {
             return isMlx() ? mlx.getIdleTimeoutMinutes() : llama.getIdleTimeoutMinutes();
         }
+
+        /**
+         * Whole days since the upstream repository was published, or {@code -1} when no date was
+         * recorded — the case for every model installed before this was tracked and for manually
+         * imported files. Deliberately not derived from the file's own timestamp, which would
+         * report when this machine downloaded it rather than when it was released.
+         */
+        long ageInDays(Instant now) {
+            String published = isMlx() ? mlx.getPublishedAt() : llama.getPublishedAt();
+            if (published == null || published.isBlank() || now == null) {
+                return -1;
+            }
+            try {
+                Instant instant = Instant.parse(published.trim());
+                return instant.isAfter(now) ? -1 : java.time.Duration.between(instant, now).toDays();
+            } catch (java.time.format.DateTimeParseException ignored) {
+                return -1;
+            }
+        }
     }
 
     private void configureHubTable() {
@@ -715,6 +762,11 @@ final class LocalModelManagerPane extends VBox {
         context.setCellValueFactory(data -> new SimpleLongProperty(data.getValue().contextLength()));
         context.setCellFactory(ignored -> hubCell(length ->
             length.longValue() > 0 ? Long.toString(length.longValue()) : "—"));
+        // Numeric, not a preformatted string: the column sorts by actual age, and a repository
+        // whose creation date the Hub withheld sorts as -1 rather than between two real ages.
+        TableColumn<HuggingFaceModel, Number> age = new TableColumn<>(I18n.get("ai.local.models.column.age"));
+        age.setCellValueFactory(data -> new SimpleLongProperty(data.getValue().ageInDays(Instant.now())));
+        age.setCellFactory(ignored -> hubCell(days -> formatAgeInDays(days.longValue())));
         TableColumn<HuggingFaceModel, HuggingFaceHardwareEstimate.Suitability> fit =
             new TableColumn<>(I18n.get("ai.local.models.column.hardware"));
         fit.setCellValueFactory(data -> new SimpleObjectProperty<>(HuggingFaceHardwareEstimator
@@ -723,11 +775,12 @@ final class LocalModelManagerPane extends VBox {
             I18n.get("ai.local.models.hardware." + suitability.name().toLowerCase(Locale.ROOT))));
         model.setMinWidth(235);
         quants.setMinWidth(150);
+        age.setMaxWidth(110);
         hubTable.getColumns().add(model);
         if (MlxPlatform.isSupported()) {
             hubTable.getColumns().add(format);
         }
-        hubTable.getColumns().addAll(List.of(architecture, quants, license, size, context, fit));
+        hubTable.getColumns().addAll(List.of(architecture, quants, license, size, context, age, fit));
     }
 
     /** Which repository formats the Hugging Face search fetches. */
@@ -1175,7 +1228,9 @@ final class LocalModelManagerPane extends VBox {
             modelDirectory,
             0,
             10,
-            quantizationLabel);
+            quantizationLabel)
+            // Captured now or never: nothing on disk reveals when the model was released.
+            .withPublishedAt(selected.createdAt());
         mlxRegistry.register(model);
         return model;
     }
@@ -2280,7 +2335,7 @@ final class LocalModelManagerPane extends VBox {
         List<RuntimeRow> rows = new ArrayList<>();
         rows.add(new RuntimeRow(
             RuntimeKind.LLAMA,
-            llama.map(installation -> installation.descriptor().runtimeId()).orElse("—"),
+            llama.map(installation -> runtimeVersionLabel(installation.descriptor().runtimeId())).orElse("—"),
             llama.map(installation -> installation.descriptor().backend().name()).orElse("—"),
             llamaState));
         if (MlxPlatform.isSupported()) {
@@ -2290,7 +2345,7 @@ final class LocalModelManagerPane extends VBox {
                     == MlxRuntimeUpdateCoordinator.State.REVOKED;
             rows.add(new RuntimeRow(
                 RuntimeKind.MLX,
-                mlx.map(MlxRuntimeLocator.MlxRuntimeInstallation::id).orElse("—"),
+                mlx.map(installation -> runtimeVersionLabel(installation.id())).orElse("—"),
                 "MLX",
                 mlx.isPresent()
                     ? I18n.get("ai.local.models.runtime.state.ready")
@@ -2469,6 +2524,29 @@ final class LocalModelManagerPane extends VBox {
             candidate = suggested + "-" + suffix++;
         }
         return candidate;
+    }
+
+    /**
+     * Publication age for the table: days while that stays readable, then months and years.
+     *
+     * <p>A bare day count is what the number means, but "847 days" forces the reader to do the
+     * division themselves — and telling a two-year-old architecture from a two-month-old one is
+     * the entire point of the column.
+     */
+    static String formatAgeInDays(long days) {
+        if (days < 0) {
+            return "—";
+        }
+        if (days == 0) {
+            return I18n.get("ai.local.models.age.today");
+        }
+        if (days < 90) {
+            return I18n.get("ai.local.models.age.days", days);
+        }
+        if (days < 730) {
+            return I18n.get("ai.local.models.age.months", days / 30);
+        }
+        return I18n.get("ai.local.models.age.years", days / 365);
     }
 
     private static <T> TableColumn<T, String> column(String title, java.util.function.Function<T, String> value) {

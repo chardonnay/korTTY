@@ -2419,8 +2419,22 @@ val packageSizeReportTest = tasks.register<Exec>("packageSizeReportTest") {
     }
 }
 
+val guideSegmentExtractorTest = tasks.register<Exec>("guideSegmentExtractorTest") {
+    group = "verification"
+    description = "Runs the guide translation-manifest extractor's regression tests."
+    inputs.files("scripts/extract_guide_segments.py", "scripts/test_extract_guide_segments.py")
+    inputs.dir("src/main/resources/guide/en")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_extract_guide_segments.py")
+    } else {
+        commandLine("python3", "scripts/test_extract_guide_segments.py")
+    }
+}
+
 tasks.named("check") {
-    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest)
+    dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
+        guideSegmentExtractorTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
@@ -2567,6 +2581,46 @@ tasks.register<JavaExec>("localModelDownloadStatusSmoke") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.LocalModelDownloadStatusSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("mainWindowTranslationIndicatorSmoke") {
+    group = "verification"
+    description = "Renders the main window while a guide translation runs and checks the menu-bar indicator."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MainWindowTranslationIndicatorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    environment("TEST_MODE_KORTTY", "1")
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
+tasks.register<JavaExec>("translationTabSmoke") {
+    group = "verification"
+    description = "Builds the Settings Translation tab and asserts the guide-translation section is present and wired."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TranslationTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generatedGuideRenderSmoke") {
+    group = "verification"
+    description = "Generates a guide language into build/smoke and verifies it renders with its own styling in a WebView."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GeneratedGuideRenderSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    standardOutput = System.out
+    errorOutput = System.err
+}
+
+tasks.register<JavaExec>("guideTranslationBench") {
+    group = "verification"
+    description = "Measures speed and quality of translating the bundled guide with the configured local AI profile."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.GuideTranslationBench")
+    classpath = sourceSets.test.get().runtimeClasspath
+    // A local model is slow; let the reader watch instead of buffering for minutes.
+    standardOutput = System.out
+    errorOutput = System.err
 }
 
 tasks.register<JavaExec>("guideAskPanelSmoke") {

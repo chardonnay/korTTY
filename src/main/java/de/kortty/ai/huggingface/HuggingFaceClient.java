@@ -83,6 +83,7 @@ public final class HuggingFaceClient {
             .append("&expand%5B%5D=downloads")
             .append("&expand%5B%5D=likes")
             .append("&expand%5B%5D=lastModified")
+            .append("&expand%5B%5D=createdAt")
             .append("&expand%5B%5D=tags")
             .append("&expand%5B%5D=private")
             .append("&expand%5B%5D=gated")
@@ -111,6 +112,7 @@ public final class HuggingFaceClient {
             .append("&expand%5B%5D=downloads")
             .append("&expand%5B%5D=likes")
             .append("&expand%5B%5D=lastModified")
+            .append("&expand%5B%5D=createdAt")
             .append("&expand%5B%5D=tags")
             .append("&expand%5B%5D=private")
             .append("&expand%5B%5D=gated")
@@ -313,7 +315,8 @@ public final class HuggingFaceClient {
             booleanValue(root, "private"),
             longValue(root, "downloads"),
             longValue(root, "likes"),
-            instantValue(root, "lastModified"));
+            instantValue(root, "lastModified"),
+            instantValue(root, "createdAt"));
     }
 
     private static List<HuggingFaceModelFile> parseFiles(

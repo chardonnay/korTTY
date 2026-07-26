@@ -797,6 +797,33 @@
     -fx-text-fill: #cccccc;
 }
 
+/* List View
+   The base sheet has to carry these: every custom design (dracula, nord, ...) styles .list-view
+   itself, and the dynamic terminal-theme overlay does too, but both are absent in the two cases
+   that matter here - a dialog themed without a running application instance, and a custom app
+   design, for which getDynamicStylesheetUrl() deliberately returns null. Without a rule here a
+   ListView falls back to the JavaFX default white and reads as broken against the dark chrome.
+   Kept at single-class specificity on purpose so the design and overlay sheets, both added after
+   this one, still win every tie. */
+.list-view {
+    -fx-background-color: #2d2d2d;
+}
+
+/* Transparent rather than a colour literal, so a sheet that only restyles .list-view still shows
+   through the cells. */
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cccccc;
+}
+
+.list-cell:selected {
+    -fx-background-color: #3d3d3d;
+}
+
+.list-cell:hover {
+    -fx-background-color: #353535;
+}
+
 /* Check Box */
 .check-box {
     -fx-text-fill: #cccccc;

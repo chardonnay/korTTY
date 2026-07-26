@@ -2142,6 +2142,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#guide-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guide translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ascii-art" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3033,6 +3044,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#guide-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guide translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ascii-art" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3804,6 +3826,12 @@
 <h3 id="master-password">Master password<a class="headerlink" href="#master-password" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Optional passwordless auto-login for test environments</strong> — a new <strong>Configuration → Global Settings → Security → Disable master password prompt on startup</strong> option makes korTTY remember the master password (stored only obfuscated, with owner-only permissions, in <code>~/.kortty/master.autounlock</code>) and unlock the vault automatically at startup, so encrypted data such as AI profiles and SSH passwords stays usable with no prompt. On a brand-new profile it even sets up a default password so the app can start with zero input. It is insecure by design — the file permissions are the only protection — and meant for throwaway/test setups such as a VM: korTTY asks you to confirm before enabling it, keeps a warning visible while it is on, and an enterprise policy that forces the master password overrides it. Off by default.</li>
+</ul>
+<h3 id="guide-translation">Guide translation<a class="headerlink" href="#guide-translation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The offline guide can now be translated by a local AI profile</strong> — <strong>Configuration → Global Settings → Translation → Guide translation</strong> translates the bundled offline guide (the same site this documentation is part of), including its in-page search, into the target language chosen above, using an AI profile rather than the translation-provider API. Translation runs in the background: it keeps going after Settings is closed, shows a progress bar, percentage and time-remaining estimate at the right end of the menu bar, can be cancelled and resumed without losing progress, and korTTY asks before quitting while it is running. After an update that changed the guide, korTTY offers once to bring an existing translation up to date, re-translating only what actually changed. See <a href="../reference/settings/translation.html#guide-translation">Translation</a>.</li>
+<li><strong>Estimate duration before committing to a full translation</strong> — a new <strong>Estimate duration</strong> button measures the chosen AI profile against a real sample of the guide and projects how long translating everything remaining would take, without waiting out the full run.</li>
+<li><strong>A warning appears before translating with a reasoning model</strong> — such models spend most of their output "thinking" rather than translating, which can turn a translation that takes about an hour into one that takes six or more; korTTY detects this from the model's name and warns before starting or estimating, while still allowing you to proceed.</li>
 </ul>
 <h3 id="ascii-art">ASCII art<a class="headerlink" href="#ascii-art" title="Permanent link">&para;</a></h3>
 <ul>
