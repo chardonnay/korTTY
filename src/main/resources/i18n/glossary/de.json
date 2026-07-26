@@ -67,6 +67,39 @@
     },
     { "from": "ASCII-Kunstbanner", "to": "ASCII-Art-Banner" },
     { "from": "ASCII-Kunst", "to": "ASCII-Art" },
-    { "from": "ASCII Kunst", "to": "ASCII-Art" }
+    { "from": "ASCII Kunst", "to": "ASCII-Art" },
+
+    {
+      "from": "Diese Argumentation ist", "to": "Dieses Reasoning ist",
+      "note": "'Reasoning' (the AI-model capability, as in 'reasoning model'/'reasoning effort') renders as 'Argumentation' — rhetorical argumentation, a different concept entirely. The app's own UI never translates this sense (settings.ai.reasoning=Reasoning:, every guide.translation.guide.reasoning.* key), so the docs must not either. Four exact-phrase rows fix the grammatical agreement MT produces when it inflects 'Argumentation' (feminine, 'die') for what should read as the neuter loanword 'Reasoning' ('das'/'dieses'); the plain compound rows below then cover every other occurrence."
+    },
+    { "from": "Die Argumentation des Modells", "to": "Das Reasoning des Modells" },
+    { "from": "Getrennte Argumentation wird", "to": "Getrenntes Reasoning wird" },
+    { "from": "Leichte Argumentation;", "to": "Leichtes Reasoning;" },
+
+    { "from": "Argumentationsmodellen", "to": "Reasoning-Modellen" },
+    { "from": "Argumentationsmodelle", "to": "Reasoning-Modelle" },
+    { "from": "Argumentationsmodells", "to": "Reasoning-Modells" },
+    { "from": "Argumentationsmodell", "to": "Reasoning-Modell" },
+    { "from": "Argumentationsebenen", "to": "Reasoning-Ebenen" },
+    { "from": "Argumentationsebene", "to": "Reasoning-Ebene" },
+    { "from": "Argumentationsoptionen", "to": "Reasoning-Optionen" },
+    { "from": "Argumentationsaufwand", "to": "Reasoning-Aufwand" },
+    { "from": "Argumentationsanalyse", "to": "Reasoning-Analyse" },
+    { "from": "Argumentationsspuren", "to": "Reasoning-Spuren" },
+    { "from": "Argumentationseinstellungen", "to": "Reasoning-Einstellungen" },
+    { "from": "Argumentationsblöcke", "to": "Reasoning-Blöcke" },
+    { "from": "Argumentationsantworten", "to": "Reasoning-Antworten" },
+    {
+      "from": "Argumentationskette", "to": "Gedankenkette",
+      "note": "Maps to the term the corpus already uses repeatedly for the same underlying concept ('chain-of-thought' -> 'Gedankenkette' elsewhere in local-models.md and release-notes.md) instead of introducing a third German rendering of the same idea."
+    },
+    { "from": "Argumentations-/Denkmodus", "to": "Reasoning-/Denkmodus" },
+    { "from": "Argumentations-Tokens", "to": "Reasoning-Tokens" },
+    { "from": "Argumentationsmodus", "to": "Reasoning-Modus" },
+    {
+      "from": "Argumentation", "to": "Reasoning",
+      "note": "Bare form, last: every compound above still contains this substring, so it must run after all of them or it would truncate 'Argumentationsmodell' into 'Reasoningsmodell' etc."
+    }
   ]
 }

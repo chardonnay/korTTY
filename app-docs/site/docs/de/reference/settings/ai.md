@@ -4,7 +4,7 @@ title: KI
 
 # AI
 
-Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Argumentationsebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über **Konfiguration → Globale Einstellungen → AI**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Reasoning-Ebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über **Konfiguration → Globale Einstellungen → AI**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![AI settings tab](../../assets/screenshots/settings/ai.png)
 
@@ -89,7 +89,7 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 
 ### AI-Profile
 
-KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Argumentationseinstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:
+KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Reasoning-Einstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:
 
 - **HTTP-API**: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (API-URL, Modellnamen und optionalen API-Schlüssel angeben).
 - **Lokale CLI**: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).
@@ -122,19 +122,19 @@ Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitier
 
 ### Begründungsaufwandsstufen
 
-Der Argumentationsaufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:
+Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:
 
 - **Deaktiviert**: Kein Begründungsparameter gesendet; Das Modell verwendet sein Standardverhalten.
-- **Keine**: Argumentation explizit deaktivieren (`reasoning: "none"` senden).
-- **Minimal**: Leichte Argumentation; schnellste Ausführung.
-- **Niedrig**: Argumentation mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.
+- **Keine**: Reasoning explizit deaktivieren (`reasoning: "none"` senden).
+- **Minimal**: Leichtes Reasoning; schnellste Ausführung.
+- **Niedrig**: Reasoning mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.
 - **Mittel**: Mittlerer Aufwand; angemessene Tiefe.
 - **Hoch**: Hoher Aufwand; gründlichere Begründung.
-- **Extra hoch**: Maximaler Argumentationsaufwand; am langsamsten, aber am umfassendsten.
+- **Extra hoch**: Maximaler Reasoning-Aufwand; am langsamsten, aber am umfassendsten.
 
 Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche **Begründungsoptionen aktualisieren**, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln.
 
-Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Argumentationsebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Die Argumentation des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
+Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
 
 ### Token-Kontingentverwaltung
 

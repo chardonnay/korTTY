@@ -49,7 +49,7 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
-- **Überprüfte Shortcut-Akkord-Korrektur**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
+- **Überprüfter Shortcut-Akkord-Fix**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
 
 ### Build-Integration
 
