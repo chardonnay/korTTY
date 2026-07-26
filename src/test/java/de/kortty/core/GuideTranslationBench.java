@@ -84,7 +84,8 @@ public final class GuideTranslationBench {
                 EMBEDDED_MLX, selected as the text/default profile.""");
             System.exit(2);
         }
-        TranslationService service = buildTranslationService(profile);
+        ServiceBundle bundle = buildTranslationService(profile);
+        TranslationService service = bundle != null ? bundle.service() : null;
         if (service == null) {
             System.err.println("Could not build a translation service from profile '"
                 + profile.getName() + "' (" + profile.getConnectionMode() + ").");
@@ -161,7 +162,7 @@ public final class GuideTranslationBench {
             generator.generate(lang, pages, new ProgressPrinter(), null);
         long elapsedNanos = System.nanoTime() - start;
 
-        report(result, recorder, elapsedNanos, distinctAll, outRoot, lang);
+        report(result, recorder, bundle.metering(), elapsedNanos, distinctAll, outRoot, lang);
     }
 
     // ------------------------------------------------------------------ setup
@@ -211,7 +212,11 @@ public final class GuideTranslationBench {
             p.getEmbeddedModelId() != null ? p.getEmbeddedModelId() : ""));
     }
 
-    private static TranslationService buildTranslationService(AiProfile profile) {
+    /** Pairs the translation service under test with the token meter wrapped underneath it. */
+    record ServiceBundle(TranslationService service, TokenMeteringAiPromptService metering) {
+    }
+
+    private static ServiceBundle buildTranslationService(AiProfile profile) {
         // Copy and disable internet access: the factory rejects a Tavily-backed mode without a
         // key, and translation never needs web search.
         AiProfile translationProfile = new AiProfile(profile);
@@ -219,9 +224,11 @@ public final class GuideTranslationBench {
         try {
             AiService service = AiServiceFactory.create(translationProfile, null,
                 AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
-            return service instanceof AiPromptService prompt
-                ? new LocalAiTranslationService(prompt)
-                : null;
+            if (!(service instanceof AiPromptService prompt)) {
+                return null;
+            }
+            TokenMeteringAiPromptService metering = new TokenMeteringAiPromptService(prompt);
+            return new ServiceBundle(new LocalAiTranslationService(metering), metering);
         } catch (RuntimeException e) {
             System.err.println("AI service could not be created: " + e.getMessage());
             return null;
@@ -259,6 +266,7 @@ public final class GuideTranslationBench {
     // -------------------------------------------------------------- reporting
 
     private static void report(GuideTranslationGenerator.Result result, Recorder recorder,
+                               TokenMeteringAiPromptService metering,
                                long elapsedNanos, int distinctAll, Path outRoot, String lang)
             throws IOException {
         double seconds = elapsedNanos / 1_000_000_000.0;
@@ -277,6 +285,14 @@ public final class GuideTranslationBench {
             %n""", formatDuration(seconds), result.pagesWritten(), result.pagesSkipped(),
             result.translated(), result.reused(), result.failed(),
             recorder.calls, recorder.failures, recorder.chars);
+
+        if (metering.callsWithUsage() > 0) {
+            System.out.printf("  tokens              %d prompt + %d completion = %d total%s%n",
+                metering.promptTokens(), metering.completionTokens(), metering.totalTokens(),
+                metering.anyCallMissingUsage() ? "  (some calls reported no usage)" : "");
+        } else {
+            System.out.println("  tokens              (backend reported no usage data)");
+        }
 
         if (result.translated() > 0) {
             System.out.printf("  throughput          %.2f segment(s)/s, %.0f chars/s%n",
