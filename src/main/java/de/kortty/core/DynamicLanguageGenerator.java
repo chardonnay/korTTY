@@ -88,13 +88,11 @@ public class DynamicLanguageGenerator {
 
         List<String> translatedValues = new ArrayList<>(total);
         int processed = 0;
+        int[] failedCount = {0};
         for (int i = 0; i < valuesToTranslate.size(); i += BATCH_SIZE) {
             int to = Math.min(i + BATCH_SIZE, valuesToTranslate.size());
             List<String> batch = valuesToTranslate.subList(i, to);
-            List<String> batchResult = translationService.translateBatch(batch, SOURCE_LANG, targetLangCode);
-            if (batchResult == null || batchResult.size() != batch.size()) {
-                throw new IOException("Translation service returned failure or wrong batch size");
-            }
+            List<String> batchResult = translateBatchResilient(batch, targetLangCode, failedCount);
             for (int j = 0; j < batch.size(); j++) {
                 String translated = unmaskPlaceholders(batchResult.get(j), placeholderList.get(i + j));
                 translatedValues.add(translated);
@@ -111,8 +109,42 @@ public class DynamicLanguageGenerator {
         if (progress != null) {
             progress.accept(1.0);
         }
-        logger.info("Generated {} with {} keys", outFile, total);
+        if (failedCount[0] > 0) {
+            logger.warn("Generated {} with {} keys ({} kept their English text — the model "
+                + "never returned a usable translation for them)", outFile, total, failedCount[0]);
+        } else {
+            logger.info("Generated {} with {} keys", outFile, total);
+        }
         return outFile;
+    }
+
+    /**
+     * Translates one batch, halving it on any failure. A local model that drops an item or
+     * returns a malformed batch poisons only its own half this way instead of aborting the whole
+     * bundle; recursion bottoms out at a single value, which is then kept in English.
+     */
+    private List<String> translateBatchResilient(List<String> batch, String targetLangCode, int[] failedCount) {
+        List<String> result = null;
+        try {
+            result = translationService.translateBatch(batch, SOURCE_LANG, targetLangCode);
+        } catch (RuntimeException e) {
+            logger.debug("Translation batch of {} failed", batch.size(), e);
+        }
+        if (result != null && result.size() == batch.size()) {
+            return result;
+        }
+        if (batch.size() == 1) {
+            failedCount[0]++;
+            return List.of(batch.get(0));
+        }
+        int half = batch.size() / 2;
+        List<String> first =
+            translateBatchResilient(new ArrayList<>(batch.subList(0, half)), targetLangCode, failedCount);
+        List<String> second =
+            translateBatchResilient(new ArrayList<>(batch.subList(half, batch.size())), targetLangCode, failedCount);
+        List<String> combined = new ArrayList<>(first);
+        combined.addAll(second);
+        return combined;
     }
 
     private static class MaskResult {
