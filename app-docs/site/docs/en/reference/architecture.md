@@ -248,7 +248,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | **Archive** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ support |
 | | Tukaani xz | 1.12 | XZ compression |
 | **UI** | JavaFX | 21 | Application framework |
-| | Monaco Editor | 0.55.1 | Code editor component |
+| | Monaco Editor | 0.56.0 | Code editor component |
 | | Mermaid | 11.16.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |
 | | google-java-format | 1.35.0 | Java code formatting |
