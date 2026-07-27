@@ -1255,6 +1255,11 @@ tasks.register("stageGuideIntoResources") {
         copy {
             from(built)
             into(dest)
+            // The sitemap's <lastmod> is the build date, so committing it would make the
+            // bundle non-reproducible (docs-autocommit's staleness check on main would fail
+            // on any rebuild after midnight UTC). The in-app viewer never reads a sitemap;
+            // GitHub Pages publishes its own freshly built copy including one.
+            exclude("**/sitemap.xml", "**/sitemap.xml.gz")
         }
         logger.lifecycle("stageGuideIntoResources: synced build/guide -> src/main/resources/guide")
     }
