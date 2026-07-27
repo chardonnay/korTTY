@@ -2153,6 +2153,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#interface-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ascii-art" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2466,6 +2477,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#interface-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ascii-art" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2620,8 +2642,7 @@
 
 
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
-<p>What changed in the current release. The version this guide was built for is shown in the
-footer.</p>
+<p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
 <h2 id="v270">v2.7.0<a class="headerlink" href="#v270" title="Permanent link">&para;</a></h2>
 <h3 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2655,6 +2676,11 @@ footer.</p>
 <li><strong>The offline guide can now be translated by a local AI profile</strong> — <strong>Configuration → Global Settings → Translation → Guide translation</strong> translates the bundled offline guide (the same site this documentation is part of), including its in-page search, into the target language chosen above, using an AI profile rather than the translation-provider API. Translation runs in the background: it keeps going after Settings is closed, shows a progress bar, percentage and time-remaining estimate at the right end of the menu bar, can be cancelled and resumed without losing progress, and korTTY asks before quitting while it is running. After an update that changed the guide, korTTY offers once to bring an existing translation up to date, re-translating only what actually changed. See <a href="../reference/settings/translation.html#guide-translation">Translation</a>.</li>
 <li><strong>Estimate duration before committing to a full translation</strong> — a new <strong>Estimate duration</strong> button measures the chosen AI profile against a real sample of the guide and projects how long translating everything remaining would take, without waiting out the full run.</li>
 <li><strong>A warning appears before translating with a reasoning model</strong> — such models spend most of their output "thinking" rather than translating, which can turn a translation that takes about an hour into one that takes six or more; korTTY detects this from the model's name and warns before starting or estimating, while still allowing you to proceed.</li>
+</ul>
+<h3 id="interface-translation">Interface translation<a class="headerlink" href="#interface-translation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Any AI profile can now translate the interface strings</strong> — the <strong>Local AI text profile</strong> provider gained its own <strong>AI profile</strong> dropdown, matching the one the guide translation already had. A profile picked there is used whatever its connection mode, so a cloud model (Anthropic, an OpenAI-compatible endpoint) or a local CLI profile can generate a language pack, not only an embedded llama.cpp/MLX model. Leaving it on <strong>Default (local text profile)</strong> keeps the previous behaviour: the Text-role profile, and only when it runs a local model — the provider exists for people who do not want their interface strings leaving the machine. When that role holds a cloud or CLI profile, korTTY now names the profile and points at the dropdown instead of reporting a bare "failed to generate language file". See <a href="../reference/settings/translation.html#local-translation">Translation</a>.</li>
+<li><strong>A malformed batch no longer throws away the whole language pack</strong> — previously one bad reply from the model aborted language-file generation completely and nothing was written at all, even though most strings had translated. The batch is now retried and split in half, and only a string the model never returns in usable form keeps its English text.</li>
 </ul>
 <h3 id="ascii-art">ASCII art<a class="headerlink" href="#ascii-art" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2751,11 +2777,7 @@ footer.</p>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Earlier releases</p>
-<p>Only the current release is listed here, so the guide stays short in every language it is
-translated into. Every version is on the
-<a href="https://github.com/chardonnay/korTTY/releases">GitHub releases page</a>; the curated notes for
-earlier versions are kept in the repository, in <code>app-docs/release-notes-archive.md</code> and
-<code>app-docs/RELEASE_NOTES.adoc</code>.</p>
+<p>Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the <a href="https://github.com/chardonnay/korTTY/releases">GitHub releases page</a>; the curated notes for earlier versions are kept in the repository, in <code>app-docs/release-notes-archive.md</code> and <code>app-docs/RELEASE_NOTES.adoc</code>.</p>
 </div>
 
 

@@ -12,6 +12,7 @@ Configure dynamic translation of korTTY's user interface using external translat
 | --- | --- | --- | --- | --- |
 | System language | text | — | System locale | — |
 | Translation API | dropdown | Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, Local AI text profile | Google Translate | `translationApiProvider` |
+| AI profile | dropdown | "Default (local text profile)" plus every configured AI profile | Default (local text profile) | — |
 | API Key | text | — | — | `encryptedTranslationApiKey` |
 | API URL (optional) | text | — | — (null = use provider default) | `translationApiUrl` |
 | Test API Connection | button | — | — | — |
@@ -29,10 +30,17 @@ Configure dynamic translation of korTTY's user interface using external translat
 
 ## Local translation
 
-Choose **Local AI text profile** to translate through the embedded llama.cpp profile assigned to the Text/translation role in **AI > AI Manager > Local AI**. API URL and API Key are disabled for this provider because the authenticated loopback endpoint is managed by korTTY. The local model must return one strict JSON `translations` array with the same number and order of input strings; invalid output stops generation instead of silently misaligning UI labels.
+Choose **Local AI text profile** to translate through an AI profile instead of a translation API. API URL and API Key are disabled for this provider because the profile brings its own endpoint and credentials. The model must return one strict JSON `translations` array with the same number and order of input strings; a batch that comes back malformed is retried and split in half rather than aborting the run, and a string the model never returns in usable form keeps its English text.
+
+The **AI profile** dropdown next to it decides which profile does the work:
+
+- **A profile you pick** is always used, whatever its connection mode — an embedded llama.cpp or MLX model, a cloud endpoint such as Anthropic or an OpenAI-compatible API, or a local CLI profile. Its API key is resolved the same way the rest of the application resolves one, so the master-password vault must be unlocked when the profile needs an encrypted secret.
+- **Default (local text profile)** uses the profile assigned to the Text/translation role in **AI > AI Manager**, and only if that profile runs an embedded (local) model. The default never falls back to a cloud profile automatically: this provider exists for people who cannot or do not want to send their interface strings to an external service. If that role holds a cloud or CLI profile, korTTY names it and directs you to this dropdown instead of failing with a generic error.
+
+This mirrors the **AI profile** dropdown in the guide-translation section below, so both translation jobs can be pointed at the model you want — for example a small local model for the interface strings and a stronger cloud model for the guide, or the same profile for both.
 
 !!! warning
-    **Credentials:** External providers require their normal API key, except a LibreTranslate endpoint that is explicitly configured without one. Local AI requires no translation-provider key, but its GGUF model and llama.cpp runtime must be installed and the master-password vault must be unlocked when the selected AI profile needs any encrypted secret.
+    **Credentials:** External providers require their normal API key, except a LibreTranslate endpoint that is explicitly configured without one. Local AI requires no translation-provider key, but an embedded model needs its GGUF/MLX model and runtime installed, and the master-password vault must be unlocked when the selected AI profile needs any encrypted secret.
 
 ## Guide translation
 

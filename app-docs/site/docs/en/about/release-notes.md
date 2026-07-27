@@ -1,7 +1,6 @@
 # Release notes
 
-What changed in the current release. The version this guide was built for is shown in the
-footer.
+What changed in the current release. The version this guide was built for is shown in the footer.
 
 ## v2.7.0
 
@@ -37,6 +36,11 @@ footer.
 - **The offline guide can now be translated by a local AI profile** — **Configuration → Global Settings → Translation → Guide translation** translates the bundled offline guide (the same site this documentation is part of), including its in-page search, into the target language chosen above, using an AI profile rather than the translation-provider API. Translation runs in the background: it keeps going after Settings is closed, shows a progress bar, percentage and time-remaining estimate at the right end of the menu bar, can be cancelled and resumed without losing progress, and korTTY asks before quitting while it is running. After an update that changed the guide, korTTY offers once to bring an existing translation up to date, re-translating only what actually changed. See [Translation](../reference/settings/translation.md#guide-translation).
 - **Estimate duration before committing to a full translation** — a new **Estimate duration** button measures the chosen AI profile against a real sample of the guide and projects how long translating everything remaining would take, without waiting out the full run.
 - **A warning appears before translating with a reasoning model** — such models spend most of their output "thinking" rather than translating, which can turn a translation that takes about an hour into one that takes six or more; korTTY detects this from the model's name and warns before starting or estimating, while still allowing you to proceed.
+
+### Interface translation
+
+- **Any AI profile can now translate the interface strings** — the **Local AI text profile** provider gained its own **AI profile** dropdown, matching the one the guide translation already had. A profile picked there is used whatever its connection mode, so a cloud model (Anthropic, an OpenAI-compatible endpoint) or a local CLI profile can generate a language pack, not only an embedded llama.cpp/MLX model. Leaving it on **Default (local text profile)** keeps the previous behaviour: the Text-role profile, and only when it runs a local model — the provider exists for people who do not want their interface strings leaving the machine. When that role holds a cloud or CLI profile, korTTY now names the profile and points at the dropdown instead of reporting a bare "failed to generate language file". See [Translation](../reference/settings/translation.md#local-translation).
+- **A malformed batch no longer throws away the whole language pack** — previously one bad reply from the model aborted language-file generation completely and nothing was written at all, even though most strings had translated. The batch is now retried and split in half, and only a string the model never returns in usable form keeps its English text.
 
 ### ASCII art
 
@@ -132,8 +136,4 @@ footer.
 - **Selection translation and spelling correction no longer fail on small local reasoning models** — the snippet editor's *Translate selection…* and *Correct spelling in selection* actions were attaching your enabled AI skills to the request. On a compact local reasoning model (for example a quantized Phi-4-mini reasoning build) the extra prompt bulk could make the model spend its whole reply on internal reasoning and return no answer (*"the local AI model produced no answer"*). These two mechanical text transforms no longer attach AI skills, keeping the prompt small so the model answers.
 
 !!! note "Earlier releases"
-    Only the current release is listed here, so the guide stays short in every language it is
-    translated into. Every version is on the
-    [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for
-    earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and
-    `app-docs/RELEASE_NOTES.adoc`.
+    Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.
