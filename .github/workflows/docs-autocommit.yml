@@ -70,6 +70,10 @@ jobs:
           rm -rf src/main/resources/guide
           mkdir -p src/main/resources/guide
           cp -R build/guide/. src/main/resources/guide/
+          # The sitemap's <lastmod> is the build date — committing it makes the staleness
+          # check flap (red on main after every midnight UTC). Keep it out of the bundle,
+          # mirroring the exclude in stageGuideIntoResources; Pages still gets its own copy.
+          find src/main/resources/guide -name 'sitemap.xml*' -delete
 
       - name: Commit the regenerated guide (branches) or fail if stale (main)
         run: |
