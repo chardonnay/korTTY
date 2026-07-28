@@ -248,7 +248,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **Archiv** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ-Unterstützung |
 | | Tukaani xz | 1.12 | XZ-Komprimierung |
 | **UI** | JavaFX | 21 | Anwendungsframework |
-| | Monaco-Editor | 0.55.1 | Code-Editor-Komponente |
+| | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
 | | Mermaid | 11.16.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.35.0 | Java-Codeformatierung |

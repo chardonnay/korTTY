@@ -627,8 +627,8 @@ val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf341
 val formatterSqlFormatterVersion = "15.7.3"
 val formatterSqlFormatterSha256 = "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a9223766f8b4e75d2b29819"
 val formatterPerlTidyVersion = "20260204"
-val monacoEditorVersion = "0.55.1"
-val monacoEditorSha256 = "eec3721fb6b1dc5a0bd1a73e38a5eb5d0c3791af684f7d2571efb90ad8634871"
+val monacoEditorVersion = "0.56.0"
+val monacoEditorSha256 = "b74bc4437205c194b779b0f21e5e7fcd3b4e9acbf3f7c8732a545d2059fb7412"
 val monacoEsbuildVersion = "0.28.0"
 
 fun formatterArch(): String = when (System.getProperty("os.arch", "").lowercase()) {

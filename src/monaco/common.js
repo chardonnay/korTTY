@@ -1,27 +1,33 @@
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
-import "monaco-editor/esm/vs/editor/editor.all.js";
-import "monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/css/css.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/go/go.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/hcl/hcl.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/html/html.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/ini/ini.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/java/java.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/perl/perl.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/python/python.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/ruby/ruby.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/rust/rust.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/sql/sql.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/xml/xml.contribution.js";
-import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js";
-import "monaco-editor/esm/vs/language/css/monaco.contribution.js";
-import "monaco-editor/esm/vs/language/html/monaco.contribution.js";
-import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
-import "monaco-editor/esm/vs/language/typescript/monaco.contribution.js";
+// monaco-editor 0.56 replaced the raw "monaco-editor/esm/vs/..." deep paths with supported,
+// tree-shakeable entry points: "monaco-editor/editor" for the API, "features/register.all" for
+// the editor features (the successor of the old editor.all.js), "languages/definitions/<id>/
+// register" per Monarch language and "languages/features/<id>/register" for the worker-backed
+// CSS/HTML/JSON/TypeScript services. Importing the bare "monaco-editor" root would pull in all
+// ~80 languages, so the languages stay enumerated to keep the WebView bundle small.
+import * as monaco from "monaco-editor/editor";
+import "monaco-editor/features/register.all";
+import "monaco-editor/languages/definitions/dockerfile/register";
+import "monaco-editor/languages/definitions/css/register";
+import "monaco-editor/languages/definitions/go/register";
+import "monaco-editor/languages/definitions/hcl/register";
+import "monaco-editor/languages/definitions/html/register";
+import "monaco-editor/languages/definitions/ini/register";
+import "monaco-editor/languages/definitions/java/register";
+import "monaco-editor/languages/definitions/javascript/register";
+import "monaco-editor/languages/definitions/markdown/register";
+import "monaco-editor/languages/definitions/perl/register";
+import "monaco-editor/languages/definitions/powershell/register";
+import "monaco-editor/languages/definitions/python/register";
+import "monaco-editor/languages/definitions/ruby/register";
+import "monaco-editor/languages/definitions/rust/register";
+import "monaco-editor/languages/definitions/shell/register";
+import "monaco-editor/languages/definitions/sql/register";
+import "monaco-editor/languages/definitions/xml/register";
+import "monaco-editor/languages/definitions/yaml/register";
+import "monaco-editor/languages/features/css/register";
+import "monaco-editor/languages/features/html/register";
+import "monaco-editor/languages/features/json/register";
+import "monaco-editor/languages/features/typescript/register";
 import { WORKER_SOURCES } from "./generated/workerSources.js";
 
 const workerUrls = new Map();

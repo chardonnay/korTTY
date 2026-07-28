@@ -237,7 +237,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | | Gson | 2.13.2
 | *Archive & Compression* | Apache Commons Compress | 1.25.0
 | | Tukaani xz | 1.9
-| *UI / Editor* | Monaco Editor | 0.55.1
+| *UI / Editor* | Monaco Editor | 0.56.0
 | | Mermaid | 11.16.0
 | | MathJax | 3.2.2
 | | google-java-format | 1.35.0
