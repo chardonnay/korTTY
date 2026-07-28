@@ -1,0 +1,1019 @@
+<!-- @template name="Landing" description="A one-page product landing in the system's own voice — an invented product (Pounce: devtools for cats), a lit hero, stat band, feature rows, a blended photograph and a sign-up close" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>korTTY — AI-Driven Terminal Experience</title>
+<meta name="description" content="korTTY is the SSH client whose AI agents work directly on your servers — and the only terminal that runs LLMs in-process. Open source, by Daniel Mengel." />
+<link rel="stylesheet" href="styles.css" />
+<style>
+/* Template scaffolding — page layout and web-scale sizing only; every color,
+   font, radius and shadow comes from ../../styles.css. The voice is the
+   reviewed deck's, re-derived for a scrolling, responsive page (the deck's
+   numbers live at projection scale and never port as-is — see
+   ../../../deck-templates.md for the rules that do).
+
+   THE RHYTHM: text sits on a 28px leading unit (--leading: the 17px body at
+   its ~1.65 web leading), 14px half-step for compact runs. The deck's
+   pixel-seat exactness becomes per-block discipline here: every line-height
+   and block margin is a unit multiple, heads are cap-trimmed (text-box) so
+   block edges are baselines, and the ?baselines/B-key overlay reviews the
+   rhythm — but a fluid page has no 1080px stage, so nothing is seat-pinned.
+   Display sizes step fluidly (clamp); the display header's LEADING is
+   ratio-governed (law #3's ≈1.11) rather than lattice-snapped — the deck's
+   display-block exemption — while its cap-trimmed edges hand clean
+   baselines to the cluster's grid margins. The system's own interface components
+   (nav links, buttons, inputs) keep their styles.css leading and sit off
+   the lattice by design — the rhythm governs the page's text, not the
+   controls — so the ?baselines overlay reads correctly around them.
+
+   THE VOICE (the deck's, unchanged): the lit ground — an accent-tinted
+   bloom from the top right and a black fall-off at the lower left, shade
+   not color — over the flat ground token; full-width rules fade to
+   transparent over 48px a side; short accent marks stay solid; the accent
+   is a line and a glow, never a flood; layouts hug the left edge and leave
+   the right to air; buttons stay outlined; the photograph blends in
+   through the lighten wrapper and stays swappable (image-slot). Inter's
+   measured values carry over verbatim where the machinery ports: optical
+   margins -0.06em where caps lead a display line, quote hang -0.474em,
+   attribution hang -1.267em, tabular figures wherever numbers stand. */
+:root {
+  --leading: 28px;
+  --half: 14px;
+  --edge: clamp(20px, 5vw, 72px);   /* page gutter */
+  --measure: 58ch;
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  /* the deck's lit ground at page scale: bloom pinned to the top of the
+     document (not the viewport), fall-off at the foot. At the bloom's peak
+     composite the inks measure text 12.5:1 and accent 4.7:1 (the derivation
+     lives at the deck template's .slide ground rule, ../deck/Deck.dc.html);
+     the page uses the same inks on the same composite or darker */
+  background:
+    radial-gradient(1200px 720px at 82% -160px,
+      color-mix(in srgb, var(--color-accent-900) 75%, transparent), transparent 60%),
+    radial-gradient(1100px 800px at -10% 100%,
+      color-mix(in srgb, black 30%, transparent), transparent 55%),
+    var(--color-bg);
+  text-wrap: pretty; /* inherited: better breaks, no orphans on wrapped blocks */
+}
+/* — matrix rain: fixed canvas behind everything, very low opacity, accent-tinted — */
+#rain { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1;
+  pointer-events: none; opacity: .8; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--edge); }
+/* the component demo pads the masthead with its own spacing; on the page the
+   masthead's contents take the page gutter and sit on the wrap's text axis
+   (padding-only — full-width paint such as a masthead rule is untouched) */
+.nav { padding-inline: max(var(--edge), calc((100% - 1200px) / 2 + var(--edge))); }
+.nav a { white-space: nowrap; }
+.nav a[aria-current='location'] { color: var(--color-accent); } /* in-page anchor, not
+   a page link — 'location' is the truthful value; carry the component's active ink */
+@media (max-width: 480px) { .nav a { display: none; } } /* phone width: the nav
+   keeps brand + the one action (layout-only — the component's look is
+   untouched); the full link row's min-content crosses narrow-phone widths */
+
+/* — fading rules (the DS-wide treatment: 1px, transparent over 48px ends) — */
+.rule { height: 1px; border: 0; margin: 0; /* a SECTION separator — the divider
+     token, as the system's own hr and the deck's divider system set it */
+  background: linear-gradient(to right, transparent, var(--color-divider) 48px calc(100% - 48px), transparent); }
+
+/* — kicker grammar (the deck's: solid 44px accent dash, uppercase, tnum) — */
+.kicker {
+  position: relative; display: block;
+  font-size: 13px; line-height: var(--half); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--color-accent); font-feature-settings: "tnum" 1;
+  margin: 0 0 calc(var(--leading) - var(--half));
+}
+.kicker::before { content: ""; position: absolute; left: -64px; top: calc(50% - 0.5px);
+  width: 44px; height: 1px; background: var(--color-accent); }
+/* the dash hangs 64px into the gutter; below 1280px the 5vw gutter drops
+   under that hang and the mark would crop at the viewport edge — it folds
+   away rather than cramping (measured: at 1100px the dash clips 9px) */
+@media (max-width: 1280px) { .kicker::before { display: none; } }
+
+/* — language switcher — */
+#lang-sel { background: transparent; color: var(--color-neutral-300); border: 1px solid var(--color-neutral-700);
+  border-radius: var(--radius-sm); padding: 4px 8px; font: inherit; font-size: 13px; cursor: pointer; }
+#lang-sel:hover { border-color: var(--color-accent-700); color: var(--color-text); }
+#lang-sel:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+#lang-sel option { background: var(--color-bg); color: var(--color-text); }
+/* — hero — */
+.hero { padding: calc(4 * var(--leading)) 0 calc(3 * var(--leading)); }
+.hero-top { display: flex; align-items: flex-end; justify-content: space-between; gap: clamp(24px, 4vw, 56px); flex-wrap: wrap; }
+.hero-copy { flex: 1 1 520px; min-width: 0; }
+.hero-logo { width: clamp(280px, 32vw, 440px); height: auto; flex: none; align-self: flex-end;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+.display {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: clamp(44px, 6.4vw, 88px);
+  line-height: clamp(49px, 7.13vw, 98px); /* law #3: tight display leading,
+     ratio-governed (≈1.11) rather than lattice-snapped — at mobile no 14px
+     multiple is both tighter than the old 56 and clear of collisions, so
+     the display header carries the deck's display-block exemption: its
+     internal leading follows the ratio, while its cap-trimmed edges still
+     hand clean baselines to the cluster's grid margins */
+  letter-spacing: -0.015em; margin: 0;
+  margin-left: -0.06em; /* optical left alignment — Inter's wide flat-stem bearings;
+     measured for the deck, em-scaled so it holds at any display size. Caps lead here. */
+  text-box: trim-both cap alphabetic;
+}
+/* THE LANDING LAWS (shared by all six systems' landing templates):
+   #1 — a display header breaks per SENTENCE: each sentence starts its own
+   line (.line spans, display:block), never wrapping as one run. A long
+   sentence may still wrap at narrow widths; the law is about where lines
+   BEGIN.
+   #2 — the landing advertises a concrete INVENTED PRODUCT in a real voice,
+   never abstract design-system copy — nocturne's is Pounce, devtools for
+   cats (deadpan professional, cat truths played straight). Each system
+   gets its own product; the design stays the system's, the words sell the
+   product.
+   #3 — spacing is cluster-scoped: display headers take TIGHT leading
+   (≈1.11 here), a text cluster (head, subline, CTAs) holds tight
+   single-unit gaps and reads as one unit, and the generous air lives
+   BETWEEN sections, not inside clusters.
+   #4 — no hero eyebrow: the nav brand already names the product; kickers
+   survive as section wayfinding only. */
+.display .line { display: block; }
+.hero .sub { font-size: 17px; line-height: var(--leading); max-width: var(--measure);
+  margin: calc(1.5 * var(--leading) - 1cap) 0 0; color: var(--color-text);
+  text-box: trim-both cap alphabetic; } /* law #3: the hero is one cluster — but the
+     display's descenders reach ~0.22em (≈19px) below its trimmed baseline edge,
+     so the sub keeps 1.5 units: baseline-to-cap ≈30px clears the descenders
+     with Linear-tight air rather than a collision */
+.hero .row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--leading); } /* law #3: one unit off the subline */
+
+/* — stat band (the deck's hero-figure grammar at web scale) — */
+/* Sits on the deep-indigo section ground — the system's one saturated move,
+   presence at section scale, exactly as the deck's dividers use it (ink
+   derivations at the deck template's .divider rule: paper text on
+   --color-section, the ghosted step for support). The band's figures are
+   the PRODUCT's claims — fiction, played straight (law #2); the design-side
+   measurement that matters here is the label ink's, at .stat-label. */
+.stats { background:
+    radial-gradient(900px 420px at 85% -40%,
+      color-mix(in srgb, var(--color-section-glow) 70%, transparent), transparent 64%),
+    var(--color-section);
+  padding: calc(2.5 * var(--leading)) 0; }
+.stats .grid { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: calc(1.5 * var(--leading)) var(--leading); }
+.stat-num { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: clamp(36px, 3.6vw, 52px); line-height: calc(2 * var(--leading));
+  color: var(--color-text); /* display figures stay proportional — the deck's figure policy */
+  margin: 0; margin-left: -0.055em; /* digits lead — the deck's digit-population value */
+  text-box: trim-both cap alphabetic; }
+.stat-label { font-size: 13px; line-height: var(--half); letter-spacing: 0.06em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 64%, transparent); /* measured on the
+     section ground: 5.4:1 flat, 4.7:1 at the glow's peak composite — ≥4.5 at 13px */
+  margin: var(--half) 0 0; }
+
+/* — feature rows (numbered, rule-parted, asymmetric: no equal cards) — */
+.features { padding: calc(3.5 * var(--leading)) 0 calc(2.5 * var(--leading)); } /* law #3: the air lives between sections */
+.feature { display: grid; grid-template-columns: minmax(64px, 160px) minmax(0, 420px) minmax(0, 1fr);
+  gap: var(--leading) clamp(24px, 4vw, 72px); align-items: baseline; /* the number,
+     title and first copy line share one baseline across the row */
+  padding: calc(1.5 * var(--leading)) 0; }
+.feature + .feature { border: 0; position: relative; }
+.feature + .feature::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent); }
+  /* in-content structural rules take neutral-700, the ink the deck's quadrant
+     crosshairs use — a step above the divider token so the row structure holds
+     beside 24px titles; the page's section separator (.rule) stays on the
+     divider token */
+.f-num { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 15px; line-height: var(--leading); color: var(--color-accent);
+  font-feature-settings: "tnum" 1; margin: 0; text-box: trim-both cap alphabetic; }
+.f-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 24px; line-height: var(--leading); letter-spacing: -0.01em;
+  margin: 0; text-box: trim-both cap alphabetic; }
+.f-copy { font-size: 15.5px; line-height: var(--leading); margin: 0;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  max-width: 52ch; text-box: trim-both cap alphabetic; }
+
+/* — imagery split (the photograph as a grid object, blended, swappable) — */
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--leading) clamp(24px, 5vw, 96px); align-items: center;
+  padding: calc(2 * var(--leading)) 0 calc(3 * var(--leading)); }
+.split-copy .note { font-size: 15.5px; line-height: var(--leading);
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  margin: calc(var(--leading) - 1cap) 0 0; max-width: 48ch; text-box: trim-both cap alphabetic; }
+.split-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 32px; line-height: calc(1.5 * var(--leading)); letter-spacing: -0.012em;
+  margin: 0; text-box: trim-both cap alphabetic; }
+.split-figure { margin: 0; }
+.split-figure image-slot { width: 100%; aspect-ratio: 1600 / 1261; } /* the bundled
+   photograph's natural ratio pins the box, so a swapped image cover-crops
+   into the same frame (cover framing is the component's own); the lighten
+   wrapper blends whatever is swapped in — dark grounds sink away, which is
+   the treatment's intent and the swap caveat the deck documents */
+
+/* — quote (hanging punctuation, measured for Inter) — */
+.quote { padding: calc(2.5 * var(--leading)) 0 calc(3.5 * var(--leading)); }
+.quote blockquote {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: clamp(24px, 2.6vw, 34px); line-height: calc(1.5 * var(--leading));
+  letter-spacing: -0.01em; max-width: 32ch; margin: 0;
+  text-indent: -0.474em; /* hang the opening “ (measured advance in Inter) */
+  text-box: trim-both cap alphabetic;
+}
+.quote figcaption { font-size: 15.5px; line-height: var(--leading);
+  color: color-mix(in srgb, var(--color-text) 64%, transparent);
+  margin: calc(2 * var(--leading) - 1cap) 0 0; /* two grid units below the quote's
+     last baseline — one reads as part of the quote block; the attribution needs air */
+  text-indent: -1.267em; /* hang the leading em-dash + space (measured in Inter) */
+  text-box: trim-both cap alphabetic; }
+
+@media (max-width: 720px) {
+  /* the phone gutter (--edge bottoms out at 20px) is narrower than the hung
+     marks' measured advances, so a hung “ or em-dash would press into or past
+     the viewport edge — seat the quote flush below this width; the hang
+     returns with the wider gutter */
+  .quote blockquote, .quote figcaption { text-indent: 0; }
+}
+
+/* — close / signup — */
+.close { padding: calc(2.5 * var(--leading)) 0 calc(2 * var(--leading)); }
+.close h3 { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 24px; line-height: var(--leading); margin: 0; text-box: trim-both cap alphabetic; }
+.close .sub { font-size: 15.5px; line-height: var(--leading);
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  margin: calc(var(--leading) - 1cap) 0 0; max-width: var(--measure); text-box: trim-both cap alphabetic; }
+.signup { display: flex; gap: var(--space-3); align-items: stretch; max-width: 480px;
+  margin-top: var(--leading); } /* law #3: the close is one cluster */
+.signup .input { flex: 1; }
+.signup .input, .signup .btn { min-height: 36px; } /* one control height floor; the row
+  stretches, so whichever of the pair is taller sets both and they read as one row */
+footer { padding: calc(2 * var(--leading)) 0; font-size: 13px; line-height: var(--leading);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+
+/* — responsive collapse — */
+/* the feature grid's fixed-max columns (160 + 420 + gaps) crush the copy
+   column in the tablet band, so it collapses earlier than the page */
+@media (max-width: 880px) {
+  .feature { grid-template-columns: 1fr; gap: var(--half); }
+  .f-copy { max-width: var(--measure); }
+}
+@media (max-width: 720px) {
+  .hero { padding-top: calc(2.5 * var(--leading)); }
+  .stats .grid { grid-template-columns: repeat(2, 1fr); justify-content: start; }
+  .split { grid-template-columns: 1fr; }
+  .split-figure { order: -1; } /* the photograph leads on one column — it blends
+     into the ground either way, and the title stays adjacent to its copy */
+}
+
+/* Review aid: the 28px rhythm drawn as hairlines (14px half-steps fainter) —
+   debug chrome, toggled by ?baselines or the B key, never part of the look. */
+body[data-baselines] { position: relative; } /* the overlay's containing block —
+   without this the inset:0 pseudo resolves against the viewport-sized initial
+   containing block and the hairlines die after the first screen */
+body[data-baselines]::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom,
+      color-mix(in srgb, var(--color-accent) 35%, transparent) 0 1px,
+      transparent 1px var(--leading)),
+    repeating-linear-gradient(to bottom,
+      transparent 0 var(--half),
+      color-mix(in srgb, var(--color-accent) 16%, transparent) var(--half) calc(var(--half) + 1px),
+      transparent calc(var(--half) + 1px) var(--leading));
+}
+</style>
+<style>
+/* ————— korTTY page additions (mockups, shots, sections) ————— */
+#progress { position: fixed; top: 0; left: 0; height: 2px; width: 0; z-index: 60;
+  background: var(--color-accent); box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 60%, transparent); }
+.nav { position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--color-bg) 86%, transparent); backdrop-filter: blur(10px); }
+.nav-brand { display: inline-flex; align-items: center; gap: 10px; }
+.nav-brand img { width: 22px; height: 22px; display: block; }
+p a, .f-copy a, td a, .figcap a, .faq-item a { color: var(--color-accent-300); text-decoration: none; }
+p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { color: var(--color-accent); }
+.display .dim { color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.hero { padding-bottom: calc(1.5 * var(--leading)); }
+.hero .row { align-items: center; }
+.meta { font-size: 13px; color: color-mix(in srgb, var(--color-text) 55%, transparent); letter-spacing: 0.04em; }
+.stage { padding: calc(1.5 * var(--leading)) 0 calc(2 * var(--leading)); }
+/* — sections — */
+.sec { padding: calc(3 * var(--leading)) 0 calc(1.5 * var(--leading)); }
+.sec-head { max-width: 780px; }
+.sec-title { font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: clamp(28px, 3.2vw, 40px); line-height: 1.18; letter-spacing: -0.012em;
+  margin: 0; text-box: trim-both cap alphabetic; }
+.lead { font-size: 16px; line-height: var(--leading); color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  max-width: 62ch; margin: calc(var(--leading) - 1cap) 0 0; text-box: trim-both cap alphabetic; }
+.kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
+  color: var(--color-accent-200); border: 1px solid var(--color-neutral-700); border-radius: 6px;
+  padding: 2px 8px; background: color-mix(in srgb, var(--color-neutral-800) 60%, transparent); white-space: nowrap; }
+.chipline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--half); }
+/* — terminal mockups (authentic korTTY palette) — */
+/* cast shadow shared by every framed window/mockup: ambient darkness on the dark ground */
+:root { --win-shadow: 0 18px 36px -14px rgba(0,0,0,.6), 0 3px 10px rgba(0,0,0,.4); }
+.term { background: #0d1117; border: 1px solid #262c38; border-radius: var(--radius-md);
+  overflow: hidden; box-shadow: var(--win-shadow); }
+.term-bar { display: flex; align-items: center; gap: 7px; padding: 9px 13px; background: #1a1e27; border-bottom: 1px solid #262c38; }
+.term-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.term-menu { margin-left: 10px; display: flex; gap: 16px; font-size: 12px; color: #8b93a3; }
+.term-title { margin-left: 8px; font-size: 12px; color: #8b93a3; }
+.term-body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13.5px; line-height: 1.8; color: #d6dae2; padding: 18px 20px; }
+.term-body .ln { display: block; white-space: pre-wrap; }
+.t-host { color: #56d4dd; } .t-cmd { color: #e6edf3; } .t-agent { color: #2f81f7; }
+.t-run { color: #9aa4b5; } .t-think { color: #7d8598; font-style: italic; } .t-ok { color: #3fb950; }
+.t-warn { color: #d29922; }
+.caret { display: inline-block; width: 7px; height: 15px; background: #56d4dd; vertical-align: -2px;
+  animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+/* — framed doc screenshots — */
+.shot { background: #101318; border: 1px solid var(--color-neutral-700); border-radius: var(--radius-md);
+  overflow: hidden; box-shadow: var(--win-shadow); margin: 0; }
+.shot-bar { display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: #1a1e27; border-bottom: 1px solid #262c38; }
+.shot-title { margin-left: 8px; font-size: 12px; color: #8b93a3; }
+.shot img { width: 100%; display: block; }
+.figcap { font-size: 13px; line-height: 1.5; color: color-mix(in srgb, var(--color-text) 55%, transparent); margin: var(--half) 0 0; }
+/* — swarm orb strip — */
+.swarm-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 16px 18px;
+  background: #0d1117; border: 1px solid #262c38; border-radius: var(--radius-md); box-shadow: var(--win-shadow); }
+.orb { width: 12px; height: 12px; border-radius: 50%; flex: none; background: #2f81f7; position: relative; transition: background .5s; }
+.orb.run { animation: orbpulse 1.6s ease-in-out infinite; }
+@keyframes orbpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(47,129,247,.45); } 50% { box-shadow: 0 0 0 5px rgba(47,129,247,0); } }
+.orb.done { background: #3fb950; animation: none; }
+.orb.queued { background: transparent; border: 1.5px solid #6b7484; }
+.orb.slow { background: #d29922; }
+.orb.slow::after { content: ""; position: absolute; inset: -5px; border: 1.5px solid rgba(210,153,34,.6); border-radius: 50%; }
+.swarm-legend { margin-left: auto; font-size: 12px; color: #8b93a3; display: flex; gap: 14px; white-space: nowrap; }
+.swarm-legend b { font-weight: 500; }
+.lg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+/* — broadcast panes — */
+.bcast { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #262c38;
+  border: 1px solid #262c38; border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; box-shadow: var(--win-shadow); }
+.pane { background: #0d1117; padding: 12px 14px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.75; color: #d6dae2; min-height: 130px; }
+.pane-host { color: #56d4dd; font-size: 11.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.pane-host::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #3fb950; }
+.bcast-head { display: flex; align-items: center; gap: 10px; padding: 9px 13px; background: #1a1e27;
+  border: 1px solid #262c38; border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.bcast-badge { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #d29922;
+  border: 1px solid rgba(210,153,34,.5); border-radius: 5px; padding: 2px 8px; }
+@media (max-width: 720px) { .bcast { grid-template-columns: 1fr; } }
+/* — theme cycler — */
+.themer { border-radius: var(--radius-md); border: 1px solid #262c38; overflow: hidden; box-shadow: var(--win-shadow);
+  --tbg: #0d1117; --ttx: #d6dae2; --tac: #56d4dd; }
+.themer-body { background: var(--tbg); color: var(--ttx); padding: 18px 20px; min-height: 190px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.8;
+  transition: background .6s, color .6s; }
+.themer-body .tp { color: var(--tac); transition: color .6s; }
+.theme-name { font-size: 12px; color: #8b93a3; margin-left: auto; }
+/* — model card — */
+.modelcard { background: #12161f; border: 1px solid #262c38; border-radius: var(--radius-md);
+  box-shadow: var(--win-shadow); padding: 18px 20px; font-size: 13.5px; color: #d6dae2; }
+.modelcard h4 { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: #e6edf3; }
+.mc-sub { color: #8b93a3; font-size: 12.5px; margin: 0 0 12px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.mc-track { height: 6px; border-radius: 3px; background: #262c38; overflow: hidden; }
+.mc-fill { height: 100%; width: 0%; background: #2f81f7; border-radius: 3px; }
+.mc-line { display: flex; justify-content: space-between; gap: 12px; color: #9aa4b5; font-size: 12.5px; margin-top: 10px;
+  font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.mc-state { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 12.5px; color: #9aa4b5; }
+.mc-state .lg-dot { margin: 0; }
+/* — jobscheduler countdown — */
+.sched { background: #12161f; border: 1px solid #262c38; border-radius: var(--radius-md); box-shadow: var(--win-shadow); overflow: hidden; }
+.sched-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1a1e27;
+  border-bottom: 1px solid #262c38; font-size: 12.5px; color: #d6dae2; font-variant-numeric: tabular-nums; }
+.sched-dot { width: 8px; height: 8px; border-radius: 50%; background: #2f81f7; flex: none; }
+.sched-dot.live { background: #3fb950; animation: orbpulse 1.4s ease-in-out infinite; }
+.sched-rows { font-size: 12.5px; color: #9aa4b5; font-variant-numeric: tabular-nums; }
+.sched-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 14px; border-top: 1px solid #1c212b; }
+.sched-row b { color: #d6dae2; font-weight: 500; }
+/* — comparison table — */
+.stats .grid { grid-template-columns: repeat(6, auto); }
+@media (max-width: 1000px) { .stats .grid { grid-template-columns: repeat(3, 1fr); justify-content: start; } }
+@media (max-width: 640px) { .stats .grid { grid-template-columns: repeat(2, 1fr); } }
+.table-wrap { overflow-x: auto; margin-top: calc(1.5 * var(--leading)); }
+.table-wrap .table { min-width: 640px; }
+.tick { color: var(--color-accent-300); } .no { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
+.half { color: #d29922; }
+/* — AI-function card grid (snippet editor) — */
+.aigrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-top: calc(1.25 * var(--leading)); }
+@media (max-width: 1000px) { .aigrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px) { .aigrid { grid-template-columns: 1fr; } }
+.subhead { margin-top: calc(2.5 * var(--leading)); max-width: var(--measure); }
+.subhead h3 { font-family: var(--font-heading); font-weight: 500; font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 var(--half); text-wrap: balance; }
+/* — platform cards — */
+.plats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-top: calc(1.5 * var(--leading)); }
+.plats .card { display: flex; flex-direction: column; }
+.plats .card-body { flex: 1; }
+/* direct-download rows: arch label + format links, straight to the release asset */
+.dl-rows { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);
+  border-top: 1px solid var(--color-neutral-800); padding-top: var(--space-3); }
+.dl-row { display: flex; align-items: baseline; gap: var(--space-3); }
+.dl-arch { font-size: 12px; color: var(--color-neutral-400); min-width: 86px; flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace); }
+.dl-links { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.dl-links a { font-size: 13px; font-weight: 500; color: var(--color-accent-300); text-decoration: none;
+  border: 1px solid var(--color-accent-800); border-radius: var(--radius-sm); padding: 2px 8px; }
+.dl-links a:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-accent-200); }
+.dl-links a:active { color: var(--color-accent-100); }
+@media (max-width: 1000px) { .plats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .plats { grid-template-columns: 1fr; } }
+/* — faq — */
+.faq { max-width: 780px; }
+.faq-item { border-top: 1px solid transparent; border-image: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent) 1; }
+.faq-item summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  font-size: 17px; line-height: var(--leading); padding: var(--leading) 0 var(--half); color: var(--color-text); }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: "+"; color: var(--color-accent); font-family: var(--font-heading); transition: rotate .25s; flex: none; }
+.faq-item[open] summary::after { rotate: 45deg; }
+.faq-item summary:hover { color: var(--color-accent-200); }
+.faq-item p { font-size: 15px; line-height: var(--leading); color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  margin: 0 0 var(--leading); max-width: 60ch; }
+/* — reveal on scroll — */
+.reveal { opacity: 0; translate: 0 16px; transition: opacity .7s ease, translate .7s ease; }
+.reveal.in { opacity: 1; translate: 0 0; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; translate: none; transition: none; }
+  .caret, .orb.run, .sched-dot.live { animation: none; }
+}
+footer { display: flex; justify-content: space-between; gap: var(--leading); flex-wrap: wrap; }
+footer .fcol { display: flex; gap: 18px; flex-wrap: wrap; }
+footer a { color: color-mix(in srgb, var(--color-text) 70%, transparent); text-decoration: none; }
+footer a:hover { color: var(--color-accent); }
+/* — "someone is working here": animated screenshot frames — */
+.shot-live { display: block; position: relative; overflow: hidden; }
+/* GPU relief: pan/cursor animations run only while the frame is in the viewport
+   (page-behavior.js toggles .play; without JS they simply run) */
+.js .shot-live img, .js .shot-cursor, .js .shot-cursor::after { animation-play-state: paused; }
+.js .shot-live.play img, .js .shot-live.play .shot-cursor, .js .shot-live.play .shot-cursor::after { animation-play-state: running; }
+.shot-live img { animation: shotpan var(--pd, 26s) ease-in-out infinite alternate; transform-origin: var(--po, 30% 20%); }
+@keyframes shotpan { 0% { transform: scale(1) translate(0, 0); } 100% { transform: scale(1.07) translate(var(--px, -1.5%), var(--py, -1%)); } }
+.shot-cursor { position: absolute; left: 15%; top: 20%; width: 12px; height: 12px; pointer-events: none;
+  border-radius: 50%; background: rgba(233,233,237,.9); box-shadow: 0 1px 6px rgba(0,0,0,.6), 0 0 0 1.5px rgba(22,24,38,.55);
+  animation: cursorwalk var(--cd, 16s) ease-in-out infinite; animation-delay: var(--cdel, 0s); }
+.shot-cursor::after { content: ""; position: absolute; inset: -7px; border-radius: 50%;
+  border: 2px solid rgba(145,132,217,.85); opacity: 0; transform: scale(.4);
+  animation: cursorclick var(--cd, 16s) ease-out infinite; animation-delay: var(--cdel, 0s); }
+@keyframes cursorwalk {
+  0% { left: 15%; top: 22%; } 16% { left: 42%; top: 34%; } 26% { left: 42%; top: 34%; }
+  44% { left: 74%; top: 22%; } 54% { left: 74%; top: 22%; } 72% { left: 32%; top: 68%; }
+  82% { left: 32%; top: 68%; } 100% { left: 15%; top: 22%; } }
+@keyframes cursorclick {
+  17%, 45%, 73% { opacity: 0; transform: scale(.4); }
+  21%, 49%, 77% { opacity: .9; transform: scale(1); }
+  26%, 54%, 82% { opacity: 0; transform: scale(1.6); }
+  100% { opacity: 0; } }
+/* — no-JS fallback: mockups keep working without scripts — */
+html:not(.js) .demo-static .ln { opacity: 0; animation: lnin 16s linear infinite; animation-delay: calc(var(--i) * 1.15s); }
+@keyframes lnin { 0% { opacity: 0; } 2% { opacity: 1; } 82% { opacity: 1; } 88%, 100% { opacity: 0; } }
+html:not(.js) .bc-cmd { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom;
+  max-width: 100%; animation: bctype 7.5s steps(54) infinite; }
+@keyframes bctype { 0% { width: 0ch; } 45% { width: 54ch; } 100% { width: 54ch; } }
+html:not(.js) .bc-out { opacity: 0; animation: bcout 7.5s linear infinite; animation-delay: calc(var(--i, 0) * .4s); }
+@keyframes bcout { 0%, 52% { opacity: 0; } 58%, 92% { opacity: 1; } 97%, 100% { opacity: 0; } }
+html:not(.js) .orb { animation: orbcycle 9s steps(1) infinite; animation-delay: var(--d, 0s); }
+@keyframes orbcycle { 0% { background: transparent; box-shadow: inset 0 0 0 1.5px #6b7484; }
+  22% { background: #2f81f7; box-shadow: none; } 62% { background: #d29922; box-shadow: none; }
+  74%, 100% { background: #3fb950; box-shadow: none; } }
+html:not(.js) #mc-fill { animation: mcsweep 9s ease-in-out infinite; }
+@keyframes mcsweep { 0% { width: 6%; } 68% { width: 96%; } 84% { width: 96%; } 100% { width: 6%; } }
+html:not(.js) .themer-body { animation: themebg 15s steps(1) infinite; }
+html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
+@keyframes themebg { 0% { background: #0d1117; color: #d6dae2; } 20% { background: #020a04; color: #25e05c; }
+  40% { background: #021018; color: #7de8ff; } 60% { background: #190505; color: #ff8a75; }
+  80%, 100% { background: #14121e; color: #cfc8ee; } }
+@keyframes themetp { 0% { color: #56d4dd; } 20% { color: #25e05c; } 40% { color: #22d3ee; }
+  60% { color: #ff2e1f; } 80%, 100% { color: #9184d9; } }
+@media (prefers-reduced-motion: reduce) {
+  .shot-live img, .shot-cursor, .shot-cursor::after { animation: none; }
+  html:not(.js) .demo-static .ln, html:not(.js) .bc-cmd, html:not(.js) .bc-out,
+  html:not(.js) .orb, html:not(.js) #mc-fill, html:not(.js) .themer-body, html:not(.js) .themer-body .tp { animation: none; opacity: 1; }
+}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div id="progress"></div>
+<nav class="nav">
+  <span class="nav-brand"><img src="assets/kortty-icon.png" alt="" />korTTY</span>
+  <a href="#ai-agent" aria-current="location">AI</a>
+  <a href="#terminal" data-i18n="nav.terminal">Terminal</a>
+  <a href="#files" data-i18n="nav.tooling">Tooling</a>
+  <a href="#automation" data-i18n="nav.automation">Automation</a>
+  <a href="#security" data-i18n="nav.security">Security</a>
+  <a href="#download" data-i18n="nav.download">Download</a>
+  <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option></select>
+  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+</nav>
+<div class="wrap">
+
+  <section class="hero" data-screen-label="Hero">
+    <div class="hero-top">
+      <div class="hero-copy">
+        <h1 class="display" data-i18n="hero.h1"><span class="line">SSH in.</span> <span class="line">Say the problem.</span> <span class="line dim">Watch.</span></h1>
+        <p class="sub" data-i18n="hero.sub">korTTY puts AI agents inside your SSH session — they inspect the box, plan safe commands, ask before anything scary, and fix it. LLMs run in-process; nothing extra gets installed on your machine or your servers.</p>
+        <div class="row">
+          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+          <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="w.viewgh">View on GitHub</a>
+          <span class="meta" data-i18n="hero.meta">macOS · Windows · Linux — open source, MIT</span>
+        </div>
+      </div>
+      <img class="hero-logo" src="assets/kortty-logo-transparent.png" alt="korTTY — AI-Driven Terminal Experience" />
+    </div>
+  </section>
+  <section class="stage" data-screen-label="Hero terminal demo">
+    <div class="term" aria-label="korTTY terminal demo: the AI agent fixes a full disk">
+      <div class="term-bar">
+        <span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span>
+        <span class="term-menu"><span>File</span><span>Connections</span><span>Tools</span><span style="color:#d6dae2">AI</span><span>Plugins</span><span>Help</span></span>
+      </div>
+      <div class="term-body demo-static" id="demo" style="min-height: 320px"><span class="ln" style="--i:0"><span class="t-host">ops@prod-web-01</span><span class="t-run">:~$</span> <span class="t-cmd">agent /var is at 94% — find out why and fix it</span></span><span class="ln t-agent" style="--i:1">🤖 AI Agent · local/qwen3-4b · cwd: /home/ops</span><span class="ln t-run" style="--i:2">→ df -h /var</span><span class="ln t-run" style="--i:3">→ du -sh /var/log/* | sort -h | tail -3</span><span class="ln t-think" style="--i:4">💭 journald has no size cap — vacuum now, then persist a 200M limit</span><span class="ln t-run" style="--i:5">→ sudo journalctl --vacuum-size=200M <span class="t-ok">[approved]</span></span><span class="ln t-ok" style="--i:6">✓ /var: 94% → 41%. Root cause: unbounded journald retention.</span><span class="ln" style="--i:7"><span class="t-host">ops@prod-web-01</span><span class="t-run">:~$</span> <span class="caret"></span></span></div>
+    </div>
+    <p class="figcap" data-i18n="fc.demo">Live mockup of a real workflow: type <span class="kbd">agent &lt;task&gt;</span> at any shell prompt — korTTY intercepts it before the shell ever sees it.</p>
+  </section>
+
+</div><!-- /wrap: the stat band runs full-bleed — the section ground is the
+     system's one saturated move, and it reads as a band of the page, not a
+     card in the column (the deck's divider logic at page scale) -->
+  <section class="stats" aria-label="korTTY, by the numbers" data-screen-label="Stat band">
+    <div class="wrap">
+      <div class="grid">
+        <div><p class="stat-num" data-ver>v2.7.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
+        <div><p class="stat-num">3</p><p class="stat-label" data-i18n="st.plat">Platforms — macOS · Win · Linux</p></div>
+        <div><p class="stat-num">0 €</p><p class="stat-label" data-i18n="st.mit">Open source, MIT</p></div>
+        <div><p class="stat-num">8</p><p class="stat-label" data-i18n="st.lang">Built-in languages</p></div>
+        <div><p class="stat-num">100 %</p><p class="stat-label" data-i18n="st.local">Local AI possible</p></div>
+        <div><p class="stat-num">∞</p><p class="stat-label" data-i18n="st.win">Windows, tabs &amp; sessions</p></div>
+      </div>
+    </div>
+  </section>
+<div class="wrap">
+
+  <section class="sec" id="ai-agent" data-screen-label="AI Agent">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k1">01 — AI Agent &amp; Planning</span>
+      <h2 class="sec-title" data-i18n="t1">The agent doesn't advise. It logs in and does the work.</h2>
+      <p class="lead" data-i18n="l1">Other tools paste commands into your clipboard and wish you luck. korTTY's agent runs inside the active SSH session: it reads the real environment, plans safe non-interactive commands, executes them — with an approval gate for anything destructive — and writes the answer back into your terminal.</p>
+      <div class="chipline" data-i18n="chip1">
+        <span class="kbd">agent &lt;task&gt;</span><span class="kbd">agent-ask &lt;question&gt;</span><span class="kbd">agent-plan &lt;task&gt;</span><span class="kbd">TAB — command &amp; history completion</span>
+      </div>
+    </div>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="ag1t">Shell-native start</h3>
+      <p class="f-copy" data-i18n="ag1c">Type <span class="kbd">agent</span> at any prompt — local or remote. korTTY intercepts the shortcut before the shell sees it and hands the agent your goal plus a compact session snapshot, including the working directory you're actually in.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="ag2t">Plan first, if you prefer</h3>
+      <p class="f-copy" data-i18n="ag2c"><span class="kbd">agent-plan</span> starts interactive planning: the model asks clarifying questions, offers approaches, and writes a final plan. Implementation starts only after you accept it. Micromanagers welcome.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="ag3t">Transparent runs</h3>
+      <p class="f-copy" data-i18n="ag3c">Every run logs its AI profile and model, expandable 💭 rows show the model's full reasoning where the provider exposes it, and runs can be paused at safe checkpoints, resumed, rerun, or cancelled. Export to Markdown, YAML, JSON, PDF and more.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="ag4t">Scales to your splits</h3>
+      <p class="f-copy" data-i18n="ag4c">Parallel runs in different split panes, up to five concurrent runs per terminal, a dockable activity panel, and a per-terminal status badge — ✋ awaiting input · ⚡ working · ⏸ paused · ✓ finished — in tab titles and the dashboard.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="swarm" data-screen-label="AI Swarm">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k2">02 — AI Swarm</span>
+      <h2 class="sec-title" data-i18n="t2">One question. Your whole fleet answers.</h2>
+      <p class="lead" data-i18n="l2">Broadcast one agent task to many servers at once (<span class="kbd">Ctrl/Cmd+Alt+S</span>) — even servers without an open terminal, via background SSH. Per-server agents run in parallel and their answers land in a single comparison table, one row per host, deviations flagged.</p>
+    </div>
+    <div class="swarm-strip" aria-label="Animated mockup of the AI Swarm status strip" style="margin-top: calc(1.5 * var(--leading))">
+      <span id="orbs" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="orb run" style="--d:0s"></span><span class="orb queued" style="--d:-1.2s"></span><span class="orb done" style="--d:-2.7s"></span><span class="orb run" style="--d:-3.9s"></span><span class="orb slow" style="--d:-5.1s"></span><span class="orb run" style="--d:-6.3s"></span><span class="orb done" style="--d:-7.8s"></span><span class="orb queued" style="--d:-0.6s"></span><span class="orb run" style="--d:-1.8s"></span><span class="orb done" style="--d:-3.3s"></span><span class="orb run" style="--d:-4.5s"></span><span class="orb queued" style="--d:-5.7s"></span><span class="orb slow" style="--d:-6.9s"></span><span class="orb run" style="--d:-8.4s"></span><span class="orb done" style="--d:-0.3s"></span><span class="orb run" style="--d:-1.5s"></span><span class="orb queued" style="--d:-3s"></span><span class="orb done" style="--d:-4.2s"></span><span class="orb run" style="--d:-5.4s"></span><span class="orb done" style="--d:-6.6s"></span><span class="orb run" style="--d:-8.1s"></span><span class="orb queued" style="--d:-2.1s"></span><span class="orb done" style="--d:-7.2s"></span><span class="orb run" style="--d:-2.4s"></span><span class="orb slow" style="--d:-4.8s"></span><span class="orb done" style="--d:-0.9s"></span></span>
+      <span class="swarm-legend"><span><span class="lg-dot" style="background:#2f81f7"></span><b id="lg-run">12</b> <span data-i18n="lg.run">running</span></span><span><span class="lg-dot" style="background:#d29922"></span><b id="lg-slow">3</b> <span data-i18n="lg.slow">slow</span></span><span><span class="lg-dot" style="background:#3fb950"></span><b id="lg-done">9</b> <span data-i18n="lg.done">done</span></span></span>
+    </div>
+    <p class="figcap" data-i18n="fc.swarm">The real status strip, recreated: one orb per agent, adaptive slow-run detection, click an orb to jump to its row. Pause, resume, restart or stop one agent — or the whole swarm.</p>
+  </section>
+
+  <section class="sec" id="local-llm" data-screen-label="Local LLMs">
+    <div class="split" style="padding: 0; align-items: start">
+      <div class="split-copy" data-i18n="__never__">
+        <span class="kicker" data-i18n="k3">03 — LLMs, in-process</span>
+        <h2 class="split-title" data-i18n="t3">No Ollama. No LM Studio. No excuses.</h2>
+        <p class="note" data-i18n="n3a">korTTY is the only terminal that runs GGUF models itself: an integrated llama.cpp runtime starts one authenticated, loopback-only <span class="kbd">llama-server</span> per model — offline, on <span class="kbd">127.0.0.1</span>, with a generated API key. Several models run concurrently; idle tensors unload after a configurable timeout.</p>
+        <p class="note" data-i18n="n3b">The Hugging Face manager searches GGUF repos with quantization, license, context and hardware estimates, downloads immutable revisions with pause/resume, and verifies every byte with SHA-256. A beginner assistant sets up Text, Coding and embedding slots and runs a real local chat test before it saves anything.</p>
+      </div>
+      <div>
+        <div class="modelcard" aria-label="Animated mockup of a local model download">
+          <h4 data-i18n="mc.h4">Model download</h4>
+          <p class="mc-sub">bartowski/Qwen_Qwen3-4B-GGUF · Q4_K_M · <span id="mc-file">Qwen3-4B-Q4_K_M.gguf (1/1)</span></p>
+          <div class="mc-track"><div class="mc-fill" id="mc-fill" style="width:52%"></div></div>
+          <div class="mc-line"><span id="mc-bytes">0.0 GiB of 2.5 GiB</span><span id="mc-rate">Speed 18.0 MiB/s · Remaining 02:22</span></div>
+          <div class="mc-state"><span class="lg-dot" id="mc-dot" style="background:#2f81f7"></span><span id="mc-msg">Downloading — SHA-256 verified on completion</span></div>
+        </div>
+        <p class="figcap" data-i18n="fc.model">Recreated from the Local Models manager. Runtimes are Ed25519-signed and source-pinned; macOS prefers Metal, elsewhere CPU with Vulkan fallback.</p>
+      </div>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(2 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Manager — Local Models</span></div>
+      <span class="shot-live" style="--pd:24s;--cd:15s;--cdel:0s;--po:30% 20%;--px:-1.5%;--py:-1%"><img src="screenshots/ai/local-models.png" alt="korTTY Local Models manager: installed GGUF models and Hugging Face search" loading="lazy" /><span class="shot-cursor"></span></span>
+    </figure>
+  </section>
+
+  <section class="sec" id="rag" data-screen-label="Knowledge Stores">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k4">04 — Local RAG</span>
+      <h2 class="sec-title" data-i18n="t4">Your runbooks, indexed. Never uploaded.</h2>
+      <p class="lead" data-i18n="l4">Knowledge stores index files and folders into a local HNSW vector store after an allowlist preview. Retrieval sends only bounded excerpts — at most six, two per source, capped at 4,000 tokens — wrapped as explicitly untrusted context and cited as <span class="kbd">[R1]</span> in answers. The complete store never leaves the machine; autonomous agent runs need explicit RAG opt-in.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Manager — Knowledge Stores</span></div>
+      <span class="shot-live" style="--pd:28s;--cd:18s;--cdel:-4s;--po:70% 30%;--px:1.2%;--py:-1.4%"><img src="screenshots/ai/knowledge-stores.png" alt="korTTY Knowledge Stores: local RAG sources, sync state and retrieval test" loading="lazy" /><span class="shot-cursor"></span></span>
+    </figure>
+  </section>
+
+  <section class="sec" id="skills" data-screen-label="AI Skills and Profiles">
+    <div class="split" style="padding: 0; align-items: center">
+      <div class="split-copy">
+        <span class="kicker" data-i18n="k5">05 — Skills &amp; Profiles</span>
+        <h2 class="split-title" data-i18n="t5">Teach it your house rules</h2>
+        <p class="note" data-i18n="n5a">AI Skills are reusable local instruction blocks — "we deploy with systemd, never Docker" — attached to Chat, Agent, or both, imported and exported as Markdown, and optionally filtered so only skills matching the current request are sent.</p>
+        <p class="note" data-i18n="n5b">AI Profiles route work to the right brain: per-profile endpoint, model and key — OpenAI-compatible, native Anthropic, LM Studio auto-mode or the integrated local runtime — with role routing for Text vs. Coding, reasoning effort, token budgets and quotas. A setup wizard does the boring part.</p>
+      </div>
+      <figure class="shot reveal">
+        <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — AI Skills</span></div>
+        <span class="shot-live" style="--pd:22s;--cd:13s;--cdel:-8s;--po:25% 70%;--px:-1%;--py:1.1%"><img src="screenshots/settings/ai-skills.png" alt="korTTY AI Skills settings: reusable instruction blocks with per-skill targets" loading="lazy" /><span class="shot-cursor"></span></span>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="ai-manager" data-screen-label="AI Manager">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k6">06 — AI Manager</span>
+      <h2 class="sec-title" data-i18n="t6">Chats that render like a lab notebook</h2>
+      <p class="lead" data-i18n="l6">AI answers render Mermaid diagrams, LaTeX math, sanitized SVG and inline images locally — no remote renderer. Follow up, switch profile per chat, save generated scripts straight into the Snippet Manager, and export conversations to PDF or Markdown. The modeless manager (<span class="kbd">Ctrl/Cmd+Shift+Y</span>) keeps every saved chat one focus away.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Tools — AI Manager</span></div>
+      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-2s;--po:60% 15%;--px:1.5%;--py:-0.8%"><img src="screenshots/ai/ai-manager.png" alt="korTTY AI Manager: profiles, local models, knowledge stores and saved chats" loading="lazy" /><span class="shot-cursor"></span></span>
+    </figure>
+  </section>
+
+  <section class="sec" id="terminal" data-screen-label="Terminal core">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k7">07 — The terminal itself</span>
+      <h2 class="sec-title" data-i18n="t7">A proper terminal first. The brain is a bonus.</h2>
+      <p class="lead" data-i18n="l7">Tabs, multi-window with drag-to-move sessions, Mosh for flaky links, and local shells — PowerShell, cmd.exe, WSL, Git Bash or your <span class="kbd">$SHELL</span> — in the same tabs, with the same AI, logging and recording.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="tm1t">Tabs, windows, projects</h3>
+      <p class="f-copy" data-i18n="tm1c">Multiple SSH connections per window, multiple windows per brain, drag tabs between them — splits included. Save connection sets as projects and restore them with history.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="tm2t">Local shell, zero network</h3>
+      <p class="f-copy" data-i18n="tm2c">A Local Shell protocol spawns your machine's shell in a real PTY — no host, no port, no authentication. Custom command field for <span class="kbd">pwsh.exe</span>, <span class="kbd">wsl.exe -d Ubuntu</span> or anything else on disk.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="tm3t">Comfort where it counts</h3>
+      <p class="f-copy" data-i18n="tm3c">Zoom with <span class="kbd">Ctrl + wheel</span> or <span class="kbd">Alt+±</span>, reset with <span class="kbd">Alt+0</span>. <span class="kbd">F12</span> gives terminal-only fullscreen. OSC 8 hyperlinks are clickable — <span class="kbd">ls --hyperlink</span> finally pays off. Optional background transparency, new in 2.7.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="tm4t">Logging &amp; replay recording</h3>
+      <p class="f-copy" data-i18n="tm4c">Automatic session logging, plus lightweight per-tab replay recordings with timeline seeking and 1–20× playback — exportable to WebM/VP9 or MKV/FFV1 when ffmpeg is around.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="broadcast" data-screen-label="Split-screen broadcast">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k8">08 — Split-screen broadcast</span>
+      <h2 class="sec-title" data-i18n="t8">Type once, land everywhere</h2>
+      <p class="lead" data-i18n="l8">Split a tab horizontally or vertically, put a different connection in every pane, and flip on broadcast: keystrokes go to all visible panes simultaneously. The fastest way to run one command on three boxes — and the second-fastest way to run it on the wrong three.</p>
+    </div>
+    <div style="margin-top: calc(1.5 * var(--leading))" aria-label="Animated mockup of broadcast input across three split panes">
+      <div class="bcast-head">
+        <span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span>
+        <span class="term-title">korTTY — split view</span>
+        <span class="bcast-badge" style="margin-left:auto" data-i18n="w.bcast">Broadcast on</span>
+      </div>
+      <div class="bcast">
+        <div class="pane"><div class="pane-host">web-01 · ssh</div><div><span class="t-host">$</span> <span class="bc-cmd">sudo systemctl restart nginx &amp;&amp; systemctl is-active nginx</span><span class="bc-out" style="--i:0"><br /><span class="t-ok">active</span></span></div></div>
+        <div class="pane"><div class="pane-host">web-02 · ssh</div><div><span class="t-host">$</span> <span class="bc-cmd">sudo systemctl restart nginx &amp;&amp; systemctl is-active nginx</span><span class="bc-out" style="--i:1"><br /><span class="t-ok">active</span></span></div></div>
+        <div class="pane"><div class="pane-host">web-03 · ssh</div><div><span class="t-host">$</span> <span class="bc-cmd">sudo systemctl restart nginx &amp;&amp; systemctl is-active nginx</span><span class="bc-out" style="--i:2"><br /><span class="t-ok">active</span></span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="themes" data-screen-label="Themes and designs">
+    <div class="split" style="padding: 0; align-items: center">
+      <div class="split-copy">
+        <span class="kicker" data-i18n="k9">09 — Themes &amp; designs</span>
+        <h2 class="split-title" data-i18n="t9">Dress the whole app, not just the text</h2>
+        <p class="note" data-i18n="n9a">Terminal theme profiles — IntelliJ-inspired presets, live preview, fully editable — stay separate from app designs, which restyle every window and dialog: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula.</p>
+        <p class="note" data-i18n="n9b">On top: terminal-effect plugins per pane — Digital Rain, VHS 1987, Deep Space Radar, or the MU/TH/UR 6000 reference effect — with animated previews and a plugin SPI for writing your own.</p>
+      </div>
+      <div>
+        <div class="themer" aria-label="Animated mockup cycling korTTY app designs">
+          <div class="term-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="theme-name" id="theme-name">Default</span></div>
+          <div class="themer-body" id="themer-body"><span class="tp">ops@prod-web-01:~$</span> htop<br /><span style="opacity:.75">CPU ▕████████░░░░░░░░▏ 48 %</span><br /><span style="opacity:.75">MEM ▕██████░░░░░░░░░░▏ 31 %</span><br /><span class="tp">ops@prod-web-01:~$</span> <span class="caret" id="theme-caret" style="background: var(--tac)"></span></div>
+        </div>
+        <p class="figcap" data-i18n="fc.themes">Same session, five designs — colors change, your terminal content doesn't.</p>
+      </div>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(2 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — Themes</span></div>
+      <span class="shot-live" style="--pd:30s;--cd:19s;--cdel:-6s;--po:35% 40%;--px:-1.2%;--py:1.3%"><img src="screenshots/settings/themes.png" alt="korTTY theme settings: color profiles with live preview" loading="lazy" /><span class="shot-cursor"></span></span>
+    </figure>
+  </section>
+
+  <section class="sec" id="files" data-screen-label="SFTP and Snippets">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k10">10 — Files &amp; snippets</span>
+      <h2 class="sec-title" data-i18n="t10">The toolbox around the terminal</h2>
+      <p class="lead" data-i18n="l10">An SFTP manager with user/group columns, remote editing through the Snippet Editor, and archive jobs with exclude patterns — next to a Snippet Manager with Monaco highlighting, categories, script arguments, and ZIP/GPG-encrypted exports.</p>
+    </div>
+    <div class="split" style="padding: calc(1.5 * var(--leading)) 0 0; align-items: start">
+      <figure class="shot reveal">
+        <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">SFTP Manager</span></div>
+        <span class="shot-live" style="--pd:23s;--cd:14s;--cdel:-10s;--po:75% 65%;--px:1%;--py:-1.2%"><img src="screenshots/sftp/sftp-manager.png" alt="korTTY SFTP Manager: local and remote file panes" loading="lazy" /><span class="shot-cursor"></span></span>
+      </figure>
+      <div>
+        <figure class="shot reveal">
+          <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Snippet Editor</span></div>
+          <span class="shot-live" style="--pd:27s;--cd:16s;--cdel:-3s;--po:20% 30%;--px:-1.4%;--py:0.9%"><img src="screenshots/settings/snippet-editor.png" alt="korTTY Snippet Editor with Monaco syntax highlighting" loading="lazy" /><span class="shot-cursor"></span></span>
+        </figure>
+        <p class="figcap" data-i18n="fc.editor">The editor is AI-assisted end to end: cursor completion, right-click instructions with diff preview, security checks, and a full code analysis window with flow diagram and PDF export.</p>
+      </div>
+    </div>
+
+    <div class="subhead">
+      <h3 data-i18n="fca.t">Full code analysis: the whole script reviewed, then fixed on your terms</h3>
+      <p class="lead" data-i18n="fca.lead">Reviewing a script you inherited usually means reading it line by line and hoping you spot what matters. <span class="kbd">AI Code → Full code analysis</span> reads the whole snippet at once and comes back with a plain-language summary, its external dependencies, and categorized findings — each with a severity, the exact line, and a concrete recommendation. You tick the ones you agree with; nothing touches your code until you confirm a side-by-side diff.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.25 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Code Analysis — messages_errors_table.pl</span></div>
+      <span class="shot-live" style="--pd:32s;--cd:21s;--cdel:-5s;--po:26% 28%;--px:-1.3%;--py:1.1%"><img src="screenshots/tools/full-code-analysis.png" alt="korTTY Full code analysis: plain-language summary, severity-badged improvements with line numbers, auto-generated flow diagram and hardening options" loading="lazy" /><span class="shot-cursor"></span></span>
+    </figure>
+    <p class="figcap" data-i18n="fca.cap">What this window is doing: a Perl log-parser was analysed with the <em>local</em> profile, and korTTY auto-selected the matching AI skills (Perl, Bourne-Shell) — shown as chips you can override. Left: the summary explains what the script actually does, then <span class="kbd">OPT-1</span> flags an unused <span class="kbd">$host</span> variable on line 24, and two <span class="kbd">MEDIUM</span> findings propose <span class="kbd">use autodie</span> instead of manual open/close error handling (line 16) and a UTF-8 encoding layer for non-ASCII log files (line 3) — each with the exact edit to make. Right: a flow diagram generated by its own request, so it stays faithful to the real branches; hover a node to see the source lines behind it. Bottom: eleven hardening options — strict mode, error traps, exit codes, logging, idempotency, dry-run — that get folded into the fixes when you apply them.</p>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="fca1t">Findings you can judge, not just accept</h3>
+      <p class="f-copy" data-i18n="fca1c">Improvements arrive grouped into Security, Optimization and Design, each with a severity badge, the line it affects, why it matters, and the concrete change. Dependencies get their own list with a <em>purpose</em> and a <em>reduce or replace</em> suggestion, tickable separately. The window is non-modal and titled with the file name — keep editing, keep several analyses open side by side.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="fca2t">Apply as one reviewed change</h3>
+      <p class="f-copy" data-i18n="fca2c">Ticked findings, dependency suggestions and hardening options go out as a single request, and the result opens as a before/after diff with changed lines highlighted and a reason card per change. Optionally a saved script header is prepended in the same step. The editor stays untouched until you confirm — a header on its own is inserted without any AI round-trip.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="fca3t">A diagram that traces back to the code</h3>
+      <p class="f-copy" data-i18n="fca3c">The flowchart is a separate, focused request — which produces markedly more faithful diagrams, especially with local models, and lets you read the report while it loads. Hover any node to see the matching snippet lines. Rendering is local: a SHA-256-pinned Mermaid bundle, no Graphviz, no download. Zoom, fit, dark mode, SVG/PNG export and Mermaid-source copy included; automatic generation can be switched off entirely.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="fca4t">Reports you can hand to someone else</h3>
+      <p class="f-copy" data-i18n="fca4c">Export the whole review — summary, findings, dependencies and diagram — as a print-friendly PDF, a single self-contained HTML page, or Markdown with the diagram alongside. The header records the script name, the AI profile that produced it, the date and the skills that were included, so a review stays auditable. <span class="kbd">Re-run</span> repeats it with a different profile whenever you want a second opinion.</p>
+    </div>
+
+    <div class="subhead">
+      <h3 data-i18n="sn.t">The rest of the editor's AI, briefly</h3>
+      <p class="lead" data-i18n="sn.lead">Every action below rewrites only the region you selected and always lands in a before/after preview first. None of them enable internet tools, even on a profile that has access.</p>
+    </div>
+    <div class="aigrid">
+      <div class="card"><p class="card-kicker" data-i18n="sn1k">Completion</p><h3 class="card-title" data-i18n="sn1t">AI Complete</h3><p class="card-body" data-i18n="sn1c">Completion at the cursor, shown as a ghost suggestion you click to insert. Auto-mode requests one whenever you pause — off by default, and only for the current editor session.</p></div>
+      <div class="card"><p class="card-kicker" data-i18n="sn2k">Rewrites</p><h3 class="card-title" data-i18n="sn2t">Improve one goal at a time</h3><p class="card-body" data-i18n="sn2c">Readability, robustness or performance — one goal per run, no unrelated edits. Robustness and custom instructions can pull in the same hardening options as the analysis.</p></div>
+      <div class="card"><p class="card-kicker" data-i18n="sn3k">Security</p><h3 class="card-title" data-i18n="sn3t">Security Check</h3><p class="card-body" data-i18n="sn3c">Findings sorted most-severe first, on its own permanently remembered security profile. Hover a changed block in the diff to see which finding it fixes and why.</p></div>
+      <div class="card"><p class="card-kicker" data-i18n="sn4k">Comments</p><h3 class="card-title" data-i18n="sn4t">Optimize code comments</h3><p class="card-body" data-i18n="sn4c">Explanations inserted where they belong, in the language's own comment syntax, with outdated ones replaced. Executable code stays untouched — and comments follow the editor's Text language, not the UI language.</p></div>
+      <div class="card"><p class="card-kicker" data-i18n="sn5k">Prose</p><h3 class="card-title" data-i18n="sn5t">Text, translation, descriptions</h3><p class="card-body" data-i18n="sn5c">Spelling correction, translation of a selection, and technical descriptions for a region or the whole snippet — insertable as a comment block. Only comments, strings and user-facing text are rewritten, never logic.</p></div>
+      <div class="card"><p class="card-kicker" data-i18n="sn6k">Options</p><h3 class="card-title" data-i18n="sn6t">Alternative solutions</h3><p class="card-body" data-i18n="sn6c">Several implementations of the same selection, side by side, each zoomable to full size and regenerable with extra instructions — then apply exactly the one you want.</p></div>
+    </div>
+
+    <div class="split" style="padding: calc(2.5 * var(--leading)) 0 0; align-items: center">
+      <div class="split-copy">
+        <h3 class="split-title" style="font-size: clamp(26px, 2.6vw, 34px)" data-i18n="aa.t">Banners, because a login screen deserves one</h3>
+        <p class="note" data-i18n="aa.n1">The ASCII Art tool (<span class="kbd">Ctrl/Cmd+Shift+A</span>) renders text as a FIGlet banner in twelve font styles with a live preview — step through styles with the arrow keys until one fits, then copy it into a login banner, a script header or your docs.</p>
+        <p class="note" data-i18n="aa.n2">The second tab draws instead of letters: name a subject and an AI profile returns it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable in a terminal. <em>New variation</em> redraws the same subject with a different angle, level of detail or line style. Runs on a local profile too — and never uses internet access.</p>
+      </div>
+      <figure class="shot reveal">
+        <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">ASCII Art</span></div>
+        <span class="shot-live" style="--pd:24s;--cd:16s;--cdel:-9s;--po:40% 55%;--px:-1%;--py:0.8%"><img src="screenshots/tools/ascii-art.png" alt="korTTY ASCII Art tool: FIGlet text banner with style picker and live preview" loading="lazy" /><span class="shot-cursor"></span></span>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="automation" data-screen-label="JobScheduler">
+    <div class="split" style="padding: 0; align-items: center">
+      <div class="split-copy">
+        <span class="kicker" data-i18n="k11">11 — JobScheduler</span>
+        <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
+        <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
+        <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
+      </div>
+      <div>
+        <div class="sched" aria-label="Animated mockup of the JobScheduler menu-bar status">
+          <div class="sched-bar"><span class="sched-dot" id="sched-dot"></span><span id="sched-msg">Next: nightly-rsync in 00:14:32</span></div>
+          <div class="sched-rows">
+            <div class="sched-row"><b>nightly-rsync</b><span>RSYNC_SYNC · web-01…03</span><span id="sr-0">02:00</span></div>
+            <div class="sched-row"><b>logrotate-check</b><span>AI_AGENT · db-eu-2</span><span>02:30</span></div>
+            <div class="sched-row"><b>fleet-patch-audit</b><span>AI_SWARM · all (16∥, read-only)</span><span>03:00</span></div>
+            <div class="sched-row"><b>backup-etc</b><span>SFTP_ARCHIVE · web-01</span><span>03:15</span></div>
+            <div class="sched-row"><b>weekly-report</b><span>SNIPPET_SCRIPT · jump-host</span><span>Mon 06:00</span></div>
+          </div>
+        </div>
+        <p class="figcap" data-i18n="fc.sched">The optional menu-bar status: running jobs or a live countdown, plus the next five in the queue.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="security" data-screen-label="Security">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k12">12 — Security</span>
+      <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
+      <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="sc1t">Encrypted at rest</h3>
+      <p class="f-copy" data-i18n="sc1c">Passwords and SSH-key passphrases live under AES-256-GCM behind one master password. Backups export encrypted — password or GPG. Secret-dependent jobs are blocked while the vault is locked.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="sc2t">Host keys, taken seriously</h3>
+      <p class="f-copy" data-i18n="sc2c">Terminal, SFTP and Mosh share one persistent TOFU store per host:port — default-deny on first use, hard block on key changes. The JobScheduler requires pinned keys before unattended runs.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="sc3t">Signed AI supply chain</h3>
+      <p class="f-copy" data-i18n="sc3c">Local llama.cpp runtimes are source-pinned, rebuilt in a public repo, and selected through a detached-Ed25519-signed index; GGUF downloads pin immutable revisions and verify SHA-256. Sidecars bind to loopback only, behind generated API keys.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="sc4t">Your data stays yours</h3>
+      <p class="f-copy" data-i18n="sc4c">Only the reviewed selection, prompt and agent context go to the model you chose — never whole knowledge stores, never your vault. Telemetry is anonymous, GDPR-compliant, EU-hosted, and off until you say otherwise.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="languages" data-screen-label="Languages">
+    <div class="split" style="padding: 0; align-items: center">
+      <div class="split-copy">
+        <span class="kicker" data-i18n="k13">13 — Languages</span>
+        <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
+        <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
+      </div>
+      <figure class="shot reveal">
+        <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — Translation</span></div>
+        <span class="shot-live" style="--pd:25s;--cd:20s;--cdel:-7s;--po:65% 45%;--px:1.3%;--py:-1%"><img src="screenshots/settings/translation.png" alt="korTTY translation settings: generate language files via translation APIs" loading="lazy" /><span class="shot-cursor"></span></span>
+      </figure>
+    </div>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="lg1t">Interface and manual, in your language</h3>
+      <p class="f-copy" data-i18n="lg1c">Translation isn't limited to the UI: korTTY generates the <em>complete user guide</em> in any language too — via an AI profile or a translation-service API key. The guide's search index is rebuilt in the same pass, so the translated manual stays searchable instead of answering in English.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="lg2t">Ask the manual, don't scroll it</h3>
+      <p class="f-copy" data-i18n="lg2c">The built-in docs assistant answers questions about the guide in plain language — "how do I pin a host key before a scheduled job?" — and answers <em>only</em> from the documentation, never from outside knowledge. Every claim carries a citation link that jumps straight to the relevant guide section; your last ten questions stay one click away.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="compare" data-screen-label="Comparison">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k14">14 — The obligatory table</span>
+      <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
+      <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th></th><th>korTTY</th><th>PuTTY</th><th>MobaXterm</th><th>iTerm2 + plugins</th></tr></thead>
+        <tbody>
+          <tr><td data-i18n="cmp1">AI agent working on the server</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp2">LLMs in-process (no extra software)</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp3">Multi-server AI swarm</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp4">Tabs, splits &amp; broadcast input</td><td class="tick">✓</td><td class="no">—</td><td class="tick">✓</td><td class="tick">✓</td></tr>
+          <tr><td data-i18n="cmp5">Built-in SFTP tooling</td><td class="tick">✓</td><td class="half">psftp CLI</td><td class="tick">✓</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp6">Background job scheduler</td><td class="tick">✓</td><td class="no">—</td><td class="half">macros</td><td class="half">triggers</td></tr>
+          <tr><td data-i18n="cmp7">Encrypted credential vault</td><td class="tick">✓</td><td class="no">—</td><td class="half">master pw</td><td class="half">Keychain</td></tr>
+          <tr><td>macOS · Windows · Linux</td><td class="tick">✓</td><td class="half">Win-first</td><td class="no">Windows</td><td class="no">macOS</td></tr>
+          <tr><td data-i18n="cmp9">Open source &amp; free</td><td class="tick">MIT</td><td class="tick">MIT</td><td class="half">freemium</td><td class="tick">GPL</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="figcap" data-i18n="fc.cmp">Our table, our bias — verify everything. The other columns are lovely projects we happily coexist with.</p>
+  </section>
+
+  <section class="sec" id="download" data-screen-label="Download">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k15">15 — Download</span>
+      <h2 class="sec-title" data-i18n="t15">Pick your poison</h2>
+      <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
+    </div>
+    <div class="plats">
+      <div class="card"><p class="card-kicker">macOS</p><h3 class="card-title">DMG / ZIP</h3><p class="card-body" data-i18n="dl.mac">Apple Silicon (aarch64) and Intel (x86_64) as separate builds. Metal-accelerated local models.</p>
+        <div class="dl-rows">
+          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.zip">ZIP</a></span></div>
+        </div></div>
+      <div class="card"><p class="card-kicker">Windows</p><h3 class="card-title">MSI / ZIP</h3><p class="card-body" data-i18n="dl.win">x86_64 — runs on Windows-on-ARM via x64 emulation. PowerShell, cmd, WSL and Git Bash as local shells.</p>
+        <div class="dl-rows">
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.zip">ZIP</a></span></div>
+        </div></div>
+      <div class="card"><p class="card-kicker">Linux</p><h3 class="card-title">DEB / RPM / tar.gz</h3><p class="card-body" data-i18n="dl.lin">x86_64 and aarch64. Vulkan fallback for local models where the GPU cooperates.</p>
+        <div class="dl-rows">
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.tar.gz">tar.gz</a></span></div>
+        </div></div>
+      <div class="card"><p class="card-kicker">Arch Linux</p><h3 class="card-title">pacman pkg</h3><p class="card-body" data-i18n="dl.aur">.pkg.tar.zst for x86_64 — because you were going to mention it anyway. btw.</p>
+        <div class="dl-rows">
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-2.7.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
+        </div></div>
+    </div>
+    <p class="figcap" style="margin-top: var(--leading)" data-i18n="fc.mig">Migrating? korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager — then encrypts them properly.</p>
+  </section>
+
+  <section class="sec" id="release" data-screen-label="Release 2.7">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k16">16 — What's new in v2.7.0</span>
+      <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
+    </div>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl1t">Full code analysis</h3>
+      <p class="f-copy" data-i18n="rl1c">The Snippet Editor's AI opens a non-modal analysis window: plain-language summary, dependency review, tickable Security/Optimization/Design improvements, and an auto-generated flow diagram that highlights source lines on hover.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl2t">One local Mermaid renderer</h3>
+      <p class="f-copy" data-i18n="rl2c">Snippet diagrams, code analysis, workflow generation and AI-chat Mermaid blocks share one SHA-256-pinned Mermaid 11.16 renderer — no Graphviz subprocess, no first-use download.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl3t">Explained security fixes</h3>
+      <p class="f-copy" data-i18n="rl3c">Security checks now show a side-by-side diff; hovering a changed block names the findings it addresses, with every rationale listed as a card below.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl4t">Transparent terminals, quieter tabs</h3>
+      <p class="f-copy" data-i18n="rl4c">A 0–100 % background-transparency slider keeps text sharp while the terminal sees through to the desktop — and closing an idle tab finally stops asking if you're sure.</p>
+    </div>
+    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/RELEASE_NOTES.adoc" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
+  </section>
+
+  <section class="sec" id="faq" data-screen-label="FAQ">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="k17">17 — FAQ</span>
+      <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
+    </div>
+    <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
+      <details class="faq-item">
+        <summary data-i18n="q1">What exactly leaves my machine when I use the AI?</summary>
+        <p data-i18n="a1">Only the reviewed terminal selection, your prompt, the agent's compact session snapshot, and — if you explicitly assigned a knowledge store to a cloud profile — bounded retrieval excerpts (max six, capped at 4,000 tokens). Never the whole store, never your credential vault. With the integrated local runtime or LM Studio, nothing leaves at all. Internet access for the model is off by default, per profile.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="q2">What hardware do local models need?</summary>
+        <p data-i18n="a2">Less than you'd think: a 4-bit 4B model is ~2.5 GiB and the setup assistant starts it at a conservative 4,096-token context, then verifies it with a real local chat test. macOS uses Metal first; everywhere else CPU with Vulkan fallback. Idle models unload their tensors automatically, so korTTY doesn't squat on your RAM.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="q3">What does it cost, and what's the license?</summary>
+        <p data-i18n="a3">Nothing, and MIT. korTTY is open source by Daniel Mengel; the code, the signed release pipeline and the docs are public on <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener">GitHub</a>. Cloud AI usage is billed by your provider under your own API key — local models are free forever.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="q4">Agent vs. Swarm — when do I use which?</summary>
+        <p data-i18n="a4">The Agent works one box: it runs in your active session, plans commands, asks for approval, fixes the thing. The Swarm broadcasts one task to many servers in parallel — including servers without an open terminal — and merges every answer into one comparison table. Rule of thumb: incident on web-01 → Agent; "which of our 40 hosts still runs OpenSSL 1.x?" → Swarm.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="q5">I'm coming from PuTTY or MobaXterm. How painful is migration?</summary>
+        <p data-i18n="a5">One dialog: korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager, then stores credentials AES-256-GCM-encrypted behind your master password. Your muscle memory survives — tabs, quick connect (<span class="kbd">Ctrl+K</span>) and the usual shortcuts are where you expect them.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="q6">korTTY is a Java app — do I need to install Java?</summary>
+        <p data-i18n="a6">No. Every download ships a trimmed Java runtime inside the package, so there is nothing to install, no <span class="kbd">JAVA_HOME</span> to set, and no version conflict with whatever your system already has. Install the DMG, MSI, DEB, RPM or pacman package and start it like any other native app — the only exception is the optional plain-Java ZIP for people who explicitly want to run it on their own JVM.</p>
+      </details>
+    </div>
+
+  <section class="close" id="opensource" data-screen-label="Open source close">
+    <span class="kicker" data-i18n="k18">18 — Open source</span>
+    <h3 data-i18n="t18">Point an agent at it.</h3>
+    <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
+    <div class="signup" style="max-width: none">
+      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+      <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="cl.star">Star on GitHub</a>
+      <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY/blob/main/app-docs/USER_GUIDE.adoc" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
+    </div>
+  </section>
+
+  <footer data-screen-label="Footer">
+    <div data-i18n="ft.text">korTTY — AI-Driven Terminal Experience.<br />Developed by <a href="https://github.com/chardonnay" target="_blank" rel="noopener">Daniel Mengel</a> · MIT license · © 2026</div>
+    <div class="fcol">
+      <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener" data-i18n="ft.rel">Releases</a>
+      <a href="https://github.com/chardonnay/korTTY/issues" target="_blank" rel="noopener" data-i18n="ft.iss">Issues</a>
+      <a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/USER_GUIDE.adoc" target="_blank" rel="noopener" data-i18n="ft.guide">User Guide</a>
+    </div>
+  </footer>
+</div>
+<script src="i18n/i18n.js"></script>
+<script src="page-behavior.js"></script>
+</body>
+</html>

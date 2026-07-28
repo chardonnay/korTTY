@@ -4,7 +4,7 @@ INHERIT: mkdocs.yml
 
 docs_dir: docs/en
 site_dir: ../../build/guide/en
-site_url: https://chardonnay.github.io/korTTY/en/
+site_url: https://chardonnay.github.io/korTTY/guide/en/
 
 theme:
   language: en

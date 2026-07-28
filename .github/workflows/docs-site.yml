@@ -1,12 +1,13 @@
-# Builds the bilingual offline korTTY guide and publishes it to GitHub Pages.
-# Free for this public MIT repo. The same build output is bundled into the app
-# (Help -> Anleitung) by Gradle's buildDocsSite task.
+# Publishes the korTTY website (web/) to GitHub Pages, with the bilingual
+# offline guide alongside it under /guide/. The guide build output is also
+# bundled into the app (Help -> Anleitung) by Gradle's buildDocsSite task.
 name: Docs site
 
 on:
   push:
     branches: [main]
     paths:
+      - "web/**"
       - "app-docs/site/**"
       - "app-docs/diagrams/**"
       - "app-docs/screenshots/**"
@@ -53,9 +54,8 @@ jobs:
           echo "Building korTTY guide v$KORTTY_VERSION"
           python scripts/build-docs-site.py
 
-      - name: Add root language redirect
+      - name: Add guide language redirect
         run: |
-          mkdir -p build/guide
           cat > build/guide/index.html <<'HTML'
           <!doctype html><html lang="en"><head><meta charset="utf-8">
           <title>korTTY Guide</title>
@@ -63,12 +63,20 @@ jobs:
           <link rel="canonical" href="./en/index.html">
           </head><body>Redirecting to the <a href="./en/index.html">korTTY Guide</a>…</body></html>
           HTML
-          touch build/guide/.nojekyll
+
+      - name: Assemble the Pages site (website at root, guide under /guide/)
+        run: |
+          mkdir -p build/site
+          cp -R web/. build/site/
+          rm -f build/site/sync-screenshots.sh build/site/README.md
+          mkdir -p build/site/guide
+          cp -R build/guide/. build/site/guide/
+          touch build/site/.nojekyll
 
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: build/guide
+          path: build/site
 
   deploy:
     needs: build
