@@ -21,9 +21,8 @@ import java.time.Duration;
 /**
  * LM Studio native REST service used when per-request MCP integrations are enabled.
  */
-public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTracker {
+public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
-    static final Duration INTERNET_REQUEST_TIMEOUT = Duration.ofSeconds(180);
     static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(20);
     private static final Duration TEST_REQUEST_TIMEOUT = Duration.ofSeconds(30);
@@ -39,6 +38,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
     private final AiInternetAccessConfiguration internetConfig;
     private final AiSkillPromptSupport skillPromptSupport;
     private final HttpClient httpClient;
+    /** {@code null} lets a request run to completion — see {@link AiRequestTimeoutSupport}. */
+    private Duration requestTimeout;
 
     public LmStudioNativeAiService(
         String apiUrl,
@@ -198,6 +199,11 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
     }
 
     @Override
+    public void setRequestTimeout(Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
+    }
+
+    @Override
     public java.util.List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return skillPromptSupport.drainSkillUsages();
     }
@@ -269,9 +275,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         if (includeInternet) {
             internetConfig.validate();
         }
-        Duration timeout = overrideTimeout != null
-            ? overrideTimeout
-            : includeInternet ? INTERNET_REQUEST_TIMEOUT : null;
+        Duration timeout = overrideTimeout != null ? overrideTimeout : requestTimeout;
         String effectiveModel = LocalLmModelResolver.resolve(apiUrl, model, modelSelectionMode, apiKey, httpClient);
         HttpRequest request = buildJsonPostRequest(
             buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel),

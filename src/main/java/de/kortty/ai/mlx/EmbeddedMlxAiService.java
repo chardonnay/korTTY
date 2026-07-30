@@ -4,6 +4,7 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiPromptExecutionScope;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiRequest;
+import de.kortty.core.AiRequestTimeoutAware;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiSkillUsageTracker;
 import de.kortty.core.LocalAiReplySupport;
@@ -22,7 +23,7 @@ import java.util.function.Supplier;
  * AI service that leases a model-specific mlx-lm sidecar (Apple Silicon) and delegates to
  * korTTY's existing OpenAI-compatible transport.
  */
-public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsageTracker {
+public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedMlxAiService.class);
 
@@ -38,6 +39,8 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
     private final TavilyWebSearchTool webSearchTool;
     private final AiSkillPromptSupport skillPromptSupport;
     private final Supplier<MlxRuntimeManager> runtimeManagerSupplier;
+    /** {@code null} lets a request run to completion — see AiRequestTimeoutSupport. */
+    private java.time.Duration requestTimeout;
 
     /** Creates a service using the lazily initialized application-wide runtime manager. */
     public EmbeddedMlxAiService(
@@ -163,6 +166,11 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
     }
 
     @Override
+    public void setRequestTimeout(java.time.Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
+    }
+
+    @Override
     public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return skillPromptSupport.drainSkillUsages();
     }
@@ -205,6 +213,7 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
             // (gpt-oss) burn that entire budget in their analysis channel on complex tasks such as
             // the snippet code analysis and deterministically return a reasoning-only reply.
             delegate.setDefaultMaxCompletionTokens(MAX_COMPLETION_TOKENS);
+            delegate.setRequestTimeout(requestTimeout);
             return call.invoke(delegate);
         }
     }

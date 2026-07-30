@@ -20,11 +20,12 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, or **Integrated llama.cpp** as the connection mode.
 4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no GGUF is installed.
 5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; profiles without a supported reasoning mode stay disabled.
-6. Click **Test AI Connection**.
-7. Optionally choose a **Default profile**, then assign separate Text/translation and Coding roles under **AI Manager > Local AI**. An empty role uses the default profile.
-8. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
-9. Optionally configure the terminal-agent input-history size (default 20, range 5–100), the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for **AI Agent** and **AI Planning**.
-10. Optionally disable the confirmation dialog for **Summarize** and **Solve Problem** if you want a faster workflow. **Ask** always opens the prompt dialog.
+6. Optionally set an **AI request timeout** in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's **Full code analysis** runs until the model answers. The value on the **Profiles** page applies to every profile; **Timeout for this profile** overrides it for a single profile, and 0 there means that profile never times out. See [AI settings](../reference/settings/ai.md).
+7. Click **Test AI Connection**.
+8. Optionally choose a **Default profile**, then assign separate Text/translation and Coding roles under **AI Manager > Local AI**. An empty role uses the default profile.
+9. Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.
+10. Optionally configure the terminal-agent input-history size (default 20, range 5–100), the agent command name, case-insensitive command matching, execution target, prompt-hook usage, per-run setup dialog, debug/runtime visibility, and activity-panel preferences for **AI Agent** and **AI Planning**.
+11. Optionally disable the confirmation dialog for **Summarize** and **Solve Problem** if you want a faster workflow. **Ask** always opens the prompt dialog.
 
 ## AI Profile Setup Wizard
 

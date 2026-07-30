@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * AI service for OpenAI-compatible chat completion endpoints.
  */
-public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageTracker {
+public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAiCompatibleAiService.class);
     private static final Gson GSON = new Gson();
@@ -56,6 +56,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private final TavilyWebSearchTool webSearchTool;
     private final AiSkillPromptSupport skillPromptSupport;
     private Integer defaultMaxCompletionTokens;
+    /** {@code null} lets a request run to completion — see {@link AiRequestTimeoutSupport}. */
+    private Duration requestTimeout;
 
     public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey) {
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED);
@@ -222,20 +224,34 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     @Override
     public AiExecutionResult execute(AiRequest request) throws Exception {
-        return executeWithClient(request, httpClient, null);
+        return executeWithClient(request, httpClient, requestTimeout);
     }
 
     public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) throws Exception {
-        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null);
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, requestTimeout);
     }
 
     public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) throws Exception {
-        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null, true);
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, requestTimeout, true);
     }
 
     @Override
     public AiExecutionResult executeJsonPromptWithoutResponseFormat(String systemPrompt, String userPrompt) throws Exception {
-        return executePromptWithClient(systemPrompt, userPrompt, httpClient, null, false);
+        return executePromptWithClient(systemPrompt, userPrompt, httpClient, requestTimeout, false);
+    }
+
+    /**
+     * @param requestTimeout the user-configured timeout, or {@code null} (the default) to let a
+     *     request run to completion
+     */
+    @Override
+    public void setRequestTimeout(Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
+    }
+
+    /** @return the applied timeout, or {@code null} when requests run without one. */
+    Duration requestTimeout() {
+        return requestTimeout;
     }
 
     @Override

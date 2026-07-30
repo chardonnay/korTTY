@@ -306,6 +306,14 @@ public class GlobalSettings {
     @XmlElement
     private String encryptedAiBraveSearchApiKey;
 
+    /**
+     * Global AI request timeout in minutes. {@code 0} — the default — lets every AI request run to
+     * completion; long analyses such as the snippet editor's full code analysis must not be cut
+     * off unless the user asked for a limit. Individual profiles may override this.
+     */
+    @XmlElement
+    private Integer aiRequestTimeoutMinutes = 0;
+
     /** Optional SearXNG instance URL used by SearXNG MCP setups. */
     @XmlElement
     private String aiSearxngUrl;
@@ -1475,6 +1483,15 @@ public class GlobalSettings {
         this.encryptedAiBraveSearchApiKey = normalizeOptionalString(encryptedAiBraveSearchApiKey);
     }
 
+    /** @return the global AI request timeout in minutes; {@code 0} means requests never time out. */
+    public int getAiRequestTimeoutMinutes() {
+        return aiRequestTimeoutMinutes != null && aiRequestTimeoutMinutes > 0 ? aiRequestTimeoutMinutes : 0;
+    }
+
+    public void setAiRequestTimeoutMinutes(int aiRequestTimeoutMinutes) {
+        this.aiRequestTimeoutMinutes = Math.max(0, aiRequestTimeoutMinutes);
+    }
+
     public String getAiSearxngUrl() {
         return aiSearxngUrl;
     }
@@ -2024,6 +2041,9 @@ public class GlobalSettings {
     }
 
     private void normalizeAiInternetConfiguration() {
+        aiRequestTimeoutMinutes = aiRequestTimeoutMinutes != null && aiRequestTimeoutMinutes > 0
+            ? aiRequestTimeoutMinutes
+            : 0;
         aiSearxngUrl = normalizeOptionalString(aiSearxngUrl);
         aiTavilyMcpServerLabel = nonBlank(aiTavilyMcpServerLabel, "tavily");
         aiBrightDataMcpServerLabel = nonBlank(aiBrightDataMcpServerLabel, "bright-data");

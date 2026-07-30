@@ -23,6 +23,7 @@ import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiReasoningDiscoveryService;
 import de.kortty.core.AiReasoningSupport;
+import de.kortty.core.AiRequestTimeoutSupport;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiProfileSelectionSupport;
@@ -278,6 +279,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox aiAgentCommandNameCaseInsensitiveCheck;
     private final ComboBox<TerminalAgentExecutionTarget> aiExecutionTargetCombo;
     private final Spinner<Integer> aiMaxSelectionCharsSpinner;
+    private final Spinner<Integer> aiGlobalRequestTimeoutSpinner;
+    private final CheckBox aiRequestTimeoutOverrideCheck;
+    private final Spinner<Integer> aiRequestTimeoutSpinner;
     private final ComboBox<AiTokenizerType> aiTokenizerCombo;
     private final Spinner<Integer> aiTokenLimitAmountSpinner;
     private final ComboBox<AiTokenLimitUnit> aiTokenLimitUnitCombo;
@@ -2094,6 +2098,38 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         aiEditorGrid.add(aiMaxSelectionCharsSpinner, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.timeout.global")), 0, aiRow);
+        aiGlobalRequestTimeoutSpinner = new Spinner<>(
+            0,
+            AiRequestTimeoutSupport.MAX_TIMEOUT_MINUTES,
+            globalSettings != null ? globalSettings.getAiRequestTimeoutMinutes() : 0);
+        aiGlobalRequestTimeoutSpinner.setEditable(true);
+        aiGlobalRequestTimeoutSpinner.setPrefWidth(110);
+        aiGlobalRequestTimeoutSpinner.setTooltip(new Tooltip(I18n.get("settings.ai.timeout.global.tooltip")));
+        Label aiGlobalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
+        aiGlobalTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        HBox aiGlobalTimeoutBox = new HBox(6, aiGlobalRequestTimeoutSpinner, aiGlobalTimeoutHint);
+        aiGlobalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
+        aiEditorGrid.add(aiGlobalTimeoutBox, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.timeout.profile")), 0, aiRow);
+        aiRequestTimeoutOverrideCheck = new CheckBox(I18n.get("settings.ai.timeout.profile.override"));
+        aiRequestTimeoutSpinner = new Spinner<>(0, AiRequestTimeoutSupport.MAX_TIMEOUT_MINUTES, 0);
+        aiRequestTimeoutSpinner.setEditable(true);
+        aiRequestTimeoutSpinner.setPrefWidth(110);
+        // Without the override the profile follows the global value, so an enabled spinner would
+        // only show a number that has no effect.
+        aiRequestTimeoutSpinner.disableProperty().bind(aiRequestTimeoutOverrideCheck.selectedProperty().not());
+        Tooltip aiProfileTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.profile.tooltip"));
+        aiRequestTimeoutOverrideCheck.setTooltip(aiProfileTimeoutTooltip);
+        aiRequestTimeoutSpinner.setTooltip(aiProfileTimeoutTooltip);
+        Label aiProfileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
+        aiProfileTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        HBox aiProfileTimeoutBox = new HBox(
+            6, aiRequestTimeoutOverrideCheck, aiRequestTimeoutSpinner, aiProfileTimeoutHint);
+        aiProfileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
+        aiEditorGrid.add(aiProfileTimeoutBox, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.tokenizer")), 0, aiRow);
         aiTokenizerCombo = new ComboBox<>();
@@ -4697,6 +4733,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             AiReasoningSupport.availableEfforts(selectedAiProfile)));
         selectedAiProfile.setInternetAccessMode(aiInternetAccessModeCombo.getValue());
         selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        selectedAiProfile.setRequestTimeoutMinutes(
+            aiRequestTimeoutOverrideCheck.isSelected() ? aiRequestTimeoutSpinner.getValue() : null);
         selectedAiProfile.setTokenizerType(aiTokenizerCombo.getValue());
         selectedAiProfile.setTokenLimitAmount(aiTokenLimitAmountSpinner.getValue() != null ? aiTokenLimitAmountSpinner.getValue().longValue() : 0L);
         selectedAiProfile.setTokenLimitUnit(aiTokenLimitUnitCombo.getValue());
@@ -4771,6 +4809,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
                 : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        Integer aiProfileTimeoutMinutes = profile.getRequestTimeoutMinutes();
+        aiRequestTimeoutOverrideCheck.setSelected(aiProfileTimeoutMinutes != null);
+        aiRequestTimeoutSpinner.getValueFactory().setValue(
+            aiProfileTimeoutMinutes != null ? aiProfileTimeoutMinutes : 0);
         aiTokenizerCombo.setValue(profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
         aiTokenLimitAmountSpinner.getValueFactory().setValue(profile.getTokenLimitAmount() != null ? profile.getTokenLimitAmount().intValue() : 0);
         aiTokenLimitUnitCombo.setValue(profile.getTokenLimitUnit() != null ? profile.getTokenLimitUnit() : AiTokenLimitUnit.THOUSANDS);
@@ -4908,6 +4950,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             alert.showAndWait();
             return false;
         }
+        globalSettings.setAiRequestTimeoutMinutes(
+            aiGlobalRequestTimeoutSpinner.getValue() != null ? aiGlobalRequestTimeoutSpinner.getValue() : 0);
         globalSettings.setAiSearxngUrl(trimToNull(aiSearxngUrlField.getText()));
         globalSettings.setAiTavilyMcpServerLabel(aiTavilyMcpServerLabelField.getText());
         globalSettings.setAiBrightDataMcpServerLabel(aiBrightDataMcpServerLabelField.getText());

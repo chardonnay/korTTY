@@ -4,6 +4,7 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiPromptExecutionScope;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiRequest;
+import de.kortty.core.AiRequestTimeoutAware;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.LocalAiReplySupport;
 import de.kortty.core.AiSkillUsageTracker;
@@ -22,7 +23,7 @@ import java.util.function.Supplier;
  * AI service that leases a model-specific llama-server and delegates to korTTY's existing
  * OpenAI-compatible transport.
  */
-public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsageTracker {
+public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedLlamaAiService.class);
 
@@ -31,6 +32,8 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
     private final TavilyWebSearchTool webSearchTool;
     private final AiSkillPromptSupport skillPromptSupport;
     private final Supplier<LlamaRuntimeManager> runtimeManagerSupplier;
+    /** {@code null} lets a request run to completion — see AiRequestTimeoutSupport. */
+    private java.time.Duration requestTimeout;
 
     /** Creates a service using the lazily initialized application-wide runtime manager. */
     public EmbeddedLlamaAiService(
@@ -146,6 +149,11 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
     }
 
     @Override
+    public void setRequestTimeout(java.time.Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
+    }
+
+    @Override
     public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return skillPromptSupport.drainSkillUsages();
     }
@@ -205,6 +213,7 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
                 reasoningEffort,
                 webSearchTool,
                 skillPromptSupport);
+            delegate.setRequestTimeout(requestTimeout);
             return call.invoke(delegate);
         }
     }
