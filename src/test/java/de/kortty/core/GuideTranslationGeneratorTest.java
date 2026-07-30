@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -304,8 +305,13 @@ class GuideTranslationGeneratorTest {
     void aTruncatedMemoryFileIsIgnoredInsteadOfFailingTheRun() throws IOException {
         new GuideTranslationGenerator(new IdentityService(), tempDir).generate("xx", null, null);
         Path memory = tempDir.resolve("guide/xx/translation-memory.json");
-        String full = Files.readString(memory, StandardCharsets.UTF_8);
-        Files.writeString(memory, full.substring(0, full.length() / 2), StandardCharsets.UTF_8);
+        // Cut the file in half as bytes, the way a real interrupted write leaves it. Halving the
+        // decoded String instead splits UTF-16 at an arbitrary index, and the moment the guide
+        // contains an emoji (a surrogate pair) near that point, writing the half back fails with
+        // UnmappableCharacterException — the test then dies on its own setup instead of
+        // exercising the recovery path, and which guide text is present decides whether it passes.
+        byte[] full = Files.readAllBytes(memory);
+        Files.write(memory, Arrays.copyOf(full, full.length / 2));
 
         GuideTranslationGenerator.Result result =
             new GuideTranslationGenerator(new IdentityService(), tempDir)
