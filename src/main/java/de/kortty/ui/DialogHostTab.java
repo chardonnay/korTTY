@@ -101,6 +101,11 @@ public class DialogHostTab extends Tab {
         });
         pane.setMaxWidth(Double.MAX_VALUE);
         pane.setMaxHeight(Double.MAX_VALUE);
+        // The holder must not report the size it just pinned on the pane back up to the tab: that
+        // minimum would keep the tab area from ever getting smaller, the listeners above would
+        // never fire again, and the pane would stay at its largest size while the window shrinks —
+        // pushing the dialog's button bar out of the window with no way to reach it.
+        holder.setMinSize(0, 0);
         return holder;
     }
 
