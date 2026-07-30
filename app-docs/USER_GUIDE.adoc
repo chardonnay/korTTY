@@ -1,6 +1,6 @@
 = KorTTY User Guide
 
-*v2.7.0* | link:../README.adoc[Back to README]
+*v2.8.0* | link:../README.adoc[Back to README]
 
 :toc:
 :toclevels: 3
@@ -1276,4 +1276,4 @@ All KorTTY data is stored under `~/.kortty/`:
 | Credentials | Never stored in plain text
 |===
 
-_KorTTY v2.7.0_
+_KorTTY v2.8.0_
