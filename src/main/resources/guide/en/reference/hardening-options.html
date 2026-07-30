@@ -18,7 +18,7 @@
         <link rel="prev" href="enterprise-policy.html">
       
       
-        <link rel="next" href="settings/index.html">
+        <link rel="next" href="input-hardening.html">
       
       
         
@@ -455,6 +455,8 @@
       
         
       
+        
+      
     
     
     
@@ -804,6 +806,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -855,7 +885,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -877,14 +907,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2358,6 +2388,10 @@
 <h1 id="hardening-options">Hardening options<a class="headerlink" href="#hardening-options" title="Permanent link">&para;</a></h1>
 <p><strong>Hardening options</strong> are a set of production-quality techniques you can ask the AI to bake into a script it generates or rewrites. Instead of writing the same instruction ("add error handling", "make it re-runnable", "give it a <code>--help</code>") by hand every time, you tick the techniques you want and KorTTY turns each one into a precise rule that is appended to the AI prompt. The result is a script that behaves like something a careful engineer would ship: it fails loudly instead of silently, cleans up after itself, logs what it does, and can be run again without surprises.</p>
 <p>The same eleven options are used everywhere KorTTY generates or improves a script, so they behave identically no matter where you start from.</p>
+<div class="admonition note">
+<p class="admonition-title">Not the same as Input hardening</p>
+<p>Hardening options shape <em>how the script is written</em> (structure, error handling, logging, CLI). The separate <a href="input-hardening.html">Input hardening</a> panel instead asks the AI to build a concrete <em>input-validation guard block</em> into the script that checks parameters and input files at run time. The two appear side by side and can be combined.</p>
+</div>
 <h2 id="where-they-appear">Where they appear<a class="headerlink" href="#where-they-appear" title="Permanent link">&para;</a></h2>
 <p>The <strong>Hardening options</strong> panel shows up in these places:</p>
 <table>
@@ -2376,7 +2410,7 @@
 </tr>
 <tr>
 <td><strong>AI Swarm → Generate multi-server workflow</strong></td>
-<td>Same collapsible panel</td>
+<td>No panel — the default all-on selection is applied automatically</td>
 <td>You generate the multi-server script</td>
 </tr>
 <tr>

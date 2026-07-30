@@ -18,7 +18,7 @@
         <link rel="prev" href="enterprise-policy.html">
       
       
-        <link rel="next" href="settings/index.html">
+        <link rel="next" href="input-hardening.html">
       
       
         
@@ -455,6 +455,8 @@
       
         
       
+        
+      
     
     
     
@@ -804,6 +806,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eingabe-Härtung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -855,7 +885,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -877,14 +907,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2358,6 +2388,10 @@
 <h1 id="hartungsoptionen">Härtungsoptionen<a class="headerlink" href="#hartungsoptionen" title="Permanent link">&para;</a></h1>
 <p><strong>Härtungsoptionen</strong> sind eine Reihe von Techniken in Produktionsqualität, die Sie von der KI in ein von ihr generiertes oder neu geschriebenes Skript einbauen lassen können. Anstatt jedes Mal die gleiche Anweisung („Fehlerbehandlung hinzufügen“, „Wiederausführbar machen“, „Geben Sie ihm einen <code>--help</code>“) von Hand zu schreiben, kreuzen Sie die gewünschten Techniken an und KorTTY wandelt jede einzelne in eine präzise Regel um, die an die KI-Eingabeaufforderung angehängt wird. Das Ergebnis ist ein Skript, das sich wie etwas verhält, das ein sorgfältiger Ingenieur ausliefern würde: Es schlägt laut statt lautlos fehl, bereinigt sich selbst, protokolliert, was es tut, und kann ohne Überraschungen erneut ausgeführt werden.</p>
 <p>Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein Skript generiert oder verbessert, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.</p>
+<div class="admonition note">
+<p class="admonition-title">Nicht dasselbe wie Eingabe-Härtung</p>
+<p>Härtungs-Optionen beeinflussen, <em>wie das Skript geschrieben wird</em> (Struktur, Fehlerbehandlung, Protokollierung, CLI). Das separate Panel <a href="input-hardening.html">Eingabe-Härtung</a> fordert die KI stattdessen auf, einen konkreten <em>Eingabevalidierungs-Schutzblock</em> in das Skript einzubauen, der Parameter und Eingabedateien zur Laufzeit überprüft. Beide erscheinen nebeneinander und können kombiniert werden.</p>
+</div>
 <h2 id="wo-sie-erscheinen">Wo sie erscheinen<a class="headerlink" href="#wo-sie-erscheinen" title="Permanent link">&para;</a></h2>
 <p>Das Bedienfeld <strong>Härtungsoptionen</strong> wird an folgenden Stellen angezeigt:</p>
 <table>
@@ -2375,9 +2409,9 @@
 <td>Sie klicken auf <em>Generieren</em></td>
 </tr>
 <tr>
-<td><strong>KI-Schwarm → Multi-Server-Workflow generieren</strong></td>
-<td>Gleiches zusammenklappbares Panel</td>
-<td>Sie generieren das Multiserver-Skript</td>
+<td><strong>AI Swarm → Multi-Server-Workflow generieren</strong></td>
+<td>Kein Panel – die standardmäßige All-On-Auswahl wird automatisch angewendet</td>
+<td>Sie generieren das Multi-Server-Skript</td>
 </tr>
 <tr>
 <td><strong>Snippet-Editor → AI-Code → Robustheit verbessern</strong></td>

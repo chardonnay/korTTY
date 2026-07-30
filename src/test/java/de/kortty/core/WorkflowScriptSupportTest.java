@@ -2,6 +2,8 @@ package de.kortty.core;
 
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.core.WorkflowScriptSupport.HeaderFacts;
+import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
+import de.kortty.core.WorkflowScriptSupport.InputHardeningOption;
 import de.kortty.core.WorkflowScriptSupport.ScriptLanguage;
 import de.kortty.core.WorkflowScriptSupport.WorkflowContext;
 import org.testng.annotations.Test;
@@ -421,5 +423,162 @@ class WorkflowScriptSupportTest {
         // Unknown / stale tokens are ignored, valid ones kept.
         assertThat(HardeningOption.parseOptions("STRICT_MODE, BOGUS ,IDEMPOTENCY"))
             .isEqualTo(EnumSet.of(HardeningOption.STRICT_MODE, HardeningOption.IDEMPOTENCY));
+    }
+
+    // ---------------------------------------------------------------- input hardening
+
+    private static InputHardeningConfig allInputHardening() {
+        return new InputHardeningConfig(InputHardeningOption.defaults(),
+            InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+    }
+
+    @Test
+    void inputHardeningDefaultsContainAllSubOptions() {
+        assertThat(InputHardeningOption.defaults()).hasSize(InputHardeningOption.values().length);
+    }
+
+    @Test
+    void inputHardeningOptionsSerializeAndParseRoundTrip() {
+        EnumSet<InputHardeningOption> chosen = EnumSet.of(
+            InputHardeningOption.PARAM_VALIDATION, InputHardeningOption.FILE_CHECKS);
+
+        String csv = InputHardeningOption.serializeOptions(chosen);
+        assertThat(InputHardeningOption.parseOptions(csv)).isEqualTo(chosen);
+
+        // null means "never saved" -> all options; an empty string means a saved "clear" -> none.
+        assertThat(InputHardeningOption.parseOptions(null)).isEqualTo(InputHardeningOption.defaults());
+        assertThat(InputHardeningOption.parseOptions("")).isEmpty();
+        assertThat(InputHardeningOption.serializeOptions(EnumSet.noneOf(InputHardeningOption.class))).isEmpty();
+        // Unknown / stale tokens are ignored, valid ones kept.
+        assertThat(InputHardeningOption.parseOptions("PARAM_VALIDATION, BOGUS ,FILE_CHECKS"))
+            .isEqualTo(EnumSet.of(InputHardeningOption.PARAM_VALIDATION, InputHardeningOption.FILE_CHECKS));
+    }
+
+    @Test
+    void inputHardeningConfigClampsAndCopiesDefensively() {
+        EnumSet<InputHardeningOption> mutable = EnumSet.of(InputHardeningOption.PARAM_VALIDATION);
+        InputHardeningConfig config = new InputHardeningConfig(mutable, -1);
+        mutable.add(InputHardeningOption.FORCE_OVERRIDE);
+
+        assertThat(config.options()).containsExactly(InputHardeningOption.PARAM_VALIDATION);
+        assertThat(config.maxFileSizeBytes()).isEqualTo(InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        assertThat(config.isEnabled()).isTrue();
+        assertThat(InputHardeningConfig.disabled().isEnabled()).isFalse();
+    }
+
+    @Test
+    void inputHardeningRulesCarryTheCoreContract() {
+        String rules = WorkflowScriptSupport.inputHardeningRulesText(allInputHardening(), ScriptLanguage.BASH);
+
+        assertThat(rules).contains("INPUT HARDENING guard block");
+        assertThat(rules).contains("built-ins / standard library only");
+        assertThat(rules).contains("KORTTY_MAX_FILE_SIZE=10485760");
+        assertThat(rules).contains("(bytes; 10 MB)");
+        assertThat(rules).contains("KORTTY_FORCE");
+        assertThat(rules).contains("stderr");
+        assertThat(rules).contains("64 for parameter violations");
+        assertThat(rules).contains("65 for a file that fails the format or size checks");
+        assertThat(rules).contains("66 for a missing or unreadable input file");
+        assertThat(rules).contains("SECURITY:");
+        assertThat(rules).contains("exact expected parameter count");
+        assertThat(rules).contains("never more than 4096");
+        assertThat(rules).contains("file --mime-type");
+    }
+
+    @Test
+    void inputHardeningRulesEmbedTheConfiguredMaxFileSize() {
+        InputHardeningConfig fiveMb = new InputHardeningConfig(InputHardeningOption.defaults(), 5_242_880L);
+        String rules = WorkflowScriptSupport.inputHardeningRulesText(fiveMb, ScriptLanguage.BASH);
+
+        assertThat(rules).contains("KORTTY_MAX_FILE_SIZE=5242880");
+        assertThat(rules).doesNotContain("10485760");
+    }
+
+    @Test
+    void inputHardeningRulesAreLanguageAware() {
+        InputHardeningConfig config = allInputHardening();
+
+        assertThat(WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.BASH)).contains("wc -c");
+        String python = WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.PYTHON);
+        assertThat(python).contains("os.path.getsize");
+        assertThat(python).contains("sys.argv");
+        String perl = WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.PERL);
+        assertThat(perl).contains("taint mode (-T");
+        assertThat(perl).contains("untaint");
+        assertThat(WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.RUBY))
+            .contains("File.binread");
+        // Unknown snippet languages get the generic implementation bullet, no bash idioms.
+        String generic = WorkflowScriptSupport.inputHardeningRulesText(config, null);
+        assertThat(generic).contains("native argument, string and file facilities");
+        assertThat(generic).doesNotContain("wc -c");
+    }
+
+    @Test
+    void inputHardeningSubOptionsGateTheirRules() {
+        InputHardeningConfig paramOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.PARAM_VALIDATION), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String rules = WorkflowScriptSupport.inputHardeningRulesText(paramOnly, ScriptLanguage.BASH);
+
+        assertThat(rules).contains("character allowlist");
+        assertThat(rules).doesNotContain("KORTTY_MAX_FILE_SIZE");
+        assertThat(rules).doesNotContain("KORTTY_FORCE");
+        assertThat(rules).doesNotContain("SECURITY:");
+        assertThat(rules).doesNotContain("file --mime-type");
+        // A param-only guard must not name file-related exit codes it will never use.
+        assertThat(rules).doesNotContain("65 for a file");
+        assertThat(rules).doesNotContain("66 for a missing");
+        assertThat(WorkflowScriptSupport.inputHardeningRulesText(InputHardeningConfig.disabled(),
+            ScriptLanguage.BASH)).isEmpty();
+        assertThat(WorkflowScriptSupport.inputHardeningRulesText(null, ScriptLanguage.BASH)).isEmpty();
+    }
+
+    @Test
+    void inputHardeningLanguageIdiomsAreGatedBySubOptionsToo() {
+        // The per-language implementation bullet must not teach the mechanics of deselected
+        // sub-options — most importantly the KORTTY_FORCE bypass, which weakens the guard.
+        InputHardeningConfig paramOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.PARAM_VALIDATION), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        for (ScriptLanguage lang : new ScriptLanguage[] {
+            ScriptLanguage.BASH, ScriptLanguage.PYTHON, ScriptLanguage.PERL, ScriptLanguage.RUBY}) {
+            String rules = WorkflowScriptSupport.inputHardeningRulesText(paramOnly, lang);
+            assertThat(rules).doesNotContain("KORTTY_FORCE");
+            assertThat(rules).doesNotContain("binread");
+            assertThat(rules).doesNotContain("getsize");
+            assertThat(rules).doesNotContain("wc -c");
+            assertThat(rules).doesNotContain("512");
+        }
+        // A config without any language-mappable sub-option still gets a coherent generic lead.
+        InputHardeningConfig loggingOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.SECURITY_LOGGING), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String logging = WorkflowScriptSupport.inputHardeningRulesText(loggingOnly, ScriptLanguage.PYTHON);
+        assertThat(logging).contains("Python standard library only.");
+        assertThat(logging).doesNotContain("KORTTY_FORCE");
+        assertThat(logging).doesNotContain("64 for parameter violations");
+    }
+
+    @Test
+    void inputHardeningRulesAreEmptyForAnsible() {
+        assertThat(WorkflowScriptSupport.inputHardeningRulesText(allInputHardening(), ScriptLanguage.ANSIBLE))
+            .isEmpty();
+    }
+
+    @Test
+    void systemPromptIncludesInputHardeningSectionOnlyWhenEnabled() {
+        String withGuard = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(),
+            WorkflowScriptSupport.HeaderMode.AUTO, allInputHardening());
+        assertThat(withGuard).contains("INPUT HARDENING:");
+        assertThat(withGuard).contains("KORTTY_MAX_FILE_SIZE=10485760");
+
+        String without = WorkflowScriptSupport.buildSystemPrompt(
+            ScriptLanguage.BASH, HardeningOption.defaults(), WorkflowScriptSupport.HeaderMode.AUTO);
+        assertThat(without).doesNotContain("INPUT HARDENING:");
+        // A disabled config must be byte-identical to the legacy overload's output.
+        assertThat(WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(),
+            WorkflowScriptSupport.HeaderMode.AUTO, InputHardeningConfig.disabled())).isEqualTo(without);
+
+        String swarm = WorkflowScriptSupport.buildSwarmSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(),
+            null, WorkflowScriptSupport.HeaderMode.AUTO, allInputHardening());
+        assertThat(swarm).contains("INPUT HARDENING:");
+        assertThat(swarm).contains("MULTI-HOST ORCHESTRATION:");
     }
 }

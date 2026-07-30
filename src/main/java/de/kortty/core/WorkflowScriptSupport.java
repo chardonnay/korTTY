@@ -192,6 +192,100 @@ public final class WorkflowScriptSupport {
         }
     }
 
+    /**
+     * Input-hardening sub-features: the AI adapts the script itself to carry a guard block at the
+     * top that validates every input before any real work (see {@link #inputHardeningRulesText}).
+     * Deliberately separate from {@link HardeningOption}: the guard blocks bad runs at runtime, so
+     * the feature is strictly opt-in per run and never enabled by default.
+     */
+    public enum InputHardeningOption {
+        PARAM_VALIDATION,
+        FILE_CHECKS,
+        FILE_SIZE_LIMIT,
+        SECURITY_LOGGING,
+        FORCE_OVERRIDE;
+
+        /**
+         * All sub-options — the pre-ticked grid state when the panel was never saved. Pre-selection
+         * only: whether the guard is requested at all hangs on the separate per-run master toggle.
+         */
+        public static EnumSet<InputHardeningOption> defaults() {
+            return EnumSet.allOf(InputHardeningOption.class);
+        }
+
+        /**
+         * Parses a persisted comma-separated selection (enum names). {@code null} means "never saved" and
+         * yields {@link #defaults()} (all options); an empty string yields an empty set (a saved "clear").
+         * Unknown tokens are ignored.
+         */
+        public static EnumSet<InputHardeningOption> parseOptions(String csv) {
+            if (csv == null) {
+                return defaults();
+            }
+            EnumSet<InputHardeningOption> selected = EnumSet.noneOf(InputHardeningOption.class);
+            for (String token : csv.split(",")) {
+                String name = token.trim();
+                if (name.isEmpty()) {
+                    continue;
+                }
+                try {
+                    selected.add(InputHardeningOption.valueOf(name));
+                } catch (IllegalArgumentException ignored) {
+                    // Drop tokens from older/newer builds that no longer map to an option.
+                }
+            }
+            return selected;
+        }
+
+        /** Serialises a selection to a comma-separated list of enum names (empty string for an empty set). */
+        public static String serializeOptions(EnumSet<InputHardeningOption> options) {
+            if (options == null || options.isEmpty()) {
+                return "";
+            }
+            StringBuilder builder = new StringBuilder();
+            for (InputHardeningOption option : options) {
+                if (builder.length() > 0) {
+                    builder.append(',');
+                }
+                builder.append(option.name());
+            }
+            return builder.toString();
+        }
+    }
+
+    /**
+     * Per-run input-hardening configuration: the chosen sub-options plus the value generated into
+     * the script's KORTTY_MAX_FILE_SIZE variable. An empty option set means the feature is off for
+     * this run.
+     */
+    public record InputHardeningConfig(EnumSet<InputHardeningOption> options, long maxFileSizeBytes) {
+
+        /** Default for the generated KORTTY_MAX_FILE_SIZE variable: 10 MB. */
+        public static final long DEFAULT_MAX_FILE_SIZE_BYTES = 10_485_760L;
+
+        public InputHardeningConfig {
+            options = options != null && !options.isEmpty()
+                ? EnumSet.copyOf(options)
+                : EnumSet.noneOf(InputHardeningOption.class);
+            if (maxFileSizeBytes <= 0) {
+                maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES;
+            }
+        }
+
+        public static InputHardeningConfig disabled() {
+            return new InputHardeningConfig(EnumSet.noneOf(InputHardeningOption.class), DEFAULT_MAX_FILE_SIZE_BYTES);
+        }
+
+        public boolean isEnabled() {
+            return !options.isEmpty();
+        }
+
+        @Override
+        public EnumSet<InputHardeningOption> options() {
+            return options.clone();
+        }
+    }
+
     /** Authoritative header facts injected verbatim so the model cannot hallucinate them. */
     public record HeaderFacts(String scriptName, String creatorUser, String sshUser,
                               String connectionName, LocalDateTime generatedAt,
@@ -227,6 +321,16 @@ public final class WorkflowScriptSupport {
      *                   description. NONE: no header and no description block.
      */
     public static String buildSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> opts, HeaderMode headerMode) {
+        return buildSystemPrompt(lang, opts, headerMode, null);
+    }
+
+    /**
+     * @param inputHardening optional input-hardening guard contract appended as an INPUT HARDENING
+     *                       section (see {@link #inputHardeningRulesText}); {@code null} or a
+     *                       disabled config adds nothing.
+     */
+    public static String buildSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> opts, HeaderMode headerMode,
+                                           InputHardeningConfig inputHardening) {
         EnumSet<HardeningOption> options = opts != null ? opts : HardeningOption.defaults();
         String artefact = lang.isDeclarative() ? "Ansible playbook" : (lang.displayName() + " script");
         String unit = lang.isDeclarative() ? "playbook" : "script";
@@ -268,6 +372,10 @@ public final class WorkflowScriptSupport {
         String rules = optionRules(lang, options);
         if (!rules.isBlank()) {
             sb.append("\nADDITIONAL REQUIREMENTS:\n").append(rules).append("\n");
+        }
+        String inputRules = inputHardeningRulesText(inputHardening, lang);
+        if (!inputRules.isBlank()) {
+            sb.append("\nINPUT HARDENING:\n").append(inputRules).append("\n");
         }
         return sb.toString().strip();
     }
@@ -439,6 +547,158 @@ public final class WorkflowScriptSupport {
         return String.join("\n", rules);
     }
 
+    /**
+     * Renders the input-hardening guard contract as newline-separated prompt rules, reusable by both
+     * the workflow-script generators and the snippet editor's improvement flows. Returns {@code ""}
+     * when the config is {@code null}/disabled or the language is declarative (an Ansible playbook
+     * takes no positional parameters this way). {@code lang} may be {@code null} for snippet
+     * languages outside the workflow set — the generic implementation bullet is emitted then.
+     */
+    public static String inputHardeningRulesText(InputHardeningConfig config, ScriptLanguage lang) {
+        if (config == null || !config.isEnabled() || (lang != null && lang.isDeclarative())) {
+            return "";
+        }
+        EnumSet<InputHardeningOption> opts = config.options();
+        List<String> rules = new ArrayList<>();
+        rules.add("- Add an INPUT HARDENING guard block at the top of the script, directly after the shebang,"
+            + " strict-mode and configuration lines and before any other logic. Mark it clearly with comments"
+            + " (e.g. \"--- input hardening guard ---\") and run every check below before the script does any"
+            + " real work. The guard runs entirely inside the script on the host executing it; assume no help"
+            + " from any outside tool.");
+        rules.add("- Implement every check with the language's own built-ins / standard library only; never"
+            + " depend on commands that may be missing on the target host. When an optional helper (such as"
+            + " the 'file' command) is unavailable, degrade gracefully to the built-in check instead of failing.");
+        // The exit-code list names only the violation classes the selected sub-options create, so the
+        // prompt never describes (and thereby invites) checks the user deselected.
+        List<String> exitCodes = new ArrayList<>();
+        if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
+            exitCodes.add("64 for parameter violations");
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS) || opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+            exitCodes.add("65 for a file that fails the format or size checks");
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            exitCodes.add("66 for a missing or unreadable input file");
+        }
+        rules.add("- On a violation, print one clear, specific message per problem to stderr and exit without"
+            + " executing the rest of the script. " + (exitCodes.isEmpty()
+                ? "Use a distinct, documented non-zero exit code for each violation class."
+                : "Use distinct, documented exit codes: " + String.join(", ", exitCodes) + "."));
+        if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
+            rules.add("- Validate every parameter the script is called with. First verify the exact expected"
+                + " parameter count and reject missing or surplus parameters with a short usage hint.");
+            rules.add("- Derive each parameter's constraints from how the script actually uses it (number,"
+                + " file path, host name, enum-like keyword, free text) and enforce a per-parameter character"
+                + " allowlist. Reject control characters, NUL bytes and shell metacharacters (; | & $ ` \\ < >"
+                + " and embedded newlines) for every parameter that does not legitimately need them.");
+            rules.add("- Enforce a maximum length per parameter derived from its use (never more than 4096"
+                + " characters) so oversized input is rejected instead of processed.");
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            rules.add("- For every parameter the script uses as an input file path: verify the file exists and"
+                + " is readable before first use (exit code 66), and verify its content format matches what the"
+                + " script can process. A text-processing script must reject binary files: scan the first 512"
+                + " bytes for NUL bytes, and additionally consult 'file --mime-type' (or the platform"
+                + " equivalent) only when that command exists, falling back to the NUL-byte check when it"
+                + " does not.");
+        }
+        if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+            long bytes = config.maxFileSizeBytes();
+            rules.add("- Define a variable KORTTY_MAX_FILE_SIZE=" + bytes + " (bytes; " + (bytes / 1_048_576L)
+                + " MB) in the guard's configuration section, with a comment stating that the script author may"
+                + " raise or lower it later by editing this variable. Reject every input file whose size exceeds"
+                + " this limit (exit code 65).");
+        }
+        if (opts.contains(InputHardeningOption.SECURITY_LOGGING)) {
+            rules.add("- Report every violation and every forced bypass as a security warning: a timestamped"
+                + " line starting with \"SECURITY:\" written to stderr in every case. If the script writes its"
+                + " own logfile — detect an existing log-file variable or logging function in the script and"
+                + " reuse it — append the same warning line there as well.");
+        }
+        if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
+            rules.add("- Force override: when the environment variable KORTTY_FORCE is set to 1, do not block —"
+                + " downgrade every violation to a warning and continue. Still print each individual violation,"
+                + " plus one additional warning that enforcement was bypassed via KORTTY_FORCE, so every forced"
+                + " run leaves a complete trace.");
+        }
+        rules.add(inputHardeningLanguageRule(lang, opts));
+        return String.join("\n", rules);
+    }
+
+    /** Per-language implementation idiom fragments for the guard, one clause per sub-option. */
+    private record InputHardeningIdioms(String lead, String params, String fileChecks,
+                                        String fileSize, String force) {
+    }
+
+    /**
+     * Language-specific implementation guidance for the guard block (generic for unknown languages).
+     * Only the clauses for the selected sub-options are emitted, so the bullet never teaches the
+     * mechanics of a check the user deselected (most importantly the KORTTY_FORCE bypass).
+     */
+    private static String inputHardeningLanguageRule(ScriptLanguage lang, EnumSet<InputHardeningOption> opts) {
+        InputHardeningIdioms idioms = inputHardeningIdioms(lang);
+        if (idioms == null) {
+            return "- Implement the guard with the language's native argument, string and file facilities only.";
+        }
+        List<String> clauses = new ArrayList<>();
+        if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
+            clauses.add(idioms.params());
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            clauses.add(idioms.fileChecks());
+        }
+        if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+            clauses.add(idioms.fileSize());
+        }
+        if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
+            clauses.add(idioms.force());
+        }
+        if (clauses.isEmpty()) {
+            return "- " + idioms.lead() + ".";
+        }
+        return "- " + idioms.lead() + ": " + String.join("; ", clauses) + ".";
+    }
+
+    private static InputHardeningIdioms inputHardeningIdioms(ScriptLanguage lang) {
+        if (lang == null) {
+            return null;
+        }
+        return switch (lang) {
+            case BASH -> new InputHardeningIdioms(
+                "Implement the guard with bash built-ins and POSIX tools only",
+                "$# for the parameter count, case/[[ patterns for allowlists, ${#var} for lengths,"
+                    + " and set -u for unset parameters",
+                "[ -f ]/[ -r ] file tests and a NUL-byte scan of the first 512 bytes (compare the byte count of"
+                    + " head -c 512 \"$file\" | LC_ALL=C tr -d '\\0' against the raw count) for the binary check,"
+                    + " probing optional helpers with command -v",
+                "wc -c < \"$file\" for the size limit",
+                "\"${KORTTY_FORCE:-}\" for the override");
+            case PYTHON -> new InputHardeningIdioms(
+                "Implement the guard with the Python standard library only",
+                "len(sys.argv) for the count and the re module for allowlists",
+                "os.path.isfile/os.access(..., os.R_OK) for file tests and open(path, 'rb').read(512)"
+                    + " containing b'\\x00' for the binary check",
+                "os.path.getsize for the size limit",
+                "os.environ.get(\"KORTTY_FORCE\") for the override");
+            case PERL -> new InputHardeningIdioms(
+                "Implement the guard with core Perl only",
+                "@ARGV checks and regex allowlists that also untaint values, enabling taint mode (-T on the"
+                    + " shebang) where the script's usage allows it and emulating it by validating and"
+                    + " untainting every parameter explicitly otherwise",
+                "-e/-r file tests and a NUL-byte scan of the first 512 bytes for the binary check",
+                "-s for the size limit",
+                "$ENV{KORTTY_FORCE} for the override");
+            case RUBY -> new InputHardeningIdioms(
+                "Implement the guard with core Ruby only",
+                "ARGV.length for the count and Regexp allowlists",
+                "File.exist?/File.readable? file tests and File.binread(path, 512).include?(\"\\0\")"
+                    + " for the binary check",
+                "File.size for the size limit",
+                "ENV[\"KORTTY_FORCE\"] for the override");
+            default -> null;
+        };
+    }
+
     // ------------------------------------------------------------------ multi-host (swarm) assembly
 
     /** Non-secret host facts fed into a multi-host workflow script. Carries no passwords/key contents. */
@@ -471,8 +731,18 @@ public final class WorkflowScriptSupport {
 
     public static String buildSwarmSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> hardening,
                                                 EnumSet<SwarmScriptOption> swarmOpts, HeaderMode headerMode) {
+        return buildSwarmSystemPrompt(lang, hardening, swarmOpts, headerMode, null);
+    }
+
+    /**
+     * @param inputHardening optional input-hardening guard contract appended as an INPUT HARDENING
+     *                       section; {@code null} or a disabled config adds nothing.
+     */
+    public static String buildSwarmSystemPrompt(ScriptLanguage lang, EnumSet<HardeningOption> hardening,
+                                                EnumSet<SwarmScriptOption> swarmOpts, HeaderMode headerMode,
+                                                InputHardeningConfig inputHardening) {
         EnumSet<SwarmScriptOption> options = swarmOpts != null ? swarmOpts : SwarmScriptOption.defaults();
-        StringBuilder sb = new StringBuilder(buildSystemPrompt(lang, hardening, headerMode));
+        StringBuilder sb = new StringBuilder(buildSystemPrompt(lang, hardening, headerMode, inputHardening));
         sb.append("\n\nMULTI-HOST ORCHESTRATION:\n");
         if (lang.isDeclarative()) {
             sb.append("- Target multiple hosts: define them in the play's hosts/inventory and run the per-host tasks on each.\n");

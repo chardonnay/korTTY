@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3215,6 +3245,7 @@
 <ul>
 <li><strong>Auto-load matching AI Skills</strong> — Skills like language-quality guidelines for the target language are automatically included.</li>
 <li><strong>Hardening options</strong> — A collapsible panel of production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, dry-run, <code>--help</code>, and more) that are baked into the generated script. All are on by default; untick any you don't want. See <a href="../reference/hardening-options.html">Hardening options</a> for what each one means.</li>
+<li><strong>Input hardening</strong> — A second collapsible panel that asks the AI to build an input-validation guard block into the generated script: parameter allowlists and length limits, file format checks, a maximum input-file size (an adjustable <code>KORTTY_MAX_FILE_SIZE</code> script variable), security warnings in the script's log, and a <code>KORTTY_FORCE=1</code> override. Strictly opt-in — the master check box starts unticked. See <a href="../reference/input-hardening.html">Input hardening</a>.</li>
 <li><strong>Eight target languages</strong> — Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code> batch — <code>@echo off</code>, <code>REM</code> headers, <code>errorlevel</code> checks) and <strong>AppleScript</strong> (<code>.applescript</code> — <code>osascript</code> shebang, <code>--</code> comments, <code>try</code>/<code>on error</code>).</li>
 <li><strong>Multiple language variants</strong> — Generate several language variants and suggestions as inline tabs within the workflow dialog.</li>
 <li><strong>Adjustable font size</strong> — Each generated-script editor has <strong>A−</strong> / <strong>A+</strong> buttons and supports <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + mouse wheel (Cmd on macOS); the chosen size is remembered across sessions.</li>

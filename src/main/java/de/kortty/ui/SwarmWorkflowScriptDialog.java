@@ -29,6 +29,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -97,6 +98,17 @@ public final class SwarmWorkflowScriptDialog {
             optionsPane.getChildren().add(check);
         }
 
+        // Input hardening (AI-generated input guard; strictly opt-in per run). The swarm dialog has
+        // no classic hardening panel — it silently applies HardeningOption.defaults() — but the
+        // guard changes runtime behaviour, so it gets explicit UI here too. Grayed out for the
+        // declarative Ansible target, where the guard rules render empty by design.
+        InputHardeningSelector inputHardeningSelector = new InputHardeningSelector();
+        TitledPane inputHardeningPane = new TitledPane(I18n.get("ai.inputHardening.title"), inputHardeningSelector);
+        inputHardeningPane.setExpanded(false);
+        inputHardeningPane.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> languageCombo.getValue() != null && languageCombo.getValue().isDeclarative(),
+            languageCombo.valueProperty()));
+
         MonacoEditorPane preview = new MonacoEditorPane();
         preview.setEditable(true);
         preview.setWrapText(false);
@@ -159,7 +171,7 @@ public final class SwarmWorkflowScriptDialog {
                 query != null ? query : "", profile != null ? profile.getName() : "");
             WorkflowScriptGenerator.SwarmRequest request = new WorkflowScriptGenerator.SwarmRequest(
                 language, WorkflowScriptSupport.HardeningOption.defaults(), selected,
-                extraInstructions, facts, null);
+                extraInstructions, facts, null, inputHardeningSelector.currentConfig());
             WorkflowScriptGenerator.SwarmRunExportData data = new WorkflowScriptGenerator.SwarmRunExportData(
                 profile != null ? profile.getId() : null,
                 profile != null ? profile.getName() : null,
@@ -233,7 +245,7 @@ public final class SwarmWorkflowScriptDialog {
         instructionsHeader.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(10,
             hostLabel, controls,
-            new Label(I18n.get("ai.workflow.swarm.options")), optionsPane,
+            new Label(I18n.get("ai.workflow.swarm.options")), optionsPane, inputHardeningPane,
             instructionsHeader, instructionsArea,
             preview);
         box.setPadding(new Insets(10));

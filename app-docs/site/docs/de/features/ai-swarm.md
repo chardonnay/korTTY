@@ -100,7 +100,8 @@ Der Dialog beinhaltet:
 - **Sichtbarer Fortschritt** – eine funktionierende Animation mit einem Live-Ablaufzähler (*Generierung… 0:42*), während die KI arbeitet, und der Gesamtdauer (*Fertig – hat 1:37 gedauert*), wenn sie fertig ist.
 - **Zusätzliche Anweisungen** – ein dreizeiliges Feld für zusätzliche Anweisungen, denen die KI folgen muss, mit einem **Verlauf**-Menü Ihrer letzten 10 einzelnen Einträge.
 - **In Snippets speichern** – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.
-- **Härtungsoptionen** – dieselben pro Skript [Härtungsoptionen](../reference/hardening-options.md) wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, `--help` und mehr), angewendet auf das generierte Skript. Diese unterscheiden sich von den oben genannten Multiserver-Optionen.
+- **Härtungsoptionen** – dieselben pro Skript [Härtungsoptionen](../reference/hardening-options.md) wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, `--help` und mehr) werden automatisch mit ihren All-On-Standardwerten auf das generierte Skript angewendet; In diesem Dialogfeld wird kein Bereich für sie angezeigt. Sie unterscheiden sich von den oben genannten Multiserver-Optionen.
+- **Eingabe-Härtung** – ein zusammenklappbares [Eingabe-Härtung](../reference/input-hardening.md)-Panel fordert die KI auf, einen Eingabevalidierungs-Schutzblock in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine einstellbare `KORTTY_MAX_FILE_SIZE`-Größenbeschränkung, Sicherheitswarnungen im Protokoll des Skripts und eine `KORTTY_FORCE=1`-Überschreibung). Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.
 
 ## Tab-Aktivitätsanzeige
 

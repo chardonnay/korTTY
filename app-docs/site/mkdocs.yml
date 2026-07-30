@@ -109,6 +109,7 @@ nav:
       - reference/config-files.md
       - reference/enterprise-policy.md
       - reference/hardening-options.md
+      - reference/input-hardening.md
       - Settings:
           - reference/settings/index.md
           - reference/settings/appearance.md

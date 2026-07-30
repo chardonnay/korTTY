@@ -8,6 +8,9 @@ title: Hardening options
 
 The same eleven options are used everywhere KorTTY generates or improves a script, so they behave identically no matter where you start from.
 
+!!! note "Not the same as Input hardening"
+    Hardening options shape *how the script is written* (structure, error handling, logging, CLI). The separate [Input hardening](input-hardening.md) panel instead asks the AI to build a concrete *input-validation guard block* into the script that checks parameters and input files at run time. The two appear side by side and can be combined.
+
 ## Where they appear
 
 The **Hardening options** panel shows up in these places:
@@ -15,7 +18,7 @@ The **Hardening options** panel shows up in these places:
 | Where | How it looks | Applied when |
 |-------|--------------|--------------|
 | **Terminal → Generate Workflow Script** (the *Workflow* button after an agent run) | Collapsible *Hardening options* panel (collapsed by default) | You click *Generate* |
-| **AI Swarm → Generate multi-server workflow** | Same collapsible panel | You generate the multi-server script |
+| **AI Swarm → Generate multi-server workflow** | No panel — the default all-on selection is applied automatically | You generate the multi-server script |
 | **Snippet editor → AI Code → Improve robustness** | Options panel with all boxes ticked | You confirm the dialog |
 | **Snippet editor → AI Code → Custom improvement…** | Options panel plus a free-text instruction field | You confirm the dialog |
 | **Snippet editor → AI Code → Full code analysis** | Collapsible *Hardening options* panel at the bottom of the window, with a live **(N)** count of ticked options in its title; korTTY remembers whether you left it open or closed | You click *Apply selected* |

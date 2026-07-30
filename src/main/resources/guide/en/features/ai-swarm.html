@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2597,7 +2627,8 @@
 <li><strong>Visible progress</strong> — a working animation with a live elapsed counter (<em>Generating… 0:42</em>) while the AI works, and the total duration (<em>Done — took 1:37</em>) when it finishes.</li>
 <li><strong>Additional instructions</strong> — a three-line field for extra guidance the AI must follow, with a <strong>History</strong> menu of your last 10 distinct entries.</li>
 <li><strong>Save to Snippets</strong> — saves the script to the Snippet Manager with a fitting, pre-filled script name and the correct file extension.</li>
-<li><strong>Hardening options</strong> — the same per-script <a href="../reference/hardening-options.html">Hardening options</a> as the single-host workflow generator (strict mode, error traps, idempotency, dry-run, <code>--help</code>, and more), applied to the generated script. These are separate from the multi-server options above.</li>
+<li><strong>Hardening options</strong> — the same per-script <a href="../reference/hardening-options.html">Hardening options</a> as the single-host workflow generator (strict mode, error traps, idempotency, dry-run, <code>--help</code>, and more) are applied to the generated script automatically with their all-on defaults; this dialog shows no panel for them. They are separate from the multi-server options above.</li>
+<li><strong>Input hardening</strong> — a collapsible <a href="../reference/input-hardening.html">Input hardening</a> panel asks the AI to build an input-validation guard block into the generated script (parameter allowlists and length limits, file format checks, an adjustable <code>KORTTY_MAX_FILE_SIZE</code> size limit, security warnings in the script's log, and a <code>KORTTY_FORCE=1</code> override). Strictly opt-in — the master check box starts unticked.</li>
 </ul>
 <h2 id="tab-activity-indicator">Tab activity indicator<a class="headerlink" href="#tab-activity-indicator" title="Permanent link">&para;</a></h2>
 <p>The AI Swarm tab itself shows a colored status dot, so you can watch progress from any other tab:</p>

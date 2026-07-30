@@ -622,6 +622,18 @@ public class GlobalSettings {
     @XmlElement
     private String snippetHardeningOptions;
 
+    /** Whether the per-run "Input hardening" master toggle starts ticked. Null/absent = off (strictly opt-in). */
+    @XmlElement
+    private Boolean snippetInputHardeningEnabled;
+
+    /** Persisted input-hardening sub-option selection (comma-separated enum names); null = never saved → use defaults. */
+    @XmlElement
+    private String snippetInputHardeningOptions;
+
+    /** Default for the generated KORTTY_MAX_FILE_SIZE variable, in MB. Null/absent = 10 (clamped 1..1024). */
+    @XmlElement
+    private Integer snippetInputHardeningMaxFileSizeMb;
+
     @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
 
@@ -2558,6 +2570,40 @@ public class GlobalSettings {
 
     public void setSnippetHardeningOptions(String snippetHardeningOptions) {
         this.snippetHardeningOptions = snippetHardeningOptions;
+    }
+
+    /** Whether the per-run "Input hardening" master toggle starts ticked (default: off). */
+    public boolean isSnippetInputHardeningEnabled() {
+        return Boolean.TRUE.equals(snippetInputHardeningEnabled);
+    }
+
+    public void setSnippetInputHardeningEnabled(Boolean snippetInputHardeningEnabled) {
+        this.snippetInputHardeningEnabled = snippetInputHardeningEnabled;
+    }
+
+    /** Raw persisted input-hardening sub-option selection (may be null = never saved, or "" = saved empty). */
+    public String getSnippetInputHardeningOptions() {
+        return snippetInputHardeningOptions;
+    }
+
+    public void setSnippetInputHardeningOptions(String snippetInputHardeningOptions) {
+        this.snippetInputHardeningOptions = snippetInputHardeningOptions;
+    }
+
+    /** Default for the generated KORTTY_MAX_FILE_SIZE variable, in MB (10 when unset; clamped 1..1024). */
+    public int getSnippetInputHardeningMaxFileSizeMb() {
+        if (snippetInputHardeningMaxFileSizeMb == null || snippetInputHardeningMaxFileSizeMb <= 0) {
+            return 10;
+        }
+        return Math.min(1024, snippetInputHardeningMaxFileSizeMb);
+    }
+
+    public void setSnippetInputHardeningMaxFileSizeMb(Integer snippetInputHardeningMaxFileSizeMb) {
+        if (snippetInputHardeningMaxFileSizeMb == null) {
+            this.snippetInputHardeningMaxFileSizeMb = 10;
+            return;
+        }
+        this.snippetInputHardeningMaxFileSizeMb = Math.max(1, Math.min(1024, snippetInputHardeningMaxFileSizeMb));
     }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }

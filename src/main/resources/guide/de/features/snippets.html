@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eingabe-Härtung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3077,9 +3107,9 @@
 <ul>
 <li><strong>AI Complete</strong> / <strong>Auto AI Complete</strong> – Code-Vervollständigung am Cursor (siehe <a href="#ai-code-completions">AI Code-Vervollständigungen</a> oben).</li>
 <li><strong>Vollständige Codeanalyse</strong> – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe <a href="#full-code-analysis">Vollständige Codeanalyse</a> unten.</li>
-<li><strong>Verbesserung der Lesbarkeit/Robustheit/Leistung</strong> – Schreibt den <strong>ausgewählten</strong> Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. <em>Robustheit verbessern</em> bietet zusätzlich <a href="../reference/hardening-options.html">Härtungsoptionen</a> vor der Ausführung.</li>
+<li><strong>Verbesserung der Lesbarkeit/Robustheit/Leistung</strong> – Schreibt den <strong>ausgewählten</strong> Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. <em>Robustheit verbessern</em> bietet zusätzlich <a href="../reference/hardening-options.html">Härtungs-Optionen</a> und den Opt-in-Guard <a href="../reference/input-hardening.html">Eingabe-Härtung</a> vor der Ausführung an.</li>
 <li><strong>Codekommentare optimieren</strong> – Kommentiert den <strong>ausgewählten</strong> Codebereich: Die KI fügt mithilfe der spracheigenen Kommentarsyntax direkt über oder neben den Zeilen, zu denen sie gehören, Erklärungen dazu ein, was der Code tut und warum, und ersetzt veraltete oder irreführende Kommentare. Ausführbarer Code bleibt unberührt. Die Kommentare sind in der <strong>Textsprache</strong> des Herausgebers verfasst. Verfügbar im Menü <strong>AI-Code</strong> und im Kontextmenü des Editors auf eine Auswahl.</li>
-<li><strong>Benutzerdefinierte Verbesserung…</strong> – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung mit denselben <a href="../reference/hardening-options.html">Hardening-Optionen</a> neu.</li>
+<li><strong>Benutzerdefinierte Verbesserung…</strong> – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit denselben Panels für <a href="../reference/hardening-options.html">Härtungs-Optionen</a> und <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</li>
 <li><strong>Sicherheitsprüfung</strong> – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe <a href="#security-check">Sicherheitscheck</a> unten.</li>
 <li><strong>Diagramm</strong> – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.</li>
 </ul>
@@ -3125,6 +3155,8 @@
 <p>Durch das Ändern der Fertigkeiten wird <strong>nicht</strong> sofort eine erneute Analyse durchgeführt – der neue Satz wird beim nächsten <strong>Wiederholen</strong> angewendet, sodass ein bewusster Klick die Berichts- und Diagrammanforderungen mit genau den von Ihnen ausgewählten Fertigkeiten erneut ausführt. Fertigkeiten, die Sie hier einschließen, werden unabhängig vom konfigurierten <em>Ziel</em> der einzelnen Fertigkeiten gesendet. Die Zeile wird nur angezeigt, wenn mindestens eine KI-Fähigkeit aktiviert ist.</p>
 <p><strong>Härtungsmöglichkeiten:</strong></p>
 <p>Unten können Sie in einem zusammenklappbaren Bereich <strong>Härtungsoptionen</strong> Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, <code>--dry-run</code>, <code>--help</code> und mehr) den angewendeten Fixes hinzufügen. Der Panel-Titel zeigt live <strong>Zählung</strong>, wie viele Optionen derzeit aktiviert sind – zum Beispiel <em>Härtungsoptionen (11)</em> – und korTTY <strong>merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben</strong> und stellt diesen Zustand wieder her, wenn das Fenster das nächste Mal geöffnet wird. Unter <a href="../reference/hardening-options.html">Hardening options</a> erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.</p>
+<p><strong>Eingabe-Härtung:</strong></p>
+<p>Darunter fordert ein zweites zusammenklappbares Bedienfeld zur <strong>Eingabe-Härtung</strong> die KI auf, einen Schutzblock für die Eingabevalidierung in das Skript einzubauen, wenn die Korrekturen angewendet werden: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße (im Skript als anpassbare <code>KORTTY_MAX_FILE_SIZE</code>-Variable generiert), Sicherheitswarnungen im eigenen Protokoll des Skripts und eine <code>KORTTY_FORCE=1</code>-Überschreibung. Es handelt sich ausschließlich um eine Opt-in-Option – das Master-Kontrollkästchen ist zunächst deaktiviert – und sein Titel zählt nur die Unteroptionen, die tatsächlich aktiv sind. Den vollständigen Schutzvertrag finden Sie unter <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</p>
 <p><strong>Skript-Header:</strong></p>
 <p>Mit einem <strong>Script-Header</strong>-Selektor können Sie beim Anwenden der Analyse eines Ihrer gespeicherten <em>Script-Header</em>-Snippets (aus der festen <a href="#creating-and-editing-snippets">Script-Header-Kategorie </a>) dem Code voranstellen. Wählen Sie einen Header aus – oder belassen Sie ihn auf <em>Kein Header</em> (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.</p>
 <p><strong>Ausgewählt anwenden:</strong></p>
