@@ -155,6 +155,10 @@ public final class SnippetAiDialogsSmoke {
             ids -> { });
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
             null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { }, skillContext);
+        // The dialog's content is wrapped in a ScrollPane so a short window cannot push the button
+        // bar off screen. A ScrollPane exposes its content through its skin, which only exists after
+        // a layout pass — realize the pane before walking it for controls.
+        realize(analysisDialog.getDialogPane());
         AtomicBoolean analysisSelectionVerified = new AtomicBoolean();
         CheckBox selectAllImprovements = selectAllImprovementsCheckBox(analysisDialog.getDialogPane());
         WebEngine analysisEngine = findingsWebView(analysisDialog).getEngine();
@@ -190,6 +194,7 @@ public final class SnippetAiDialogsSmoke {
             "Calls curl.", analysis.dependencies(), List.of());
         SnippetCodeAnalysisDialog dependenciesOnlyDialog = new SnippetCodeAnalysisDialog(
             null, "dependency_only.sh", dependenciesOnly, diagramLoader, null, null, null);
+        realize(dependenciesOnlyDialog.getDialogPane());
         CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyDialog.getDialogPane());
         if (!dependenciesOnlyBulkCheck.isDisable()) {
             throw new AssertionError("Select-all-improvements must be disabled when only dependencies exist");
@@ -819,6 +824,12 @@ public final class SnippetAiDialogsSmoke {
                 collect(child, out);
             }
         }
+    }
+
+    /** Builds the pane's skins so nodes behind a skin (e.g. a ScrollPane's content) become walkable. */
+    private static void realize(DialogPane pane) {
+        pane.applyCss();
+        pane.layout();
     }
 
     private static void snapshotPane(DialogPane pane, String fileName, double minWidth) throws Exception {

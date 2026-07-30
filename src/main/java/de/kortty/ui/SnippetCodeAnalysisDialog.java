@@ -26,6 +26,7 @@ import javafx.scene.control.DialogEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -185,6 +186,9 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         splitPane.setDividerPositions(0.52);
         SplitPane.setResizableWithParent(rightPane, true);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
+        // The report/diagram area is what a short window should give up first — without a low
+        // minimum it keeps its own height and the whole content starts scrolling far too early.
+        splitPane.setMinHeight(120);
         Platform.runLater(() -> splitPane.setDividerPositions(0.52));
 
         VBox root = new VBox(10);
@@ -202,10 +206,20 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             buildHardeningPane(), buildInputHardeningPane());
         root.setPadding(new Insets(14));
 
+        // The window (or, in tab mode, the main window) can be made shorter than this stack needs.
+        // A DialogPane lays ITSELF out at its content's minimum height when the scene is smaller,
+        // which pushes its button bar off screen — Apply/Close then cannot be reached with the
+        // mouse at all. Scrolling the content instead keeps the button bar in view at any height.
+        ScrollPane contentScroll = new ScrollPane(root);
+        contentScroll.setFitToWidth(true);
+        contentScroll.setFitToHeight(true);
+        contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        contentScroll.setMinHeight(0);
+
         ButtonType applyButton = new ButtonType(
             SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.applySelected"),
             ButtonBar.ButtonData.OK_DONE);
-        getDialogPane().setContent(root);
+        getDialogPane().setContent(contentScroll);
         getDialogPane().getButtonTypes().addAll(applyButton, ButtonType.CLOSE);
         Button apply = (Button) getDialogPane().lookupButton(applyButton);
         apply.addEventFilter(ActionEvent.ACTION, event -> {

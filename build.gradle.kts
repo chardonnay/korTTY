@@ -2716,6 +2716,15 @@ tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetCodeAnalysisDialogSizingSmoke") {
+    group = "verification"
+    description = "Shrinks the Full-code-analysis window and verifies its Apply/Close buttons stay on screen."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetCodeAnalysisDialogSizingSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    environment("TEST_MODE_KORTTY", "1")
+}
+
 tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     group = "verification"
     description = "Builds the unified snippet AI dialogs (review, describe, alternatives, diff) with the profile picker and re-run enabled and snapshots each to build/smoke/snippet-ai-*.png."
