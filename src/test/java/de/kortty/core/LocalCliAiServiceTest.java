@@ -143,6 +143,23 @@ class LocalCliAiServiceTest {
     }
 
     @Test
+    void waitsForALongRunningCliWhenNoTimeoutIsConfigured() throws Exception {
+        Path script = createScript("sleep 1; cat \"$1\"");
+        LocalCliAiService service = new LocalCliAiService(
+            "test",
+            script.toString(),
+            "{promptFile}",
+            "custom-model",
+            AiReasoningEffort.DISABLED,
+            AiSkillPromptSupport.disabled(),
+            null);
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).contains("User prompt:");
+    }
+
+    @Test
     void sanitizesAnsiAndThinkBlocksButKeepsNormalBrackets() {
         String raw = ESC + "[?25h" + ESC + "[K<think>internal reasoning here</think>"
             + "The answer is data[0] and config[key].\r\n";

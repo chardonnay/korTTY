@@ -255,6 +255,12 @@ public final class AiServiceFactory {
 
     private static AiService decorate(
         AiProfile profile, String modelName, AiReasoningEffort effortInUse, AiService service) {
+        // Applied on the raw transport before any wrapper, so the whole request — RAG retrieval and
+        // preset optimization included — runs under exactly the timeout the user configured, and
+        // under none at all when they configured nothing.
+        if (service instanceof AiRequestTimeoutAware timeoutAware) {
+            timeoutAware.setRequestTimeout(AiRequestTimeoutSupport.resolve(profile));
+        }
         AiPromptPreset configured = profile != null ? profile.getPromptPreset() : AiPromptPreset.AUTO;
         AiPromptPreset resolved = AiPromptPresetSupport.resolve(configured, modelName);
         AiService optimized = resolved == AiPromptPreset.GENERIC

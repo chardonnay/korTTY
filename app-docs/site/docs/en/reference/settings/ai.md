@@ -35,9 +35,12 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Default profile | dropdown | (list of configured profiles) | — | `defaultAiProfileId` |
+| AI request timeout | number | 0–1440 minutes | 0 (no timeout) | `aiRequestTimeoutMinutes` |
 | Security-check profile | dropdown | (list of configured profiles; empty = use default profile) | — | `securityCheckAiProfileId` |
 
 The security-check profile is a dedicated AI profile for snippet **Security Check** actions. Leave it empty (or use **Clear**) to reuse the default profile. It can also be set directly in the snippet Security Check window, and both places share the same remembered setting.
+
+**AI request timeout** is the maximum runtime of a single AI request and applies to every profile. The default `0` means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's **Full code analysis** run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see **Timeout for this profile** below.
 
 ### Profile Settings (in Editor Grid)
 
@@ -57,6 +60,7 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 | Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Disabled | (profile `internetAccessMode` field) |
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
 | Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
+| Timeout for this profile | check box + number | Own timeout off = follow the global timeout; on: 0–1440 minutes (0 = never time out) | Off | (profile `requestTimeoutMinutes` field) |
 | Tokenizer | dropdown | Estimate, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Estimate | (profile `tokenizerType` field) |
 | Max tokens | number + unit | (amount: 0–1,000,000; unit: Thousands or Millions) | 0 (unlimited) | (profile `tokenLimitAmount`, `tokenLimitUnit` fields) |
 | Warning thresholds | number pair | Yellow %: 0–100, Red %: 0–100 | 75%, 90% | (profile `tokenWarningYellowPercent`, `tokenWarningRedPercent` fields) |

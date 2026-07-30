@@ -22,9 +22,8 @@ import java.util.regex.Pattern;
 /**
  * Executes AI prompts through a locally installed provider CLI.
  */
-public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
+public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(180);
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(30);
     private static final String CONNECTION_TEST_SYSTEM_PROMPT = "Reply with exactly OK.";
     private static final String CONNECTION_TEST_USER_PROMPT = "Connection test.";
@@ -35,7 +34,8 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
     private final String model;
     private final AiReasoningEffort reasoningEffort;
     private final AiSkillPromptSupport skillPromptSupport;
-    private final Duration requestTimeout;
+    /** {@code null} lets the CLI run to completion — see {@link AiRequestTimeoutSupport}. */
+    private Duration requestTimeout;
 
     public LocalCliAiService(AiProfile profile, AiSkillPromptSupport skillPromptSupport) {
         this(
@@ -45,7 +45,7 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
             profile != null ? profile.getModel() : null,
             profile != null ? profile.getReasoningEffort() : null,
             skillPromptSupport,
-            DEFAULT_TIMEOUT);
+            null);
     }
 
     LocalCliAiService(
@@ -63,7 +63,12 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         this.model = model != null ? model.trim() : "";
         this.reasoningEffort = reasoningEffort != null ? reasoningEffort : AiReasoningEffort.DISABLED;
         this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
-        this.requestTimeout = requestTimeout != null ? requestTimeout : DEFAULT_TIMEOUT;
+        this.requestTimeout = requestTimeout;
+    }
+
+    @Override
+    public void setRequestTimeout(Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
     }
 
     @Override
@@ -178,7 +183,14 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker {
         writeProcessInput(process, stdin);
         boolean completed;
         try {
-            completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            // A null timeout is the default: the CLI keeps running until it answers, because a
+            // long analysis must not be killed unless the user configured a limit.
+            if (timeout == null) {
+                process.waitFor();
+                completed = true;
+            } else {
+                completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            }
         } catch (InterruptedException e) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();

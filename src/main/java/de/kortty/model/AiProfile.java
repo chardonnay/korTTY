@@ -76,6 +76,14 @@ public class AiProfile {
     @XmlElement
     private Integer maxSelectionChars = DEFAULT_MAX_SELECTION_CHARS;
 
+    /**
+     * Optional per-profile request timeout in minutes. {@code null} follows the global AI request
+     * timeout, {@code 0} means this profile never times out, and a positive value overrides the
+     * global setting.
+     */
+    @XmlElement
+    private Integer requestTimeoutMinutes;
+
     @XmlElement
     private AiTokenizerType tokenizerType = AiTokenizerType.ESTIMATE;
 
@@ -148,6 +156,7 @@ public class AiProfile {
         this.cliExecutablePath = source.cliExecutablePath;
         this.cliArgumentsTemplate = source.cliArgumentsTemplate;
         this.maxSelectionChars = source.maxSelectionChars;
+        this.requestTimeoutMinutes = source.requestTimeoutMinutes;
         this.tokenizerType = source.tokenizerType;
         this.tokenLimitAmount = source.tokenLimitAmount;
         this.tokenLimitUnit = source.tokenLimitUnit;
@@ -338,6 +347,20 @@ public class AiProfile {
 
     public void setMaxSelectionChars(Integer maxSelectionChars) {
         this.maxSelectionChars = maxSelectionChars;
+    }
+
+    /**
+     * @return {@code null} when this profile follows the global AI request timeout, {@code 0} when
+     *     it must never time out, otherwise the profile's own timeout in minutes.
+     */
+    public Integer getRequestTimeoutMinutes() {
+        return requestTimeoutMinutes;
+    }
+
+    public void setRequestTimeoutMinutes(Integer requestTimeoutMinutes) {
+        this.requestTimeoutMinutes = requestTimeoutMinutes != null && requestTimeoutMinutes >= 0
+            ? requestTimeoutMinutes
+            : null;
     }
 
     public AiTokenizerType getTokenizerType() {

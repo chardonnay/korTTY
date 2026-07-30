@@ -4,6 +4,25 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "AI-Anfrage-Timeout",
+      "to": "Zeitlimit für KI-Anfragen",
+      "note": "UI label settings.ai.timeout.global; the guide must name the control exactly as the AI Manager does."
+    },
+    {
+      "from": "AI-Request-Timeout",
+      "to": "Zeitlimit für KI-Anfragen"
+    },
+    {
+      "from": "Timeout für dieses Profil",
+      "to": "Zeitlimit für dieses Profil",
+      "note": "UI label settings.ai.timeout.profile."
+    },
+    {
+      "from": "Eigenes Timeout",
+      "to": "Eigenes Zeitlimit",
+      "note": "UI label settings.ai.timeout.profile.override."
+    },
+    {
       "from": "| Ermöglicht |",
       "to": "| Aktiviert |",
       "scope": "markdown",
