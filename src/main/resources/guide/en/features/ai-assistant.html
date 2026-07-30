@@ -12,7 +12,7 @@
         <meta name="author" content="korTTY">
       
       
-        <link rel="canonical" href="https://chardonnay.github.io/korTTY/en/features/ai-assistant.html">
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/ai-assistant.html">
       
       
         <link rel="prev" href="teamwork.html">
@@ -2880,6 +2880,7 @@
 <li>Create one or more AI profiles in <strong>Settings &gt; AI</strong> or <strong>AI &gt; AI Manager &gt; Profiles</strong>. Choose <strong>HTTP API</strong>, <strong>Local CLI</strong>, or <strong>Integrated llama.cpp</strong> as the connection mode.</li>
 <li>For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use <strong>AI Manager &gt; Local Models</strong> first when no GGUF is installed.</li>
 <li>Optionally configure <strong>Prompt optimization</strong>, <strong>Max characters</strong>, <strong>Tokenizer</strong>, <strong>Token limit</strong>, warning thresholds, token reset cycle, supported <strong>Reasoning</strong> effort, and <strong>Internet access</strong> per profile. korTTY exposes reasoning choices based on the configured endpoint and model; profiles without a supported reasoning mode stay disabled.</li>
+<li>Optionally set an <strong>AI request timeout</strong> in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's <strong>Full code analysis</strong> runs until the model answers. The value on the <strong>Profiles</strong> page applies to every profile; <strong>Timeout for this profile</strong> overrides it for a single profile, and 0 there means that profile never times out. See <a href="../reference/settings/ai.html">AI settings</a>.</li>
 <li>Click <strong>Test AI Connection</strong>.</li>
 <li>Optionally choose a <strong>Default profile</strong>, then assign separate Text/translation and Coding roles under <strong>AI Manager &gt; Local AI</strong>. An empty role uses the default profile.</li>
 <li>Optionally configure the default language for AI-generated text inside code comments and program output, enable the extra instructions field for snippet AI actions, and set how many alternative solutions the snippet editor should request.</li>
