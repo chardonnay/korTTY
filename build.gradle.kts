@@ -2559,6 +2559,14 @@ tasks.register<JavaExec>("aiManagerReasoningPersistenceSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerRequestTimeoutSmoke") {
+    group = "verification"
+    description = "Verifies the AI Manager keeps \"follow the global timeout\" and \"never time out\" apart across loading, profile switching and the close-time snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerRequestTimeoutSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     group = "verification"
     description = "Moves focus into AI Manager content and verifies the selected primary tab remains visibly marked."

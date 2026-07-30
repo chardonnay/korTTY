@@ -20,7 +20,7 @@ Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die g
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | AI Agent-Ausführung aktivieren | umschalten | – | Ein | `terminalAgentExecutionEnabled` |
-| Fragen, bevor AI Agent das Zielsystem ändert | umschalten | – | Aus | `terminalAgentConfirmMutatingCommandSets` |
+| Fragen Sie nach, bevor AI Agent das Zielsystem ändert. | umschalten | – | Aus | `terminalAgentConfirmMutatingCommandSets` |
 | Verwenden Sie OSC 133-Eingabeaufforderungsmarkierungen, wenn die Shell sie bereits bereitstellt. | umschalten | – | Ein | `defaultPromptHookEnabled` |
 | Agent-Debug-Meldungen anzeigen | umschalten | – | Aus | `terminalAgentShowDebugMessages` |
 | Agent-Laufzeitmeldungen anzeigen | umschalten | – | Aus | `terminalAgentShowRuntimeMessages` |
@@ -35,15 +35,18 @@ Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die g
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Standardprofil | Dropdown-Liste | (Liste der konfigurierten Profile) | – | `defaultAiProfileId` |
+| Zeitlimit für KI-Anfragen | Nummer | 0–1440 Minuten | 0 (kein Timeout) | `aiRequestTimeoutMinutes` |
 | Sicherheitsüberprüfungsprofil | Dropdown-Liste | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | – | `securityCheckAiProfileId` |
 
 Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-**Sicherheitsüberprüfungsaktionen**. Lassen Sie es leer (oder verwenden Sie **Löschen**), um das Standardprofil wiederzuverwenden. Es kann auch direkt im Snippet-Sicherheitsüberprüfungsfenster festgelegt werden, und an beiden Stellen wird dieselbe gespeicherte Einstellung verwendet.
+
+**Zeitlimit für KI-Anfragen** ist die maximale Laufzeit einer einzelnen AI-Request und gilt für jedes Profil. Der Standardwert `0` bedeutet, dass korTTY überhaupt keine Zeitüberschreitung vorschreibt: Aufgaben mit langer Laufzeit wie die **Vollständige Codeanalyse** des Snippet-Editors werden ausgeführt, bis das Modell antwortet. Legen Sie eine positive Anzahl von Minuten fest, um Anfragen abzubrechen, die diesen Wert überschreiten. Ein Profil kann den Wert überschreiben – siehe **Zeitlimit für dieses Profil** unten.
 
 ### Profileinstellungen (im Editor-Raster)
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Profilname | Text | – | AI-Profil | (Feld `name` des Profils) |
+| Profilname | Text | – | AI-Profil | (Profil `name`-Feld) |
 | Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integriertes llama.cpp, integriertes MLX (Apple Silicon; nur auf Apple Silicon Macs verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
 | API-URL | Text | – | – | (Profilfeld `apiUrl`) |
 | CLI-Anbieter | Dropdown-Liste | (registrierte Anbieter) | – | (Profilfeld `cliProviderId`) |
@@ -57,6 +60,7 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 | Internetzugang | Dropdown-Liste | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
 | API-Schlüssel (optional) | Text | (Passwortfeld) | – | (Profil `encryptedApiKey`-Feld) |
 | Max. Zeichen | Nummer | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
+| Zeitlimit für dieses Profil | Kontrollkästchen + Nummer | Eigenes Zeitlimit aus = globales Timeout befolgen; Ein: 0–1440 Minuten (0 = nie Zeitüberschreitung) | Aus | (Feld `requestTimeoutMinutes` des Profils) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
 | Max. Token | Anzahl + Einheit | (Betrag: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profilfelder `tokenLimitAmount`, `tokenLimitUnit`) |
 | Warnschwellen | Zahlenpaar | Gelb %: 0–100, Rot %: 0–100 | 75 %, 90 % | (Profilfelder `tokenWarningYellowPercent`, `tokenWarningRedPercent`) |
@@ -97,7 +101,7 @@ KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindu
 
 Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **AI > AI Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
 
-Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Durch erneutes Aufrufen wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
+Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Wenn Sie es erneut aufrufen, wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
 
 ### Lokale AI-Manager-Einstellungen
 
@@ -114,11 +118,11 @@ Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das
 
 Der **Lokale Modelle > Setup-Assistent** stellt optionale Text-, Codierungs- und RAG-Einbettungsslots bereit. Es überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe, bevor es mit der asynchronen Laufzeit-/Modellinstallation beginnt, führt einen echten Chat- oder Einbettungstest für jeden installierten GGUF durch und speichert die resultierenden Rollenzuweisungen erst, nachdem alle Tests erfolgreich waren. Die Text- und Codierungsslots können ein gemeinsames Modell haben. **Configure** weigert sich, die persistenten Laufzeiteinstellungen eines Modells zu ersetzen, während dieses Modell eine aktive Anfrage bedient.
 
-Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, sodass die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung darstellt. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
+Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, daher ist die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
 
 ### Prompt-Optimierungsvoreinstellungen
 
-**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
+**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt prägnante Kompatibilitätshinweise hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
 
 ### Begründungsaufwandsstufen
 

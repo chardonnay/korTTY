@@ -31,14 +31,13 @@ import java.util.Locale;
  * default (reasoning disabled) configuration and non-thinking models keep working unchanged.
  * Web-search tools are intentionally not used here.
  */
-public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker {
+public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicAiService.class);
     private static final Gson GSON = new Gson();
     private static final String ANTHROPIC_VERSION = "2023-06-01";
     private static final int DEFAULT_MAX_TOKENS = 4096;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(30);
 
     private final String apiUrl;
@@ -47,6 +46,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
     private final AiReasoningEffort reasoningEffort;
     private final AiSkillPromptSupport skillPromptSupport;
     private final HttpClient httpClient;
+    /** {@code null} lets a request run to completion — see {@link AiRequestTimeoutSupport}. */
+    private Duration requestTimeout;
 
     public AnthropicAiService(
         String apiUrl,
@@ -80,20 +81,20 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
             ? skillPromptSupport.appendChatSkills(systemPrompt, request)
             : normalize(systemPrompt);
         effectiveSystem = AiPromptPipeline.appendAfterSkills(effectiveSystem, request);
-        return send(effectiveSystem, userPrompt, REQUEST_TIMEOUT);
+        return send(effectiveSystem, userPrompt, requestTimeout);
     }
 
     @Override
     public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) throws Exception {
         String effectiveSystem = skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt);
-        return send(effectiveSystem, userPrompt, REQUEST_TIMEOUT);
+        return send(effectiveSystem, userPrompt, requestTimeout);
     }
 
     @Override
     public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) throws Exception {
         String effectiveSystem = skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt);
         effectiveSystem = appendJsonDirective(effectiveSystem);
-        return send(effectiveSystem, userPrompt, REQUEST_TIMEOUT);
+        return send(effectiveSystem, userPrompt, requestTimeout);
     }
 
     @Override
@@ -105,6 +106,11 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
             logger.debug("Anthropic connection test failed: {}", e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public void setRequestTimeout(Duration requestTimeout) {
+        this.requestTimeout = requestTimeout;
     }
 
     @Override
@@ -153,14 +159,18 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker 
         messages.add(userMessage);
         body.add("messages", messages);
 
-        HttpRequest httpRequest = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
             .uri(URI.create(apiUrl))
-            .timeout(timeout)
             .header("content-type", "application/json")
             .header("x-api-key", apiKey)
             .header("anthropic-version", ANTHROPIC_VERSION)
-            .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8))
-            .build();
+            .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
+        // Leaving the timeout unset is what makes a long request run to completion; HttpRequest
+        // rejects a null argument, so the field must not be handed over blindly.
+        if (timeout != null) {
+            requestBuilder.timeout(timeout);
+        }
+        HttpRequest httpRequest = requestBuilder.build();
 
         HttpResponse<String> response = AiPowerManagementScope.call(
             () -> httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));

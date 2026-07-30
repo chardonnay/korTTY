@@ -109,6 +109,29 @@ class AiServiceFactoryTest {
     }
 
     @Test
+    void createLeavesRequestsUntimedUntilTheUserConfiguresATimeout() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1/chat/completions");
+        profile.setModel("MiniMax-M2.7");
+
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
+
+        assertThat(((OpenAiCompatibleAiService) service).requestTimeout()).isNull();
+    }
+
+    @Test
+    void createAppliesThePerProfileRequestTimeout() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.minimax.io/v1/chat/completions");
+        profile.setModel("MiniMax-M2.7");
+        profile.setRequestTimeoutMinutes(45);
+
+        AiService service = unwrap(AiServiceFactory.create(profile, "secret", AiInternetAccessConfiguration.disabled()));
+
+        assertThat(((OpenAiCompatibleAiService) service).requestTimeout()).isEqualTo(Duration.ofMinutes(45));
+    }
+
+    @Test
     void createPreservesExplicitOpenAiCompatibleChatCompletionsEndpoint() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("https://api.minimax.io/v1/chat/completions");

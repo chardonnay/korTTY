@@ -13,6 +13,7 @@ import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiReasoningDiscoveryService;
 import de.kortty.core.AiReasoningSupport;
+import de.kortty.core.AiRequestTimeoutSupport;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenUsageSnapshot;
 import de.kortty.core.AiTokenWarningLevel;
@@ -118,6 +119,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final Button refreshCliStatusButton;
     private final Label cliStatusLabel;
     private final Spinner<Integer> maxSelectionCharsSpinner;
+    private final Spinner<Integer> globalRequestTimeoutSpinner;
+    private final CheckBox profileRequestTimeoutOverrideCheck;
+    private final Spinner<Integer> profileRequestTimeoutSpinner;
     private final ComboBox<AiTokenizerType> tokenizerCombo;
     private final Spinner<Integer> tokenLimitAmountSpinner;
     private final ComboBox<AiTokenLimitUnit> tokenLimitUnitCombo;
@@ -197,6 +201,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshCliStatusButton.setAccessibleText(I18n.get("settings.ai.cli.status.refresh"));
         cliStatusLabel = new Label();
         maxSelectionCharsSpinner = new Spinner<>(1, 50_000_000, AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        globalRequestTimeoutSpinner = new Spinner<>(0, AiRequestTimeoutSupport.MAX_TIMEOUT_MINUTES, 0);
+        profileRequestTimeoutOverrideCheck = new CheckBox(I18n.get("settings.ai.timeout.profile.override"));
+        profileRequestTimeoutSpinner = new Spinner<>(0, AiRequestTimeoutSupport.MAX_TIMEOUT_MINUTES, 0);
         tokenizerCombo = new ComboBox<>();
         tokenLimitAmountSpinner = new Spinner<>(0, 1_000_000, 0);
         tokenLimitUnitCombo = new ComboBox<>();
@@ -492,6 +499,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(new Label(I18n.get("settings.ai.defaultProfile")), 0, row);
         editorGrid.add(defaultProfileCombo, 1, row++);
 
+        editorGrid.add(new Label(I18n.get("settings.ai.timeout.global")), 0, row);
+        globalRequestTimeoutSpinner.setEditable(true);
+        globalRequestTimeoutSpinner.setPrefWidth(110);
+        Label globalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
+        globalTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        HBox globalTimeoutBox = new HBox(6, globalRequestTimeoutSpinner, globalTimeoutHint);
+        globalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
+        Tooltip globalTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.global.tooltip"));
+        globalRequestTimeoutSpinner.setTooltip(globalTimeoutTooltip);
+        editorGrid.add(globalTimeoutBox, 1, row++);
+
         editorGrid.add(new Label(I18n.get("settings.ai.connectionMode")), 0, row);
         connectionModeCombo.setPrefWidth(220);
         editorGrid.add(connectionModeCombo, 1, row++);
@@ -563,6 +581,23 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(new Label(I18n.get("settings.ai.maxChars")), 0, row);
         maxSelectionCharsSpinner.setEditable(true);
         editorGrid.add(maxSelectionCharsSpinner, 1, row++);
+
+        editorGrid.add(new Label(I18n.get("settings.ai.timeout.profile")), 0, row);
+        profileRequestTimeoutSpinner.setEditable(true);
+        profileRequestTimeoutSpinner.setPrefWidth(110);
+        // Without the override the profile follows the global value, so the spinner would only
+        // show a number that has no effect; disabling it keeps the two states distinguishable.
+        profileRequestTimeoutSpinner.disableProperty().bind(
+            profileRequestTimeoutOverrideCheck.selectedProperty().not());
+        Label profileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
+        profileTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        Tooltip profileTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.profile.tooltip"));
+        profileRequestTimeoutOverrideCheck.setTooltip(profileTimeoutTooltip);
+        profileRequestTimeoutSpinner.setTooltip(profileTimeoutTooltip);
+        HBox profileTimeoutBox = new HBox(
+            6, profileRequestTimeoutOverrideCheck, profileRequestTimeoutSpinner, profileTimeoutHint);
+        profileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
+        editorGrid.add(profileTimeoutBox, 1, row++);
 
         editorGrid.add(new Label(I18n.get("settings.ai.tokenizer")), 0, row);
         editorGrid.add(tokenizerCombo, 1, row++);
@@ -720,6 +755,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         List<AiProfile> loadedProfiles = loadProfiles();
         String selectedProfileId = selectedProfile != null ? selectedProfile.getId() : null;
         defaultProfileId = getConfiguredDefaultProfileId();
+        globalRequestTimeoutSpinner.getValueFactory().setValue(configuredGlobalRequestTimeoutMinutes());
         profiles.setAll(loadedProfiles);
         localPreferencesPane.refresh(profiles);
         refreshDefaultProfileSelection(defaultProfileId);
@@ -778,6 +814,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         merged.addAll(draftById.values());
         return List.copyOf(merged);
+    }
+
+    /** @return the persisted global AI timeout in minutes; 0 means AI requests never time out. */
+    private int configuredGlobalRequestTimeoutMinutes() {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getAiRequestTimeoutMinutes() : 0;
     }
 
     private List<AiProfile> loadProfiles() {
@@ -1525,6 +1569,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setPromptPreset(promptPresetCombo.getValue());
         selectedProfile.setInternetAccessMode(internetAccessModeCombo.getValue());
         selectedProfile.setMaxSelectionChars(maxSelectionCharsSpinner.getValue());
+        selectedProfile.setRequestTimeoutMinutes(profileRequestTimeoutOverrideCheck.isSelected()
+            ? profileRequestTimeoutSpinner.getValue()
+            : null);
         selectedProfile.setTokenizerType(tokenizerCombo.getValue());
         selectedProfile.setTokenLimitAmount(tokenLimitAmountSpinner.getValue() != null ? tokenLimitAmountSpinner.getValue().longValue() : 0L);
         selectedProfile.setTokenLimitUnit(tokenLimitUnitCombo.getValue());
@@ -1585,6 +1632,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             clearApiKeyCheck.setDisable(false);
             clearApiKeyCheck.setSelected(false);
             maxSelectionCharsSpinner.getValueFactory().setValue(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+            profileRequestTimeoutOverrideCheck.setSelected(false);
+            profileRequestTimeoutSpinner.getValueFactory().setValue(0);
             tokenizerCombo.setValue(AiTokenizerType.ESTIMATE);
             tokenLimitAmountSpinner.getValueFactory().setValue(0);
             tokenLimitUnitCombo.setValue(AiTokenLimitUnit.THOUSANDS);
@@ -1615,6 +1664,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0
                 ? profile.getMaxSelectionChars()
                 : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
+        Integer profileTimeoutMinutes = profile.getRequestTimeoutMinutes();
+        profileRequestTimeoutOverrideCheck.setSelected(profileTimeoutMinutes != null);
+        profileRequestTimeoutSpinner.getValueFactory().setValue(
+            profileTimeoutMinutes != null ? profileTimeoutMinutes : 0);
         tokenizerCombo.setValue(profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
         tokenLimitAmountSpinner.getValueFactory().setValue(profile.getTokenLimitAmount() != null ? profile.getTokenLimitAmount().intValue() : 0);
         tokenLimitUnitCombo.setValue(profile.getTokenLimitUnit() != null ? profile.getTokenLimitUnit() : AiTokenLimitUnit.THOUSANDS);
@@ -1701,6 +1754,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         String effectiveDefaultProfileId = normalizeDefaultProfileId(defaultProfileId, profilesToSave);
         settings.setAiProfiles(profilesToSave);
         settings.setDefaultAiProfileId(effectiveDefaultProfileId);
+        settings.setAiRequestTimeoutMinutes(
+            globalRequestTimeoutSpinner.getValue() != null ? globalRequestTimeoutSpinner.getValue() : 0);
         try {
             app.getGlobalSettingsManager().save();
             defaultProfileId = effectiveDefaultProfileId;

@@ -110,7 +110,7 @@ class LmStudioNativeAiServiceTest {
     }
 
     @Test
-    void executeAddsInternetTimeoutForEligibleMcpRequest() throws Exception {
+    void executeSendsNoTimeoutForEligibleMcpRequestUntilOneIsConfigured() throws Exception {
         StringHttpClientTestDouble client = new StringHttpClientTestDouble();
         LmStudioNativeAiService service = new LmStudioNativeAiService(
             "http://127.0.0.1:1234/api/v1/chat",
@@ -124,8 +124,27 @@ class LmStudioNativeAiServiceTest {
 
         assertThat(result.content()).isEqualTo("ok");
         assertThat(result.usage().totalTokens()).isEqualTo(5);
-        assertThat(client.requestTimeouts()).containsExactly(Optional.of(LmStudioNativeAiService.INTERNET_REQUEST_TIMEOUT));
+        // A long-running request must not be cut off by a timeout korTTY invented on its own.
+        assertThat(client.requestTimeouts()).containsExactly(Optional.empty());
         assertThat(client.requestBodies().get(0)).contains("\"integrations\"");
+    }
+
+    @Test
+    void executeAppliesTheConfiguredRequestTimeout() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.BRAVE_SEARCH_MCP),
+            client);
+        service.setRequestTimeout(java.time.Duration.ofMinutes(20));
+
+        service.execute(new AiRequest(AiAction.ASK, "current fact", "qa-box", "en", "search"));
+
+        assertThat(client.requestTimeouts())
+            .containsExactly(Optional.of(java.time.Duration.ofMinutes(20)));
     }
 
     @Test
