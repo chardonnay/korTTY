@@ -54,7 +54,18 @@ for f in "${files[@]}"; do
     [[ "$f" == *screenshots* ]] && screenshots+=("$f")
 done
 if [[ ${#screenshots[@]} -gt 0 ]]; then
-    pngquant --quality 80-98 --speed 1 --skip-if-larger --strip --force --ext .png "${screenshots[@]}"
+    # 98 and 99 are pngquant's "I deliberately left this file alone" codes: 98 is
+    # --skip-if-larger declining a result bigger than the input, 99 is a result below
+    # the --quality floor. Both are the intended outcome for an already-optimized
+    # screenshot, and one of them in a batch used to abort the whole script under
+    # `set -e` — skipping the lossless oxipng pass for every other file with it.
+    pngquant_status=0
+    pngquant --quality 80-98 --speed 1 --skip-if-larger --strip --force --ext .png \
+        "${screenshots[@]}" || pngquant_status=$?
+    if [[ $pngquant_status -ne 0 && $pngquant_status -ne 98 && $pngquant_status -ne 99 ]]; then
+        echo "optimize-png: pngquant failed with exit $pngquant_status" >&2
+        exit $pngquant_status
+    fi
 fi
 
 oxipng -o 4 --strip safe -q "${files[@]}"
