@@ -112,6 +112,22 @@ public final class MainWindowTranslationIndicatorSmoke {
         require(indicator != null, "the indicator node was not built into the window");
         require(!onFx(indicator::isVisible), "the indicator must be hidden while nothing is running");
 
+        // The bar is the only node in the menu row that paints a background, so every pixel it
+        // does not cover shows the darker window background instead — a visible colour seam across
+        // the top of the window. It regressed once by being placed in a row at its label width.
+        javafx.scene.control.MenuBar appMenuBar = onFx(() -> menuBarNode(window));
+        require(appMenuBar != null, "the menu bar was not built into the window");
+        onFxRun(() -> {
+            stage.getScene().getRoot().applyCss();
+            stage.getScene().getRoot().layout();
+        });
+        double sceneWidth = onFx(() -> stage.getScene().getWidth());
+        double menuBarWidth = onFx(appMenuBar::getWidth);
+        require(menuBarWidth >= sceneWidth - 1,
+            "the menu bar covers only " + Math.round(menuBarWidth) + " of " + Math.round(sceneWidth)
+                + " px, leaving an unpainted strip");
+        System.out.printf("  menu bar spans %.0f of %.0f px%n", menuBarWidth, sceneWidth);
+
         de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
         require(job.start(new SlowService(), "de", sandbox),
             "the translation job refused to start");
@@ -122,6 +138,18 @@ public final class MainWindowTranslationIndicatorSmoke {
         require(shown != null, "the indicator stayed empty while the job was running");
         require(onFx(indicator::isVisible), "the indicator is not visible during a run");
         require(shown.contains("%"), "the indicator shows no percentage: '" + shown + "'");
+
+        // It is laid OVER the bar, not next to it: as a neighbour it would push the bar back and
+        // reintroduce the unpainted strip, this time underneath the indicator itself.
+        javafx.geometry.Bounds menuBarBounds =
+            onFx(() -> appMenuBar.localToScene(appMenuBar.getBoundsInLocal()));
+        javafx.geometry.Bounds indicatorBounds =
+            onFx(() -> indicator.localToScene(indicator.getBoundsInLocal()));
+        require(indicatorBounds.getMinX() >= menuBarBounds.getMinX() - 1
+                && indicatorBounds.getMaxX() <= menuBarBounds.getMaxX() + 1,
+            "the indicator (" + Math.round(indicatorBounds.getMinX()) + ".."
+                + Math.round(indicatorBounds.getMaxX()) + ") is not on the menu bar ("
+                + Math.round(menuBarBounds.getMinX()) + ".." + Math.round(menuBarBounds.getMaxX()) + ")");
 
         javafx.scene.layout.StackPane bar =
             onFx(() -> firstOfType(indicator, javafx.scene.layout.StackPane.class));
@@ -232,6 +260,12 @@ public final class MainWindowTranslationIndicatorSmoke {
     @FunctionalInterface
     private interface FxRun {
         void run() throws Exception;
+    }
+
+    private static javafx.scene.control.MenuBar menuBarNode(MainWindow window) throws Exception {
+        Field field = MainWindow.class.getDeclaredField("menuBar");
+        field.setAccessible(true);
+        return (javafx.scene.control.MenuBar) field.get(window);
     }
 
     private static Node indicatorNode(MainWindow window) throws Exception {

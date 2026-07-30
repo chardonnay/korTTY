@@ -828,15 +828,19 @@ public class MainWindow {
     
     private void setupMenuBar() {
         menuBar = createApplicationMenuBar(MenuBarTarget.WINDOW);
-        // The menu bar goes into a row so a right-aligned indicator can sit beside it. It must be
+        // The menu bar goes into a row so a right-aligned indicator can sit on it. It must be
         // a SIBLING of the bar, not a menu inside it: applyMenuBarVisibility hides the bar itself,
         // and a running translation has to stay visible even then.
+        // The bar fills the row so its themed background covers the full window width — it is the
+        // only node here that paints one. The indicator is laid OVER that background rather than
+        // beside it; as a neighbour it would leave an unpainted strip in window colour next to it.
         guideTranslationIndicator = new GuideTranslationIndicator();
-        Region menuSpacer = new Region();
-        HBox.setHgrow(menuSpacer, Priority.ALWAYS);
-        HBox menuRow = new HBox(menuBar, menuSpacer, guideTranslationIndicator.getNode());
-        menuRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(menuBar, Priority.NEVER);
+        Region indicatorNode = guideTranslationIndicator.getNode();
+        menuBar.setMaxWidth(Double.MAX_VALUE);
+        // Without this the StackPane would stretch the indicator across the whole row too.
+        indicatorNode.setMaxWidth(Region.USE_PREF_SIZE);
+        StackPane menuRow = new StackPane(menuBar, indicatorNode);
+        StackPane.setAlignment(indicatorNode, Pos.CENTER_RIGHT);
         if (isMacOs()) {
             systemMenuBar = createApplicationMenuBar(MenuBarTarget.SYSTEM);
             systemMenuBar.setUseSystemMenuBar(true);
