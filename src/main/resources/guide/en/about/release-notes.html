@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2219,6 +2249,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#input-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2543,6 +2584,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#input-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2713,6 +2765,10 @@
 <li><strong>AI suggestion fills both language fields</strong> — besides the file name and description, <strong>AI suggestion</strong> now also detects the natural language of the snippet's comments and printed output (<code>echo</code>, <code>print</code>, <code>printf</code>, <code>Write-Host</code>, …) and preselects it as the text language, adding it to the list when korTTY has no interface translation for it. A detected code language missing from the list is likewise added instead of being silently dropped.</li>
 <li><strong>New AI action: Optimize code comments</strong> — available from the <strong>AI Code</strong> menu and from the editor's right-click menu on a selection. The AI inserts explanations of what the selected code does and why, directly above or beside the lines they belong to and in the language's own comment syntax, replaces outdated or misleading comments, and leaves every executable line untouched. Comments are written in the editor's <strong>Text language</strong>, and the result is shown in the usual before/after preview before it replaces the selection.</li>
 <li><strong>Automatic analysis diagrams can be switched off</strong> — the Full Code Analysis window's diagram pane gained a <strong>Generate automatically</strong> checkbox. Untick it and the flow diagram's dedicated AI request no longer starts when the window opens; the pane shows a hint instead and <strong>Regenerate</strong> requests the diagram on demand. The choice is remembered across sessions.</li>
+</ul>
+<h3 id="input-hardening">Input hardening<a class="headerlink" href="#input-hardening" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>New: the AI can build input validation directly into your scripts</strong> — every AI script flow (Full code analysis, Improve robustness, Custom improvement, and both workflow-script generators) gained an opt-in <strong>Input hardening</strong> panel. When enabled, the AI adds a guard block at the top of the generated or rewritten script that validates every parameter (count, character allowlists, length limits, rejection of shell metacharacters), checks input files before use (existence, text-vs-binary format, and a size limit generated as an adjustable <code>KORTTY_MAX_FILE_SIZE</code> script variable, 10 MB by default), and reports every violation as a timestamped <code>SECURITY:</code> warning on stderr and in the script's own log file. Violations stop the script with documented exit codes (64/65/66) unless a run is deliberately forced with <code>KORTTY_FORCE=1</code> — which still logs the bypass. korTTY itself performs no validation at run time: the guard is ordinary script code, so it protects every future run of the script, wherever it is started. <strong>All</strong>/<strong>Clear</strong>/<strong>Save</strong> manage the five sub-options, and <strong>Save</strong> remembers your selection and size limit as the default. See <a href="../reference/input-hardening.html">Input hardening</a>.</li>
 </ul>
 <h3 id="ai-manager">AI Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h3>
 <ul>

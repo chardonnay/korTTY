@@ -3704,9 +3704,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         String originalContent = contentArea.getText();
+        // Input hardening only counts as AI work when the snippet language can actually receive the
+        // guard rules — for declarative languages the rules render empty, and an otherwise empty
+        // selection would fire a pointless AI request with no work order.
+        boolean inputHardeningApplies = selection.inputHardening().isEnabled()
+            && !isDeclarativeSnippetLanguage(languageCombo.getValue());
         boolean hasAiWork = !selection.improvements().isEmpty()
             || !selection.dependencies().isEmpty()
-            || !selection.hardening().isEmpty();
+            || !selection.hardening().isEmpty()
+            || inputHardeningApplies;
         // A chosen script header is a deterministic prepend — apply it locally without an AI round-trip
         // when no findings/hardening were ticked.
         if (!hasAiWork) {
@@ -3717,7 +3723,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         // Fold any chosen hardening options into the apply instructions (computed on the FX thread).
-        String effectiveInstructions = withHardeningRules(additionalInstructions(), selection.hardening());
+        String effectiveInstructions = withInputHardeningRules(
+            withHardeningRules(additionalInstructions(), selection.hardening()), selection.inputHardening());
         Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.SnippetSecurityFix call() throws Exception {
@@ -3813,8 +3820,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     /** "Improve robustness" with the reusable script-hardening options folded into the improvement prompt. */
     private void runImproveRobustness() {
         promptImprovementOptions(I18n.get("snippets.ai.code.improve.robustness"), null, false)
-            .ifPresent(options -> runCodeImprovement(
-                withHardeningRules(I18n.get("snippets.ai.code.improve.robustness.theme"), options.hardening())));
+            .ifPresent(options -> runCodeImprovement(withInputHardeningRules(
+                withHardeningRules(I18n.get("snippets.ai.code.improve.robustness.theme"), options.hardening()),
+                options.inputHardening())));
     }
 
     /**
@@ -3833,18 +3841,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             I18n.get("snippets.ai.code.improve.custom.header"),
             true)
             .filter(options -> options.instruction() != null && !options.instruction().isBlank())
-            .ifPresent(options -> runCodeImprovement(
-                withHardeningRules(options.instruction(), options.hardening())));
+            .ifPresent(options -> runCodeImprovement(withInputHardeningRules(
+                withHardeningRules(options.instruction(), options.hardening()), options.inputHardening())));
     }
 
-    /** Result of {@link #promptImprovementOptions}: an optional free-text instruction plus chosen hardening options. */
-    private record ImprovementOptions(String instruction, EnumSet<HardeningOption> hardening) {
+    /**
+     * Result of {@link #promptImprovementOptions}: an optional free-text instruction, the chosen
+     * hardening options, and the input-hardening guard configuration (disabled unless its master
+     * toggle was ticked).
+     */
+    private record ImprovementOptions(String instruction, EnumSet<HardeningOption> hardening,
+                                      WorkflowScriptSupport.InputHardeningConfig inputHardening) {
     }
 
     /**
      * Shows a themed dialog offering the same script-hardening options as the KI-Agent workflow-script
-     * generator (reuses {@link HardeningOption} and the {@code ai.workflow.option.*} labels). When
-     * {@code withInstruction} is set it also collects a free-text instruction (custom improvement).
+     * generator (reuses {@link HardeningOption} and the {@code ai.workflow.option.*} labels), plus a
+     * collapsed, strictly opt-in {@link InputHardeningSelector} panel for the AI-generated input
+     * guard. When {@code withInstruction} is set it also collects a free-text instruction (custom
+     * improvement).
      */
     private Optional<ImprovementOptions> promptImprovementOptions(String title, String header, boolean withInstruction) {
         ThemeAwareDialog<ImprovementOptions> dialog = new ThemeAwareDialog<>();
@@ -3870,6 +3885,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         optionsPane.setContent(hardeningSelector);
         optionsPane.setExpanded(true);
 
+        InputHardeningSelector inputHardeningSelector = new InputHardeningSelector();
+        Label inputHardeningHeader = new Label(I18n.get("ai.inputHardening.title"));
+        inputHardeningHeader.setStyle("-fx-font-weight: bold; -fx-text-fill: "
+            + (optionsColors != null ? optionsColors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG) + ";");
+        TitledPane inputHardeningPane = new TitledPane();
+        inputHardeningPane.setText(null);
+        inputHardeningPane.setGraphic(inputHardeningHeader);
+        inputHardeningPane.setContent(inputHardeningSelector);
+        // The guard changes the script's runtime behaviour, so the panel starts collapsed and off.
+        inputHardeningPane.setExpanded(false);
+        // A shown dialog window never resizes itself when content grows; without this the expanded
+        // panel pushes the OK/Cancel bar below the window edge (this VBox has no growable child).
+        inputHardeningPane.expandedProperty().addListener((obs, was, isNow) -> {
+            javafx.stage.Window window = pane.getScene() != null ? pane.getScene().getWindow() : null;
+            if (window != null) {
+                window.sizeToScene();
+            }
+        });
+
         TextArea instructionArea = withInstruction ? new TextArea() : null;
         VBox box = new VBox(10);
         box.setPadding(new Insets(4));
@@ -3881,8 +3915,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             VBox.setVgrow(instructionArea, Priority.ALWAYS);
             box.getChildren().addAll(promptLabel, instructionArea);
         }
-        box.getChildren().add(optionsPane);
-        box.setPrefSize(560, withInstruction ? 360 : 240);
+        box.getChildren().addAll(optionsPane, inputHardeningPane);
+        box.setPrefSize(560, withInstruction ? 400 : 280);
         pane.setContent(box);
 
         if (withInstruction) {
@@ -3900,7 +3934,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             EnumSet<HardeningOption> selected = hardeningSelector.selectedOptions();
             String instruction = finalInstruction != null ? finalInstruction.getText() : null;
-            return new ImprovementOptions(instruction != null ? instruction.trim() : null, selected);
+            return new ImprovementOptions(instruction != null ? instruction.trim() : null, selected,
+                inputHardeningSelector.currentConfig());
         });
         return dialog.showAndWait();
     }
@@ -3917,6 +3952,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         String base = baseTheme != null ? baseTheme : "";
         return base + "\n\n" + I18n.get("snippets.ai.improve.hardeningHeader") + "\n" + rules;
+    }
+
+    /** Appends the input-hardening guard rules to a base improvement theme/instruction. */
+    private String withInputHardeningRules(String baseTheme, WorkflowScriptSupport.InputHardeningConfig config) {
+        if (config == null || !config.isEnabled() || isDeclarativeSnippetLanguage(languageCombo.getValue())) {
+            return baseTheme;
+        }
+        // Only map to a workflow language when the snippet language is one of the guard-capable
+        // interpreters; ScriptLanguage.fromId() would otherwise fall back to BASH and attach bash
+        // idioms to e.g. a JavaScript snippet.
+        WorkflowScriptSupport.ScriptLanguage lang = SnippetOneLiner.isEmbeddedSupported(languageCombo.getValue())
+            ? WorkflowScriptSupport.ScriptLanguage.fromId(languageCombo.getValue())
+            : null;
+        String rules = WorkflowScriptSupport.inputHardeningRulesText(config, lang);
+        if (rules == null || rules.isBlank()) {
+            return baseTheme;
+        }
+        String base = baseTheme != null ? baseTheme : "";
+        return base + "\n\n" + I18n.get("snippets.ai.improve.inputHardeningHeader") + "\n" + rules;
     }
 
     private static boolean isDeclarativeSnippetLanguage(String language) {

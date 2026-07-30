@@ -130,9 +130,9 @@ The **AI Code** menu groups the actions that read or rewrite the code itself:
 
 - **AI Complete** / **Auto AI Complete** — Code completion at the cursor (see [AI Code completions](#ai-code-completions) above).
 - **Full code analysis** — Opens a rich analysis window: a plain-language summary of what the script does, its external dependencies, categorized improvement suggestions you can tick and apply, and an auto-generated flow diagram. See [Full code analysis](#full-code-analysis) below.
-- **Improve readability / robustness / performance** — Rewrites the **selected** code region toward one goal without unrelated changes. *Improve robustness* additionally offers [Hardening options](../reference/hardening-options.md) before it runs.
+- **Improve readability / robustness / performance** — Rewrites the **selected** code region toward one goal without unrelated changes. *Improve robustness* additionally offers [Hardening options](../reference/hardening-options.md) and the opt-in [Input hardening](../reference/input-hardening.md) guard before it runs.
 - **Optimize code comments** — Comments the **selected** code region: the AI inserts explanations of what the code does and why directly above or beside the lines they belong to, using the language's own comment syntax, and replaces outdated or misleading comments. Executable code stays untouched. The comments are written in the editor's **Text language**. Available from the **AI Code** menu and from the editor's right-click menu on a selection.
-- **Custom improvement…** — Rewrites the selected code region following a free-text instruction you type, with the same [Hardening options](../reference/hardening-options.md).
+- **Custom improvement…** — Rewrites the selected code region following a free-text instruction you type, with the same [Hardening options](../reference/hardening-options.md) and [Input hardening](../reference/input-hardening.md) panels.
 - **Security Check** — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See [Security Check](#security-check) below.
 - **Diagram** — Generates and saves a persisted Mermaid logical-structure flowchart for the snippet.
 
@@ -187,6 +187,10 @@ Changing the skills does **not** re-analyse immediately — the new set is appli
 **Hardening options:**
 
 At the bottom, a collapsible **Hardening options** panel lets you attach production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, `--dry-run`, `--help`, and more) to the fixes that get applied. The panel title shows a live **count** of how many options are currently ticked — for example *Hardening options (11)* — and korTTY **remembers whether you left the panel open or closed** and restores that state the next time the window opens. See [Hardening options](../reference/hardening-options.md) for what each option means and how it is applied.
+
+**Input hardening:**
+
+Below it, a second collapsible **Input hardening** panel asks the AI to build an input-validation guard block into the script when the fixes are applied: parameter allowlists and length limits, file format checks, a maximum input-file size (generated into the script as an adjustable `KORTTY_MAX_FILE_SIZE` variable), security warnings in the script's own log, and a `KORTTY_FORCE=1` override. It is strictly opt-in — the master check box starts unticked — and its title counts only the sub-options that are effectively active. See [Input hardening](../reference/input-hardening.md) for the full guard contract.
 
 **Script header:**
 

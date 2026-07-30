@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eingabe-Härtung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3215,6 +3245,7 @@
 <ul>
 <li><strong>Passende KI-Fähigkeiten automatisch laden</strong> – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.</li>
 <li><strong>Härtungsoptionen</strong> – Eine zusammenklappbare Gruppe von Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, Probelauf, <code>--help</code> und mehr), die in das generierte Skript integriert werden. Alle sind standardmäßig aktiviert. Deaktivieren Sie alle, die Sie nicht möchten. Unter <a href="../reference/hardening-options.html">Härtungsoptionen</a> erfahren Sie, was die einzelnen Optionen bedeuten.</li>
+<li><strong>Eingabe-Härtung</strong> – Ein zweites zusammenklappbares Panel, das die KI auffordert, einen Schutzblock zur Eingabevalidierung in das generierte Skript einzubauen: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße (eine einstellbare <code>KORTTY_MAX_FILE_SIZE</code>-Skriptvariable), Sicherheitswarnungen im Protokoll des Skripts und eine <code>KORTTY_FORCE=1</code>-Überschreibung. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert. Siehe <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</li>
 <li><strong>Acht Zielsprachen</strong> – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus <strong>Windows-CMD</strong> (<code>.cmd</code>-Batch – <code>@echo off</code>, <code>REM</code>-Header, <code>errorlevel</code>-Prüfungen) und <strong>AppleScript</strong> (<code>.applescript</code> – <code>osascript</code>-Shebang, <code>--</code>-Kommentare, <code>try</code>/<code>on error</code>).</li>
 <li><strong>Mehrere Sprachvarianten</strong> – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.</li>
 <li><strong>Anpassbare Schriftgröße</strong> – Jeder Editor für generierte Skripte verfügt über <strong>A−</strong> / <strong>A+</strong>-Tasten und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.</li>

@@ -52,7 +52,13 @@ public final class WorkflowScriptGenerator {
     }
 
     public record Request(ScriptLanguage language, EnumSet<WorkflowScriptSupport.HardeningOption> options,
-                          String extraInstructions, HeaderFacts headerFacts, String headerOverride) {
+                          String extraInstructions, HeaderFacts headerFacts, String headerOverride,
+                          WorkflowScriptSupport.InputHardeningConfig inputHardening) {
+        public Request {
+            inputHardening = inputHardening != null
+                ? inputHardening
+                : WorkflowScriptSupport.InputHardeningConfig.disabled();
+        }
     }
 
     public record Outcome(String script, List<String> loadedSkills) {
@@ -122,7 +128,8 @@ public final class WorkflowScriptGenerator {
             ? WorkflowScriptSupport.HeaderMode.AUTO
             : override.isBlank() ? WorkflowScriptSupport.HeaderMode.NONE
             : WorkflowScriptSupport.HeaderMode.CUSTOM;
-        String systemPrompt = WorkflowScriptSupport.buildSystemPrompt(request.language(), request.options(), headerMode);
+        String systemPrompt = WorkflowScriptSupport.buildSystemPrompt(
+            request.language(), request.options(), headerMode, request.inputHardening());
         String userPrompt = WorkflowScriptSupport.buildUserPrompt(
             request.language(), request.headerFacts(), context, request.options(), request.extraInstructions(), headerMode);
 
@@ -185,7 +192,8 @@ public final class WorkflowScriptGenerator {
     public record SwarmRequest(ScriptLanguage language,
                                EnumSet<WorkflowScriptSupport.HardeningOption> hardening,
                                EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions,
-                               String extraInstructions, HeaderFacts headerFacts, String headerOverride) {
+                               String extraInstructions, HeaderFacts headerFacts, String headerOverride,
+                               WorkflowScriptSupport.InputHardeningConfig inputHardening) {
         public SwarmRequest {
             hardening = hardening != null
                 ? hardening.clone()
@@ -193,6 +201,9 @@ public final class WorkflowScriptGenerator {
             swarmOptions = swarmOptions != null
                 ? swarmOptions.clone()
                 : EnumSet.noneOf(WorkflowScriptSupport.SwarmScriptOption.class);
+            inputHardening = inputHardening != null
+                ? inputHardening
+                : WorkflowScriptSupport.InputHardeningConfig.disabled();
         }
 
         @Override
@@ -243,7 +254,7 @@ public final class WorkflowScriptGenerator {
             : WorkflowScriptSupport.HeaderMode.CUSTOM;
 
         String systemPrompt = WorkflowScriptSupport.buildSwarmSystemPrompt(
-            request.language(), request.hardening(), request.swarmOptions(), headerMode);
+            request.language(), request.hardening(), request.swarmOptions(), headerMode, request.inputHardening());
         String userPrompt = WorkflowScriptSupport.buildSwarmUserPrompt(
             request.language(), request.headerFacts(), context, data.hosts(),
             request.swarmOptions(), request.extraInstructions(), headerMode);

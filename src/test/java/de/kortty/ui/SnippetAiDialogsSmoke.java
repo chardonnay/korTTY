@@ -621,6 +621,7 @@ public final class SnippetAiDialogsSmoke {
             List.of(improvement),
             List.of(),
             EnumSet.noneOf(de.kortty.core.WorkflowScriptSupport.HardeningOption.class),
+            de.kortty.core.WorkflowScriptSupport.InputHardeningConfig.disabled(),
             null);
         invoke(
             dialog,

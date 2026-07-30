@@ -5,6 +5,7 @@ import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAnalysisExportService;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
+import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
 import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.WindowGeometry;
@@ -77,9 +78,15 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     public record ApplySelection(List<SnippetAiResponseSupport.ScriptImprovement> improvements,
                                  List<SnippetAiResponseSupport.ScriptDependency> dependencies,
                                  EnumSet<HardeningOption> hardening,
+                                 InputHardeningConfig inputHardening,
                                  String headerText) {
+        public ApplySelection {
+            inputHardening = inputHardening != null ? inputHardening : InputHardeningConfig.disabled();
+        }
+
         public boolean isEmpty() {
-            return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty() && !hasHeader();
+            return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty()
+                && !inputHardening.isEnabled() && !hasHeader();
         }
 
         /** {@code true} when a script header should be prepended, independent of any AI-applied fixes. */
@@ -106,6 +113,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private final Map<String, SnippetAiResponseSupport.ScriptImprovement> improvementsById = new LinkedHashMap<>();
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
     private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
+    private final InputHardeningSelector inputHardeningSelector = new InputHardeningSelector();
     private final ScriptHeaderChooser headerChooser = new ScriptHeaderChooser();
 
     private final WebView findingsView = new WebView();
@@ -190,7 +198,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 skillContext.autoSelected(),
                 skillContext.onSelectionChanged()));
         }
-        root.getChildren().addAll(buildToolbar(activeProfileId, onRerun), splitPane, headerChooser, buildHardeningPane());
+        root.getChildren().addAll(buildToolbar(activeProfileId, onRerun), splitPane, headerChooser,
+            buildHardeningPane(), buildInputHardeningPane());
         root.setPadding(new Insets(14));
 
         ButtonType applyButton = new ButtonType(
@@ -352,13 +361,15 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         List<SnippetAiResponseSupport.ScriptDependency> dependencies = new ArrayList<>();
         String headerText = headerChooser.resolveHeaderText();
         if (!pageReady) {
-            return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
+            return new ApplySelection(improvements, dependencies, selectedHardening(),
+                inputHardeningSelector.currentConfig(), headerText);
         }
         Object result;
         try {
             result = findingsView.getEngine().executeScript("window.korttyAnalysis.getSelected();");
         } catch (RuntimeException ignored) {
-            return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
+            return new ApplySelection(improvements, dependencies, selectedHardening(),
+                inputHardeningSelector.currentConfig(), headerText);
         }
         if (result instanceof String value && !value.isBlank()) {
             for (String token : value.split(",")) {
@@ -381,7 +392,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 }
             }
         }
-        return new ApplySelection(improvements, dependencies, selectedHardening(), headerText);
+        return new ApplySelection(improvements, dependencies, selectedHardening(),
+                inputHardeningSelector.currentConfig(), headerText);
     }
 
     private TitledPane buildHardeningPane() {
@@ -408,6 +420,32 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     /** Titles the hardening panel with a live "(N)" count of the currently ticked options. */
     private void updateHardeningHeader(Label header) {
         header.setText(I18n.get("ai.workflow.options.title") + " (" + hardeningSelector.selectedCount() + ")");
+    }
+
+    /**
+     * The collapsible "Input hardening" panel below the hardening options: same bold-title shell as
+     * {@link #buildHardeningPane()}, but for the AI-generated input guard (strictly opt-in per run,
+     * so it always starts collapsed).
+     */
+    private TitledPane buildInputHardeningPane() {
+        Label header = new Label();
+        ThemeCssSupport.ThemeColors colors = SnippetAiDialogSupport.resolveThemeColors();
+        String foreground = colors != null ? colors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG;
+        header.setStyle("-fx-font-weight: bold; -fx-text-fill: " + foreground + ";");
+        updateInputHardeningHeader(header);
+        inputHardeningSelector.setOnSelectionChanged(() -> updateInputHardeningHeader(header));
+
+        TitledPane pane = new TitledPane();
+        pane.setText(null);
+        pane.setGraphic(header);
+        pane.setContent(inputHardeningSelector);
+        pane.setExpanded(false);
+        return pane;
+    }
+
+    /** Titles the input-hardening panel with a live "(N)" count of the effectively active sub-options. */
+    private void updateInputHardeningHeader(Label header) {
+        header.setText(I18n.get("ai.inputHardening.title") + " (" + inputHardeningSelector.selectedCount() + ")");
     }
 
     private boolean loadHardeningExpanded() {

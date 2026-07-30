@@ -8,6 +8,9 @@ title: Härtemöglichkeiten
 
 Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein Skript generiert oder verbessert, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.
 
+!!! note "Nicht dasselbe wie Eingabe-Härtung"
+    Härtungs-Optionen beeinflussen, *wie das Skript geschrieben wird* (Struktur, Fehlerbehandlung, Protokollierung, CLI). Das separate Panel [Eingabe-Härtung](input-hardening.md) fordert die KI stattdessen auf, einen konkreten *Eingabevalidierungs-Schutzblock* in das Skript einzubauen, der Parameter und Eingabedateien zur Laufzeit überprüft. Beide erscheinen nebeneinander und können kombiniert werden.
+
 ## Wo sie erscheinen
 
 Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
@@ -15,7 +18,7 @@ Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
 | Wo | Wie es aussieht | Wird angewendet, wenn |
 |-------|--------------|--------------|
 | **Terminal → Workflow-Skript generieren** (die Schaltfläche *Workflow* nach der Ausführung eines Agenten) | Reduzierbares Bedienfeld *Härtungsoptionen* (standardmäßig ausgeblendet) | Sie klicken auf *Generieren* |
-| **KI-Schwarm → Multi-Server-Workflow generieren** | Gleiches zusammenklappbares Panel | Sie generieren das Multiserver-Skript |
+| **AI Swarm → Multi-Server-Workflow generieren** | Kein Panel – die standardmäßige All-On-Auswahl wird automatisch angewendet | Sie generieren das Multi-Server-Skript |
 | **Snippet-Editor → AI-Code → Robustheit verbessern** | Optionsfeld mit allen angekreuzten Kästchen | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Optionsfeld plus ein Freitext-Anweisungsfeld | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Reduzierbares Bedienfeld „Härtungsoptionen“ am unteren Rand des Fensters mit einer Live-Anzahl **(N)** der aktivierten Optionen im Titel; korTTY merkt sich, ob Sie es offen oder geschlossen gelassen haben | Sie klicken auf *Auswahl übernehmen* |

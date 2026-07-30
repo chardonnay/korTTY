@@ -4,6 +4,28 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "Eingabehärtung (Skripteingaben validieren)",
+      "to": "Eingabe-Härtung (Skript-Eingaben validieren)",
+      "note": "UI label ai.inputHardening.enable; the guide must quote the checkbox verbatim."
+    },
+    {
+      "from": "Eingangshärtung",
+      "to": "Eingabe-Härtung",
+      "note": "MT renders 'input hardening' inconsistently; unify on the UI label ai.inputHardening.title."
+    },
+    {
+      "from": "Eingabehärtung",
+      "to": "Eingabe-Härtung"
+    },
+    {
+      "from": "Input Hardening",
+      "to": "Eingabe-Härtung"
+    },
+    {
+      "from": "Input hardening",
+      "to": "Eingabe-Härtung"
+    },
+    {
       "from": "AI-Anfrage-Timeout",
       "to": "Zeitlimit für KI-Anfragen",
       "note": "UI label settings.ai.timeout.global; the guide must name the control exactly as the AI Manager does."

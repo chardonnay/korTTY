@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3077,9 +3107,9 @@
 <ul>
 <li><strong>AI Complete</strong> / <strong>Auto AI Complete</strong> — Code completion at the cursor (see <a href="#ai-code-completions">AI Code completions</a> above).</li>
 <li><strong>Full code analysis</strong> — Opens a rich analysis window: a plain-language summary of what the script does, its external dependencies, categorized improvement suggestions you can tick and apply, and an auto-generated flow diagram. See <a href="#full-code-analysis">Full code analysis</a> below.</li>
-<li><strong>Improve readability / robustness / performance</strong> — Rewrites the <strong>selected</strong> code region toward one goal without unrelated changes. <em>Improve robustness</em> additionally offers <a href="../reference/hardening-options.html">Hardening options</a> before it runs.</li>
+<li><strong>Improve readability / robustness / performance</strong> — Rewrites the <strong>selected</strong> code region toward one goal without unrelated changes. <em>Improve robustness</em> additionally offers <a href="../reference/hardening-options.html">Hardening options</a> and the opt-in <a href="../reference/input-hardening.html">Input hardening</a> guard before it runs.</li>
 <li><strong>Optimize code comments</strong> — Comments the <strong>selected</strong> code region: the AI inserts explanations of what the code does and why directly above or beside the lines they belong to, using the language's own comment syntax, and replaces outdated or misleading comments. Executable code stays untouched. The comments are written in the editor's <strong>Text language</strong>. Available from the <strong>AI Code</strong> menu and from the editor's right-click menu on a selection.</li>
-<li><strong>Custom improvement…</strong> — Rewrites the selected code region following a free-text instruction you type, with the same <a href="../reference/hardening-options.html">Hardening options</a>.</li>
+<li><strong>Custom improvement…</strong> — Rewrites the selected code region following a free-text instruction you type, with the same <a href="../reference/hardening-options.html">Hardening options</a> and <a href="../reference/input-hardening.html">Input hardening</a> panels.</li>
 <li><strong>Security Check</strong> — Generates a security report. Select findings to fix; KorTTY applies them with a before/after preview that highlights what changed and why. See <a href="#security-check">Security Check</a> below.</li>
 <li><strong>Diagram</strong> — Generates and saves a persisted Mermaid logical-structure flowchart for the snippet.</li>
 </ul>
@@ -3125,6 +3155,8 @@
 <p>Changing the skills does <strong>not</strong> re-analyse immediately — the new set is applied on the next <strong>Re-run</strong>, so one deliberate click re-runs the report and diagram requests with exactly the skills you chose. Skills you include here are sent regardless of each skill's configured <em>target</em>. The row appears only when at least one AI Skill is enabled.</p>
 <p><strong>Hardening options:</strong></p>
 <p>At the bottom, a collapsible <strong>Hardening options</strong> panel lets you attach production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, <code>--dry-run</code>, <code>--help</code>, and more) to the fixes that get applied. The panel title shows a live <strong>count</strong> of how many options are currently ticked — for example <em>Hardening options (11)</em> — and korTTY <strong>remembers whether you left the panel open or closed</strong> and restores that state the next time the window opens. See <a href="../reference/hardening-options.html">Hardening options</a> for what each option means and how it is applied.</p>
+<p><strong>Input hardening:</strong></p>
+<p>Below it, a second collapsible <strong>Input hardening</strong> panel asks the AI to build an input-validation guard block into the script when the fixes are applied: parameter allowlists and length limits, file format checks, a maximum input-file size (generated into the script as an adjustable <code>KORTTY_MAX_FILE_SIZE</code> variable), security warnings in the script's own log, and a <code>KORTTY_FORCE=1</code> override. It is strictly opt-in — the master check box starts unticked — and its title counts only the sub-options that are effectively active. See <a href="../reference/input-hardening.html">Input hardening</a> for the full guard contract.</p>
 <p><strong>Script header:</strong></p>
 <p>A <strong>Script header</strong> selector lets you prepend one of your saved <em>Script-Header</em> snippets (from the fixed <a href="#creating-and-editing-snippets">Script-Header category</a>) to the code when you apply the analysis. Pick a header — or leave it on <em>No header</em> (the default) — and its content, with variables substituted, is inserted at the top of the snippet, after an existing shebang / lead line, as part of the same change.</p>
 <p><strong>Apply selected:</strong></p>

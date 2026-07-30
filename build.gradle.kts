@@ -2569,6 +2569,14 @@ tasks.register<JavaExec>("aiManagerRequestTimeoutSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("inputHardeningSelectorSmoke") {
+    group = "verification"
+    description = "Verifies the Input hardening panel's master toggle gates the sub-option grid, the size row and the per-run config."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.InputHardeningSelectorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     group = "verification"
     description = "Moves focus into AI Manager content and verifies the selected primary tab remains visibly marked."

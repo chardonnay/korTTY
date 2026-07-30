@@ -66,6 +66,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<HeaderChoice> headerCombo = new ComboBox<>();
     private final Button setDefaultHeaderButton = new Button(I18n.get("ai.workflow.header.setDefault"));
     private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
+    private final InputHardeningSelector inputHardeningSelector = new InputHardeningSelector();
     private final Map<ScriptLanguage, CheckMenuItem> additionalLanguageItems = new EnumMap<>(ScriptLanguage.class);
     private final MenuButton additionalLanguagesButton = new MenuButton(I18n.get("ai.workflow.alsoLanguages"));
     private final Spinner<Integer> suggestionsSpinner = new Spinner<>(1, 5, 1);
@@ -232,6 +233,15 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         TitledPane optionsPane = new TitledPane(I18n.get("ai.workflow.options.title"), hardeningSelector);
         optionsPane.setExpanded(false);
 
+        // Input hardening (AI-generated input guard; strictly opt-in per run). Declarative Ansible
+        // playbooks take no positional parameters, so the guard rules render empty for them — gray
+        // the panel out instead of letting it look effective while being a silent no-op.
+        TitledPane inputHardeningPane = new TitledPane(I18n.get("ai.inputHardening.title"), inputHardeningSelector);
+        inputHardeningPane.setExpanded(false);
+        inputHardeningPane.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> languageCombo.getValue() != null && languageCombo.getValue().isDeclarative(),
+            languageCombo.valueProperty()));
+
         extraInstructionsArea.setPromptText(I18n.get("ai.workflow.extra.prompt"));
         extraInstructionsArea.setPrefRowCount(2);
         extraInstructionsArea.setWrapText(true);
@@ -251,7 +261,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         VBox.setVgrow(resultTabs, Priority.ALWAYS);
 
         VBox content = new VBox(10,
-            languageRow, headerRow, optionsPane,
+            languageRow, headerRow, optionsPane, inputHardeningPane,
             new Label(I18n.get("ai.workflow.extra.label")), extraInstructionsArea,
             generateRow, resultTabs);
         content.setPadding(new Insets(12));
@@ -401,7 +411,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
                 resultTabList.add(resultTab);
                 WorkflowScriptGenerator.Request request = new WorkflowScriptGenerator.Request(
                     language, selectedOptions(), variantInstructions(extraInstructionsArea.getText(), index, count),
-                    factsFor(language), headerOverride);
+                    factsFor(language), headerOverride, inputHardeningSelector.currentConfig());
                 CompletableFuture
                     .supplyAsync(() -> generator.generate(runData, request))
                     .whenComplete((outcome, error) -> Platform.runLater(() -> {

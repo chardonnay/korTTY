@@ -130,9 +130,9 @@ Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu
 
 - **AI Complete** / **Auto AI Complete** – Code-Vervollständigung am Cursor (siehe [AI Code-Vervollständigungen](#ai-code-completions) oben).
 - **Vollständige Codeanalyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#full-code-analysis) unten.
-- **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungsoptionen](../reference/hardening-options.md) vor der Ausführung.
+- **Verbesserung der Lesbarkeit/Robustheit/Leistung** – Schreibt den **ausgewählten** Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. *Robustheit verbessern* bietet zusätzlich [Härtungs-Optionen](../reference/hardening-options.md) und den Opt-in-Guard [Eingabe-Härtung](../reference/input-hardening.md) vor der Ausführung an.
 - **Codekommentare optimieren** – Kommentiert den **ausgewählten** Codebereich: Die KI fügt mithilfe der spracheigenen Kommentarsyntax direkt über oder neben den Zeilen, zu denen sie gehören, Erklärungen dazu ein, was der Code tut und warum, und ersetzt veraltete oder irreführende Kommentare. Ausführbarer Code bleibt unberührt. Die Kommentare sind in der **Textsprache** des Herausgebers verfasst. Verfügbar im Menü **AI-Code** und im Kontextmenü des Editors auf eine Auswahl.
-- **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung mit denselben [Hardening-Optionen](../reference/hardening-options.md) neu.
+- **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit denselben Panels für [Härtungs-Optionen](../reference/hardening-options.md) und [Eingabe-Härtung](../reference/input-hardening.md).
 - **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#security-check) unten.
 - **Diagramm** – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.
 
@@ -187,6 +187,10 @@ Durch das Ändern der Fertigkeiten wird **nicht** sofort eine erneute Analyse du
 **Härtungsmöglichkeiten:**
 
 Unten können Sie in einem zusammenklappbaren Bereich **Härtungsoptionen** Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, `--dry-run`, `--help` und mehr) den angewendeten Fixes hinzufügen. Der Panel-Titel zeigt live **Zählung**, wie viele Optionen derzeit aktiviert sind – zum Beispiel *Härtungsoptionen (11)* – und korTTY **merkt sich, ob Sie das Panel geöffnet oder geschlossen gelassen haben** und stellt diesen Zustand wieder her, wenn das Fenster das nächste Mal geöffnet wird. Unter [Hardening options](../reference/hardening-options.md) erfahren Sie, was die einzelnen Optionen bedeuten und wie sie angewendet werden.
+
+**Eingabe-Härtung:**
+
+Darunter fordert ein zweites zusammenklappbares Bedienfeld zur **Eingabe-Härtung** die KI auf, einen Schutzblock für die Eingabevalidierung in das Skript einzubauen, wenn die Korrekturen angewendet werden: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße (im Skript als anpassbare `KORTTY_MAX_FILE_SIZE`-Variable generiert), Sicherheitswarnungen im eigenen Protokoll des Skripts und eine `KORTTY_FORCE=1`-Überschreibung. Es handelt sich ausschließlich um eine Opt-in-Option – das Master-Kontrollkästchen ist zunächst deaktiviert – und sein Titel zählt nur die Unteroptionen, die tatsächlich aktiv sind. Den vollständigen Schutzvertrag finden Sie unter [Eingabe-Härtung](../reference/input-hardening.md).
 
 **Skript-Header:**
 

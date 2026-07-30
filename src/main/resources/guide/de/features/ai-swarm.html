@@ -453,6 +453,8 @@
       
         
       
+        
+      
     
     
     
@@ -672,6 +674,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eingabe-Härtung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -723,7 +753,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -745,14 +775,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2597,7 +2627,8 @@
 <li><strong>Sichtbarer Fortschritt</strong> – eine funktionierende Animation mit einem Live-Ablaufzähler (<em>Generierung… 0:42</em>), während die KI arbeitet, und der Gesamtdauer (<em>Fertig – hat 1:37 gedauert</em>), wenn sie fertig ist.</li>
 <li><strong>Zusätzliche Anweisungen</strong> – ein dreizeiliges Feld für zusätzliche Anweisungen, denen die KI folgen muss, mit einem <strong>Verlauf</strong>-Menü Ihrer letzten 10 einzelnen Einträge.</li>
 <li><strong>In Snippets speichern</strong> – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.</li>
-<li><strong>Härtungsoptionen</strong> – dieselben pro Skript <a href="../reference/hardening-options.html">Härtungsoptionen</a> wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, <code>--help</code> und mehr), angewendet auf das generierte Skript. Diese unterscheiden sich von den oben genannten Multiserver-Optionen.</li>
+<li><strong>Härtungsoptionen</strong> – dieselben pro Skript <a href="../reference/hardening-options.html">Härtungsoptionen</a> wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, <code>--help</code> und mehr) werden automatisch mit ihren All-On-Standardwerten auf das generierte Skript angewendet; In diesem Dialogfeld wird kein Bereich für sie angezeigt. Sie unterscheiden sich von den oben genannten Multiserver-Optionen.</li>
+<li><strong>Eingabe-Härtung</strong> – ein zusammenklappbares <a href="../reference/input-hardening.html">Eingabe-Härtung</a>-Panel fordert die KI auf, einen Eingabevalidierungs-Schutzblock in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine einstellbare <code>KORTTY_MAX_FILE_SIZE</code>-Größenbeschränkung, Sicherheitswarnungen im Protokoll des Skripts und eine <code>KORTTY_FORCE=1</code>-Überschreibung). Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.</li>
 </ul>
 <h2 id="tab-aktivitatsanzeige">Tab-Aktivitätsanzeige<a class="headerlink" href="#tab-aktivitatsanzeige" title="Permanent link">&para;</a></h2>
 <p>Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt von jeder anderen Registerkarte aus verfolgen können:</p>
