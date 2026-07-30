@@ -214,4 +214,15 @@
 "tp.aa3":"Kopiraj ravno u banner za prijavu ili zaglavlje skripte",
 "tp.tr1":"Google Translate, DeepL, LibreTranslate, Microsoft, Yandex",
 "tp.tr2":"Jedan klik piše potpunu jezičnu datoteku",
-"tp.tr3":"Prijevod vodiča radi na AI profilu — može se nastaviti"}
+"tp.tr3":"Prijevod vodiča radi na AI profilu — može se nastaviti",
+"ep.t":"Politika za tvrtke: jedna datoteka vlada cijelom flotom",
+"ep.lead":"korTTY je građen za automatiziranu distribuciju: rasporedi MSI, DEB, RPM ili pacman paket alatom koji ionako koristiš — Intune, Jamf, SCCM, Ansible — i položi jednu <span class='kbd'>kortty-policy.toml</span> u mapu <span class='kbd'>policy/</span> instalacije. Bez upravljačkog servera, bez podešavanja direktorija: pravila ciljaju OS korisnička imena i grupe, a na računalima u domeni Active Directory grupe se podudaraju automatski. Korisnici je ne mogu zaobići — datoteka se čita samo iz instalacijskog direktorija (zapisivog samo administratorima), a zaključane postavke prikazuju se posivljene kao „Managed by your organization”.",
+"ep.cap":"Potpun, radni primjer: svi dobivaju flotu na allow-listi, agenta na uzici i prikvačene ključeve hostova; AD grupi Operations uzica se skida; a svaki korisnik nalazi unaprijed konfiguriran tvrtkin AI profil — ključ šifriran, označen „Provided by your organization”. Prednost slijedi poznati obrazac grupnih pravila: korisnik pobjeđuje grupu, grupa pobjeđuje sve, a među jednakima pobjeđuje najrestriktivnija vrijednost.",
+"ep1t":"Popisi servera koji misle ozbiljno",
+"ep1c":"Allow- ili deny-liste s glob uzorcima hostova (<span class='kbd'>*.prod.acme.com</span>), portovima, pojedinačnim IP-ovima, CIDR mrežama i rasponima IP-ova — centralno provedene za terminale, SFTP, QuickConnect, obnovu sesija, ciljeve roja, zakazane poslove i jump host svake veze. Blokirani serveri ostaju vidljivi, posivljeni s lokotom i jasnom porukom politike.",
+"ep2t":"Prekidači značajki, sve do agentove uzice",
+"ep2c":"Isključi AI u cijelosti ili po sposobnosti (Agent, Chat, Roj, Planiranje), uz teamwork, dodatke, snimanje, telemetriju, provjere ažuriranja. <span class='kbd'>ai-agent-execution</span> zna tri načina: <em>allow</em>, <em>confirm</em> — svaki mijenjajući skup naredbi traži interaktivno odobrenje, auto-odobravanje je poništeno — i <em>read-only</em>: agent smije planirati i razgovarati, ali nikad ne izvršava.",
+"ep3t":"Pružiti, ne samo zabraniti",
+"ep3c":"Politika svakom korisniku može dati gotove objekte: AI profile s API ključevima šifriranima <span class='kbd'>kortty-enc:v1:</span>, administratorski dodijeljene lokalne modele (lokalna putanja ili URL, dohvaćeni jednom pri pokretanju), nepromjenjiva zaglavlja skripti i teamwork izvore samo za čitanje. Ažuriranja mogu pokazivati na interni <span class='kbd'>feed-url</span> umjesto GitHuba; zapisnici mogu ići kao JSON u središnji direktorij za tvoj SIEM.",
+"ep4t":"Zakaže sigurno, ne otvoreno",
+"ep4c":"Greška u parsiranju nikad tiho ne isključuje provedbu: nevaljana datoteka stavlja korTTY u sigurnosno zaključavanje — svaka upravljana značajka odbijena, nema veza — uz dijalog pri pokretanju koji imenuje točno mjesto greške. Uopće nema datoteke politike? korTTY se ponaša točno kao prije; isporučeni <span class='kbd'>kortty-policy.toml.example</span> potpuno je komentiran predložak."}

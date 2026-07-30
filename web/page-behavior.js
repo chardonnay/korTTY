@@ -32,9 +32,10 @@
   function size() {
     // cap the backing store: 1x DPR, bounded area — a rain layer needs no retina
     W = cv.width = Math.min(innerWidth, 2560); H = cv.height = Math.min(innerHeight, 1600);
-    const n = Math.min(48, Math.floor(W / (FS * 2.4))); // sparse + hard column cap
+    const n = Math.min(72, Math.max(1, Math.floor(W / (FS * 2.4)))); // sparse, but spread over the FULL width
+    const gap = W / n; // even spacing across the whole window, whatever its size
     cols = Array.from({length: n}, (_, i) => ({
-      x: i * FS * 2.4 + FS, y: Math.random() * -H, v: (0.5 + Math.random()) * SPEED
+      x: (i + 0.5) * gap + (Math.random() - 0.5) * gap * 0.4, y: Math.random() * -H, v: (0.5 + Math.random()) * SPEED
     }));
     cx.font = FS + 'px "SFMono-Regular", Consolas, monospace';
   }
@@ -247,4 +248,42 @@
         () => T.clear());
     }
   }
+})();
+
+// — click-to-zoom lightbox for framed screenshots —
+// The zoomed view is a live clone of the frame, so the tour (dot + callouts) keeps running in it;
+// only the Ken-Burns pan is frozen so the picture itself stands still.
+(() => {
+  const lb = document.createElement('div');
+  lb.id = 'lightbox';
+  lb.innerHTML = '<figure><figcaption></figcaption></figure><button type="button" class="lb-close" aria-label="Close">\u00d7</button>';
+  document.body.appendChild(lb);
+  const fig = lb.querySelector('figure'), cap = lb.querySelector('figcaption');
+  let open = false, lastFocus = null;
+  const close = () => { lb.classList.remove('open', 'max');
+    const c = fig.querySelector('.shot-live'); if (c) c.remove();
+    document.documentElement.style.overflow = ''; open = false;
+    if (lastFocus) lastFocus.focus({ preventScroll: true }); };
+  document.querySelectorAll('.shot-live').forEach(sl => {
+    sl.setAttribute('role', 'button'); sl.setAttribute('tabindex', '0');
+    const src = sl.querySelector('img');
+    sl.setAttribute('aria-label', 'Zoom: ' + (src ? src.alt : 'screenshot'));
+    const show = () => {
+      const clone = sl.cloneNode(true);
+      clone.removeAttribute('role'); clone.removeAttribute('tabindex'); clone.removeAttribute('aria-label');
+      clone.classList.add('play');
+      fig.insertBefore(clone, cap);
+      const t = sl.closest('.shot, figure'); const title = t && t.querySelector('.shot-title');
+      cap.textContent = title ? title.textContent : '';
+      lastFocus = sl; lb.classList.add('open'); document.documentElement.style.overflow = 'hidden'; open = true;
+      lb.querySelector('.lb-close').focus({ preventScroll: true });
+    };
+    sl.addEventListener('click', show);
+    sl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); } });
+  });
+  fig.addEventListener('click', e => {
+    if (e.target.closest('.shot-live')) { e.stopPropagation(); lb.classList.toggle('max'); }
+  });
+  lb.addEventListener('click', close);
+  addEventListener('keydown', e => { if (open && e.key === 'Escape') close(); });
 })();

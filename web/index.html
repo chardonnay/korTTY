@@ -394,6 +394,13 @@ p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { col
 .tick { color: var(--color-accent-300); } .no { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
 .half { color: #d29922; }
 /* — AI-function card grid (snippet editor) — */
+.policy-code { margin: 0; padding: var(--space-4) var(--space-5); overflow-x: auto; font-size: 13px; line-height: 1.6;
+  font-family: var(--font-mono, ui-monospace, monospace); color: var(--color-neutral-200); tab-size: 2; }
+.policy-code .tc { color: var(--color-accent-300); }
+.policy-code .tk { color: var(--color-neutral-100); }
+.policy-code .ts { color: #7ee2a8; }
+.policy-code .tn { color: #e8b465; }
+.policy-code .tm { color: var(--color-neutral-500); }
 .aigrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-top: calc(1.25 * var(--leading)); }
 @media (max-width: 1000px) { .aigrid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 620px) { .aigrid { grid-template-columns: 1fr; } }
@@ -482,6 +489,36 @@ footer a:hover { color: var(--color-accent); }
 @keyframes tip1 { 0%, 13% { opacity: 0; } 18%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
 @keyframes tip2 { 0%, 43% { opacity: 0; } 48%, 60% { opacity: 1; } 64%, 100% { opacity: 0; } }
 @keyframes tip3 { 0%, 73% { opacity: 0; } 78%, 90% { opacity: 1; } 94%, 100% { opacity: 0; } }
+/* — click-to-zoom: any framed screenshot opens full-size — */
+.shot-live { cursor: zoom-in; }
+.shot-live:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+#lightbox { position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--color-bg) 90%, black); cursor: zoom-out; }
+#lightbox.open { display: flex; }
+#lightbox figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); align-items: center; }
+#lightbox figure .shot-live { display: inline-block; max-width: 96vw; border-radius: var(--radius-md); overflow: hidden;
+  border: 1px solid var(--color-neutral-700); box-shadow: var(--shadow-lg); cursor: zoom-in; }
+#lightbox figure .shot-live img { display: block; width: auto; height: auto; max-width: 96vw; max-height: calc(94vh - 30px);
+  animation: none; transform: none; }
+#lightbox figcaption { color: var(--color-neutral-300); font-size: 13px; font-family: var(--font-mono, ui-monospace, monospace); }
+#lightbox.max { overflow: auto; align-items: flex-start; justify-content: flex-start; }
+#lightbox.max figure { padding: 24px; }
+#lightbox.max figure .shot-live, #lightbox.max figure .shot-live img { max-width: none; max-height: none; }
+#lightbox.max figure .shot-live { cursor: zoom-out; }
+/* in the zoomed view the tour is scaled up to match the larger image */
+#lightbox .shot-cursor { width: 20px; height: 20px; }
+#lightbox .shot-cursor::after { inset: -11px; border-width: 3px; }
+#lightbox .shot-tip { max-width: min(46%, 560px); padding: 10px 15px; font-size: 18px; line-height: 1.4;
+  border-radius: var(--radius-md); transform: translate(22px, 16px); }
+#lightbox .shot-tip.l { transform: translate(calc(-100% - 22px), 16px); }
+#lightbox .shot-tip.u { transform: translate(22px, calc(-100% - 16px)); }
+#lightbox .shot-tip.lu { transform: translate(calc(-100% - 22px), calc(-100% - 16px)); }
+#lightbox .shot-tip::before { width: 17px; height: 17px; }
+#lightbox .lb-close { position: fixed; top: 14px; right: 16px; width: 38px; height: 38px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-600); background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  color: var(--color-neutral-200); font-size: 20px; line-height: 1; cursor: pointer; }
+#lightbox .lb-close:hover { border-color: var(--color-accent-700); color: var(--color-text); }
+#lightbox .lb-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 /* — no-JS fallback: mockups keep working without scripts — */
 html:not(.js) .demo-static .ln { opacity: 0; animation: lnin 16s linear infinite; animation-delay: calc(var(--i) * 1.15s); }
 @keyframes lnin { 0% { opacity: 0; } 2% { opacity: 1; } 82% { opacity: 1; } 88%, 100% { opacity: 0; } }
@@ -643,7 +680,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(2 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Manager — Local Models</span></div>
-      <span class="shot-live" style="--pd:24s;--cd:15s;--cdel:0s;--po:30% 20%;--px:-1.5%;--py:-1%;--s1x:18%;--s1y:23%;--s2x:30%;--s2y:62%;--s3x:22%;--s3y:86%"><img src="screenshots/ai/local-models.png" alt="korTTY Local Models manager: installed GGUF models and Hugging Face search" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.lm1">Runtimes: llama.cpp and MLX, installed on demand</span><span class="shot-tip t2" data-i18n="tp.lm2">Search with quantization, license, context and hardware estimate</span><span class="shot-tip t3 u" data-i18n="tp.lm3">Immutable revision pinned, every byte SHA-256 verified</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:24s;--cd:15s;--cdel:0s;--po:30% 20%;--px:-1.5%;--py:-1%;--s1x:18%;--s1y:23%;--s2x:30%;--s2y:62%;--s3x:22%;--s3y:86%"><img src="screenshots/ai/local-models.png?v=2" alt="korTTY Local Models manager: installed GGUF models and Hugging Face search" decoding="async" /><span class="shot-tip t1" data-i18n="tp.lm1">Runtimes: llama.cpp and MLX, installed on demand</span><span class="shot-tip t2" data-i18n="tp.lm2">Search with quantization, license, context and hardware estimate</span><span class="shot-tip t3 u" data-i18n="tp.lm3">Immutable revision pinned, every byte SHA-256 verified</span><span class="shot-cursor"></span></span>
     </figure>
   </section>
 
@@ -655,7 +692,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Manager — Knowledge Stores</span></div>
-      <span class="shot-live" style="--pd:28s;--cd:18s;--cdel:-4s;--po:70% 30%;--px:1.2%;--py:-1.4%;--s1x:16%;--s1y:15%;--s2x:36%;--s2y:47%;--s3x:30%;--s3y:58%"><img src="screenshots/ai/knowledge-stores.png" alt="korTTY Knowledge Stores: local RAG sources, sync state and retrieval test" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.ks1">One store per topic — local HNSW, your embedding model</span><span class="shot-tip t2" data-i18n="tp.ks2">Test the search before you trust it</span><span class="shot-tip t3" data-i18n="tp.ks3">Per source: sync mode, status, files and chunks indexed</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:28s;--cd:18s;--cdel:-4s;--po:70% 30%;--px:1.2%;--py:-1.4%;--s1x:16%;--s1y:15%;--s2x:36%;--s2y:47%;--s3x:30%;--s3y:58%"><img src="screenshots/ai/knowledge-stores.png?v=2" alt="korTTY Knowledge Stores: local RAG sources, sync state and retrieval test" decoding="async" /><span class="shot-tip t1" data-i18n="tp.ks1">One store per topic — local HNSW, your embedding model</span><span class="shot-tip t2" data-i18n="tp.ks2">Test the search before you trust it</span><span class="shot-tip t3" data-i18n="tp.ks3">Per source: sync mode, status, files and chunks indexed</span><span class="shot-cursor"></span></span>
     </figure>
   </section>
 
@@ -669,7 +706,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
       </div>
       <figure class="shot reveal">
         <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — AI Skills</span></div>
-        <span class="shot-live" style="--pd:22s;--cd:13s;--cdel:-8s;--po:25% 70%;--px:-1%;--py:1.1%;--s1x:16%;--s1y:20%;--s2x:15%;--s2y:52%;--s3x:58%;--s3y:50%"><img src="screenshots/settings/ai-skills.png" alt="korTTY AI Skills settings: reusable instruction blocks with per-skill targets" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.sk1">Only skills matching the current request are sent</span><span class="shot-tip t2" data-i18n="tp.sk2">39 built-in skills, editable and exportable</span><span class="shot-tip t3 l" data-i18n="tp.sk3">House rules in plain Markdown — Chat, Agent, or both</span><span class="shot-cursor"></span></span>
+        <span class="shot-live" style="--pd:22s;--cd:13s;--cdel:-8s;--po:25% 70%;--px:-1%;--py:1.1%;--s1x:16%;--s1y:20%;--s2x:15%;--s2y:52%;--s3x:58%;--s3y:50%"><img src="screenshots/settings/ai-skills.png?v=2" alt="korTTY AI Skills settings: reusable instruction blocks with per-skill targets" decoding="async" /><span class="shot-tip t1" data-i18n="tp.sk1">Only skills matching the current request are sent</span><span class="shot-tip t2" data-i18n="tp.sk2">39 built-in skills, editable and exportable</span><span class="shot-tip t3 l" data-i18n="tp.sk3">House rules in plain Markdown — Chat, Agent, or both</span><span class="shot-cursor"></span></span>
       </figure>
     </div>
   </section>
@@ -682,7 +719,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Tools — AI Manager</span></div>
-      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-2s;--po:60% 15%;--px:1.5%;--py:-0.8%;--s1x:26%;--s1y:9%;--s2x:20%;--s2y:37%;--s3x:30%;--s3y:79%"><img src="screenshots/ai/ai-manager.png" alt="korTTY AI Manager: profiles, local models, knowledge stores and saved chats" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.am1">Profiles, models, knowledge stores and chats in one window</span><span class="shot-tip t2" data-i18n="tp.am2">The setup assistant does the boring part</span><span class="shot-tip t3 u" data-i18n="tp.am3">Pause and resume, with live speed and ETA</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-2s;--po:60% 15%;--px:1.5%;--py:-0.8%;--s1x:26%;--s1y:9%;--s2x:20%;--s2y:37%;--s3x:30%;--s3y:79%"><img src="screenshots/ai/ai-manager.png?v=2" alt="korTTY AI Manager: profiles, local models, knowledge stores and saved chats" decoding="async" /><span class="shot-tip t1" data-i18n="tp.am1">Profiles, models, knowledge stores and chats in one window</span><span class="shot-tip t2" data-i18n="tp.am2">The setup assistant does the boring part</span><span class="shot-tip t3 u" data-i18n="tp.am3">Pause and resume, with live speed and ETA</span><span class="shot-cursor"></span></span>
     </figure>
   </section>
 
@@ -752,7 +789,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(2 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — Themes</span></div>
-      <span class="shot-live" style="--pd:30s;--cd:19s;--cdel:-6s;--po:35% 40%;--px:-1.2%;--py:1.3%;--s1x:17%;--s1y:31%;--s2x:10%;--s2y:59%;--s3x:13%;--s3y:91%"><img src="screenshots/settings/themes.png" alt="korTTY theme settings: color profiles with live preview" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.th1">Live preview: foreground, background, cursor, AI colours</span><span class="shot-tip t2" data-i18n="tp.th2">Fifteen built-in themes, every one editable</span><span class="shot-tip t3 u" data-i18n="tp.th3">Duplicate one and make it yours</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:30s;--cd:19s;--cdel:-6s;--po:35% 40%;--px:-1.2%;--py:1.3%;--s1x:17%;--s1y:31%;--s2x:10%;--s2y:59%;--s3x:13%;--s3y:91%"><img src="screenshots/settings/themes.png?v=2" alt="korTTY theme settings: color profiles with live preview" decoding="async" /><span class="shot-tip t1" data-i18n="tp.th1">Live preview: foreground, background, cursor, AI colours</span><span class="shot-tip t2" data-i18n="tp.th2">Fifteen built-in themes, every one editable</span><span class="shot-tip t3 u" data-i18n="tp.th3">Duplicate one and make it yours</span><span class="shot-cursor"></span></span>
     </figure>
   </section>
 
@@ -765,12 +802,12 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <div class="split" style="padding: calc(1.5 * var(--leading)) 0 0; align-items: start">
       <figure class="shot reveal">
         <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">SFTP Manager</span></div>
-        <span class="shot-live" style="--pd:23s;--cd:14s;--cdel:-10s;--po:75% 65%;--px:1%;--py:-1.2%;--s1x:27%;--s1y:13%;--s2x:44%;--s2y:18%;--s3x:70%;--s3y:86%"><img src="screenshots/sftp/sftp-manager.png" alt="korTTY SFTP Manager: local and remote file panes" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.sf1">Local and remote side by side, each with wildcard search</span><span class="shot-tip t2" data-i18n="tp.sf2">User, group and permission columns</span><span class="shot-tip t3 lu" data-i18n="tp.sf3">Upload, download, archive — Edit opens the Snippet Editor</span><span class="shot-cursor"></span></span>
+        <span class="shot-live" style="--pd:23s;--cd:14s;--cdel:-10s;--po:75% 65%;--px:1%;--py:-1.2%;--s1x:27%;--s1y:13%;--s2x:44%;--s2y:18%;--s3x:70%;--s3y:86%"><img src="screenshots/sftp/sftp-manager.png?v=2" alt="korTTY SFTP Manager: local and remote file panes" decoding="async" /><span class="shot-tip t1" data-i18n="tp.sf1">Local and remote side by side, each with wildcard search</span><span class="shot-tip t2" data-i18n="tp.sf2">User, group and permission columns</span><span class="shot-tip t3 lu" data-i18n="tp.sf3">Upload, download, archive — Edit opens the Snippet Editor</span><span class="shot-cursor"></span></span>
       </figure>
       <div>
         <figure class="shot reveal">
           <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Snippet Editor</span></div>
-          <span class="shot-live" style="--pd:27s;--cd:16s;--cdel:-3s;--po:20% 30%;--px:-1.4%;--py:0.9%;--s1x:20%;--s1y:24%;--s2x:42%;--s2y:28%;--s3x:13%;--s3y:31%"><img src="screenshots/settings/snippet-editor.png" alt="korTTY Snippet Editor with Monaco syntax highlighting" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.se1">AI writes the description, and corrects the spelling</span><span class="shot-tip t2 l" data-i18n="tp.se2">AI Text and AI Code: every action from this toolbar</span><span class="shot-tip t3" data-i18n="tp.se3">Choose which skills apply to this snippet</span><span class="shot-cursor"></span></span>
+          <span class="shot-live" style="--pd:27s;--cd:16s;--cdel:-3s;--po:20% 30%;--px:-1.4%;--py:0.9%;--s1x:20%;--s1y:24%;--s2x:42%;--s2y:28%;--s3x:13%;--s3y:31%"><img src="screenshots/settings/snippet-editor.png?v=2" alt="korTTY Snippet Editor with Monaco syntax highlighting" decoding="async" /><span class="shot-tip t1" data-i18n="tp.se1">AI writes the description, and corrects the spelling</span><span class="shot-tip t2 l" data-i18n="tp.se2">AI Text and AI Code: every action from this toolbar</span><span class="shot-tip t3" data-i18n="tp.se3">Choose which skills apply to this snippet</span><span class="shot-cursor"></span></span>
         </figure>
         <p class="figcap" data-i18n="fc.editor">The editor is AI-assisted end to end: cursor completion, right-click instructions with diff preview, security checks, and a full code analysis window with flow diagram and PDF export.</p>
       </div>
@@ -782,7 +819,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(1.25 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">AI Code Analysis — messages_errors_table.pl</span></div>
-      <span class="shot-live" style="--pd:32s;--cd:21s;--cdel:-5s;--po:26% 28%;--px:-1.3%;--py:1.1%;--s1x:20%;--s1y:13%;--s2x:12%;--s2y:31%;--s3x:74%;--s3y:53%"><img src="screenshots/tools/full-code-analysis.png" alt="korTTY Full code analysis: plain-language summary, severity-badged improvements with line numbers, auto-generated flow diagram and hardening options" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.fca1">Skills auto-selected for the language, shown as chips</span><span class="shot-tip t2" data-i18n="tp.fca2">Severity, ID and the exact line — OPT-1, line 24</span><span class="shot-tip t3 l" data-i18n="tp.fca3">Flow diagram from its own request; hover a node for its lines</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:32s;--cd:21s;--cdel:-5s;--po:26% 28%;--px:-1.3%;--py:1.1%;--s1x:20%;--s1y:13%;--s2x:12%;--s2y:31%;--s3x:74%;--s3y:53%"><img src="screenshots/tools/full-code-analysis.png?v=2" alt="korTTY Full code analysis: plain-language summary, severity-badged improvements with line numbers, auto-generated flow diagram and hardening options" decoding="async" /><span class="shot-tip t1" data-i18n="tp.fca1">Skills auto-selected for the language, shown as chips</span><span class="shot-tip t2" data-i18n="tp.fca2">Severity, ID and the exact line — OPT-1, line 24</span><span class="shot-tip t3 l" data-i18n="tp.fca3">Flow diagram from its own request; hover a node for its lines</span><span class="shot-cursor"></span></span>
     </figure>
     <p class="figcap" data-i18n="fca.cap">What this window is doing: a Perl log-parser was analysed with the <em>local</em> profile, and korTTY auto-selected the matching AI skills (Perl, Bourne-Shell) — shown as chips you can override. Left: the summary explains what the script actually does, then <span class="kbd">OPT-1</span> flags an unused <span class="kbd">$host</span> variable on line 24, and two <span class="kbd">MEDIUM</span> findings propose <span class="kbd">use autodie</span> instead of manual open/close error handling (line 16) and a UTF-8 encoding layer for non-ASCII log files (line 3) — each with the exact edit to make. Right: a flow diagram generated by its own request, so it stays faithful to the real branches; hover a node to see the source lines behind it. Bottom: eleven hardening options — strict mode, error traps, exit codes, logging, idempotency, dry-run — that get folded into the fixes when you apply them.</p>
     <div class="feature">
@@ -827,7 +864,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
       </div>
       <figure class="shot reveal">
         <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">ASCII Art</span></div>
-        <span class="shot-live" style="--pd:24s;--cd:16s;--cdel:-9s;--po:40% 55%;--px:-1%;--py:0.8%;--s1x:10%;--s1y:11%;--s2x:16%;--s2y:20%;--s3x:90%;--s3y:83%"><img src="screenshots/tools/ascii-art.png" alt="korTTY ASCII Art tool: FIGlet text banner with style picker and live preview" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.aa1">Second tab: name a subject, the AI draws it in ASCII</span><span class="shot-tip t2" data-i18n="tp.aa2">Twelve FIGlet styles — step through with the arrow keys</span><span class="shot-tip t3 lu" data-i18n="tp.aa3">Copy straight into a login banner or script header</span><span class="shot-cursor"></span></span>
+        <span class="shot-live" style="--pd:24s;--cd:16s;--cdel:-9s;--po:40% 55%;--px:-1%;--py:0.8%;--s1x:10%;--s1y:11%;--s2x:16%;--s2y:20%;--s3x:90%;--s3y:83%"><img src="screenshots/tools/ascii-art.png?v=2" alt="korTTY ASCII Art tool: FIGlet text banner with style picker and live preview" decoding="async" /><span class="shot-tip t1" data-i18n="tp.aa1">Second tab: name a subject, the AI draws it in ASCII</span><span class="shot-tip t2" data-i18n="tp.aa2">Twelve FIGlet styles — step through with the arrow keys</span><span class="shot-tip t3 lu" data-i18n="tp.aa3">Copy straight into a login banner or script header</span><span class="shot-cursor"></span></span>
       </figure>
     </div>
   </section>
@@ -882,6 +919,63 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
       <h3 class="f-title" data-i18n="sc4t">Your data stays yours</h3>
       <p class="f-copy" data-i18n="sc4c">Only the reviewed selection, prompt and agent context go to the model you chose — never whole knowledge stores, never your vault. Telemetry is anonymous, GDPR-compliant, EU-hosted, and off until you say otherwise.</p>
     </div>
+
+    <div class="subhead">
+      <h3 data-i18n="ep.t">Enterprise policy: one file rules the whole fleet</h3>
+      <p class="lead" data-i18n="ep.lead">korTTY is built for automated rollout: deploy the MSI, DEB, RPM or pacman package with whatever you already use — Intune, Jamf, SCCM, Ansible — and drop a single <span class="kbd">kortty-policy.toml</span> into the installation's <span class="kbd">policy/</span> folder next to it. No management server, no directory setup: rules target OS login names and groups, and on domain-joined machines Active Directory groups match automatically. Users can't bypass it — the file is only honored from the admin-writable install directory, and locked settings show up grayed out as "Managed by your organization".</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.25 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">policy/kortty-policy.toml</span></div>
+      <pre class="policy-code"><code><span class="tc">[meta]</span>
+<span class="tk">schema-version</span> = <span class="tn">1</span>
+<span class="tk">organization</span>   = <span class="ts">"ACME Corp"</span>            <span class="tm"># shown in every "Managed by your organization" hint</span>
+
+<span class="tc">[[rule]]</span>                                <span class="tm"># no users/groups → the baseline for EVERYONE</span>
+<span class="tk">name</span> = <span class="ts">"company-baseline"</span>
+  <span class="tc">[rule.servers]</span>
+  <span class="tk">mode</span>  = <span class="ts">"allow"</span>                      <span class="tm"># only these servers are reachable — incl. jump hosts, SFTP, jobs</span>
+  <span class="tk">hosts</span> = [<span class="ts">"*.acme.com"</span>, <span class="ts">"10.0.0.0/8"</span>, <span class="ts">"vault.acme.com:22"</span>]
+  <span class="tc">[rule.features]</span>
+  <span class="tk">ai-swarm</span> = <span class="ts">"deny"</span>
+  <span class="tk">ai-agent-execution</span> = <span class="ts">"confirm"</span>       <span class="tm"># agent must ask before every mutating command set</span>
+  <span class="tc">[rule.security]</span>
+  <span class="tk">enforce-host-key-check</span> = <span class="tn">true</span>        <span class="tm"># can't be switched off anywhere</span>
+  <span class="tk">allow-telemetry</span> = <span class="tn">false</span>
+
+<span class="tc">[[rule]]</span>                                <span class="tm"># relax the baseline for one team — AD group, no directory config</span>
+<span class="tk">groups</span> = [<span class="ts">"ACME\\Operations"</span>]
+  <span class="tc">[rule.features]</span>
+  <span class="tk">ai-agent-execution</span> = <span class="ts">"allow"</span>
+
+<span class="tc">[[ai-profile]]</span>                          <span class="tm"># provided read-only to every user</span>
+<span class="tk">id</span>       = <span class="ts">"policy-acme-llm"</span>
+<span class="tk">name</span>     = <span class="ts">"ACME internal LLM"</span>
+<span class="tk">provider</span> = <span class="ts">"openai-compatible"</span>
+<span class="tk">endpoint</span> = <span class="ts">"https://llm.acme.internal/v1"</span>
+<span class="tk">model</span>    = <span class="ts">"acme-70b"</span>
+<span class="tk">api-key-encrypted</span> = <span class="ts">"kortty-enc:v1:…"</span>  <span class="tm"># korTTY --encrypt-policy-value</span></code></pre>
+    </figure>
+    <p class="figcap" data-i18n="ep.cap">A complete, working example: everyone gets an allow-listed fleet, a leashed agent and pinned host keys; the Operations AD group gets the leash taken off; and every user finds a preconfigured company AI profile — key encrypted, marked "Provided by your organization". Precedence is the familiar group-policy pattern: user beats group beats everyone, and among equals the most restrictive value wins.</p>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="ep1t">Server lists that mean it</h3>
+      <p class="f-copy" data-i18n="ep1c">Allow- or deny-lists with host globs (<span class="kbd">*.prod.acme.com</span>), ports, single IPs, CIDR networks and IP ranges — enforced centrally for terminals, SFTP, QuickConnect, session restore, swarm targets, scheduled jobs and the jump host of every connection. Blocked servers stay visible, grayed out with a lock marker and a clear policy message.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="ep2t">Feature switches, down to the agent's leash</h3>
+      <p class="f-copy" data-i18n="ep2c">Disable AI wholesale or per capability (Agent, Chat, Swarm, Planning), teamwork, plugins, recording, telemetry, update checks. <span class="kbd">ai-agent-execution</span> knows three modes: <em>allow</em>, <em>confirm</em> — every mutating command set needs interactive approval, auto-approve is defeated — and <em>read-only</em>, where the agent may plan and chat but never executes.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="ep3t">Provide, not just forbid</h3>
+      <p class="f-copy" data-i18n="ep3c">The policy can hand every user finished objects: AI profiles with <span class="kbd">kortty-enc:v1:</span>-encrypted API keys, admin-provisioned local models (local path or URL, fetched once at startup), immutable script headers and read-only teamwork sources. Updates can point at an internal <span class="kbd">feed-url</span> instead of GitHub; logs can go to a central directory as JSON for your SIEM.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="ep4t">Fails safe, not open</h3>
+      <p class="f-copy" data-i18n="ep4c">A parse error never silently disables enforcement: an invalid file puts korTTY into fail-safe lockdown — every managed feature denied, no connections — with a startup dialog naming the exact error position. No policy file at all? korTTY behaves exactly as before; the shipped <span class="kbd">kortty-policy.toml.example</span> is a fully commented template.</p>
+    </div>
   </section>
 
   <section class="sec" id="languages" data-screen-label="Languages">
@@ -893,7 +987,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
       </div>
       <figure class="shot reveal">
         <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Settings — Translation</span></div>
-        <span class="shot-live" style="--pd:25s;--cd:20s;--cdel:-7s;--po:65% 45%;--px:1.3%;--py:-1%;--s1x:27%;--s1y:21%;--s2x:24%;--s2y:40%;--s3x:32%;--s3y:76%"><img src="screenshots/settings/translation.png" alt="korTTY translation settings: generate language files via translation APIs" loading="lazy" /><span class="shot-tip t1" data-i18n="tp.tr1">Google Translate, DeepL, LibreTranslate, Microsoft, Yandex</span><span class="shot-tip t2" data-i18n="tp.tr2">One click writes a complete language file</span><span class="shot-tip t3" data-i18n="tp.tr3">Guide translation runs on an AI profile — resumable</span><span class="shot-cursor"></span></span>
+        <span class="shot-live" style="--pd:25s;--cd:20s;--cdel:-7s;--po:65% 45%;--px:1.3%;--py:-1%;--s1x:27%;--s1y:21%;--s2x:24%;--s2y:40%;--s3x:32%;--s3y:76%"><img src="screenshots/settings/translation.png?v=2" alt="korTTY translation settings: generate language files via translation APIs" decoding="async" /><span class="shot-tip t1" data-i18n="tp.tr1">Google Translate, DeepL, LibreTranslate, Microsoft, Yandex</span><span class="shot-tip t2" data-i18n="tp.tr2">One click writes a complete language file</span><span class="shot-tip t3" data-i18n="tp.tr3">Guide translation runs on an AI profile — resumable</span><span class="shot-cursor"></span></span>
       </figure>
     </div>
     <div class="feature">
