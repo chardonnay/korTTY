@@ -43,6 +43,8 @@ final class TerminalAgentShortcutInputFilter {
     private final Predicate<String> shellHandlesCommand;
     private final Predicate<String> commandInterceptor;
     private final Consumer<String> commandDispatcher;
+    /** Optional observer of every submitted line (session journal input capture); may be null. */
+    private final Consumer<String> submittedLineSink;
     private final StringBuilder inputLine = new StringBuilder();
     private final StringBuilder controlSequence = new StringBuilder();
     private final ByteArrayOutputStream partialUtf8 = new ByteArrayOutputStream(4);
@@ -56,11 +58,21 @@ final class TerminalAgentShortcutInputFilter {
         Predicate<String> shellHandlesCommand,
         Predicate<String> commandInterceptor,
         Consumer<String> commandDispatcher) {
+        this(commandResolver, shellHandlesCommand, commandInterceptor, commandDispatcher, null);
+    }
+
+    TerminalAgentShortcutInputFilter(
+        Function<String, String> commandResolver,
+        Predicate<String> shellHandlesCommand,
+        Predicate<String> commandInterceptor,
+        Consumer<String> commandDispatcher,
+        Consumer<String> submittedLineSink) {
 
         this.commandResolver = Objects.requireNonNull(commandResolver, "commandResolver");
         this.shellHandlesCommand = Objects.requireNonNull(shellHandlesCommand, "shellHandlesCommand");
         this.commandInterceptor = Objects.requireNonNull(commandInterceptor, "commandInterceptor");
         this.commandDispatcher = Objects.requireNonNull(commandDispatcher, "commandDispatcher");
+        this.submittedLineSink = submittedLineSink;
     }
 
     /** Filters one connector write while preserving decoding and paste state across writes. */
@@ -172,6 +184,14 @@ final class TerminalAgentShortcutInputFilter {
 
         String rawCommand = commandResolver.apply(inputLine.toString());
         resetInputLine();
+
+        if (submittedLineSink != null) {
+            try {
+                submittedLineSink.accept(rawCommand);
+            } catch (RuntimeException e) {
+                // The journal sink must never break the input path.
+            }
+        }
 
         if (shellHandlesCommand.test(rawCommand)) {
             outgoing.writeBytes(originalBytes);

@@ -46,6 +46,14 @@ public class TerminalTab extends Tab {
         "M17 10.5V6c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v12c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-4.5l4 4v-11z";
     private static final String ICON_STOP =
         "M6 6h12v12H6z";
+    private static final String ICON_JOURNAL =
+        "M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z";
+    private static final String ICON_CAMERA =
+        "M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2l-1.83 2H4c-1.1 0-2 .9-2 2v12c0 "
+            + "1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z";
+    private static final String ICON_NOTE =
+        "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 "
+            + "0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z";
 
     private final ServerConnection connection;
     private final TerminalView terminalView;
@@ -63,6 +71,15 @@ public class TerminalTab extends Tab {
     private TerminalRecordingSession recordingSession;
     private TerminalRecordingScope activeRecordingScope;
     private boolean recordingControlsRevealedByUser;
+    private HBox journalBar;
+    private Button journalToggleButton;
+    private Button journalScreenshotButton;
+    private Button journalNoteButton;
+    private Label journalStatusLabel;
+    private boolean journalControlsRevealedByUser;
+    private boolean previousJournalBarVisible;
+    private boolean previousJournalBarManaged;
+    private javafx.animation.PauseTransition journalStatusResetDelay;
     private Instant disconnectedAt;
     private volatile boolean reconnectInProgress = false;
     private boolean terminalChromeVisible = true;
@@ -97,12 +114,17 @@ public class TerminalTab extends Tab {
         this.terminalView = new TerminalView(connection, password, temporarySSHKey);
         applyAiAgentActivityTheme(settings);
         this.terminalView.setOnReconnectRequested(this::triggerReconnect);
-        
+        this.terminalView.setJournalTabSessionId(aiSessionId);
+        this.terminalView.setJournalScreenshotHandler(widget ->
+            Platform.runLater(() -> takeJournalScreenshot(widget)));
+        this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
+
         // Create status bar (connection duration / key validity)
         createStatusBar();
         // Create disconnected status bar (red bar, shown when server disconnects; double-click to reconnect)
         createDisconnectedStatusBar();
         createRecordingBar();
+        createJournalBar();
         
         updateTabTitle();
         
@@ -111,6 +133,9 @@ public class TerminalTab extends Tab {
         container.getChildren().add(terminalView);
         if (recordingBar != null) {
             container.getChildren().add(recordingBar);
+        }
+        if (journalBar != null) {
+            container.getChildren().add(journalBar);
         }
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
@@ -241,12 +266,15 @@ public class TerminalTab extends Tab {
         if (!visible) {
             previousRecordingBarVisible = recordingBar != null && recordingBar.isVisible();
             previousRecordingBarManaged = recordingBar != null && recordingBar.isManaged();
+            previousJournalBarVisible = journalBar != null && journalBar.isVisible();
+            previousJournalBarManaged = journalBar != null && journalBar.isManaged();
             previousStatusBarVisible = statusBarLabel != null && statusBarLabel.isVisible();
             previousStatusBarManaged = statusBarLabel != null && statusBarLabel.isManaged();
             previousDisconnectedStatusBarVisible = disconnectedStatusBar != null && disconnectedStatusBar.isVisible();
             previousDisconnectedStatusBarManaged = disconnectedStatusBar != null && disconnectedStatusBar.isManaged();
             terminalChromeVisible = false;
             applyNodeVisibility(recordingBar, false, false);
+            applyNodeVisibility(journalBar, false, false);
             applyNodeVisibility(statusBarLabel, false, false);
             applyNodeVisibility(disconnectedStatusBar, false, false);
             return;
@@ -254,6 +282,7 @@ public class TerminalTab extends Tab {
 
         terminalChromeVisible = true;
         applyNodeVisibility(recordingBar, previousRecordingBarVisible, previousRecordingBarManaged);
+        applyNodeVisibility(journalBar, previousJournalBarVisible, previousJournalBarManaged);
         applyNodeVisibility(statusBarLabel, previousStatusBarVisible, previousStatusBarManaged);
         applyNodeVisibility(
             disconnectedStatusBar,
@@ -423,6 +452,210 @@ public class TerminalTab extends Tab {
             DialogThemeHelper.applyTheme(alert);
             alert.setTitle(I18n.get("terminal.recording.error.title"));
             alert.setHeaderText(I18n.get("terminal.recording.error.header"));
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+    }
+
+    // ==== Session journal bar ====
+
+    private void createJournalBar() {
+        journalToggleButton = new Button(I18n.get("terminal.journal.start"));
+        setJournalButtonIcon(false);
+        journalToggleButton.setGraphicTextGap(6);
+        journalToggleButton.setOnAction(event -> toggleJournalFromUser());
+        journalScreenshotButton = new Button(I18n.get("terminal.journal.screenshot"));
+        journalScreenshotButton.setGraphic(icon(ICON_CAMERA));
+        journalScreenshotButton.setGraphicTextGap(6);
+        journalScreenshotButton.setOnAction(event -> takeJournalScreenshot(null));
+        journalNoteButton = new Button(I18n.get("terminal.journal.note"));
+        journalNoteButton.setGraphic(icon(ICON_NOTE));
+        journalNoteButton.setGraphicTextGap(6);
+        journalNoteButton.setOnAction(event -> addJournalNote());
+        journalStatusLabel = new Label(I18n.get("terminal.journal.off"));
+        journalStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 11px;");
+        journalBar = new HBox(8, journalToggleButton, journalScreenshotButton, journalNoteButton, journalStatusLabel);
+        journalBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
+        journalBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
+        refreshJournalUi();
+    }
+
+    public boolean isJournalActive() {
+        return terminalView.isSessionJournalActive();
+    }
+
+    public void toggleJournalFromUser() {
+        if (isJournalActive()) {
+            stopJournal();
+        } else {
+            startJournal();
+        }
+    }
+
+    public void toggleJournalFromMenuOrShortcut() {
+        journalControlsRevealedByUser = true;
+        refreshJournalControlsVisibility();
+        toggleJournalFromUser();
+    }
+
+    public void refreshJournalControlsVisibility() {
+        if (journalBar == null) {
+            return;
+        }
+        boolean visible = isJournalConfigEnabled()
+            || journalControlsRevealedByUser
+            || isJournalActive();
+        if (!terminalChromeVisible) {
+            previousJournalBarVisible = visible;
+            previousJournalBarManaged = visible;
+            visible = false;
+        }
+        journalBar.setVisible(visible);
+        journalBar.setManaged(visible);
+    }
+
+    private boolean isJournalConfigEnabled() {
+        return connection != null
+            && connection.getSessionJournalConfig() != null
+            && connection.getSessionJournalConfig().isEnabled();
+    }
+
+    /** Starts a journal for the running session; the existing scrollback is imported as seed. */
+    private void startJournal() {
+        if (!terminalView.isConnected()) {
+            showJournalError(I18n.get("terminal.journal.error.notConnected"));
+            return;
+        }
+        if (!terminalView.enableSessionJournalRetroactively()) {
+            showJournalError(I18n.get("terminal.journal.error.start", ""));
+        }
+        refreshJournalUi();
+    }
+
+    private void stopJournal() {
+        // Closing flushes the writer and may run a final AI pass; keep it off the FX thread.
+        Thread stopper = new Thread(() -> {
+            terminalView.stopSessionJournal();
+            Platform.runLater(this::refreshJournalUi);
+        }, "SessionJournal-Stop");
+        stopper.setDaemon(true);
+        stopper.start();
+        journalStatusLabel.setText(I18n.get("terminal.journal.stoppedAt",
+            DateTimeFormatter.ofPattern("HH:mm").format(Instant.now().atZone(ZoneId.systemDefault()))));
+    }
+
+    /** Screenshot of the given split widget (context menu) or the whole terminal (bar/menu). */
+    public void takeJournalScreenshot(com.sithtermfx.ui.SithTermFxWidget widgetOrNull) {
+        if (!isJournalActive()) {
+            showJournalError(I18n.get("terminal.journal.error.notActive"));
+            return;
+        }
+        try {
+            byte[] png = terminalView.captureJournalScreenshotPng(widgetOrNull);
+            de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
+            Thread saver = new Thread(() -> {
+                try {
+                    session.attachScreenshot(png, null);
+                    Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.screenshotAdded")));
+                } catch (Exception e) {
+                    showJournalError(I18n.get("terminal.journal.error.screenshot", e.getMessage()));
+                }
+            }, "SessionJournal-Screenshot");
+            saver.setDaemon(true);
+            saver.start();
+        } catch (Exception e) {
+            showJournalError(I18n.get("terminal.journal.error.screenshot", e.getMessage()));
+        }
+    }
+
+    /** Quick note: a short user text added to the journal timeline at the current position. */
+    public void addJournalNote() {
+        if (!isJournalActive()) {
+            showJournalError(I18n.get("terminal.journal.error.notActive"));
+            return;
+        }
+        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.setTitle(I18n.get("terminal.journal.note.title"));
+        dialog.setHeaderText(I18n.get("terminal.journal.note.header"));
+        dialog.setContentText(I18n.get("terminal.journal.note.content"));
+        dialog.showAndWait().ifPresent(text -> {
+            if (text == null || text.isBlank()) {
+                return;
+            }
+            de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
+            if (session == null) {
+                return;
+            }
+            Thread saver = new Thread(() -> {
+                try {
+                    de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
+                    entry.setKind(de.kortty.model.SessionJournalEntryKind.USER_NOTE);
+                    entry.setText(text.strip());
+                    long seq = session.getLastSequence();
+                    if (seq > 0) {
+                        entry.setLogStartSeq(seq);
+                        entry.setLogEndSeq(seq);
+                    }
+                    KorTTYApplication.getInstance().getSessionJournalService()
+                        .appendEntry(session.getDirectory(), entry);
+                    Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.noteAdded")));
+                } catch (Exception e) {
+                    showJournalError(I18n.get("terminal.journal.error.note", e.getMessage()));
+                }
+            }, "SessionJournal-Note");
+            saver.setDaemon(true);
+            saver.start();
+        });
+    }
+
+    private void refreshJournalUi() {
+        if (journalBar == null || journalToggleButton == null || journalStatusLabel == null) {
+            return;
+        }
+        boolean active = isJournalActive();
+        refreshJournalControlsVisibility();
+        journalToggleButton.setText(I18n.get(active ? "terminal.journal.stop" : "terminal.journal.start"));
+        setJournalButtonIcon(active);
+        applyNodeVisibility(journalScreenshotButton, active, active);
+        applyNodeVisibility(journalNoteButton, active, active);
+        if (active) {
+            de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
+            String since = session != null && session.getMetaSnapshot().getStartedAt() != null
+                ? session.getMetaSnapshot().getStartedAt()
+                    .atZoneSameInstant(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("HH:mm"))
+                : "";
+            journalStatusLabel.setText(I18n.get("terminal.journal.activeSince", since));
+        } else {
+            journalStatusLabel.setText(I18n.get("terminal.journal.off"));
+        }
+    }
+
+    /** Shows a transient confirmation in the status label, then restores the active text. */
+    private void flashJournalStatus(String message) {
+        if (journalStatusLabel == null) {
+            return;
+        }
+        journalStatusLabel.setText(message);
+        if (journalStatusResetDelay != null) {
+            journalStatusResetDelay.stop();
+        }
+        journalStatusResetDelay = new javafx.animation.PauseTransition(Duration.seconds(3));
+        journalStatusResetDelay.setOnFinished(event -> refreshJournalUi());
+        journalStatusResetDelay.play();
+    }
+
+    private void setJournalButtonIcon(boolean active) {
+        journalToggleButton.setGraphic(icon(active ? ICON_STOP : ICON_JOURNAL));
+    }
+
+    private void showJournalError(String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(alert);
+            alert.setTitle(I18n.get("terminal.journal.error.title"));
+            alert.setHeaderText(I18n.get("terminal.journal.error.header"));
             alert.setContentText(message);
             alert.showAndWait();
         });
@@ -749,6 +982,7 @@ public class TerminalTab extends Tab {
                 updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
                 hideDisconnectedStatusBar();
+                refreshJournalUi(); // journal may have auto-started with this connect
                 if (externalConnectedCallback != null) {
                     externalConnectedCallback.run();
                 }
@@ -772,6 +1006,7 @@ public class TerminalTab extends Tab {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
             closeRecordingResources();
+            terminalView.stopSessionJournal();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation

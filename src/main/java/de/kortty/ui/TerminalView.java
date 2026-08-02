@@ -324,6 +324,14 @@ public class TerminalView extends BorderPane {
     // One terminal/split widget can host several concurrent agent runs, keyed by runId.
     private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
     private ObservableTtyConnector.DataListener terminalLoggerDataListener;
+    // Session journal: the live capture session survives reconnects (one journal per tab
+    // lifetime); only the data listener hops to the new connector.
+    private volatile de.kortty.core.SessionJournalSession journalSession;
+    private ObservableTtyConnector.DataListener journalDataListener;
+    private ObservableTtyConnector journalAttachedConnector;
+    private String journalTabSessionId;
+    private java.util.function.Consumer<SithTermFxWidget> journalScreenshotHandler;
+    private Runnable journalNoteHandler;
     private final Map<SshTtyConnector, ObservableTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
     private final Map<ObservableTtyConnector, TerminalAgentShortcutInputFilterRegistration>
         terminalAgentShortcutInputFilters = new ConcurrentHashMap<>();
@@ -505,6 +513,23 @@ public class TerminalView extends BorderPane {
                 }
                 items.add(aiMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            if (isSessionJournalActive()) {
+                if (journalScreenshotHandler != null) {
+                    javafx.scene.control.MenuItem journalShotItem =
+                        new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.journalScreenshot"));
+                    journalShotItem.setOnAction(e -> journalScreenshotHandler.accept(widget));
+                    items.add(journalShotItem);
+                }
+                if (journalNoteHandler != null) {
+                    javafx.scene.control.MenuItem journalNoteItem =
+                        new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.journalNote"));
+                    journalNoteItem.setOnAction(e -> journalNoteHandler.run());
+                    items.add(journalNoteItem);
+                }
+                if (journalScreenshotHandler != null || journalNoteHandler != null) {
+                    items.add(new javafx.scene.control.SeparatorMenuItem());
+                }
             }
             javafx.scene.control.Menu themeMenu = new javafx.scene.control.Menu(I18n.get("theme.menu"));
             try {
@@ -2083,7 +2108,8 @@ public class TerminalView extends BorderPane {
                 getTerminalAgentCommandName(),
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
-            rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand));
+            rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
+            this::forwardJournalInputLine);
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -4797,10 +4823,13 @@ public class TerminalView extends BorderPane {
                     // Register disconnect listener
                     setConnectorDisconnectListener(ttyConnector, (reason, wasError) -> {
                         logger.info("Disconnect event: {} (wasError={})", reason, wasError);
-                        
+
                         // Stop logger if running
                         stopLogger();
-                        
+                        // The journal itself stays open across disconnect/reconnect; only the
+                        // listener on the dying connector is released.
+                        detachJournalDataListener();
+
                         if (externalDisconnectListener != null) {
                             externalDisconnectListener.onDisconnect(reason, wasError);
                         }
@@ -4815,6 +4844,8 @@ public class TerminalView extends BorderPane {
                         }
                         // Start terminal logger if enabled
                         startLogger();
+                        // Start (or re-attach after reconnect) the session journal if enabled
+                        startSessionJournal();
                         
                         // Set the connector and start the terminal on JavaFX thread
                         Platform.runLater(() -> {
@@ -5011,7 +5042,234 @@ public class TerminalView extends BorderPane {
             }
         }
     }
-    
+
+    // ==== Session journal ====
+
+    /** The tab's session id, used for journal directory naming; set by TerminalTab. */
+    public void setJournalTabSessionId(String tabSessionId) {
+        this.journalTabSessionId = tabSessionId;
+    }
+
+    /** Handler the terminal-pane context menu "screenshot to journal" item calls; set by TerminalTab. */
+    public void setJournalScreenshotHandler(java.util.function.Consumer<SithTermFxWidget> handler) {
+        this.journalScreenshotHandler = handler;
+    }
+
+    /** Handler the terminal-pane context menu "note to journal" item calls; set by TerminalTab. */
+    public void setJournalNoteHandler(Runnable handler) {
+        this.journalNoteHandler = handler;
+    }
+
+    public boolean isSessionJournalActive() {
+        de.kortty.core.SessionJournalSession session = journalSession;
+        return session != null && session.isActive();
+    }
+
+    public de.kortty.core.SessionJournalSession getSessionJournalSession() {
+        return journalSession;
+    }
+
+    /**
+     * Called from the connect success path. First connect with journaling enabled creates the
+     * journal; after a reconnect the existing journal continues and only the data listener is
+     * re-attached to the new connector.
+     */
+    private void startSessionJournal() {
+        try {
+            if (isSessionJournalActive()) {
+                attachJournalDataListener();
+                journalSession.noteReconnect();
+                return;
+            }
+            de.kortty.model.SessionJournalConfig config = connection.getSessionJournalConfig();
+            if (config == null || !config.isEnabled()) {
+                return;
+            }
+            createAndStartSessionJournal(false, java.util.List.of());
+        } catch (Exception e) {
+            logger.error("Failed to start session journal for {}:{}: {}",
+                connection.getHost(), connection.getPort(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Enables the journal mid-session: the current scrollback is imported as seed entries, then
+     * the live taps attach. Call on the FX thread; seeding runs on a background thread.
+     *
+     * @return true when the journal is (now) active
+     */
+    public boolean enableSessionJournalRetroactively() {
+        if (isSessionJournalActive()) {
+            return true;
+        }
+        if (ttyConnector == null) {
+            return false;
+        }
+        try {
+            final java.util.List<String> seedLines = readScrollbackForSeed();
+            final de.kortty.core.SessionJournalSession session = createSessionJournal(true);
+            session.start();
+            journalSession = session;
+            Thread seeder = new Thread(() -> {
+                try {
+                    session.appendSeedLines(seedLines);
+                } catch (Exception e) {
+                    logger.warn("Session journal seeding failed: {}", e.getMessage());
+                } finally {
+                    // Live output must come strictly after the seed block, so attach only now.
+                    attachJournalDataListener();
+                }
+            }, "SessionJournal-Seed");
+            seeder.setDaemon(true);
+            seeder.start();
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to enable session journal retroactively for {}:{}: {}",
+                connection.getHost(), connection.getPort(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /** Stops and closes the journal (explicit user stop or tab close). Safe to call repeatedly. */
+    public void stopSessionJournal() {
+        detachJournalDataListener();
+        de.kortty.core.SessionJournalSession session = journalSession;
+        journalSession = null;
+        if (session != null) {
+            try {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSessionJournalSummarizer() != null) {
+                    app.getSessionJournalSummarizer().onSessionClosing(session);
+                }
+            } catch (Exception e) {
+                logger.warn("Session journal close summarization failed: {}", e.getMessage());
+            }
+            try {
+                session.close();
+            } catch (Exception e) {
+                logger.warn("Error closing session journal: {}", e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Captures a PNG of the given split widget (or the whole terminal view) for the journal.
+     * Must be called on the FX thread.
+     */
+    public byte[] captureJournalScreenshotPng(SithTermFxWidget widgetOrNull) throws java.io.IOException {
+        javafx.scene.Node node = null;
+        if (widgetOrNull != null && widgetOrNull.getTerminalPanel() != null) {
+            node = widgetOrNull.getTerminalPanel().getPane();
+        }
+        if (node == null) {
+            node = this;
+        }
+        javafx.scene.image.WritableImage image = node.snapshot(new javafx.scene.SnapshotParameters(), null);
+        java.awt.image.BufferedImage buffered = javafx.embed.swing.SwingFXUtils.fromFXImage(image, null);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(buffered, "png", out);
+        return out.toByteArray();
+    }
+
+    private void createAndStartSessionJournal(boolean seeded, java.util.List<String> seedLines)
+            throws java.io.IOException {
+        de.kortty.core.SessionJournalSession session = createSessionJournal(seeded);
+        session.start();
+        journalSession = session;
+        if (seeded && !seedLines.isEmpty()) {
+            session.appendSeedLines(seedLines);
+        }
+        attachJournalDataListener();
+    }
+
+    private de.kortty.core.SessionJournalSession createSessionJournal(boolean seeded) throws java.io.IOException {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        if (app == null || app.getSessionJournalService() == null) {
+            throw new java.io.IOException("Session journal service not available");
+        }
+        de.kortty.model.GlobalSettings globalSettings = app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        java.util.List<String> knownSecrets = new java.util.ArrayList<>();
+        if (password != null && !password.isBlank()) {
+            knownSecrets.add(password);
+        }
+        String tabSessionId = journalTabSessionId != null ? journalTabSessionId : connection.getId();
+        de.kortty.core.SessionJournalSession session = app.getSessionJournalService()
+            .createSession(connection, tabSessionId, globalSettings, knownSecrets, seeded);
+        de.kortty.core.SessionJournalSummarizer summarizer = app.getSessionJournalSummarizer();
+        if (summarizer != null) {
+            summarizer.register(session);
+        }
+        return session;
+    }
+
+    private void attachJournalDataListener() {
+        if (!(ttyConnector instanceof ObservableTtyConnector observableConnector)) {
+            return;
+        }
+        detachJournalDataListener();
+        journalDataListener = data -> {
+            de.kortty.core.SessionJournalSession session = journalSession;
+            if (session != null) {
+                session.appendOutputChunk(data);
+            }
+        };
+        observableConnector.addDataListener(journalDataListener);
+        journalAttachedConnector = observableConnector;
+    }
+
+    private void detachJournalDataListener() {
+        if (journalAttachedConnector != null && journalDataListener != null) {
+            journalAttachedConnector.removeDataListener(journalDataListener);
+        }
+        journalAttachedConnector = null;
+        journalDataListener = null;
+    }
+
+    private void forwardJournalInputLine(String line) {
+        de.kortty.core.SessionJournalSession session = journalSession;
+        if (session != null) {
+            session.appendInputLine(line);
+        }
+    }
+
+    /** Reads history + screen lines under the buffer lock for the retroactive seed. */
+    private java.util.List<String> readScrollbackForSeed() {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        SithTermFxWidget widget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (widget == null) {
+            widget = terminalWidget;
+        }
+        if (widget == null || widget.getTerminalTextBuffer() == null) {
+            return lines;
+        }
+        var textBuffer = widget.getTerminalTextBuffer();
+        textBuffer.lock();
+        try {
+            if (textBuffer.getHistoryBuffer() != null) {
+                collectSeedLines(textBuffer.getHistoryBuffer().getLines(), lines);
+            }
+            collectSeedLines(textBuffer.getScreenLines(), lines);
+        } finally {
+            textBuffer.unlock();
+        }
+        // Trailing blank screen padding is noise in the journal.
+        while (!lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
+            lines.remove(lines.size() - 1);
+        }
+        return lines;
+    }
+
+    private static void collectSeedLines(String block, java.util.List<String> target) {
+        if (block == null || block.isEmpty()) {
+            return;
+        }
+        for (String line : block.split("\n", -1)) {
+            target.add(line.stripTrailing());
+        }
+    }
+
     /**
      * Clears the terminal screen.
      */
@@ -5178,6 +5436,7 @@ public class TerminalView extends BorderPane {
     public void disconnectOnly() {
         stopAllTerminalAgentShellKeepAlives();
         stopLogger();
+        detachJournalDataListener();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);
             releaseAgentShortcutInputInterceptor(ttyConnector);
@@ -5189,7 +5448,7 @@ public class TerminalView extends BorderPane {
             ttyConnector = null;
         }
     }
-    
+
     /**
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
@@ -5198,6 +5457,7 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         stopLogger();
+        stopSessionJournal();
         stopAllEffects();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);

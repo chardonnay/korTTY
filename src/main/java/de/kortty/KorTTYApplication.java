@@ -90,6 +90,8 @@ public class KorTTYApplication extends Application {
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
+    private de.kortty.core.SessionJournalService sessionJournalService;
+    private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
@@ -188,6 +190,8 @@ public class KorTTYApplication extends Application {
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
+        sessionJournalService = new de.kortty.core.SessionJournalService();
+        sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
         telemetryService = new TelemetryService(globalSettingsManager, configDir);
         Telemetry.init(telemetryService);
 
@@ -1079,6 +1083,14 @@ public class KorTTYApplication extends Application {
 
     public SwarmChatManager getSwarmChatManager() {
         return swarmChatManager;
+    }
+
+    public de.kortty.core.SessionJournalService getSessionJournalService() {
+        return sessionJournalService;
+    }
+
+    public de.kortty.core.SessionJournalSummarizer getSessionJournalSummarizer() {
+        return sessionJournalSummarizer;
     }
     
     public BackupManager getBackupManager() {

@@ -176,26 +176,53 @@ public class SessionJournalSession implements AutoCloseable {
         }
         lastActivityMillis = System.currentTimeMillis();
         releaseSuppressionIfExpired();
-        commandCount.incrementAndGet();
         if (inputSuppressed) {
             // One prompt swallows exactly one submission; the text is never touched or buffered.
             inputSuppressed = false;
+            commandCount.incrementAndGet();
             enqueue(SessionJournalLogEntry.Kind.IN, "", true, false, null);
             return;
         }
+        if (line.isBlank()) {
+            return; // an empty Enter at the prompt is noise, not a command
+        }
+        commandCount.incrementAndGet();
         enqueue(SessionJournalLogEntry.Kind.IN, redactor.redact(line), false, false, null);
     }
+
+    /** Cap so a retroactive seed can never wedge the queue or balloon the first log part. */
+    static final int MAX_SEED_LINES = 8000;
 
     /** Scrollback lines imported by a retroactive enable; written before any live entries. */
     public void appendSeedLines(List<String> screenLines) {
         if (!running || closed || screenLines == null || screenLines.isEmpty()) {
             return;
         }
-        for (String line : screenLines) {
-            enqueue(SessionJournalLogEntry.Kind.SEED, redactor.redact(line != null ? line : ""), false, false, null);
+        int skipped = Math.max(0, screenLines.size() - MAX_SEED_LINES);
+        List<String> capped = skipped > 0
+            ? screenLines.subList(skipped, screenLines.size())
+            : screenLines;
+        for (String line : capped) {
+            SessionJournalLogEntry entry = new SessionJournalLogEntry(
+                sequence.incrementAndGet(), OffsetDateTime.now(), SessionJournalLogEntry.Kind.SEED,
+                redactor.redact(line != null ? line : ""), false, false, null);
+            try {
+                // Seeding runs on a background thread and may outpace the writer briefly; a
+                // bounded wait keeps ordering without dropping scrollback lines.
+                if (!queue.offer(entry, 500, TimeUnit.MILLISECONDS)) {
+                    logger.warn("Session journal seed queue congested for {}, dropping remaining seed lines",
+                        directory.getFileName());
+                    break;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
-        enqueue(SessionJournalLogEntry.Kind.NOTE,
-            "journal enabled retroactively; " + screenLines.size() + " seed lines above", false, false, null);
+        String noteText = skipped > 0
+            ? "journal enabled retroactively; " + capped.size() + " seed lines above (" + skipped + " older lines omitted)"
+            : "journal enabled retroactively; " + capped.size() + " seed lines above";
+        enqueue(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null);
     }
 
     /** Marks a reconnect of the tab's connection in the log. */
