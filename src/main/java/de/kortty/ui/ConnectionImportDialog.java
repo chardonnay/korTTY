@@ -389,7 +389,8 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
                 de.kortty.model.AuthMethod.class,
                 de.kortty.model.TunnelType.class,
                 de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class
+                de.kortty.model.TerminalLogConfig.LogFormat.class,
+                de.kortty.model.SessionJournalConfig.class
             );
             
             jakarta.xml.bind.Unmarshaller unmarshaller = context.createUnmarshaller();

@@ -1,0 +1,433 @@
+package de.kortty.core;
+
+import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
+import de.kortty.model.SessionJournalConfig;
+import de.kortty.model.SessionJournalDocument;
+import de.kortty.model.SessionJournalEntry;
+import de.kortty.model.SessionJournalLogFormat;
+import de.kortty.model.SessionJournalMarker;
+import de.kortty.model.SessionJournalMeta;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+
+/**
+ * Application-level service for session journals: resolves the storage directory, creates live
+ * capture sessions, maintains the journal list for the management UI (directory scan, no central
+ * index file), and owns all reads/writes of the curated journal document (journal.xml).
+ *
+ * <p>Document writes serialize per journal directory and always go through
+ * {@link AtomicFileWriter}, so the FX thread (marker edits), the AI summarizer thread and the
+ * closing capture session can never corrupt the document.</p>
+ */
+public class SessionJournalService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SessionJournalService.class);
+
+    public static final String DOCUMENT_FILE_NAME = "journal.xml";
+    public static final String SCREENSHOTS_DIR_NAME = "screenshots";
+
+    private static final DateTimeFormatter DIR_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
+    private record CachedMeta(long lastModifiedMillis, SessionJournalMeta meta, String journalId) {
+    }
+
+    private final JAXBContext jaxbContext;
+    private final ConcurrentHashMap<Path, Object> directoryLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Path, SessionJournalSession> liveSessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Path, CachedMeta> metaCache = new ConcurrentHashMap<>();
+    private final CopyOnWriteArrayList<Consumer<Path>> changeListeners = new CopyOnWriteArrayList<>();
+
+    public SessionJournalService() {
+        try {
+            this.jaxbContext = JAXBContext.newInstance(
+                SessionJournalDocument.class,
+                SessionJournalMeta.class,
+                SessionJournalEntry.class);
+        } catch (JAXBException e) {
+            throw new IllegalStateException("Failed to create JAXB context for session journals", e);
+        }
+    }
+
+    /** Storage root for journals: settings override or {@code ~/.kortty/journals}. */
+    public static Path resolveJournalsDirectory(GlobalSettings settings) {
+        String configured = settings != null ? settings.getSessionJournalStoragePath() : null;
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured.trim()).toAbsolutePath().normalize();
+        }
+        return Path.of(System.getProperty("user.home"), ".kortty", "journals")
+            .toAbsolutePath()
+            .normalize();
+    }
+
+    /**
+     * Creates a fresh journal directory with its document and returns the live capture session.
+     * Each connect creates a new journal; nothing is ever appended to a previous run's log.
+     *
+     * @param knownSecrets secrets to literal-redact from every captured line (vault password,
+     *                     key passphrase); the values never reach the written log
+     * @param seeded       true when the journal is enabled retroactively mid-session
+     */
+    public SessionJournalSession createSession(
+            ServerConnection connection,
+            String tabSessionId,
+            GlobalSettings settings,
+            List<String> knownSecrets,
+            boolean seeded) throws IOException {
+        Objects.requireNonNull(connection, "connection must not be null");
+        Path baseDir = resolveJournalsDirectory(settings);
+        Files.createDirectories(baseDir);
+        Path directory = nextJournalDirectory(baseDir, connection.getName(), tabSessionId);
+        Files.createDirectories(directory);
+
+        SessionJournalLogFormat format = settings != null
+            ? settings.getSessionJournalLogFormat()
+            : SessionJournalLogFormat.XML;
+        OffsetDateTime startedAt = OffsetDateTime.now();
+
+        SessionJournalDocument document = new SessionJournalDocument();
+        SessionJournalMeta meta = document.getMeta();
+        meta.setTitle(buildDefaultTitle(connection.getName(), startedAt));
+        meta.setConnectionId(connection.getId());
+        meta.setConnectionName(connection.getName());
+        meta.setHost(connection.getHost());
+        meta.setPort(connection.getPort());
+        meta.setUsername(connection.getUsername());
+        meta.setAppVersion(de.kortty.KorTTYApplication.getAppVersion());
+        meta.setStartedAt(startedAt);
+        meta.setSeeded(seeded);
+        meta.setLogFormat(format);
+        meta.setAppLanguageCode(resolveLanguageCode());
+        saveDocumentInternal(directory, document);
+
+        SessionJournalRedactor redactor = new SessionJournalRedactor();
+        if (knownSecrets != null) {
+            knownSecrets.forEach(redactor::addSecret);
+        }
+        SessionJournalConfig config = connection.getSessionJournalConfig();
+        SessionJournalSession session = new SessionJournalSession(
+            this,
+            directory,
+            document.getId(),
+            format,
+            new SessionJournalMeta(meta),
+            tabSessionId,
+            config.isCaptureInput(),
+            config.getMaxLogSizeBytes(),
+            redactor);
+        liveSessions.put(normalize(directory), session);
+        return session;
+    }
+
+    /** Scans the journals directory; metadata is cached per directory by document mtime. */
+    public List<SessionJournalMeta> listJournals(GlobalSettings settings) throws IOException {
+        Path baseDir = resolveJournalsDirectory(settings);
+        if (!Files.isDirectory(baseDir)) {
+            return List.of();
+        }
+        List<SessionJournalMeta> result = new ArrayList<>();
+        try (var stream = Files.list(baseDir)) {
+            for (Path dir : stream.filter(Files::isDirectory).toList()) {
+                Path documentFile = dir.resolve(DOCUMENT_FILE_NAME);
+                if (!Files.isRegularFile(documentFile)) {
+                    continue;
+                }
+                try {
+                    result.add(readMetaCached(dir, documentFile));
+                } catch (Exception e) {
+                    logger.warn("Skipping unreadable session journal {}: {}", dir.getFileName(), e.getMessage());
+                }
+            }
+        }
+        result.sort(Comparator.comparing(
+            SessionJournalMeta::getStartedAt,
+            Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
+    }
+
+    public SessionJournalDocument loadDocument(Path journalDir) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            return loadDocumentInternal(journalDir);
+        }
+    }
+
+    public void saveDocument(Path journalDir, SessionJournalDocument document) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /** Appends a copy of the entry to the journal document and returns the stored copy. */
+    public SessionJournalEntry appendEntry(Path journalDir, SessionJournalEntry entry) throws IOException {
+        SessionJournalEntry stored = new SessionJournalEntry(entry);
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            document.getEntries().add(stored);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+        return new SessionJournalEntry(stored);
+    }
+
+    /** Replaces the stored entry with the same id (marker/note edits). Unknown ids are ignored. */
+    public void updateEntry(Path journalDir, SessionJournalEntry entry) throws IOException {
+        boolean replaced = false;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            List<SessionJournalEntry> entries = document.getEntries();
+            for (int i = 0; i < entries.size(); i++) {
+                if (entries.get(i).getId() != null && entries.get(i).getId().equals(entry.getId())) {
+                    SessionJournalEntry updated = new SessionJournalEntry(entry);
+                    updated.setEditedAt(OffsetDateTime.now());
+                    entries.set(i, updated);
+                    replaced = true;
+                    break;
+                }
+            }
+            if (replaced) {
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (replaced) {
+            notifyChanged(journalDir);
+        } else {
+            logger.warn("Session journal entry {} not found for update in {}", entry.getId(), journalDir.getFileName());
+        }
+    }
+
+    public void renameJournal(Path journalDir, String newTitle) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            document.getMeta().setTitle(newTitle != null ? newTitle.strip() : null);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    public void updateDescription(Path journalDir, String description) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            document.getMeta().setDescription(description != null && !description.isBlank() ? description : null);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /** Persists the summarizer's progress so restarts never re-summarize covered ranges. */
+    public void updateLastSummarizedSeq(Path journalDir, long lastSummarizedSeq) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            if (document.getMeta().getLastSummarizedSeq() < lastSummarizedSeq) {
+                document.getMeta().setLastSummarizedSeq(lastSummarizedSeq);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+    }
+
+    /**
+     * Recursively deletes a journal directory. Refuses live journals and any path outside the
+     * configured journals root.
+     */
+    public void deleteJournal(GlobalSettings settings, Path journalDir) throws IOException {
+        Path normalized = normalize(journalDir);
+        if (liveSessions.containsKey(normalized)) {
+            throw new IOException("Cannot delete a session journal that is currently being written");
+        }
+        Path baseDir = resolveJournalsDirectory(settings);
+        if (!normalized.startsWith(baseDir) || normalized.equals(baseDir)) {
+            throw new IOException("Refusing to delete a directory outside the journals root: " + normalized);
+        }
+        if (!Files.exists(normalized)) {
+            return;
+        }
+        try (var walk = Files.walk(normalized)) {
+            List<Path> paths = walk.sorted(Comparator.reverseOrder()).toList();
+            for (Path path : paths) {
+                Files.deleteIfExists(path);
+            }
+        }
+        metaCache.remove(normalized);
+        notifyChanged(normalized);
+    }
+
+    public boolean isLive(Path journalDir) {
+        return liveSessions.containsKey(normalize(journalDir));
+    }
+
+    /** Fired (on the mutating thread) whenever a journal's document or lifecycle changed. */
+    public void addChangeListener(Consumer<Path> listener) {
+        changeListeners.add(listener);
+    }
+
+    public void removeChangeListener(Consumer<Path> listener) {
+        changeListeners.remove(listener);
+    }
+
+    /** All currently live capture sessions (the summarizer iterates these). */
+    public List<SessionJournalSession> getLiveSessions() {
+        return List.copyOf(liveSessions.values());
+    }
+
+    // --- capture-log reads (delegating to the recovery reader) ---
+
+    public List<SessionJournalLogEntry> readLogAfter(Path journalDir, long afterSeq) throws IOException {
+        return SessionJournalLogReader.readAfter(journalDir, afterSeq);
+    }
+
+    public List<SessionJournalLogEntry> readLogRange(Path journalDir, long fromSeq, long toSeq) throws IOException {
+        return SessionJournalLogReader.readRange(journalDir, fromSeq, toSeq);
+    }
+
+    public SessionJournalLogTail readLogTail(Path journalDir, int maxOutput, int maxInput) throws IOException {
+        return SessionJournalLogReader.readTail(journalDir, maxOutput, maxInput);
+    }
+
+    // --- session lifecycle callbacks ---
+
+    /** Called by the closing session; refreshes the document meta and releases the live slot. */
+    void finalizeSession(
+            Path journalDir,
+            OffsetDateTime endedAt,
+            long logEntryCount,
+            int logParts,
+            long commandCount,
+            long screenshotCount) {
+        try {
+            synchronized (lockFor(journalDir)) {
+                SessionJournalDocument document = loadDocumentInternal(journalDir);
+                SessionJournalMeta meta = document.getMeta();
+                meta.setEndedAt(endedAt);
+                meta.setLogEntryCount(logEntryCount);
+                meta.setLogParts(logParts);
+                meta.setCommandCount(commandCount);
+                meta.setScreenshotCount(screenshotCount);
+                meta.setErrorCount(document.getEntries().stream()
+                    .filter(e -> e.getMarker() == SessionJournalMarker.ERROR)
+                    .count());
+                saveDocumentInternal(journalDir, document);
+            }
+        } catch (IOException e) {
+            logger.error("Could not finalize session journal {}: {}", journalDir.getFileName(), e.getMessage());
+        } finally {
+            liveSessions.remove(normalize(journalDir));
+            notifyChanged(journalDir);
+        }
+    }
+
+    void notifyChanged(Path journalDir) {
+        metaCache.remove(normalize(journalDir));
+        for (Consumer<Path> listener : changeListeners) {
+            try {
+                listener.accept(journalDir);
+            } catch (Exception e) {
+                logger.warn("Session journal change listener failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    // --- internals ---
+
+    private SessionJournalMeta readMetaCached(Path dir, Path documentFile) throws IOException {
+        Path key = normalize(dir);
+        long mtime = Files.getLastModifiedTime(documentFile).toMillis();
+        CachedMeta cached = metaCache.get(key);
+        if (cached == null || cached.lastModifiedMillis() != mtime) {
+            SessionJournalDocument document = loadDocumentInternal(dir);
+            cached = new CachedMeta(mtime, new SessionJournalMeta(document.getMeta()), document.getId());
+            metaCache.put(key, cached);
+        }
+        SessionJournalMeta meta = new SessionJournalMeta(cached.meta());
+        meta.setDirectory(dir);
+        meta.setLive(liveSessions.containsKey(key));
+        meta.setJournalId(cached.journalId());
+        return meta;
+    }
+
+    private SessionJournalDocument loadDocumentInternal(Path journalDir) throws IOException {
+        Path documentFile = journalDir.resolve(DOCUMENT_FILE_NAME);
+        try {
+            Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+            String content = Files.readString(documentFile, java.nio.charset.StandardCharsets.UTF_8);
+            SessionJournalDocument document =
+                (SessionJournalDocument) unmarshaller.unmarshal(new StringReader(content));
+            document.getMeta().setDirectory(journalDir);
+            document.getMeta().setLive(liveSessions.containsKey(normalize(journalDir)));
+            document.getMeta().setJournalId(document.getId());
+            return document;
+        } catch (JAXBException e) {
+            throw new IOException("Could not read session journal document " + documentFile, e);
+        }
+    }
+
+    private void saveDocumentInternal(Path journalDir, SessionJournalDocument document) throws IOException {
+        Path documentFile = journalDir.resolve(DOCUMENT_FILE_NAME);
+        try {
+            Marshaller marshaller = jaxbContext.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+            StringWriter writer = new StringWriter();
+            marshaller.marshal(document, writer);
+            AtomicFileWriter.writeStringAtomically(documentFile, writer.toString());
+            metaCache.remove(normalize(journalDir));
+        } catch (JAXBException e) {
+            throw new IOException("Could not write session journal document " + documentFile, e);
+        }
+    }
+
+    private Object lockFor(Path journalDir) {
+        return directoryLocks.computeIfAbsent(normalize(journalDir), key -> new Object());
+    }
+
+    private static Path normalize(Path path) {
+        return path.toAbsolutePath().normalize();
+    }
+
+    private static Path nextJournalDirectory(Path baseDir, String connectionName, String tabSessionId) {
+        String baseName = TerminalRecordingService.sanitizeFileName(connectionName);
+        String sessionPart = TerminalRecordingService.sanitizeFileName(tabSessionId);
+        if (sessionPart.length() > 12) {
+            sessionPart = sessionPart.substring(0, 12);
+        }
+        String timestamp = LocalDateTime.now().format(DIR_TIMESTAMP);
+        Path candidate = baseDir.resolve(baseName + "-" + timestamp + "-" + sessionPart);
+        int counter = 2;
+        while (Files.exists(candidate)) {
+            candidate = baseDir.resolve(baseName + "-" + timestamp + "-" + sessionPart + "-" + counter);
+            counter++;
+        }
+        return candidate;
+    }
+
+    private static String buildDefaultTitle(String connectionName, OffsetDateTime startedAt) {
+        String name = connectionName != null && !connectionName.isBlank() ? connectionName.strip() : "terminal";
+        return name + " — " + startedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+    }
+
+    private static String resolveLanguageCode() {
+        try {
+            return LanguageManager.getInstance().getCurrentLocale().getLanguage();
+        } catch (Exception e) {
+            return "en";
+        }
+    }
+}

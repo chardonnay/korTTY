@@ -1647,15 +1647,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     private boolean isPasswordPrompt(String promptText) {
-        if (promptText == null) {
-            return false;
-        }
-        String lower = promptText.toLowerCase();
-        return lower.contains("password") ||
-               lower.contains("passcode") ||
-               lower.contains("passphrase") ||
-               lower.contains("pin") ||
-               lower.contains("vault");
+        return PasswordPromptDetector.isPasswordPrompt(promptText);
     }
 
     

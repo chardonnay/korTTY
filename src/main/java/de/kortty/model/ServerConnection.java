@@ -102,7 +102,10 @@ public class ServerConnection {
     
     @XmlElement
     private TerminalLogConfig logConfig;
-    
+
+    @XmlElement
+    private SessionJournalConfig sessionJournalConfig;
+
     @XmlElement
     private int connectionTimeoutSeconds = 15;  // Default: 15 seconds
     
@@ -185,6 +188,7 @@ public class ServerConnection {
         c.credentialId = source.credentialId;
         c.sshKeyId = source.sshKeyId;
         c.logConfig = source.logConfig;
+        c.sessionJournalConfig = source.sessionJournalConfig;
         c.connectionTimeoutSeconds = source.connectionTimeoutSeconds;
         c.retryCount = source.retryCount;
         c.temporaryKeyContent = source.temporaryKeyContent;
@@ -565,6 +569,17 @@ public class ServerConnection {
     
     public void setLogConfig(TerminalLogConfig logConfig) {
         this.logConfig = logConfig;
+    }
+
+    public SessionJournalConfig getSessionJournalConfig() {
+        if (sessionJournalConfig == null) {
+            sessionJournalConfig = new SessionJournalConfig();
+        }
+        return sessionJournalConfig;
+    }
+
+    public void setSessionJournalConfig(SessionJournalConfig sessionJournalConfig) {
+        this.sessionJournalConfig = sessionJournalConfig;
     }
     
     public int getConnectionTimeoutSeconds() {
