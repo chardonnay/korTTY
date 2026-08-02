@@ -523,6 +523,9 @@ public class KorTTYApplication extends Application {
         // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
         // skips the JVM shutdown hooks, so this is the only chance to flush state —
         // one manager failing must not skip the remaining saves/stops.
+        if (sessionJournalSummarizer != null) {
+            shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
+        }
         if (gpgKeyManager != null) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
         }

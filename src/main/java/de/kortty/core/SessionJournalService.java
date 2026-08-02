@@ -133,6 +133,8 @@ public class SessionJournalService {
             new SessionJournalMeta(meta),
             tabSessionId,
             config.isCaptureInput(),
+            config.isAiSummariesEnabled(),
+            config.getSummaryIntervalMinutes(),
             config.getMaxLogSizeBytes(),
             redactor);
         liveSessions.put(normalize(directory), session);
@@ -184,6 +186,7 @@ public class SessionJournalService {
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
             document.getEntries().add(stored);
+            refreshErrorCount(document);
             saveDocumentInternal(journalDir, document);
         }
         notifyChanged(journalDir);
@@ -206,6 +209,7 @@ public class SessionJournalService {
                 }
             }
             if (replaced) {
+                refreshErrorCount(document);
                 saveDocumentInternal(journalDir, document);
             }
         }
@@ -392,6 +396,12 @@ public class SessionJournalService {
         } catch (JAXBException e) {
             throw new IOException("Could not write session journal document " + documentFile, e);
         }
+    }
+
+    private static void refreshErrorCount(SessionJournalDocument document) {
+        document.getMeta().setErrorCount(document.getEntries().stream()
+            .filter(e -> e.getMarker() == SessionJournalMarker.ERROR)
+            .count());
     }
 
     private Object lockFor(Path journalDir) {

@@ -59,6 +59,8 @@ public class SessionJournalSession implements AutoCloseable {
     private final SessionJournalMeta metaSnapshot;
     private final String tabSessionId;
     private final boolean captureInput;
+    private final boolean aiSummariesEnabled;
+    private final int summaryIntervalMinutesOverride;
     private final long maxLogSizeBytes;
     private final SessionJournalRedactor redactor;
     private final SessionJournalAnsiProcessor ansiProcessor;
@@ -92,6 +94,8 @@ public class SessionJournalSession implements AutoCloseable {
             SessionJournalMeta metaSnapshot,
             String tabSessionId,
             boolean captureInput,
+            boolean aiSummariesEnabled,
+            int summaryIntervalMinutesOverride,
             long maxLogSizeBytes,
             SessionJournalRedactor redactor) {
         this.service = service;
@@ -102,6 +106,8 @@ public class SessionJournalSession implements AutoCloseable {
         this.metaSnapshot = metaSnapshot;
         this.tabSessionId = tabSessionId;
         this.captureInput = captureInput;
+        this.aiSummariesEnabled = aiSummariesEnabled;
+        this.summaryIntervalMinutesOverride = summaryIntervalMinutesOverride;
         this.maxLogSizeBytes = maxLogSizeBytes;
         this.redactor = redactor;
         this.ansiProcessor = new SessionJournalAnsiProcessor(this::handleEmittedOutputLine);
@@ -135,6 +141,15 @@ public class SessionJournalSession implements AutoCloseable {
 
     public boolean isInputSuppressed() {
         return inputSuppressed;
+    }
+
+    public boolean isAiSummariesEnabled() {
+        return aiSummariesEnabled;
+    }
+
+    /** Per-connection interval override in minutes; 0 = use the global default. */
+    public int getSummaryIntervalMinutesOverride() {
+        return summaryIntervalMinutesOverride;
     }
 
     /** Receives a user-facing warning (i18n happens at the UI layer) when capture degrades. */
