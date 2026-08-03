@@ -31,6 +31,9 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+shift+j++ | JobScheduler |
 | ++ctrl+shift+v++ | Video Manager |
 | ++ctrl+shift+e++ | Start / stop terminal recording |
+| ++ctrl+alt+j++ | Session Journals |
+| ++ctrl+alt+t++ | Start / stop the session journal of the active tab |
+| ++ctrl+alt+c++ | Add a screenshot to the running session journal |
 | ++ctrl+shift+a++ | ASCII Art |
 | ++ctrl+shift+y++ | Open AI Manager |
 | ++ctrl+alt+a++ | Open AI Agent |

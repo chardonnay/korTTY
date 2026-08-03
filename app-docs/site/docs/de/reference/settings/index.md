@@ -18,7 +18,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | --- | --- |
 | [Aussehen, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
 | [Farben](colors.md) | Farbprofil, Text-/Hintergrund-/Cursor-/Auswahlfarben, Cursor-Blinken, die 16-Farben-ANSI-Palette |
-| [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH-Keep-Alive, Überprüfung des SSH-Hostschlüssels, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
+| [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Codierung, SSH-Keep-Alive, Überprüfung des SSH-Hostschlüssels, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
 | [Fenster](window.md) | Wiederherstellung der Fenstergeometrie, feste Geometrie, Dashboard-Status, Menüleiste |
 | [Ressourcen](resources.md) | Opt-in-JVM-Heap/GC-Profil (Ausgeglichen/Hoch/Maximum) für größere Arbeitslasten |
 | [Protokollierung](logging.md) | Verzeichnis, Aufbewahrung und Format des Terminalprotokolls |

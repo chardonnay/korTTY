@@ -148,6 +148,7 @@ nav:
       - features/security.md
       - features/backup.md
       - features/recording.md
+      - features/session-journal.md
       - features/ascii-art.md
       - features/terminal-effect-plugins.md
       - features/i18n.md

@@ -57,7 +57,7 @@ users = ["eve"]
 
 ## Server-Zugriffskontrolle
 
-Die `[rule.servers]`-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (`mode = "allow"`: nur aufgelistete Server sind erreichbar) oder als Sperrliste (`mode = "deny"`: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, Sitzungswiederherstellung, SFTP, gemeinsam genutzte Teamwork-Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Verbindungsmanager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.
+Die `[rule.servers]`-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (`mode = "allow"`: nur aufgelistete Server sind erreichbar) oder als Sperrliste (`mode = "deny"`: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, Sitzungswiederherstellung, SFTP, von Teamwork freigegebene Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Verbindungsmanager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.
 
 Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindung konfiguriert ist – korTTY löst DNS nie für Richtlinienprüfungen auf, daher sind Hostnamen und IP-Adressen separate Namespaces: Wenn ein Server in beide Richtungen erreichbar ist, listen Sie beide auf.
 
@@ -119,6 +119,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `ai-planning` | Zeichenfolge | `allow`, `deny` | AI-Planung |
 | `teamwork` | Zeichenfolge | `allow`, `deny` | Synchronisierung freigegebener Teamwork-Verbindungen (Dienst ist nicht gestartet, Menü gesperrt) |
 | `plugins` | Zeichenfolge | `allow`, `deny` | Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte) |
+| `session-journal` | Zeichenfolge | `allow`, `deny` | Der [Sitzungsjournal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen |
 
 ### `[rule.security]`
@@ -188,9 +189,39 @@ korTTY rotiert sein Protokoll täglich (`kortty.YYYY-MM-DD.log`); Diese Tabelle 
 !!! note
     Wenn mehrere gleichstufige Regeln die Protokollierung konfigurieren, wird jeder Schlüssel separat aufgelöst: kürzere Aufbewahrung und engere Obergrenzen gewinnen, Komprimierung gewinnt, `json` gewinnt gegenüber `text`. In der Praxis fassen Sie die Protokollierungskonfiguration in einer einzigen Regel für alle Benutzer zusammen. Das ausgewählte Verzeichnis muss für den Benutzer, der korTTY ausführt, beschreibbar sein.
 
+### `[rule.session-journal]`
+
+Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene Werte sperren die entsprechenden Steuerelemente in den Journaloptionen, im Einstellungsdialog und im Verbindungseditor mit dem Hinweis „Von Ihrer Organisation verwaltet“.
+
+| Schlüssel | Typ | Werte | Wirkung |
+| --- | --- | --- | --- |
+| `enforced` | Boolescher Wert | `true` | Für **jede** Verbindung wird ein Journal geschrieben, unabhängig von der verbindungsspezifischen Einstellung; Benutzer können es nicht stoppen und der Aktivierungsschalter ist gesperrt |
+| `log-format` | Zeichenfolge | `xml`, `json`, `yaml` | Korrigiert das Erfassungsprotokollformat für neue Journale |
+| `ai-max-lines` | Ganzzahl | `0` = Kontextfüllung | Korrigiert das AI-Auswertungsfenster (max. Terminalzeilen pro Zusammenfassung) |
+| `storage-path` | Zeichenfolge | absoluter Pfad | Korrigiert das Journalspeicherverzeichnis; Die Einstellung ist gesperrt |
+| `allow-rename` | boolean | `false` | Journale können im Manager nicht umbenannt werden |
+| `allow-delete` | boolean | `false` | Journale können im Manager nicht gelöscht werden |
+| `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Zeitschriftentitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
+| `ai-title` | Boolescher Wert | `true` | Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert |
+
+```toml
+[[rule]]
+  [rule.features]
+  session-journal = "allow"
+  [rule.session-journal]
+  enforced = true
+  log-format = "json"
+  storage-path = "/srv/audit/kortty-journals"
+  allow-delete = false
+  name-template = "{connection} {date} {time} ({user})"
+```
+
+!!! note
+    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, und die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt).
+
 ### Von Admin bereitgestellte Objekte
 
-Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.
+Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und niemals in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.
 
 | Tabelle | Schlüssel | Notizen |
 | --- | --- | --- |
@@ -225,8 +256,8 @@ Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schl
 
 | Symptom | Ursache und Abhilfe |
 | --- | --- |
-| Startdialog „Organisationsrichtlinie konnte nicht geladen werden“ | Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf; Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist |
+| Startdialog „Organisationsrichtlinie konnte nicht geladen werden“ | Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf. Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist |
 | Richtlinie scheint ignoriert zu werden | Die Datei heißt nicht `kortty-policy.toml`, befindet sich nicht im `policy/`-Ordner der Installation oder korTTY wurde nicht neu gestartet. Die Startzeilen des Protokolls geben an, welche Richtliniendatei (falls vorhanden) geladen wurde |
 | Eine Regel gilt nicht für einen Benutzer | Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen `[groups]` Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer > Gruppe > Jeder) weniger spezifische Regeln außer Kraft setzt |
-| Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“ | Die Berechtigungen für das Installationsverzeichnis sind zu offen – das Durchsetzungsmodell basiert auf ausschließlich Administrator-Schreibzugriff |
+| Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“ | Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Durchsetzungsmodell basiert auf Schreibzugriff nur für Administratoren |
 | Das Admin-Modell wird nicht angezeigt | Sehen Sie sich das Protokoll an: GGUF-URL-Downloads erfolgen beim Start im Hintergrund und für die Registrierung ist eine installierte llama.cpp-Laufzeit erforderlich. MLX-Quellen müssen lokale Safetensors-Verzeichnisse sein |

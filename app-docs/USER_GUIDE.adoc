@@ -19,6 +19,7 @@ KorTTY is a modern, cross-platform SSH client built with JavaFX. It provides a t
 * *JobScheduler* for background command, SnippetManager script, AI Agent, SFTP, and Rsync jobs that run while KorTTY is open without requiring a terminal tab
 * *ASCII Art Banner* generator with 11+ FIGlet font styles
 * *Terminal recording* with lightweight KorTTY replay files, optional color capture, auto-pause on inactivity, split-scope selection, and optional WebM/MKV export via local `ffmpeg`
+* *Session journal* that documents a terminal session as a timeline: password-safe capture of output and typed commands (XML/JSON/YAML), periodic AI summaries with a closing wrap-up, screenshots and notes, a self-contained HTML page with a searchable log panel, a journal manager with full-text search and descriptions, exports to PDF/Markdown/HTML bundle, and enterprise-policy mandates
 * *Terminal effect plugins* with per-session or per-connection selection, animation speed, import/export, and plugin enable/disable management
 * *Selectable app designs* for JavaFX windows and dialogs: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, and Elegant Dark
 * *SSH tunnels* (local, remote, dynamic) and jump server support

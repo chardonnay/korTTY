@@ -2,6 +2,14 @@
 
 == v2.8.0
 
+=== Session journal
+
+* *Terminal sessions can document themselves*: a per-session journal captures server output and typed commands into a rotating, compressed log (XML, JSON or YAML), an AI condenses the activity into a readable timeline with a closing session summary, and screenshots and free-text notes can be added from the journal bar or the terminal context menu. Enable it per connection or retroactively for a running session (the scrollback is imported). Password prompts suppress the following input line and the connection's stored credentials are redacted.
+* *Self-contained HTML timeline* with connection header and statistics, color-coded input/output excerpts, marker badges, a screenshot lightbox, and a slide-in raw-log panel with search, match counter and prev/next navigation — usable in the built-in viewer, any browser, and the exported bundle.
+* *Journal manager* (Tools > Session Journals..., Ctrl/Cmd+Alt+J) with sortable table, optional full-text content search, per-journal descriptions, marker/note editing in the viewer, rename/delete with confirmation, and export as PDF (with downscaled embedded screenshots), Markdown or a complete HTML zip bundle.
+* *Configurable AI summarization*: interval, evaluation window (line limit or token-budget context fill), optional chunked processing of the whole backlog for power users, an optional AI-generated journal title on close, and a raw-activity fallback when no AI is available.
+* *Enterprise policy*: deny the feature, enforce journals for every connection, mandate log format, evaluation window, storage path and naming template, forbid rename/delete, and enforce the AI title via the new `[rule.session-journal]` table.
+
 === Mermaid diagrams
 
 * *One local Mermaid renderer for every diagram*: Snippet diagrams, full code analysis, workflow generation, exports, and AI-chat Mermaid blocks share the SHA-256-pinned Mermaid 11.16.0 browser renderer. Snippet flows retain SVG/PNG, clipboard, zoom, theme/background, regeneration, and node-to-code hover references without a Java/Graphviz subprocess or first-use download. Legacy saved diagram payloads are discarded without removing snippets or chats, and the retired renderer cache is deleted safely on upgrade.

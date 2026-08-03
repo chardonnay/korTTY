@@ -119,6 +119,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `ai-planning` | string | `allow`, `deny` | AI Planning |
 | `teamwork` | string | `allow`, `deny` | Teamwork shared-connections sync (service is not started, menu locked) |
 | `plugins` | string | `allow`, `deny` | Plugin loading and the Plugins menu (e.g. terminal effects) |
+| `session-journal` | string | `allow`, `deny` | The [session journal](../features/session-journal.md): capture, journal bar, manager, viewer and exports. Not chained to `ai` — with AI denied the journal still records raw activity |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands |
 
 ### `[rule.security]`
@@ -187,6 +188,36 @@ korTTY rotates its log daily (`kortty.YYYY-MM-DD.log`); this table controls wher
 
 !!! note
     When several same-tier rules configure logging, each key resolves separately: shorter retention and tighter caps win, compression on wins, `json` wins over `text`. In practice, put the logging configuration into a single all-users rule. The chosen directory must be writable by the user running korTTY.
+
+### `[rule.session-journal]`
+
+Mandates for the [session journal](../features/session-journal.md). Forced values lock the corresponding controls in the journal options, the settings dialog and the connection editor with a "managed by your organization" hint.
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `enforced` | boolean | `true` | A journal is written for **every** connection, regardless of the per-connection setting; users cannot stop it and the enable switch is locked on |
+| `log-format` | string | `xml`, `json`, `yaml` | Fixes the capture-log format for new journals |
+| `ai-max-lines` | integer | `0` = context fill | Fixes the AI evaluation window (max terminal lines per summary) |
+| `storage-path` | string | absolute path | Fixes the journal storage directory; the setting is locked |
+| `allow-rename` | boolean | `false` | Journals cannot be renamed in the manager |
+| `allow-delete` | boolean | `false` | Journals cannot be deleted in the manager |
+| `name-template` | string | template | Initial journal title, with `{connection}`, `{host}`, `{user}`, `{date}` and `{time}` placeholders |
+| `ai-title` | boolean | `true` | The closing AI title is generated regardless of the user setting |
+
+```toml
+[[rule]]
+  [rule.features]
+  session-journal = "allow"
+  [rule.session-journal]
+  enforced = true
+  log-format = "json"
+  storage-path = "/srv/audit/kortty-journals"
+  allow-delete = false
+  name-template = "{connection} {date} {time} ({user})"
+```
+
+!!! note
+    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, and the line cap resolves to the tighter value (`0` counts as unlimited).
 
 ### Admin-provided objects
 

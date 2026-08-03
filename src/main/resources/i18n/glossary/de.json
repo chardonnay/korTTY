@@ -373,6 +373,80 @@
       "from": "Schnittstellen-Strings",
       "to": "Schnittstellenzeichenfolgen",
       "note": "MT renders 'interface strings' two ways; this is the term used everywhere else in the corpus."
+    },
+    {
+      "from": "Das gleiche einfache Tagebuch wie a `.md` Datei; Screenshots werden in ein Geschwister kopiert `<name>-files/` Ordner",
+      "to": "Das gleiche einfache Journal als `.md`-Datei; Screenshots werden in einen benachbarten Ordner `<name>-files/` kopiert",
+      "note": "MT garbles the Markdown export row of the session-journal page."
+    },
+    {
+      "from": "Die Schlüssel finden Sie in der Unternehmensrichtlinie [](../reference/enterprise-policy.md).",
+      "to": "Die Schlüssel finden Sie unter [Unternehmensrichtlinie](../reference/enterprise-policy.md).",
+      "note": "MT empties the link text, leaving a broken []() link."
+    },
+    {
+      "from": "Rückstand in mehrere Eingabeaufforderungen aufteilen (Chunking)",
+      "to": "Rückstand auf mehrere Prompts aufteilen (Chunking)",
+      "note": "UI label journal.options.chunking; the guide must quote the checkbox verbatim."
+    },
+    {
+      "from": "Die Erfassung typisierter Eingabezeilen",
+      "to": "Eingegebene Befehlszeilen erfassen",
+      "note": "UI label connEdit.journal.captureInput."
+    },
+    {
+      "from": "max. Endzeilen pro AI-Auswertung",
+      "to": "Max. Terminalzeilen pro KI-Auswertung",
+      "note": "UI label journal.options.maxLines; MT reads 'terminal lines' as 'end lines'."
+    },
+    {
+      "from": "**Screenshot** und **Hinweis**",
+      "to": "**Screenshot** und **Notiz**",
+      "note": "UI label terminal.journal.note is 'Notiz'."
+    },
+    {
+      "from": "**Note** öffnet",
+      "to": "**Notiz** öffnet",
+      "note": "UI label terminal.journal.note."
+    },
+    {
+      "from": "Zeitschriftenseite",
+      "to": "Journalseite",
+      "note": "MT drifts 'journal' into the magazine sense."
+    },
+    {
+      "from": "pro Zeitschrift",
+      "to": "pro Journal"
+    },
+    {
+      "from": "Live-Tagebücher",
+      "to": "Live-Journale"
+    },
+    {
+      "from": "Sitzungstagebuch",
+      "to": "Sitzungsjournal",
+      "note": "Feature name: the session journal is 'Sitzungsjournal', never 'Tagebuch'."
+    },
+    {
+      "from": "Tagebucheinträgen",
+      "to": "Journal-Einträgen"
+    },
+    {
+      "from": "Tagebucheinträge",
+      "to": "Journal-Einträge"
+    },
+    {
+      "from": "Tagebucheintrag",
+      "to": "Journal-Eintrag"
+    },
+    {
+      "from": "Tagebuch",
+      "to": "Journal"
+    },
+    {
+      "from": "**Abschlag**",
+      "to": "**Markdown**",
+      "note": "MT translates the format name Markdown as the golf term."
     }
   ]
 }
