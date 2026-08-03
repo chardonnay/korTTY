@@ -15,6 +15,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.scene.Node;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -24,6 +25,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
@@ -52,6 +54,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -130,24 +133,28 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         refreshButton.setOnAction(event -> refresh());
 
         var selection = table.getSelectionModel().selectedItemProperty();
-        openButton.disableProperty().bind(selection.isNull());
-        exportButton.disableProperty().bind(selection.isNull());
+        var selectedItems = table.getSelectionModel().getSelectedItems();
+        // Open and rename act on exactly one journal; export and delete accept a whole selection.
+        var exactlyOne = javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedItems.size() == 1, selectedItems);
+        var noneSelected = javafx.beans.binding.Bindings.createBooleanBinding(
+            selectedItems::isEmpty, selectedItems);
+        var anyLiveSelected = javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedItems.stream().anyMatch(SessionJournalMeta::isLive), selectedItems);
+        openButton.disableProperty().bind(exactlyOne.not());
+        exportButton.disableProperty().bind(noneSelected);
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         if (!policy.sessionJournalRenameAllowed()) {
             renameButton.setDisable(true);
             renameButton.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
         } else {
-            renameButton.disableProperty().bind(selection.isNull()
-                .or(javafx.beans.binding.Bindings.createBooleanBinding(
-                    () -> selection.get() != null && selection.get().isLive(), selection)));
+            renameButton.disableProperty().bind(exactlyOne.not().or(anyLiveSelected));
         }
         if (!policy.sessionJournalDeleteAllowed()) {
             deleteButton.setDisable(true);
             deleteButton.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
         } else {
-            deleteButton.disableProperty().bind(selection.isNull()
-                .or(javafx.beans.binding.Bindings.createBooleanBinding(
-                    () -> selection.get() != null && selection.get().isLive(), selection)));
+            deleteButton.disableProperty().bind(noneSelected.or(anyLiveSelected));
         }
 
         HBox buttonBar = new HBox(8, openButton, renameButton, exportButton, deleteButton, optionsButton, refreshButton);
@@ -179,7 +186,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private TableView<SessionJournalMeta> buildTable() {
         TableView<SessionJournalMeta> view = new TableView<>();
         view.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        view.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        // Several journals can be exported into one archive or deleted in one go.
+        view.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         view.setPlaceholder(new Label(I18n.get("journal.manager.empty")));
 
         // Sorted on the epoch value, never on the dd.MM.yyyy display string.
@@ -359,6 +367,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         return table.getSelectionModel().getSelectedItem();
     }
 
+    /** A stable copy of the selection — the live list changes while we work through it. */
+    private List<SessionJournalMeta> selectedJournals() {
+        return List.copyOf(table.getSelectionModel().getSelectedItems());
+    }
+
     private void openSelected() {
         SessionJournalMeta meta = selected();
         if (meta != null) {
@@ -389,25 +402,40 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void deleteSelected() {
-        SessionJournalMeta meta = selected();
-        if (meta == null || meta.getDirectory() == null) {
+        List<SessionJournalMeta> targets = selectedJournals();
+        if (targets.isEmpty()) {
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         DialogThemeHelper.applyTheme(confirm);
         confirm.initOwner(ownerWindow.getStage());
         confirm.setTitle(I18n.get("journal.manager.delete.title"));
-        confirm.setHeaderText(I18n.get("journal.manager.delete.header"));
-        confirm.setContentText(I18n.get("journal.manager.delete.content",
-            meta.getTitle() != null ? meta.getTitle() : meta.getConnectionName()));
+        if (targets.size() == 1) {
+            SessionJournalMeta meta = targets.get(0);
+            confirm.setHeaderText(I18n.get("journal.manager.delete.header"));
+            confirm.setContentText(I18n.get("journal.manager.delete.content",
+                meta.getTitle() != null ? meta.getTitle() : meta.getConnectionName()));
+        } else {
+            confirm.setHeaderText(I18n.get("journal.manager.delete.multiple.header", targets.size()));
+            confirm.setContentText(I18n.get("journal.manager.delete.multiple.content"));
+        }
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return;
         }
-        try {
-            service().deleteJournal(settings(), meta.getDirectory());
-            refresh();
-        } catch (Exception e) {
-            showError(I18n.get("journal.export.error", e.getMessage()));
+        List<String> failures = new ArrayList<>();
+        for (SessionJournalMeta meta : targets) {
+            if (meta.getDirectory() == null) {
+                continue;
+            }
+            try {
+                service().deleteJournal(settings(), meta.getDirectory());
+            } catch (Exception e) {
+                failures.add(meta.getTitle() + ": " + e.getMessage());
+            }
+        }
+        refresh();
+        if (!failures.isEmpty()) {
+            showError(I18n.get("journal.export.error", String.join("\n", failures)));
         }
     }
 
@@ -425,59 +453,146 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    /** What the export options dialog collected; {@code password} null = unencrypted archive. */
+    private record ExportChoice(boolean includeScreenshots, char[] password) {
+    }
+
     private void exportSelected(SessionJournalExportService.Format format) {
-        SessionJournalMeta meta = selected();
-        if (meta == null || meta.getDirectory() == null) {
+        List<SessionJournalMeta> targets = selectedJournals();
+        if (targets.isEmpty()) {
             return;
         }
-        boolean includeScreenshots = true;
-        if (format != SessionJournalExportService.Format.HTML_BUNDLE) {
-            CheckBox includeCheck = new CheckBox(I18n.get("journal.export.includeScreenshots"));
-            includeCheck.setSelected(true);
-            Alert options = new Alert(Alert.AlertType.CONFIRMATION);
-            DialogThemeHelper.applyTheme(options);
-            options.initOwner(ownerWindow.getStage());
-            options.setTitle(I18n.get("journal.export.title"));
-            options.setHeaderText(formatLabel(format));
-            options.getDialogPane().setContent(includeCheck);
-            if (options.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-                return;
-            }
-            includeScreenshots = includeCheck.isSelected();
+        // Several journals always go into one archive, and so does the HTML bundle of a single one.
+        boolean archive = targets.size() > 1
+            || format == SessionJournalExportService.Format.HTML_BUNDLE;
+        ExportChoice choice = askExportOptions(format, targets.size(), archive);
+        if (choice == null) {
+            return;
         }
+        String extension = archive ? ".zip" : format.getExtension();
+        String filterKey = archive ? "journal.export.file.bundle" : format.getFilterKey();
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.get("journal.export.title"));
-        String baseName = de.kortty.core.TerminalRecordingService.sanitizeFileName(
-            meta.getTitle() != null ? meta.getTitle() : "session-journal");
-        chooser.setInitialFileName(baseName + format.getExtension());
+        String baseName = targets.size() == 1
+            ? de.kortty.core.TerminalRecordingService.sanitizeFileName(
+                targets.get(0).getTitle() != null ? targets.get(0).getTitle() : "session-journal")
+            : "session-journals";
+        chooser.setInitialFileName(baseName + extension);
         chooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter(I18n.get(format.getFilterKey()), "*" + format.getExtension()));
+            new FileChooser.ExtensionFilter(I18n.get(filterKey), "*" + extension));
         File target = chooser.showSaveDialog(getDialogPane().getScene().getWindow());
         if (target == null) {
+            java.util.Arrays.fill(choice.password() != null ? choice.password() : new char[0], '\0');
             return;
         }
-        final boolean withScreenshots = includeScreenshots;
+        List<java.nio.file.Path> directories = targets.stream()
+            .map(SessionJournalMeta::getDirectory)
+            .filter(java.util.Objects::nonNull)
+            .toList();
         Thread exporter = new Thread(() -> {
             try {
                 SessionJournalExportService exportService = new SessionJournalExportService(
                     service(), app != null ? app.getSessionJournalHtmlRenderer() : null);
-                exportService.export(format, meta.getDirectory(), target.toPath(),
-                    new SessionJournalExportService.Options(withScreenshots));
+                SessionJournalExportService.Options options =
+                    new SessionJournalExportService.Options(choice.includeScreenshots());
+                if (directories.size() > 1) {
+                    exportService.exportArchive(format, directories, target.toPath(), options,
+                        choice.password());
+                } else {
+                    exportService.export(format, directories.get(0), target.toPath(), options,
+                        choice.password());
+                }
                 Platform.runLater(() -> {
                     try {
                         new de.kortty.core.AiChatShareService().share(target.toPath());
                     } catch (Exception ignored) {
                         // opening the result is best-effort
                     }
-                    showInfo(I18n.get("journal.export.done", target.getAbsolutePath()));
+                    showInfo(directories.size() > 1
+                        ? I18n.get("journal.export.done.multiple", directories.size(), target.getAbsolutePath())
+                        : I18n.get("journal.export.done", target.getAbsolutePath()));
                 });
             } catch (Exception e) {
                 logger.error("Session journal export failed: {}", e.getMessage(), e);
                 Platform.runLater(() -> showError(I18n.get("journal.export.error", e.getMessage())));
+            } finally {
+                if (choice.password() != null) {
+                    java.util.Arrays.fill(choice.password(), '\0');
+                }
             }
         }, "SessionJournal-Export");
         exporter.setDaemon(true);
         exporter.start();
+    }
+
+    /** Screenshot embedding and — for archives — optional AES-256 encryption. Null = cancelled. */
+    private ExportChoice askExportOptions(SessionJournalExportService.Format format, int journalCount,
+                                          boolean archive) {
+        boolean offersScreenshots = format != SessionJournalExportService.Format.HTML_BUNDLE;
+        CheckBox includeCheck = new CheckBox(I18n.get("journal.export.includeScreenshots"));
+        includeCheck.setSelected(true);
+        CheckBox protectCheck = new CheckBox(I18n.get("journal.export.archive.password"));
+        PasswordField passwordField = new PasswordField();
+        PasswordField repeatField = new PasswordField();
+        Label mismatch = new Label(I18n.get("journal.export.archive.mismatch"));
+        mismatch.setStyle("-fx-text-fill: #cf222e; -fx-font-size: 11px;");
+        mismatch.setVisible(false);
+        passwordField.disableProperty().bind(protectCheck.selectedProperty().not());
+        repeatField.disableProperty().bind(protectCheck.selectedProperty().not());
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(ownerWindow.getStage());
+        dialog.setTitle(I18n.get("journal.export.title"));
+        dialog.setHeaderText(journalCount > 1
+            ? formatLabel(format) + " — " + I18n.get("journal.export.archive.hint", journalCount)
+            : formatLabel(format));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(8);
+        grid.setPadding(new Insets(10));
+        int row = 0;
+        if (offersScreenshots) {
+            grid.add(includeCheck, 0, row++, 2, 1);
+        }
+        if (archive) {
+            grid.add(protectCheck, 0, row++, 2, 1);
+            grid.add(new Label(I18n.get("journal.export.archive.passwordField")), 0, row);
+            grid.add(passwordField, 1, row++);
+            grid.add(new Label(I18n.get("journal.export.archive.passwordRepeat")), 0, row);
+            grid.add(repeatField, 1, row++);
+            grid.add(mismatch, 0, row, 2, 1);
+        }
+        dialog.getDialogPane().setContent(grid);
+
+        Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        Runnable validate = () -> {
+            if (!archive || !protectCheck.isSelected()) {
+                mismatch.setVisible(false);
+                okButton.setDisable(false);
+                return;
+            }
+            String password = passwordField.getText();
+            boolean valid = password != null && !password.isEmpty()
+                && password.equals(repeatField.getText());
+            mismatch.setVisible(!valid && !repeatField.getText().isEmpty());
+            okButton.setDisable(!valid);
+        };
+        protectCheck.selectedProperty().addListener((obs, old, value) -> validate.run());
+        passwordField.textProperty().addListener((obs, old, value) -> validate.run());
+        repeatField.textProperty().addListener((obs, old, value) -> validate.run());
+        validate.run();
+
+        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return null;
+        }
+        char[] password = archive && protectCheck.isSelected() && passwordField.getText() != null
+            && !passwordField.getText().isEmpty()
+            ? passwordField.getText().toCharArray()
+            : null;
+        return new ExportChoice(!offersScreenshots || includeCheck.isSelected(), password);
     }
 
     private String formatLabel(SessionJournalExportService.Format format) {

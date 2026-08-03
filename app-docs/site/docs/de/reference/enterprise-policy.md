@@ -201,7 +201,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | `storage-path` | Zeichenfolge | absoluter Pfad | Korrigiert das Journalspeicherverzeichnis; Die Einstellung ist gesperrt |
 | `allow-rename` | boolean | `false` | Journale können im Manager nicht umbenannt werden |
 | `allow-delete` | boolean | `false` | Journale können im Manager nicht gelöscht werden |
-| `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Zeitschriftentitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
+| `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Journaletitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
 | `ai-title` | Boolescher Wert | `true` | Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert |
 
 ```toml

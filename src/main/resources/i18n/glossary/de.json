@@ -461,6 +461,42 @@
     {
       "from": "AI-Zusammenfassung",
       "to": "KI-Zusammenfassung"
+    },
+    {
+      "from": "Da Zeitschriften vollständige Abschriften von Enddokumenten enthalten",
+      "to": "Da Journale vollständige Terminal-Mitschriften enthalten",
+      "note": "MT reads 'terminal transcripts' as 'final documents' and 'journals' as magazines."
+    },
+    {
+      "from": "des HTML-Pakets einer einzelnen Zeitschrift",
+      "to": "des HTML-Bundles eines einzelnen Journals"
+    },
+    {
+      "from": "### Mehrere Zeitschriften werden exportiert",
+      "to": "### Mehrere Journale exportieren",
+      "note": "Section heading: imperative, and 'Journal' not 'Zeitschrift'."
+    },
+    {
+      "from": "Zeitschriftentiteln",
+      "to": "Journaltiteln"
+    },
+    {
+      "from": "**AES-256**; Ohne sie",
+      "to": "**AES-256**; ohne sie",
+      "note": "MT capitalizes after a semicolon."
+    },
+    {
+      "from": "Zeitschriften",
+      "to": "Journale",
+      "note": "MT drifts 'journals' into the magazine sense. Keep after the longer phrases above."
+    },
+    {
+      "from": "Zeitschrift",
+      "to": "Journal"
+    },
+    {
+      "from": "### Provenienz",
+      "to": "### Herkunftsangabe"
     }
   ]
 }

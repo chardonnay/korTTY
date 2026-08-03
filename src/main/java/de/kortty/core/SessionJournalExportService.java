@@ -8,6 +8,8 @@ import de.kortty.model.SessionJournalMeta;
 import de.kortty.ui.I18n;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.AesKeyStrength;
+import net.lingala.zip4j.model.enums.EncryptionMethod;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -37,7 +39,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -84,6 +88,10 @@ public final class SessionJournalExportService {
         }
     }
 
+    /** Provenance shown in every exported document. */
+    public static final String REPOSITORY_URL = "https://github.com/chardonnay/korTTY";
+    public static final String WATERMARK_TITLE = "korTTY — Developed by Daniel Mengel";
+
     private static final String SANS_FONT_RESOURCE = "/fonts/noto/NotoSans-Regular.ttf";
     private static final String SANS_BOLD_FONT_RESOURCE = "/fonts/noto/NotoSans-Bold.ttf";
     private static final String MONO_FONT_RESOURCE = "/fonts/noto/NotoSansMono-Regular.ttf";
@@ -109,13 +117,61 @@ public final class SessionJournalExportService {
 
     /** Exports the journal in {@code journalDir} to {@code target}. */
     public void export(Format format, Path journalDir, Path target, Options options) throws IOException {
+        export(format, journalDir, target, options, null);
+    }
+
+    /**
+     * Exports one journal. A {@code password} encrypts the produced archive (HTML bundle only) with
+     * AES-256; it is ignored for the single-file formats.
+     */
+    public void export(Format format, Path journalDir, Path target, Options options, char[] password)
+            throws IOException {
         SessionJournalDocument document = service.loadDocument(journalDir);
         Options effective = options != null ? options : Options.defaults();
         switch (format) {
             case PDF -> writePdf(target, document, journalDir, effective);
             case MARKDOWN -> writeMarkdown(target, document, journalDir, effective);
-            case HTML_BUNDLE -> writeBundle(target, journalDir);
+            case HTML_BUNDLE -> writeBundle(target, journalDir, password);
         }
+    }
+
+    /**
+     * Exports several journals into one zip archive, each journal kept separate: one PDF/Markdown
+     * document per journal, or one folder per journal for the HTML bundle. A {@code password}
+     * encrypts the archive with AES-256 — journals hold terminal transcripts, so an unprotected
+     * archive is a deliberate choice the caller makes.
+     */
+    public void exportArchive(Format format, List<Path> journalDirs, Path targetZip, Options options,
+                              char[] password) throws IOException {
+        Options effective = options != null ? options : Options.defaults();
+        Path stagingDir = Files.createTempDirectory("kortty-journal-export");
+        try {
+            Set<String> usedNames = new HashSet<>();
+            for (Path journalDir : journalDirs) {
+                SessionJournalDocument document = service.loadDocument(journalDir);
+                String name = uniqueName(usedNames, document.getMeta().getTitle(), journalDir);
+                switch (format) {
+                    case PDF -> writePdf(stagingDir.resolve(name + ".pdf"), document, journalDir, effective);
+                    case MARKDOWN -> writeMarkdown(stagingDir.resolve(name + ".md"), document, journalDir, effective);
+                    case HTML_BUNDLE -> copyBundleInto(journalDir, stagingDir.resolve(name));
+                }
+            }
+            Files.deleteIfExists(targetZip);
+            zipDirectoryContents(stagingDir, targetZip, password);
+        } finally {
+            deleteRecursively(stagingDir);
+        }
+    }
+
+    private static String uniqueName(Set<String> used, String title, Path journalDir) {
+        String base = TerminalRecordingService.sanitizeFileName(
+            title != null && !title.isBlank() ? title : journalDir.getFileName().toString());
+        String candidate = base;
+        int counter = 2;
+        while (!used.add(candidate)) {
+            candidate = base + "-" + counter++;
+        }
+        return candidate;
     }
 
     private static List<SessionJournalEntry> sortedEntries(SessionJournalDocument document) {
@@ -193,6 +249,9 @@ public final class SessionJournalExportService {
                     .append(entry.getUserNote().replace('\n', ' ')).append("\n\n");
             }
         }
+        md.append("---\n\n_")
+            .append(i18n("journal.export.brand", "Created with korTTY — Developed by Daniel Mengel"))
+            .append("_ — <").append(REPOSITORY_URL).append(">\n");
         Files.writeString(target, md.toString(), StandardCharsets.UTF_8);
     }
 
@@ -243,50 +302,97 @@ public final class SessionJournalExportService {
      * Zip archive matching the on-disk journal layout. Capture logs are stored decompressed —
      * the zip compresses anyway and the unzipped bundle stays immediately readable.
      */
-    private void writeBundle(Path target, Path journalDir) throws IOException {
-        Path htmlFile = journalDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME);
-        if (renderer != null) {
-            htmlFile = renderer.renderToFile(journalDir);
-        }
-        Files.deleteIfExists(target);
-        Path tempDir = Files.createTempDirectory("kortty-journal-bundle");
-        try (ZipFile zip = new ZipFile(target.toFile())) {
-            if (Files.isRegularFile(htmlFile)) {
-                zip.addFile(htmlFile.toFile());
-            }
-            Path documentFile = journalDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME);
-            if (Files.isRegularFile(documentFile)) {
-                zip.addFile(documentFile.toFile());
-            }
-            int parts = SessionJournalLogReader.countParts(journalDir);
-            for (int part = 1; part <= parts; part++) {
-                Path partFile = SessionJournalLogReader.findPartFile(journalDir, part);
-                if (partFile == null) {
-                    continue;
-                }
-                String name = partFile.getFileName().toString();
-                if (name.endsWith(SessionJournalLogCompressor.GZIP_SUFFIX)) {
-                    String plainName = name.substring(0, name.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length());
-                    Path decompressed = tempDir.resolve(plainName);
-                    try (InputStream in = new GZIPInputStream(Files.newInputStream(partFile))) {
-                        Files.copy(in, decompressed, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    ZipParameters parameters = new ZipParameters();
-                    parameters.setFileNameInZip(plainName);
-                    zip.addFile(decompressed.toFile(), parameters);
-                } else {
-                    zip.addFile(partFile.toFile());
-                }
-            }
-            Path screenshotsDir = journalDir.resolve(SessionJournalService.SCREENSHOTS_DIR_NAME);
-            if (Files.isDirectory(screenshotsDir)) {
-                zip.addFolder(screenshotsDir.toFile());
-            }
+    private void writeBundle(Path target, Path journalDir, char[] password) throws IOException {
+        Path stagingDir = Files.createTempDirectory("kortty-journal-bundle");
+        try {
+            copyBundleInto(journalDir, stagingDir);
+            Files.deleteIfExists(target);
+            zipDirectoryContents(stagingDir, target, password);
         } finally {
-            try (var walk = Files.walk(tempDir)) {
-                for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) {
-                    Files.deleteIfExists(path);
+            deleteRecursively(stagingDir);
+        }
+    }
+
+    /** Lays the journal out in {@code targetDir} exactly as the bundle should appear when unzipped. */
+    private void copyBundleInto(Path journalDir, Path targetDir) throws IOException {
+        Files.createDirectories(targetDir);
+        Path htmlFile = renderer != null
+            ? renderer.renderToFile(journalDir)
+            : journalDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME);
+        if (Files.isRegularFile(htmlFile)) {
+            Files.copy(htmlFile, targetDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME),
+                StandardCopyOption.REPLACE_EXISTING);
+        }
+        Path documentFile = journalDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME);
+        if (Files.isRegularFile(documentFile)) {
+            Files.copy(documentFile, targetDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME),
+                StandardCopyOption.REPLACE_EXISTING);
+        }
+        int parts = SessionJournalLogReader.countParts(journalDir);
+        for (int part = 1; part <= parts; part++) {
+            Path partFile = SessionJournalLogReader.findPartFile(journalDir, part);
+            if (partFile == null) {
+                continue;
+            }
+            String name = partFile.getFileName().toString();
+            if (name.endsWith(SessionJournalLogCompressor.GZIP_SUFFIX)) {
+                // Store the logs decompressed: the archive compresses anyway and the unzipped
+                // bundle stays readable without an extra step.
+                String plainName = name.substring(
+                    0, name.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length());
+                try (InputStream in = new GZIPInputStream(Files.newInputStream(partFile))) {
+                    Files.copy(in, targetDir.resolve(plainName), StandardCopyOption.REPLACE_EXISTING);
                 }
+            } else {
+                Files.copy(partFile, targetDir.resolve(name), StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        Path screenshotsDir = journalDir.resolve(SessionJournalService.SCREENSHOTS_DIR_NAME);
+        if (Files.isDirectory(screenshotsDir)) {
+            Path targetShots = targetDir.resolve(SessionJournalService.SCREENSHOTS_DIR_NAME);
+            Files.createDirectories(targetShots);
+            try (var shots = Files.list(screenshotsDir)) {
+                for (Path shot : shots.filter(Files::isRegularFile).toList()) {
+                    Files.copy(shot, targetShots.resolve(shot.getFileName().toString()),
+                        StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+    }
+
+    /** Zips everything inside {@code sourceDir}, optionally AES-256 encrypted. */
+    private void zipDirectoryContents(Path sourceDir, Path targetZip, char[] password) throws IOException {
+        boolean encrypt = password != null && password.length > 0;
+        try (ZipFile zip = encrypt
+            ? new ZipFile(targetZip.toFile(), password)
+            : new ZipFile(targetZip.toFile())) {
+            ZipParameters parameters = new ZipParameters();
+            if (encrypt) {
+                parameters.setEncryptFiles(true);
+                parameters.setEncryptionMethod(EncryptionMethod.AES);
+                parameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
+            }
+            try (var entries = Files.list(sourceDir)) {
+                for (Path entry : entries.toList()) {
+                    if (Files.isDirectory(entry)) {
+                        zip.addFolder(entry.toFile(), parameters);
+                    } else {
+                        ZipParameters fileParameters = new ZipParameters(parameters);
+                        fileParameters.setFileNameInZip(entry.getFileName().toString());
+                        zip.addFile(entry.toFile(), fileParameters);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void deleteRecursively(Path directory) throws IOException {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (var walk = Files.walk(directory)) {
+            for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
             }
         }
     }
@@ -475,19 +581,74 @@ public final class SessionJournalExportService {
 
     private void drawFooters(PDDocument pdf, PdfFonts fonts) throws IOException {
         int total = pdf.getNumberOfPages();
-        String brand = i18n("journal.pdf.footer", "Session journal export from korTTY");
+        String brand = i18n("journal.export.brand", "Created with korTTY — Developed by Daniel Mengel");
+        String footer = brand + "  ·  " + REPOSITORY_URL;
         for (int index = 0; index < total; index++) {
             PDPage page = pdf.getPage(index);
+            drawWatermark(pdf, page, fonts);
             try (PDPageContentStream stream = new PDPageContentStream(pdf, page, AppendMode.APPEND, true, true)) {
                 float pageWidth = page.getMediaBox().getWidth();
                 drawLine(stream, PAGE_MARGIN, 42f, pageWidth - PAGE_MARGIN, 42f, new Color(0xe5, 0xe7, 0xeb), 0.7f);
-                drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf), PAGE_MARGIN, 28f, brand);
+                drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf), PAGE_MARGIN, 28f, footer);
                 String label = (index + 1) + " / " + total;
                 float labelWidth = textWidth(fonts.sans(), 8.4f, label);
                 drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf),
                     pageWidth - PAGE_MARGIN - labelWidth, 28f, label);
             }
+            addRepositoryLink(page, fonts, brand, footer);
         }
+    }
+
+    /** Diagonal provenance watermark, faint enough to leave the transcript readable. */
+    private void drawWatermark(PDDocument pdf, PDPage page, PdfFonts fonts) throws IOException {
+        try (PDPageContentStream stream = new PDPageContentStream(pdf, page, AppendMode.APPEND, true, true)) {
+            org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState graphicsState =
+                new org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState();
+            graphicsState.setNonStrokingAlphaConstant(0.08f);
+            stream.saveGraphicsState();
+            stream.setGraphicsStateParameters(graphicsState);
+            float centerX = page.getMediaBox().getWidth() / 2f;
+            float centerY = page.getMediaBox().getHeight() / 2f;
+            float fontSize = 26f;
+            float titleWidth = textWidth(fonts.sansBold(), fontSize, WATERMARK_TITLE);
+            while (fontSize > 14f && titleWidth > page.getMediaBox().getWidth() - 120f) {
+                fontSize -= 1f;
+                titleWidth = textWidth(fonts.sansBold(), fontSize, WATERMARK_TITLE);
+            }
+            // The matrix rotates about the page centre and makes it the new origin, so the text is
+            // placed relative to (0,0) — absolute page coordinates here would land off the page.
+            stream.transform(org.apache.pdfbox.util.Matrix.getRotateInstance(
+                Math.toRadians(38), centerX, centerY));
+            Color watermarkColor = new Color(0x6b, 0x72, 0x80);
+            drawText(stream, fonts.sansBold(), fontSize, watermarkColor,
+                -titleWidth / 2f, 0f, WATERMARK_TITLE);
+            float urlSize = fontSize * 0.45f;
+            float urlWidth = textWidth(fonts.sans(), urlSize, REPOSITORY_URL);
+            drawText(stream, fonts.sans(), urlSize, watermarkColor,
+                -urlWidth / 2f, -fontSize, REPOSITORY_URL);
+            stream.restoreGraphicsState();
+        }
+    }
+
+    /** Makes the repository URL in the footer clickable. */
+    private void addRepositoryLink(PDPage page, PdfFonts fonts, String brand, String footer) throws IOException {
+        float linkStart = PAGE_MARGIN + textWidth(fonts.sans(), 8.4f, brand + "  ·  ");
+        float linkWidth = textWidth(fonts.sans(), 8.4f, REPOSITORY_URL);
+        if (linkWidth <= 0 || linkStart + linkWidth > page.getMediaBox().getWidth() - PAGE_MARGIN) {
+            return;
+        }
+        org.apache.pdfbox.pdmodel.interactive.action.PDActionURI action =
+            new org.apache.pdfbox.pdmodel.interactive.action.PDActionURI();
+        action.setURI(REPOSITORY_URL);
+        org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink link =
+            new org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink();
+        link.setAction(action);
+        org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary border =
+            new org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary();
+        border.setWidth(0);
+        link.setBorderStyle(border);
+        link.setRectangle(new PDRectangle(linkStart, 24f, linkWidth, 12f));
+        page.getAnnotations().add(link);
     }
 
     private static Color markerColor(SessionJournalMarker marker) {

@@ -142,6 +142,7 @@ public final class SessionJournalHtmlRenderer {
             .append("<style>\n").append(css()).append("</style>\n</head>\n<body>\n");
         appendHeader(html, meta, entries);
         appendTimeline(html, entries, meta);
+        appendPageFooter(html);
         appendLightbox(html);
         appendLogPanel(html);
         appendContextMenu(html);
@@ -342,6 +343,17 @@ public final class SessionJournalHtmlRenderer {
 
     private static boolean notBlank(String value) {
         return value != null && !value.isBlank();
+    }
+
+    /** Provenance line so an exported or shared page always says where it came from. */
+    private void appendPageFooter(StringBuilder html) {
+        html.append("<footer class=\"page-foot\">")
+            .append(escapeHtml(i18n("journal.export.brand",
+                "Created with korTTY — Developed by Daniel Mengel")))
+            .append(" · <a href=\"").append(escapeAttr(SessionJournalExportService.REPOSITORY_URL))
+            .append("\" rel=\"noreferrer\">")
+            .append(escapeHtml(SessionJournalExportService.REPOSITORY_URL))
+            .append("</a></footer>\n");
     }
 
     private void appendLightbox(StringBuilder html) {
@@ -572,6 +584,9 @@ public final class SessionJournalHtmlRenderer {
               border-radius:8px;border:1px solid var(--border);
               margin-top:8px;cursor:zoom-in;display:block}
             .empty{color:var(--muted);text-align:center;margin-top:48px}
+            .page-foot{max-width:min(1200px,94vw);margin:0 auto;padding:0 clamp(10px,3vw,24px) 28px;
+              color:var(--muted);font-size:.73em;text-align:center}
+            .page-foot a{color:var(--accent)}
             .lightbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.82);
               display:flex;align-items:center;justify-content:center}
             /* The author display:flex would override the UA rule for [hidden] and leave the

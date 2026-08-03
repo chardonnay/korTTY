@@ -123,6 +123,7 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 
 - The filter field matches title, connection, host, user and description; enabling **Search contents** additionally scans the journal entries and capture logs of every journal in the background.
 - **Open** (or double-click) opens the journal viewer; **Rename** changes the title; **Delete** asks for confirmation and then permanently removes the journal folder including the log and all screenshots.
+- Several journals can be selected at once (++ctrl++ / ++shift++ click) to delete or export them in one step. Running journals cannot be renamed or deleted.
 - The **Description** area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.
 - **Options** holds the global capture and AI settings described above.
 
@@ -141,6 +142,19 @@ The **Export** menu in the manager and the viewer offers three formats:
 | **HTML bundle (complete)** | A zip archive of the whole journal — `journal.html`, `journal.xml`, the decompressed capture logs and all screenshots — laid out so the page works immediately after unzipping |
 
 PDF and Markdown ask whether screenshots should be included.
+
+### Exporting several journals
+
+With more than one journal selected, the export writes a single zip archive that keeps each journal separate: one PDF or Markdown document per journal, or one folder per journal for the HTML bundle. Names are taken from the journal titles, with a numeric suffix if two titles collide.
+
+Every archive — including the HTML bundle of a single journal — can be **protected with a password**. The option sits in the export dialog and encrypts the archive with **AES-256**; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.
+
+!!! warning
+    The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it.
+
+### Provenance
+
+Every exported document states that it was created with korTTY and links to the project repository: in the PDF footer (as a clickable link) and, additionally, as a faint diagonal watermark naming korTTY and its developer; at the end of the Markdown file; and in the footer of the journal page inside the HTML bundle.
 
 ## Enterprise policy
 

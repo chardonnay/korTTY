@@ -169,6 +169,91 @@ class SessionJournalExportServiceTest {
     }
 
     @Test
+    void everyFormatStatesItWasCreatedWithKorTTY() throws Exception {
+        Path markdown = tempDir.resolve("brand.md");
+        exportService.export(SessionJournalExportService.Format.MARKDOWN, journalDir, markdown,
+            SessionJournalExportService.Options.defaults());
+        String md = Files.readString(markdown, StandardCharsets.UTF_8);
+        assertThat(md).contains("korTTY");
+        assertThat(md).contains(SessionJournalExportService.REPOSITORY_URL);
+
+        Path pdf = tempDir.resolve("brand.pdf");
+        exportService.export(SessionJournalExportService.Format.PDF, journalDir, pdf,
+            SessionJournalExportService.Options.defaults());
+        try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
+            String text = new PDFTextStripper().getText(document);
+            assertThat(text).contains("korTTY");
+            assertThat(text).contains(SessionJournalExportService.REPOSITORY_URL);
+            // The watermark names the developer, and the footer URL is a clickable link.
+            assertThat(text).contains("Daniel Mengel");
+            assertThat(document.getPage(0).getAnnotations()).isNotEmpty();
+        }
+    }
+
+    @Test
+    void multipleJournalsGoIntoOneArchiveEachKeptSeparate() throws Exception {
+        Path second = buildSampleJournal();
+        service.renameJournal(second, "Second journal");
+        Path target = tempDir.resolve("journals.zip");
+        exportService.exportArchive(SessionJournalExportService.Format.PDF,
+            List.of(journalDir, second), target, SessionJournalExportService.Options.defaults(), null);
+
+        List<String> names = zipEntryNames(target, null);
+        assertThat(names).hasSize(2);
+        assertThat(names.stream().allMatch(n -> n.endsWith(".pdf"))).isTrue();
+        assertThat(names).contains("Second_journal.pdf");
+    }
+
+    @Test
+    void htmlBundleArchiveKeepsOneFolderPerJournal() throws Exception {
+        Path second = buildSampleJournal();
+        service.renameJournal(second, "Second journal");
+        Path target = tempDir.resolve("bundles.zip");
+        exportService.exportArchive(SessionJournalExportService.Format.HTML_BUNDLE,
+            List.of(journalDir, second), target, null, null);
+
+        List<String> names = zipEntryNames(target, null);
+        assertThat(names.stream().anyMatch(n -> n.endsWith("Second_journal/journal.html"))).isTrue();
+        assertThat(names.stream().filter(n -> n.endsWith("journal.html")).count()).isEqualTo(2);
+        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
+    }
+
+    @Test
+    void archivesCanBeEncryptedWithAPassword() throws Exception {
+        Path target = tempDir.resolve("secret.zip");
+        exportService.exportArchive(SessionJournalExportService.Format.MARKDOWN,
+            List.of(journalDir), target, SessionJournalExportService.Options.defaults(),
+            "s3cret-pass".toCharArray());
+
+        try (net.lingala.zip4j.ZipFile zip = new net.lingala.zip4j.ZipFile(target.toFile())) {
+            assertThat(zip.isEncrypted()).isTrue();
+        }
+        // Reading it needs the password; extraction with the right one succeeds.
+        Path out = tempDir.resolve("extracted");
+        try (net.lingala.zip4j.ZipFile zip =
+                 new net.lingala.zip4j.ZipFile(target.toFile(), "s3cret-pass".toCharArray())) {
+            zip.extractAll(out.toString());
+        }
+        try (var files = Files.walk(out)) {
+            assertThat(files.anyMatch(p -> p.getFileName().toString().endsWith(".md"))).isTrue();
+        }
+    }
+
+    private static List<String> zipEntryNames(Path archive, char[] password) throws Exception {
+        List<String> names = new ArrayList<>();
+        try (net.lingala.zip4j.ZipFile zip = password == null
+            ? new net.lingala.zip4j.ZipFile(archive.toFile())
+            : new net.lingala.zip4j.ZipFile(archive.toFile(), password)) {
+            for (var header : zip.getFileHeaders()) {
+                if (!header.isDirectory()) {
+                    names.add(header.getFileName());
+                }
+            }
+        }
+        return names;
+    }
+
+    @Test
     void htmlBundleContainsPageDecompressedLogAndScreenshots() throws Exception {
         Path target = tempDir.resolve("journal-bundle.zip");
         exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, journalDir, target, null);
