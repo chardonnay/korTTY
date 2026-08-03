@@ -144,17 +144,19 @@ public final class SessionJournalHtmlRenderer {
         long screenshots = entries.stream().filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT).count();
         html.append("<header class=\"session-head\">\n<div class=\"head-main\">\n");
         html.append("<h1>").append(escapeHtml(titleOf(meta))).append("</h1>\n");
-        html.append("<div class=\"conn\">")
-            .append(escapeHtml(nullSafe(meta.getUsername()))).append('@')
-            .append(escapeHtml(nullSafe(meta.getHost()))).append(':').append(meta.getPort());
-        if (meta.getConnectionName() != null && !meta.getConnectionName().isBlank()) {
-            html.append(" · ").append(escapeHtml(meta.getConnectionName()));
+        // Only what the title does not already say — a journal named after its endpoint would
+        // otherwise show the same connection three times.
+        String subtitle = SessionJournalHeaderSupport.connectionSubtitle(meta);
+        boolean live = meta.getEndedAt() == null;
+        if (!subtitle.isEmpty() || live) {
+            html.append("<div class=\"conn\">").append(escapeHtml(subtitle));
+            if (live) {
+                html.append(subtitle.isEmpty() ? "" : " ")
+                    .append("<span class=\"live-badge\">● ")
+                    .append(escapeHtml(i18n("journal.html.live", "live"))).append("</span>");
+            }
+            html.append("</div>\n");
         }
-        if (meta.getEndedAt() == null) {
-            html.append(" <span class=\"live-badge\">● ")
-                .append(escapeHtml(i18n("journal.html.live", "live"))).append("</span>");
-        }
-        html.append("</div>\n");
         if (meta.getDescription() != null && !meta.getDescription().isBlank()) {
             html.append("<p class=\"description\">").append(escapeHtml(meta.getDescription())).append("</p>\n");
         }

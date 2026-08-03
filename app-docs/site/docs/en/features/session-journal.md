@@ -82,7 +82,7 @@ Typed input is captured only as complete submitted lines, and several layers kee
 
 `journal.html` is fully self-contained (no external resources) and works in the built-in viewer, in any browser, and inside the exported bundle:
 
-- A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a **live** badge.
+- A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a **live** badge. The line below the title only carries what the title does not already say, so a journal named after its endpoint states the connection once instead of three times.
 - The timeline groups entries by day; each entry carries its time, a colored marker dot/badge (red = error, amber = important, blue = info), the AI title and summary, and color-coded input (green) and output (blue) excerpts.
 - Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (++enter++ / ++shift+enter++ also cycle matches, ++esc++ closes), and colors input and output lines differently.
 - Screenshot entries show thumbnails; clicking one opens a full-size lightbox.

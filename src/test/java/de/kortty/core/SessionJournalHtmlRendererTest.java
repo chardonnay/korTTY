@@ -114,6 +114,32 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void headerNeverRepeatsAConnectionTheTitleAlreadyNames() {
+        SessionJournalMeta meta = document.getMeta();
+        meta.setTitle("daniel@10.211.55.5 — 2026-08-03 10:09");
+        meta.setConnectionName("daniel@10.211.55.5");
+        meta.setUsername("daniel");
+        meta.setHost("10.211.55.5");
+        meta.setPort(22);
+        String html = renderer.render(document, List.of());
+        // The endpoint appears once — in the h1 — and the subtitle line is dropped entirely.
+        assertThat(html).doesNotContain("class=\"conn\"");
+        assertThat(html).contains("<h1>daniel@10.211.55.5 — 2026-08-03 10:09</h1>");
+    }
+
+    @Test
+    void liveBadgeSurvivesADroppedSubtitle() {
+        SessionJournalMeta meta = document.getMeta();
+        meta.setTitle("daniel@10.211.55.5 — 2026-08-03 10:09");
+        meta.setConnectionName("daniel@10.211.55.5");
+        meta.setUsername("daniel");
+        meta.setHost("10.211.55.5");
+        meta.setEndedAt(null);
+        String html = renderer.render(document, List.of());
+        assertThat(html).contains("live-badge");
+    }
+
+    @Test
     void rawStateGetsTagAndSessionSummaryGetsFinalStyling() {
         SessionJournalEntry raw = summaryEntry();
         raw.setState(SessionJournalEntry.State.RAW);

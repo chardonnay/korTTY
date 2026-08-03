@@ -136,10 +136,11 @@ public final class SessionJournalExportService {
         StringBuilder md = new StringBuilder(16 * 1024);
 
         md.append("# ").append(nullSafe(meta.getTitle())).append("\n\n");
-        md.append("- **").append(i18n("journal.md.connection", "Connection")).append(":** ")
-            .append(nullSafe(meta.getConnectionName())).append(" (")
-            .append(nullSafe(meta.getUsername())).append('@')
-            .append(nullSafe(meta.getHost())).append(':').append(meta.getPort()).append(")\n");
+        String connection = SessionJournalHeaderSupport.connectionSubtitle(meta);
+        if (!connection.isEmpty()) {
+            md.append("- **").append(i18n("journal.md.connection", "Connection")).append(":** ")
+                .append(connection).append('\n');
+        }
         md.append("- **").append(i18n("journal.md.started", "Started")).append(":** ")
             .append(meta.getStartedAt() != null ? meta.getStartedAt().format(DATE_TIME) : "?")
             .append(" · **").append(i18n("journal.md.duration", "Duration")).append(":** ")
@@ -327,11 +328,12 @@ public final class SessionJournalExportService {
         drawFilledRect(cursor.stream(), PAGE_MARGIN, cursor.y() - 78f, width, 78f, new Color(0x0f, 0x62, 0xcc));
         drawText(cursor.stream(), fonts.sansBold(), 18f, Color.WHITE, PAGE_MARGIN + 16f, cursor.y() - 28f,
             fit(nullSafe(meta.getTitle()), fonts.sansBold(), 18f, width - 32f));
-        String connLine = nullSafe(meta.getUsername()) + "@" + nullSafe(meta.getHost()) + ":" + meta.getPort()
-            + (meta.getConnectionName() != null && !meta.getConnectionName().isBlank()
-                ? "  ·  " + meta.getConnectionName() : "");
-        drawText(cursor.stream(), fonts.sans(), 9.5f, new Color(0xd9, 0xea, 0xff), PAGE_MARGIN + 16f,
-            cursor.y() - 46f, fit(connLine, fonts.sans(), 9.5f, width - 32f));
+        // Skips whatever the title already states, so an endpoint-named journal does not repeat it.
+        String connLine = SessionJournalHeaderSupport.connectionSubtitle(meta);
+        if (!connLine.isEmpty()) {
+            drawText(cursor.stream(), fonts.sans(), 9.5f, new Color(0xd9, 0xea, 0xff), PAGE_MARGIN + 16f,
+                cursor.y() - 46f, fit(connLine, fonts.sans(), 9.5f, width - 32f));
+        }
         String metaLine = i18n("journal.pdf.started", "Started") + ": "
             + (meta.getStartedAt() != null ? meta.getStartedAt().format(DATE_TIME) : "?")
             + "  ·  " + i18n("journal.pdf.duration", "Duration") + ": " + durationText(meta)
@@ -339,7 +341,7 @@ public final class SessionJournalExportService {
             + "  ·  " + i18n("journal.pdf.errors", "Errors") + ": " + meta.getErrorCount()
             + "  ·  " + i18n("journal.pdf.screenshots", "Screenshots") + ": " + meta.getScreenshotCount();
         drawText(cursor.stream(), fonts.sans(), 9f, new Color(0xd9, 0xea, 0xff), PAGE_MARGIN + 16f,
-            cursor.y() - 62f, fit(metaLine, fonts.sans(), 9f, width - 32f));
+            cursor.y() - (connLine.isEmpty() ? 50f : 62f), fit(metaLine, fonts.sans(), 9f, width - 32f));
         cursor = cursor.withY(cursor.y() - 92f);
         if (meta.getDescription() != null && !meta.getDescription().isBlank()) {
             cursor = drawParagraph(pdf, cursor, fonts.sans(), 10f, new Color(0x5e, 0x6e, 0x82),

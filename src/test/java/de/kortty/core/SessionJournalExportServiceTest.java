@@ -154,7 +154,9 @@ class SessionJournalExportServiceTest {
             SessionJournalExportService.Options.defaults());
         String md = Files.readString(target, StandardCharsets.UTF_8);
         assertThat(md).contains("# Web01 — ");
-        assertThat(md).contains("(daniel@192.168.1.50:22)");
+        // The title already names the connection, so the line carries only the endpoint.
+        assertThat(md).contains("**Connection:** daniel@192.168.1.50:22\n");
+        assertThat(md).doesNotContain("Web01 (daniel@192.168.1.50:22)");
         assertThat(md).contains("Checked nginx status");
         assertThat(md).contains("`[IMPORTANT]`");
         assertThat(md).contains("```console\n$ systemctl status nginx\n```");
