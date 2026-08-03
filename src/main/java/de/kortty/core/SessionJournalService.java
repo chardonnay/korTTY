@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -226,6 +227,197 @@ public class SessionJournalService {
             notifyChanged(journalDir);
         } else {
             logger.warn("Session journal entry {} not found for update in {}", entry.getId(), journalDir.getFileName());
+        }
+    }
+
+    /** How much a redaction pass changed. */
+    public record RedactionResult(int entryHits, int logHits) {
+        public int total() {
+            return entryHits + logHits;
+        }
+    }
+
+    /**
+     * Removes a literal text from everywhere in the journal — entry titles, summaries, notes and
+     * excerpts as well as every capture-log part — and replaces it with {@code replacement}.
+     * This is how a password that slipped past the capture-time protection gets erased.
+     *
+     * <p>Refuses a live journal: its writer thread is appending to the log, and rewriting the file
+     * underneath it would lose entries.</p>
+     */
+    public RedactionResult redact(Path journalDir, String secret, String replacement) throws IOException {
+        if (secret == null || secret.isEmpty()) {
+            return new RedactionResult(0, 0);
+        }
+        if (isLive(journalDir)) {
+            throw new IOException("Cannot redact a session journal that is currently being written");
+        }
+        String mask = replacement != null ? replacement : SessionJournalRedactor.REPLACEMENT;
+        int entryHits;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            entryHits = redactEntries(document, secret, mask);
+            if (entryHits > 0) {
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        int logHits = 0;
+        int parts = SessionJournalLogReader.countParts(journalDir);
+        for (int part = 1; part <= parts; part++) {
+            Path partFile = SessionJournalLogReader.findPartFile(journalDir, part);
+            if (partFile != null) {
+                logHits += redactLogPart(partFile, secret, mask);
+            }
+        }
+        // Never log the secret itself, not even its length.
+        logger.info("Redacted session journal {}: {} entry field(s), {} log line(s)",
+            journalDir.getFileName(), entryHits, logHits);
+        notifyChanged(journalDir);
+        return new RedactionResult(entryHits, logHits);
+    }
+
+    private static int redactEntries(SessionJournalDocument document, String secret, String mask) {
+        int hits = 0;
+        for (SessionJournalEntry entry : document.getEntries()) {
+            if (contains(entry.getTitle(), secret)) {
+                entry.setTitle(entry.getTitle().replace(secret, mask));
+                hits++;
+            }
+            if (contains(entry.getText(), secret)) {
+                entry.setText(entry.getText().replace(secret, mask));
+                hits++;
+            }
+            if (contains(entry.getUserNote(), secret)) {
+                entry.setUserNote(entry.getUserNote().replace(secret, mask));
+                hits++;
+            }
+            hits += redactLines(entry.getInputExcerpt(), secret, mask);
+            hits += redactLines(entry.getOutputExcerpt(), secret, mask);
+        }
+        return hits;
+    }
+
+    private static int redactLines(List<String> lines, String secret, String mask) {
+        int hits = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            if (contains(lines.get(i), secret)) {
+                lines.set(i, lines.get(i).replace(secret, mask));
+                hits++;
+            }
+        }
+        return hits;
+    }
+
+    private static boolean contains(String value, String secret) {
+        return value != null && value.contains(secret);
+    }
+
+    /**
+     * Rewrites only the affected lines of one capture-log part. Headers, footers and untouched
+     * entries are copied verbatim, so the file keeps its structure (and its {@code tabSessionId},
+     * which lives in the header alone).
+     */
+    private int redactLogPart(Path partFile, String secret, String mask) throws IOException {
+        de.kortty.model.SessionJournalLogFormat format = SessionJournalLogReader.formatOf(partFile);
+        if (format == null) {
+            return 0;
+        }
+        Map<Long, String> replacements = new java.util.HashMap<>();
+        SessionJournalLogSerializer serializer = SessionJournalLogSerializer.forFormat(format);
+        for (SessionJournalLogEntry entry : SessionJournalLogReader.readPart(partFile)) {
+            if (contains(entry.text(), secret)) {
+                replacements.put(entry.seq(), serializer.entryLine(new SessionJournalLogEntry(
+                    entry.seq(), entry.timestamp(), entry.kind(),
+                    entry.text().replace(secret, mask),
+                    entry.redacted(), entry.partial(), entry.file())));
+            }
+        }
+        if (replacements.isEmpty()) {
+            return 0;
+        }
+        String content = SessionJournalLogReader.readRawContent(partFile);
+        StringBuilder rewritten = new StringBuilder(content.length());
+        for (String line : content.split("\n", -1)) {
+            Long seq = sequenceOf(line);
+            String replacementLine = seq != null ? replacements.get(seq) : null;
+            if (replacementLine != null) {
+                rewritten.append(replacementLine); // already ends with a newline
+            } else {
+                rewritten.append(line).append('\n');
+            }
+        }
+        // split("\n", -1) yields a trailing empty element for the final newline; drop the extra one.
+        if (rewritten.length() > 0 && content.endsWith("\n")) {
+            rewritten.setLength(rewritten.length() - 1);
+        }
+        writeLogPart(partFile, rewritten.toString());
+        return replacements.size();
+    }
+
+    /** The {@code seq} of a serialized entry line, for all three log formats; null when absent. */
+    private static Long sequenceOf(String line) {
+        java.util.regex.Matcher matcher = LOG_SEQUENCE_PATTERN.matcher(line);
+        if (!matcher.find()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static final java.util.regex.Pattern LOG_SEQUENCE_PATTERN =
+        java.util.regex.Pattern.compile("(?:seq=\"|\"seq\":\\s*)(\\d+)");
+
+    private static void writeLogPart(Path partFile, String content) throws IOException {
+        if (!SessionJournalLogReader.isCompressed(partFile)) {
+            AtomicFileWriter.writeStringAtomically(partFile, content);
+            return;
+        }
+        Path temp = Files.createTempFile(partFile.getParent(), partFile.getFileName().toString(), ".tmp");
+        try {
+            try (java.io.OutputStream out = new java.util.zip.GZIPOutputStream(Files.newOutputStream(temp))) {
+                out.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            Files.move(temp, partFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temp);
+        }
+    }
+
+    /** Removes one entry; a screenshot entry also loses its image file. */
+    public void deleteEntry(Path journalDir, String entryId) throws IOException {
+        if (entryId == null) {
+            return;
+        }
+        String screenshot = null;
+        boolean removed = false;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            List<SessionJournalEntry> entries = document.getEntries();
+            for (int i = 0; i < entries.size(); i++) {
+                if (entryId.equals(entries.get(i).getId())) {
+                    screenshot = entries.get(i).getScreenshotFile();
+                    entries.remove(i);
+                    removed = true;
+                    break;
+                }
+            }
+            if (removed) {
+                refreshErrorCount(document);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (removed && screenshot != null) {
+            Path base = normalize(journalDir);
+            Path image = base.resolve(screenshot).normalize();
+            if (image.startsWith(base)) {
+                Files.deleteIfExists(image);
+            }
+        }
+        if (removed) {
+            notifyChanged(journalDir);
         }
     }
 

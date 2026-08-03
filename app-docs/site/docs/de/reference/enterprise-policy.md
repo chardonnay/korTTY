@@ -196,7 +196,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `enforced` | Boolescher Wert | `true` | Für **jede** Verbindung wird ein Journal geschrieben, unabhängig von der verbindungsspezifischen Einstellung; Benutzer können es nicht stoppen und der Aktivierungsschalter ist gesperrt |
-| `log-format` | Zeichenfolge | `xml`, `json`, `yaml` | Korrigiert das Erfassungsprotokollformat für neue Journale |
+| `log-format` | Zeichenfolge | `xml`, `json`, `yaml` | Korrigiert das Capture-Log-Format für neue Journale |
 | `ai-max-lines` | Ganzzahl | `0` = Kontextfüllung | Korrigiert das AI-Auswertungsfenster (max. Terminalzeilen pro Zusammenfassung) |
 | `storage-path` | Zeichenfolge | absoluter Pfad | Korrigiert das Journalspeicherverzeichnis; Die Einstellung ist gesperrt |
 | `allow-rename` | boolean | `false` | Journale können im Manager nicht umbenannt werden |

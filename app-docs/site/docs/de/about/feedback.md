@@ -19,7 +19,7 @@ korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>.
 4. **Erreichbar bleiben** – Folgefragen zu diesem Thema sind häufig; Aktivieren Sie GitHub-Benachrichtigungen dafür.
 
 !!! warning "Datensicherheit"
-    Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und redigieren Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
+    Protokolldateien und Screenshots können vertrauliche Informationen wie Hostnamen, Benutzernamen, Dateipfade oder Sitzungsdetails enthalten. Überprüfen und schwärzen Sie alles, was Sie einem öffentlichen GitHub-Issue hinzufügen.
 
 ## Schlagen Sie eine Funktion oder Idee vor
 

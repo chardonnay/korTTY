@@ -47,7 +47,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Herauszoomen |
 | ++alt+0++ | Zoom zurücksetzen |
-| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminal-Schriftart (Befehlstaste + Rad unter macOS). |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
 | ++ctrl+d++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH). |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |

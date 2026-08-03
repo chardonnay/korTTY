@@ -205,6 +205,26 @@ public final class SessionJournalLogReader {
         return kind == SessionJournalLogEntry.Kind.OUT || kind == SessionJournalLogEntry.Kind.SEED;
     }
 
+    /** True when the part file is gzip-compressed (a closed part). */
+    public static boolean isCompressed(Path partFile) {
+        return partFile.getFileName().toString().endsWith(SessionJournalLogCompressor.GZIP_SUFFIX);
+    }
+
+    /** The on-disk format of a part file, derived from its extension; null when unrecognized. */
+    public static SessionJournalLogFormat formatOf(Path partFile) {
+        String fileName = partFile.getFileName().toString();
+        if (isCompressed(partFile)) {
+            fileName = fileName.substring(
+                0, fileName.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length());
+        }
+        return formatFromFileName(fileName);
+    }
+
+    /** Raw file content, transparently decompressing a closed part. */
+    public static String readRawContent(Path partFile) throws IOException {
+        return readContent(partFile, isCompressed(partFile));
+    }
+
     private static SessionJournalLogFormat formatFromFileName(String plainName) {
         int dot = plainName.lastIndexOf('.');
         if (dot < 0) {

@@ -15,6 +15,7 @@ What changed in the current release. The version this guide was built for is sho
 - **Tools > Session Journals…** manages all journals: search (optionally through journal contents), per-journal descriptions, renaming and deleting with confirmation, marker/note editing in the viewer, and export as PDF (with downscaled embedded screenshots), Markdown or a complete HTML bundle.
 - **Bulk delete and bulk export** — select several journals to remove them in one step or write them into a single zip archive that keeps each journal separate. Any archive, including a single HTML bundle, can be **encrypted with AES-256** behind a password of your choice, because journals hold full terminal transcripts.
 - **Exports carry their provenance** — PDF, Markdown and the bundled journal page state by default that they were created with korTTY and link to the project repository.
+- **Sensitive content can be removed after the fact** — the viewer's edit mode now also edits an entry's title and summary, deletes a whole entry (including its screenshot file), and offers **Redact…**, which replaces a literal text such as a leaked password everywhere in the journal: all entries *and* every capture-log part, compressed ones included.
 
 ### Export appearance
 

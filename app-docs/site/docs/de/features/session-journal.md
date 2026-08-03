@@ -4,7 +4,7 @@ title: Sitzungsjournal
 
 # Sitzungsjournal
 
-Das Sitzungsjournal dokumentiert eine Terminalsitzung als lesbare Zeitleiste: Jede Ausgabezeile des Servers und jeder von Ihnen eingegebene Befehl werden in ein Erfassungsprotokoll geschrieben, eine KI verdichtet die Aktivität regelmäßig in kurzen Journal-Einträgen und das Ergebnis wird als eigenständige HTML-Seite mit Verbindungsdetails, farbcodierten Auszügen, Screenshots und Ihren eigenen Notizen gerendert. Journale werden wie gespeicherte Chats verwaltet – in einem eigenen Managerfenster mit Suche, Bearbeitung und Export.
+Das Sitzungsjournal dokumentiert eine Terminalsitzung als lesbare Zeitleiste: Jede Ausgabezeile des Servers und jeder von Ihnen eingegebene Befehl werden in ein Capture-Log geschrieben, eine KI verdichtet die Aktivität regelmäßig in kurzen Journal-Einträgen und das Ergebnis wird als eigenständige HTML-Seite mit Verbindungsdetails, farbcodierten Auszügen, Screenshots und Ihren eigenen Notizen gerendert. Journale werden wie gespeicherte Chats verwaltet – in einem eigenen Managerfenster mit Suche, Bearbeitung und Export.
 
 ![Session journal flow](../assets/diagrams/session-journal-flow.svg)
 
@@ -15,7 +15,7 @@ Jedes Journal ist ein eigenständiges Verzeichnis unter `~/.kortty/journals` (ko
 | Datei | Zweck |
 |------|---------|
 | `journal.xml` | Das kuratierte Journaldokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen |
-| `session-log.xml` / `.json` / `.yaml` | Das Nur-Anhang-Erfassungsprotokoll – zeitgestempelte Serverausgabe und typisierte Eingabezeilen mit Sequenz-IDs |
+| `session-log.xml` / `.json` / `.yaml` | Das Nur-Anhang-Capture-Log – zeitgestempelte Serverausgabe und typisierte Eingabezeilen mit Sequenz-IDs |
 | `session-log-2.xml.gz`, … | Gedrehte Stammteile; Geschlossene Teile werden automatisch gzip-komprimiert, das Journal löscht niemals den Verlauf |
 | `journal.html` | Die generierte Timeline-Seite, die nach jeder Änderung automatisch neu generiert wird |
 | `screenshots/*.png` | Screenshots, die Sie während der Sitzung angehängt haben |
@@ -78,13 +78,15 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 !!! warning
     Bei der Prompt-Erkennung handelt es sich um eine Heuristik – ein Remote-Terminal kann nicht zuverlässig erkennen, wann der Server das Echo deaktiviert hat. Exotische oder Vollbild-Passwortabfragen werden möglicherweise nicht erkannt und in sichtbare Befehle eingefügte Geheimnisse (außer den Anmeldeinformationen der Verbindung) werden wie jeder andere Text erfasst. Behandeln Sie Protokolle sensibler Sitzungen entsprechend.
 
+Ist dennoch etwas durchgerutscht, entfernt es die [Schwärzung im Viewer](#sensible-inhalte-im-nachhinein-entfernen) nachträglich aus den Einträgen und aus dem Capture-Log.
+
 ## Die Journalseite
 
 `journal.html` ist vollständig eigenständig (keine externen Ressourcen) und funktioniert im integrierten Viewer, in jedem Browser und innerhalb des exportierten Bundles:
 
 - Ein Sticky-Header zeigt an, wer mit welchem ​​Server verbunden war, Startzeit, Dauer und Anzahl der Einträge, Befehle, Fehler und Screenshots sowie die Journalbeschreibung. Live-Journale weisen ein **Live**-Abzeichen auf. Die Zeile unter dem Titel enthält nur das, was der Titel nicht bereits sagt, sodass eine nach ihrem Endpunkt benannte Journal die Verbindung einmal statt dreimal angibt.
 - Die Zeitleiste gruppiert Einträge nach Tag; Jeder Eintrag trägt seine Zeit, einen farbigen Markierungspunkt/-abzeichen (rot = Fehler, gelb = wichtig, blau = Info), den AI-Titel und die Zusammenfassung sowie farbcodierte Eingabe- (grün) und Ausgabeauszüge (blau).
-- Durch Klicken auf einen Eintrag wird von unten ein Protokollfenster mit dem genauen Erfassungsprotokollbereich hinter diesem Eintrag eingeblendet. Das Panel verfügt über eine eigene Bildlaufleiste, ein Suchfeld mit Trefferzähler und ▲/▼-Navigation (++enter++ / ++shift+enter++ zyklisch auch Treffer, ++esc++ schließt) und färbt Eingabe- und Ausgabezeilen unterschiedlich ein.
+- Durch Klicken auf einen Eintrag wird von unten ein Protokollfenster mit dem genauen Capture-Logbereich hinter diesem Eintrag eingeblendet. Das Panel verfügt über eine eigene Bildlaufleiste, ein Suchfeld mit Trefferzähler und ▲/▼-Navigation (++enter++ / ++shift+enter++ zyklisch auch Treffer, ++esc++ schließt) und färbt Eingabe- und Ausgabezeilen unterschiedlich ein.
 - Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet.
 - Die Seite wird standardmäßig dunkel gerendert, folgt der Hell/Dunkel-Einstellung des Systems und verfügt über eine eigene Designumschaltung.
 - Screenshots, Auszugsfenster, die Zeitleistenspalte und das Protokollfenster passen sich dem Fenster an, sodass die Seite sowohl in einem schmalen Viewer-Tab als auch im Vollbildmodus lesbar bleibt. Lange Ausschnitte scrollen in ihrem eigenen Rahmen, anstatt die Zeitleiste zu dehnen.
@@ -111,7 +113,7 @@ Wenn Sie mit der rechten Maustaste auf die Seite klicken, wird ein Kopiermenü m
 | **Screenshot-Pfad kopieren** | Der Pfad des Screenshots im Journalordner |
 | **Log-Ausschnitt kopieren** | Jede Zeile des derzeit im Panel angezeigten Protokollbereichs mit Zeitstempeln |
 
-In korTTY verwenden die Kopieraktionen die Zwischenablage der App, sodass Bilder in der Zwischenablage des Systems landen und zum Einfügen bereit sind. In einem externen Browser wird der Text weiterhin normal kopiert; Das Kopieren eines Bildes kann auf seinen Pfad zurückgreifen, da Browser das Lesen lokaler Bilddaten von einer `file://`-Seite blockieren.
+In korTTY verwenden die Kopieraktionen die Zwischenablage der App, sodass Bilder in der Zwischenablage des Systems landen und zum Einfügen bereit sind. In einem externen Browser wird der Text weiterhin normal kopiert. Das Kopieren eines Bildes kann auf seinen Pfad zurückgreifen, da Browser das Lesen lokaler Bilddaten von einer `file://`-Seite blockieren.
 
 ### Schriftgröße
 
@@ -129,7 +131,19 @@ Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamt
 
 ### Der Betrachter und die Bearbeitung
 
-Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: Eine Eintragstabelle mit einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und ein Notizenfeld ermöglichen die Kategorisierung von Einträgen – zum Beispiel die Kennzeichnung von Fehlern oder die Hervorhebung wichtiger Ergebnisse. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
+Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: eine Eintragstabelle neben einem Formular mit **Titel** und **Zusammenfassung** des Eintrags, einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und einem Notizfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
+
+### Sensible Inhalte im Nachhinein entfernen
+
+Manchmal landet etwas in einem Journal, das dort nicht bleiben darf – ein Passwort, das in einen sichtbaren Befehl eingefügt wurde, ein Token in einer Serverantwort. Im Bearbeitungsmodus gibt es zwei Möglichkeiten, es zu entfernen:
+
+- **Eintrag löschen** entfernt den ausgewählten Zeitstrahl-Eintrag nach einer Bestätigung. Die Bilddatei eines Screenshot-Eintrags wird mit gelöscht. Das Capture-Log bleibt dabei unberührt.
+- **Schwärzen…** entfernt einen wörtlich angegebenen Text aus dem **gesamten Journal**: aus jedem Eintragstitel, jeder Zusammenfassung, jeder Notiz und jedem Auszug *und* aus jedem Capture-Log-Teil, auch aus den komprimierten. Sie geben den zu entfernenden Text an und wodurch er ersetzt werden soll (standardmäßig `***`); korTTY meldet anschließend, wie viele Eintragsfelder und Log-Zeilen geändert wurden.
+
+!!! warning
+    Die Schwärzung schreibt die Dateien direkt neu und lässt sich nicht rückgängig machen. Bereits exportierte Dokumente sind eigene Dateien und werden nicht geändert – exportieren Sie sie danach erneut. Ein Journal, das noch geschrieben wird, kann nicht geschwärzt werden; beenden Sie dafür zuerst die Sitzung.
+
+Der Text wird wörtlich abgeglichen – geben Sie also genau die Zeichenfolge an, die verschwinden soll. Das Geheimnis selbst schreibt korTTY niemals in sein eigenes Protokoll.
 
 ## Exportieren
 

@@ -511,6 +511,69 @@
     {
       "from": "Sitzungstagebücher",
       "to": "Sitzungsjournale"
+    },
+    {
+      "from": "Erfassungsprotokollformat",
+      "to": "Capture-Log-Format"
+    },
+    {
+      "from": "Erfassungsprotokoll",
+      "to": "Capture-Log",
+      "note": "The journal's capture log keeps its product name; MT invents a German compound."
+    },
+    {
+      "from": "Redact…",
+      "to": "Schwärzen…",
+      "note": "UI label journal.viewer.redact; MT leaves the English button untranslated."
+    },
+    {
+      "from": "Journal-Redaktion",
+      "to": "Journal-Schwärzung"
+    },
+    {
+      "from": "Redaktion",
+      "to": "Schwärzung",
+      "note": "MT reads 'redaction' as an editorial department; here it means blacking out text."
+    },
+    {
+      "from": "redigierten",
+      "to": "geschwärzten"
+    },
+    {
+      "from": "Redigierten",
+      "to": "Geschwärzten"
+    },
+    {
+      "from": "redigierter",
+      "to": "geschwärzter"
+    },
+    {
+      "from": "Redigierter",
+      "to": "Geschwärzter"
+    },
+    {
+      "from": "redigieren",
+      "to": "schwärzen"
+    },
+    {
+      "from": "Redigieren",
+      "to": "Schwärzen"
+    },
+    {
+      "from": "redigierte",
+      "to": "geschwärzte"
+    },
+    {
+      "from": "Redigierte",
+      "to": "Geschwärzte"
+    },
+    {
+      "from": "redigiert",
+      "to": "schwärzt"
+    },
+    {
+      "from": "Redigiert",
+      "to": "Schwärzt"
     }
   ]
 }

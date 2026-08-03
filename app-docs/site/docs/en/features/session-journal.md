@@ -78,6 +78,8 @@ Typed input is captured only as complete submitted lines, and several layers kee
 !!! warning
     The prompt detection is a heuristic — a remote terminal cannot reliably know when the server disabled echo. Exotic or full-screen password prompts may not be recognized, and secrets pasted into visible commands (other than the connection's own credentials) are captured like any other text. Treat journals of sensitive sessions accordingly.
 
+If something slipped through anyway, the viewer's [redaction](#removing-sensitive-content-afterwards) removes it from the entries and the capture log after the fact.
+
 ## The journal page
 
 `journal.html` is fully self-contained (no external resources) and works in the built-in viewer, in any browser, and inside the exported bundle:
@@ -129,7 +131,19 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 
 ### The viewer and editing
 
-The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table with a marker choice (**None / Info / Important / Error**) and a notes field lets you categorize entries — for example flag failures or highlight important findings. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.
+The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table next to a form with the entry's **Title**, **Summary**, a marker choice (**None / Info / Important / Error**) and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.
+
+### Removing sensitive content afterwards
+
+Sometimes something ends up in a journal that must not stay there — a password pasted into a visible command, a token in a server response. Edit mode has two ways to remove it:
+
+- **Delete entry** removes the selected timeline entry after a confirmation. A screenshot entry's image file is deleted with it. This does not touch the capture log.
+- **Redact…** removes a literal text from the **whole journal**: every entry title, summary, note and excerpt *and* every capture-log part, including the compressed ones. You give the text to remove and what to replace it with (`***` by default), and korTTY reports how many entry fields and log lines it changed.
+
+!!! warning
+    Redaction rewrites the files in place and cannot be undone. Documents you already exported are separate files and are not changed — export them again afterwards. A journal that is still being written cannot be redacted; stop the session first.
+
+The text is matched literally, so redact the exact string. The secret itself is never written to korTTY's own log.
 
 ## Exporting
 

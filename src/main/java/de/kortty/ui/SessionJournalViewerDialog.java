@@ -19,6 +19,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -27,6 +28,7 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -67,6 +69,8 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
     private final ObservableList<SessionJournalEntry> entries = FXCollections.observableArrayList();
     private final TableView<SessionJournalEntry> entryTable = buildEntryTable();
     private final ComboBox<SessionJournalMarker> markerCombo = new ComboBox<>();
+    private final TextField titleField = new TextField();
+    private final TextArea summaryArea = new TextArea();
     private final TextArea noteArea = new TextArea();
     private final Label editStatus = new Label();
     private final ToggleButton editToggle = new ToggleButton(I18n.get("journal.viewer.edit"));
@@ -381,11 +385,17 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
 
         view.getColumns().addAll(List.of(timeColumn, kindColumn, markerColumn, textColumn));
         view.getSelectionModel().selectedItemProperty().addListener((obs, old, entry) -> {
-            markerCombo.setValue(entry != null ? entry.getMarker() : SessionJournalMarker.NONE);
-            noteArea.setText(entry != null && entry.getUserNote() != null ? entry.getUserNote() : "");
+            showEntryInForm(entry);
             editStatus.setText("");
         });
         return view;
+    }
+
+    private void showEntryInForm(SessionJournalEntry entry) {
+        markerCombo.setValue(entry != null ? entry.getMarker() : SessionJournalMarker.NONE);
+        titleField.setText(entry != null && entry.getTitle() != null ? entry.getTitle() : "");
+        summaryArea.setText(entry != null && entry.getText() != null ? entry.getText() : "");
+        noteArea.setText(entry != null && entry.getUserNote() != null ? entry.getUserNote() : "");
     }
 
     private void toggleEditMode() {
@@ -406,7 +416,9 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
     private SplitPane buildEditSplit() {
         markerCombo.getItems().setAll(SessionJournalMarker.values());
         markerCombo.setValue(SessionJournalMarker.NONE);
-        noteArea.setPrefRowCount(4);
+        summaryArea.setPrefRowCount(4);
+        summaryArea.setWrapText(true);
+        noteArea.setPrefRowCount(3);
         noteArea.setWrapText(true);
 
         Button saveButton = new Button(I18n.get("journal.viewer.save"));
@@ -414,17 +426,22 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         saveButton.setOnAction(event -> saveSelectedEntry());
         Button revertButton = new Button(I18n.get("journal.viewer.revert"));
         revertButton.disableProperty().bind(entryTable.getSelectionModel().selectedItemProperty().isNull());
-        revertButton.setOnAction(event -> {
-            SessionJournalEntry entry = entryTable.getSelectionModel().getSelectedItem();
-            markerCombo.setValue(entry != null ? entry.getMarker() : SessionJournalMarker.NONE);
-            noteArea.setText(entry != null && entry.getUserNote() != null ? entry.getUserNote() : "");
-        });
+        revertButton.setOnAction(event ->
+            showEntryInForm(entryTable.getSelectionModel().getSelectedItem()));
+        Button deleteButton = new Button(I18n.get("journal.viewer.deleteEntry"));
+        deleteButton.disableProperty().bind(entryTable.getSelectionModel().selectedItemProperty().isNull());
+        deleteButton.setOnAction(event -> deleteSelectedEntry());
+        Button redactButton = new Button(I18n.get("journal.viewer.redact"));
+        redactButton.setOnAction(event -> redactJournal());
         editStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
 
+        HBox buttons = new HBox(8, saveButton, revertButton, deleteButton, redactButton, editStatus);
         VBox form = new VBox(6,
+            new Label(I18n.get("journal.viewer.entryTitle")), titleField,
+            new Label(I18n.get("journal.viewer.summary")), summaryArea,
             new Label(I18n.get("journal.viewer.marker")), markerCombo,
             new Label(I18n.get("journal.viewer.note")), noteArea,
-            new HBox(8, saveButton, revertButton, editStatus));
+            buttons);
         form.setPadding(new Insets(6));
 
         VBox editorPane = new VBox(6, new Label(I18n.get("journal.viewer.entries")), entryTable, form);
@@ -466,6 +483,10 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         updated.setMarker(markerCombo.getValue() != null ? markerCombo.getValue() : SessionJournalMarker.NONE);
         // A user's marker choice must never be overwritten by AI regeneration.
         updated.setMarkerSource(SessionJournalEntry.MarkerSource.USER);
+        String title = titleField.getText();
+        updated.setTitle(title != null && !title.isBlank() ? title.strip() : null);
+        String summary = summaryArea.getText();
+        updated.setText(summary != null && !summary.isBlank() ? summary.strip() : null);
         String note = noteArea.getText();
         updated.setUserNote(note != null && !note.isBlank() ? note.strip() : null);
         String anchorId = updated.getId();
@@ -483,6 +504,102 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         }, "SessionJournal-ViewerSave");
         saver.setDaemon(true);
         saver.start();
+    }
+
+    private void deleteSelectedEntry() {
+        SessionJournalEntry entry = entryTable.getSelectionModel().getSelectedItem();
+        if (entry == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(ownerWindow.getStage());
+        confirm.setTitle(I18n.get("journal.viewer.deleteEntry.title"));
+        confirm.setHeaderText(I18n.get("journal.viewer.deleteEntry.header"));
+        confirm.setContentText(I18n.get("journal.viewer.deleteEntry.content"));
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        String entryId = entry.getId();
+        Thread worker = new Thread(() -> {
+            try {
+                service().deleteEntry(journalDir, entryId);
+                Platform.runLater(() -> {
+                    editStatus.setText(I18n.get("journal.viewer.deleteEntry.done"));
+                    showEntryInForm(null);
+                    loadEntries();
+                    renderAndLoad(null);
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> showError(I18n.get("journal.export.error", e.getMessage())));
+            }
+        }, "SessionJournal-ViewerDeleteEntry");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /**
+     * Removes a literal text — typically a password that slipped through — from the whole journal,
+     * entries and capture log alike. The secret only ever lives in the dialog and the service call;
+     * it is never logged or kept in a field.
+     */
+    private void redactJournal() {
+        Dialog<String[]> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(ownerWindow.getStage());
+        dialog.setTitle(I18n.get("journal.viewer.redact.title"));
+        dialog.setHeaderText(I18n.get("journal.viewer.redact.header"));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        TextField secretField = new TextField();
+        secretField.setPromptText(I18n.get("journal.viewer.redact.secret.prompt"));
+        TextField replacementField = new TextField("***");
+        Label warning = new Label(I18n.get("journal.viewer.redact.warning"));
+        warning.setWrapText(true);
+        warning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 11px;");
+
+        VBox content = new VBox(6,
+            new Label(I18n.get("journal.viewer.redact.secret")), secretField,
+            new Label(I18n.get("journal.viewer.redact.replacement")), replacementField,
+            warning);
+        content.setPadding(new Insets(6));
+        content.setPrefWidth(460);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty()
+            .bind(secretField.textProperty().isEmpty());
+        Platform.runLater(secretField::requestFocus);
+        dialog.setResultConverter(button -> button == ButtonType.OK
+            ? new String[]{secretField.getText(), replacementField.getText()}
+            : null);
+
+        String[] input = dialog.showAndWait().orElse(null);
+        if (input == null || input[0] == null || input[0].isEmpty()) {
+            return;
+        }
+        String secret = input[0];
+        String replacement = input[1] != null && !input[1].isEmpty() ? input[1] : "***";
+        editStatus.setText(I18n.get("journal.viewer.redact.running"));
+        Thread worker = new Thread(() -> {
+            try {
+                SessionJournalService.RedactionResult result =
+                    service().redact(journalDir, secret, replacement);
+                Platform.runLater(() -> {
+                    editStatus.setText("");
+                    loadEntries();
+                    showEntryInForm(null);
+                    renderAndLoad(null);
+                    showInfo(I18n.get("journal.viewer.redact.done",
+                        result.entryHits(), result.logHits()));
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    editStatus.setText("");
+                    showError(I18n.get("journal.viewer.redact.error", e.getMessage()));
+                });
+            }
+        }, "SessionJournal-ViewerRedact");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     // ==== export ====

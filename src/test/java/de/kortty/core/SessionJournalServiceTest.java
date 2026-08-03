@@ -221,6 +221,86 @@ class SessionJournalServiceTest {
         session.close();
     }
 
+    @Test
+    void redactRemovesTheSecretFromEntriesAndFromTheCompressedLog() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("connecting\n");
+        // A password pasted into a visible command — exactly what capture-time protection misses.
+        session.appendInputLine("mysql -u root -phunter2-leaked");
+        session.appendOutputChunk("Welcome to MySQL\n");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setTitle("Login with hunter2-leaked");
+        note.setText("Used hunter2-leaked for the database");
+        note.setUserNote("hunter2-leaked again");
+        note.getInputExcerpt().add("mysql -u root -phunter2-leaked");
+        service.appendEntry(dir, note);
+
+        SessionJournalService.RedactionResult result = service.redact(dir, "hunter2-leaked", "***");
+
+        assertThat(result.entryHits()).isEqualTo(4);
+        assertThat(result.logHits()).isEqualTo(1);
+
+        String documentXml = Files.readString(
+            dir.resolve(SessionJournalService.DOCUMENT_FILE_NAME), StandardCharsets.UTF_8);
+        assertThat(documentXml).doesNotContain("hunter2-leaked");
+        assertThat(documentXml).contains("Login with ***");
+
+        Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
+        assertThat(logFile).isNotNull();
+        assertThat(logFile.getFileName().toString()).endsWith(".gz");
+        String rawContent;
+        try (InputStream in = new GZIPInputStream(Files.newInputStream(logFile))) {
+            rawContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertThat(rawContent).doesNotContain("hunter2-leaked");
+
+        // The rewrite must keep every other line — the header with its metadata included.
+        assertThat(rawContent).contains("tabSessionId=\"tab-1234567890ab\"");
+        List<SessionJournalLogEntry> entries = SessionJournalLogReader.readPart(logFile);
+        assertThat(entries.stream().map(SessionJournalLogEntry::text).toList())
+            .containsExactly("connecting", "mysql -u root -p***", "Welcome to MySQL").inOrder();
+    }
+
+    @Test
+    void redactRefusesALiveJournal() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        assertThrows(IOException.class, () -> service.redact(session.getDirectory(), "secret", "***"));
+        session.close();
+    }
+
+    @Test
+    void deleteEntryRemovesTheEntryAndItsScreenshotFile() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.attachScreenshot(new byte[] {1, 2, 3, 4}, "before restart");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalDocument document = service.loadDocument(dir);
+        SessionJournalEntry screenshot = document.getEntries().stream()
+            .filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT)
+            .findFirst()
+            .orElseThrow();
+        Path image = dir.resolve(screenshot.getScreenshotFile());
+        assertThat(Files.isRegularFile(image)).isTrue();
+
+        service.deleteEntry(dir, screenshot.getId());
+
+        assertThat(service.loadDocument(dir).getEntries().stream()
+            .map(SessionJournalEntry::getId)
+            .toList()).doesNotContain(screenshot.getId());
+        assertThat(Files.exists(image)).isFalse();
+    }
+
     private void waitForEntries(Path dir, int minimum) {
         long deadline = System.currentTimeMillis() + 5000;
         while (System.currentTimeMillis() < deadline) {

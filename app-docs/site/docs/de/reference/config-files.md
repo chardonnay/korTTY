@@ -177,7 +177,7 @@ Alle JobScheduler-Jobs und zugehörige Daten.
 - Zielserver oder -gruppen
 - Host-Key-Pins (OpenSSH-Public-Key-Material für unbeaufsichtigte Ausführung)
 - Sudo-Passwörter für Server und Gruppen (verschlüsselt)
-- Journaleinträge mit Zeitstempeln, Exit-Codes und redigierter Ausgabe
+- Journaleinträge mit Zeitstempeln, Exit-Codes und geschwärzter Ausgabe
 - Journal-Aufbewahrungseinstellungen (Einträge, die älter als 14 Tage sind, standardmäßig automatisch löschen)
 
 **Sicherheit:**
