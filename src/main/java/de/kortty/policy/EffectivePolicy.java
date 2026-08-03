@@ -26,12 +26,15 @@ public final class EffectivePolicy {
     private static final PolicyRule.LoggingRule EMPTY_LOGGING =
         new PolicyRule.LoggingRule(null, null, null, null, null, null);
 
+    private static final PolicyRule.SessionJournalRule EMPTY_SESSION_JOURNAL =
+        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, List.of());
+
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
         ClipboardMode.SYSTEM, true, true,
         true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
-        EMPTY_LOGGING,
+        EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
     private final boolean fromPolicyFile;
@@ -55,6 +58,7 @@ public final class EffectivePolicy {
     private final String updateFeedUrl;
     private final LoadIntoEditorMode loadIntoSnippetEditor;
     private final PolicyRule.LoggingRule logging;
+    private final PolicyRule.SessionJournalRule sessionJournal;
     private final List<ServerRestriction> serverRestrictions;
     private final Set<ManagedSetting> managedSettings;
     private final List<PolicyFile.ScriptHeader> scriptHeaders;
@@ -73,6 +77,7 @@ public final class EffectivePolicy {
                             boolean allowUserModels, boolean updatesEnabled, String updateFeedUrl,
                             LoadIntoEditorMode loadIntoSnippetEditor,
                             PolicyRule.LoggingRule logging,
+                            PolicyRule.SessionJournalRule sessionJournal,
                             List<ServerRestriction> serverRestrictions,
                             Set<ManagedSetting> managedSettings,
                             List<PolicyFile.ScriptHeader> scriptHeaders,
@@ -100,6 +105,7 @@ public final class EffectivePolicy {
         this.updateFeedUrl = updateFeedUrl;
         this.loadIntoSnippetEditor = loadIntoSnippetEditor;
         this.logging = logging;
+        this.sessionJournal = sessionJournal;
         this.serverRestrictions = List.copyOf(serverRestrictions);
         this.managedSettings = managedSettings;
         this.scriptHeaders = List.copyOf(scriptHeaders);
@@ -124,7 +130,7 @@ public final class EffectivePolicy {
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false,
-            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING,
+            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
             List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
@@ -158,6 +164,7 @@ public final class EffectivePolicy {
                     case AI, AI_AGENT, AI_CHAT, AI_SWARM, AI_PLANNING -> ManagedSetting.AI_FEATURES;
                     case TEAMWORK -> ManagedSetting.TEAMWORK;
                     case PLUGINS -> ManagedSetting.PLUGINS;
+                    case SESSION_JOURNAL -> ManagedSetting.SESSION_JOURNAL;
                 });
             }
         }
@@ -224,6 +231,11 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.LOGGING);
         }
 
+        PolicyRule.SessionJournalRule sessionJournal = resolveSessionJournal(resolver);
+        if (!sessionJournal.isEmpty()) {
+            managed.add(ManagedSetting.SESSION_JOURNAL);
+        }
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -233,7 +245,8 @@ public final class EffectivePolicy {
             orDefault(aiProfileAllowCreate, true), orDefault(aiProfileAllowEdit, true),
             orDefault(allowRuntimeDownloads, true), orDefault(allowModelDownloads, true),
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
-            orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, serverRestrictions, managed,
+            orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
+            serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources());
     }
 
@@ -279,6 +292,42 @@ public final class EffectivePolicy {
 
     public boolean teamworkAllowed() {
         return decision(PolicyFeature.TEAMWORK) != PolicyDecision.DENY;
+    }
+
+    /** Session journals are NOT chained through {@link #aiAllowed()}: capture works without AI. */
+    public boolean sessionJournalAllowed() {
+        return decision(PolicyFeature.SESSION_JOURNAL) != PolicyDecision.DENY;
+    }
+
+    /** The AI part of the journal needs both the journal feature and AI itself. */
+    public boolean sessionJournalAiSummariesAllowed() {
+        return sessionJournalAllowed() && aiAllowed();
+    }
+
+    /** True when the admin mandates a journal for every connection (users cannot stop it). */
+    public boolean sessionJournalEnforced() {
+        return sessionJournalAllowed() && Boolean.TRUE.equals(sessionJournal.enforced());
+    }
+
+    public boolean sessionJournalRenameAllowed() {
+        return !Boolean.FALSE.equals(sessionJournal.allowRename());
+    }
+
+    public boolean sessionJournalDeleteAllowed() {
+        return !Boolean.FALSE.equals(sessionJournal.allowDelete());
+    }
+
+    /** The raw {@code [rule.session-journal]} mandates (fields null when not set). */
+    public PolicyRule.SessionJournalRule sessionJournal() {
+        return sessionJournal;
+    }
+
+    /**
+     * Search-and-replace rules the organisation applies to every journal automatically. Empty
+     * when the feature is denied outright — no journal is written, so nothing needs rewriting.
+     */
+    public List<de.kortty.model.SessionJournalReplacement> sessionJournalReplacements() {
+        return sessionJournalAllowed() ? sessionJournal.replacements() : List.of();
     }
 
     public boolean pluginsAllowed() {
@@ -428,6 +477,67 @@ public final class EffectivePolicy {
             EffectivePolicy::tighterCap);
         return new PolicyRule.LoggingRule(
             directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
+    }
+
+    /**
+     * Per-field session-journal resolution. Direction of "restrictive" per field: enforced true
+     * wins, allow-rename/allow-delete false wins, ai-title true wins, the AI line cap uses the
+     * tighter cap (0 = context fill counts as "unlimited"), and free-form values (format, path,
+     * template) pick the lexicographically smallest on a same-tier tie, like the update feed URL.
+     */
+    private static PolicyRule.SessionJournalRule resolveSessionJournal(Resolver resolver) {
+        Boolean enforced = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().enforced() : null,
+            (a, b) -> a || b);
+        String logFormat = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().logFormat() : null,
+            (a, b) -> a.compareTo(b) <= 0 ? a : b);
+        Integer aiMaxLines = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiMaxLines() : null,
+            EffectivePolicy::tighterCap);
+        String storagePath = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().storagePath() : null,
+            (a, b) -> a.compareTo(b) <= 0 ? a : b);
+        Boolean allowRename = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().allowRename() : null,
+            (a, b) -> a && b);
+        Boolean allowDelete = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().allowDelete() : null,
+            (a, b) -> a && b);
+        String nameTemplate = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().nameTemplate() : null,
+            (a, b) -> a.compareTo(b) <= 0 ? a : b);
+        Boolean aiTitle = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiTitle() : null,
+            (a, b) -> a || b);
+        return new PolicyRule.SessionJournalRule(
+            enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
+            aiTitle, resolveSessionJournalReplacements(resolver));
+    }
+
+    /**
+     * The union of every tier's replacement rules, deduplicated, in file order.
+     *
+     * <p>Deliberately not the usual "highest tier that says anything wins": these rules remove
+     * secrets, so a user-tier rule adding one must not silence the organisation-wide list. More
+     * redaction is the more restrictive outcome, and that is what a policy resolves to.</p>
+     */
+    private static List<de.kortty.model.SessionJournalReplacement> resolveSessionJournalReplacements(
+            Resolver resolver) {
+        List<de.kortty.model.SessionJournalReplacement> merged = new ArrayList<>();
+        for (List<PolicyRule> tier : List.of(resolver.userTier(), resolver.groupTier(), resolver.allTier())) {
+            for (PolicyRule rule : tier) {
+                if (rule.sessionJournal() == null) {
+                    continue;
+                }
+                for (de.kortty.model.SessionJournalReplacement replacement : rule.sessionJournal().replacements()) {
+                    if (!merged.contains(replacement)) {
+                        merged.add(replacement);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged);
     }
 
     /** Combines caps where 0 means "unlimited": any cap beats 0, otherwise the smaller cap wins. */

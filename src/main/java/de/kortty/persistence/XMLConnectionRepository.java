@@ -43,7 +43,8 @@ public class XMLConnectionRepository {
                 ConnectionsWrapper.class, ServerConnection.class, ConnectionSettings.class,
                 WindowGeometry.class, SSHTunnel.class, JumpServer.class, AuthMethod.class,
                 TunnelType.class, ConnectionSource.class, de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class);
+                de.kortty.model.TerminalLogConfig.LogFormat.class,
+                de.kortty.model.SessionJournalConfig.class);
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }

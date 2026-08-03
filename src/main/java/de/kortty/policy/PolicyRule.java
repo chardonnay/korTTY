@@ -32,6 +32,7 @@ import java.util.Set;
  * @param updateFeedUrl              custom release feed replacing the GitHub endpoint, or null
  * @param loadIntoSnippetEditor      mode for the terminal "load into snippet editor" feature, or null
  * @param logging                    admin log configuration from {@code [rule.logging]}, or null
+ * @param sessionJournal             session journal mandates from {@code [rule.session-journal]}, or null
  */
 public record PolicyRule(
     String name,
@@ -55,7 +56,8 @@ public record PolicyRule(
     Boolean updatesEnabled,
     String updateFeedUrl,
     LoadIntoEditorMode loadIntoSnippetEditor,
-    LoggingRule logging) {
+    LoggingRule logging,
+    SessionJournalRule sessionJournal) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -93,6 +95,43 @@ public record PolicyRule(
         }
     }
 
+    /**
+     * The {@code [rule.session-journal]} table: admin mandates for the session journal. All fields
+     * nullable = "not set at this tier".
+     *
+     * @param enforced      true forces a journal for every connection (users cannot stop it)
+     * @param logFormat     capture-log format mandate: "xml", "json" or "yaml", or null
+     * @param aiMaxLines    forced max terminal lines per AI evaluation (0 = context fill), or null
+     * @param storagePath   forced journal storage directory, or null
+     * @param allowRename   false forbids renaming journals in the manager
+     * @param allowDelete   false forbids deleting journals in the manager
+     * @param nameTemplate  initial journal title template with {connection}/{host}/{user}/{date}/{time}, or null
+     * @param aiTitle       true forces the closing AI title regardless of the user setting
+     * @param replacements  {@code [[rule.session-journal.replace]]} search-and-replace rules applied
+     *                      to every captured line and every journal entry; never null, empty = none
+     */
+    public record SessionJournalRule(
+        Boolean enforced,
+        String logFormat,
+        Integer aiMaxLines,
+        String storagePath,
+        Boolean allowRename,
+        Boolean allowDelete,
+        String nameTemplate,
+        Boolean aiTitle,
+        List<de.kortty.model.SessionJournalReplacement> replacements) {
+
+        public SessionJournalRule {
+            replacements = replacements == null ? List.of() : List.copyOf(replacements);
+        }
+
+        public boolean isEmpty() {
+            return enforced == null && logFormat == null && aiMaxLines == null && storagePath == null
+                && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
+                && replacements.isEmpty();
+        }
+    }
+
     /** Builder for tests and the loader — every field defaults to "not set". */
     public static Builder builder() {
         return new Builder();
@@ -121,6 +160,7 @@ public record PolicyRule(
         private String updateFeedUrl;
         private LoadIntoEditorMode loadIntoSnippetEditor;
         private LoggingRule logging;
+        private SessionJournalRule sessionJournal;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -144,13 +184,14 @@ public record PolicyRule(
         public Builder updateFeedUrl(String value) { this.updateFeedUrl = value; return this; }
         public Builder loadIntoSnippetEditor(LoadIntoEditorMode value) { this.loadIntoSnippetEditor = value; return this; }
         public Builder logging(LoggingRule value) { this.logging = value; return this; }
+        public Builder sessionJournal(SessionJournalRule value) { this.sessionJournal = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
                 requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
                 allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
-                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging);
+                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal);
         }
     }
 }

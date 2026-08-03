@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2279,6 +2311,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -3056,7 +3116,7 @@ Der eingegebene Modellname * A wird als manuelle Auswahl gespeichert, sodass jed
 <li>Mit der Symbolleiste können Sie die Konversation kopieren, den Chat speichern oder umbenennen, ihn als PDF/Markdown/Nur-Text teilen/exportieren, die letzte Anfrage erneut versuchen, die Registerkarte schließen, laufende Anfragen abbrechen und die Schriftgröße ändern.</li>
 <li>Die Antwortsprache ist standardmäßig die aktuelle GUI-Sprache. Sie können die Antwortsprache und das aktive KI-Profil pro Chat ändern, bevor Sie eine Folgeaufforderung senden.</li>
 <li>Follow-up-Eingabeaufforderungen in <strong>Zusammenfassen</strong> und <strong>Problem lösen</strong> werden als normale Chat-Fragen fortgesetzt; Sie werden nicht zur ursprünglichen Eingabeaufforderung für Zusammenfassung/Problemanalyse zurück gezwungen.</li>
-<li>Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder Mathematik enthalten, werden stattdessen als Bilder gerendert – siehe <a href="#rendered-images-diagrams-and-math">Gerenderte Bilder, Diagramme und Mathematik</a>.</li>
+<li>Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder Mathematik enthalten, werden stattdessen als Bilder gerendert – siehe <a href="#gerenderte-bilder-diagramme-und-mathematik">Gerenderte Bilder, Diagramme und Mathematik</a>.</li>
 <li>gerenderte Markdown-Tabellen können als ganze Tabelle, einzelne Spalte oder einzelne Zelle kopiert werden.</li>
 <li>Die ausgewählte Schriftgröße der AI-Registerkarte wird global gespeichert und für zukünftige AI-Ergebnisregisterkarten wiederverwendet.
 Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet, sodass Warnungen und Rücksetzzyklen korrekt bleiben.</li>
@@ -3124,7 +3184,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <ul>
 <li><strong>Profile</strong> – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.</li>
 <li><strong>Lokale Modelle</strong> – Hugging Face durchsuchen, GGUF-Dateien importieren/herunterladen/konfigurieren, den Funktionstest nach der Installation ausführen und mehrere llama.cpp-Sidecars starten oder stoppen.</li>
-<li><strong>Lokale KI</strong> – Weisen Sie Text-/Übersetzungs- und Codierungsprofile zu, wählen Sie das Einbettungsmodell und das bevorzugte Laufzeit-Backend aus, speichern Sie ein verschlüsseltes Hugging Face-Token und wählen Sie die Laufzeitaktualisierungsrichtlinie aus.</li>
+<li><strong>Lokale KI</strong> – Weisen Sie Profile für Text/Übersetzung, Codierung und <a href="session-journal.html#ki-zusammenfassungen">Sitzungsjournal</a> zu, wählen Sie das Einbettungsmodell und das bevorzugte Laufzeit-Backend aus, speichern Sie ein verschlüsseltes Hugging Face-Token und wählen Sie die Laufzeitaktualisierungsrichtlinie aus.</li>
 <li><strong>Wissensspeicher</strong> – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.</li>
 <li><strong>Gespeicherte Chats</strong> – zuvor gespeicherte KI-Konversationen öffnen, umbenennen, aktualisieren oder löschen. Gespeicherte <a href="ai-swarm.html">AI Swarm</a>-Konversationen werden in einem eigenen Abschnitt <strong>Swarm-Chats</strong> angezeigt, einschließlich der Konversationen, die durch geplante Swarm-Jobs erstellt wurden.</li>
 </ul>
@@ -3151,7 +3211,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
 <div class="admonition note">
 <p class="admonition-title">SSH und lokale Shells</p>
-<p>Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#local-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>), der Umgebungstest und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. <strong>Lokale Shell-Einschränkung:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+<p>Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#lokale-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>), der Umgebungstest und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. <strong>Lokale Shell-Einschränkung:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 </div>
 <h3 id="der-agent-wird-gestartet">Der Agent wird gestartet<a class="headerlink" href="#der-agent-wird-gestartet" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3168,7 +3228,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>⏸ pausiert</li>
 <li>✓ fertig</li>
 <li><strong>Gleichzeitige Ausführungen</strong> – Mehrere gleichzeitige Ausführungen pro Split werden als schließbare Registerkarten im Aktivitätsbereich angezeigt (eine Registerkarte pro Ausführung), mit einer Parallelitätsobergrenze pro Widget von 5 Ausführungen. Abgeschlossene Läufe bleiben als Tabs erhalten, bis sie geschlossen werden.</li>
-<li><strong>Tippen während des Laufens</strong> – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren <code>agent ...</code>-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur die Tasten zur Ausführungssteuerung abgefangen: ++Esc++ oder ++Ctrl+C++ brechen die Ausführung der ausgewählten Registerkarte ab; ++Ctrl+R++ schaltet die Denkdetails dieses Laufs um.</li>
+<li><strong>Tippen während des Laufens</strong> – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren <code>agent ...</code>-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Ctrl+C++ brechen die Ausführung des ausgewählten Tabs ab; ++Ctrl+R++ schaltet die Denkdetails dieses Laufs um.</li>
 <li><strong>Pause und Fortsetzen</strong> – Auf jeder Laufregisterkarte werden Schaltflächen zum Anhalten und Abbrechen angezeigt. Pause parkt den Agenten an einem sicheren Punkt zwischen den Schritten; Die Pausenzeit wird von der Laufarbeitszeit ausgeschlossen.</li>
 <li><strong>Aktuelles Verzeichnis</strong> – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Eine lokale Ausführung erfasst ein stabiles Verzeichnis für ihre Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn der Ausführung ausgeführt wurde.</li>
 <li><strong>Genehmigungen und Sudo</strong> – Der Agent kann vor der Befehlsausführung eine explizite Genehmigung anfordern und im Aktivitätsbereich nach einem Sudo-Passwort fragen. Die Passworteingabe ist maskiert, kann mit ++Enter++ übermittelt werden und ermöglicht bis zu drei Wiederholungsversuche mit falschem Passwort. Wenn ein Passwort zwischengespeichert wird, wird es nur für den aktuellen Agenten-/Sitzungskontext verwendet. Wenn eine Benutzereingabe (Sudo-Passwort/Befehlsgenehmigung) erforderlich ist, wird das Bedienfeld automatisch erweitert.</li>

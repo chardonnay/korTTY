@@ -38,7 +38,7 @@ Verwenden Sie die Registerkarte **Job**, um zu definieren, wo und wann ein Job a
 | **Name** | Anzeigename, der in der Auftragsliste, im Journal und im Menüleistenstatus angezeigt wird. |
 | **Verbindung** | Öffnet den Verbindungsmanager-Auswahldialog. Wählen Sie einzelne SSH-TCP-Server, ganze Gruppen oder beides aus. Mosh-Verbindungen werden nicht unterstützt. |
 | **Arbeitsverzeichnis** | Optionales Remote-Verzeichnis. Verwenden Sie **Durchsuchen...**, um eine Verbindung zum Ziel herzustellen und ein Verzeichnis auszuwählen, wenn der Pfad nicht bekannt ist. |
-| **Journal** | `LIMITED_REDACTED` speichert begrenzte, redigierte Auszüge. `FULL` speichert die vollständige Ausgabe/Transkripte (von KorTTY verwaltete Geheimnisse werden weiterhin geschwärzt). |
+| **Journal** | `LIMITED_REDACTED` speichert begrenzte, geschwärzte Auszüge. `FULL` speichert die vollständige Ausgabe/Transkripte (von KorTTY verwaltete Geheimnisse werden weiterhin geschwärzt). |
 | **Aktiv von** / **Aktiv bis** | Optionaler Datumsbereich für den Job. Außerhalb dieses Bereichs wird der Job nicht ausgeführt. |
 | **Fensteranfang** / **Fensterende** | Zeitfenster für den Job (z. B. 09:00 bis 17:00 Uhr). Die Werte werden aus validierten Zeitlisten ausgewählt. |
 | **Intervallminuten** | Optionales wiederholtes Intervall innerhalb des aktiven Fensters. Wenn festgelegt, wird der Job alle N Minuten zwischen Fensterstart und -ende ausgeführt. |
@@ -104,7 +104,7 @@ AI Swarm-Jobs führen eine AI-Agent-Eingabeaufforderung auf **allen ausgewählte
 
 Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als **Schwarm-Chat** gespeichert, der über den Abschnitt *Schwarm-Chats* des AI Managers erneut geöffnet werden kann.
 
-Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** auf der Registerkarte [AI Swarm](ai-swarm.md#scheduling-swarm-runs-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
+Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** auf der Registerkarte [AI Swarm](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
 
 !!! warning
     Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
@@ -172,7 +172,7 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
 - Host-Schlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.
 - Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.
 - SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.
-- KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
+- KorTTY geschwärzt verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
 - Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.
 
 ## Fehlerbehebung

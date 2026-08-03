@@ -19,7 +19,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 | Aktion | Verknüpfung |
 |--------|----------|
 | **Neuer Tab** | ++ctrl+t++ (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten |
-| **Tab schließen** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
+| **Tab schließen** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
 | **Nächster Tab** | ++ctrl+Tab++ |
 | **Vorheriger Tab** | ++ctrl+shift+Tab++ |
 | **Erneut verbinden** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet. |
@@ -27,13 +27,13 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 ## Sicher verbinden
 
-Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei **Nein** standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe [SSH-Hostschlüsselüberprüfung](connections.md#ssh-host-key-verification).
+Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei **Nein** standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe [SSH-Hostschlüsselüberprüfung](connections.md#ssh-hostschlusseluberprufung).
 
 Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.
 
 Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederholung des Versuchs das Ergebnis nicht ändern kann – ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit. Das Terminal löscht den Vorgang und zeigt sofort den Grund an, anstatt die Anzahl der Wiederholungsversuche durchzugehen. Informationen zur Mosh-Einschränkung finden Sie unter [Jump server](jump-server.md).
 
-Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überarbeitete Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird `TerminalTextBuffer` nicht mehr nach der nicht vorhandenen Zeile bei `line == height` gefragt.
+Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überprüfte Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird `TerminalTextBuffer` nicht mehr nach der nicht vorhandenen Zeile bei `line == height` gefragt.
 
 ## Multi-Window-Unterstützung
 
@@ -62,7 +62,7 @@ Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausra
 
 **Ansicht → Zoom → Hintergrundtransparenz** ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.
 
-Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben solide, sodass das Fenster nie zu einem durchsichtigen Loch wird.
+Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.
 
 Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit ++f12++ den Vollbildmodus oder mit ++ctrl+shift+f++ den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.
 
@@ -72,12 +72,16 @@ Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native ma
 
 ## Lokale Shell-Registerkarten
 
-Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#local-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
+Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
 
 - **++ctrl+d++ schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.** Diese Windows-Shells werden bei EOF nicht beendet, sodass ++ctrl+d++ andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
 - **Bestätigung schließen** verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.
 - **Das aktuelle Verzeichnis folgt der interaktiven Shell.** Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach `cd`, `pushd`, `popd` oder `Set-Location` löst **Im Snippet-Editor öffnen** einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.
 - **Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.** Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der `agent ...`-Anfrage bleibt und Enter ihn genau einmal versendet.
+
+## Sitzungsjournal
+
+Jede Terminal-Registerkarte kann eine behalten [Sitzungsjournal](session-journal.md): Serverausgaben und eingegebene Befehle werden in ein Capture-Log aufgenommen, eine KI komprimiert sie zu einer lesbaren Zeitleiste und Screenshots und Notizen können über die Journalleiste oder das Rechtsklickmenü des Terminals hinzugefügt werden. Journale starten automatisch für Verbindungen, die sie aktivieren, oder rückwirkend für eine laufende Sitzung über **Tools > Sitzungsjournal starten/stoppen** – der vorhandene Scrollback wird importiert. Sehen [Sitzungsjournal](session-journal.md).
 
 ## Split-Screen mit Übertragung
 

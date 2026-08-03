@@ -50,7 +50,8 @@ public class TeamworkCacheRepository {
                 AuthMethod.class,
                 TunnelType.class,
                 de.kortty.model.TerminalLogConfig.class,
-                de.kortty.model.TerminalLogConfig.LogFormat.class
+                de.kortty.model.TerminalLogConfig.LogFormat.class,
+                de.kortty.model.SessionJournalConfig.class
             );
         } catch (JAXBException e) {
             throw new IllegalStateException("Failed to create JAXB context for teamwork cache", e);

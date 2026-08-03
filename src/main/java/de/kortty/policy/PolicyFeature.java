@@ -14,7 +14,9 @@ public enum PolicyFeature {
     /** Shared-connections sync ("Teamwork") — not an AI feature. */
     TEAMWORK("teamwork"),
     /** Plugins, e.g. terminal effect plugins. */
-    PLUGINS("plugins");
+    PLUGINS("plugins"),
+    /** Session journal capture, management and export — not an AI feature; AI summaries additionally require AI. */
+    SESSION_JOURNAL("session-journal");
 
     private final String tomlKey;
 

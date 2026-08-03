@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1338,6 +1368,8 @@
       
         
       
+        
+      
     
     
     
@@ -1548,6 +1580,17 @@
     <span class="md-ellipsis">
       
         Lokale Shell-Registerkarten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sitzungsjournal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal
       
     </span>
   </a>
@@ -2179,6 +2222,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -2518,6 +2589,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sitzungsjournal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#split-screen-mit-ubertragung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2716,7 +2798,7 @@
 </tr>
 <tr>
 <td><strong>Tab schließen</strong></td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann um eine Bestätigung gebeten, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung vollständig.</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung <em>Ohne Bestätigung schließen</em> unterdrückt die Eingabeaufforderung vollständig.</td>
 </tr>
 <tr>
 <td><strong>Nächster Tab</strong></td>
@@ -2737,10 +2819,10 @@
 </tbody>
 </table>
 <h2 id="sicher-verbinden">Sicher verbinden<a class="headerlink" href="#sicher-verbinden" title="Permanent link">&para;</a></h2>
-<p>Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei <strong>Nein</strong> standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe <a href="connections.html#ssh-host-key-verification">SSH-Hostschlüsselüberprüfung</a>.</p>
+<p>Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei <strong>Nein</strong> standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe <a href="connections.html#ssh-hostschlusseluberprufung">SSH-Hostschlüsselüberprüfung</a>.</p>
 <p>Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.</p>
 <p>Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederholung des Versuchs das Ergebnis nicht ändern kann – ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit. Das Terminal löscht den Vorgang und zeigt sofort den Grund an, anstatt die Anzahl der Wiederholungsversuche durchzugehen. Informationen zur Mosh-Einschränkung finden Sie unter <a href="jump-server.html">Jump server</a>.</p>
-<p>Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überarbeitete Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird <code>TerminalTextBuffer</code> nicht mehr nach der nicht vorhandenen Zeile bei <code>line == height</code> gefragt.</p>
+<p>Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überprüfte Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird <code>TerminalTextBuffer</code> nicht mehr nach der nicht vorhandenen Zeile bei <code>line == height</code> gefragt.</p>
 <h2 id="multi-window-unterstutzung">Multi-Window-Unterstützung<a class="headerlink" href="#multi-window-unterstutzung" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:</p>
 <ul>
@@ -2780,18 +2862,20 @@
 <p><strong>Zoom zurücksetzen</strong> stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → <strong>Schriftgröße</strong> → <strong>Zurücksetzen</strong>. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.</p>
 <h2 id="hintergrundtransparenz">Hintergrundtransparenz<a class="headerlink" href="#hintergrundtransparenz" title="Permanent link">&para;</a></h2>
 <p><strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.</p>
-<p>Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben solide, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
+<p>Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
 <p>Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit <span class="keys"><kbd class="key-f12">F12</kbd></span> den Vollbildmodus oder mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.</p>
 <p>Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird <strong>das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam</strong>; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).</p>
 <p>Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).</p>
 <h2 id="lokale-shell-registerkarten">Lokale Shell-Registerkarten<a class="headerlink" href="#lokale-shell-registerkarten" title="Permanent link">&para;</a></h2>
-<p>Neben SSH und Mosh kann eine Terminal-Registerkarte eine <strong>Lokale Shell</strong> hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe <a href="connections.html#local-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokal-Shell-bewusst:</p>
+<p>Neben SSH und Mosh kann eine Terminal-Registerkarte eine <strong>Lokale Shell</strong> hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe <a href="connections.html#lokale-shell">Lokale Shell</a>). Einige Terminalverhalten sind lokal-Shell-bewusst:</p>
 <ul>
 <li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.</strong> Diese Windows-Shells werden bei EOF nicht beendet, sodass <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.</li>
 <li><strong>Bestätigung schließen</strong> verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.</li>
 <li><strong>Das aktuelle Verzeichnis folgt der interaktiven Shell.</strong> Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach <code>cd</code>, <code>pushd</code>, <code>popd</code> oder <code>Set-Location</code> löst <strong>Im Snippet-Editor öffnen</strong> einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.</li>
 <li><strong>Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.</strong> Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der <code>agent ...</code>-Anfrage bleibt und Enter ihn genau einmal versendet.</li>
 </ul>
+<h2 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h2>
+<p>Jede Terminal-Registerkarte kann eine behalten <a href="session-journal.html">Sitzungsjournal</a>: Serverausgaben und eingegebene Befehle werden in ein Capture-Log aufgenommen, eine KI komprimiert sie zu einer lesbaren Zeitleiste und Screenshots und Notizen können über die Journalleiste oder das Rechtsklickmenü des Terminals hinzugefügt werden. Journale starten automatisch für Verbindungen, die sie aktivieren, oder rückwirkend für eine laufende Sitzung über <strong>Tools &gt; Sitzungsjournal starten/stoppen</strong> – der vorhandene Scrollback wird importiert. Sehen <a href="session-journal.html">Sitzungsjournal</a>.</p>
 <h2 id="split-screen-mit-ubertragung">Split-Screen mit Übertragung<a class="headerlink" href="#split-screen-mit-ubertragung" title="Permanent link">&para;</a></h2>
 <p>Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen, und senden Sie optional Eingaben an alle Bereiche gleichzeitig.</p>
 <h3 id="vorgange-aufteilen">Vorgänge aufteilen<a class="headerlink" href="#vorgange-aufteilen" title="Permanent link">&para;</a></h3>

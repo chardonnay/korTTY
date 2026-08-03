@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2318,6 +2350,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -3126,7 +3186,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 </tr>
 <tr>
 <td><code>job-scheduler.xml</code></td>
-<td>Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge redigieren von KorTTY verwaltete Geheimnisse</td>
+<td>Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge schwärzen von KorTTY verwaltete Geheimnisse</td>
 <td>AES-256-GCM</td>
 </tr>
 <tr>
@@ -3163,7 +3223,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <ul>
 <li><strong>Host-Schlüssel-Pinning</strong>: Host-Schlüssel werden standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs gepinnt, um Man-in-the-Middle-Angriffe zu verhindern. Diese Verbindungs-ID-Pins sind absichtlich von den normalisierten Endpunkt-Pins getrennt, die von interaktiven Terminal-/SFTP-Sitzungen verwendet werden.</li>
 <li><strong>Sudo-Passwörter</strong>: Scheduler-Sudo-Passwörter werden verschlüsselt und in <code>~/.kortty/job-scheduler.xml</code> gespeichert.</li>
-<li><strong>Journal-Redaktion</strong>: Job-Journaleinträge redigieren von KorTTY verwaltete Geheimnisse vor der Persistenz (der redigierte Modus ist die Standardeinstellung; der vollständige Modus speichert nicht redigierte Ausgaben).</li>
+<li><strong>Journal-Schwärzung</strong>: Job-Journaleinträge schwärzen von KorTTY verwaltete Geheimnisse vor der Persistenz (der geschwärzte Modus ist die Standardeinstellung; der vollständige Modus speichert nicht geschwärzte Ausgaben).</li>
 </ul>
 <h3 id="backup-verschlusselung">Backup-Verschlüsselung<a class="headerlink" href="#backup-verschlusselung" title="Permanent link">&para;</a></h3>
 <ul>

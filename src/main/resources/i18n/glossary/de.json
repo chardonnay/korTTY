@@ -373,6 +373,270 @@
       "from": "Schnittstellen-Strings",
       "to": "Schnittstellenzeichenfolgen",
       "note": "MT renders 'interface strings' two ways; this is the term used everywhere else in the corpus."
+    },
+    {
+      "from": "Das gleiche einfache Tagebuch wie a `.md` Datei; Screenshots werden in ein Geschwister kopiert `<name>-files/` Ordner",
+      "to": "Das gleiche einfache Journal als `.md`-Datei; Screenshots werden in einen benachbarten Ordner `<name>-files/` kopiert",
+      "note": "MT garbles the Markdown export row of the session-journal page."
+    },
+    {
+      "from": "Die Schlüssel finden Sie in der Unternehmensrichtlinie [](../reference/enterprise-policy.md).",
+      "to": "Die Schlüssel finden Sie unter [Unternehmensrichtlinie](../reference/enterprise-policy.md).",
+      "note": "MT empties the link text, leaving a broken []() link."
+    },
+    {
+      "from": "Rückstand in mehrere Eingabeaufforderungen aufteilen (Chunking)",
+      "to": "Rückstand auf mehrere Prompts aufteilen (Chunking)",
+      "note": "UI label journal.options.chunking; the guide must quote the checkbox verbatim."
+    },
+    {
+      "from": "Die Erfassung typisierter Eingabezeilen",
+      "to": "Eingegebene Befehlszeilen erfassen",
+      "note": "UI label connEdit.journal.captureInput."
+    },
+    {
+      "from": "max. Endzeilen pro AI-Auswertung",
+      "to": "Max. Terminalzeilen pro KI-Auswertung",
+      "note": "UI label journal.options.maxLines; MT reads 'terminal lines' as 'end lines'."
+    },
+    {
+      "from": "**Screenshot** und **Hinweis**",
+      "to": "**Screenshot** und **Notiz**",
+      "note": "UI label terminal.journal.note is 'Notiz'."
+    },
+    {
+      "from": "**Note** öffnet",
+      "to": "**Notiz** öffnet",
+      "note": "UI label terminal.journal.note."
+    },
+    {
+      "from": "Zeitschriftenseite",
+      "to": "Journalseite",
+      "note": "MT drifts 'journal' into the magazine sense."
+    },
+    {
+      "from": "pro Zeitschrift",
+      "to": "pro Journal"
+    },
+    {
+      "from": "Live-Tagebücher",
+      "to": "Live-Journale"
+    },
+    {
+      "from": "Sitzungstagebuch",
+      "to": "Sitzungsjournal",
+      "note": "Feature name: the session journal is 'Sitzungsjournal', never 'Tagebuch'."
+    },
+    {
+      "from": "Tagebucheinträgen",
+      "to": "Journal-Einträgen"
+    },
+    {
+      "from": "Tagebucheinträge",
+      "to": "Journal-Einträge"
+    },
+    {
+      "from": "Tagebucheintrag",
+      "to": "Journal-Eintrag"
+    },
+    {
+      "from": "Tagebuch",
+      "to": "Journal"
+    },
+    {
+      "from": "**Abschlag**",
+      "to": "**Markdown**",
+      "note": "MT translates the format name Markdown as the golf term."
+    },
+    {
+      "from": "**Protokollabschnitt kopieren**",
+      "to": "**Log-Ausschnitt kopieren**",
+      "note": "UI label journal.html.copy.log; the guide must quote the menu item verbatim."
+    },
+    {
+      "from": "AI-Zusammenfassungen",
+      "to": "KI-Zusammenfassungen",
+      "note": "German UI consistently says KI (connEdit.journal.aiSummaries)."
+    },
+    {
+      "from": "AI-Zusammenfassung",
+      "to": "KI-Zusammenfassung"
+    },
+    {
+      "from": "Da Zeitschriften vollständige Abschriften von Enddokumenten enthalten",
+      "to": "Da Journale vollständige Terminal-Mitschriften enthalten",
+      "note": "MT reads 'terminal transcripts' as 'final documents' and 'journals' as magazines."
+    },
+    {
+      "from": "des HTML-Pakets einer einzelnen Zeitschrift",
+      "to": "des HTML-Bundles eines einzelnen Journals"
+    },
+    {
+      "from": "### Mehrere Zeitschriften werden exportiert",
+      "to": "### Mehrere Journale exportieren",
+      "note": "Section heading: imperative, and 'Journal' not 'Zeitschrift'."
+    },
+    {
+      "from": "Zeitschriftentiteln",
+      "to": "Journaltiteln"
+    },
+    {
+      "from": "**AES-256**; Ohne sie",
+      "to": "**AES-256**; ohne sie",
+      "note": "MT capitalizes after a semicolon."
+    },
+    {
+      "from": "Zeitschriften",
+      "to": "Journale",
+      "note": "MT drifts 'journals' into the magazine sense. Keep after the longer phrases above."
+    },
+    {
+      "from": "Zeitschrift",
+      "to": "Journal"
+    },
+    {
+      "from": "### Provenienz",
+      "to": "### Herkunftsangabe"
+    },
+    {
+      "from": "Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — [Sitzungstagebücher](../../features/session-journal.md#exporting) Und [KI-Chats](../../features/ai-assistant.md) gleich. Öffnen über **Konfiguration → Globale Einstellungen → Exportieren**; gespeichert `~/.kortty/global-settings.xml`.",
+      "to": "Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exporting) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.",
+      "note": "MT garbles the export settings intro; match the phrasing of the other settings pages."
+    },
+    {
+      "from": "Globale Einstellungen → Exportieren",
+      "to": "Globale Einstellungen → Export",
+      "note": "UI label settings.tab.export is 'Export'."
+    },
+    {
+      "from": "Sitzungstagebücher",
+      "to": "Sitzungsjournale"
+    },
+    {
+      "from": "Erfassungsprotokollformat",
+      "to": "Capture-Log-Format"
+    },
+    {
+      "from": "Erfassungsprotokoll",
+      "to": "Capture-Log",
+      "note": "The journal's capture log keeps its product name; MT invents a German compound."
+    },
+    {
+      "from": "Redact…",
+      "to": "Schwärzen…",
+      "note": "UI label journal.viewer.replace; MT leaves the English button untranslated."
+    },
+    {
+      "from": "Journal-Redaktion",
+      "to": "Journal-Schwärzung"
+    },
+    {
+      "from": "Redaktion",
+      "to": "Schwärzung",
+      "note": "MT reads 'redaction' as an editorial department; here it means blacking out text."
+    },
+    {
+      "from": "redaktion",
+      "to": "Schwärzung"
+    },
+    {
+      "from": "Betrachters",
+      "to": "Viewers"
+    },
+    {
+      "from": "Betrachter",
+      "to": "Viewer"
+    },
+    {
+      "from": "redigierten",
+      "to": "geschwärzten"
+    },
+    {
+      "from": "Redigierten",
+      "to": "Geschwärzten"
+    },
+    {
+      "from": "redigierter",
+      "to": "geschwärzter"
+    },
+    {
+      "from": "Redigierter",
+      "to": "Geschwärzter"
+    },
+    {
+      "from": "redigieren",
+      "to": "schwärzen"
+    },
+    {
+      "from": "Redigieren",
+      "to": "Schwärzen"
+    },
+    {
+      "from": "redigierte",
+      "to": "geschwärzte"
+    },
+    {
+      "from": "Redigierte",
+      "to": "Geschwärzte"
+    },
+    {
+      "from": "redigiert",
+      "to": "schwärzt"
+    },
+    {
+      "from": "Redigiert",
+      "to": "Schwärzt"
+    },
+    {
+      "from": "Schreiben Sie auch das Capture-Log neu",
+      "to": "Capture-Log ebenfalls umschreiben",
+      "note": "UI label journal.viewer.replace.includeLog."
+    },
+    {
+      "from": "Anzahl Übereinstimmungen",
+      "to": "Treffer zählen",
+      "note": "UI label journal.viewer.replace.count."
+    },
+    {
+      "from": "Übereinstimmungen zählen",
+      "to": "Treffer zählen"
+    },
+    {
+      "from": "Matches zählen",
+      "to": "Treffer zählen"
+    },
+    {
+      "from": "Suchen & Ersetzen",
+      "to": "Suchen & ersetzen",
+      "note": "UI label journal.viewer.replace — lowercase verb, as in the button."
+    },
+    {
+      "from": "wie viele Eingabefelder",
+      "to": "wie viele Eintragsfelder",
+      "note": "Journal entry fields, not input fields; scoped so ordinary 'Eingabefelder' survives."
+    },
+    {
+      "from": "Rohprotokoll",
+      "to": "Capture-Log",
+      "note": "The journal's raw log keeps its product name."
+    },
+    {
+      "from": "; Beenden Sie",
+      "to": "; beenden Sie",
+      "note": "MT capitalizes after a semicolon."
+    },
+    {
+      "from": "JSON-Zeilen",
+      "to": "JSON Lines",
+      "note": "Format name, not a description."
+    },
+    {
+      "from": "AI-Auswertungsfenster",
+      "to": "KI-Auswertungsfenster"
+    },
+    {
+      "from": "Journaletitel",
+      "to": "Journaltitel"
     }
   ]
 }

@@ -47,7 +47,8 @@ public class TeamworkRecycleBinService {
         JumpServer.class,
         AuthMethod.class,
         TunnelType.class,
-        de.kortty.model.TerminalLogConfig.class
+        de.kortty.model.TerminalLogConfig.class,
+        de.kortty.model.SessionJournalConfig.class
     };
 
     private static final JAXBContext JAXB_CTX;

@@ -159,6 +159,53 @@ public class GlobalSettings {
     private boolean terminalRecordingCaptureColorsEnabled = false;
 
     @XmlElement
+    private String sessionJournalStoragePath; // Blank/null = ~/.kortty/journals
+
+    @XmlElement
+    private String sessionJournalAiProfileId; // Null = TEXT-workload/default AI profile
+
+    @XmlElement
+    private boolean sessionJournalAiSummariesEnabled = true;
+
+    @XmlElement
+    private Integer sessionJournalSummarizeIntervalMinutes = 5;
+
+    @XmlElement
+    private SessionJournalLogFormat sessionJournalLogFormat = SessionJournalLogFormat.DEFAULT;
+
+    @XmlElement
+    private Integer sessionJournalAiMaxLines = 100; // 0 = fill the model context (token budget)
+
+    @XmlElement
+    private Integer sessionJournalAiTokenBudget = 130_000; // Used only when sessionJournalAiMaxLines == 0
+
+    @XmlElement
+    private boolean sessionJournalAiChunkingEnabled = false; // Process the whole backlog in multiple prompts
+
+    @XmlElement
+    private boolean sessionJournalAiTitleEnabled = false; // Let the AI title the journal on close
+
+    @XmlElement
+    private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
+
+    // ---- PDF export branding (shared by session journal and AI chat exports) ----
+
+    @XmlElement
+    private boolean pdfWatermarkEnabled = false; // Off by default: mark documents deliberately
+
+    @XmlElement
+    private String pdfWatermarkText; // Null = the built-in korTTY watermark
+
+    @XmlElement
+    private String pdfWatermarkColor; // #rrggbb; null = default grey
+
+    @XmlElement
+    private boolean exportFooterEnabled = true;
+
+    @XmlElement
+    private String exportFooterText; // Null = the built-in brand line plus the repository link
+
+    @XmlElement
     private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
 
     @XmlElement
@@ -705,6 +752,18 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry savedChatsDialogGeometry;
 
+    /** Last window geometry of the session journal manager dialog. */
+    @XmlElement
+    private WindowGeometry sessionJournalManagerGeometry;
+
+    /** Last window geometry of the session journal viewer dialog. */
+    @XmlElement
+    private WindowGeometry sessionJournalViewerGeometry;
+
+    /** Persisted divider position of the session journal viewer's edit split pane. */
+    @XmlElement
+    private Double sessionJournalViewerEditDividerPosition;
+
     // Teamwork: shared connection sources (Git or shared file)
     @XmlElementWrapper(name = "teamworkSources")
     @XmlElement(name = "source")
@@ -1162,6 +1221,156 @@ public class GlobalSettings {
 
     public void setTerminalRecordingCaptureColorsEnabled(boolean terminalRecordingCaptureColorsEnabled) {
         this.terminalRecordingCaptureColorsEnabled = terminalRecordingCaptureColorsEnabled;
+    }
+
+    public String getSessionJournalStoragePath() {
+        return sessionJournalStoragePath;
+    }
+
+    public void setSessionJournalStoragePath(String sessionJournalStoragePath) {
+        String trimmed = sessionJournalStoragePath != null ? sessionJournalStoragePath.trim() : "";
+        this.sessionJournalStoragePath = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public String getSessionJournalAiProfileId() {
+        return sessionJournalAiProfileId;
+    }
+
+    public void setSessionJournalAiProfileId(String sessionJournalAiProfileId) {
+        String trimmed = sessionJournalAiProfileId != null ? sessionJournalAiProfileId.trim() : "";
+        this.sessionJournalAiProfileId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isSessionJournalAiSummariesEnabled() {
+        return sessionJournalAiSummariesEnabled;
+    }
+
+    public void setSessionJournalAiSummariesEnabled(boolean sessionJournalAiSummariesEnabled) {
+        this.sessionJournalAiSummariesEnabled = sessionJournalAiSummariesEnabled;
+    }
+
+    public int getSessionJournalSummarizeIntervalMinutes() {
+        if (sessionJournalSummarizeIntervalMinutes == null) {
+            return 5;
+        }
+        return Math.max(1, Math.min(sessionJournalSummarizeIntervalMinutes, 240));
+    }
+
+    public void setSessionJournalSummarizeIntervalMinutes(Integer sessionJournalSummarizeIntervalMinutes) {
+        if (sessionJournalSummarizeIntervalMinutes == null) {
+            this.sessionJournalSummarizeIntervalMinutes = 5;
+        } else {
+            this.sessionJournalSummarizeIntervalMinutes = Math.max(1, Math.min(sessionJournalSummarizeIntervalMinutes, 240));
+        }
+    }
+
+    public SessionJournalLogFormat getSessionJournalLogFormat() {
+        return sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.DEFAULT;
+    }
+
+    public void setSessionJournalLogFormat(SessionJournalLogFormat sessionJournalLogFormat) {
+        this.sessionJournalLogFormat = sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.DEFAULT;
+    }
+
+    /** Max terminal lines per AI evaluation window; 0 = fill the model context using the token budget. */
+    public int getSessionJournalAiMaxLines() {
+        if (sessionJournalAiMaxLines == null) {
+            return 100;
+        }
+        return Math.max(0, sessionJournalAiMaxLines);
+    }
+
+    public void setSessionJournalAiMaxLines(Integer sessionJournalAiMaxLines) {
+        this.sessionJournalAiMaxLines = sessionJournalAiMaxLines == null ? 100 : Math.max(0, sessionJournalAiMaxLines);
+    }
+
+    public int getSessionJournalAiTokenBudget() {
+        if (sessionJournalAiTokenBudget == null) {
+            return 130_000;
+        }
+        return Math.max(1_000, sessionJournalAiTokenBudget);
+    }
+
+    public void setSessionJournalAiTokenBudget(Integer sessionJournalAiTokenBudget) {
+        this.sessionJournalAiTokenBudget = sessionJournalAiTokenBudget == null
+            ? 130_000
+            : Math.max(1_000, sessionJournalAiTokenBudget);
+    }
+
+    public boolean isSessionJournalAiChunkingEnabled() {
+        return sessionJournalAiChunkingEnabled;
+    }
+
+    public void setSessionJournalAiChunkingEnabled(boolean sessionJournalAiChunkingEnabled) {
+        this.sessionJournalAiChunkingEnabled = sessionJournalAiChunkingEnabled;
+    }
+
+    public boolean isSessionJournalAiTitleEnabled() {
+        return sessionJournalAiTitleEnabled;
+    }
+
+    public void setSessionJournalAiTitleEnabled(boolean sessionJournalAiTitleEnabled) {
+        this.sessionJournalAiTitleEnabled = sessionJournalAiTitleEnabled;
+    }
+
+    /** Font size of the generated journal page in percent; the page's A-/A+ buttons write it back. */
+    public int getSessionJournalFontScalePercent() {
+        if (sessionJournalFontScalePercent == null) {
+            return 100;
+        }
+        return Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    public void setSessionJournalFontScalePercent(Integer sessionJournalFontScalePercent) {
+        this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
+            ? 100
+            : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    public boolean isPdfWatermarkEnabled() {
+        return pdfWatermarkEnabled;
+    }
+
+    public void setPdfWatermarkEnabled(boolean pdfWatermarkEnabled) {
+        this.pdfWatermarkEnabled = pdfWatermarkEnabled;
+    }
+
+    /** Custom watermark text; null means the built-in korTTY watermark. */
+    public String getPdfWatermarkText() {
+        return pdfWatermarkText;
+    }
+
+    public void setPdfWatermarkText(String pdfWatermarkText) {
+        String trimmed = pdfWatermarkText != null ? pdfWatermarkText.trim() : "";
+        this.pdfWatermarkText = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** Watermark colour as {@code #rrggbb}; null means the default grey. */
+    public String getPdfWatermarkColor() {
+        return pdfWatermarkColor;
+    }
+
+    public void setPdfWatermarkColor(String pdfWatermarkColor) {
+        String trimmed = pdfWatermarkColor != null ? pdfWatermarkColor.trim() : "";
+        this.pdfWatermarkColor = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isExportFooterEnabled() {
+        return exportFooterEnabled;
+    }
+
+    public void setExportFooterEnabled(boolean exportFooterEnabled) {
+        this.exportFooterEnabled = exportFooterEnabled;
+    }
+
+    /** Custom footer text; null means the built-in brand line plus the repository link. */
+    public String getExportFooterText() {
+        return exportFooterText;
+    }
+
+    public void setExportFooterText(String exportFooterText) {
+        String trimmed = exportFooterText != null ? exportFooterText.trim() : "";
+        this.exportFooterText = trimmed.isEmpty() ? null : trimmed;
     }
 
     public boolean isTerminalDragDropEnabled() {
@@ -2759,6 +2968,26 @@ public class GlobalSettings {
     /** Stores the saved chats dialog window position/size. */
     public void setSavedChatsDialogGeometry(WindowGeometry savedChatsDialogGeometry) {
         this.savedChatsDialogGeometry = savedChatsDialogGeometry;
+    }
+
+    public WindowGeometry getSessionJournalManagerGeometry() { return sessionJournalManagerGeometry; }
+
+    /** Stores the session journal manager dialog window position/size. */
+    public void setSessionJournalManagerGeometry(WindowGeometry sessionJournalManagerGeometry) {
+        this.sessionJournalManagerGeometry = sessionJournalManagerGeometry;
+    }
+
+    public WindowGeometry getSessionJournalViewerGeometry() { return sessionJournalViewerGeometry; }
+
+    /** Stores the session journal viewer dialog window position/size. */
+    public void setSessionJournalViewerGeometry(WindowGeometry sessionJournalViewerGeometry) {
+        this.sessionJournalViewerGeometry = sessionJournalViewerGeometry;
+    }
+
+    public Double getSessionJournalViewerEditDividerPosition() { return sessionJournalViewerEditDividerPosition; }
+
+    public void setSessionJournalViewerEditDividerPosition(Double sessionJournalViewerEditDividerPosition) {
+        this.sessionJournalViewerEditDividerPosition = sessionJournalViewerEditDividerPosition;
     }
 
     // ---- Teamwork ----

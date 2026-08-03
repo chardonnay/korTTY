@@ -35,7 +35,7 @@ public final class PolicyLoader {
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging");
+        "terminal", "logging", "session-journal");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
@@ -48,6 +48,12 @@ public final class PolicyLoader {
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
+    private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
+        "ai-max-lines", "storage-path", "allow-rename", "allow-delete", "name-template", "ai-title",
+        "replace");
+    private static final Set<String> SESSION_JOURNAL_REPLACE_KEYS = Set.of("pattern", "replacement",
+        "regex", "ignore-case", "label");
+    private static final Set<String> SESSION_JOURNAL_LOG_FORMATS = Set.of("xml", "json", "yaml");
     private static final Set<String> SCRIPT_HEADER_KEYS = Set.of("name", "content");
     private static final Set<String> AI_PROFILE_KEYS =
         Set.of("id", "name", "provider", "endpoint", "model", "api-key-encrypted");
@@ -167,6 +173,7 @@ public final class PolicyLoader {
             parseRuleUpdates(table, context, builder);
             parseRuleTerminal(table, context, builder);
             parseRuleLogging(table, context, builder);
+            parseRuleSessionJournal(table, context, builder);
             rules.add(builder.build());
         }
         return rules;
@@ -365,6 +372,87 @@ public final class PolicyLoader {
         if (!logging.isEmpty()) {
             builder.logging(logging);
         }
+    }
+
+    private void parseRuleSessionJournal(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "session-journal", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.session-journal]";
+        warnUnknownKeys(table, SESSION_JOURNAL_KEYS, tableContext);
+        Boolean enforced = getBoolean(table, "enforced", tableContext);
+        String logFormat = getString(table, "log-format", tableContext);
+        if (logFormat != null) {
+            logFormat = logFormat.trim().toLowerCase(java.util.Locale.ROOT);
+            if (!SESSION_JOURNAL_LOG_FORMATS.contains(logFormat)) {
+                errors.add(tableContext + ": log-format must be \"xml\", \"json\" or \"yaml\"");
+                logFormat = null;
+            }
+        }
+        Integer aiMaxLines = getNonNegativeInt(table, "ai-max-lines", tableContext);
+        String storagePath = getString(table, "storage-path", tableContext);
+        Boolean allowRename = getBoolean(table, "allow-rename", tableContext);
+        Boolean allowDelete = getBoolean(table, "allow-delete", tableContext);
+        String nameTemplate = getString(table, "name-template", tableContext);
+        Boolean aiTitle = getBoolean(table, "ai-title", tableContext);
+        List<de.kortty.model.SessionJournalReplacement> replacements =
+            parseSessionJournalReplacements(table, tableContext);
+        PolicyRule.SessionJournalRule sessionJournal = new PolicyRule.SessionJournalRule(
+            enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
+            aiTitle, replacements);
+        if (!sessionJournal.isEmpty()) {
+            builder.sessionJournal(sessionJournal);
+        }
+    }
+
+    /**
+     * The {@code [[rule.session-journal.replace]]} array: automatic search-and-replace rules.
+     *
+     * <p>A pattern that does not compile is a hard error rather than a warning. The rules exist to
+     * keep secrets out of the journal, and a rule that silently does nothing is worse than a policy
+     * file the admin has to fix — they would believe the redaction is in place.</p>
+     */
+    private List<de.kortty.model.SessionJournalReplacement> parseSessionJournalReplacements(
+            TomlTable table, String tableContext) {
+        TomlArray array = getTableArray(table, "replace", tableContext);
+        if (array == null) {
+            return List.of();
+        }
+        List<de.kortty.model.SessionJournalReplacement> replacements = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            TomlTable entry = array.getTable(i);
+            String context = tableContext + " [[replace]] #" + (i + 1);
+            warnUnknownKeys(entry, SESSION_JOURNAL_REPLACE_KEYS, context);
+            String pattern = requireString(entry, "pattern", context);
+            if (pattern == null || pattern.isEmpty()) {
+                if (pattern != null) {
+                    errors.add(context + ": pattern must not be empty");
+                }
+                continue;
+            }
+            String replacement = getString(entry, "replacement", context);
+            Boolean regex = getBoolean(entry, "regex", context);
+            Boolean ignoreCase = getBoolean(entry, "ignore-case", context);
+            String label = getString(entry, "label", context);
+            de.kortty.model.SessionJournalReplacement rule = new de.kortty.model.SessionJournalReplacement(
+                pattern,
+                replacement,
+                Boolean.TRUE.equals(regex),
+                Boolean.TRUE.equals(ignoreCase),
+                label);
+            if (Boolean.TRUE.equals(regex)) {
+                try {
+                    java.util.regex.Pattern.compile(pattern);
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    errors.add(context + ": pattern is not a valid regular expression: "
+                        + e.getDescription());
+                    continue;
+                }
+            }
+            replacements.add(rule);
+        }
+        return replacements;
     }
 
     private Integer getNonNegativeInt(TomlTable table, String key, String context) {

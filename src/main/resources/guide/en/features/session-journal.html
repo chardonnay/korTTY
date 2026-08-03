@@ -1,0 +1,3131 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Complete reference for korTTY — every feature, setting and tool of the cross-platform JavaFX SSH client, explained in detail.">
+      
+      
+        <meta name="author" content="korTTY">
+      
+      
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/session-journal.html">
+      
+      
+        <link rel="prev" href="recording.html">
+      
+      
+        <link rel="next" href="ascii-art.html">
+      
+      
+        
+          <link rel="alternate" href="../en" hreflang="en">
+        
+          <link rel="alternate" href="../de" hreflang="de">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Session journal - korTTY Guide</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script>/* iframe-worker shim (vendored, offline) */
+"use strict";(()=>{function c(s,n){parent.postMessage(s,n||"*")}function d(...s){return s.reduce((n,e)=>n.then(()=>new Promise(r=>{let t=document.createElement("script");t.src=e,t.onload=r,document.body.appendChild(t)})),Promise.resolve())}var o=class extends EventTarget{constructor(e){super();this.url=e;this.m=e=>{e.source===this.w&&(this.dispatchEvent(new MessageEvent("message",{data:e.data})),this.onmessage&&this.onmessage(e))};this.e=(e,r,t,i,m)=>{if(r===`${this.url}`){let a=new ErrorEvent("error",{message:e,filename:r,lineno:t,colno:i,error:m});this.dispatchEvent(a),this.onerror&&this.onerror(a)}};let r=document.createElement("iframe");r.hidden=!0,document.body.appendChild(this.iframe=r),this.w.document.open(),this.w.document.write(`<html><body><script>postMessage=${c};importScripts=${d};addEventListener("error",({error})=>{parent.dispatchEvent(new ErrorEvent("error",{filename:"${e}",error}))})<\/script><script src=${e}?${+Date.now()}><\/script></body></html>`),this.w.document.close(),onmessage=this.m,onerror=this.e,this.r=new Promise((t,i)=>{this.w.onload=t,this.w.onerror=i})}terminate(){this.iframe.remove(),onmessage=onerror=null}postMessage(e){this.r.catch().then(()=>{this.w.dispatchEvent(new MessageEvent("message",structuredClone({data:e})))})}get w(){return this.iframe.contentWindow}};window.IFrameWorker=o;location.protocol==="file:"&&(window.Worker=o);})();
+</script>
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/kortty.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#session-journal" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="korTTY Guide" class="md-header__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            korTTY Guide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Session journal
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      
+
+<div class="md-header__option">
+  <a class="md-header__button md-icon kt-lang-switch"
+     href="../../de/features/session-journal.html"
+     title="Deutsch" hreflang="de">
+    <span class="kt-lang-code">DE</span>
+  </a>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="korTTY Guide" class="md-nav__button md-logo" aria-label="korTTY Guide" data-md-component="logo">
+      
+  <img src="../assets/images/favicon.png" alt="logo">
+
+    </a>
+    korTTY Guide
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/building-packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building korTTY packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-launch.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First launch — master password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/main-window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main window overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/menu.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menu reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/keyboard-shortcuts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard shortcuts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/architecture.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/enterprise-policy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/hardening-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardening options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/settings/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/appearance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Appearance, themes & font
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/colors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/window.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Window
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/resources.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/language.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/translation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/video.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/ai-skills.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/snippet-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tunnels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSH Tunnels (Port Forwarding)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jump-server.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jump Server (Bastion Host)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sftp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFTP file manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-browser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File browser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="snippets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobscheduler.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JobScheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects (workspaces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="teamwork.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Teamwork (shared connections)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-assistant.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-models.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local models (llama.cpp and MLX)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG knowledge stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-tools.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal AI agent & tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ai-swarm.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security — credentials, keys & encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="backup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="recording.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal recording
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session journal
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="session-journal.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session journal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-the-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the journal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling the journal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatically-for-a-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatically for a connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#retroactively-for-a-running-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retroactively for a running session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-journal-bar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The journal bar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI summaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#password-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Password protection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-journal-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The journal page
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The journal page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#searching-the-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Searching the journal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#copying-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Copying content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#font-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Font size
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#managing-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managing journals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Managing journals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-viewer-and-editing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The viewer and editing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-and-replace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search and replace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleting-an-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deleting an entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exporting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exporting-several-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting several journals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#footer-and-watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Footer and watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enterprise policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatic-redaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic redaction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ascii-art.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ASCII art
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="terminal-effect-plugins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal effect plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="i18n.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Languages & dynamic translation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    About
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/release-notes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/feedback.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback & support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/anonymous-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anonymous data for application optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-the-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the journal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling the journal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatically-for-a-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatically for a connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#retroactively-for-a-running-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retroactively for a running session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-journal-bar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The journal bar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI summaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#password-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Password protection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-journal-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The journal page
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The journal page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#searching-the-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Searching the journal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#copying-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Copying content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#font-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Font size
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#managing-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managing journals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Managing journals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-viewer-and-editing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The viewer and editing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-and-replace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search and replace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleting-an-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deleting an entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exporting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exporting-several-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting several journals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#footer-and-watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Footer and watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enterprise policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatic-redaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic redaction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="session-journal">Session journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h1>
+<p>The session journal documents a terminal session as a readable timeline: every server output line and every command you type is written to a capture log, an AI periodically condenses the activity into short journal entries, and the result is rendered as a self-contained HTML page with connection details, color-coded excerpts, screenshots and your own notes. Journals are managed like saved chats — in their own manager window with search, editing and export.</p>
+<p><img alt="Session journal flow" src="../assets/diagrams/session-journal-flow.svg" /></p>
+<h2 id="storage-and-formats">Storage and formats<a class="headerlink" href="#storage-and-formats" title="Permanent link">&para;</a></h2>
+<p>Each journal is one self-contained directory under <code>~/.kortty/journals</code> (configurable in <strong>Settings &gt; Logging &gt; Session Journal</strong>):</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>journal.xml</code></td>
+<td>The curated journal document: metadata, AI summaries, markers, notes, screenshot references</td>
+</tr>
+<tr>
+<td><code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code></td>
+<td>The append-only capture log — timestamped server output and typed input lines with sequence ids</td>
+</tr>
+<tr>
+<td><code>session-log-2.json.gz</code>, …</td>
+<td>Rotated log parts; closed parts are gzip-compressed automatically, the journal never deletes history</td>
+</tr>
+<tr>
+<td><code>journal.html</code></td>
+<td>The generated timeline page, regenerated automatically after every change</td>
+</tr>
+<tr>
+<td><code>screenshots/*.png</code></td>
+<td>Screenshots you attached during the session</td>
+</tr>
+</tbody>
+</table>
+<p>The capture-log format is selectable in the journal manager's <strong>Options</strong> dialog: <strong>JSON</strong> (JSON Lines, the default), <strong>XML</strong> or <strong>YAML</strong>. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. JSON is the default because it is the smallest of the three once a finished part is compressed, and because log tooling reads it without needing a parser of its own; XML is a few percent smaller uncompressed, and YAML is the largest, since it writes JSON mappings with a <code>-</code> prefix. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to <code>.gz</code>.</p>
+<h2 id="enabling-the-journal">Enabling the journal<a class="headerlink" href="#enabling-the-journal" title="Permanent link">&para;</a></h2>
+<h3 id="automatically-for-a-connection">Automatically for a connection<a class="headerlink" href="#automatically-for-a-connection" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Open <strong>Connections &gt; Manage Connections</strong> and edit a connection</li>
+<li>On the <strong>Journal</strong> tab, enable <strong>Enable session journal for this connection</strong></li>
+<li>Optionally adjust <strong>Capture typed input lines</strong>, <strong>Generate AI summaries</strong> and the per-connection <strong>Summary interval</strong></li>
+</ol>
+<p>Every future connection of this server then starts its journal automatically. The journal survives reconnects — one journal per tab lifetime, with a reconnect marker in the log.</p>
+<h3 id="retroactively-for-a-running-session">Retroactively for a running session<a class="headerlink" href="#retroactively-for-a-running-session" title="Permanent link">&para;</a></h3>
+<p>Use <strong>Tools &gt; Start/Stop Session Journal</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-t">T</kbd></span>), the tab context menu (<strong>Session Journal &gt; Start journal</strong>) or the journal bar's <strong>Start journal</strong> button. The existing scrollback is imported into the journal as seed entries first, so the timeline covers what already happened, then live capture attaches.</p>
+<h3 id="the-journal-bar">The journal bar<a class="headerlink" href="#the-journal-bar" title="Permanent link">&para;</a></h3>
+<p>While a journal is available, a bar below the terminal shows its state (<strong>Journal active since HH:MM</strong>) and offers <strong>Stop journal</strong>, <strong>Screenshot</strong> and <strong>Note</strong>:</p>
+<ul>
+<li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.</li>
+<li><strong>Note</strong> opens a small input for a free-text remark that appears as its own timeline entry at the current position.</li>
+</ul>
+<h2 id="ai-summaries">AI summaries<a class="headerlink" href="#ai-summaries" title="Permanent link">&para;</a></h2>
+<p>While the journal runs, the AI summarizer periodically reads the newest capture-log lines and appends a compact journal entry (title, summary and a suggested marker: info, important or error). Defaults and limits:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Where</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summary interval</td>
+<td><strong>Settings &gt; Logging &gt; Session Journal</strong> (global) or per connection</td>
+<td>5 minutes</td>
+</tr>
+<tr>
+<td>Max. terminal lines per AI evaluation</td>
+<td>Journal manager <strong>Options</strong></td>
+<td>100</td>
+</tr>
+<tr>
+<td>Token budget for context fill</td>
+<td>Journal manager <strong>Options</strong>, visible when max lines is 0</td>
+<td>130000</td>
+</tr>
+<tr>
+<td>Split backlog into multiple prompts (chunking)</td>
+<td>Journal manager <strong>Options</strong></td>
+<td>off</td>
+</tr>
+<tr>
+<td>AI profile for summaries</td>
+<td>Journal manager <strong>Options</strong> or <strong>Settings &gt; Logging &gt; Session Journal</strong></td>
+<td>Default profile</td>
+</tr>
+</tbody>
+</table>
+<p>Summaries use your <strong>default AI profile</strong> unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's <strong>Options</strong> dialog, <strong>Settings &gt; Logging &gt; Session Journal</strong>, and <strong>AI &gt; AI Manager &gt; Local AI</strong> next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.</p>
+<p>Setting <strong>max lines to 0</strong> switches to context filling: the summarizer packs as many of the newest lines as fit into the configured token budget. With <strong>chunking</strong> enabled the whole backlog is processed instead of only the newest window — consecutive windows of the configured size, one AI prompt each.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Chunking can take very long on large sessions and is not recommended for everyday use — it is intended for power users with capable hardware and a powerful LLM.</p>
+</div>
+<p>When the session ends, the summarizer writes a closing <strong>session summary</strong> entry (what was accomplished, which errors occurred). Optionally — <strong>Let the AI title the journal when the session ends</strong> in the Options dialog — a final AI call names the journal, unless you renamed it manually.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The journal works without AI: if no AI profile is available, AI features are disabled, or summaries are switched off, the timeline records raw activity entries instead. AI summary prompts never use internet-access tools; the terminal excerpt goes only to the configured AI profile.</p>
+</div>
+<h2 id="password-protection">Password protection<a class="headerlink" href="#password-protection" title="Permanent link">&para;</a></h2>
+<p>Typed input is captured only as complete submitted lines, and several layers keep passwords out of the journal:</p>
+<ul>
+<li>When the server output ends in a password prompt (<code>password:</code>, <code>[sudo] password for …</code>, <code>passphrase</code>, <code>PIN</code>, and localized variants), the next submitted input line is suppressed and logged as a redacted placeholder — the typed text is never buffered or written.</li>
+<li>The connection's own stored password is additionally replaced by <code>***</code> wherever it would appear in captured text.</li>
+<li><strong>Capture typed input lines</strong> can be disabled per connection entirely; commands then only appear as the server's echo in the output stream.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The prompt detection is a heuristic — a remote terminal cannot reliably know when the server disabled echo. Exotic or full-screen password prompts may not be recognized, and secrets pasted into visible commands (other than the connection's own credentials) are captured like any other text. Treat journals of sensitive sessions accordingly.</p>
+</div>
+<p>If something slipped through anyway, the viewer's <a href="#search-and-replace">search and replace</a> removes it from the entries and the capture log after the fact. Administrators can also have korTTY redact patterns automatically — see <a href="#enterprise-policy">Enterprise policy</a> below.</p>
+<h2 id="the-journal-page">The journal page<a class="headerlink" href="#the-journal-page" title="Permanent link">&para;</a></h2>
+<p><code>journal.html</code> is fully self-contained (no external resources) and works in the built-in viewer, in any browser, and inside the exported bundle:</p>
+<ul>
+<li>A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a <strong>live</strong> badge. The line below the title only carries what the title does not already say, so a journal named after its endpoint states the connection once instead of three times.</li>
+<li>The timeline groups entries by day; each entry carries its time, a colored marker dot/badge (red = error, amber = important, blue = info), the AI title and summary, and color-coded input (green) and output (blue) excerpts.</li>
+<li>Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (<span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> also cycle matches, <span class="keys"><kbd class="key-escape">Esc</kbd></span> closes), and colors input and output lines differently.</li>
+<li>Screenshot entries show thumbnails; clicking one opens a full-size lightbox.</li>
+<li>The page renders dark by default, follows the system light/dark preference and has its own theme toggle.</li>
+<li>Screenshots, excerpt panels, the timeline column and the log panel size themselves to the window, so the page stays readable in a narrow viewer tab as well as full screen. Long excerpts scroll inside their own box instead of stretching the timeline.</li>
+</ul>
+<h3 id="searching-the-journal">Searching the journal<a class="headerlink" href="#searching-the-journal" title="Permanent link">&para;</a></h3>
+<p>The magnifier in the header opens a search bar directly under the connection details (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> jump between the hits, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or ✕ closes the bar and clears the highlighting.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across <em>all</em> journals with <strong>Search contents</strong>.</p>
+</div>
+<h3 id="copying-content">Copying content<a class="headerlink" href="#copying-content" title="Permanent link">&para;</a></h3>
+<p>Every entry carries a copy button in its top-right corner: text entries copy the whole entry, screenshot entries copy the image. The log panel has the same button for the log section it currently shows.</p>
+<p>Right-clicking the page opens a copy menu with more targeted actions, depending on what you clicked:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Copies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Copy selection</strong></td>
+<td>The currently selected text (shown whenever a selection exists)</td>
+</tr>
+<tr>
+<td><strong>Copy summary</strong></td>
+<td>The entry's time, title and AI summary</td>
+</tr>
+<tr>
+<td><strong>Copy entry</strong></td>
+<td>The same plus the input/output excerpts and your note</td>
+</tr>
+<tr>
+<td><strong>Copy screenshot</strong></td>
+<td>The screenshot itself, as an image, onto the clipboard</td>
+</tr>
+<tr>
+<td><strong>Copy screenshot path</strong></td>
+<td>The screenshot's path inside the journal folder</td>
+</tr>
+<tr>
+<td><strong>Copy log section</strong></td>
+<td>Every line of the log range currently shown in the panel, with timestamps</td>
+</tr>
+</tbody>
+</table>
+<p>Inside korTTY the copy actions use the app's clipboard, so images land on the system clipboard ready to paste. In an external browser text still copies normally; copying an image may fall back to its path, because browsers block reading local image data from a <code>file://</code> page.</p>
+<h3 id="font-size">Font size<a class="headerlink" href="#font-size" title="Permanent link">&para;</a></h3>
+<p>The <strong>A−</strong>, <strong>A</strong> and <strong>A+</strong> buttons in the page header scale the whole page between 70 % and 250 %. korTTY remembers the size and applies it to every journal page it renders afterwards, so a page that regenerates (a new AI summary, an edited marker) comes back at the size you chose. Opened standalone in a browser the page remembers the size per browser instead.</p>
+<h2 id="managing-journals">Managing journals<a class="headerlink" href="#managing-journals" title="Permanent link">&para;</a></h2>
+<p><strong>Tools &gt; Session Journals…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
+<p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
+<ul>
+<li>The filter field matches title, connection, host, user and description; enabling <strong>Search contents</strong> additionally scans the journal entries and capture logs of every journal in the background.</li>
+<li><strong>Open</strong> (or double-click) opens the journal viewer; <strong>Rename</strong> changes the title; <strong>Delete</strong> asks for confirmation and then permanently removes the journal folder including the log and all screenshots.</li>
+<li>Several journals can be selected at once (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span> click) to delete or export them in one step. Running journals cannot be renamed or deleted.</li>
+<li>The <strong>Description</strong> area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.</li>
+<li><strong>Options</strong> holds the global capture and AI settings described above.</li>
+</ul>
+<h3 id="the-viewer-and-editing">The viewer and editing<a class="headerlink" href="#the-viewer-and-editing" title="Permanent link">&para;</a></h3>
+<p><img alt="Session journal viewer" src="../assets/screenshots/journal/journal-viewer.png" /></p>
+<p>The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. <strong>Open in browser</strong> hands the page to your system browser. <strong>Edit</strong> splits the view: an entry table next to a form with the entry's <strong>Title</strong>, <strong>Summary</strong>, a marker choice (<strong>None / Info / Important / Error</strong>) and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.</p>
+<h3 id="search-and-replace">Search and replace<a class="headerlink" href="#search-and-replace" title="Permanent link">&para;</a></h3>
+<p>Searching finds a term. <strong>Search &amp; replace</strong> rewrites every occurrence. Use it to erase something that must not stay in the journal — a password pasted into a visible command, a token in a server response — or simply to correct a recurring word.</p>
+<p>It is reachable from two places: the <strong>Search &amp; replace…</strong> button in edit mode, and the <strong>Replace…</strong> button in <a href="#searching-the-journal">the search bar on the journal page</a>, which opens the same dialog with the term you were searching for already filled in. That button only appears inside korTTY — the page is generated <em>from</em> the journal files, so a copy opened in a browser can search but has no way to rewrite anything.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Search for</strong> / <strong>Replace with</strong></td>
+<td>The text to find and what to put in its place (<code>***</code> by default)</td>
+</tr>
+<tr>
+<td><strong>Regular expression</strong></td>
+<td>Treats the search text as a regex; <code>$1</code> in the replacement inserts a captured group</td>
+</tr>
+<tr>
+<td><strong>Ignore case</strong></td>
+<td>Matches every casing</td>
+</tr>
+<tr>
+<td><strong>Rewrite the capture log as well</strong></td>
+<td>On by default. Off changes only the journal entries and leaves the raw log untouched</td>
+</tr>
+<tr>
+<td><strong>Count matches</strong></td>
+<td>A dry run over the real journal: reports how many entry fields and log lines <em>would</em> change, without writing anything</td>
+</tr>
+</tbody>
+</table>
+<p>Replacing covers every entry title, AI summary, note and excerpt, and — unless you turned it off — every capture-log part including the compressed ones. The file header and every untouched line are preserved exactly, so the log keeps its structure.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Replacing rewrites the journal files in place and cannot be undone. Use <strong>Count matches</strong> first, especially with a regular expression. Documents you already exported are separate files and are not changed — export them again afterwards. A journal that is still being written cannot be rewritten; stop the session first.</p>
+</div>
+<p>The search text is never written to korTTY's own log, because for a redaction it <em>is</em> the secret.</p>
+<h3 id="deleting-an-entry">Deleting an entry<a class="headerlink" href="#deleting-an-entry" title="Permanent link">&para;</a></h3>
+<p><strong>Delete entry</strong> removes the selected timeline entry after a confirmation, and a screenshot entry's image file with it. It does not touch the capture log — to remove a text from there as well, use Search &amp; replace.</p>
+<h2 id="exporting">Exporting<a class="headerlink" href="#exporting" title="Permanent link">&para;</a></h2>
+<p>The <strong>Export</strong> menu in the manager and the viewer offers three formats:</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PDF</strong></td>
+<td>The simple journal: header with connection details and statistics, day-grouped entries with marker badges, input/output excerpts, notes — and, if selected, downscaled embedded screenshots</td>
+</tr>
+<tr>
+<td><strong>Markdown</strong></td>
+<td>The same simple journal as a <code>.md</code> file; screenshots are copied into a sibling <code>&lt;name&gt;-files/</code> folder</td>
+</tr>
+<tr>
+<td><strong>HTML bundle (complete)</strong></td>
+<td>A zip archive of the whole journal — <code>journal.html</code>, <code>journal.xml</code>, the decompressed capture logs and all screenshots — laid out so the page works immediately after unzipping</td>
+</tr>
+</tbody>
+</table>
+<p>PDF and Markdown ask whether screenshots should be included.</p>
+<h3 id="exporting-several-journals">Exporting several journals<a class="headerlink" href="#exporting-several-journals" title="Permanent link">&para;</a></h3>
+<p>With more than one journal selected, the export writes a single zip archive that keeps each journal separate: one PDF or Markdown document per journal, or one folder per journal for the HTML bundle. Names are taken from the journal titles, with a numeric suffix if two titles collide.</p>
+<p>Every archive — including the HTML bundle of a single journal — can be <strong>protected with a password</strong>. The option sits in the export dialog and encrypts the archive with <strong>AES-256</strong>; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it.</p>
+</div>
+<h3 id="footer-and-watermark">Footer and watermark<a class="headerlink" href="#footer-and-watermark" title="Permanent link">&para;</a></h3>
+<p>By default every exported document carries a footer stating that it was created with korTTY, with a link to the project repository — at the bottom of each PDF page, at the end of the Markdown file, and in the footer of the journal page inside the HTML bundle. PDFs can additionally carry a diagonal watermark, which is <strong>off by default</strong>.</p>
+<p>Both are configured under <a href="../reference/settings/export.html"><strong>Configuration → Global Settings → Export</strong></a>, where you can change the footer text, turn the footer off, enable the watermark and choose its text and colour. The same settings apply to AI chat exports.</p>
+<h2 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h2>
+<p>Administrators can deny the feature (<code>session-journal</code> under <code>[rule.features]</code>), or mandate its behavior via <code>[rule.session-journal]</code>: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template and enforce the closing AI title. See <a href="../reference/enterprise-policy.html">Enterprise policy</a> for the keys.</p>
+<h3 id="automatic-redaction">Automatic redaction<a class="headerlink" href="#automatic-redaction" title="Permanent link">&para;</a></h3>
+<p>A <code>[[rule.session-journal.replace]]</code> list makes korTTY apply search-and-replace automatically, with regular expressions if the administrator wants them — for cloud access keys, internal hostnames, ticket numbers, anything that must never end up in a transcript:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AKIA[0-9A-Z]{16}&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;***AWS-ACCESS-KEY***&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS access keys&quot;</span>
+</span></code></pre></div>
+<p>These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries and notes as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search &amp; replace for those. See <a href="../reference/enterprise-policy.html#rulesession-journalreplace">Enterprise policy</a> for every key.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+
+
+<div class="md-copyright">
+  <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
+  <div class="md-copyright__highlight">
+    korTTY <strong>v2.8.0</strong>
+  </div>
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" title="korTTY on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

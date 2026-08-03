@@ -27,6 +27,7 @@ final class AiLocalPreferencesPane extends VBox {
     private final KorTTYApplication app;
     private final ComboBox<ProfileChoice> textProfile = new ComboBox<>();
     private final ComboBox<ProfileChoice> codingProfile = new ComboBox<>();
+    private final ComboBox<ProfileChoice> journalProfile = new ComboBox<>();
     private final TextField embeddingModelId = new TextField();
     private final ComboBox<LlamaRuntimeUpdatePolicy> updatePolicy = new ComboBox<>();
     private final ComboBox<LlamaBackend> runtimeBackend = new ComboBox<>();
@@ -44,6 +45,7 @@ final class AiLocalPreferencesPane extends VBox {
 
         configureProfileCombo(textProfile);
         configureProfileCombo(codingProfile);
+        configureProfileCombo(journalProfile);
         updatePolicy.getItems().setAll(LlamaRuntimeUpdatePolicy.values());
         updatePolicy.setConverter(new StringConverter<>() {
             @Override
@@ -82,6 +84,13 @@ final class AiLocalPreferencesPane extends VBox {
         grid.add(textProfile, 1, row++);
         grid.add(new Label(I18n.get("ai.local.preferences.codingProfile")), 0, row);
         grid.add(codingProfile, 1, row++);
+        grid.add(new Label(I18n.get("ai.local.preferences.journalProfile")), 0, row);
+        grid.add(journalProfile, 1, row++);
+        Label journalHint = new Label(I18n.get("ai.local.preferences.journalProfile.hint"));
+        journalHint.setWrapText(true);
+        journalHint.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        journalHint.setMaxWidth(320);
+        grid.add(journalHint, 1, row++);
         grid.add(new Label(I18n.get("ai.local.preferences.embeddingModel")), 0, row);
         grid.add(embeddingModelId, 1, row++);
         grid.add(new Label(I18n.get("ai.local.preferences.runtimeUpdates")), 0, row);
@@ -117,8 +126,10 @@ final class AiLocalPreferencesPane extends VBox {
         }
         textProfile.getItems().setAll(choices);
         codingProfile.getItems().setAll(choices);
+        journalProfile.getItems().setAll(choices);
         select(textProfile, settings != null ? settings.getTextAiProfileId() : null);
         select(codingProfile, settings != null ? settings.getCodingAiProfileId() : null);
+        select(journalProfile, settings != null ? settings.getSessionJournalAiProfileId() : null);
         embeddingModelId.setText(settings != null && settings.getRagEmbeddingModelId() != null
             ? settings.getRagEmbeddingModelId() : "");
         updatePolicy.setValue(settings != null
@@ -141,6 +152,7 @@ final class AiLocalPreferencesPane extends VBox {
         }
         settings.setTextAiProfileId(selectedId(textProfile));
         settings.setCodingAiProfileId(selectedId(codingProfile));
+        settings.setSessionJournalAiProfileId(selectedId(journalProfile));
         settings.setRagEmbeddingModelId(trimToNull(embeddingModelId.getText()));
         settings.setLlamaRuntimeUpdatePolicy(updatePolicy.getValue());
         settings.setPreferredLlamaRuntimeBackend(runtimeBackend.getValue());

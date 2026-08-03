@@ -83,7 +83,8 @@ class AiChatExportServiceTest {
                 assertThat(root.getTitle()).isEqualTo("Server Analyse Export");
                 assertThat(countChildren(root) >= messages.size()).isTrue();
                 assertThat(extractedText.contains("Created with KorTTY by Daniel Mengel")).isTrue();
-                assertThat(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel")).isTrue();
+                // The footer now uses the shared, user-configurable export brand line (default text here).
+                assertThat(extractedText.contains(de.kortty.core.ExportBranding.defaultFooterText())).isTrue();
                 assertThat(extractedText.contains("Übertragung")).isTrue();
                 assertThat(extractedText.contains("Änderungen übernommen")).isTrue();
                 assertThat(extractedText.contains("curl -I https://example.test")).isTrue();
@@ -128,7 +129,8 @@ class AiChatExportServiceTest {
                 assertThat(info.getProducer()).isNotEqualTo("Hidden Producer");
                 assertThat(info.getSubject()).isNotEqualTo("Hidden Subject");
                 assertThat(extractedText.contains("Created with KorTTY by Daniel Mengel")).isTrue();
-                assertThat(extractedText.contains("AI-Chat export from korTTY by Daniel Mengel")).isTrue();
+                // The footer now uses the shared, user-configurable export brand line (default text here).
+                assertThat(extractedText.contains(de.kortty.core.ExportBranding.defaultFooterText())).isTrue();
                 assertThat(extractedText.contains("Should Not Appear")).isFalse();
             }
         } finally {

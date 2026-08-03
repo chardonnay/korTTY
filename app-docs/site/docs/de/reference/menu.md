@@ -17,7 +17,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 | Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
 
-Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#connections).
+Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#verbindungen).
 
 ## Bearbeiten
 
@@ -65,6 +65,9 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
+| Sitzungsjournale… | Verwalten [Sitzungsjournale](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
+| Sitzungsjournal starten/stoppen | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
+| Journal-Screenshot hinzufügen | Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |
 
 ## AI
@@ -124,7 +127,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 
 Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster geschlossen wurde. korTTY fügt daher zwei zusätzliche Einstiegspunkte hinzu, damit es erreichbar – und beendet – bleibt, auch wenn kein Fenster geöffnet ist:
 
-- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen auszuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
 - **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.

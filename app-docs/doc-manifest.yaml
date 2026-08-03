@@ -87,11 +87,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "77778e8"
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "77778e8"
+    last_synced_ref: "7deb904"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -140,7 +140,16 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/logging.png
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "7deb904"
+  - path: app-docs/site/docs/en/reference/settings/export.md
+    owns_i18n: [settings.export., settings.tab.export]
+    screenshots:
+      - settings/export.png
+    owns_code:
+      - src/main/java/de/kortty/core/ExportBranding.java
+      - src/main/java/de/kortty/core/PdfWatermarkSupport.java
+      - src/main/java/de/kortty/core/AiChatExportService.java
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
@@ -212,7 +221,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "77778e8"
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
@@ -310,6 +319,39 @@ pages:
       - src/main/java/de/kortty/ui/TerminalRecordingReplayDialog.java
       - src/main/java/de/kortty/ui/TerminalTab.java
     last_synced_ref: "03ab38c"
+  - path: app-docs/site/docs/en/features/session-journal.md
+    owns_i18n: ["journal.", "settings.journal.", "terminal.journal.", "connEdit.journal.", connEdit.tab.journal, tab.contextMenu.journal, terminal.contextMenu.journalScreenshot, terminal.contextMenu.journalNote, menu.tools.sessionJournals, menu.tools.toggleSessionJournal, menu.tools.journalScreenshot]
+    owns_code:
+      - src/main/java/de/kortty/core/PasswordPromptDetector.java
+      - src/main/java/de/kortty/core/SessionJournalAiSupport.java
+      - src/main/java/de/kortty/core/SessionJournalAnsiProcessor.java
+      - src/main/java/de/kortty/core/SessionJournalExportService.java
+      - src/main/java/de/kortty/core/SessionJournalHtmlRenderer.java
+      - src/main/java/de/kortty/core/SessionJournalLogCompressor.java
+      - src/main/java/de/kortty/core/SessionJournalLogEntry.java
+      - src/main/java/de/kortty/core/SessionJournalLogReader.java
+      - src/main/java/de/kortty/core/SessionJournalLogSerializer.java
+      - src/main/java/de/kortty/core/SessionJournalLogTail.java
+      - src/main/java/de/kortty/core/SessionJournalPrompts.java
+      - src/main/java/de/kortty/core/SessionJournalRedactor.java
+      - src/main/java/de/kortty/core/SessionJournalService.java
+      - src/main/java/de/kortty/core/SessionJournalSession.java
+      - src/main/java/de/kortty/core/SessionJournalSummarizer.java
+      - src/main/java/de/kortty/model/SessionJournalConfig.java
+      - src/main/java/de/kortty/model/SessionJournalDocument.java
+      - src/main/java/de/kortty/model/SessionJournalEntry.java
+      - src/main/java/de/kortty/model/SessionJournalEntryKind.java
+      - src/main/java/de/kortty/model/SessionJournalLogFormat.java
+      - src/main/java/de/kortty/model/SessionJournalMarker.java
+      - src/main/java/de/kortty/model/SessionJournalMeta.java
+      - src/main/java/de/kortty/ui/SessionJournalManagerDialog.java
+      - src/main/java/de/kortty/ui/SessionJournalViewerDialog.java
+      - src/main/java/de/kortty/ui/TerminalTab.java
+    diagrams: [session-journal-flow.svg]
+    screenshots:
+      - journal/journal-manager.png
+      - journal/journal-viewer.png
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
@@ -343,7 +385,7 @@ pages:
     owns_code: [src/main/java/de/kortty/policy, package/policy]
     diagrams: []
     screenshots: []
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java]

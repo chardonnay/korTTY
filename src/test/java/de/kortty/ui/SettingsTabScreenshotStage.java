@@ -36,10 +36,28 @@ public final class SettingsTabScreenshotStage {
 
     private static final double X = 80;
     private static final double Y = 80;
-    /** Pane size chosen so the decorated window's aspect matches the guide's 1397x1400 target. */
-    private static final double PANE_WIDTH = 1000;
-    private static final double PANE_HEIGHT = 974;
+    /**
+     * Pane size chosen so the decorated window's aspect matches the guide's 1397x1400 target.
+     *
+     * <p>The defaults assume a HiDPI screen: the window is captured at 2x and downscaled to the
+     * catalog size. On a 1x display that downscale becomes an upscale and the text turns to mush,
+     * so the capture has to be taken at the target size directly — pass
+     * {@code -Dkortty.screenshotPaneWidth=1397 -Dkortty.screenshotPaneHeight=1372} (the window
+     * adds the 28pt title bar) and skip the sips step.</p>
+     */
+    private static final double PANE_WIDTH = sizeProperty("kortty.screenshotPaneWidth", 1000);
+    private static final double PANE_HEIGHT = sizeProperty("kortty.screenshotPaneHeight", 974);
     private static final String DEFAULT_TAB_KEY = "settings.tab.window";
+
+    /** Double has no system-property accessor (only Integer/Long/Boolean do). */
+    private static double sizeProperty(String key, double fallback) {
+        try {
+            String value = System.getProperty(key);
+            return value != null && !value.isBlank() ? Double.parseDouble(value.trim()) : fallback;
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
 
     private SettingsTabScreenshotStage() {
     }
@@ -47,7 +65,12 @@ public final class SettingsTabScreenshotStage {
     public static void main(String[] args) throws Exception {
         Path doneFlag = args.length > 0 && !args[0].isBlank() ? Path.of(args[0]) : null;
         String tabKey = System.getProperty("kortty.screenshotTabKey", DEFAULT_TAB_KEY);
-        Path isolatedHome = Files.createTempDirectory("kortty-settings-tab-screenshot");
+        // Settings that display a path (the log directory) put the home in the picture, so allow a
+        // short readable one — a createTempDirectory name is 60 characters of machine noise.
+        String homeOverride = System.getProperty("kortty.screenshotHome");
+        Path isolatedHome = homeOverride != null && !homeOverride.isBlank()
+            ? Files.createDirectories(Path.of(homeOverride))
+            : Files.createTempDirectory("kortty-settings-tab-screenshot");
         System.setProperty("user.home", isolatedHome.toString());
         Locale.setDefault(Locale.ENGLISH);
 

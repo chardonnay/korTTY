@@ -57,7 +57,6 @@ public class AiChatExportService {
     private static final String SANS_FONT_RESOURCE = "/fonts/noto/NotoSans-Regular.ttf";
     private static final String SANS_BOLD_FONT_RESOURCE = "/fonts/noto/NotoSans-Bold.ttf";
     private static final String MONO_FONT_RESOURCE = "/fonts/noto/NotoSansMono-Regular.ttf";
-    private static final String WATERMARK_TEXT = "AI-Chat export from korTTY by Daniel Mengel";
     private static final float PAGE_MARGIN = 48f;
     private static final float CONTENT_BOTTOM_Y = 62f;
     private static final float CONTENT_TOP_Y = PDRectangle.A4.getHeight() - 72f;
@@ -89,6 +88,32 @@ public class AiChatExportService {
             case PDF -> exportPdf(targetFile, messages, exportContext, pdfOptions);
             case MARKDOWN -> Files.writeString(targetFile, buildMarkdownExport(messages), StandardCharsets.UTF_8);
             case TEXT -> Files.writeString(targetFile, buildPlainTextExport(messages), StandardCharsets.UTF_8);
+        }
+    }
+
+    /** Explicit branding overrides the persisted settings; null resolves them per export. */
+    private final ExportBranding brandingOverride;
+
+    public AiChatExportService() {
+        this(null);
+    }
+
+    public AiChatExportService(ExportBranding branding) {
+        this.brandingOverride = branding;
+    }
+
+    private ExportBranding branding() {
+        return brandingOverride != null ? brandingOverride : resolveBranding();
+    }
+
+    /** The user's PDF watermark/footer choices; defaults when settings are unavailable. */
+    private static ExportBranding resolveBranding() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            return ExportBranding.fromSettings(app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings() : null);
+        } catch (Exception e) {
+            return ExportBranding.defaults();
         }
     }
 
@@ -165,7 +190,8 @@ public class AiChatExportService {
             }
 
             PdfTheme theme = PdfTheme.forLayout(effectiveOptions.layoutMode());
-            RenderState state = new RenderState(document, fonts, theme, effectiveContext, effectiveOptions);
+            RenderState state = new RenderState(document, fonts, theme, effectiveContext, effectiveOptions,
+                branding());
             LayoutCursor cursor = openFirstPage(state);
             cursor = renderOpeningSection(state, cursor);
 
@@ -607,8 +633,14 @@ public class AiChatExportService {
                 }
                 drawFooter(state, page, stream, pageIndex + 1, totalPages);
             }
-            if (pageIndex == 0 && state.options.layoutMode() == AiPdfExportOptions.LayoutMode.REPORT) {
-                applyFirstPageWatermark(state, page);
+            ExportBranding branding = state.branding;
+            if (branding.watermarkEnabled()) {
+                PdfWatermarkSupport.draw(state.document, page, state.fonts.sansBold(),
+                    state.fonts.sans(), branding);
+            }
+            if (branding.footerEnabled() && branding.footerUsesDefaultText()) {
+                PdfWatermarkSupport.addFooterRepositoryLink(page, state.fonts.sans(), 8.6f,
+                    PAGE_MARGIN, branding.footerText() + "  ·  ");
             }
         }
     }
@@ -640,14 +672,16 @@ public class AiChatExportService {
     private void drawFooter(RenderState state, PDPage page, PDPageContentStream stream, int pageNumber, int totalPages) throws IOException {
         float pageWidth = page.getMediaBox().getWidth();
         drawLine(stream, PAGE_MARGIN, 42f, pageWidth - PAGE_MARGIN, 42f, state.theme.ruleColor, 0.7f);
-        drawText(
-            stream,
-            state.fonts.sans(),
-            8.6f,
-            state.theme.mutedText,
-            PAGE_MARGIN,
-            28f,
-            WATERMARK_TEXT);
+        if (state.branding.footerEnabled()) {
+            drawText(
+                stream,
+                state.fonts.sans(),
+                8.6f,
+                state.theme.mutedText,
+                PAGE_MARGIN,
+                28f,
+                state.branding.footerLine());
+        }
         String pageLabel = I18n.get("ai.result.export.pdf.pageNumber", pageNumber, totalPages);
         float pageLabelWidth = textWidth(state.fonts.sans(), 8.6f, pageLabel);
         drawText(
@@ -658,33 +692,6 @@ public class AiChatExportService {
             pageWidth - PAGE_MARGIN - pageLabelWidth,
             28f,
             pageLabel);
-    }
-
-    private void applyFirstPageWatermark(RenderState state, PDPage page) throws IOException {
-        try (PDPageContentStream stream = new PDPageContentStream(state.document, page, AppendMode.APPEND, true, true)) {
-            PDExtendedGraphicsState graphicsState = new PDExtendedGraphicsState();
-            graphicsState.setNonStrokingAlphaConstant(0.12f);
-            stream.saveGraphicsState();
-            stream.setGraphicsStateParameters(graphicsState);
-            float centerX = page.getMediaBox().getWidth() / 2f;
-            float centerY = page.getMediaBox().getHeight() / 2f;
-            float fontSize = 30f;
-            float watermarkWidth = textWidth(state.fonts.sansBold(), fontSize, WATERMARK_TEXT);
-            while (fontSize > 16f && watermarkWidth > page.getMediaBox().getWidth() - 120f) {
-                fontSize -= 1f;
-                watermarkWidth = textWidth(state.fonts.sansBold(), fontSize, WATERMARK_TEXT);
-            }
-            stream.transform(Matrix.getRotateInstance(Math.toRadians(38), centerX, centerY));
-            drawText(
-                stream,
-                state.fonts.sansBold(),
-                fontSize,
-                state.theme.watermarkColor,
-                centerX - (watermarkWidth / 2f),
-                centerY,
-                WATERMARK_TEXT);
-            stream.restoreGraphicsState();
-        }
     }
 
     private void applyBookmarks(PDDocument document, String title, List<BookmarkTarget> targets) {
@@ -994,6 +1001,8 @@ public class AiChatExportService {
         private final PdfTheme theme;
         private final AiChatExportContext context;
         private final AiPdfExportOptions options;
+        /** Watermark/footer choices shared with the session journal export. */
+        private final ExportBranding branding;
         private final List<BookmarkTarget> bookmarks = new ArrayList<>();
 
         private RenderState(
@@ -1001,12 +1010,14 @@ public class AiChatExportService {
             PdfFonts fonts,
             PdfTheme theme,
             AiChatExportContext context,
-            AiPdfExportOptions options) {
+            AiPdfExportOptions options,
+            ExportBranding branding) {
             this.document = document;
             this.fonts = fonts;
             this.theme = theme;
             this.context = context;
             this.options = options;
+            this.branding = branding;
         }
     }
 

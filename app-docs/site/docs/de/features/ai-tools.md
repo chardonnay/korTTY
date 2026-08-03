@@ -4,7 +4,7 @@ title: Terminal-KI-Agent und -Tools
 
 # Terminal-KI-Agent und -Tools
 
-Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Exec-Channel und lokale Prozess-Backends) entkoppelt wurde, auch in [local-Shells](connections.md#local-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
+Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Ausführungskanal und lokale Prozess-Backends) entkoppelt wurde, auch in [local-Shells](connections.md#lokale-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
 
 !!! note "SSH vs. lokale Shells"
     In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
@@ -200,7 +200,7 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
-Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#generate-multi-server-workflow) über ein eigenes Dialogfeld **Multiserver-Workflow generieren**, das zusätzlich Hostlisten und Multiserver-Härtungsoptionen verwaltet, das generierte Skript mit Syntaxhervorhebung und einem Live-Zähler für verstrichene Inhalte anzeigt, einen Verlauf zusätzlicher Anweisungen führt und es in Snippets mit einem vorab ausgefüllten Namen speichert.
+Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#generieren-sie-einen-multi-server-workflow) über ein eigenes Dialogfeld **Multiserver-Workflow generieren**, das zusätzlich Hostlisten und Multiserver-Härtungsoptionen verwaltet, das generierte Skript mit Syntaxhervorhebung und einem Live-Zähler für verstrichene Inhalte anzeigt, einen Verlauf zusätzlicher Anweisungen führt und es in Snippets mit einem vorab ausgefüllten Namen speichert.
 
 ### Funktionen zur Skriptgenerierung
 

@@ -10,6 +10,11 @@ text / table cells / admonition titles / the front-matter title value) is
 translated. Asset files (CSS, images, the logo video) are copied verbatim;
 diagrams/screenshots are staged per-language by scripts/build-docs-site.py.
 
+Translating a heading changes the anchor MkDocs derives from it, so a final pass
+repoints every `](page.md#anchor)` link at the translated heading (see "Anchor
+synchronisation" below); `validation.links.anchors: warn` in mkdocs.yml fails the
+build if one is ever missed.
+
 Incremental on two levels: a source-hash cache (app-docs/site/.docs-translate-cache)
 skips unchanged pages entirely, and within a changed page a per-line translation
 memory reuses the existing German lines. The memory needs no extra state: the old
@@ -25,7 +30,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
+import posixpath
 import re
 import shutil
 import subprocess
@@ -38,6 +45,12 @@ try:
     from deep_translator.exceptions import BaseError, RequestError, TooManyRequests
 except ImportError:
     sys.exit("Install: pip install deep-translator")
+
+try:
+    import markdown
+    import yaml
+except ImportError:
+    sys.exit("Install: pip install markdown pyyaml")
 
 REPO = Path(__file__).resolve().parent.parent
 SITE = REPO / "app-docs" / "site"
@@ -354,7 +367,14 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
     """Line-aligns a previous English source with its generated German page into a
     translation memory (masked EN -> masked DE). translate_md preserves line counts,
     so index i of the German page is the translation of index i of the English page
-    it was generated from; any mismatch disables reuse for safety."""
+    it was generated from; any mismatch disables reuse for safety.
+
+    A line carrying an anchored link is the one case that never reuses: sync_anchors
+    rewrote the German `](page.md#anchor)` to the translated slug, so the English
+    fragment is no longer found and remask returns None. That costs one translation
+    call per such line on a changed page (~30 in the whole corpus) and is harmless —
+    the fresh translation re-emits the English anchor and sync_anchors repoints it
+    again at the end of the run."""
     if old_en_md is None or de_md is None:
         return {}
     en_lines = old_en_md.split("\n")
@@ -376,6 +396,180 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
         if remasked is not None and placeholders_intact(remasked, store, masked):
             memory[masked] = remasked
     return memory
+
+
+# ---------------------------------------------------------------------------
+# Anchor synchronisation
+#
+# Headings are translated, so MkDocs derives a GERMAN id from them
+# ("## Exporting" -> #exporting becomes "## Exportieren" -> #exportieren). The
+# `](page.md#anchor)` half of a link is masked as a placeholder and therefore
+# survives translation with its ENGLISH slug, which then resolves to nothing and
+# silently drops the reader at the top of the page. 17 links were broken this way.
+#
+# Fixed by a post-pass over the whole generated tree: pair each page's headings
+# with their translations by document order, then rewrite every link anchor
+# through that map. It runs over every page, not only the ones translated in this
+# run, so cached pages are repaired too.
+#
+# The ids are not re-derived by hand — the slug rules (NFKD, ASCII folding,
+# duplicate counters, and whatever the enabled extensions do to heading text) are
+# python-markdown's, so the page is rendered with exactly the extension set from
+# mkdocs.yml and the ids are read back out of the HTML. Verified byte-identical
+# with the ids MkDocs emitted for all 113 built pages in both languages.
+# ---------------------------------------------------------------------------
+
+MKDOCS_YAML = SITE / "mkdocs.yml"
+_HEADING_ID_RE = re.compile(r'<h[1-6][^>]*\sid="([^"]*)"')
+_FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.S)
+_MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
+
+
+class _MkDocsYamlLoader(yaml.SafeLoader):
+    """SafeLoader that resolves the `!!python/name:` tags mkdocs.yml uses for the
+    emoji extension, the same way MkDocs' own config loader does."""
+
+
+def _resolve_python_name(loader, suffix, node):  # noqa: ANN001
+    module_path, _, attribute = suffix.rpartition(".")
+    return getattr(importlib.import_module(module_path), attribute)
+
+
+_MkDocsYamlLoader.add_multi_constructor("tag:yaml.org,2002:python/name:", _resolve_python_name)
+# Everything else MkDocs adds (!ENV in the `extra:` block) is not needed here; a
+# blanket None keeps the parse from dying on a tag this script does not read.
+_MkDocsYamlLoader.add_multi_constructor(None, lambda loader, suffix, node: None)
+
+
+def load_markdown_extensions() -> tuple[list, dict]:
+    """The `markdown_extensions:` block of mkdocs.yml as (names, configs).
+
+    Read from the config rather than hardcoded so the slugs cannot drift apart
+    from the site build when an extension is added there.
+    """
+    try:
+        config = yaml.load(MKDOCS_YAML.read_text(encoding="utf-8"), Loader=_MkDocsYamlLoader)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! cannot read {MKDOCS_YAML.name} ({exc}); anchors left untouched")
+        return [], {}
+    names: list = []
+    configs: dict = {}
+    for entry in config.get("markdown_extensions") or []:
+        if isinstance(entry, str):
+            names.append(entry)
+        elif isinstance(entry, dict):
+            for name, settings in entry.items():
+                names.append(name)
+                if isinstance(settings, dict):
+                    configs[name] = settings
+    return names, configs
+
+
+def heading_ids(md_text: str, renderer) -> list[str]:
+    """Every heading id of a page, in document order, exactly as MkDocs will emit it."""
+    body = _FRONTMATTER_RE.sub("", md_text, count=1)
+    renderer.reset()
+    try:
+        html = renderer.convert(body)
+    except Exception:  # noqa: BLE001
+        return []
+    return _HEADING_ID_RE.findall(html)
+
+
+def build_anchor_map(en_md: str, de_md: str, renderer, rel: str) -> dict[str, str]:
+    """English id -> German id for one page.
+
+    Pairing is by document order, which holds because translate_md preserves both
+    the line count and the heading markers. A count mismatch means a heading was
+    lost in translation; the page is then skipped rather than mapped by guesswork.
+    """
+    en_ids = heading_ids(en_md, renderer)
+    de_ids = heading_ids(de_md, renderer)
+    if not en_ids or len(en_ids) != len(de_ids):
+        if en_ids:
+            print(f"  ! {rel}: {len(en_ids)} heading(s) in EN vs {len(de_ids)} in DE "
+                  f"— anchors for this page left untouched")
+        return {}
+    return {en_id: de_id for en_id, de_id in zip(en_ids, de_ids) if en_id != de_id}
+
+
+def rewrite_link_anchors(de_md: str, rel: str, maps: dict[str, dict[str, str]]) -> tuple[str, int]:
+    """Point every in-repo link anchor on a German page at its translated heading."""
+    hits = 0
+
+    def rewrite_target(target: str) -> str:
+        nonlocal hits
+        core, space, title = target.partition(" ")  # ](url "title")
+        path_part, hashed, anchor = core.partition("#")
+        if not hashed or not anchor:
+            return target
+        # Absolute and off-site targets are not ours to slugify. An empty path_part
+        # is a same-page link and resolves to this page below.
+        if "://" in path_part or path_part.startswith(("mailto:", "/")):
+            return target
+        target_rel = (
+            posixpath.normpath(posixpath.join(posixpath.dirname(rel), path_part))
+            if path_part else rel)
+        translated = maps.get(target_rel, {}).get(anchor)
+        if not translated:
+            return target
+        hits += 1
+        return f"{path_part}#{translated}{space}{title}"
+
+    lines = de_md.split("\n")
+    in_fence = False
+    for i, line in enumerate(lines):
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence or "](" not in line:
+            continue
+        lines[i] = _MD_LINK_RE.sub(lambda m: "](" + rewrite_target(m.group(1)) + ")", line)
+    return "\n".join(lines), hits
+
+
+def sync_anchors(pages: list[Path]) -> None:
+    """Rewrites link anchors across the generated German tree.
+
+    Runs over every page each time — a link may point into a page that this run
+    skipped, and the first run after this feature landed has to repair the pages
+    that were generated before it existed.
+    """
+    names, configs = load_markdown_extensions()
+    if not names:
+        return
+    try:
+        renderer = markdown.Markdown(extensions=names, extension_configs=configs)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! cannot load the site's Markdown extensions ({exc}); anchors left untouched")
+        return
+
+    maps: dict[str, dict[str, str]] = {}
+    for src in pages:
+        rel = src.relative_to(EN).as_posix()
+        dst = DE / src.relative_to(EN)
+        if not dst.is_file():
+            continue
+        page_map = build_anchor_map(
+            src.read_text(encoding="utf-8"), dst.read_text(encoding="utf-8"), renderer, rel)
+        if page_map:
+            maps[rel] = page_map
+    if not maps:
+        return
+
+    changed_pages = total_hits = 0
+    for src in pages:
+        dst = DE / src.relative_to(EN)
+        if not dst.is_file():
+            continue
+        original = dst.read_text(encoding="utf-8")
+        rewritten, hits = rewrite_link_anchors(original, src.relative_to(EN).as_posix(), maps)
+        if hits and rewritten != original:
+            dst.write_text(rewritten, encoding="utf-8")
+            changed_pages += 1
+            total_hits += hits
+    print(f"  anchors: {total_hits} link(s) repointed at translated headings "
+          f"across {changed_pages} page(s)")
 
 
 def git_head_version(path: Path) -> str | None:
@@ -418,12 +612,15 @@ def main() -> int:
 
     md_done = md_skip = copied = 0
     md_lines_fresh = md_lines_reused = 0
+    md_pages: list[Path] = []
     for src in sorted(EN.rglob("*")):
         if src.is_dir():
             continue
         rel = src.relative_to(EN)
         if any(part in SKIP_DIRS for part in rel.parts):
             continue
+        if src.suffix == ".md":
+            md_pages.append(src)
         dst = DE / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         if src.suffix != ".md":
@@ -454,6 +651,9 @@ def main() -> int:
         print(f"  translated {rel} ({fresh} line(s) translated, {reused} reused)")
 
     save_cache(new_cache)
+    # After every page exists in its final German wording — a link can point into a
+    # page that this run skipped, so the anchors are only knowable at the end.
+    sync_anchors(md_pages)
     print(f"\nDone. translated {md_done} page(s) ({md_lines_fresh} line(s) translated, "
           f"{md_lines_reused} reused), {md_skip} unchanged. "
           f"(assets are staged into docs/de by build-docs-site.py)")

@@ -90,6 +90,9 @@ public class KorTTYApplication extends Application {
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
+    private de.kortty.core.SessionJournalService sessionJournalService;
+    private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
+    private de.kortty.core.SessionJournalHtmlRenderer sessionJournalHtmlRenderer;
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
@@ -188,6 +191,18 @@ public class KorTTYApplication extends Application {
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
+        sessionJournalService = new de.kortty.core.SessionJournalService();
+        sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
+        sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
+        sessionJournalHtmlRenderer.attachToServiceChanges();
+        // A regenerated page keeps the font size the user set with the page's A-/A+ buttons.
+        sessionJournalHtmlRenderer.setFontScaleSupplier(() -> {
+            GlobalSettings journalSettings =
+                globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            return journalSettings != null ? journalSettings.getSessionJournalFontScalePercent() : 100;
+        });
+        sessionJournalHtmlRenderer.setBrandingSupplier(() -> de.kortty.core.ExportBranding.fromSettings(
+            globalSettingsManager != null ? globalSettingsManager.getSettings() : null));
         telemetryService = new TelemetryService(globalSettingsManager, configDir);
         Telemetry.init(telemetryService);
 
@@ -519,6 +534,12 @@ public class KorTTYApplication extends Application {
         // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
         // skips the JVM shutdown hooks, so this is the only chance to flush state —
         // one manager failing must not skip the remaining saves/stops.
+        if (sessionJournalSummarizer != null) {
+            shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
+        }
+        if (sessionJournalHtmlRenderer != null) {
+            shutdownStep("stop session journal HTML renderer", sessionJournalHtmlRenderer::stop);
+        }
         if (gpgKeyManager != null) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
         }
@@ -1079,6 +1100,18 @@ public class KorTTYApplication extends Application {
 
     public SwarmChatManager getSwarmChatManager() {
         return swarmChatManager;
+    }
+
+    public de.kortty.core.SessionJournalService getSessionJournalService() {
+        return sessionJournalService;
+    }
+
+    public de.kortty.core.SessionJournalSummarizer getSessionJournalSummarizer() {
+        return sessionJournalSummarizer;
+    }
+
+    public de.kortty.core.SessionJournalHtmlRenderer getSessionJournalHtmlRenderer() {
+        return sessionJournalHtmlRenderer;
     }
     
     public BackupManager getBackupManager() {

@@ -119,6 +119,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `ai-planning` | string | `allow`, `deny` | AI Planning |
 | `teamwork` | string | `allow`, `deny` | Teamwork shared-connections sync (service is not started, menu locked) |
 | `plugins` | string | `allow`, `deny` | Plugin loading and the Plugins menu (e.g. terminal effects) |
+| `session-journal` | string | `allow`, `deny` | The [session journal](../features/session-journal.md): capture, journal bar, manager, viewer and exports. Not chained to `ai` — with AI denied the journal still records raw activity |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands |
 
 ### `[rule.security]`
@@ -187,6 +188,79 @@ korTTY rotates its log daily (`kortty.YYYY-MM-DD.log`); this table controls wher
 
 !!! note
     When several same-tier rules configure logging, each key resolves separately: shorter retention and tighter caps win, compression on wins, `json` wins over `text`. In practice, put the logging configuration into a single all-users rule. The chosen directory must be writable by the user running korTTY.
+
+### `[rule.session-journal]`
+
+Mandates for the [session journal](../features/session-journal.md). Forced values lock the corresponding controls in the journal options, the settings dialog and the connection editor with a "managed by your organization" hint.
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `enforced` | boolean | `true` | A journal is written for **every** connection, regardless of the per-connection setting; users cannot stop it and the enable switch is locked on |
+| `log-format` | string | `json` (default), `xml`, `yaml` | Forces the capture-log format for new journals |
+| `ai-max-lines` | integer | `0` = context fill | Forces the AI evaluation window (max terminal lines per summary) |
+| `storage-path` | string | absolute path | Forces the journal storage directory; the setting is locked |
+| `allow-rename` | boolean | `false` | Journals cannot be renamed in the manager |
+| `allow-delete` | boolean | `false` | Journals cannot be deleted in the manager |
+| `name-template` | string | template | Initial journal title, with `{connection}`, `{host}`, `{user}`, `{date}` and `{time}` placeholders |
+| `ai-title` | boolean | `true` | The closing AI title is generated regardless of the user setting |
+
+```toml
+[[rule]]
+  [rule.features]
+  session-journal = "allow"
+  [rule.session-journal]
+  enforced = true
+  log-format = "json"
+  storage-path = "/srv/audit/kortty-journals"
+  allow-delete = false
+  name-template = "{connection} {date} {time} ({user})"
+```
+
+!!! note
+    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, and the line cap resolves to the tighter value (`0` counts as unlimited).
+
+### `[[rule.session-journal.replace]]`
+
+Automatic search-and-replace in every journal — the way to keep a whole category of secret out of the transcript, instead of relying on the user to notice it. Each entry is one rule, and a rule may use a regular expression.
+
+| Key | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `pattern` | string | *required* | The text to find. With `regex` enabled it is a regular expression |
+| `replacement` | string | `***` | The text that replaces each match. In a regex rule `$1` inserts a captured group |
+| `regex` | boolean | `false` | Treats `pattern` as a regular expression |
+| `ignore-case` | boolean | `false` | Matches every casing |
+| `label` | string | – | Description for the administrator; korTTY only counts the rules in its UI hint |
+
+```toml
+[[rule]]
+  [rule.session-journal]
+  enforced = true
+
+    [[rule.session-journal.replace]]
+    pattern = "AKIA[0-9A-Z]{16}"
+    replacement = "***AWS-ACCESS-KEY***"
+    regex = true
+    label = "AWS access keys"
+
+    [[rule.session-journal.replace]]
+    pattern = "(?i)bearer\\s+[A-Za-z0-9._-]{20,}"
+    replacement = "Bearer ***"
+    regex = true
+    label = "Bearer tokens"
+
+    [[rule.session-journal.replace]]
+    pattern = "vpn.internal.acme.corp"
+    replacement = "<internal-host>"
+    ignore-case = true
+```
+
+The rules run **on the capture thread, before a line is written**, so a matching text never reaches the log file at all, and they are applied to AI summaries and user notes as well. Unlike the other keys, replacement rules are **merged across every matching rule and every tier** rather than the highest tier winning: more redaction is the more restrictive outcome, so a user- or group-specific rule can only add patterns, never switch the organization-wide ones off. Duplicate entries are collapsed.
+
+!!! warning
+    A `pattern` that is not a valid regular expression is a **policy error**, not a warning — the file is rejected. A rule that silently matches nothing is worse than one the administrator has to fix, because the redaction would appear to be in place.
+
+!!! note
+    Only journals written while the rule is in force are covered; existing journals are not rewritten retroactively. Users can clean those up with the viewer's Search & replace.
 
 ### Admin-provided objects
 

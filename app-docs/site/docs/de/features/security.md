@@ -164,7 +164,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 | `ssh-keys.xml` | SSH-Schlüsselpfade und verschlüsselte Passphrasen | AES-256-GCM |
 | `connections.xml` | Verbindungskennwörter (inline) und Schlüsselpassphrasen (wenn keine SSH-Schlüsselverwaltung verwendet wird) | AES-256-GCM |
 | `ssh-host-keys.properties` | Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen | Öffentliche Verifizierungsdaten; nicht verschlüsselt |
-| `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge redigieren von KorTTY verwaltete Geheimnisse | AES-256-GCM |
+| `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge schwärzen von KorTTY verwaltete Geheimnisse | AES-256-GCM |
 | `master-password-hash` | Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt | PBKDF2-Hash nur |
 | `global-settings.xml` | AI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
 
@@ -190,7 +190,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 
 - **Host-Schlüssel-Pinning**: Host-Schlüssel werden standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs gepinnt, um Man-in-the-Middle-Angriffe zu verhindern. Diese Verbindungs-ID-Pins sind absichtlich von den normalisierten Endpunkt-Pins getrennt, die von interaktiven Terminal-/SFTP-Sitzungen verwendet werden.
 - **Sudo-Passwörter**: Scheduler-Sudo-Passwörter werden verschlüsselt und in `~/.kortty/job-scheduler.xml` gespeichert.
-- **Journal-Redaktion**: Job-Journaleinträge redigieren von KorTTY verwaltete Geheimnisse vor der Persistenz (der redigierte Modus ist die Standardeinstellung; der vollständige Modus speichert nicht redigierte Ausgaben).
+- **Journal-Schwärzung**: Job-Journaleinträge schwärzen von KorTTY verwaltete Geheimnisse vor der Persistenz (der geschwärzte Modus ist die Standardeinstellung; der vollständige Modus speichert nicht geschwärzte Ausgaben).
 
 ### Backup-Verschlüsselung
 

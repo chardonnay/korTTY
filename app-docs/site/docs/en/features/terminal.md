@@ -79,6 +79,10 @@ Besides SSH and Mosh, a terminal tab can host a **Local Shell** — the local ma
 - **The current directory follows the interactive shell.** On macOS and Linux, korTTY refreshes it from the local shell process; native PowerShell and cmd prompts supply absolute Windows paths. After `cd`, `pushd`, `popd`, or `Set-Location`, **Open in Snippet Editor** resolves a selected file name against that current directory instead of the tab's start directory. If the directory cannot be determined or mapped safely, korTTY stops with an error rather than opening a same-named file from the wrong directory.
 - **Clipboard text is preserved in agent shortcuts.** Typed and pasted text travel through the same terminal-input filter, including bracketed paste and split UTF-8 input, so a pasted file name remains part of the `agent ...` request and Enter dispatches it exactly once.
 
+## Session journal
+
+Every terminal tab can keep a [session journal](session-journal.md): server output and typed commands go into a capture log, an AI condenses them into a readable timeline, and screenshots and notes can be added from the journal bar or the terminal's right-click menu. Journals start automatically for connections that enable them, or retroactively for a running session via **Tools > Start/Stop Session Journal** — the existing scrollback is imported. See [Session journal](session-journal.md).
+
 ## Split-screen with broadcast
 
 Split the terminal view to display multiple connections side by side, and optionally send input to all panes at once.

@@ -109,6 +109,7 @@ The AI Manager is modeless and can remain open while you use the main window. In
 | --- | --- | --- | --- |
 | Text and translation profile | Configured AI profile, or use default | Use default | `textAiProfileId` |
 | Coding profile | Configured AI profile, or use default | Use default | `codingAiProfileId` |
+| Session journal profile | Configured AI profile, or use default | Use default | `sessionJournalAiProfileId` |
 | RAG embedding model ID | Installed local embedding model | — | `ragEmbeddingModelId` |
 | llama.cpp runtime updates | Off, Notify me, Install stable updates automatically | Notify me | `llamaRuntimeUpdatePolicy` |
 | Preferred runtime backend | Auto/CPU/Metal on macOS; Auto/CPU/Vulkan on Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |

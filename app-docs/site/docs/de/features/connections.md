@@ -34,7 +34,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
     Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.
 
 === "Lokale Shell"
-    Öffnet die Shell des **lokalen Rechners** in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe [Local Shell](#local-shell) unten.
+    Öffnet die Shell des **lokalen Rechners** in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe [Local Shell](#lokale-shell) unten.
 
 ## SSH-Hostschlüsselüberprüfung
 
@@ -42,7 +42,7 @@ Interactive Terminal- und SFTP-Verbindungen verwenden denselben TOFU-Hostschlüs
 
 Bei der ersten Verbindung zeigt korTTY den Schlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an. Überprüfen Sie diesen Fingerabdruck beim Serveradministrator, bevor Sie **Ja** auswählen. **Nein** ist die sichere Standardeinstellung. Ein passender Schlüssel wird bei späteren Verbindungen stillschweigend akzeptiert. Wenn der Server einen anderen Schlüssel vorlegt, blockiert korTTY die Verbindung hart, zeigt die erwarteten und angebotenen Fingerabdrücke an und versucht es nicht erneut, da eine Wiederholung des Versuchs einen möglichen Man-in-the-Middle-Angriff nicht auflösen kann.
 
-Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die **Hostschlüsselüberprüfung** auf der Registerkarte *Verbindung* des Verbindungseditors oder in Quick Connect (**Standard verwenden** / **Überprüfen** / **Nicht überprüfen**), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter **Einstellungen → Terminal** fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird weiterhin hart blockiert. Siehe [Lockere Hostschlüsselüberprüfung](security.md#relaxing-host-key-verification).
+Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die **Hostschlüsselüberprüfung** auf der Registerkarte *Verbindung* des Verbindungseditors oder in Quick Connect (**Standard verwenden** / **Überprüfen** / **Nicht überprüfen**), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter **Einstellungen → Terminal** fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird weiterhin hart blockiert. Siehe [Lockere Hostschlüsselüberprüfung](security.md#lockere-uberprufung-des-hostschlussels).
 
 Die interaktiven Pins werden atomar in `~/.kortty/ssh-host-keys.properties` gespeichert, mit prozessübergreifender Sperrung, sodass zwei korTTY-Fenster die Entscheidungen des anderen nicht überschreiben können. Diese endpunktbasierten Pins sind von den verbindungs-ID-basierten Pins getrennt, die von unbeaufsichtigten JobScheduler-SSH-, SFTP- und Rsync-Jobs verwendet werden.
 
@@ -66,7 +66,7 @@ Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert jede ausführbare Dat
 Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte `ObservableTtyConnector`-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.
 
 !!! note "AI Agent in lokalen Shells"
-    Der **AI Agent** und **AI Planning** laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe [AI Assistant](ai-assistant.md#ai-agent-and-ai-planning).
+    Der **AI Agent** und **AI Planning** laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe [AI Assistant](ai-assistant.md#ai-agent-und-ki-planung).
 
 ## Tunnels und Sprungserver
 
