@@ -55,7 +55,7 @@ Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neues
 | Rückstand auf mehrere Prompts aufteilen (Chunking) | Journalmanager **Optionen** | aus |
 | AI-Profil für Zusammenfassungen | Journalmanager **Optionen** oder **Einstellungen > Protokollierung > Sitzungsjournal** | Standardprofil |
 
-Zusammenfassungen verwenden Ihr **Standard-KI-Profil**, es sei denn, Sie wählen ein dediziertes Journalprofil aus – entweder im Dialogfeld **Optionen** des Journalmanagers oder unter **Einstellungen > Protokollierung > Sitzungsjournal**. Die Rollenprofile Text/Coding werden für das Journal bewusst nicht verwendet.
+Zusammenfassungen verwenden Ihr **Standard-KI-Profil**, es sei denn, Sie wählen ein spezielles Journalprofil aus. Diese Auswahl ist an drei gleichwertigen Stellen verfügbar: im Dialogfeld **Optionen** des Journalmanagers, **Einstellungen > Protokollierung > Sitzungsjournal** und **KI > AI-Manager > Lokale KI** neben den Rollen Text und Codierung. Die Rollenprofile Text/Coding selbst werden bewusst nicht für das Journal verwendet.
 
 Wenn Sie **max Zeilen auf 0** setzen, wird auf Kontextfüllung umgeschaltet: Der Zusammenfassungstext packt so viele der neuesten Zeilen, wie in das konfigurierte Token-Budget passen. Wenn **Chunking** aktiviert ist, wird das gesamte Backlog verarbeitet und nicht nur das neueste Fenster – aufeinanderfolgende Fenster der konfigurierten Größe, jeweils eine KI-Eingabeaufforderung.
 
@@ -152,9 +152,11 @@ Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – k
 !!! warning
     Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren.
 
-### Herkunftsangabe
+### Fußzeile und Wasserzeichen
 
-Jedes exportierte Dokument gibt an, dass es mit korTTY erstellt wurde, und verweist auf das Projekt-Repository: in der PDF-Fußzeile (als anklickbarer Link) und zusätzlich als schwaches diagonales Wasserzeichen, das korTTY und seinen Entwickler nennt; am Ende der Markdown-Datei; und in der Fußzeile der Journalseite im HTML-Bundle.
+Standardmäßig enthält jedes exportierte Dokument eine Fußzeile, die angibt, dass es mit korTTY erstellt wurde, mit einem Link zum Projekt-Repository – unten auf jeder PDF-Seite, am Ende der Markdown-Datei und in der Fußzeile der Journalseite innerhalb des HTML-Pakets. PDFs können zusätzlich ein diagonales Wasserzeichen tragen, das **standardmäßig deaktiviert** ist.
+
+Beide werden unter [**Konfiguration → Globale Einstellungen → Export**](../reference/settings/export.md) konfiguriert, wo Sie den Fußzeilentext ändern, die Fußzeile ausschalten, das Wasserzeichen aktivieren und dessen Text und Farbe auswählen können. Die gleichen Einstellungen gelten für AI-Chat-Exporte.
 
 ## Unternehmensrichtlinie
 

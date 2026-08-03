@@ -169,6 +169,52 @@ class SessionJournalExportServiceTest {
     }
 
     @Test
+    void watermarkIsOffByDefaultAndHonoursCustomTextAndColour() throws Exception {
+        Path plain = tempDir.resolve("no-watermark.pdf");
+        exportService.export(SessionJournalExportService.Format.PDF, journalDir, plain,
+            SessionJournalExportService.Options.defaults());
+        try (PDDocument document = Loader.loadPDF(plain.toFile())) {
+            assertThat(new PDFTextStripper().getText(document))
+                .doesNotContain(SessionJournalExportService.class.getSimpleName());
+            assertThat(new PDFTextStripper().getText(document)).doesNotContain("Developed by Daniel Mengel\n");
+        }
+
+        SessionJournalExportService branded = new SessionJournalExportService(service, renderer,
+            new de.kortty.core.ExportBranding(true, "CONFIDENTIAL", java.awt.Color.RED,
+                true, "ACME internal", false));
+        Path marked = tempDir.resolve("watermarked.pdf");
+        branded.export(SessionJournalExportService.Format.PDF, journalDir, marked,
+            SessionJournalExportService.Options.defaults());
+        try (PDDocument document = Loader.loadPDF(marked.toFile())) {
+            String text = new PDFTextStripper().getText(document);
+            assertThat(text).contains("CONFIDENTIAL");
+            assertThat(text).contains("ACME internal");
+            // A custom footer is the user's wording: no repository URL appended, no link annotation.
+            assertThat(text).doesNotContain(SessionJournalExportService.REPOSITORY_URL);
+            assertThat(document.getPage(0).getAnnotations()).isEmpty();
+        }
+    }
+
+    @Test
+    void disabledFooterLeavesEveryFormatWithoutABrandLine() throws Exception {
+        SessionJournalExportService bare = new SessionJournalExportService(service, renderer,
+            new de.kortty.core.ExportBranding(false, "x", java.awt.Color.GRAY, false, "x", true));
+        Path markdown = tempDir.resolve("bare.md");
+        bare.export(SessionJournalExportService.Format.MARKDOWN, journalDir, markdown,
+            SessionJournalExportService.Options.defaults());
+        assertThat(Files.readString(markdown, StandardCharsets.UTF_8))
+            .doesNotContain(SessionJournalExportService.REPOSITORY_URL);
+
+        Path pdf = tempDir.resolve("bare.pdf");
+        bare.export(SessionJournalExportService.Format.PDF, journalDir, pdf,
+            SessionJournalExportService.Options.defaults());
+        try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
+            assertThat(new PDFTextStripper().getText(document))
+                .doesNotContain(SessionJournalExportService.REPOSITORY_URL);
+        }
+    }
+
+    @Test
     void everyFormatStatesItWasCreatedWithKorTTY() throws Exception {
         Path markdown = tempDir.resolve("brand.md");
         exportService.export(SessionJournalExportService.Format.MARKDOWN, journalDir, markdown,

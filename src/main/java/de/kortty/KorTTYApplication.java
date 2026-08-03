@@ -201,6 +201,8 @@ public class KorTTYApplication extends Application {
                 globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
             return journalSettings != null ? journalSettings.getSessionJournalFontScalePercent() : 100;
         });
+        sessionJournalHtmlRenderer.setBrandingSupplier(() -> de.kortty.core.ExportBranding.fromSettings(
+            globalSettingsManager != null ? globalSettingsManager.getSettings() : null));
         telemetryService = new TelemetryService(globalSettingsManager, configDir);
         Telemetry.init(telemetryService);
 

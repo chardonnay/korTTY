@@ -88,9 +88,8 @@ public final class SessionJournalExportService {
         }
     }
 
-    /** Provenance shown in every exported document. */
-    public static final String REPOSITORY_URL = "https://github.com/chardonnay/korTTY";
-    public static final String WATERMARK_TITLE = "korTTY — Developed by Daniel Mengel";
+    /** Provenance shown in exported documents; the PDF parts follow the user's branding settings. */
+    public static final String REPOSITORY_URL = ExportBranding.REPOSITORY_URL;
 
     private static final String SANS_FONT_RESOURCE = "/fonts/noto/NotoSans-Regular.ttf";
     private static final String SANS_BOLD_FONT_RESOURCE = "/fonts/noto/NotoSans-Bold.ttf";
@@ -109,10 +108,27 @@ public final class SessionJournalExportService {
 
     private final SessionJournalService service;
     private final SessionJournalHtmlRenderer renderer;
+    private final ExportBranding branding;
 
     public SessionJournalExportService(SessionJournalService service, SessionJournalHtmlRenderer renderer) {
+        this(service, renderer, resolveBranding());
+    }
+
+    public SessionJournalExportService(SessionJournalService service, SessionJournalHtmlRenderer renderer,
+                                       ExportBranding branding) {
         this.service = service;
         this.renderer = renderer;
+        this.branding = branding != null ? branding : ExportBranding.defaults();
+    }
+
+    private static ExportBranding resolveBranding() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            return ExportBranding.fromSettings(app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings() : null);
+        } catch (Exception e) {
+            return ExportBranding.defaults();
+        }
     }
 
     /** Exports the journal in {@code journalDir} to {@code target}. */
@@ -249,9 +265,13 @@ public final class SessionJournalExportService {
                     .append(entry.getUserNote().replace('\n', ' ')).append("\n\n");
             }
         }
-        md.append("---\n\n_")
-            .append(i18n("journal.export.brand", "Created with korTTY — Developed by Daniel Mengel"))
-            .append("_ — <").append(REPOSITORY_URL).append(">\n");
+        if (branding.footerEnabled()) {
+            md.append("---\n\n_").append(branding.footerText()).append("_");
+            if (branding.footerUsesDefaultText()) {
+                md.append(" — <").append(REPOSITORY_URL).append('>');
+            }
+            md.append('\n');
+        }
         Files.writeString(target, md.toString(), StandardCharsets.UTF_8);
     }
 
@@ -581,74 +601,28 @@ public final class SessionJournalExportService {
 
     private void drawFooters(PDDocument pdf, PdfFonts fonts) throws IOException {
         int total = pdf.getNumberOfPages();
-        String brand = i18n("journal.export.brand", "Created with korTTY — Developed by Daniel Mengel");
-        String footer = brand + "  ·  " + REPOSITORY_URL;
+        String footer = branding.footerLine();
         for (int index = 0; index < total; index++) {
             PDPage page = pdf.getPage(index);
-            drawWatermark(pdf, page, fonts);
+            if (branding.watermarkEnabled()) {
+                PdfWatermarkSupport.draw(pdf, page, fonts.sansBold(), fonts.sans(), branding);
+            }
             try (PDPageContentStream stream = new PDPageContentStream(pdf, page, AppendMode.APPEND, true, true)) {
                 float pageWidth = page.getMediaBox().getWidth();
                 drawLine(stream, PAGE_MARGIN, 42f, pageWidth - PAGE_MARGIN, 42f, new Color(0xe5, 0xe7, 0xeb), 0.7f);
-                drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf), PAGE_MARGIN, 28f, footer);
+                if (branding.footerEnabled()) {
+                    drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf), PAGE_MARGIN, 28f, footer);
+                }
                 String label = (index + 1) + " / " + total;
                 float labelWidth = textWidth(fonts.sans(), 8.4f, label);
                 drawText(stream, fonts.sans(), 8.4f, new Color(0x9c, 0xa3, 0xaf),
                     pageWidth - PAGE_MARGIN - labelWidth, 28f, label);
             }
-            addRepositoryLink(page, fonts, brand, footer);
-        }
-    }
-
-    /** Diagonal provenance watermark, faint enough to leave the transcript readable. */
-    private void drawWatermark(PDDocument pdf, PDPage page, PdfFonts fonts) throws IOException {
-        try (PDPageContentStream stream = new PDPageContentStream(pdf, page, AppendMode.APPEND, true, true)) {
-            org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState graphicsState =
-                new org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState();
-            graphicsState.setNonStrokingAlphaConstant(0.08f);
-            stream.saveGraphicsState();
-            stream.setGraphicsStateParameters(graphicsState);
-            float centerX = page.getMediaBox().getWidth() / 2f;
-            float centerY = page.getMediaBox().getHeight() / 2f;
-            float fontSize = 26f;
-            float titleWidth = textWidth(fonts.sansBold(), fontSize, WATERMARK_TITLE);
-            while (fontSize > 14f && titleWidth > page.getMediaBox().getWidth() - 120f) {
-                fontSize -= 1f;
-                titleWidth = textWidth(fonts.sansBold(), fontSize, WATERMARK_TITLE);
+            if (branding.footerEnabled() && branding.footerUsesDefaultText()) {
+                PdfWatermarkSupport.addFooterRepositoryLink(page, fonts.sans(), 8.4f, PAGE_MARGIN,
+                    branding.footerText() + "  ·  ");
             }
-            // The matrix rotates about the page centre and makes it the new origin, so the text is
-            // placed relative to (0,0) — absolute page coordinates here would land off the page.
-            stream.transform(org.apache.pdfbox.util.Matrix.getRotateInstance(
-                Math.toRadians(38), centerX, centerY));
-            Color watermarkColor = new Color(0x6b, 0x72, 0x80);
-            drawText(stream, fonts.sansBold(), fontSize, watermarkColor,
-                -titleWidth / 2f, 0f, WATERMARK_TITLE);
-            float urlSize = fontSize * 0.45f;
-            float urlWidth = textWidth(fonts.sans(), urlSize, REPOSITORY_URL);
-            drawText(stream, fonts.sans(), urlSize, watermarkColor,
-                -urlWidth / 2f, -fontSize, REPOSITORY_URL);
-            stream.restoreGraphicsState();
         }
-    }
-
-    /** Makes the repository URL in the footer clickable. */
-    private void addRepositoryLink(PDPage page, PdfFonts fonts, String brand, String footer) throws IOException {
-        float linkStart = PAGE_MARGIN + textWidth(fonts.sans(), 8.4f, brand + "  ·  ");
-        float linkWidth = textWidth(fonts.sans(), 8.4f, REPOSITORY_URL);
-        if (linkWidth <= 0 || linkStart + linkWidth > page.getMediaBox().getWidth() - PAGE_MARGIN) {
-            return;
-        }
-        org.apache.pdfbox.pdmodel.interactive.action.PDActionURI action =
-            new org.apache.pdfbox.pdmodel.interactive.action.PDActionURI();
-        action.setURI(REPOSITORY_URL);
-        org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink link =
-            new org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink();
-        link.setAction(action);
-        org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary border =
-            new org.apache.pdfbox.pdmodel.interactive.annotation.PDBorderStyleDictionary();
-        border.setWidth(0);
-        link.setBorderStyle(border);
-        link.setRectangle(new PDRectangle(linkStart, 24f, linkWidth, 12f));
-        page.getAnnotations().add(link);
     }
 
     private static Color markerColor(SessionJournalMarker marker) {

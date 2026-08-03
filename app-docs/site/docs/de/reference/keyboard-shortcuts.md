@@ -31,8 +31,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+j++ | JobScheduler |
 | ++ctrl+shift+v++ | Videomanager |
 | ++ctrl+shift+e++ | Terminalaufzeichnung starten/stoppen |
-| ++ctrl+alt+j++ | Sitzungstagebücher |
-| ++ctrl+alt+t++ | Starten/stoppen Sie das Sitzungsjournal des aktiven Tabs |
+| ++ctrl+alt+j++ | Sitzungsjournale |
+| ++ctrl+alt+t++ | Starten/Stoppen Sie das Sitzungsjournal des aktiven Tabs |
 | ++ctrl+alt+c++ | Fügen Sie dem Protokoll der laufenden Sitzung einen Screenshot hinzu |
 | ++ctrl+shift+a++ | ASCII-Art |
 | ++ctrl+shift+y++ | Öffnen Sie AI Manager |

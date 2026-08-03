@@ -73,6 +73,8 @@ public final class SessionJournalHtmlRenderer {
     private final Map<Path, ScheduledFuture<?>> pendingRenders = new ConcurrentHashMap<>();
     /** Baked into every page so a regenerated page keeps the user's chosen font size. */
     private volatile java.util.function.IntSupplier fontScaleSupplier = () -> 100;
+    /** Footer text/visibility, shared with the PDF and Markdown exports. */
+    private volatile java.util.function.Supplier<ExportBranding> brandingSupplier = ExportBranding::defaults;
 
     public SessionJournalHtmlRenderer(SessionJournalService service) {
         this.service = service;
@@ -81,6 +83,11 @@ public final class SessionJournalHtmlRenderer {
     /** Supplies the persisted page font size in percent (the app wires this to GlobalSettings). */
     public void setFontScaleSupplier(java.util.function.IntSupplier supplier) {
         this.fontScaleSupplier = supplier != null ? supplier : () -> 100;
+    }
+
+    /** Supplies the user's footer choice (the app wires this to GlobalSettings). */
+    public void setBrandingSupplier(java.util.function.Supplier<ExportBranding> supplier) {
+        this.brandingSupplier = supplier != null ? supplier : ExportBranding::defaults;
     }
 
     /** Wires debounced regeneration to every journal change (summaries, edits, notes). */
@@ -347,13 +354,18 @@ public final class SessionJournalHtmlRenderer {
 
     /** Provenance line so an exported or shared page always says where it came from. */
     private void appendPageFooter(StringBuilder html) {
-        html.append("<footer class=\"page-foot\">")
-            .append(escapeHtml(i18n("journal.export.brand",
-                "Created with korTTY — Developed by Daniel Mengel")))
-            .append(" · <a href=\"").append(escapeAttr(SessionJournalExportService.REPOSITORY_URL))
-            .append("\" rel=\"noreferrer\">")
-            .append(escapeHtml(SessionJournalExportService.REPOSITORY_URL))
-            .append("</a></footer>\n");
+        ExportBranding branding = brandingSupplier.get();
+        if (branding == null || !branding.footerEnabled()) {
+            return;
+        }
+        html.append("<footer class=\"page-foot\">").append(escapeHtml(branding.footerText()));
+        if (branding.footerUsesDefaultText()) {
+            html.append(" · <a href=\"").append(escapeAttr(ExportBranding.REPOSITORY_URL))
+                .append("\" rel=\"noreferrer\">")
+                .append(escapeHtml(ExportBranding.REPOSITORY_URL))
+                .append("</a>");
+        }
+        html.append("</footer>\n");
     }
 
     private void appendLightbox(StringBuilder html) {

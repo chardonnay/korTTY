@@ -118,6 +118,7 @@ nav:
           - reference/settings/window.md
           - reference/settings/resources.md
           - reference/settings/logging.md
+          - reference/settings/export.md
           - reference/settings/backup.md
           - reference/settings/updates.md
           - reference/settings/security.md

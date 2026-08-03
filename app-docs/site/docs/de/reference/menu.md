@@ -65,7 +65,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
-| Sitzungstagebücher… | Verwalten [Sitzungstagebücher](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
+| Sitzungsjournale… | Verwalten [Sitzungsjournale](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
 | Sitzungsjournal starten/stoppen | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
 | Journal-Screenshot hinzufügen | Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |

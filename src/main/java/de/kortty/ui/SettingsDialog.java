@@ -190,6 +190,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     // Logging settings
     private final TextField logDirectoryPathField;
     private final Spinner<Integer> logRetentionDaysSpinner;
+    private CheckBox pdfWatermarkEnabledCheck;
+    private TextField pdfWatermarkTextField;
+    private javafx.scene.control.ColorPicker pdfWatermarkColorPicker;
+    private CheckBox exportFooterEnabledCheck;
+    private TextField exportFooterTextField;
     private TextField sessionJournalStoragePathField;
     private CheckBox sessionJournalAiSummariesCheck;
     private Spinner<Integer> sessionJournalIntervalSpinner;
@@ -1050,6 +1055,73 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         loggingGrid.add(sessionJournalAiProfileCombo, 1, loggingRow++);
 
         loggingTab.setContent(loggingGrid);
+
+        // Export tab: watermark and footer for exported documents (journals and AI chats)
+        Tab exportTab = new Tab(I18n.get("settings.tab.export"));
+        GridPane exportGrid = new GridPane();
+        exportGrid.setHgap(10);
+        exportGrid.setVgap(10);
+        exportGrid.setPadding(new Insets(20));
+        int exportRow = 0;
+
+        Label exportHeader = new Label(I18n.get("settings.export.header"));
+        exportHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        exportGrid.add(exportHeader, 0, exportRow++, 2, 1);
+
+        Label exportIntro = new Label(I18n.get("settings.export.intro"));
+        exportIntro.setWrapText(true);
+        exportIntro.setMaxWidth(560);
+        exportIntro.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        exportGrid.add(exportIntro, 0, exportRow++, 2, 1);
+
+        pdfWatermarkEnabledCheck = new CheckBox(I18n.get("settings.export.watermark"));
+        pdfWatermarkEnabledCheck.setSelected(globalSettings != null && globalSettings.isPdfWatermarkEnabled());
+        exportGrid.add(pdfWatermarkEnabledCheck, 0, exportRow++, 2, 1);
+
+        pdfWatermarkTextField = new TextField();
+        pdfWatermarkTextField.setPrefWidth(360);
+        pdfWatermarkTextField.setPromptText(de.kortty.core.ExportBranding.DEFAULT_WATERMARK_TEXT);
+        pdfWatermarkTextField.setText(globalSettings != null && globalSettings.getPdfWatermarkText() != null
+            ? globalSettings.getPdfWatermarkText() : "");
+        pdfWatermarkTextField.disableProperty().bind(pdfWatermarkEnabledCheck.selectedProperty().not());
+        exportGrid.add(new Label(I18n.get("settings.export.watermarkText")), 0, exportRow);
+        exportGrid.add(pdfWatermarkTextField, 1, exportRow++);
+
+        pdfWatermarkColorPicker = new javafx.scene.control.ColorPicker(
+            toFxColor(de.kortty.core.ExportBranding.parseColor(
+                globalSettings != null ? globalSettings.getPdfWatermarkColor() : null)));
+        pdfWatermarkColorPicker.disableProperty().bind(pdfWatermarkEnabledCheck.selectedProperty().not());
+        exportGrid.add(new Label(I18n.get("settings.export.watermarkColor")), 0, exportRow);
+        exportGrid.add(pdfWatermarkColorPicker, 1, exportRow++);
+
+        Label watermarkInfo = new Label(I18n.get("settings.export.watermark.info"));
+        watermarkInfo.setWrapText(true);
+        watermarkInfo.setMaxWidth(360);
+        watermarkInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        exportGrid.add(watermarkInfo, 1, exportRow++);
+
+        exportGrid.add(new Separator(), 0, exportRow++, 2, 1);
+
+        exportFooterEnabledCheck = new CheckBox(I18n.get("settings.export.footer"));
+        exportFooterEnabledCheck.setSelected(globalSettings == null || globalSettings.isExportFooterEnabled());
+        exportGrid.add(exportFooterEnabledCheck, 0, exportRow++, 2, 1);
+
+        exportFooterTextField = new TextField();
+        exportFooterTextField.setPrefWidth(360);
+        exportFooterTextField.setPromptText(de.kortty.core.ExportBranding.defaultFooterText());
+        exportFooterTextField.setText(globalSettings != null && globalSettings.getExportFooterText() != null
+            ? globalSettings.getExportFooterText() : "");
+        exportFooterTextField.disableProperty().bind(exportFooterEnabledCheck.selectedProperty().not());
+        exportGrid.add(new Label(I18n.get("settings.export.footerText")), 0, exportRow);
+        exportGrid.add(exportFooterTextField, 1, exportRow++);
+
+        Label footerInfo = new Label(I18n.get("settings.export.footer.info"));
+        footerInfo.setWrapText(true);
+        footerInfo.setMaxWidth(360);
+        footerInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        exportGrid.add(footerInfo, 1, exportRow++);
+
+        exportTab.setContent(exportGrid);
 
         // Updates tab
         Tab updatesTab = new Tab(I18n.get("settings.tab.updates"));
@@ -2574,7 +2646,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Resources tab (opt-in JVM heap/GC profile)
         Tab resourcesTab = createResourcesTab();
 
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
         final double defaultContentWidth = 1000;
         final double minimumContentWidth = 860;
@@ -3122,7 +3194,33 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setSessionJournalAiProfileId(
                 selectedProfile != null ? selectedProfile.getId() : null);
         }
+
+        if (pdfWatermarkEnabledCheck != null) {
+            globalSettings.setPdfWatermarkEnabled(pdfWatermarkEnabledCheck.isSelected());
+            globalSettings.setPdfWatermarkText(pdfWatermarkTextField.getText());
+            globalSettings.setPdfWatermarkColor(de.kortty.core.ExportBranding.toHex(
+                toAwtColor(pdfWatermarkColorPicker.getValue())));
+        }
+        if (exportFooterEnabledCheck != null) {
+            globalSettings.setExportFooterEnabled(exportFooterEnabledCheck.isSelected());
+            globalSettings.setExportFooterText(exportFooterTextField.getText());
+        }
         return true;
+    }
+
+    private static javafx.scene.paint.Color toFxColor(java.awt.Color color) {
+        java.awt.Color value = color != null ? color : de.kortty.core.ExportBranding.DEFAULT_WATERMARK_COLOR;
+        return javafx.scene.paint.Color.rgb(value.getRed(), value.getGreen(), value.getBlue());
+    }
+
+    private static java.awt.Color toAwtColor(javafx.scene.paint.Color color) {
+        if (color == null) {
+            return de.kortty.core.ExportBranding.DEFAULT_WATERMARK_COLOR;
+        }
+        return new java.awt.Color(
+            (int) Math.round(color.getRed() * 255),
+            (int) Math.round(color.getGreen() * 255),
+            (int) Math.round(color.getBlue() * 255));
     }
 
     private void showSettingsWarning(String message) {

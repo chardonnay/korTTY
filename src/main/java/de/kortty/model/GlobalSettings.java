@@ -188,6 +188,23 @@ public class GlobalSettings {
     @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
+    // ---- PDF export branding (shared by session journal and AI chat exports) ----
+
+    @XmlElement
+    private boolean pdfWatermarkEnabled = false; // Off by default: mark documents deliberately
+
+    @XmlElement
+    private String pdfWatermarkText; // Null = the built-in korTTY watermark
+
+    @XmlElement
+    private String pdfWatermarkColor; // #rrggbb; null = default grey
+
+    @XmlElement
+    private boolean exportFooterEnabled = true;
+
+    @XmlElement
+    private String exportFooterText; // Null = the built-in brand line plus the repository link
+
     @XmlElement
     private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
 
@@ -1308,6 +1325,52 @@ public class GlobalSettings {
         this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
             ? 100
             : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    public boolean isPdfWatermarkEnabled() {
+        return pdfWatermarkEnabled;
+    }
+
+    public void setPdfWatermarkEnabled(boolean pdfWatermarkEnabled) {
+        this.pdfWatermarkEnabled = pdfWatermarkEnabled;
+    }
+
+    /** Custom watermark text; null means the built-in korTTY watermark. */
+    public String getPdfWatermarkText() {
+        return pdfWatermarkText;
+    }
+
+    public void setPdfWatermarkText(String pdfWatermarkText) {
+        String trimmed = pdfWatermarkText != null ? pdfWatermarkText.trim() : "";
+        this.pdfWatermarkText = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** Watermark colour as {@code #rrggbb}; null means the default grey. */
+    public String getPdfWatermarkColor() {
+        return pdfWatermarkColor;
+    }
+
+    public void setPdfWatermarkColor(String pdfWatermarkColor) {
+        String trimmed = pdfWatermarkColor != null ? pdfWatermarkColor.trim() : "";
+        this.pdfWatermarkColor = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isExportFooterEnabled() {
+        return exportFooterEnabled;
+    }
+
+    public void setExportFooterEnabled(boolean exportFooterEnabled) {
+        this.exportFooterEnabled = exportFooterEnabled;
+    }
+
+    /** Custom footer text; null means the built-in brand line plus the repository link. */
+    public String getExportFooterText() {
+        return exportFooterText;
+    }
+
+    public void setExportFooterText(String exportFooterText) {
+        String trimmed = exportFooterText != null ? exportFooterText.trim() : "";
+        this.exportFooterText = trimmed.isEmpty() ? null : trimmed;
     }
 
     public boolean isTerminalDragDropEnabled() {

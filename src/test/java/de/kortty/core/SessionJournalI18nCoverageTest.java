@@ -160,7 +160,7 @@ class SessionJournalI18nCoverageTest {
         "journal.html.search.next",
         "journal.html.search.prev",
         "journal.html.search.close",
-        "journal.export.brand",
+        "export.brand",
         "journal.export.archive.password",
         "journal.export.archive.passwordField",
         "journal.export.archive.passwordRepeat",
@@ -178,7 +178,6 @@ class SessionJournalI18nCoverageTest {
         "journal.pdf.screenshots",
         "journal.pdf.note",
         "journal.pdf.sessionSummary",
-        "journal.pdf.footer",
         "journal.md.connection",
         "journal.md.started",
         "journal.md.duration",
@@ -196,7 +195,17 @@ class SessionJournalI18nCoverageTest {
         "settings.journal.aiSummaries",
         "settings.journal.interval",
         "settings.journal.aiProfile",
-        "settings.journal.defaultProfile");
+        "settings.journal.defaultProfile",
+        "settings.tab.export",
+        "settings.export.header",
+        "settings.export.intro",
+        "settings.export.watermark",
+        "settings.export.watermarkText",
+        "settings.export.watermarkColor",
+        "settings.export.watermark.info",
+        "settings.export.footer",
+        "settings.export.footerText",
+        "settings.export.footer.info");
 
     @Test
     void allSessionJournalKeysExistInEveryBundledLocaleAndKeepPlaceholderCounts() throws Exception {

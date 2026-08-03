@@ -141,6 +141,13 @@ pages:
     screenshots:
       - settings/logging.png
     last_synced_ref: "7deb904"
+  - path: app-docs/site/docs/en/reference/settings/export.md
+    owns_i18n: [settings.export., settings.tab.export]
+    owns_code:
+      - src/main/java/de/kortty/core/ExportBranding.java
+      - src/main/java/de/kortty/core/PdfWatermarkSupport.java
+      - src/main/java/de/kortty/core/AiChatExportService.java
+    last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]

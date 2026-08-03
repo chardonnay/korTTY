@@ -109,6 +109,7 @@ Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das
 | --- | --- | --- | --- |
 | Text- und Übersetzungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `textAiProfileId` |
 | Codierungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `codingAiProfileId` |
+| Sitzungsjournalprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `sessionJournalAiProfileId` |
 | RAG-Einbettungsmodell-ID | Installiertes lokales Einbettungsmodell | – | `ragEmbeddingModelId` |
 | llama.cpp-Laufzeitaktualisierungen | Aus, Benachrichtigen, Stabile Updates automatisch installieren | Benachrichtigen Sie mich | `llamaRuntimeUpdatePolicy` |
 | Bevorzugtes Laufzeit-Backend | Auto/CPU/Metal unter macOS; Auto/CPU/Vulkan unter Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
@@ -122,7 +123,7 @@ Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitier
 
 ### Prompt-Optimierungsvoreinstellungen
 
-**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt prägnante Kompatibilitätshinweise hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
+**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
 
 ### Begründungsaufwandsstufen
 

@@ -152,9 +152,11 @@ Every archive — including the HTML bundle of a single journal — can be **pro
 !!! warning
     The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it.
 
-### Provenance
+### Footer and watermark
 
-Every exported document states that it was created with korTTY and links to the project repository: in the PDF footer (as a clickable link) and, additionally, as a faint diagonal watermark naming korTTY and its developer; at the end of the Markdown file; and in the footer of the journal page inside the HTML bundle.
+By default every exported document carries a footer stating that it was created with korTTY, with a link to the project repository — at the bottom of each PDF page, at the end of the Markdown file, and in the footer of the journal page inside the HTML bundle. PDFs can additionally carry a diagonal watermark, which is **off by default**.
+
+Both are configured under [**Configuration → Global Settings → Export**](../reference/settings/export.md), where you can change the footer text, turn the footer off, enable the watermark and choose its text and colour. The same settings apply to AI chat exports.
 
 ## Enterprise policy
 

@@ -497,6 +497,20 @@
     {
       "from": "### Provenienz",
       "to": "### Herkunftsangabe"
+    },
+    {
+      "from": "Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — [Sitzungstagebücher](../../features/session-journal.md#exporting) Und [KI-Chats](../../features/ai-assistant.md) gleich. Öffnen über **Konfiguration → Globale Einstellungen → Exportieren**; gespeichert `~/.kortty/global-settings.xml`.",
+      "to": "Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exporting) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.",
+      "note": "MT garbles the export settings intro; match the phrasing of the other settings pages."
+    },
+    {
+      "from": "Globale Einstellungen → Exportieren",
+      "to": "Globale Einstellungen → Export",
+      "note": "UI label settings.tab.export is 'Export'."
+    },
+    {
+      "from": "Sitzungstagebücher",
+      "to": "Sitzungsjournale"
     }
   ]
 }
