@@ -60,9 +60,16 @@ public final class SessionJournalHtmlRenderer {
         return t;
     });
     private final Map<Path, ScheduledFuture<?>> pendingRenders = new ConcurrentHashMap<>();
+    /** Baked into every page so a regenerated page keeps the user's chosen font size. */
+    private volatile java.util.function.IntSupplier fontScaleSupplier = () -> 100;
 
     public SessionJournalHtmlRenderer(SessionJournalService service) {
         this.service = service;
+    }
+
+    /** Supplies the persisted page font size in percent (the app wires this to GlobalSettings). */
+    public void setFontScaleSupplier(java.util.function.IntSupplier supplier) {
+        this.fontScaleSupplier = supplier != null ? supplier : () -> 100;
     }
 
     /** Wires debounced regeneration to every journal change (summaries, edits, notes). */
@@ -111,10 +118,14 @@ public final class SessionJournalHtmlRenderer {
             Comparator.nullsLast(Comparator.naturalOrder())));
         List<SessionJournalLogEntry> embeddable = capForEmbedding(logEntries, entries);
 
+        int fontScalePercent = Math.max(70, Math.min(fontScaleSupplier.getAsInt(), 250));
+
         StringBuilder html = new StringBuilder(64 * 1024);
         html.append("<!doctype html>\n<html lang=\"")
             .append(escapeAttr(meta.getAppLanguageCode() != null ? meta.getAppLanguageCode() : "en"))
-            .append("\" data-theme=\"auto\">\n<head>\n<meta charset=\"utf-8\">\n")
+            .append("\" data-theme=\"auto\" style=\"--font-scale:")
+            .append(fontScalePercent / 100.0)
+            .append("\">\n<head>\n<meta charset=\"utf-8\">\n")
             .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
             .append("<title>").append(escapeHtml(titleOf(meta))).append("</title>\n")
             .append("<style>\n").append(css()).append("</style>\n</head>\n<body>\n");
@@ -122,6 +133,7 @@ public final class SessionJournalHtmlRenderer {
         appendTimeline(html, entries, meta);
         appendLightbox(html);
         appendLogPanel(html);
+        appendContextMenu(html);
         html.append("<script>\n").append(js(embeddable)).append("</script>\n</body>\n</html>\n");
         return html.toString();
     }
@@ -154,8 +166,16 @@ public final class SessionJournalHtmlRenderer {
         appendStat(html, i18n("journal.html.commands", "Commands"), String.valueOf(meta.getCommandCount()));
         appendStat(html, i18n("journal.html.errors", "Errors"), String.valueOf(meta.getErrorCount()));
         appendStat(html, i18n("journal.html.screenshots", "Screenshots"), String.valueOf(screenshots));
-        html.append("<button id=\"themeToggle\" class=\"theme-toggle\" type=\"button\" title=\"")
-            .append(escapeAttr(i18n("journal.html.theme", "Theme"))).append("\">◐</button>\n");
+        html.append("<div class=\"head-buttons\">");
+        html.append("<button id=\"fontSmaller\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.fontSmaller", "Smaller font"))).append("\">A−</button>");
+        html.append("<button id=\"fontReset\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.fontReset", "Reset font size"))).append("\">A</button>");
+        html.append("<button id=\"fontLarger\" class=\"icon-button font-larger\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.fontLarger", "Larger font"))).append("\">A+</button>");
+        html.append("<button id=\"themeToggle\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.theme", "Theme"))).append("\">◐</button>");
+        html.append("</div>\n");
         html.append("</div>\n</header>\n");
     }
 
@@ -266,6 +286,23 @@ public final class SessionJournalHtmlRenderer {
             .append("<button type=\"button\" class=\"lightbox-close\">✕</button></div>\n");
     }
 
+    /** Custom right-click menu; the in-app WebView has the native context menu disabled. */
+    private void appendContextMenu(StringBuilder html) {
+        html.append("<div id=\"ctxMenu\" class=\"ctx-menu\" role=\"menu\">\n")
+            .append(ctxItem("ctxSelection", i18n("journal.html.copy.selection", "Copy selection")))
+            .append(ctxItem("ctxSummary", i18n("journal.html.copy.summary", "Copy summary")))
+            .append(ctxItem("ctxEntry", i18n("journal.html.copy.entry", "Copy entry")))
+            .append(ctxItem("ctxScreenshot", i18n("journal.html.copy.screenshot", "Copy screenshot")))
+            .append(ctxItem("ctxPath", i18n("journal.html.copy.path", "Copy screenshot path")))
+            .append(ctxItem("ctxLog", i18n("journal.html.copy.log", "Copy log section")))
+            .append("</div>\n")
+            .append("<div id=\"toast\" class=\"toast\" role=\"status\" aria-live=\"polite\"></div>\n");
+    }
+
+    private static String ctxItem(String id, String label) {
+        return "<button type=\"button\" id=\"" + id + "\" role=\"menuitem\">" + escapeHtml(label) + "</button>\n";
+    }
+
     private void appendLogPanel(StringBuilder html) {
         html.append("<aside id=\"logPanel\" class=\"log-panel\" aria-hidden=\"true\">\n")
             .append("<div class=\"panel-head\">\n")
@@ -344,6 +381,11 @@ public final class SessionJournalHtmlRenderer {
                 .append('}');
         }
         data.append("];\n");
+        data.append("const T={copied:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.copied", "Copied")))
+            .append(",failed:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.copyFailed", "Copy failed")))
+            .append("};\n");
         return data + behaviorJs();
     }
 
@@ -352,6 +394,7 @@ public final class SessionJournalHtmlRenderer {
     private static String css() {
         return """
             :root{
+              --font-scale:1;
               --bg:#0f1115; --surface:#171a21; --surface2:#1e232d; --border:#2a303c;
               --text:#d7dce4; --muted:#8b93a1; --accent:#58a6ff;
               --input:#7ee787; --output:#9ecbff;
@@ -373,34 +416,41 @@ public final class SessionJournalHtmlRenderer {
               }
             }
             *{box-sizing:border-box}
+            /* Every font size below is em-relative to this one, so the A-/A+ buttons scale the
+               whole page by changing a single custom property. */
             body{margin:0;background:var(--bg);color:var(--text);
-              font:15px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+              font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+              font-size:calc(15px * var(--font-scale));line-height:1.5;
               padding-bottom:12px}
             body.panel-open{padding-bottom:46vh}
             .session-head{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:12px;
-              justify-content:space-between;align-items:flex-start;padding:16px 24px;
+              justify-content:space-between;align-items:flex-start;padding:16px clamp(12px,3vw,24px);
               background:color-mix(in srgb,var(--surface) 88%,transparent);
               backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
-            .session-head h1{margin:0 0 4px;font-size:19px}
-            .conn{color:var(--muted);font-size:13px}
-            .live-badge{color:var(--err);font-size:12px;margin-left:6px}
-            .description{margin:6px 0 0;color:var(--muted);font-size:13px;max-width:640px}
-            .head-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+            .session-head h1{margin:0 0 4px;font-size:1.27em}
+            .conn{color:var(--muted);font-size:.87em}
+            .live-badge{color:var(--err);font-size:.8em;margin-left:6px}
+            .description{margin:6px 0 0;color:var(--muted);font-size:.87em;max-width:min(640px,80vw)}
+            .head-meta{display:flex;gap:clamp(8px,1.5vw,14px);align-items:center;flex-wrap:wrap}
             .stat{display:flex;flex-direction:column;align-items:flex-end}
-            .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-            .stat-value{font-size:14px;font-weight:600}
-            .theme-toggle{border:1px solid var(--border);background:var(--surface2);color:var(--text);
-              border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px}
-            .timeline{max-width:960px;margin:0 auto;padding:20px 24px 60px}
-            .day-divider{position:sticky;top:78px;z-index:10;margin:18px 0 10px 74px}
+            .stat-label{font-size:.67em;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+            .stat-value{font-size:.93em;font-weight:600}
+            .head-buttons{display:flex;gap:4px;align-items:center}
+            .icon-button{border:1px solid var(--border);background:var(--surface2);color:var(--text);
+              border-radius:8px;padding:4px 9px;cursor:pointer;font-size:.87em;font-family:inherit;
+              line-height:1.2;min-width:32px}
+            .icon-button:hover{border-color:var(--accent)}
+            .font-larger{font-size:1em}
+            .timeline{max-width:min(1200px,94vw);margin:0 auto;padding:20px clamp(10px,3vw,24px) 60px}
+            .day-divider{position:sticky;top:78px;z-index:10;margin:18px 0 10px clamp(52px,8vw,74px)}
             .day-divider span{background:var(--surface2);border:1px solid var(--border);
-              border-radius:999px;padding:2px 12px;font-size:12px;color:var(--muted)}
-            .entry{display:grid;grid-template-columns:64px 1fr;gap:10px;position:relative;
+              border-radius:999px;padding:2px 12px;font-size:.8em;color:var(--muted)}
+            .entry{display:grid;grid-template-columns:clamp(44px,7vw,64px) 1fr;gap:10px;position:relative;
               padding:6px 0}
-            .entry:before{content:"";position:absolute;left:56px;top:0;bottom:0;
+            .entry:before{content:"";position:absolute;left:calc(clamp(44px,7vw,64px) - 8px);top:0;bottom:0;
               width:2px;background:var(--border)}
             .node{position:relative;text-align:right;padding-right:16px;color:var(--muted);
-              font-size:12px;padding-top:8px}
+              font-size:.8em;padding-top:8px}
             .dot{position:absolute;right:-5px;top:12px;width:10px;height:10px;border-radius:50%;
               background:var(--none);border:2px solid var(--bg)}
             .dot-error{background:var(--err)} .dot-important{background:var(--imp)}
@@ -412,25 +462,28 @@ public final class SessionJournalHtmlRenderer {
               box-shadow:0 4px 14px rgba(0,0,0,.25);outline:none;border-color:var(--accent)}
             .card.active{border-color:var(--accent)}
             .card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-            .card-head h3{margin:0;font-size:15px}
-            .badge{border-radius:999px;padding:1px 9px;font-size:11px;font-weight:600;color:#fff}
+            .card-head h3{margin:0;font-size:1em}
+            .badge{border-radius:999px;padding:1px 9px;font-size:.73em;font-weight:600;color:#fff}
             .badge-error{background:var(--err)} .badge-important{background:var(--imp)}
             .badge-info{background:var(--info)} .badge-none{background:var(--none)}
             .state-tag{border:1px solid var(--border);border-radius:4px;color:var(--muted);
-              font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px}
+              font-size:.67em;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px}
             .state-tag.failed{color:var(--err);border-color:var(--err)}
             .final .card{border-left:3px solid var(--accent)}
             .summary{margin:8px 0 0;white-space:pre-wrap}
             .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+            /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
             .excerpt{margin:0;padding:8px 10px;border-radius:8px;background:var(--surface2);
-              font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-              overflow-x:auto;white-space:pre}
+              font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+              font-size:.8em;line-height:1.45;
+              overflow:auto;max-height:min(340px,34vh);white-space:pre}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
-              background:var(--surface2);border-radius:0 8px 8px 0;font-size:13px}
+              background:var(--surface2);border-radius:0 8px 8px 0;font-size:.87em}
             .user-note .card{border-left:3px solid var(--mark)}
-            .thumb{max-width:320px;max-height:220px;border-radius:8px;border:1px solid var(--border);
+            .thumb{width:auto;max-width:min(560px,100%);max-height:min(420px,42vh);
+              border-radius:8px;border:1px solid var(--border);
               margin-top:8px;cursor:zoom-in;display:block}
             .empty{color:var(--muted);text-align:center;margin-top:48px}
             .lightbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.82);
@@ -441,31 +494,53 @@ public final class SessionJournalHtmlRenderer {
             .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
             .lightbox-close{position:absolute;top:16px;right:20px;background:none;border:none;
               color:#fff;font-size:22px;cursor:pointer}
-            .log-panel{position:fixed;left:0;right:0;bottom:0;height:44vh;z-index:40;
+            .log-panel{position:fixed;left:0;right:0;bottom:0;height:clamp(200px,44vh,60vh);z-index:40;
               background:var(--surface);border-top:1px solid var(--border);
               transform:translateY(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
               display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(0,0,0,.35)}
             .log-panel.open{transform:none}
-            .panel-head{display:flex;gap:8px;align-items:center;padding:8px 14px;
+            .panel-head{display:flex;gap:8px;align-items:center;padding:8px clamp(8px,2vw,14px);
               border-bottom:1px solid var(--border);flex-wrap:wrap}
-            .panel-title{font-size:12px;color:var(--muted);margin-right:auto}
+            .panel-title{font-size:.8em;color:var(--muted);margin-right:auto}
             #logSearch{background:var(--surface2);border:1px solid var(--border);color:var(--text);
-              border-radius:8px;padding:5px 10px;min-width:220px;font-size:13px}
-            .match-count{font-size:12px;color:var(--muted);min-width:44px;text-align:center}
+              border-radius:8px;padding:5px 10px;min-width:min(220px,45vw);font-size:.87em;
+              font-family:inherit}
+            .match-count{font-size:.8em;color:var(--muted);min-width:44px;text-align:center}
             .panel-head button{background:var(--surface2);border:1px solid var(--border);
-              color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer}
-            .log-body{flex:1;margin:0;overflow:auto;padding:10px 14px;
-              font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap}
+              color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit}
+            .log-body{flex:1;margin:0;overflow:auto;padding:10px clamp(8px,2vw,14px);
+              font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+              font-size:.8em;line-height:1.5;white-space:pre-wrap}
             .log-body::-webkit-scrollbar{width:10px}
             .log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
             .l-in{color:var(--input)} .l-out{color:var(--output)} .l-meta{color:var(--muted)}
             .l-seq{color:var(--muted);user-select:none}
             mark{background:var(--mark);color:#000;border-radius:2px}
             mark.cur{background:var(--mark-cur)}
+            .ctx-menu{position:fixed;z-index:70;min-width:190px;max-width:80vw;padding:4px;display:none;
+              background:var(--surface);border:1px solid var(--border);border-radius:10px;
+              box-shadow:0 10px 30px rgba(0,0,0,.45)}
+            .ctx-menu.open{display:block}
+            .ctx-menu button{display:none;width:100%;text-align:left;background:none;border:none;
+              color:var(--text);padding:7px 12px;border-radius:6px;cursor:pointer;
+              font-size:.87em;font-family:inherit}
+            .ctx-menu button.available{display:block}
+            .ctx-menu button:hover{background:var(--surface2)}
+            .toast{position:fixed;left:50%;bottom:24px;z-index:80;opacity:0;pointer-events:none;
+              transform:translate(-50%,18px);transition:opacity .18s,transform .18s;
+              background:var(--surface2);border:1px solid var(--border);color:var(--text);
+              border-radius:999px;padding:8px 18px;font-size:.87em}
+            .toast.show{opacity:1;transform:translate(-50%,0)}
+            @media (max-width:640px){
+              .session-head{gap:8px}
+              .stat{align-items:flex-start}
+              .entry{gap:6px}
+            }
             @media print{
-              .log-panel,.lightbox,.theme-toggle{display:none !important}
+              .log-panel,.lightbox,.ctx-menu,.toast,.head-buttons{display:none !important}
               .session-head{position:static}
               .card{break-inside:avoid}
+              .excerpt{max-height:none}
             }
             """;
     }
@@ -577,13 +652,20 @@ public final class SessionJournalHtmlRenderer {
             var lightboxImg=lightbox.querySelector("img");
             document.querySelectorAll("img.thumb").forEach(function(img){
               img.addEventListener("click",function(){
-                lightboxImg.src=img.src; lightbox.hidden=false;
+                lightboxImg.src=img.src;
+                // Keep the directory-relative path: the Java bridge resolves it against the
+                // journal folder, and img.src would be an absolute file:/ URL.
+                lightboxImg.dataset.rel=img.getAttribute("src");
+                lightbox.hidden=false;
               });
             });
             lightbox.addEventListener("click",function(){lightbox.hidden=true;});
             document.addEventListener("keydown",function(e){
               if(e.key==="Escape"){
-                if(!lightbox.hidden){lightbox.hidden=true;}
+                if(document.getElementById("ctxMenu").classList.contains("open")){
+                  document.getElementById("ctxMenu").classList.remove("open");
+                }
+                else if(!lightbox.hidden){lightbox.hidden=true;}
                 else if(panel.classList.contains("open")){closePanel();}
               }
               if(panel.classList.contains("open")){
@@ -603,6 +685,162 @@ public final class SessionJournalHtmlRenderer {
               root.setAttribute("data-theme",next);
               try{localStorage.setItem("kortty-journal-theme",next);}catch(err){}
             });
+
+            /* ---- font size ---------------------------------------------------------- */
+            var FONT_MIN=0.7,FONT_MAX=2.5,FONT_STEP=0.1;
+            function bridge(){return window.korttyJournal;}
+            function currentScale(){
+              var v=parseFloat(root.style.getPropertyValue("--font-scale"));
+              return isNaN(v)?1:v;
+            }
+            function applyScale(value,persist){
+              var v=Math.round(Math.min(FONT_MAX,Math.max(FONT_MIN,value))*100)/100;
+              root.style.setProperty("--font-scale",v);
+              if(!persist){return;}
+              try{localStorage.setItem("kortty-journal-font-scale",String(v));}catch(err){}
+              // In the app the bridge persists the size in the korTTY settings, so a regenerated
+              // page (new AI entry, edited marker) comes back at the size the user chose.
+              var b=bridge();
+              if(b&&b.fontScaleChanged){try{b.fontScaleChanged(Math.round(v*100));}catch(err){}}
+            }
+            try{
+              var storedScale=parseFloat(localStorage.getItem("kortty-journal-font-scale"));
+              if(!isNaN(storedScale)){applyScale(storedScale,false);}
+            }catch(err){}
+            document.getElementById("fontSmaller").addEventListener("click",function(){
+              applyScale(currentScale()-FONT_STEP,true);});
+            document.getElementById("fontLarger").addEventListener("click",function(){
+              applyScale(currentScale()+FONT_STEP,true);});
+            document.getElementById("fontReset").addEventListener("click",function(){
+              applyScale(1,true);});
+
+            /* ---- copying ------------------------------------------------------------ */
+            var toastEl=document.getElementById("toast");
+            var toastTimer=null;
+            function toast(message){
+              toastEl.textContent=message;
+              toastEl.classList.add("show");
+              if(toastTimer){clearTimeout(toastTimer);}
+              toastTimer=setTimeout(function(){toastEl.classList.remove("show");},1800);
+            }
+            function legacyCopy(text){
+              var area=document.createElement("textarea");
+              area.value=text; area.setAttribute("readonly","");
+              area.style.position="fixed"; area.style.left="-9999px";
+              document.body.appendChild(area); area.select();
+              var ok=false;
+              try{ok=document.execCommand("copy");}catch(err){}
+              document.body.removeChild(area);
+              toast(ok?T.copied:T.failed);
+            }
+            function copyText(text){
+              if(!text){return;}
+              var b=bridge();
+              if(b&&b.copyText){
+                try{if(b.copyText(text)){toast(T.copied);return;}}catch(err){}
+              }
+              if(navigator.clipboard&&navigator.clipboard.writeText){
+                navigator.clipboard.writeText(text).then(function(){toast(T.copied);},
+                  function(){legacyCopy(text);});
+                return;
+              }
+              legacyCopy(text);
+            }
+            function copyImage(img){
+              var rel=img.dataset.rel||img.getAttribute("src");
+              var b=bridge();
+              if(b&&b.copyImage){
+                try{if(b.copyImage(rel)){toast(T.copied);return;}}catch(err){}
+              }
+              // Standalone browser: canvas round-trip. Over file:// the canvas is tainted and
+              // toBlob throws, so the path stays the useful fallback.
+              try{
+                var canvas=document.createElement("canvas");
+                canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+                canvas.getContext("2d").drawImage(img,0,0);
+                canvas.toBlob(function(blob){
+                  if(blob&&window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){
+                    navigator.clipboard.write([new ClipboardItem({"image/png":blob})]).then(
+                      function(){toast(T.copied);},function(){copyText(rel);});
+                  }else{copyText(rel);}
+                });
+              }catch(err){copyText(rel);}
+            }
+            function entryText(card,full){
+              var parts=[];
+              var article=card.closest(".entry");
+              var time=article?article.querySelector(".node time"):null;
+              var heading=card.querySelector("h3");
+              var head=((time?time.textContent+" ":"")+(heading?heading.textContent:"")).trim();
+              if(head){parts.push(head);}
+              var summary=card.querySelector(".summary");
+              if(summary){parts.push(summary.textContent);}
+              if(full){
+                card.querySelectorAll(".excerpt").forEach(function(pre){
+                  parts.push(pre.textContent.replace(/\\s+$/,""));});
+                var note=card.querySelector(".note");
+                if(note){parts.push(note.textContent);}
+              }
+              return parts.join("\\n\\n");
+            }
+            function logText(){
+              return records.map(function(r){
+                return r.t+" "+(r.k==="i"?"$ ":"")+r.x;}).join("\\n");
+            }
+
+            /* ---- context menu ------------------------------------------------------- */
+            var menu=document.getElementById("ctxMenu");
+            var items={selection:document.getElementById("ctxSelection"),
+              summary:document.getElementById("ctxSummary"),
+              entry:document.getElementById("ctxEntry"),
+              screenshot:document.getElementById("ctxScreenshot"),
+              path:document.getElementById("ctxPath"),
+              log:document.getElementById("ctxLog")};
+            var ctxCard=null,ctxImage=null,ctxSelection="";
+            function hideMenu(){
+              menu.classList.remove("open");
+              ctxCard=null; ctxImage=null; ctxSelection="";
+            }
+            function show(key,visible){items[key].classList.toggle("available",!!visible);}
+            document.addEventListener("contextmenu",function(event){
+              var target=event.target;
+              ctxSelection=String(window.getSelection());
+              ctxImage=target.tagName==="IMG"?target:null;
+              ctxCard=target.closest?target.closest(".card"):null;
+              var inLog=target.closest?!!target.closest("#logBody"):false;
+              show("selection",ctxSelection.trim().length>0);
+              show("summary",!!ctxCard);
+              show("entry",!!ctxCard);
+              show("screenshot",!!ctxImage);
+              show("path",!!ctxImage);
+              show("log",inLog&&records.length>0);
+              if(!menu.querySelector("button.available")){hideMenu();return;}
+              event.preventDefault();
+              menu.classList.add("open");
+              // Measure after showing, then keep the menu inside the viewport.
+              var rect=menu.getBoundingClientRect();
+              var x=Math.min(event.clientX,window.innerWidth-rect.width-8);
+              var y=Math.min(event.clientY,window.innerHeight-rect.height-8);
+              menu.style.left=Math.max(8,x)+"px";
+              menu.style.top=Math.max(8,y)+"px";
+            });
+            document.addEventListener("click",function(event){
+              if(!menu.contains(event.target)){hideMenu();}
+            });
+            document.addEventListener("scroll",hideMenu,true);
+            items.selection.addEventListener("click",function(){
+              var text=ctxSelection; hideMenu(); copyText(text);});
+            items.summary.addEventListener("click",function(){
+              var card=ctxCard; hideMenu(); if(card){copyText(entryText(card,false));}});
+            items.entry.addEventListener("click",function(){
+              var card=ctxCard; hideMenu(); if(card){copyText(entryText(card,true));}});
+            items.screenshot.addEventListener("click",function(){
+              var img=ctxImage; hideMenu(); if(img){copyImage(img);}});
+            items.path.addEventListener("click",function(){
+              var img=ctxImage; hideMenu();
+              if(img){copyText(img.dataset.rel||img.getAttribute("src"));}});
+            items.log.addEventListener("click",function(){
+              hideMenu(); copyText(logText());});
             })();
             """;
     }

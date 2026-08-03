@@ -195,6 +195,12 @@ public class KorTTYApplication extends Application {
         sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
         sessionJournalHtmlRenderer.attachToServiceChanges();
+        // A regenerated page keeps the font size the user set with the page's A-/A+ buttons.
+        sessionJournalHtmlRenderer.setFontScaleSupplier(() -> {
+            GlobalSettings journalSettings =
+                globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            return journalSettings != null ? journalSettings.getSessionJournalFontScalePercent() : 100;
+        });
         telemetryService = new TelemetryService(globalSettingsManager, configDir);
         Telemetry.init(telemetryService);
 

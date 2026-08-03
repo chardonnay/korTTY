@@ -87,6 +87,26 @@ Typed input is captured only as complete submitted lines, and several layers kee
 - Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (++enter++ / ++shift+enter++ also cycle matches, ++esc++ closes), and colors input and output lines differently.
 - Screenshot entries show thumbnails; clicking one opens a full-size lightbox.
 - The page renders dark by default, follows the system light/dark preference and has its own theme toggle.
+- Screenshots, excerpt panels, the timeline column and the log panel size themselves to the window, so the page stays readable in a narrow viewer tab as well as full screen. Long excerpts scroll inside their own box instead of stretching the timeline.
+
+### Copying content
+
+Right-clicking the page opens a copy menu whose entries depend on what you clicked:
+
+| Action | Copies |
+|--------|--------|
+| **Copy selection** | The currently selected text (shown whenever a selection exists) |
+| **Copy summary** | The entry's time, title and AI summary |
+| **Copy entry** | The same plus the input/output excerpts and your note |
+| **Copy screenshot** | The screenshot itself, as an image, onto the clipboard |
+| **Copy screenshot path** | The screenshot's path inside the journal folder |
+| **Copy log section** | Every line of the log range currently shown in the panel, with timestamps |
+
+Inside korTTY the copy actions use the app's clipboard, so images land on the system clipboard ready to paste. In an external browser text still copies normally; copying an image may fall back to its path, because browsers block reading local image data from a `file://` page.
+
+### Font size
+
+The **A−**, **A** and **A+** buttons in the page header scale the whole page between 70 % and 250 %. korTTY remembers the size and applies it to every journal page it renders afterwards, so a page that regenerates (a new AI summary, an edited marker) comes back at the size you chose. Opened standalone in a browser the page remembers the size per browser instead.
 
 ## Managing journals
 

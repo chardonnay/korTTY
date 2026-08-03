@@ -447,6 +447,20 @@
       "from": "**Abschlag**",
       "to": "**Markdown**",
       "note": "MT translates the format name Markdown as the golf term."
+    },
+    {
+      "from": "**Protokollabschnitt kopieren**",
+      "to": "**Log-Ausschnitt kopieren**",
+      "note": "UI label journal.html.copy.log; the guide must quote the menu item verbatim."
+    },
+    {
+      "from": "AI-Zusammenfassungen",
+      "to": "KI-Zusammenfassungen",
+      "note": "German UI consistently says KI (connEdit.journal.aiSummaries)."
+    },
+    {
+      "from": "AI-Zusammenfassung",
+      "to": "KI-Zusammenfassung"
     }
   ]
 }

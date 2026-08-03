@@ -71,6 +71,13 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
     private final Label editStatus = new Label();
     private final ToggleButton editToggle = new ToggleButton(I18n.get("journal.viewer.edit"));
     private final Consumer<Path> changeListener;
+    /**
+     * JavaFX binds objects handed to {@code JSObject.setMember} through WEAK references, so the
+     * bridge must stay strongly reachable for the life of the WebView — otherwise the next
+     * JS→Java call crashes natively (see MonacoEditorPane).
+     */
+    private final JournalBridge journalBridge = new JournalBridge(this);
+    private javafx.animation.PauseTransition fontScaleSaveDelay;
     private SplitPane editSplit;
     private volatile boolean disposed;
 
@@ -84,8 +91,10 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         setResizable(true);
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
+        // The page brings its own right-click menu (copy screenshot/summary/entry/log).
         webView.setContextMenuEnabled(false);
         installExternalLinkHandler();
+        installJavaBridge();
         centerPane.setCenter(webView);
 
         BorderPane root = new BorderPane();
@@ -188,6 +197,116 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
             }
         } catch (Exception e) {
             logger.debug("Session journal viewer reload failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Exposes {@code window.korttyJournal} to the page so it can copy screenshots and text through
+     * the system clipboard and persist its font size in the korTTY settings.
+     */
+    private void installJavaBridge() {
+        webView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (disposed || newState != javafx.concurrent.Worker.State.SUCCEEDED) {
+                return;
+            }
+            // Defer off the load-worker callback: WebKit is still inside its native load-finished
+            // dispatch here, and calling executeScript re-entrantly crashes intermittently.
+            Platform.runLater(() -> {
+                if (disposed) {
+                    return;
+                }
+                try {
+                    netscape.javascript.JSObject window =
+                        (netscape.javascript.JSObject) webView.getEngine().executeScript("window");
+                    window.setMember("korttyJournal", journalBridge);
+                } catch (Exception e) {
+                    logger.warn("Could not install the session journal page bridge: {}", e.getMessage());
+                }
+            });
+        });
+    }
+
+    /** Puts plain text on the system clipboard; called from the page's copy actions. */
+    boolean copyTextToClipboard(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+        content.putString(text);
+        return javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    /** Puts a journal screenshot on the system clipboard as an image. */
+    boolean copyImageToClipboard(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return false;
+        }
+        try {
+            Path base = journalDir.toAbsolutePath().normalize();
+            Path image = base.resolve(relativePath).normalize();
+            // The path comes from the page, so never let it escape the journal directory.
+            if (!image.startsWith(base) || !Files.isRegularFile(image)) {
+                return false;
+            }
+            javafx.scene.image.Image loaded =
+                new javafx.scene.image.Image(image.toUri().toURL().toExternalForm());
+            if (loaded.isError()) {
+                return false;
+            }
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putImage(loaded);
+            return javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+        } catch (Exception e) {
+            logger.warn("Could not copy the journal screenshot: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /** Persists the page font size chosen with the A-/A+ buttons (debounced). */
+    void persistFontScale(int percent) {
+        GlobalSettings settings = settings();
+        if (settings == null) {
+            return;
+        }
+        settings.setSessionJournalFontScalePercent(percent);
+        if (fontScaleSaveDelay == null) {
+            fontScaleSaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+            fontScaleSaveDelay.setOnFinished(event -> {
+                try {
+                    if (app != null && app.getGlobalSettingsManager() != null) {
+                        app.getGlobalSettingsManager().save();
+                    }
+                } catch (Exception e) {
+                    logger.warn("Could not save the journal font size: {}", e.getMessage());
+                }
+            });
+        }
+        fontScaleSaveDelay.playFromStart();
+    }
+
+    /** JS→Java entry points; must be a public class with public methods for WebView marshalling. */
+    public static final class JournalBridge {
+        private final java.lang.ref.WeakReference<SessionJournalViewerDialog> dialogRef;
+
+        JournalBridge(SessionJournalViewerDialog dialog) {
+            this.dialogRef = new java.lang.ref.WeakReference<>(dialog);
+        }
+
+        public boolean copyText(String text) {
+            SessionJournalViewerDialog dialog = dialogRef.get();
+            return dialog != null && dialog.copyTextToClipboard(text);
+        }
+
+        public boolean copyImage(String relativePath) {
+            SessionJournalViewerDialog dialog = dialogRef.get();
+            return dialog != null && dialog.copyImageToClipboard(relativePath);
+        }
+
+        public void fontScaleChanged(int percent) {
+            SessionJournalViewerDialog dialog = dialogRef.get();
+            if (dialog != null) {
+                dialog.persistFontScale(percent);
+            }
         }
     }
 

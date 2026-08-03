@@ -43,7 +43,7 @@ Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen
 - **Screenshot** (++ctrl+alt+c++, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.
 - **Notiz** öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.
 
-## AI-Zusammenfassungen
+## KI-Zusammenfassungen
 
 Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neuesten Capture-Log-Zeilen und hängt einen kompakten Journaleintrag an (Titel, Zusammenfassung und eine vorgeschlagene Markierung: Info, wichtig oder Fehler). Standardwerte und Grenzwerte:
 
@@ -87,6 +87,26 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 - Durch Klicken auf einen Eintrag wird von unten ein Protokollfenster mit dem genauen Erfassungsprotokollbereich hinter diesem Eintrag eingeblendet. Das Panel verfügt über eine eigene Bildlaufleiste, ein Suchfeld mit Trefferzähler und ▲/▼-Navigation (++enter++ / ++shift+enter++ zyklisch auch Treffer, ++esc++ schließt) und färbt Eingabe- und Ausgabezeilen unterschiedlich ein.
 - Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet.
 - Die Seite wird standardmäßig dunkel gerendert, folgt der Hell/Dunkel-Einstellung des Systems und verfügt über eine eigene Designumschaltung.
+- Screenshots, Auszugsfenster, die Zeitleistenspalte und das Protokollfenster passen sich dem Fenster an, sodass die Seite sowohl in einem schmalen Viewer-Tab als auch im Vollbildmodus lesbar bleibt. Lange Ausschnitte scrollen in ihrem eigenen Rahmen, anstatt die Zeitleiste zu dehnen.
+
+### Inhalt wird kopiert
+
+Wenn Sie mit der rechten Maustaste auf die Seite klicken, wird ein Kopiermenü geöffnet, dessen Einträge davon abhängen, was Sie angeklickt haben:
+
+| Aktion | Kopiert |
+|--------|--------|
+| **Auswahl kopieren** | Der aktuell ausgewählte Text (wird angezeigt, wenn eine Auswahl vorhanden ist) |
+| **Zusammenfassung kopieren** | Zeit, Titel und KI-Zusammenfassung des Eintrags |
+| **Eintrag kopieren** | Dasselbe plus die Ein-/Ausgabeauszüge und Ihre Notiz |
+| **Screenshot kopieren** | Der Screenshot selbst, als Bild, in die Zwischenablage |
+| **Screenshot-Pfad kopieren** | Der Pfad des Screenshots im Journalordner |
+| **Log-Ausschnitt kopieren** | Jede Zeile des derzeit im Panel angezeigten Protokollbereichs mit Zeitstempeln |
+
+In korTTY verwenden die Kopieraktionen die Zwischenablage der App, sodass Bilder in der Zwischenablage des Systems landen und zum Einfügen bereit sind. In einem externen Browser wird der Text weiterhin normal kopiert; Das Kopieren eines Bildes kann auf seinen Pfad zurückgreifen, da Browser das Lesen lokaler Bilddaten von einer `file://`-Seite blockieren.
+
+### Schriftgröße
+
+Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamte Seite zwischen 70 % und 250 %. korTTY merkt sich die Größe und wendet sie auf jede anschließend gerenderte Journalseite an, sodass eine Seite, die neu generiert wird (eine neue KI-Zusammenfassung, eine bearbeitete Markierung), wieder die von Ihnen gewählte Größe hat. Wenn die Seite eigenständig in einem Browser geöffnet wird, merkt sie sich stattdessen die Größe pro Browser.
 
 ## Journale verwalten
 

@@ -128,6 +128,53 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void contextMenuOffersEveryCopyAction() {
+        document.getEntries().add(summaryEntry());
+        String html = renderer.render(document, sampleLog());
+        assertThat(html).contains("id=\"ctxMenu\"");
+        assertThat(html).contains("id=\"ctxSelection\"");
+        assertThat(html).contains("id=\"ctxSummary\"");
+        assertThat(html).contains("id=\"ctxEntry\"");
+        assertThat(html).contains("id=\"ctxScreenshot\"");
+        assertThat(html).contains("id=\"ctxPath\"");
+        assertThat(html).contains("id=\"ctxLog\"");
+        assertThat(html).contains("id=\"toast\"");
+        // Copying goes through the app bridge first and degrades to the clipboard API/execCommand.
+        assertThat(html).contains("korttyJournal");
+        assertThat(html).contains("execCommand");
+    }
+
+    @Test
+    void fontSizeControlsScaleThePageAndPersist() {
+        String html = renderer.render(document, List.of());
+        assertThat(html).contains("id=\"fontSmaller\"");
+        assertThat(html).contains("id=\"fontLarger\"");
+        assertThat(html).contains("id=\"fontReset\"");
+        assertThat(html).contains("--font-scale:1.0");
+        assertThat(html).contains("font-size:calc(15px * var(--font-scale))");
+        assertThat(html).contains("kortty-journal-font-scale");
+        assertThat(html).contains("fontScaleChanged");
+    }
+
+    @Test
+    void bakedFontScaleComesFromTheSuppliedSetting() {
+        renderer.setFontScaleSupplier(() -> 140);
+        assertThat(renderer.render(document, List.of())).contains("--font-scale:1.4");
+        // Out-of-range values are clamped rather than trusted.
+        renderer.setFontScaleSupplier(() -> 5000);
+        assertThat(renderer.render(document, List.of())).contains("--font-scale:2.5");
+    }
+
+    @Test
+    void sizesAreViewportRelative() {
+        String html = renderer.render(document, List.of());
+        assertThat(html).contains("max-width:min(560px,100%)");   // screenshot thumbnails
+        assertThat(html).contains("max-height:min(340px,34vh)");  // excerpt panels
+        assertThat(html).contains("max-width:min(1200px,94vw)");  // timeline column
+        assertThat(html).contains("height:clamp(200px,44vh,60vh)"); // log panel
+    }
+
+    @Test
     void panelAndSearchScaffoldingIsPresent() {
         String html = renderer.render(document, sampleLog());
         assertThat(html).contains("id=\"logPanel\"");

@@ -186,6 +186,9 @@ public class GlobalSettings {
     private boolean sessionJournalAiTitleEnabled = false; // Let the AI title the journal on close
 
     @XmlElement
+    private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
+
+    @XmlElement
     private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
 
     @XmlElement
@@ -1291,6 +1294,20 @@ public class GlobalSettings {
 
     public void setSessionJournalAiTitleEnabled(boolean sessionJournalAiTitleEnabled) {
         this.sessionJournalAiTitleEnabled = sessionJournalAiTitleEnabled;
+    }
+
+    /** Font size of the generated journal page in percent; the page's A-/A+ buttons write it back. */
+    public int getSessionJournalFontScalePercent() {
+        if (sessionJournalFontScalePercent == null) {
+            return 100;
+        }
+        return Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    public void setSessionJournalFontScalePercent(Integer sessionJournalFontScalePercent) {
+        this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
+            ? 100
+            : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
     }
 
     public boolean isTerminalDragDropEnabled() {
