@@ -23,6 +23,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.animation.KeyFrame;
@@ -625,6 +626,14 @@ public class TerminalTab extends Tab {
         refreshJournalControlsVisibility();
         journalToggleButton.setText(I18n.get(active ? "terminal.journal.stop" : "terminal.journal.start"));
         setJournalButtonIcon(active);
+        // Starting is never blocked by "enforced" (an enforced journal already auto-starts); only
+        // stopping an already-active one is. toggleJournalFromUser() already refuses the action —
+        // this greys the button out and explains why, instead of a click quietly doing nothing.
+        boolean stopLocked = active && de.kortty.policy.PolicyManager.effective().sessionJournalEnforced();
+        journalToggleButton.setDisable(stopLocked);
+        journalToggleButton.setTooltip(stopLocked
+            ? new Tooltip(I18n.get("terminal.journal.error.enforced"))
+            : null);
         applyNodeVisibility(journalScreenshotButton, active, active);
         applyNodeVisibility(journalNoteButton, active, active);
         if (active) {
