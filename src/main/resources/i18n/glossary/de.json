@@ -536,6 +536,18 @@
       "note": "MT reads 'redaction' as an editorial department; here it means blacking out text."
     },
     {
+      "from": "redaktion",
+      "to": "Schwärzung"
+    },
+    {
+      "from": "Betrachters",
+      "to": "Viewers"
+    },
+    {
+      "from": "Betrachter",
+      "to": "Viewer"
+    },
+    {
       "from": "redigierten",
       "to": "geschwärzten"
     },

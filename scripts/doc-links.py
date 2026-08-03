@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 """Validate the korTTY doc manifest and its asset references.
 
-Complements `mkdocs build --strict` (which already fails on broken in-page links
-and images). This guards the manifest itself:
+Complements `mkdocs build --strict`, which owns the link graph: it fails on broken
+in-page links, missing images and — since `validation.links.anchors: warn` was added
+to app-docs/site/mkdocs.yml — links to a heading anchor that does not exist. That
+last one is deliberately NOT re-implemented here: MkDocs resolves links and collects
+heading ids with the site's own extension set, and a second implementation of the
+slug rules would only drift from it. Anchors broke silently in the German guide for
+exactly that reason (see the anchor post-pass in scripts/translate_docs.py), and the
+fix belongs in the build gate, not in a parallel checker.
+
+This script guards the manifest itself:
 
   * every page `path` is unique;
   * every `diagrams:` entry exists under app-docs/diagrams/;

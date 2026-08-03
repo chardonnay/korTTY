@@ -16,6 +16,15 @@ copyright: MIT-licensed · korTTY documentation
 # the site resolves under a jar:/file: origin (no leading-"/" absolute roots).
 use_directory_urls: false
 
+# A link to a heading that does not exist is reported by MkDocs as INFO by default,
+# which is invisible in a normal build — 17 links in the German guide pointed at the
+# untranslated English slug and silently landed the reader at the top of the page.
+# Promoted to a warning so `mkdocs build --strict` (how build-docs-site.py runs)
+# fails on it. See the anchor post-pass in scripts/translate_docs.py.
+validation:
+  links:
+    anchors: warn
+
 theme:
   name: material
   custom_dir: overrides

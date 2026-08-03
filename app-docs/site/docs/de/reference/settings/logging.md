@@ -18,4 +18,4 @@ Konfigurieren Sie die Protokollierung von Terminalsitzungen, einschließlich des
 
 ## Sitzungsjournal
 
-Die gleiche Registerkarte enthält auch das Globale [Sitzungsjournal](../../features/session-journal.md#ai-summaries) Einstellungen: der Journal-Speicherordner, ob KI-Zusammenfassungen standardmäßig generiert werden, das Standard-Zusammenfassungsintervall und das für Zusammenfassungen verwendete AI-Profil. Sie sind auf der dokumentiert [Sitzungsjournal](../../features/session-journal.md) Seite.
+Die gleiche Registerkarte enthält auch das Globale [Sitzungsjournal](../../features/session-journal.md#ki-zusammenfassungen) Einstellungen: der Journal-Speicherordner, ob KI-Zusammenfassungen standardmäßig generiert werden, das Standard-Zusammenfassungsintervall und das für Zusammenfassungen verwendete AI-Profil. Sie sind auf der dokumentiert [Sitzungsjournal](../../features/session-journal.md) Seite.

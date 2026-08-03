@@ -4,7 +4,7 @@ title: Export
 
 # Export
 
-Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exporting) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.
+Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exportieren) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
@@ -21,7 +21,7 @@ Das Wasserzeichen ist **standardmäßig deaktiviert** – ein Dokument wird mark
 Wenn Sie das Textfeld leer lassen, wird das integrierte korTTY-Wasserzeichen verwendet, das zusätzlich den Projekt-Repository-Link darunter druckt. Ein eigener Text wird wörtlich übernommen, es wird nichts angehängt.
 
 !!! tip
-    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation ist eine visuelle Markierung und kein Schutz. Jeder kann es aus einem PDF entfernen. Für Journale, die nicht für andere lesbar sein dürfen, exportieren Sie stattdessen ein [verschlüsseltes Archiv](../../features/session-journal.md#exporting-several-journals).
+    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation ist eine visuelle Markierung und kein Schutz. Jeder kann es aus einem PDF entfernen. Für Journale, die nicht für andere lesbar sein dürfen, exportieren Sie stattdessen ein [verschlüsseltes Archiv](../../features/session-journal.md#mehrere-journale-exportieren).
 
 ## Fußzeile
 

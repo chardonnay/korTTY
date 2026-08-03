@@ -78,7 +78,7 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 !!! warning
     Bei der Prompt-Erkennung handelt es sich um eine Heuristik – ein Remote-Terminal kann nicht zuverlässig erkennen, wann der Server das Echo deaktiviert hat. Exotische oder Vollbild-Passwortabfragen werden möglicherweise nicht erkannt und in sichtbare Befehle eingefügte Geheimnisse (außer den Anmeldeinformationen der Verbindung) werden wie jeder andere Text erfasst. Behandeln Sie Protokolle sensibler Sitzungen entsprechend.
 
-Ist dennoch etwas durchgerutscht, entfernt es die [Schwärzung im Viewer](#sensible-inhalte-im-nachhinein-entfernen) nachträglich aus den Einträgen und aus dem Capture-Log.
+Sollte dennoch etwas durchgerutscht sein, wird es durch die [Schwärzung](#sensible-inhalte-im-nachhinein-entfernen) des Viewers nachträglich aus den Einträgen und dem Capture-Log entfernt.
 
 ## Die Journalseite
 
@@ -129,7 +129,7 @@ Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamt
 - Der Bereich **Beschreibung** unterhalb der Tabelle speichert eine Freitextbeschreibung pro Journal; Es erscheint auf der Journalseite und in jedem Export und wird in die Inhaltssuche einbezogen.
 - **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen.
 
-### Der Betrachter und die Bearbeitung
+### Der Viewer und die Bearbeitung
 
 Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: eine Eintragstabelle neben einem Formular mit **Titel** und **Zusammenfassung** des Eintrags, einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und einem Notizfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
 

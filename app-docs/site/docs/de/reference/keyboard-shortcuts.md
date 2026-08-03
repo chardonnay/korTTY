@@ -32,7 +32,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+v++ | Videomanager |
 | ++ctrl+shift+e++ | Terminalaufzeichnung starten/stoppen |
 | ++ctrl+alt+j++ | Sitzungsjournale |
-| ++ctrl+alt+t++ | Starten/Stoppen Sie das Sitzungsjournal des aktiven Tabs |
+| ++ctrl+alt+t++ | Starten/stoppen Sie das Sitzungsjournal des aktiven Tabs |
 | ++ctrl+alt+c++ | Fügen Sie dem Protokoll der laufenden Sitzung einen Screenshot hinzu |
 | ++ctrl+shift+a++ | ASCII-Art |
 | ++ctrl+shift+y++ | Öffnen Sie AI Manager |
@@ -47,7 +47,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Herauszoomen |
 | ++alt+0++ | Zoom zurücksetzen |
-| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminal-Schriftart (Befehlstaste + Rad unter macOS). |
 | ++ctrl+d++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH). |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |

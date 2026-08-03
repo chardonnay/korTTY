@@ -17,7 +17,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 | Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
 
-Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#connections).
+Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#verbindungen).
 
 ## Bearbeiten
 

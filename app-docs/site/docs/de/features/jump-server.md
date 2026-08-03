@@ -35,9 +35,9 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
 ## Host-Schlüsselüberprüfung
 
-Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost. Die Bastion wird immer streng überprüft: [Relaxing Host-Key-Überprüfung](security.md#relaxing-host-key-verification) gilt nur für Zielhosts, niemals für den Jump Hop.
+Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost. Die Bastion wird immer streng überprüft: [Relaxing Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels) gilt nur für Zielhosts, niemals für den Jump Hop.
 
-Dies gilt auch dann, wenn die Überprüfung des Host-Schlüssels für das Ziel gelockert wurde: Die verbindungs-, gruppen- und globalen Opt-outs decken nie die Bastion ab, sodass ihr Schlüssel immer streng überprüft wird. Siehe [Lockere Hostschlüsselüberprüfung](security.md#relaxing-host-key-verification).
+Dies gilt auch dann, wenn die Überprüfung des Host-Schlüssels für das Ziel gelockert wurde: Die verbindungs-, gruppen- und globalen Opt-Outs decken nie die Bastion ab, sodass ihr Schlüssel immer streng überprüft wird. Siehe [Lockere Hostschlüsselüberprüfung](security.md#lockere-uberprufung-des-hostschlussels).
 
 Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.
 
