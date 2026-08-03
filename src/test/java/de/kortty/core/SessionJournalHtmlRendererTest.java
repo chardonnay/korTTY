@@ -137,5 +137,8 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("id=\"nextMatch\"");
         assertThat(html).contains("prefers-color-scheme");
         assertThat(html).contains("@media print");
+        // Regression guard: without this rule the hidden lightbox overlay covers the whole
+        // page (display:flex beats the UA [hidden] rule) and blocks every click.
+        assertThat(html).contains(".lightbox[hidden]{display:none}");
     }
 }

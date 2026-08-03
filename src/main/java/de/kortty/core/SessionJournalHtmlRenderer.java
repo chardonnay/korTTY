@@ -435,6 +435,9 @@ public final class SessionJournalHtmlRenderer {
             .empty{color:var(--muted);text-align:center;margin-top:48px}
             .lightbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.82);
               display:flex;align-items:center;justify-content:center}
+            /* The author display:flex would override the UA rule for [hidden] and leave the
+               overlay permanently covering (and click-blocking) the whole page. */
+            .lightbox[hidden]{display:none}
             .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
             .lightbox-close{position:absolute;top:16px;right:20px;background:none;border:none;
               color:#fff;font-size:22px;cursor:pointer}
@@ -541,8 +544,8 @@ public final class SessionJournalHtmlRenderer {
             function openPanel(from,to,label){
               records=LOG.filter(function(r){return r.s>=from&&r.s<=to;});
               title.textContent=label+" · seq "+from+"–"+to+" · "+records.length+" lines";
-              search.value=""; matches=[]; current=-1;
-              renderBody(null); updateCount();
+              search.value=""; current=-1;
+              renderBody(null); updateCount(0);
               panel.classList.add("open"); panel.setAttribute("aria-hidden","false");
               document.body.classList.add("panel-open");
               search.focus();
