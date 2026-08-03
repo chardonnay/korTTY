@@ -5,6 +5,7 @@ plugins {
 }
 
 import org.gradle.jvm.toolchain.JvmVendorSpec
+import java.io.StringReader
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -12,6 +13,7 @@ import java.security.MessageDigest
 import java.security.KeyFactory
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
+import java.util.Properties
 import java.util.zip.ZipFile
 
 group = "de.kortty"
@@ -45,35 +47,41 @@ val isMac = osName.contains("mac")
 val isLinux = osName.contains("linux")
 
 // llama.cpp is deliberately source-pinned. Runtime packages are built separately from the
-// application installer and are installed below ~/.kortty/llm/runtime at run time. Keep the tag,
-// full commit and GitHub source-archive digest in lockstep; downloadLlamaCppSource fails closed on
-// any upstream/archive mismatch.
-val llamaCppTag = "b10236"
-val llamaCppCommit = "1464c62d88f699ec9700c8010bbfdbc603a9efd6"
-val llamaCppSourceSha256 = "a921bd01833dfd4ba88f56255820868d4e78dcb39f36b89a7aaca654a9dff4f1"
-// Every llama.cpp pin korTTY has shipped: tag -> (upstream commit, source archive SHA-256).
-// verifyLlamaCppPin looks the ACTIVE tag up here and fails when the row is missing or disagrees
-// with the three vals above. A table lookup has no "unless the tag changed" escape hatch, unlike
-// the `check(tag != "bNNNN" || commit.startsWith(...))` guard it replaces — that form silently
+// application installer and are installed below ~/.kortty/llm/runtime at run time. The pin itself
+// lives in gradle/llama-cpp-pins.properties rather than here so llama-runtime.yml can tell a pin
+// bump from an unrelated build change: editing anything else in this file runs a single-leg smoke
+// instead of the ten-way runtime matrix. Keep the tag, full commit and GitHub source-archive digest
+// in lockstep; downloadLlamaCppSource fails closed on any upstream/archive mismatch.
+val llamaCppPinPath = "gradle/llama-cpp-pins.properties"
+val llamaCppPinFile = layout.projectDirectory.file(llamaCppPinPath)
+val llamaCppPinProperties = Properties().apply {
+    val text = providers.fileContents(llamaCppPinFile).asText.orNull
+        ?: throw GradleException("$llamaCppPinPath is missing; the llama.cpp pin cannot be resolved.")
+    load(StringReader(text))
+}
+fun llamaCppPin(key: String): String =
+    llamaCppPinProperties.getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: throw GradleException("$llamaCppPinPath has no \"$key\" entry.")
+val llamaCppTag = llamaCppPin("tag")
+val llamaCppCommit = llamaCppPin("commit")
+val llamaCppSourceSha256 = llamaCppPin("sourceSha256")
+// Every llama.cpp pin korTTY has shipped: tag -> (upstream commit, source archive SHA-256), stored
+// as `pin.<tag> = <commit>:<sha256>` rows in the same file. verifyLlamaCppPin looks the ACTIVE tag
+// up here and fails when the row is missing or disagrees with the three values above. A table
+// lookup has no "unless the tag changed" escape hatch, unlike the
+// `check(tag != "bNNNN" || commit.startsWith(...))` guard it replaces — that form silently
 // switched itself off on the b10025 -> b10069 bump by making its left disjunct true, and would
 // have done so again on the next one.
-// The three vals stay as plain literals on purpose: llama-runtime.yml rewrites them with
-// `^val <name> = "..."$` and pinned-artifact-freshness.yml greps the same shape.
-val llamaCppKnownPins = mapOf(
-    // NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.
-    "b10236" to ("1464c62d88f699ec9700c8010bbfdbc603a9efd6" to "a921bd01833dfd4ba88f56255820868d4e78dcb39f36b89a7aaca654a9dff4f1"),
-    "b10184" to ("64d528be72d083fcaa76f3224ee88c742c2dd975" to "a6ffd05c5d2881c59af839b8a01a89495796bb983eb413ddeb00924e3fa340a8"),
-    "b10173" to ("e9fa0781f1c25fc4fe8c86be1edc6970661ad6f0" to "2fff6638b471e747cf8c04a982b1739fd98ce7f207a3c7a37263e76a67d32112"),
-    "b10156" to ("91f8c9c5fb038c086e13e9cd823c29b33b07ba54" to "6545fa8c767b53493f20124d90e9f80feef303a92d8ca7288c852ae36fe86d8c"),
-    "b10144" to ("d73c1d6b22a2d3ecc74c2c9cde354015ee72e862" to "394a3274ecc36ff677874611b4b35156a5b2498127d53b6a8c6b402f5306b543"),
-    "b10133" to ("ff067f76dd8e9e05f0528056f1274adf01a54d70" to "f7481b62f1986de0c43b4e2e447c7c07c4d7d951fa758c50d5cb59ecf7ab2108"),
-    "b10108" to ("0a50d9909a3478e82679f505bf8595d1eee4b0a8" to "7b45236631008b1ab55c36502f3ccacba01f98b8e4e2f1e0e4adaf18b6f69dbd"),
-    "b10103" to ("c588c4f47683e73ad2d69f50480bec6cc85fd0f7" to "10508ac6eda9b3570b62f9a47f506cf8a079ef5bf518f38d7ffb16457f19f22d"),
-    "b10088" to ("67b9b0e7f6ce45d929a4411907d3c48ec719e81c" to "3d796790c5ef95b8d766552259290dbfa17b9bedfd45a3936f2fa0c21c72313f"),
-    "b10075" to ("76f46ad29d61fd8c1401e8221842934bf62a6064" to "7ee81d765c2de832b459580a98d04045a8ed84f9829dea89d8c64528b78cea5b"),
-    "b10069" to ("178a6c44937154dc4c4eff0d166f4a044c4fceba" to "35ec7f7877285a408f1754723a433113e65895e71d4b455b9ca76a2afe60bf87"),
-    "b10025" to ("a3e5b96ac5e278c390df429df0b68efcee3ee1b5" to "c51807b434fe3bc5dfef826da4f03b12b6e9b909abd8188eacb27a6f8176ad8a"),
-)
+val llamaCppKnownPins: Map<String, Pair<String, String>> =
+    llamaCppPinProperties.stringPropertyNames()
+        .filter { it.startsWith("pin.") }
+        .associate { name ->
+            val row = llamaCppPinProperties.getProperty(name).trim().split(":")
+            if (row.size != 2) {
+                throw GradleException("$llamaCppPinPath: \"$name\" must read <commit>:<sha256>.")
+            }
+            name.removePrefix("pin.") to (row[0].trim() to row[1].trim())
+        }
 val llamaRuntimeRevision = "kortty2"
 val llamaRuntimeApiContractVersion = 1
 val llamaRuntimeId = "llama-$llamaCppTag-$llamaRuntimeRevision"
@@ -2179,7 +2187,7 @@ tasks.register("verifyLlamaCppPin") {
         // because the tag feeds llamaRuntimeId, LLAMA_BUILD_NUMBER and the release manifest.
         val pinnedRow = llamaCppKnownPins[llamaCppTag]
             ?: throw GradleException(
-                "llama.cpp tag $llamaCppTag has no row in llamaCppKnownPins (build.gradle.kts). " +
+                "llama.cpp tag $llamaCppTag has no pin.$llamaCppTag row in $llamaCppPinPath. " +
                     "A pin bump must add one recording that tag's upstream commit and source archive " +
                     "SHA-256; an unrecorded tag cannot be verified and is rejected instead of skipped.")
         check(pinnedRow.first == llamaCppCommit) {
@@ -2192,9 +2200,9 @@ tasks.register("verifyLlamaCppPin") {
         // Validate every row, not just the active one, so a malformed entry fails on the commit that
         // introduces it rather than months later when it becomes the active pin.
         llamaCppKnownPins.forEach { (tag, row) ->
-            check(tag.matches(Regex("b[0-9]+"))) { "llamaCppKnownPins key \"$tag\" must use the bNNNN release form." }
-            check(row.first.matches(Regex("[0-9a-f]{40}"))) { "llamaCppKnownPins[\"$tag\"] commit must be a full SHA-1." }
-            check(row.second.matches(Regex("[0-9a-f]{64}"))) { "llamaCppKnownPins[\"$tag\"] SHA-256 must be 64 hex chars." }
+            check(tag.matches(Regex("b[0-9]+"))) { "$llamaCppPinPath: \"pin.$tag\" must use the bNNNN release form." }
+            check(row.first.matches(Regex("[0-9a-f]{40}"))) { "$llamaCppPinPath: pin.$tag commit must be a full SHA-1." }
+            check(row.second.matches(Regex("[0-9a-f]{64}"))) { "$llamaCppPinPath: pin.$tag SHA-256 must be 64 hex chars." }
         }
         check(llamaRuntimeRevision.matches(Regex("kortty[1-9][0-9]*"))) { "Runtime revision must be immutable (korttyN)." }
         check(requestedLlamaBackend.get() in setOf("CPU", "METAL", "VULKAN")) {

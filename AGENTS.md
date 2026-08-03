@@ -106,10 +106,15 @@ Dependencies and bundled artifacts (Monaco, mosh4j, BouncyCastle, Node) are
 version-pinned with SHA-256 in `build.gradle.kts` — when changing a version,
 update its pin too.
 
-For llama.cpp the pin is enforced rather than trusted: `llamaCppKnownPins` maps every
-shipped tag to its upstream commit and source-archive SHA-256, and `verifyLlamaCppPin`
-fails when the active tag has no row or the row disagrees with `llamaCppTag` /
-`llamaCppCommit` / `llamaCppSourceSha256`. **Bumping the tag means adding a row.** The
-`llama-runtime` workflow does this automatically; a bump that only rewrites the three
-vals fails its own PR. Keep those three declarations as plain `val x = "..."` lines —
-both that workflow and `pinned-artifact-freshness` parse them by regex.
+For llama.cpp the pin lives in `gradle/llama-cpp-pins.properties`, not in
+`build.gradle.kts` — the `llama-runtime` workflow keys its build matrix off that file so
+an unrelated build change does not rebuild all ten runtime packages. It holds the active
+`tag` / `commit` / `sourceSha256` plus a `pin.<tag> = <commit>:<sha256>` row for every
+tag korTTY has shipped, and the pin is enforced rather than trusted: `verifyLlamaCppPin`
+fails when the active tag has no row or the row disagrees. **Bumping the tag means
+adding a row.** The `llama-runtime` workflow does this automatically; a bump that only
+rewrites the three active values fails its own PR. Keep those three as plain
+`key = value` lines — that workflow rewrites them by regex. Changing korTTY's own llama
+build logic in `build.gradle.kts` still gets checked, but as a single-leg smoke
+(linux/x86_64/CPU) rather than all ten packages; a manual `workflow_dispatch` run
+(`action=build`) forces the full matrix.

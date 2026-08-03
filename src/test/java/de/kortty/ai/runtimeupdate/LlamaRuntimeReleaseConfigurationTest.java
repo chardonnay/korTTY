@@ -21,9 +21,9 @@ class LlamaRuntimeReleaseConfigurationTest {
         // moving pin that llama-runtime.yml bumps automatically, so hardcoding it guarantees a red
         // test after every bump while catching nothing the build does not — it sat red on main
         // after b10025 -> b10069 and had to be chased again for b10069. The authoritative record of
-        // which tag maps to which commit and digest is llamaCppKnownPins in build.gradle.kts,
-        // enforced by verifyLlamaCppPin; what matters here is that the generated configuration
-        // stays internally consistent.
+        // which tag maps to which commit and digest is gradle/llama-cpp-pins.properties, enforced
+        // by verifyLlamaCppPin; what matters here is that the generated configuration stays
+        // internally consistent.
         assertThat(configuration.baselineTag()).matches("b[0-9]+");
         assertThat(configuration.baselineCommit()).matches("[0-9a-f]{40}");
         assertThat(configuration.baselineRuntimeId())

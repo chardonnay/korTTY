@@ -3,12 +3,27 @@ name: llama.cpp runtime candidates
 # Candidate detection and source-side validation live with korTTY. Human-approved signing and
 # immutable stable publication run in chardonnay/kortty-llama-runtimes so no cross-repository
 # release token or private signing key is exposed to this repository's pull-request workflows.
+#
+# The ten-way build matrix is expensive (up to 90 minutes per leg), so how much of it runs is
+# decided per pull request by the `scope` job:
+#
+#   * the pinned llama.cpp source, this workflow, or the Java runtime code changed -> all ten legs;
+#   * only build.gradle.kts changed -> ONE leg (linux/x86_64/CPU) as a build-logic smoke.
+#
+# The pin therefore lives in gradle/llama-cpp-pins.properties rather than in build.gradle.kts:
+# before that split every unrelated build change — a dependency bump, a version bump — rebuilt all
+# ten runtimes, because path filters are per file and both lived in the same 2000-line script.
+# korTTY's own llama build logic (cmake flags, staging, packaging) still lives in build.gradle.kts
+# and nothing else in CI compiles it, so that one leg is its only automatic coverage; a manual
+# `workflow_dispatch` run of action=build forces the full matrix when a change warrants it.
 
 on:
   schedule:
     - cron: "17 4 * * *"
   pull_request:
+    # Keep this list and the `scope` job's full-matrix pattern in step.
     paths:
+      - "gradle/llama-cpp-pins.properties"
       - "build.gradle.kts"
       - ".github/workflows/llama-runtime.yml"
       - "src/main/java/de/kortty/ai/llama/**"
@@ -48,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pinned="$(sed -nE 's/^val llamaCppTag = "([^"]+)"/\1/p' build.gradle.kts)"
+          pinned="$(sed -nE 's/^tag[[:space:]]*=[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p' gradle/llama-cpp-pins.properties)"
           latest="$(git ls-remote --tags --refs https://github.com/ggml-org/llama.cpp.git 'refs/tags/b*' \
             | sed -E 's#.*refs/tags/##' | grep -E '^b[0-9]+$' | sort -V | tail -n1)"
           if [ -z "$latest" ]; then
@@ -90,33 +105,32 @@ jobs:
           git switch -c "$branch"
           python3 - <<'PY'
           import os, pathlib, re
-          path = pathlib.Path("build.gradle.kts")
+          path = pathlib.Path("gradle/llama-cpp-pins.properties")
           text = path.read_text(encoding="utf-8")
           tag, commit, sha256 = os.environ["TAG"], os.environ["COMMIT"], os.environ["SHA256"]
           replacements = {
-              "llamaCppTag": tag,
-              "llamaCppCommit": commit,
-              "llamaCppSourceSha256": sha256,
+              "tag": tag,
+              "commit": commit,
+              "sourceSha256": sha256,
           }
           for key, value in replacements.items():
-              text, count = re.subn(rf'^val {key} = "[^"]+"$', f'val {key} = "{value}"', text, flags=re.M)
+              text, count = re.subn(rf'^{key} = \S+$', f'{key} = {value}', text, flags=re.M)
               if count != 1:
                   raise SystemExit(f"Could not update {key}")
 
-          # Record the triple in llamaCppKnownPins as well. verifyLlamaCppPin looks the active tag
-          # up there and fails when the row is missing or disagrees, so a bump that only rewrote the
-          # three vals above would red-light its own PR. Rows are newest first.
-          if f'"{tag}" to (' not in text:
-              anchor = "    // NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.\n"
+          # Record the triple as a pin.<tag> row as well. verifyLlamaCppPin looks the active tag up
+          # there and fails when the row is missing or disagrees, so a bump that only rewrote the
+          # three values above would red-light its own PR. Rows are newest first.
+          if not re.search(rf'^pin\.{re.escape(tag)} =', text, flags=re.M):
+              anchor = "# NEWEST FIRST — the llama-runtime workflow inserts new rows directly below this line.\n"
               if anchor not in text:
-                  raise SystemExit("Could not find the llamaCppKnownPins insertion anchor")
-              row = f'    "{tag}" to ("{commit}" to "{sha256}"),\n'
-              text = text.replace(anchor, anchor + row, 1)
+                  raise SystemExit("Could not find the pin history insertion anchor")
+              text = text.replace(anchor, anchor + f"pin.{tag} = {commit}:{sha256}\n", 1)
           path.write_text(text, encoding="utf-8")
           PY
           git config user.name "kortty-runtime-bot[bot]"
           git config user.email "kortty-runtime-bot[bot]@users.noreply.github.com"
-          git add build.gradle.kts
+          git add gradle/llama-cpp-pins.properties
           git commit -m "build(llama): test ${TAG} runtime candidate"
           git push origin "$branch"
           gh pr create \
@@ -125,52 +139,78 @@ jobs:
             --title "build(llama): test ${TAG} runtime candidate" \
             --body "Pins upstream ${TAG} at ${COMMIT}. This is a candidate only: the runtime matrix and API contract must pass, followed by human approval, before stable promotion."
 
+  scope:
+    # Decides the matrix instead of the `paths:` filter alone, because path filters are per file and
+    # cannot distinguish "this PR bumped the llama.cpp pin" from "this PR bumped a Node version that
+    # happens to live in the same build script". Everything but a build.gradle.kts-only change gets
+    # the full matrix, so the cheap path is opt-in by exclusion and a new trigger path that nobody
+    # adds below defaults to the expensive-but-correct side.
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'build')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mode: ${{ steps.scope.outputs.mode }}
+      matrix: ${{ steps.scope.outputs.matrix }}
+    steps:
+      - name: Decide how much of the runtime matrix this change needs
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Manual dispatch is the documented escape hatch for build-logic changes: always full.
+          mode=full
+          if [ "$EVENT_NAME" = pull_request ]; then
+            changed="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"
+            # Mirrors the workflow's own `paths:` list minus build.gradle.kts. A path added there
+            # but not here silently downgrades to the single-leg smoke — keep the two in step.
+            if ! printf '%s\n' "$changed" | grep -qE '^(gradle/llama-cpp-pins\.properties|\.github/workflows/llama-runtime\.yml|src/main/java/de/kortty/ai/(llama|runtimeupdate)/)'; then
+              mode=smoke
+            fi
+          fi
+
+          # Linux/x86_64/CPU is the smoke leg: no SDK install, no cross-compile, and it exercises
+          # the same generateLlamaRuntimeManifest -> package -> API-contract path as every other leg.
+          smoke='[
+            {"os":"ubuntu-latest","platform":"linux","arch":"x86_64","backend":"CPU"}
+          ]'
+          full='[
+            {"os":"macos-latest","platform":"macos","arch":"aarch64","backend":"CPU"},
+            {"os":"macos-latest","platform":"macos","arch":"aarch64","backend":"METAL"},
+            {"os":"macos-15-intel","platform":"macos","arch":"x86_64","backend":"CPU"},
+            {"os":"macos-15-intel","platform":"macos","arch":"x86_64","backend":"METAL"},
+            {"os":"windows-latest","platform":"windows","arch":"x86_64","backend":"CPU"},
+            {"os":"windows-latest","platform":"windows","arch":"x86_64","backend":"VULKAN"},
+            {"os":"ubuntu-latest","platform":"linux","arch":"x86_64","backend":"CPU"},
+            {"os":"ubuntu-latest","platform":"linux","arch":"x86_64","backend":"VULKAN"},
+            {"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64","backend":"CPU"},
+            {"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64","backend":"VULKAN"}
+          ]'
+          if [ "$mode" = full ]; then matrix="$full"; else matrix="$smoke"; fi
+          # Fail here rather than as an opaque fromJSON error in the matrix expression below.
+          printf '%s' "$matrix" | jq -e 'type == "array" and length > 0' >/dev/null
+
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          {
+            echo 'matrix<<MATRIX_JSON'
+            printf '%s\n' "$matrix"
+            echo 'MATRIX_JSON'
+          } >> "$GITHUB_OUTPUT"
+          echo "Runtime matrix: $mode ($(printf '%s' "$matrix" | jq 'length') leg(s))." >> "$GITHUB_STEP_SUMMARY"
+
   build-runtime:
+    needs: scope
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'build')
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: macos-latest
-            platform: macos
-            arch: aarch64
-            backend: CPU
-          - os: macos-latest
-            platform: macos
-            arch: aarch64
-            backend: METAL
-          - os: macos-15-intel
-            platform: macos
-            arch: x86_64
-            backend: CPU
-          - os: macos-15-intel
-            platform: macos
-            arch: x86_64
-            backend: METAL
-          - os: windows-latest
-            platform: windows
-            arch: x86_64
-            backend: CPU
-          - os: windows-latest
-            platform: windows
-            arch: x86_64
-            backend: VULKAN
-          - os: ubuntu-latest
-            platform: linux
-            arch: x86_64
-            backend: CPU
-          - os: ubuntu-latest
-            platform: linux
-            arch: x86_64
-            backend: VULKAN
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: aarch64
-            backend: CPU
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: aarch64
-            backend: VULKAN
+        include: ${{ fromJSON(needs.scope.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
