@@ -47,6 +47,20 @@ public class SessionJournalSession implements AutoCloseable {
 
     private static final long IDLE_FLUSH_MILLIS = 1500;
     private static final long IDLE_FLUSH_TICK_MILLIS = 500;
+    /**
+     * How long a candidate password-prompt line must sit unchanged before suppression arms.
+     *
+     * <p>A genuine prompt (the remote sent it and is now blocked waiting for a reply) goes quiet
+     * immediately — nothing else arrives to change the pending line. A prompt-shaped SUBSTRING can
+     * also appear transiently while the pending line is still the server's echo of a command the
+     * user is actively typing (e.g. {@code read -s -p 'Password: '}): at the exact character the
+     * colon is typed, the buffer momentarily ends in a colon-terminated keyword, but more of the
+     * command keeps arriving within milliseconds and changes it. This short confirmation window is
+     * what tells the two apart, without meaningfully weakening the protection — reacting to a
+     * prompt is inherently gated on a human noticing it and starting to type, which takes far
+     * longer than this window.</p>
+     */
+    private static final long PROMPT_CONFIRM_MILLIS = 200;
     private static final long SUPPRESSION_TIMEOUT_MILLIS = 60_000;
     private static final int MAX_PARTS = 20;
     private static final int QUEUE_CAPACITY = 10_000;
@@ -77,6 +91,8 @@ public class SessionJournalSession implements AutoCloseable {
     private volatile boolean outputCaptureStopped;
     private volatile boolean inputSuppressed;
     private volatile long suppressionStartMillis;
+    private volatile String promptCandidateText;
+    private volatile long promptCandidateSinceMillis;
     private volatile long lastActivityMillis = System.currentTimeMillis();
     private volatile int currentPart = 1;
     private volatile Consumer<String> warningListener;
@@ -166,7 +182,13 @@ public class SessionJournalSession implements AutoCloseable {
         running = true;
         writerThread.start();
         idleFlushTask = IDLE_FLUSHER.scheduleWithFixedDelay(
-            () -> ansiProcessor.flushIdle(IDLE_FLUSH_MILLIS),
+            () -> {
+                ansiProcessor.flushIdle(IDLE_FLUSH_MILLIS);
+                // A genuine prompt that arrived as the very last output (nothing further comes,
+                // ever, until the user replies) can only be confirmed by time passing — there is
+                // no "next chunk" to re-check it against.
+                updatePromptCandidate();
+            },
             IDLE_FLUSH_TICK_MILLIS, IDLE_FLUSH_TICK_MILLIS, TimeUnit.MILLISECONDS);
         logger.info("Session journal started in {} (format={})", directory.getFileName(), format);
     }
@@ -178,9 +200,34 @@ public class SessionJournalSession implements AutoCloseable {
         }
         lastActivityMillis = System.currentTimeMillis();
         ansiProcessor.accept(data);
-        if (!inputSuppressed && PasswordPromptDetector.isPasswordPromptLine(ansiProcessor.pendingLine())) {
+        updatePromptCandidate();
+    }
+
+    /**
+     * Re-evaluates whether the pending (not yet emitted) output line is a password prompt, and
+     * arms suppression once that candidate has held for {@link #PROMPT_CONFIRM_MILLIS}. Called on
+     * every new output chunk (most candidates change or get confirmed this way) and on the idle
+     * timer tick (the only way to confirm a candidate that the remote never adds to again).
+     */
+    private void updatePromptCandidate() {
+        if (inputSuppressed) {
+            return;
+        }
+        String pending = ansiProcessor.pendingLine().strip();
+        if (!PasswordPromptDetector.isPasswordPromptLine(pending)) {
+            promptCandidateText = null;
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (!pending.equals(promptCandidateText)) {
+            promptCandidateText = pending;
+            promptCandidateSinceMillis = now;
+            return;
+        }
+        if (now - promptCandidateSinceMillis >= PROMPT_CONFIRM_MILLIS) {
             inputSuppressed = true;
-            suppressionStartMillis = System.currentTimeMillis();
+            suppressionStartMillis = now;
+            promptCandidateText = null;
         }
     }
 

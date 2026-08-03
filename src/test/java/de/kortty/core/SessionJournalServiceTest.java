@@ -85,7 +85,12 @@ class SessionJournalServiceTest {
         session.appendOutputChunk("Welcome to [32mweb01[0m\r\n");
         session.appendInputLine("echo vault-secret-pw");
         session.appendOutputChunk("[sudo] password for daniel:");
-        assertThat(session.isInputSuppressed()).isTrue();
+        // Suppression arms once the candidate prompt has sat unchanged for a short confirmation
+        // window (PROMPT_CONFIRM_MILLIS) — not on the instant it appears — so a mid-typing echo of
+        // an unrelated command that transiently looks like a prompt gets invalidated by the rest of
+        // that command arriving before suppression would ever be armed. See the false-positive
+        // regression test below for the case this exists to prevent.
+        waitUntil(session::isInputSuppressed);
         session.appendInputLine("mySecretTyped123");
         assertThat(session.isInputSuppressed()).isFalse();
         session.appendOutputChunk("\r\nAccess granted\r\n");
@@ -131,6 +136,74 @@ class SessionJournalServiceTest {
         assertThat(document.getEntries().stream()
             .filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT)
             .count()).isEqualTo(1);
+    }
+
+    /**
+     * Regression test for a false positive found during manual E2E testing: the remote echo of a
+     * command the user is still typing can momentarily look like a password prompt right at the
+     * character where a colon is typed (e.g. typing {@code read -s -p 'Password: '} character by
+     * character has the pending line end in "...Password:" for an instant, well before the rest of
+     * the command — and the Enter that submits it — has even been typed). That must not suppress
+     * the command's own input line; only a prompt that actually stays put (the remote goes quiet
+     * because it is waiting) may do that.
+     */
+    @Test
+    void transientPromptShapedEchoDoesNotSuppressInput() throws Exception {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("daniel@fedora:~$ ");
+
+        // The remote echoes the command back character by character as it's typed; this chunk
+        // boundary happens to land right after the colon, exactly the shape that used to arm
+        // suppression immediately. The rest of the command arrives a moment later, well inside the
+        // confirmation window, and must invalidate the stale candidate.
+        session.appendOutputChunk("read -s -p 'Password: ");
+        assertThat(session.isInputSuppressed()).isFalse();
+        session.appendOutputChunk("' x; echo; echo done-received-$x");
+        assertThat(session.isInputSuppressed()).isFalse();
+
+        // Give the confirmation window time to pass, in case the (wrong) old behavior or a
+        // regression re-introduced an immediate arm-on-sight: it must still not be suppressed.
+        Thread.sleep(400);
+        assertThat(session.isInputSuppressed()).isFalse();
+
+        session.appendInputLine("read -s -p 'Password: ' x; echo; echo done-received-$x");
+        session.close();
+
+        Path dir = session.getDirectory();
+        Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
+        List<SessionJournalLogEntry> entries = SessionJournalLogReader.readPart(logFile);
+        // The command's own input line must be captured in full — not swallowed as a redacted
+        // placeholder, since no genuine prompt was ever actually waiting for a reply.
+        assertThat(entries.stream()
+            .filter(e -> e.kind() == SessionJournalLogEntry.Kind.IN)
+            .map(SessionJournalLogEntry::text)
+            .toList()).containsExactly("read -s -p 'Password: ' x; echo; echo done-received-$x");
+    }
+
+    /** A prompt that genuinely holds — nothing else arrives — must still suppress the next input. */
+    @Test
+    void promptThatGoesQuietSuppressesTheNextInputEvenWithoutFurtherOutput() throws Exception {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("Password: ");
+
+        waitUntil(session::isInputSuppressed);
+
+        session.appendInputLine("hunter2");
+        session.close();
+
+        Path dir = session.getDirectory();
+        List<SessionJournalLogEntry> entries =
+            SessionJournalLogReader.readPart(SessionJournalLogReader.findPartFile(dir, 1));
+        assertThat(entries.stream()
+            .filter(e -> e.kind() == SessionJournalLogEntry.Kind.IN)
+            .toList()).hasSize(1);
+        assertThat(entries.stream()
+            .filter(e -> e.kind() == SessionJournalLogEntry.Kind.IN)
+            .findFirst().orElseThrow().redacted()).isTrue();
     }
 
     @Test
@@ -378,6 +451,22 @@ class SessionJournalServiceTest {
                 Thread.sleep(50);
             } catch (Exception e) {
                 // retry until deadline
+            }
+        }
+    }
+
+    /** Polls a condition until true or a deadline passes — for state the idle-flush timer updates. */
+    private static void waitUntil(java.util.function.BooleanSupplier condition) {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
             }
         }
     }
