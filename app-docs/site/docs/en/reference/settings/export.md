@@ -14,6 +14,8 @@ Watermark and footer of the documents korTTY exports — [session journals](../.
 | Show a footer in exported documents | boolean | on/off | on | `exportFooterEnabled` |
 | Footer text | text | — | Built-in brand line | `exportFooterText` |
 
+![Export settings](../../assets/screenshots/settings/export.png)
+
 ## Watermark
 
 The watermark is **off by default** — a document gets marked when you decide it should be. Once enabled, it is drawn faintly and diagonally across the middle of every PDF page, sized to fit the page width, in the colour you pick. It applies to session journal and AI chat PDF exports.

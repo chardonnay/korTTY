@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2084,6 +2116,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -2578,7 +2638,7 @@
 <p>korTTY installiert nur eine unveränderliche 40-Zeichen-Repository-Revision mit genauen Dateimetadaten. Nachdem Sie die Lizenz und die Downloadgröße bestätigt haben, werden unten in einem festen <strong>Modell-Download</strong>-Bereich das Repository und die Quantisierung, die aktuelle Datei und der Multipart-Shard, die übertragenen und gesamten Bytes, die verstrichene Zeit, die Übertragungsrate und die geschätzte verbleibende Zeit identifiziert. Der Fortschrittsbalken in voller Breite sowie die Steuerelemente <strong>Pause</strong>/<strong>Fortsetzen</strong> und <strong>Abbrechen</strong> bleiben verfügbar, während Sie den Manager weiterhin überprüfen. Für Downloads werden <code>.part</code>-Dateien, Freiraumprüfungen, HTTP <code>Range</code> und <code>If-Range</code>, Content-Digest-Überprüfung (SHA-256 für LFS-Dateien, der Git-Blob-Hash für kleine In-Tree-Dateien) und mehrteilige Shard-Reihenfolge verwendet. Bei einer Stornierung, einschließlich der Schließung des AI Managers während einer Übertragung, bleiben die Teildaten erhalten, die für einen späteren Lebenslauf benötigt werden. Ein nicht angeheftetes Repository oder ein fehlender Datei-Digest wird abgelehnt, anstatt veränderbare Inhalte stillschweigend zu installieren.</p>
 <p>Ein MLX-Repository wird als ein vollständiges Verzeichnis heruntergeladen (Safetensor-Gewichte, Tokenizer und Konfigurationsdateien); Seine Quantisierung ist eine Eigenschaft auf Repository-Ebene wie <code>4BIT</code> oder <code>8BIT</code>, daher zeigt der Quantisierungsselektor genau einen Eintrag an. Wenn noch keine MLX-Runtime installiert ist, fragt korTTY, ob das Modell trotzdem heruntergeladen und registriert werden soll – es kann gestartet werden, sobald die Runtime installiert ist.</p>
 <h2 id="mlx-modelle-auf-apple-silicon">MLX-Modelle auf Apple Silicon<a class="headerlink" href="#mlx-modelle-auf-apple-silicon" title="Permanent link">&para;</a></h2>
-<p>Auf Apple Silicon Macs (macOS 14 oder neuer) läuft korTTY zusätzlich <a href="https://github.com/ml-explore/mlx">MLX</a> models – Apples Array-Framework für maschinelles Lernen auf Apple-GPUs – durch den Beamten <a href="https://github.com/ml-explore/mlx-lm">mlx-lm</a> Server. Der <a href="https://huggingface.co/mlx-community">mlx-Community</a> Die Organisation Hugging Face veröffentlicht Tausende fertig konvertierter Modelle.</p>
+<p>Auf Apple Silicon Macs (macOS 14 oder neuer) läuft korTTY zusätzlich <a href="https://github.com/ml-explore/mlx">MLX</a> models – Apples Array-Framework für maschinelles Lernen auf Apple-GPUs – durch den Beamten <a href="https://github.com/ml-explore/mlx-lm">mlx-lm</a> Server. Der <a href="https://huggingface.co/mlx-community">mlx-Community</a> Die Organisation auf Hugging Face veröffentlicht Tausende fertig konvertierter Modelle.</p>
 <ul>
 <li><strong>Registrierung und Lebenszyklus</strong> spiegeln GGUF-Modelle wider: Installierte MLX-Modelle werden in derselben Tabelle mit Backend <strong>MLX</strong> angezeigt, unterstützen <strong>Auswahl starten</strong>, <strong>Auswahl stoppen</strong>, <strong>Entfernen</strong> und <strong>Konfigurieren</strong> (Anzeigename und Entladen nach Leerlaufzeit) und melden dieselben Laufzeitzustände.</li>
 <li><strong>Isolation</strong> spiegelt llama.cpp wider: Jedes Modell läuft als sein eigener reiner Loopback-Sidecar mit einem zufälligen Port und einem pro Prozess generierten API-Schlüssel. korTTY verpackt <code>mlx_lm.server</code> – das über keine eigene Authentifizierung verfügt – in einen eigenen Launcher, der jede nicht authentifizierte Anfrage außer der lokalen Gesundheitsprüfung ablehnt, den Offline-Zugriff auf Hugging Face erzwingt, geerbte Python- und Token-Umgebungsüberschreibungen entfernt und nach der konfigurierten Leerlaufzeit beendet.</li>

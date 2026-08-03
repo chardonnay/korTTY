@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1293,6 +1323,8 @@
   
     
     
+      
+        
       
         
       
@@ -1892,6 +1924,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/ascii-art.html" class="md-nav__link">
         
   
@@ -2117,6 +2177,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sitzungsjournal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erscheinungsbild-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erscheinungsbild exportieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#master-passwort" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2298,6 +2380,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sitzungsjournal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#erscheinungsbild-exportieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erscheinungsbild exportieren
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#master-passwort" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2388,19 +2492,40 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v280">v2.8.0<a class="headerlink" href="#v280" title="Permanent link">&para;</a></h2>
+<h3 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Terminalsitzungen können sich jetzt selbst dokumentieren</strong> – ein neues <a href="../features/session-journal.html">Sitzungsjournal</a> zeichnet Serverausgaben und eingegebene Befehle in einem Capture-Log pro Sitzung auf (standardmäßig JSON Lines, XML oder YAML auf Anfrage; gedrehte Teile werden komprimiert, nie gelöscht) und ermöglicht es einer KI, die Aktivität in einer lesbaren Zeitleiste mit einer Zusammenfassung der abschließenden Sitzung zusammenzufassen. Aktivieren Sie es pro Verbindung auf der neuen Registerkarte <strong>Journal</strong> des Verbindungseditors oder rückwirkend für eine laufende Sitzung – der vorhandene Scrollback wird importiert. Eingegebene Passwörter werden aus dem Journal ferngehalten: Passwortabfragen unterdrücken die folgende Eingabezeile und die eigenen gespeicherten Anmeldeinformationen der Verbindung werden geschwärzt.</li>
+<li><strong>Eine Journalleiste unterhalb des Terminals</strong> zeigt den Journalstatus an und fügt Screenshots (auch aus dem Rechtsklickmenü des Terminals, die genau den geteilten Bereich unter dem Cursor erfassen) und Freitextnotizen zur Zeitleiste hinzu.</li>
+<li><strong>Die Journalseite ist eine eigenständige HTML-Zeitleiste</strong> – Verbindungskopfzeile mit Statistiken, Tagesgruppierung, farbcodierten Eingabe-/Ausgabeauszügen, Markierungsplaketten, Screenshot-Lightbox und einem einschiebbaren Protokollfeld mit Suche, Übereinstimmungszähler und Vorher/Weiter-Navigation. Es wird im integrierten Viewer, in jedem Browser und im exportierten Bundle in hell und dunkel gerendert.</li>
+<li><strong>Das gesamte Journal durchsuchen</strong> – die Lupe in der Kopfzeile der Seite (oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span>) öffnet eine Suchleiste unter den Verbindungsdetails, die einen Begriff oder einen ganzen Satz in jedem Eintragstitel, jeder Zusammenfassung, jedem Auszug und jeder Notiz hervorhebt, mit einem Trefferzähler und einer Vorher/Weiter-Navigation.</li>
+<li><strong>Eine Schaltfläche zum Kopieren bei jedem Eintrag</strong> – Texteinträge werden vollständig kopiert, Screenshot-Einträge kopieren das Bild und das Protokollfenster kopiert den angezeigten Abschnitt. Durch Klicken mit der rechten Maustaste werden gezieltere Aktionen hinzugefügt: der ausgewählte Text, nur die Zusammenfassung eines Eintrags oder der Pfad eines Screenshots.</li>
+<li><strong>Anpassbare Seitenschriftgröße</strong> – die Schaltflächen <strong>A−</strong> / <strong>A</strong> / <strong>A+</strong> skalieren die gesamte Journalseite, und korTTY merkt sich die Größe für jedes gerenderte Journal. Screenshots, Auszugsfenster und das Protokollfenster passen sich der Größe des Fensters an, sodass die Seite sowohl in einer schmalen Werkzeugregisterkarte als auch im Vollbildmodus lesbar bleibt.</li>
+<li><strong>Tools &gt; Session Journals…</strong> verwaltet alle Journale: Suche (optional durch Journalinhalte), Beschreibungen pro Journal, Umbenennen und Löschen mit Bestätigung, Bearbeitung von Markierungen/Notizen im Viewer und Export als PDF (mit verkleinerten eingebetteten Screenshots), Markdown oder als komplettes HTML-Bundle.</li>
+<li><strong>Massenlöschung und Massenexport</strong> – Wählen Sie mehrere Journale aus, um sie in einem Schritt zu entfernen, oder schreiben Sie sie in ein einziges ZIP-Archiv, das jedes Journal separat hält. Jedes Archiv, einschließlich eines einzelnen HTML-Pakets, kann hinter einem Passwort Ihrer Wahl <strong>mit AES-256</strong> verschlüsselt werden, da Journale vollständige Terminaltranskripte enthalten.</li>
+<li><strong>Exporte tragen ihre Herkunft</strong> – PDF, Markdown und die gebündelte Journalseite geben standardmäßig an, dass sie mit korTTY erstellt wurden und verlinken auf das Projekt-Repository.</li>
+<li><strong>Sensible Inhalte können nachträglich entfernt werden</strong> – der Bearbeitungsmodus des Viewers bearbeitet jetzt auch den Titel und die Zusammenfassung eines Eintrags, löscht einen gesamten Eintrag (einschließlich seiner Screenshot-Datei) und bietet <strong>Suchen &amp; ersetzen</strong>, das einen Text wie ein durchgesickertes Passwort überall im Journal umschreibt: alle Einträge <em>und</em> jeden Teil des Capture-Logs, komprimierte eingeschlossen. Es nimmt einen wörtlichen Text oder einen regulären Ausdruck (mit <code>$1</code>-Gruppenverweisen) an, kann die Groß-/Kleinschreibung ignorieren, das Capture-Log aussparen und <strong>Treffer zählen</strong> führt zuerst einen Probelauf über das echte Journal durch. Die Suchleiste der Seite hat eine Schaltfläche <strong>Ersetzen…</strong> erhalten, die sie mit dem aktuellen Suchbegriff öffnet – nur innerhalb von korTTY, da eine Seite, die eigenständig in einem Browser geöffnet wird, das Journal nicht neu schreiben kann.</li>
+<li><strong>Administratoren können automatisch schwärzen</strong> – eine neue <code>[[rule.session-journal.replace]]</code>-Richtlinienliste wendet Suchen und Ersetzen auf jedes Journal mit regulären Ausdrücken an, beispielsweise für Cloud-Zugriffsschlüssel oder interne Hostnamen. Die Regeln werden ausgeführt, bevor eine Zeile geschrieben wird, sodass ein passender Text überhaupt nicht in das Protokoll gelangt, und sie umfassen auch KI-Zusammenfassungen und Notizen. Sie werden über alle Richtlinienebenen hinweg zusammengeführt, anstatt dass die höchste Ebene gewinnt. Daher kann eine engere Regel nur Muster hinzufügen und niemals die organisationsweiten ausschalten. Siehe <a href="../reference/enterprise-policy.html#rulesession-journalreplace">Unternehmensrichtlinie</a>.</li>
+</ul>
+<h3 id="erscheinungsbild-exportieren">Erscheinungsbild exportieren<a class="headerlink" href="#erscheinungsbild-exportieren" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Eine neue Seite mit Exporteinstellungen</strong> (<a href="../reference/settings/export.html">Konfiguration → Globale Einstellungen → Export</a>) steuert, wie exportierte Dokumente gebrandet werden, sowohl für Sitzungsjournale als auch für KI-Chats: Die Fußzeile ist standardmäßig aktiviert und ihr Text kann geändert oder ganz ausgeschaltet werden, und ein optionales diagonales PDF-Wasserzeichen – standardmäßig deaktiviert – kann Ihren eigenen Text in einer von Ihnen gewählten Farbe enthalten. Ein benutzerdefinierter Text wird wörtlich verwendet; Nur die integrierten Texte hängen den Repository-Link an.</li>
+<li><strong>Behoben: Das AI-Chat-PDF-Wasserzeichen wurde von der Seite entfernt.</strong> Der Versatz der Seitenmitte wurde zweimal angewendet und endete in einer Ecke, anstatt diagonal über die Seite zu verlaufen.</li>
+<li><strong>KI-Zusammenfassung ist konfigurierbar</strong> – Intervall, Auswertungsfenster (ein Zeilenlimit oder <code>0</code>, um den Modellkontext innerhalb eines Token-Budgets zu füllen) und ein optionaler Chunked-Modus, der den gesamten Rückstand über mehrere Eingabeaufforderungen hinweg verarbeitet (mit einer klaren Langzeitwarnung). Ohne eine verfügbare KI zeichnet das Journal weiterhin rohe Aktivitätseinträge auf.</li>
+<li><strong>Enterprise-Richtlinienunterstützung</strong> – Administratoren können die Funktion verweigern, Journale für jede Verbindung erzwingen, das Protokollformat, das Auswertungsfenster und das Speicherverzeichnis korrigieren, das Umbenennen/Löschen verbieten, eine Titelvorlage vorschreiben und einen von der KI generierten Schlusstitel über die neue Tabelle <code>[rule.session-journal]</code> erzwingen. Siehe <a href="../reference/enterprise-policy.html#rulesession-journal">Unternehmensrichtlinie</a>.</li>
+</ul>
 <h3 id="master-passwort">Master-Passwort<a class="headerlink" href="#master-passwort" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Optionale passwortlose automatische Anmeldung für Testumgebungen</strong> – eine neue Option <strong>Konfiguration → Globale Einstellungen → Sicherheit → Master-Passwort-Eingabeaufforderung beim Start deaktivieren</strong> sorgt dafür, dass korTTY sich das Master-Passwort merkt (das in <code>~/.kortty/master.autounlock</code> nur verschleiert und nur mit Eigentümerberechtigungen gespeichert wird) und den Tresor beim Start automatisch entsperrt, sodass verschlüsselte Daten wie AI-Profile und SSH-Passwörter ohne Aufforderung nutzbar bleiben. Bei einem brandneuen Profil wird sogar ein Standardpasswort eingerichtet, sodass die App ohne Eingaben starten kann. Es ist von Natur aus unsicher – die Dateiberechtigungen sind der einzige Schutz – und für Wegwerf-/Test-Setups wie eine VM gedacht: korTTY fordert Sie vor der Aktivierung zur Bestätigung auf, lässt eine Warnung sichtbar, während es eingeschaltet ist, und eine Unternehmensrichtlinie, die das Master-Passwort erzwingt, überschreibt es. Standardmäßig deaktiviert.</li>
 </ul>
 <h3 id="guide-ubersetzung">Guide-Übersetzung<a class="headerlink" href="#guide-ubersetzung" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Der Offline-Anleitung kann jetzt von einem lokalen KI-Profil übersetzt werden</strong> – <strong>Konfiguration → Globale Einstellungen → Übersetzung → Anleitungsübersetzung</strong> übersetzt den gebündelten Offline-Anleitung (dieselbe Website, zu der diese Dokumentation gehört), einschließlich seiner In-Page-Suche, in die oben ausgewählte Zielsprache, wobei ein KI-Profil anstelle der Übersetzungsanbieter-API verwendet wird. Die Übersetzung läuft im Hintergrund: Sie läuft weiter, nachdem die Einstellungen geschlossen wurden, zeigt einen Fortschrittsbalken, einen Prozentsatz und eine geschätzte verbleibende Zeit am rechten Ende der Menüleiste an, kann abgebrochen und fortgesetzt werden, ohne den Fortschritt zu verlieren, und korTTY fragt vor dem Beenden, während es läuft. Nach einem Update, das die Anleitung geändert hat, bietet korTTY einmalig an, eine vorhandene Übersetzung auf den neuesten Stand zu bringen und nur das neu zu übersetzen, was sich tatsächlich geändert hat. Siehe <a href="../reference/settings/translation.html#guide-translation">Translation</a>.</li>
+<li><strong>Der Offline-Anleitung kann jetzt von einem lokalen KI-Profil übersetzt werden</strong> – <strong>Konfiguration → Globale Einstellungen → Übersetzung → Anleitungsübersetzung</strong> übersetzt den gebündelten Offline-Anleitung (dieselbe Website, zu der diese Dokumentation gehört), einschließlich seiner In-Page-Suche, in die oben ausgewählte Zielsprache, wobei ein KI-Profil anstelle der Übersetzungsanbieter-API verwendet wird. Die Übersetzung läuft im Hintergrund: Sie läuft weiter, nachdem die Einstellungen geschlossen wurden, zeigt einen Fortschrittsbalken, einen Prozentsatz und eine geschätzte verbleibende Zeit am rechten Ende der Menüleiste an, kann abgebrochen und fortgesetzt werden, ohne den Fortschritt zu verlieren, und korTTY fragt vor dem Beenden, während es läuft. Nach einem Update, das die Anleitung geändert hat, bietet korTTY einmalig an, eine vorhandene Übersetzung auf den neuesten Stand zu bringen und nur das neu zu übersetzen, was sich tatsächlich geändert hat. Siehe <a href="../reference/settings/translation.html#guide-ubersetzung">Translation</a>.</li>
 <li><strong>Schätzen Sie die Dauer, bevor Sie sich zu einer vollständigen Übersetzung verpflichten</strong> – eine neue Schaltfläche <strong>Schätze Dauer</strong> misst das ausgewählte KI-Profil anhand eines echten Beispiels der Anleitungs und prognostiziert, wie lange die Übersetzung aller verbleibenden Inhalte dauern würde, ohne den gesamten Lauf abzuwarten.</li>
 <li><strong>Eine Warnung erscheint vor der Übersetzung mit einem Reasoning-Modell</strong> – solche Modelle verbringen den Großteil ihrer Ausgabe mit „Denken“ statt mit Übersetzen, was dazu führen kann, dass eine Übersetzung, die etwa eine Stunde dauert, zu einer wird, die sechs oder mehr dauert; korTTY erkennt dies anhand des Modellnamens und warnt vor dem Start oder der Schätzung, ermöglicht Ihnen aber trotzdem, fortzufahren.</li>
 </ul>
 <h3 id="schnittstellenubersetzung">Schnittstellenübersetzung<a class="headerlink" href="#schnittstellenubersetzung" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Jedes AI-Profil kann jetzt die Schnittstellenzeichenfolgen übersetzen</strong> – der <strong>Lokale AI-Textprofil</strong>-Anbieter hat sein eigenes <strong>AI-Profil</strong>-Dropdown-Menü erhalten, das mit dem übereinstimmt, das die Anleitungsübersetzung bereits hatte. Ein dort ausgewähltes Profil wird unabhängig von seinem Verbindungsmodus verwendet, sodass ein Cloud-Modell (Anthropic, ein OpenAI-kompatibler Endpunkt) oder ein lokales CLI-Profil ein Sprachpaket generieren kann, nicht nur ein eingebettetes llama.cpp/MLX-Modell. Wenn Sie es auf <strong>Standard (lokales Textprofil)</strong> belassen, bleibt das vorherige Verhalten erhalten: das Textrollenprofil, und nur wenn ein lokales Modell ausgeführt wird – der Anbieter existiert für Personen, die nicht möchten, dass ihre Schnittstellenzeichenfolgen den Computer verlassen. Wenn diese Rolle ein Cloud- oder CLI-Profil enthält, benennt korTTY jetzt das Profil und zeigt auf das Dropdown-Menü, anstatt einfach nur „Sprachdatei konnte nicht generiert werden“ zu melden. Siehe <a href="../reference/settings/translation.html#local-translation">Translation</a>.</li>
+<li><strong>Jedes AI-Profil kann jetzt die Schnittstellenzeichenfolgen übersetzen</strong> – der <strong>Lokale AI-Textprofil</strong>-Anbieter hat sein eigenes <strong>AI-Profil</strong>-Dropdown-Menü erhalten, das mit dem übereinstimmt, das die Anleitungsübersetzung bereits hatte. Ein dort ausgewähltes Profil wird unabhängig von seinem Verbindungsmodus verwendet, sodass ein Cloud-Modell (Anthropic, ein OpenAI-kompatibler Endpunkt) oder ein lokales CLI-Profil ein Sprachpaket generieren kann, nicht nur ein eingebettetes llama.cpp/MLX-Modell. Wenn Sie es auf <strong>Standard (lokales Textprofil)</strong> belassen, bleibt das vorherige Verhalten erhalten: das Textrollenprofil, und nur wenn ein lokales Modell ausgeführt wird – der Anbieter existiert für Personen, die nicht möchten, dass ihre Schnittstellenzeichenfolgen den Computer verlassen. Wenn diese Rolle ein Cloud- oder CLI-Profil enthält, benennt korTTY jetzt das Profil und zeigt auf das Dropdown-Menü, anstatt einfach nur „Sprachdatei konnte nicht generiert werden“ zu melden. Siehe <a href="../reference/settings/translation.html#lokale-ubersetzung">Translation</a>.</li>
 <li><strong>Ein fehlerhafter Batch wirft nicht mehr das gesamte Sprachpaket weg</strong> – zuvor führte eine fehlerhafte Antwort des Modells dazu, dass die Generierung der Sprachdatei vollständig abgebrochen wurde und überhaupt nichts geschrieben wurde, obwohl die meisten Zeichenfolgen übersetzt wurden. Der Stapel wird nun erneut versucht und in zwei Hälften geteilt, und nur eine Zeichenfolge, die das Modell niemals in verwendbarer Form zurückgibt, behält ihren englischen Text.</li>
 </ul>
 <h3 id="tool-fenster-als-registerkarten">Tool-Fenster als Registerkarten<a class="headerlink" href="#tool-fenster-als-registerkarten" title="Permanent link">&para;</a></h3>
@@ -2409,7 +2534,7 @@
 </ul>
 <h3 id="eingabe-hartung">Eingabe-Härtung<a class="headerlink" href="#eingabe-hartung" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Neu: Die KI kann die Eingabevalidierung direkt in Ihre Skripte integrieren</strong> – jeder KI-Skriptfluss (vollständige Codeanalyse, Verbesserung der Robustheit, benutzerdefinierte Verbesserung und beide Workflow-Skriptgeneratoren) verfügt über ein Opt-in-Panel zur <strong>Eingabe-Härtung</strong>. Wenn diese Option aktiviert ist, fügt die KI am Anfang des generierten oder umgeschriebenen Skripts einen Schutzblock hinzu, der jeden Parameter validiert (Anzahl, Zeichenzulassungslisten, Längenbeschränkungen, Ablehnung von Shell-Metazeichen), Eingabedateien vor der Verwendung überprüft (Vorhandensein, Text-vs-Binärformat und eine als anpassbare <code>KORTTY_MAX_FILE_SIZE</code>-Skriptvariable generierte Größenbeschränkung, standardmäßig 10 MB) und jeden Verstoß als zeitgestempelte <code>SECURITY:</code>-Warnung auf stderr und in der eigenen Protokolldatei des Skripts meldet. Verstöße stoppen das Skript mit dokumentierten Exit-Codes (64/65/66), es sei denn, eine Ausführung wird absichtlich mit <code>KORTTY_FORCE=1</code> erzwungen – wodurch die Umgehung weiterhin protokolliert wird. korTTY selbst führt zur Laufzeit keine Validierung durch: Der Wächter ist gewöhnlicher Skriptcode und schützt daher jede zukünftige Ausführung des Skripts, unabhängig davon, wo es gestartet wird. <strong>Alle</strong>/<strong>Löschen</strong>/<strong>Speichern</strong> verwalten die fünf Unteroptionen, und <strong>Speichern</strong> speichert Ihre Auswahl und Größenbeschränkung als Standard. Siehe <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</li>
+<li><strong>Neu: Die KI kann die Eingabevalidierung direkt in Ihre Skripte integrieren</strong> – jeder KI-Skriptfluss (vollständige Codeanalyse, Verbesserung der Robustheit, benutzerdefinierte Verbesserung und beide Workflow-Skriptgeneratoren) verfügt über ein Opt-in-Panel zur <strong>Eingabe-Härtung</strong>. Wenn diese Option aktiviert ist, fügt die KI am Anfang des generierten oder umgeschriebenen Skripts einen Schutzblock hinzu, der jeden Parameter validiert (Anzahl, Zeichenzulassungslisten, Längenbeschränkungen, Ablehnung von Shell-Metazeichen), Eingabedateien vor der Verwendung überprüft (Vorhandensein, Text-vs-Binärformat und eine als anpassbare <code>KORTTY_MAX_FILE_SIZE</code>-Skriptvariable generierte Größenbeschränkung, standardmäßig 10 MB) und jeden Verstoß als zeitgestempelte <code>SECURITY:</code>-Warnung auf stderr und im eigenen Protokoll des Skripts meldet Datei. Verstöße stoppen das Skript mit dokumentierten Exit-Codes (64/65/66), es sei denn, eine Ausführung wird absichtlich mit <code>KORTTY_FORCE=1</code> erzwungen – wodurch die Umgehung weiterhin protokolliert wird. korTTY selbst führt zur Laufzeit keine Validierung durch: Der Wächter ist gewöhnlicher Skriptcode und schützt daher jede zukünftige Ausführung des Skripts, unabhängig davon, wo es gestartet wird. <strong>Alle</strong>/<strong>Löschen</strong>/<strong>Speichern</strong> verwalten die fünf Unteroptionen, und <strong>Speichern</strong> speichert Ihre Auswahl und Größenbeschränkung als Standard. Siehe <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</li>
 </ul>
 <h3 id="snippet-ai-korrekturen">Snippet AI-Korrekturen<a class="headerlink" href="#snippet-ai-korrekturen" title="Permanent link">&para;</a></h3>
 <ul>

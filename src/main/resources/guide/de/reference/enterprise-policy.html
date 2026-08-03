@@ -847,6 +847,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulesession-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.session-journal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesession-journalreplace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule.session-journal.replace]]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -971,6 +993,8 @@
       
         
           
+        
+      
         
       
         
@@ -1213,6 +1237,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1557,6 +1609,8 @@
   
     
     
+      
+        
       
         
       
@@ -2156,6 +2210,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/ascii-art.html" class="md-nav__link">
         
   
@@ -2584,6 +2666,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#rulesession-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [rule.session-journal]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulesession-journalreplace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [[rule.session-journal.replace]]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#von-admin-bereitgestellte-objekte" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2709,7 +2813,7 @@
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="n">ai-agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span>
 </span></code></pre></div>
 <h2 id="server-zugriffskontrolle">Server-Zugriffskontrolle<a class="headerlink" href="#server-zugriffskontrolle" title="Permanent link">&para;</a></h2>
-<p>Die <code>[rule.servers]</code>-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (<code>mode = "allow"</code>: nur aufgelistete Server sind erreichbar) oder als Sperrliste (<code>mode = "deny"</code>: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, Sitzungswiederherstellung, SFTP, gemeinsam genutzte Teamwork-Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Verbindungsmanager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.</p>
+<p>Die <code>[rule.servers]</code>-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (<code>mode = "allow"</code>: nur aufgelistete Server sind erreichbar) oder als Sperrliste (<code>mode = "deny"</code>: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, Sitzungswiederherstellung, SFTP, von Teamwork freigegebene Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Verbindungsmanager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.</p>
 <p>Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindung konfiguriert ist – korTTY löst DNS nie für Richtlinienprüfungen auf, daher sind Hostnamen und IP-Adressen separate Namespaces: Wenn ein Server in beide Richtungen erreichbar ist, listen Sie beide auf.</p>
 <table>
 <thead>
@@ -2912,6 +3016,12 @@
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
 <td>Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte)</td>
+</tr>
+<tr>
+<td><code>session-journal</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Der <a href="../features/session-journal.html">Sitzungsjournal</a>: Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet <code>ai</code> – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf</td>
 </tr>
 <tr>
 <td><code>ai-agent-execution</code></td>
@@ -3139,8 +3249,158 @@
 <p class="admonition-title">Note</p>
 <p>Wenn mehrere gleichstufige Regeln die Protokollierung konfigurieren, wird jeder Schlüssel separat aufgelöst: kürzere Aufbewahrung und engere Obergrenzen gewinnen, Komprimierung gewinnt, <code>json</code> gewinnt gegenüber <code>text</code>. In der Praxis fassen Sie die Protokollierungskonfiguration in einer einzigen Regel für alle Benutzer zusammen. Das ausgewählte Verzeichnis muss für den Benutzer, der korTTY ausführt, beschreibbar sein.</p>
 </div>
+<h3 id="rulesession-journal"><code>[rule.session-journal]</code><a class="headerlink" href="#rulesession-journal" title="Permanent link">&para;</a></h3>
+<p>Mandate für das <a href="../features/session-journal.html">Sitzungsjournal</a>. Erzwungene Werte sperren die entsprechenden Steuerelemente in den Journaloptionen, im Einstellungsdialog und im Verbindungseditor mit dem Hinweis „Von Ihrer Organisation verwaltet“.</p>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enforced</code></td>
+<td>Boolescher Wert</td>
+<td><code>true</code></td>
+<td>Für <strong>jede</strong> Verbindung wird ein Journal geschrieben, unabhängig von der verbindungsspezifischen Einstellung; Benutzer können es nicht stoppen und der Aktivierungsschalter ist gesperrt</td>
+</tr>
+<tr>
+<td><code>log-format</code></td>
+<td>Zeichenfolge</td>
+<td><code>json</code> (Standard), <code>xml</code>, <code>yaml</code></td>
+<td>Erzwingt das Capture-Log-Format für neue Journale</td>
+</tr>
+<tr>
+<td><code>ai-max-lines</code></td>
+<td>Ganzzahl</td>
+<td><code>0</code> = Kontextfüllung</td>
+<td>Erzwingt das KI-Auswertungsfenster (max. Terminalzeilen pro Zusammenfassung)</td>
+</tr>
+<tr>
+<td><code>storage-path</code></td>
+<td>Zeichenfolge</td>
+<td>absoluter Pfad</td>
+<td>Erzwingt das Journalspeicherverzeichnis; Die Einstellung ist gesperrt</td>
+</tr>
+<tr>
+<td><code>allow-rename</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Journale können im Manager nicht umbenannt werden</td>
+</tr>
+<tr>
+<td><code>allow-delete</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Journale können im Manager nicht gelöscht werden</td>
+</tr>
+<tr>
+<td><code>name-template</code></td>
+<td>Zeichenfolge</td>
+<td>Vorlage</td>
+<td>Ursprünglicher Journaltitel mit den Platzhaltern <code>{connection}</code>, <code>{host}</code>, <code>{user}</code>, <code>{date}</code> und <code>{time}</code></td>
+</tr>
+<tr>
+<td><code>ai-title</code></td>
+<td>Boolescher Wert</td>
+<td><code>true</code></td>
+<td>Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;json&quot;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/srv/audit/kortty-journals&quot;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{connection} {date} {time} ({user})&quot;</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>enforced</code>-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden <code>enforced</code> und <code>ai-title</code> zu „true“ aufgelöst, wenn eine Regel sie festlegt, <code>allow-rename</code>/<code>allow-delete</code> zu „false“, wenn eine Regel sie verbietet, und die Zeilenobergrenze wird auf den engeren Wert aufgelöst (<code>0</code> gilt als unbegrenzt).</p>
+</div>
+<h3 id="rulesession-journalreplace"><code>[[rule.session-journal.replace]]</code><a class="headerlink" href="#rulesession-journalreplace" title="Permanent link">&para;</a></h3>
+<p>Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.</p>
+<table>
+<thead>
+<tr>
+<th>Schlüssel</th>
+<th>Typ</th>
+<th>Standard</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pattern</code></td>
+<td>Zeichenfolge</td>
+<td><em>erforderlich</em></td>
+<td>Der zu suchende Text. Wenn <code>regex</code> aktiviert ist, handelt es sich um einen regulären Ausdruck</td>
+</tr>
+<tr>
+<td><code>replacement</code></td>
+<td>Zeichenfolge</td>
+<td><code>***</code></td>
+<td>Der Text, der jede Übereinstimmung ersetzt. In einer Regex-Regel <code>$1</code> fügt eine erfasste Gruppe ein</td>
+</tr>
+<tr>
+<td><code>regex</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Behandelt <code>pattern</code> als regulären Ausdruck</td>
+</tr>
+<tr>
+<td><code>ignore-case</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Entspricht jeder Groß-/Kleinschreibung</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>Zeichenfolge</td>
+<td>–</td>
+<td>Beschreibung für den Administrator; korTTY zählt nur die Regeln in seinem UI-Hinweis</td>
+</tr>
+</tbody>
+</table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AKIA[0-9A-Z]{16}&quot;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;***AWS-ACCESS-KEY***&quot;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS access keys&quot;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}&quot;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Bearer ***&quot;</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Bearer tokens&quot;</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vpn.internal.acme.corp&quot;</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&lt;internal-host&gt;&quot;</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span></code></pre></div>
+<p>Die Regeln werden <strong>im Erfassungsthread ausgeführt, bevor eine Zeile geschrieben wird</strong>, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt, und sie werden auch auf KI-Zusammenfassungen und Benutzernotizen angewendet. Im Gegensatz zu den anderen Schlüsseln werden Ersetzungsregeln <strong>über alle übereinstimmenden Regeln und alle Ebenen hinweg zusammengeführt</strong> und nicht, dass die höchste Ebene gewinnt: Mehr Schwärzung ist das restriktivere Ergebnis, sodass eine benutzer- oder gruppenspezifische Regel nur Muster hinzufügen und niemals die organisationsweiten ausschalten kann. Doppelte Einträge werden ausgeblendet.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Ein <code>pattern</code>, der kein gültiger regulärer Ausdruck ist, ist ein <strong>Richtlinienfehler</strong> und keine Warnung – die Datei wird abgelehnt. Eine Regel, die stillschweigend nichts übereinstimmt, ist schlimmer als eine Regel, die der Administrator korrigieren muss, weil die Schwärzung scheinbar vorhanden ist.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Es fallen nur Journale an, die während der Geltungsdauer der Regelung verfasst wurden; bestehende Journale werden nicht rückwirkend umgeschrieben. Benutzer können diese mit der Such- und Ersetzungsfunktion des Viewers bereinigen.</p>
+</div>
 <h3 id="von-admin-bereitgestellte-objekte">Von Admin bereitgestellte Objekte<a class="headerlink" href="#von-admin-bereitgestellte-objekte" title="Permanent link">&para;</a></h3>
-<p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
+<p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und niemals in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
 <table>
 <thead>
 <tr>
@@ -3177,11 +3437,11 @@
 <p>Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable <code>${clipboard}</code> und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.</p>
 <div class="admonition note">
 <p class="admonition-title">Scope</p>
-<p>Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein harter Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-<em>Einfüge</em>-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.</p>
+<p>Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein fester Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-<em>Einfüge</em>-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.</p>
 </div>
 <h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
 <p>Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
 <div class="admonition warning">
@@ -3199,7 +3459,7 @@
 <tbody>
 <tr>
 <td>Startdialog „Organisationsrichtlinie konnte nicht geladen werden“</td>
-<td>Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf; Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist</td>
+<td>Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf. Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist</td>
 </tr>
 <tr>
 <td>Richtlinie scheint ignoriert zu werden</td>
@@ -3211,7 +3471,7 @@
 </tr>
 <tr>
 <td>Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“</td>
-<td>Die Berechtigungen für das Installationsverzeichnis sind zu offen – das Durchsetzungsmodell basiert auf ausschließlich Administrator-Schreibzugriff</td>
+<td>Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Durchsetzungsmodell basiert auf Schreibzugriff nur für Administratoren</td>
 </tr>
 <tr>
 <td>Das Admin-Modell wird nicht angezeigt</td>

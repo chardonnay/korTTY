@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2057,6 +2089,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -2504,14 +2564,14 @@
 <p>Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
 </div>
 <div class="tabbed-block">
-<p>Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#local-shell">Local Shell</a> unten.</p>
+<p>Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#lokale-shell">Local Shell</a> unten.</p>
 </div>
 </div>
 </div>
 <h2 id="ssh-hostschlusseluberprufung">SSH-Hostschlüsselüberprüfung<a class="headerlink" href="#ssh-hostschlusseluberprufung" title="Permanent link">&para;</a></h2>
 <p>Interactive Terminal- und SFTP-Verbindungen verwenden denselben TOFU-Hostschlüsselspeicher (Trust-on-First-Use). Mosh verwendet es auch für den SSH-Bootstrap. Die Vertrauenswürdigkeit wird durch den normalisierten Hostnamen und Port bestimmt, sodass verschiedene gespeicherte Verbindungen zum selben Endpunkt eine gemeinsame Entscheidung treffen.</p>
 <p>Bei der ersten Verbindung zeigt korTTY den Schlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an. Überprüfen Sie diesen Fingerabdruck beim Serveradministrator, bevor Sie <strong>Ja</strong> auswählen. <strong>Nein</strong> ist die sichere Standardeinstellung. Ein passender Schlüssel wird bei späteren Verbindungen stillschweigend akzeptiert. Wenn der Server einen anderen Schlüssel vorlegt, blockiert korTTY die Verbindung hart, zeigt die erwarteten und angebotenen Fingerabdrücke an und versucht es nicht erneut, da eine Wiederholung des Versuchs einen möglichen Man-in-the-Middle-Angriff nicht auflösen kann.</p>
-<p>Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die <strong>Hostschlüsselüberprüfung</strong> auf der Registerkarte <em>Verbindung</em> des Verbindungseditors oder in Quick Connect (<strong>Standard verwenden</strong> / <strong>Überprüfen</strong> / <strong>Nicht überprüfen</strong>), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter <strong>Einstellungen → Terminal</strong> fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird weiterhin hart blockiert. Siehe <a href="security.html#relaxing-host-key-verification">Lockere Hostschlüsselüberprüfung</a>.</p>
+<p>Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die <strong>Hostschlüsselüberprüfung</strong> auf der Registerkarte <em>Verbindung</em> des Verbindungseditors oder in Quick Connect (<strong>Standard verwenden</strong> / <strong>Überprüfen</strong> / <strong>Nicht überprüfen</strong>), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter <strong>Einstellungen → Terminal</strong> fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird weiterhin hart blockiert. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Lockere Hostschlüsselüberprüfung</a>.</p>
 <p>Die interaktiven Pins werden atomar in <code>~/.kortty/ssh-host-keys.properties</code> gespeichert, mit prozessübergreifender Sperrung, sodass zwei korTTY-Fenster die Entscheidungen des anderen nicht überschreiben können. Diese endpunktbasierten Pins sind von den verbindungs-ID-basierten Pins getrennt, die von unbeaufsichtigten JobScheduler-SSH-, SFTP- und Rsync-Jobs verwendet werden.</p>
 <p>Wenn eine neue geteilte Verbindung geöffnet wird, wird der SSH-Handshake auf einem Worker ausgeführt, während ein Fortschrittsdialog dafür sorgt, dass die JavaFX-Schnittstelle reagiert. Dadurch können sowohl die Hostschlüsselbestätigung als auch die interaktive Tastaturauthentifizierung abgeschlossen werden, ohne dass die Benutzeroberfläche blockiert wird.</p>
 <h2 id="lokale-shell">Lokale Shell<a class="headerlink" href="#lokale-shell" title="Permanent link">&para;</a></h2>
@@ -2540,7 +2600,7 @@
 <p>Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
 <div class="admonition note">
 <p class="admonition-title">AI Agent in lokalen Shells</p>
-<p>Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-and-ai-planning">AI Assistant</a>.</p>
+<p>Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-und-ki-planung">AI Assistant</a>.</p>
 </div>
 <h2 id="tunnels-und-sprungserver">Tunnels und Sprungserver<a class="headerlink" href="#tunnels-und-sprungserver" title="Permanent link">&para;</a></h2>
 <ul>

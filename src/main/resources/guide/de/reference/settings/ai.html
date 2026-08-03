@@ -747,6 +747,8 @@
       
         
       
+        
+      
     
     
     
@@ -953,6 +955,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1542,6 +1572,8 @@
       
         
       
+        
+      
     
     
     
@@ -2078,6 +2110,34 @@
     
   
     Terminalaufzeichnung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
   
 
     
@@ -2983,6 +3043,12 @@
 <td><code>codingAiProfileId</code></td>
 </tr>
 <tr>
+<td>Sitzungsjournalprofil</td>
+<td>Konfiguriertes AI-Profil oder Standard verwenden</td>
+<td>Standard verwenden</td>
+<td><code>sessionJournalAiProfileId</code></td>
+</tr>
+<tr>
 <td>RAG-Einbettungsmodell-ID</td>
 <td>Installiertes lokales Einbettungsmodell</td>
 <td>–</td>
@@ -3012,7 +3078,7 @@
 <p>Der <strong>Lokale Modelle &gt; Setup-Assistent</strong> stellt optionale Text-, Codierungs- und RAG-Einbettungsslots bereit. Es überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe, bevor es mit der asynchronen Laufzeit-/Modellinstallation beginnt, führt einen echten Chat- oder Einbettungstest für jeden installierten GGUF durch und speichert die resultierenden Rollenzuweisungen erst, nachdem alle Tests erfolgreich waren. Die Text- und Codierungsslots können ein gemeinsames Modell haben. <strong>Configure</strong> weigert sich, die persistenten Laufzeiteinstellungen eines Modells zu ersetzen, während dieses Modell eine aktive Anfrage bedient.</p>
 <p>Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, daher ist die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe <a href="../../features/rag.html">RAG Wissensspeicher</a>.</p>
 <h3 id="prompt-optimierungsvoreinstellungen">Prompt-Optimierungsvoreinstellungen<a class="headerlink" href="#prompt-optimierungsvoreinstellungen" title="Permanent link">&para;</a></h3>
-<p><strong>Automatisch (Modellerkennung)</strong> löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt prägnante Kompatibilitätshinweise hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; <strong>Allgemein</strong> fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.</p>
+<p><strong>Automatisch (Modellerkennung)</strong> löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; <strong>Allgemein</strong> fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.</p>
 <h3 id="begrundungsaufwandsstufen">Begründungsaufwandsstufen<a class="headerlink" href="#begrundungsaufwandsstufen" title="Permanent link">&para;</a></h3>
 <p>Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:</p>
 <ul>

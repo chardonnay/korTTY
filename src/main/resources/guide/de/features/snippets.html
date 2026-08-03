@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2334,6 +2366,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -3105,12 +3165,12 @@
 <h3 id="ai-codeaktionen">AI Codeaktionen<a class="headerlink" href="#ai-codeaktionen" title="Permanent link">&para;</a></h3>
 <p>Das Menü <strong>AI-Code</strong> gruppiert die Aktionen, die den Code selbst lesen oder neu schreiben:</p>
 <ul>
-<li><strong>AI Complete</strong> / <strong>Auto AI Complete</strong> – Code-Vervollständigung am Cursor (siehe <a href="#ai-code-completions">AI Code-Vervollständigungen</a> oben).</li>
-<li><strong>Vollständige Codeanalyse</strong> – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe <a href="#full-code-analysis">Vollständige Codeanalyse</a> unten.</li>
-<li><strong>Verbesserung der Lesbarkeit/Robustheit/Leistung</strong> – Schreibt den <strong>ausgewählten</strong> Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. <em>Robustheit verbessern</em> bietet zusätzlich <a href="../reference/hardening-options.html">Härtungs-Optionen</a> und den Opt-in-Guard <a href="../reference/input-hardening.html">Eingabe-Härtung</a> vor der Ausführung an.</li>
+<li><strong>AI Complete</strong> / <strong>Auto AI Complete</strong> – Code-Vervollständigung am Cursor (siehe <a href="#ai-codevervollstandigungen">AI Code-Vervollständigungen</a> oben).</li>
+<li><strong>Vollständige Codeanalyse</strong> – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe <a href="#vollstandige-code-analyse">Vollständige Codeanalyse</a> unten.</li>
+<li><strong>Verbesserung der Lesbarkeit/Robustheit/Leistung</strong> – Schreibt den <strong>ausgewählten</strong> Codebereich in Richtung eines Ziels ohne unabhängige Änderungen um. <em>Verbesserung der Robustheit</em> bietet zusätzlich <a href="../reference/hardening-options.html">Härtemöglichkeiten</a> und das Opt-In <a href="../reference/input-hardening.html">Eingabe-Härtung</a> bewachen, bevor es läuft.</li>
 <li><strong>Codekommentare optimieren</strong> – Kommentiert den <strong>ausgewählten</strong> Codebereich: Die KI fügt mithilfe der spracheigenen Kommentarsyntax direkt über oder neben den Zeilen, zu denen sie gehören, Erklärungen dazu ein, was der Code tut und warum, und ersetzt veraltete oder irreführende Kommentare. Ausführbarer Code bleibt unberührt. Die Kommentare sind in der <strong>Textsprache</strong> des Herausgebers verfasst. Verfügbar im Menü <strong>AI-Code</strong> und im Kontextmenü des Editors auf eine Auswahl.</li>
-<li><strong>Benutzerdefinierte Verbesserung…</strong> – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu, mit denselben Panels für <a href="../reference/hardening-options.html">Härtungs-Optionen</a> und <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</li>
-<li><strong>Sicherheitsprüfung</strong> – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe <a href="#security-check">Sicherheitscheck</a> unten.</li>
+<li><strong>Benutzerdefinierte Verbesserung…</strong> – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu <a href="../reference/hardening-options.html">Härtemöglichkeiten</a> Und <a href="../reference/input-hardening.html">Eingabe-Härtung</a> Paneele.</li>
+<li><strong>Sicherheitsprüfung</strong> – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus. KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe <a href="#sicherheitsprufung">Sicherheitscheck</a> unten.</li>
 <li><strong>Diagramm</strong> – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.</li>
 </ul>
 <p>Das Editor-Kontextmenü bietet außerdem <strong>AI Assistant…</strong>, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.</p>
@@ -3142,9 +3202,9 @@
 </ul>
 <p><strong>Rechts – Flussdiagramm:</strong></p>
 <ul>
-<li>Ein <strong>automatisch generiertes Mermaid-Flussdiagramm</strong> aus einer dedizierten Nur-Diagramm-Anfrage wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom <strong>−</strong> / <strong>Anpassen</strong> / <strong>+</strong>, <strong>SVG speichern</strong> / <strong>PNG speichern</strong>, <strong>Bild kopieren</strong> / <strong>Mermaid kopieren</strong>, ein Steuerelement für den <strong>Dunkelmodus</strong> und einen Farbwähler für den <strong>Hintergrund</strong> (beide gespeichert) sowie <strong>Regenerieren</strong>. <strong>Regenerieren</strong> sendet absichtlich eine neue Nur-Diagramm-Anfrage unter Verwendung des aktiven Profils des Analysefensters und der aktuellen KI-Fähigkeiten. Siehe <a href="#diagram-appearance">Diagrammdarstellung</a> unten.</li>
-<li><strong>Hover-Code-Referenzen</strong> – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – das gleiche Verhalten wie im eigenständigen Fenster <a href="#mermaid-diagrams">Diagram</a>.</li>
-<li><strong>Automatisch generieren</strong> – Ein Kontrollkästchen in der Kopfzeile des Bereichs steuert, ob die Diagrammanforderung beim Öffnen des Fensters automatisch startet. Deaktivieren Sie das Häkchen, um die automatische KI-Anfrage vollständig zu überspringen – im Bereich wird dann stattdessen ein Hinweis angezeigt, und <strong>Neugenerieren</strong> bleibt die manuelle Methode zum Anfordern des Diagramms. Wenn Sie das Kontrollkästchen aktivieren, während das Fenster geöffnet ist, wird das Diagramm sofort abgerufen. Die Auswahl wird sitzungsübergreifend gespeichert (Standard: Ein) und hat keine Auswirkungen auf das eigenständige Fenster <a href="#mermaid-diagrams">Diagram</a>, das gespeicherte Diagramme ohne AI-Anfrage rendert.</li>
+<li>Ein <strong>automatisch generiertes Mermaid-Flussdiagramm</strong> aus einer dedizierten Nur-Diagramm-Anfrage wird gerendert, während ein Spinner angezeigt wird, und füllt dann den Bereich aus. Es verfügt über die vollständige Symbolleiste des Diagramms: Zoom <strong>−</strong> / <strong>Anpassen</strong> / <strong>+</strong>, <strong>SVG speichern</strong> / <strong>PNG speichern</strong>, <strong>Bild kopieren</strong> / <strong>Mermaid kopieren</strong>, ein Steuerelement für den <strong>Dunkelmodus</strong> und einen Farbwähler für den <strong>Hintergrund</strong> (beide gespeichert) sowie <strong>Regenerieren</strong>. <strong>Regenerieren</strong> sendet absichtlich eine neue Nur-Diagramm-Anfrage unter Verwendung des aktiven Profils des Analysefensters und der aktuellen KI-Fähigkeiten. Siehe <a href="#diagrammdarstellung">Diagrammdarstellung</a> unten.</li>
+<li><strong>Hover-Code-Referenzen</strong> – Wenn Sie die Maus über einen Diagrammknoten bewegen, werden die übereinstimmenden Zeilen aus dem Snippet angezeigt, sodass Sie jeden Schritt bis zum Code zurückverfolgen können – dasselbe Verhalten wie im eigenständigen Fenster <a href="#mermaid-diagramme">Diagram</a>.</li>
+<li><strong>Automatisch generieren</strong> – Ein Kontrollkästchen in der Kopfzeile des Bereichs steuert, ob die Diagrammanforderung beim Öffnen des Fensters automatisch startet. Deaktivieren Sie das Häkchen, um die automatische KI-Anfrage vollständig zu überspringen – im Bereich wird dann stattdessen ein Hinweis angezeigt, und <strong>Neugenerieren</strong> bleibt die manuelle Methode zum Anfordern des Diagramms. Wenn Sie das Kontrollkästchen aktivieren, während das Fenster geöffnet ist, wird das Diagramm sofort abgerufen. Die Auswahl wird sitzungsübergreifend gespeichert (Standard: Ein) und hat keine Auswirkungen auf das eigenständige Fenster <a href="#mermaid-diagramme">Diagram</a>, das gespeicherte Diagramme ohne AI-Anfrage rendert.</li>
 </ul>
 <p><strong>KI-Fähigkeiten für diese Analyse:</strong></p>
 <p>Wenn <a href="../reference/settings/ai-skills.html">AI Skills</a> konfiguriert sind, zeigt eine Zeile oben im Fenster genau <strong>welche Fähigkeiten</strong> in die Analyse einbezogen wurden, als Chips, mit einem <strong>(automatisch ausgewählten)</strong> oder <strong>(manuell)</strong> Abzeichen:</p>
@@ -3158,7 +3218,7 @@
 <p><strong>Eingabe-Härtung:</strong></p>
 <p>Darunter fordert ein zweites zusammenklappbares Bedienfeld zur <strong>Eingabe-Härtung</strong> die KI auf, einen Schutzblock für die Eingabevalidierung in das Skript einzubauen, wenn die Korrekturen angewendet werden: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße (im Skript als anpassbare <code>KORTTY_MAX_FILE_SIZE</code>-Variable generiert), Sicherheitswarnungen im eigenen Protokoll des Skripts und eine <code>KORTTY_FORCE=1</code>-Überschreibung. Es handelt sich ausschließlich um eine Opt-in-Option – das Master-Kontrollkästchen ist zunächst deaktiviert – und sein Titel zählt nur die Unteroptionen, die tatsächlich aktiv sind. Den vollständigen Schutzvertrag finden Sie unter <a href="../reference/input-hardening.html">Eingabe-Härtung</a>.</p>
 <p><strong>Skript-Header:</strong></p>
-<p>Mit einem <strong>Script-Header</strong>-Selektor können Sie beim Anwenden der Analyse eines Ihrer gespeicherten <em>Script-Header</em>-Snippets (aus der festen <a href="#creating-and-editing-snippets">Script-Header-Kategorie </a>) dem Code voranstellen. Wählen Sie einen Header aus – oder belassen Sie ihn auf <em>Kein Header</em> (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.</p>
+<p>Mit einem <strong>Script-Header</strong>-Selektor können Sie beim Anwenden der Analyse eines Ihrer gespeicherten <em>Script-Header</em>-Snippets (aus der festen <a href="#snippets-erstellen-und-bearbeiten">Script-Header-Kategorie </a>) dem Code voranstellen. Wählen Sie einen Header aus – oder belassen Sie ihn auf <em>Kein Header</em> (Standardeinstellung) – und sein Inhalt wird mit ersetzten Variablen oben im Snippet nach einer vorhandenen Shebang-/Lead-Zeile als Teil derselben Änderung eingefügt.</p>
 <p><strong>Ausgewählt anwenden:</strong></p>
 <p>Wenn Sie auf <strong>Ausgewählte anwenden</strong> klicken, schließt korTTY das Analysefenster, bevor der Anwendungsfluss gestartet wird, sendet die angekreuzten Verbesserungen und Abhängigkeitsvorschläge (plus etwaige Härtungsoptionen) in einer Anfrage an die KI und bringt das Fenster <em>Verbesserungen anwenden – Änderungen überprüfen</em> in den Vordergrund. Es zeigt das ursprüngliche und das umgeschriebene Skript nebeneinander, mit hervorgehobenen geänderten Zeilen und den jeweiligen Änderungsgründen, genau wie in der Security-Check-Überprüfung unten; Der Editor bleibt unverändert, bis Sie in dieser Vorschau <strong>Änderung übernehmen</strong> bestätigen. Jeder ausgewählte <strong>Skript-Header</strong> wird dem Ergebnis vorangestellt, bevor es angezeigt wird. Ein eigenständiger Header – ohne angekreuzte Verbesserungen, Abhängigkeiten oder Härtung – wird direkt eingefügt, ohne einen KI-Roundtrip, und immer noch zuerst als Vorher/Nachher-Vorschau angezeigt.</p>
 <p><strong>Bericht exportieren:</strong></p>
@@ -3188,7 +3248,7 @@
 </ul>
 <h3 id="ai-fahigkeiten">AI-Fähigkeiten<a class="headerlink" href="#ai-fahigkeiten" title="Permanent link">&para;</a></h3>
 <p>Wenn <a href="../reference/settings/ai-skills.html">AI Skills</a> konfiguriert sind, zeigt der Snippet-Editor eine <strong>KI-Fähigkeiten</strong>-Auswahl an. Fertigkeiten, die für die Sprache des Snippets relevant sind, werden automatisch vorab ausgewählt, und jede Fertigkeit, die Sie hier ankreuzen, wird auf <strong>jede</strong> AI-Code-Aktion (Abschluss, Analyse, Verbesserung, Sicherheitsüberprüfung, Diagramm) angewendet, unabhängig vom konfigurierten Ziel der Fertigkeit. Die Auswahl erscheint nur, wenn mindestens eine KI-Fähigkeit aktiviert ist.</p>
-<p>Das Fenster <strong>Vollständige Codeanalyse</strong> zeigt dieselbe Auswahl als eine Reihe von Chips an – mit der Bezeichnung <em>(automatisch ausgewählt)</em> oder <em>(manuell)</em> – und ermöglicht Ihnen, sie mithilfe einer durchsuchbaren Auswahl nur für diese Analyse zu verfeinern. Dort vorgenommene Änderungen gelten bei der nächsten <strong>Wiederholung</strong>. Siehe <a href="#full-code-analysis">Vollständige Codeanalyse</a>.</p>
+<p>Das Fenster <strong>Vollständige Codeanalyse</strong> zeigt dieselbe Auswahl als eine Reihe von Chips an – mit der Bezeichnung <em>(automatisch ausgewählt)</em> oder <em>(manuell)</em> – und ermöglicht Ihnen, sie mithilfe einer durchsuchbaren Auswahl nur für diese Analyse zu verfeinern. Dort vorgenommene Änderungen gelten bei der nächsten <strong>Wiederholung</strong>. Siehe <a href="#vollstandige-code-analyse">Vollständige Codeanalyse</a>.</p>
 <h3 id="textkorrektur-und-ubersetzung">Textkorrektur und Übersetzung<a class="headerlink" href="#textkorrektur-und-ubersetzung" title="Permanent link">&para;</a></h3>
 <p>Für die auswahlbasierte Textkorrektur und -übersetzung schreibt KorTTY nur bearbeitbaren Kommentartext, Zeichenfolgenliterale und für den Benutzer sichtbare Textsegmente neu. Eine Auswahl kann innerhalb eines solchen Segments beginnen oder enden: KorTTY erkennt die ausgewählten Wörter anhand des umgebenden Snippets und ersetzt nur den überlappenden Text. Die logische Codestruktur wird nicht neu geschrieben.</p>
 <h3 id="technische-beschreibungen">Technische Beschreibungen<a class="headerlink" href="#technische-beschreibungen" title="Permanent link">&para;</a></h3>
@@ -3216,7 +3276,7 @@
 <ul>
 <li><strong>Generierung:</strong> KI-generierte und lokale Fallback-Diagramme verwenden einen kompakten <code>flowchart TD</code>-Dialekt mit stabilen Knoten-IDs und den semantischen Klassen <code>setup</code>, <code>work</code>, <code>success</code> und <code>failure</code>; Code-Referenzen ordnen diese IDs genauen Snippet-Zeilen zu.</li>
 <li><strong>Rendering:</strong> Nur lokal – das SHA-256-gepinnte Browserpaket Mermaid 11.16.0 ist in KorTTY enthalten und läuft in einem isolierten, langsam erstellten JavaFX WebView. Es ist kein Rendering-Server, keine Graphviz-Installation, kein Java-Unterprozess und kein Erst-Download erforderlich.</li>
-<li><strong>Dialogfunktionen:</strong> Bereinigte SVG-Anzeige mit deaktiviertem JavaScript, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Bild- und Mermaid-Quell-Zwischenablagekopie, Hover-Code-Referenzen und die gemeinsamen <a href="#diagram-appearance">Diagrammdarstellung</a>-Steuerelemente.</li>
+<li><strong>Dialogfunktionen:</strong> Bereinigte SVG-Anzeige mit deaktiviertem JavaScript, Skalierung ohne Verzerrung, Zoom/Anpassung, SVG/PNG-Export, Bild- und Mermaid-Quell-Zwischenablagekopie, Hover-Code-Referenzen und die gemeinsamen <a href="#diagrammdarstellung">Diagrammdarstellung</a>-Steuerelemente.</li>
 <li><strong>Sicherheit und Wiederherstellung:</strong> KorTTY lehnt Frontmatter, Anweisungen, Links, Rückrufe, externe Bilder/Symbole, übergroße Quellen und übermäßig komplexe Grafiken vor dem Rendern ab. Anfragen werden mit einem Timeout von 30 Sekunden serialisiert; Bei Abbruch oder Zeitüberschreitung wird der Renderer verworfen und die ausgeblendete WebView wird nach der Leerlaufzeit freigegeben.</li>
 <li><strong>Upgrade-Bereinigung:</strong> Gespeicherte ältere Diagrammeinträge werden verworfen, ohne dass die dazugehörigen Snippets oder Chats entfernt werden. KorTTY entfernt außerdem den Download-Cache für den veralteten Diagramm-Renderer und die aufgegebenen temporären Render-Verzeichnisse, ohne symbolischen Links zu folgen.</li>
 </ul>

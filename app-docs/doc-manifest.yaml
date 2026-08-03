@@ -143,6 +143,8 @@ pages:
     last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/reference/settings/export.md
     owns_i18n: [settings.export., settings.tab.export]
+    screenshots:
+      - settings/export.png
     owns_code:
       - src/main/java/de/kortty/core/ExportBranding.java
       - src/main/java/de/kortty/core/PdfWatermarkSupport.java
@@ -346,7 +348,9 @@ pages:
       - src/main/java/de/kortty/ui/SessionJournalViewerDialog.java
       - src/main/java/de/kortty/ui/TerminalTab.java
     diagrams: [session-journal-flow.svg]
-    screenshots: []
+    screenshots:
+      - journal/journal-manager.png
+      - journal/journal-viewer.png
     last_synced_ref: "7deb904"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []

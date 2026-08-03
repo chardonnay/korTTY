@@ -2500,8 +2500,9 @@ tasks.register<JavaExec>("settingsTabScreenshotStage") {
     mainClass.set("de.kortty.ui.SettingsTabScreenshotStage")
     classpath = sourceSets.test.get().runtimeClasspath
     args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
-    (findProperty("kortty.screenshotTabKey") as String?)?.let {
-        systemProperty("kortty.screenshotTabKey", it)
+    listOf("kortty.screenshotTabKey", "kortty.screenshotPaneWidth",
+           "kortty.screenshotPaneHeight", "kortty.screenshotHome").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
     }
 }
 

@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1293,6 +1323,8 @@
   
     
     
+      
+        
       
         
       
@@ -1892,6 +1924,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../features/session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session journal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../features/ascii-art.html" class="md-nav__link">
         
   
@@ -2117,6 +2177,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#session-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#master-password" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2298,6 +2380,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#session-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#master-password" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2388,6 +2492,27 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
 <h2 id="v280">v2.8.0<a class="headerlink" href="#v280" title="Permanent link">&para;</a></h2>
+<h3 id="session-journal">Session journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Terminal sessions can now document themselves</strong> — a new <a href="../features/session-journal.html">session journal</a> records server output and typed commands into a per-session capture log (JSON Lines by default, XML or YAML on request; rotated parts are compressed, never deleted) and lets an AI condense the activity into a readable timeline with a closing session summary. Enable it per connection on the new <strong>Journal</strong> tab of the connection editor, or retroactively for a running session — the existing scrollback is imported. Typed passwords are kept out of the journal: password prompts suppress the following input line and the connection's own stored credentials are redacted.</li>
+<li><strong>A journal bar below the terminal</strong> shows the journal state and adds screenshots (also from the terminal's right-click menu, capturing exactly the split pane under the cursor) and free-text notes to the timeline.</li>
+<li><strong>The journal page is a self-contained HTML timeline</strong> — connection header with statistics, day grouping, color-coded input/output excerpts, marker badges, screenshot lightbox, and a slide-in log panel with search, match counter and prev/next navigation. It renders in the built-in viewer, any browser, and inside the exported bundle, in light and dark.</li>
+<li><strong>Search the whole journal</strong> — the magnifier in the page header (or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span>) opens a search bar under the connection details that highlights a term or a whole sentence across every entry title, summary, excerpt and note, with a match counter and prev/next navigation.</li>
+<li><strong>A copy button on every entry</strong> — text entries copy in full, screenshot entries copy the image, and the log panel copies the section it shows. Right-click adds more targeted actions: the selected text, only an entry's summary, or a screenshot's path.</li>
+<li><strong>Adjustable page font size</strong> — the <strong>A−</strong> / <strong>A</strong> / <strong>A+</strong> buttons scale the whole journal page, and korTTY remembers the size for every journal it renders. Screenshots, excerpt panels and the log panel size themselves to the window, so the page stays readable in a narrow tool tab as well as full screen.</li>
+<li><strong>Tools &gt; Session Journals…</strong> manages all journals: search (optionally through journal contents), per-journal descriptions, renaming and deleting with confirmation, marker/note editing in the viewer, and export as PDF (with downscaled embedded screenshots), Markdown or a complete HTML bundle.</li>
+<li><strong>Bulk delete and bulk export</strong> — select several journals to remove them in one step or write them into a single zip archive that keeps each journal separate. Any archive, including a single HTML bundle, can be <strong>encrypted with AES-256</strong> behind a password of your choice, because journals hold full terminal transcripts.</li>
+<li><strong>Exports carry their provenance</strong> — PDF, Markdown and the bundled journal page state by default that they were created with korTTY and link to the project repository.</li>
+<li><strong>Sensitive content can be removed after the fact</strong> — the viewer's edit mode now also edits an entry's title and summary, deletes a whole entry (including its screenshot file), and offers <strong>Search &amp; replace</strong>, which rewrites a text such as a leaked password everywhere in the journal: all entries <em>and</em> every capture-log part, compressed ones included. It takes a literal text or a regular expression (with <code>$1</code> group references), can ignore case, can spare the raw log, and <strong>Count matches</strong> does a dry run over the real journal first. The page's search bar gained a <strong>Replace…</strong> button that opens it with the current search term — inside korTTY only, since a page opened standalone in a browser cannot rewrite the journal.</li>
+<li><strong>Administrators can redact automatically</strong> — a new <code>[[rule.session-journal.replace]]</code> policy list applies search-and-replace to every journal, with regular expressions, for things like cloud access keys or internal hostnames. The rules run before a line is written, so a matching text never reaches the log at all, and they cover AI summaries and notes too. They merge across policy tiers instead of the highest tier winning, so a narrower rule can only add patterns, never switch the organization-wide ones off. See <a href="../reference/enterprise-policy.html#rulesession-journalreplace">Enterprise policy</a>.</li>
+</ul>
+<h3 id="export-appearance">Export appearance<a class="headerlink" href="#export-appearance" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>A new Export settings page</strong> (<a href="../reference/settings/export.html">Configuration → Global Settings → Export</a>) controls how exported documents are branded, for session journals and AI chats alike: the footer is on by default and its text can be changed or switched off entirely, and an optional diagonal PDF watermark — off by default — can carry your own text in a colour you choose. A custom text is used verbatim; only the built-in texts append the repository link.</li>
+<li><strong>Fixed: the AI chat PDF watermark was drawn off the page.</strong> It applied the page-centre offset twice and ended up clipped in a corner instead of running diagonally across the page.</li>
+<li><strong>AI summarization is configurable</strong> — interval, evaluation window (a line limit, or <code>0</code> to fill the model context within a token budget) and an optional chunked mode that processes the whole backlog across multiple prompts (with a clear long-runtime warning). Without an available AI the journal still records raw activity entries.</li>
+<li><strong>Enterprise policy support</strong> — administrators can deny the feature, enforce journals for every connection, fix the log format, evaluation window and storage directory, forbid renaming/deleting, prescribe a title template and enforce an AI-generated closing title via the new <code>[rule.session-journal]</code> table. See <a href="../reference/enterprise-policy.html#rulesession-journal">Enterprise policy</a>.</li>
+</ul>
 <h3 id="master-password">Master password<a class="headerlink" href="#master-password" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Optional passwordless auto-login for test environments</strong> — a new <strong>Configuration → Global Settings → Security → Disable master password prompt on startup</strong> option makes korTTY remember the master password (stored only obfuscated, with owner-only permissions, in <code>~/.kortty/master.autounlock</code>) and unlock the vault automatically at startup, so encrypted data such as AI profiles and SSH passwords stays usable with no prompt. On a brand-new profile it even sets up a default password so the app can start with zero input. It is insecure by design — the file permissions are the only protection — and meant for throwaway/test setups such as a VM: korTTY asks you to confirm before enabling it, keeps a warning visible while it is on, and an enterprise policy that forces the master password overrides it. Off by default.</li>

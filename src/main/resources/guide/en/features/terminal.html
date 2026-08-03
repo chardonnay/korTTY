@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1338,6 +1368,8 @@
       
         
       
+        
+      
     
     
     
@@ -1548,6 +1580,17 @@
     <span class="md-ellipsis">
       
         Local shell tabs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#session-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal
       
     </span>
   </a>
@@ -2179,6 +2222,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session journal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -2518,6 +2589,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#session-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#split-screen-with-broadcast" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2792,6 +2874,8 @@
 <li><strong>The current directory follows the interactive shell.</strong> On macOS and Linux, korTTY refreshes it from the local shell process; native PowerShell and cmd prompts supply absolute Windows paths. After <code>cd</code>, <code>pushd</code>, <code>popd</code>, or <code>Set-Location</code>, <strong>Open in Snippet Editor</strong> resolves a selected file name against that current directory instead of the tab's start directory. If the directory cannot be determined or mapped safely, korTTY stops with an error rather than opening a same-named file from the wrong directory.</li>
 <li><strong>Clipboard text is preserved in agent shortcuts.</strong> Typed and pasted text travel through the same terminal-input filter, including bracketed paste and split UTF-8 input, so a pasted file name remains part of the <code>agent ...</code> request and Enter dispatches it exactly once.</li>
 </ul>
+<h2 id="session-journal">Session journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h2>
+<p>Every terminal tab can keep a <a href="session-journal.html">session journal</a>: server output and typed commands go into a capture log, an AI condenses them into a readable timeline, and screenshots and notes can be added from the journal bar or the terminal's right-click menu. Journals start automatically for connections that enable them, or retroactively for a running session via <strong>Tools &gt; Start/Stop Session Journal</strong> — the existing scrollback is imported. See <a href="session-journal.html">Session journal</a>.</p>
 <h2 id="split-screen-with-broadcast">Split-screen with broadcast<a class="headerlink" href="#split-screen-with-broadcast" title="Permanent link">&para;</a></h2>
 <p>Split the terminal view to display multiple connections side by side, and optionally send input to all panes at once.</p>
 <h3 id="split-operations">Split operations<a class="headerlink" href="#split-operations" title="Permanent link">&para;</a></h3>

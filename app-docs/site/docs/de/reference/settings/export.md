@@ -14,6 +14,8 @@ Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitz
 | Fußzeile in exportierten Dokumenten anzeigen | boolean | ein/aus | ein | `exportFooterEnabled` |
 | Fußzeilentext | Text | – | Integrierte Markenzeile | `exportFooterText` |
 
+![Export settings](../../assets/screenshots/settings/export.png)
+
 ## Wasserzeichen
 
 Das Wasserzeichen ist **standardmäßig deaktiviert** – ein Dokument wird markiert, wenn Sie dies wünschen. Sobald es aktiviert ist, wird es schwach und diagonal über die Mitte jeder PDF-Seite gezeichnet, angepasst an die Seitenbreite und in der von Ihnen gewählten Farbe. Dies gilt für Sitzungsjournal- und AI-Chat-PDF-Exporte.

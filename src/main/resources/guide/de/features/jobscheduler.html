@@ -743,6 +743,8 @@
       
         
       
+        
+      
     
     
     
@@ -949,6 +951,34 @@
     
   
     Protokollierung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/export.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
   
 
     
@@ -1295,6 +1325,8 @@
   
     
     
+      
+        
       
         
       
@@ -2085,6 +2117,34 @@
   
   
     <li class="md-nav__item">
+      <a href="session-journal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sitzungsjournal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="ascii-art.html" class="md-nav__link">
         
   
@@ -2552,7 +2612,7 @@
 </tr>
 <tr>
 <td><strong>Journal</strong></td>
-<td><code>LIMITED_REDACTED</code> speichert begrenzte, redigierte Auszüge. <code>FULL</code> speichert die vollständige Ausgabe/Transkripte (von KorTTY verwaltete Geheimnisse werden weiterhin geschwärzt).</td>
+<td><code>LIMITED_REDACTED</code> speichert begrenzte, geschwärzte Auszüge. <code>FULL</code> speichert die vollständige Ausgabe/Transkripte (von KorTTY verwaltete Geheimnisse werden weiterhin geschwärzt).</td>
 </tr>
 <tr>
 <td><strong>Aktiv von</strong> / <strong>Aktiv bis</strong></td>
@@ -2688,7 +2748,7 @@
 </tbody>
 </table>
 <p>Die Ergebnisse werden zweimal gespeichert: Das <strong>Journal</strong> zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als <strong>Schwarm-Chat</strong> gespeichert, der über den Abschnitt <em>Schwarm-Chats</em> des AI Managers erneut geöffnet werden kann.</p>
-<p>Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche <strong>Planen…</strong> auf der Registerkarte <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.</p>
+<p>Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche <strong>Planen…</strong> auf der Registerkarte <a href="ai-swarm.html#schwarmlaufe-planen-jobscheduler">AI Swarm</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Ein geplanter Schwarm mit deaktiviertem <strong>Schwarm-Schreibschutz</strong> und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
@@ -2741,7 +2801,7 @@ Die Authentifizierung mit - Passwörtern und Passphrasen mit privatem Schlüssel
 <li>Host-Schlüssel sind standardmäßig fixiert, um Man-in-the-Middle-Angriffe auf die unbeaufsichtigte Ausführung zu verhindern.</li>
 <li>Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.</li>
 <li>SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.</li>
-<li>KorTTY redigiert verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.</li>
+<li>KorTTY geschwärzt verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.</li>
 <li>Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.</li>
 </ul>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>

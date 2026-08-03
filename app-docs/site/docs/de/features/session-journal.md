@@ -123,6 +123,8 @@ Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamt
 
 **Tools > Sitzungsjournale…** (++ctrl+alt+j++) öffnet den Journalmanager: alle Journale in einer Tabelle, sortiert nach Startzeit (neueste zuerst) mit Dauer, Verbindung, Server, Titel und Eintragsanzahl. Laufende Journale sind markiert und können im laufenden Betrieb weder umbenannt noch gelöscht werden.
 
+![Session journal manager](../assets/screenshots/journal/journal-manager.png)
+
 - Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer und Beschreibung; Wenn Sie **Inhalte durchsuchen** aktivieren, werden zusätzlich die Journaleinträge gescannt und Protokolle aller Journale im Hintergrund erfasst.
 - **Öffnen** (oder Doppelklick) öffnet den Journal-Viewer; **Umbenennen** ändert den Titel; **Löschen** fragt nach einer Bestätigung und entfernt dann dauerhaft den Journalordner einschließlich des Protokolls und aller Screenshots.
 - Es können mehrere Journale gleichzeitig ausgewählt werden (Klick ++ctrl++ / ++shift++), um sie in einem Schritt zu löschen oder zu exportieren. Laufende Journale können nicht umbenannt oder gelöscht werden.
@@ -130,6 +132,8 @@ Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamt
 - **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen.
 
 ### Der Viewer und die Bearbeitung
+
+![Session journal viewer](../assets/screenshots/journal/journal-viewer.png)
 
 Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: eine Eintragstabelle neben einem Formular mit dem **Titel** des Eintrags, **Zusammenfassung**, einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und einem Notizfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
 

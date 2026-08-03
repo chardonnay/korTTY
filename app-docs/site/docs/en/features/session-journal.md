@@ -123,6 +123,8 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 
 **Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.
 
+![Session journal manager](../assets/screenshots/journal/journal-manager.png)
+
 - The filter field matches title, connection, host, user and description; enabling **Search contents** additionally scans the journal entries and capture logs of every journal in the background.
 - **Open** (or double-click) opens the journal viewer; **Rename** changes the title; **Delete** asks for confirmation and then permanently removes the journal folder including the log and all screenshots.
 - Several journals can be selected at once (++ctrl++ / ++shift++ click) to delete or export them in one step. Running journals cannot be renamed or deleted.
@@ -130,6 +132,8 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 - **Options** holds the global capture and AI settings described above.
 
 ### The viewer and editing
+
+![Session journal viewer](../assets/screenshots/journal/journal-viewer.png)
 
 The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table next to a form with the entry's **Title**, **Summary**, a marker choice (**None / Info / Important / Error**) and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.
 
