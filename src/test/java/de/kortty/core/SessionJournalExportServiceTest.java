@@ -312,8 +312,10 @@ class SessionJournalExportServiceTest {
         }
         assertThat(names).contains("journal.html");
         assertThat(names).contains("journal.xml");
-        // The gzipped log part is stored decompressed under its plain name.
-        assertThat(names).contains("session-log.xml");
+        // The gzipped log part is stored decompressed under its plain name, whatever
+        // format the journal was captured in.
+        assertThat(names).contains(SessionJournalLogReader.BASE_FILE_NAME + "."
+            + de.kortty.model.SessionJournalLogFormat.DEFAULT.getExtension());
         assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
         assertThat(names.stream().anyMatch(n -> n.startsWith("screenshots/") && n.endsWith(".png"))).isTrue();
     }

@@ -15,12 +15,12 @@ Each journal is one self-contained directory under `~/.kortty/journals` (configu
 | File | Purpose |
 |------|---------|
 | `journal.xml` | The curated journal document: metadata, AI summaries, markers, notes, screenshot references |
-| `session-log.xml` / `.json` / `.yaml` | The append-only capture log — timestamped server output and typed input lines with sequence ids |
-| `session-log-2.xml.gz`, … | Rotated log parts; closed parts are gzip-compressed automatically, the journal never deletes history |
+| `session-log.json` / `.xml` / `.yaml` | The append-only capture log — timestamped server output and typed input lines with sequence ids |
+| `session-log-2.json.gz`, … | Rotated log parts; closed parts are gzip-compressed automatically, the journal never deletes history |
 | `journal.html` | The generated timeline page, regenerated automatically after every change |
 | `screenshots/*.png` | Screenshots you attached during the session |
 
-The capture-log format is selectable in the journal manager's **Options** dialog: **XML** (default), **JSON** (JSON Lines) or **YAML**. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to `.gz`.
+The capture-log format is selectable in the journal manager's **Options** dialog: **JSON** (JSON Lines, the default), **XML** or **YAML**. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. JSON is the default because it is the smallest of the three once a finished part is compressed, and because log tooling reads it without needing a parser of its own; XML is a few percent smaller uncompressed, and YAML is the largest, since it writes JSON mappings with a `- ` prefix. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to `.gz`.
 
 ## Enabling the journal
 
@@ -78,7 +78,7 @@ Typed input is captured only as complete submitted lines, and several layers kee
 !!! warning
     The prompt detection is a heuristic — a remote terminal cannot reliably know when the server disabled echo. Exotic or full-screen password prompts may not be recognized, and secrets pasted into visible commands (other than the connection's own credentials) are captured like any other text. Treat journals of sensitive sessions accordingly.
 
-If something slipped through anyway, the viewer's [redaction](#removing-sensitive-content-afterwards) removes it from the entries and the capture log after the fact.
+If something slipped through anyway, the viewer's [search and replace](#search-and-replace) removes it from the entries and the capture log after the fact. Administrators can also have korTTY redact patterns automatically — see [Enterprise policy](#enterprise-policy) below.
 
 ## The journal page
 
@@ -133,17 +133,30 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 
 The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table next to a form with the entry's **Title**, **Summary**, a marker choice (**None / Info / Important / Error**) and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.
 
-### Removing sensitive content afterwards
+### Search and replace
 
-Sometimes something ends up in a journal that must not stay there — a password pasted into a visible command, a token in a server response. Edit mode has two ways to remove it:
+Searching finds a term. **Search & replace** rewrites every occurrence. Use it to erase something that must not stay in the journal — a password pasted into a visible command, a token in a server response — or simply to correct a recurring word.
 
-- **Delete entry** removes the selected timeline entry after a confirmation. A screenshot entry's image file is deleted with it. This does not touch the capture log.
-- **Redact…** removes a literal text from the **whole journal**: every entry title, summary, note and excerpt *and* every capture-log part, including the compressed ones. You give the text to remove and what to replace it with (`***` by default), and korTTY reports how many entry fields and log lines it changed.
+It is reachable from two places: the **Search & replace…** button in edit mode, and the **Replace…** button in [the search bar on the journal page](#searching-the-journal), which opens the same dialog with the term you were searching for already filled in. That button only appears inside korTTY — the page is generated *from* the journal files, so a copy opened in a browser can search but has no way to rewrite anything.
+
+| Option | Effect |
+|--------|--------|
+| **Search for** / **Replace with** | The text to find and what to put in its place (`***` by default) |
+| **Regular expression** | Treats the search text as a regex; `$1` in the replacement inserts a captured group |
+| **Ignore case** | Matches every casing |
+| **Rewrite the capture log as well** | On by default. Off changes only the journal entries and leaves the raw log untouched |
+| **Count matches** | A dry run over the real journal: reports how many entry fields and log lines *would* change, without writing anything |
+
+Replacing covers every entry title, AI summary, note and excerpt, and — unless you turned it off — every capture-log part including the compressed ones. The file header and every untouched line are preserved exactly, so the log keeps its structure.
 
 !!! warning
-    Redaction rewrites the files in place and cannot be undone. Documents you already exported are separate files and are not changed — export them again afterwards. A journal that is still being written cannot be redacted; stop the session first.
+    Replacing rewrites the journal files in place and cannot be undone. Use **Count matches** first, especially with a regular expression. Documents you already exported are separate files and are not changed — export them again afterwards. A journal that is still being written cannot be rewritten; stop the session first.
 
-The text is matched literally, so redact the exact string. The secret itself is never written to korTTY's own log.
+The search text is never written to korTTY's own log, because for a redaction it *is* the secret.
+
+### Deleting an entry
+
+**Delete entry** removes the selected timeline entry after a confirmation, and a screenshot entry's image file with it. It does not touch the capture log — to remove a text from there as well, use Search & replace.
 
 ## Exporting
 
@@ -175,3 +188,17 @@ Both are configured under [**Configuration → Global Settings → Export**](../
 ## Enterprise policy
 
 Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template and enforce the closing AI title. See [Enterprise policy](../reference/enterprise-policy.md) for the keys.
+
+### Automatic redaction
+
+A `[[rule.session-journal.replace]]` list makes korTTY apply search-and-replace automatically, with regular expressions if the administrator wants them — for cloud access keys, internal hostnames, ticket numbers, anything that must never end up in a transcript:
+
+```toml
+[[rule.session-journal.replace]]
+pattern = "AKIA[0-9A-Z]{16}"
+replacement = "***AWS-ACCESS-KEY***"
+regex = true
+label = "AWS access keys"
+```
+
+These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries and notes as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search & replace for those. See [Enterprise policy](../reference/enterprise-policy.md#rulesession-journalreplace) for every key.

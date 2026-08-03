@@ -261,10 +261,76 @@ class SessionJournalServiceTest {
         assertThat(rawContent).doesNotContain("hunter2-leaked");
 
         // The rewrite must keep every other line — the header with its metadata included.
-        assertThat(rawContent).contains("tabSessionId=\"tab-1234567890ab\"");
+        // Asserted without the quoting so the check holds for every capture-log format.
+        assertThat(rawContent).contains("tab-1234567890ab");
         List<SessionJournalLogEntry> entries = SessionJournalLogReader.readPart(logFile);
         assertThat(entries.stream().map(SessionJournalLogEntry::text).toList())
             .containsExactly("connecting", "mysql -u root -p***", "Welcome to MySQL").inOrder();
+    }
+
+    @Test
+    void replaceSupportsRegexAcrossEntriesAndLog() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("aws_access_key_id = AKIA0123456789ABCDEF\n");
+        session.appendInputLine("export KEY=AKIAZZZZZZZZZZZZZZZZ");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setText("used AKIA0123456789ABCDEF");
+        service.appendEntry(dir, note);
+
+        de.kortty.model.SessionJournalReplacement rule = new de.kortty.model.SessionJournalReplacement(
+            "AKIA[0-9A-Z]{16}", "***AWS-KEY***", true, false, null);
+
+        // A dry run must report the same counts without touching a byte.
+        SessionJournalService.RedactionResult preview = service.replace(dir, rule, true, true);
+        assertThat(preview.entryHits()).isEqualTo(1);
+        assertThat(preview.logHits()).isEqualTo(2);
+        assertThat(Files.readString(dir.resolve(SessionJournalService.DOCUMENT_FILE_NAME)))
+            .contains("AKIA0123456789ABCDEF");
+
+        SessionJournalService.RedactionResult result = service.replace(dir, rule, true, false);
+        assertThat(result.entryHits()).isEqualTo(1);
+        assertThat(result.logHits()).isEqualTo(2);
+
+        assertThat(Files.readString(dir.resolve(SessionJournalService.DOCUMENT_FILE_NAME)))
+            .doesNotContain("AKIA0123456789ABCDEF");
+        Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
+        String rawContent;
+        try (InputStream in = new GZIPInputStream(Files.newInputStream(logFile))) {
+            rawContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertThat(rawContent).doesNotContain("AKIA");
+        assertThat(SessionJournalLogReader.readPart(logFile).stream()
+            .map(SessionJournalLogEntry::text)
+            .toList())
+            .containsExactly("aws_access_key_id = ***AWS-KEY***", "export KEY=***AWS-KEY***").inOrder();
+    }
+
+    @Test
+    void replaceCanLeaveTheCaptureLogAlone() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("keep me\n");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setText("keep me");
+        service.appendEntry(dir, note);
+
+        SessionJournalService.RedactionResult result = service.replace(
+            dir, de.kortty.model.SessionJournalReplacement.literal("keep me", "gone"), false, false);
+        assertThat(result.entryHits()).isEqualTo(1);
+        assertThat(result.logHits()).isEqualTo(0);
+        assertThat(SessionJournalLogReader.readPart(SessionJournalLogReader.findPartFile(dir, 1))
+            .stream().map(SessionJournalLogEntry::text).toList()).contains("keep me");
     }
 
     @Test

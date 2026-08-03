@@ -216,6 +216,13 @@ public final class SessionJournalHtmlRenderer {
             .append(escapeAttr(i18n("journal.html.search.prev", "Previous match"))).append("\">▲</button>\n")
             .append("<button type=\"button\" id=\"journalNext\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.next", "Next match"))).append("\">▼</button>\n")
+            // Rewriting the journal needs the app: the page is generated FROM the journal files,
+            // so a standalone copy in a browser can only ever search. Shown by script when the
+            // Java bridge answers.
+            .append("<button type=\"button\" id=\"journalReplace\" hidden title=\"")
+            .append(escapeAttr(i18n("journal.html.search.replace.title",
+                "Replace the search term throughout the journal"))).append("\">")
+            .append(escapeHtml(i18n("journal.html.search.replace", "Replace…"))).append("</button>\n")
             .append("<button type=\"button\" id=\"journalSearchClose\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.close", "Close search"))).append("\">✕</button>\n")
             .append("</div>\n");
@@ -1058,6 +1065,15 @@ public final class SessionJournalHtmlRenderer {
             document.getElementById("journalPrev").addEventListener("click",function(){moveJournal(-1);});
             document.getElementById("journalSearchClose").addEventListener("click",function(){
               toggleSearch(false);});
+            // Replace exists only inside korTTY: it rewrites the journal files this page is
+            // generated from, which a file:// copy in a browser has no way to do. The bridge is
+            // installed after the load finishes, so the app reveals the button by calling this.
+            var journalReplace=document.getElementById("journalReplace");
+            journalReplace.addEventListener("click",function(){
+              var b=bridge();
+              if(b&&b.requestReplace){try{b.requestReplace(journalSearch.value);}catch(err){}}
+            });
+            window.korttyEnableReplace=function(){journalReplace.hidden=false;};
             document.getElementById("searchToggle").addEventListener("click",function(){
               toggleSearch(searchBar.hidden);});
             document.addEventListener("keydown",function(e){

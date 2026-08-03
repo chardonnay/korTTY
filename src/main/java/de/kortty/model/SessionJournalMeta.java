@@ -58,7 +58,7 @@ public class SessionJournalMeta {
     private boolean seeded;
 
     @XmlElement
-    private SessionJournalLogFormat logFormat = SessionJournalLogFormat.XML;
+    private SessionJournalLogFormat logFormat = SessionJournalLogFormat.DEFAULT;
 
     @XmlElement
     private long logEntryCount;
@@ -209,7 +209,7 @@ public class SessionJournalMeta {
     }
 
     public SessionJournalLogFormat getLogFormat() {
-        return logFormat != null ? logFormat : SessionJournalLogFormat.XML;
+        return logFormat != null ? logFormat : SessionJournalLogFormat.DEFAULT;
     }
 
     public void setLogFormat(SessionJournalLogFormat logFormat) {

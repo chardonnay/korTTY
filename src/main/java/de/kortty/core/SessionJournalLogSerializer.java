@@ -30,7 +30,7 @@ public interface SessionJournalLogSerializer {
     String footer();
 
     static SessionJournalLogSerializer forFormat(SessionJournalLogFormat format) {
-        return switch (format != null ? format : SessionJournalLogFormat.XML) {
+        return switch (format != null ? format : SessionJournalLogFormat.DEFAULT) {
             case XML -> new Xml();
             case JSON -> new Jsonl();
             case YAML -> new Yaml();

@@ -196,12 +196,12 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `enforced` | Boolescher Wert | `true` | Für **jede** Verbindung wird ein Journal geschrieben, unabhängig von der verbindungsspezifischen Einstellung; Benutzer können es nicht stoppen und der Aktivierungsschalter ist gesperrt |
-| `log-format` | Zeichenfolge | `xml`, `json`, `yaml` | Korrigiert das Capture-Log-Format für neue Journale |
-| `ai-max-lines` | Ganzzahl | `0` = Kontextfüllung | Korrigiert das AI-Auswertungsfenster (max. Terminalzeilen pro Zusammenfassung) |
-| `storage-path` | Zeichenfolge | absoluter Pfad | Korrigiert das Journalspeicherverzeichnis; Die Einstellung ist gesperrt |
+| `log-format` | Zeichenfolge | `json` (Standard), `xml`, `yaml` | Erzwingt das Capture-Log-Format für neue Journale |
+| `ai-max-lines` | Ganzzahl | `0` = Kontextfüllung | Erzwingt das KI-Auswertungsfenster (max. Terminalzeilen pro Zusammenfassung) |
+| `storage-path` | Zeichenfolge | absoluter Pfad | Erzwingt das Journalspeicherverzeichnis; Die Einstellung ist gesperrt |
 | `allow-rename` | boolean | `false` | Journale können im Manager nicht umbenannt werden |
 | `allow-delete` | boolean | `false` | Journale können im Manager nicht gelöscht werden |
-| `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Journaletitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
+| `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Journaltitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
 | `ai-title` | Boolescher Wert | `true` | Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert |
 
 ```toml
@@ -218,6 +218,49 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 
 !!! note
     `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, und die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt).
+
+### `[[rule.session-journal.replace]]`
+
+Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.
+
+| Schlüssel | Typ | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `pattern` | Zeichenfolge | *erforderlich* | Der zu suchende Text. Wenn `regex` aktiviert ist, handelt es sich um einen regulären Ausdruck |
+| `replacement` | Zeichenfolge | `***` | Der Text, der jede Übereinstimmung ersetzt. In einer Regex-Regel `$1` fügt eine erfasste Gruppe ein |
+| `regex` | boolean | `false` | Behandelt `pattern` als regulären Ausdruck |
+| `ignore-case` | boolean | `false` | Entspricht jeder Groß-/Kleinschreibung |
+| `label` | Zeichenfolge | – | Beschreibung für den Administrator; korTTY zählt nur die Regeln in seinem UI-Hinweis |
+
+```toml
+[[rule]]
+  [rule.session-journal]
+  enforced = true
+
+    [[rule.session-journal.replace]]
+    pattern = "AKIA[0-9A-Z]{16}"
+    replacement = "***AWS-ACCESS-KEY***"
+    regex = true
+    label = "AWS access keys"
+
+    [[rule.session-journal.replace]]
+    pattern = "(?i)bearer\\s+[A-Za-z0-9._-]{20,}"
+    replacement = "Bearer ***"
+    regex = true
+    label = "Bearer tokens"
+
+    [[rule.session-journal.replace]]
+    pattern = "vpn.internal.acme.corp"
+    replacement = "<internal-host>"
+    ignore-case = true
+```
+
+Die Regeln werden **im Erfassungsthread ausgeführt, bevor eine Zeile geschrieben wird**, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt, und sie werden auch auf KI-Zusammenfassungen und Benutzernotizen angewendet. Im Gegensatz zu den anderen Schlüsseln werden Ersetzungsregeln **über alle übereinstimmenden Regeln und alle Ebenen hinweg zusammengeführt** und nicht, dass die höchste Ebene gewinnt: Mehr Schwärzung ist das restriktivere Ergebnis, sodass eine benutzer- oder gruppenspezifische Regel nur Muster hinzufügen und niemals die organisationsweiten ausschalten kann. Doppelte Einträge werden ausgeblendet.
+
+!!! warning
+    Ein `pattern`, der kein gültiger regulärer Ausdruck ist, ist ein **Richtlinienfehler** und keine Warnung – die Datei wird abgelehnt. Eine Regel, die stillschweigend nichts übereinstimmt, ist schlimmer als eine Regel, die der Administrator korrigieren muss, weil die Schwärzung scheinbar vorhanden ist.
+
+!!! note
+    Es fallen nur Journale an, die während der Geltungsdauer der Regelung verfasst wurden; bestehende Journale werden nicht rückwirkend umgeschrieben. Benutzer können diese mit der Such- und Ersetzungsfunktion des Viewers bereinigen.
 
 ### Von Admin bereitgestellte Objekte
 
@@ -237,7 +280,7 @@ Mit `clipboard-mode = "internal"` trennt sich korTTY vollständig von der Zwisch
 Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable `${clipboard}` und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.
 
 !!! note "Scope"
-    Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein harter Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-*Einfüge*-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.
+    Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein fester Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-*Einfüge*-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.
 
 ## Verschlüsselte API-Schlüssel
 

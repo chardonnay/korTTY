@@ -9,6 +9,7 @@ import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalMarker;
 import de.kortty.model.SessionJournalMeta;
+import de.kortty.model.SessionJournalReplacement;
 import de.kortty.model.WindowGeometry;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -18,6 +19,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -223,6 +225,9 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
                     netscape.javascript.JSObject window =
                         (netscape.javascript.JSObject) webView.getEngine().executeScript("window");
                     window.setMember("korttyJournal", journalBridge);
+                    // Only now can the page offer Replace — it needs the bridge to reach the app.
+                    webView.getEngine().executeScript(
+                        "if(window.korttyEnableReplace){window.korttyEnableReplace();}");
                 } catch (Exception e) {
                     logger.warn("Could not install the session journal page bridge: {}", e.getMessage());
                 }
@@ -310,6 +315,19 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
             SessionJournalViewerDialog dialog = dialogRef.get();
             if (dialog != null) {
                 dialog.persistFontScale(percent);
+            }
+        }
+
+        /**
+         * Opens the search-and-replace dialog with the page's current search term. The page does
+         * not rewrite anything itself: the journal files are the source of truth and the page is
+         * regenerated from them, so the round trip through the dialog is also what keeps the
+         * confirmation, the dry run and the log-rewrite choice in one place.
+         */
+        public void requestReplace(String searchTerm) {
+            SessionJournalViewerDialog dialog = dialogRef.get();
+            if (dialog != null) {
+                Platform.runLater(() -> dialog.replaceInJournal(searchTerm));
             }
         }
     }
@@ -431,11 +449,11 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         Button deleteButton = new Button(I18n.get("journal.viewer.deleteEntry"));
         deleteButton.disableProperty().bind(entryTable.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelectedEntry());
-        Button redactButton = new Button(I18n.get("journal.viewer.redact"));
-        redactButton.setOnAction(event -> redactJournal());
+        Button replaceButton = new Button(I18n.get("journal.viewer.replace"));
+        replaceButton.setOnAction(event -> replaceInJournal(null));
         editStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
 
-        HBox buttons = new HBox(8, saveButton, revertButton, deleteButton, redactButton, editStatus);
+        HBox buttons = new HBox(8, saveButton, revertButton, deleteButton, replaceButton, editStatus);
         VBox form = new VBox(6,
             new Label(I18n.get("journal.viewer.entryTitle")), titleField,
             new Label(I18n.get("journal.viewer.summary")), summaryArea,
@@ -538,66 +556,123 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         worker.start();
     }
 
+    /** What the search-and-replace dialog collected. */
+    private record ReplaceRequest(SessionJournalReplacement rule, boolean includeLog) {
+    }
+
     /**
-     * Removes a literal text — typically a password that slipped through — from the whole journal,
-     * entries and capture log alike. The secret only ever lives in the dialog and the service call;
-     * it is never logged or kept in a field.
+     * Search and replace across the whole journal — how a password that slipped past the
+     * capture-time protection gets erased, and how any other text is corrected after the fact.
+     * The search text only ever lives in the dialog and the service call; it is never logged
+     * or kept in a field, because for a redaction it IS the secret.
      */
-    private void redactJournal() {
-        Dialog<String[]> dialog = new Dialog<>();
+    private void replaceInJournal(String initialSearch) {
+        Dialog<ReplaceRequest> dialog = new Dialog<>();
         DialogThemeHelper.applyTheme(dialog);
         dialog.initOwner(ownerWindow.getStage());
-        dialog.setTitle(I18n.get("journal.viewer.redact.title"));
-        dialog.setHeaderText(I18n.get("journal.viewer.redact.header"));
+        dialog.setTitle(I18n.get("journal.viewer.replace.title"));
+        dialog.setHeaderText(I18n.get("journal.viewer.replace.header"));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ((Button) dialog.getDialogPane().lookupButton(ButtonType.OK))
+            .setText(I18n.get("journal.viewer.replace.apply"));
 
-        TextField secretField = new TextField();
-        secretField.setPromptText(I18n.get("journal.viewer.redact.secret.prompt"));
-        TextField replacementField = new TextField("***");
-        Label warning = new Label(I18n.get("journal.viewer.redact.warning"));
+        TextField searchField = new TextField(initialSearch != null ? initialSearch : "");
+        searchField.setPromptText(I18n.get("journal.viewer.replace.search.prompt"));
+        TextField replacementField = new TextField(SessionJournalReplacement.DEFAULT_REPLACEMENT);
+        CheckBox regexCheck = new CheckBox(I18n.get("journal.viewer.replace.regex"));
+        CheckBox ignoreCaseCheck = new CheckBox(I18n.get("journal.viewer.replace.ignoreCase"));
+        CheckBox includeLogCheck = new CheckBox(I18n.get("journal.viewer.replace.includeLog"));
+        includeLogCheck.setSelected(true);
+
+        Label countLabel = new Label();
+        countLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        Button countButton = new Button(I18n.get("journal.viewer.replace.count"));
+        countButton.disableProperty().bind(searchField.textProperty().isEmpty());
+
+        Label warning = new Label(I18n.get("journal.viewer.replace.warning"));
         warning.setWrapText(true);
         warning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 11px;");
 
+        java.util.function.Supplier<ReplaceRequest> collect = () -> new ReplaceRequest(
+            new SessionJournalReplacement(searchField.getText(), replacementField.getText(),
+                regexCheck.isSelected(), ignoreCaseCheck.isSelected(), null),
+            includeLogCheck.isSelected());
+        // A dry run over the real journal: regex rules are easy to get wrong, and the
+        // rewrite itself cannot be undone.
+        countButton.setOnAction(event -> {
+            ReplaceRequest request = collect.get();
+            countLabel.setText(I18n.get("journal.viewer.replace.counting"));
+            Thread counter = new Thread(() -> {
+                try {
+                    SessionJournalService.RedactionResult preview =
+                        service().replace(journalDir, request.rule(), request.includeLog(), true);
+                    Platform.runLater(() -> countLabel.setText(I18n.get(
+                        "journal.viewer.replace.count.result",
+                        preview.entryHits(), preview.logHits())));
+                } catch (Exception e) {
+                    Platform.runLater(() -> countLabel.setText(e.getMessage()));
+                }
+            }, "SessionJournal-ReplacePreview");
+            counter.setDaemon(true);
+            counter.start();
+        });
+
         VBox content = new VBox(6,
-            new Label(I18n.get("journal.viewer.redact.secret")), secretField,
-            new Label(I18n.get("journal.viewer.redact.replacement")), replacementField,
+            new Label(I18n.get("journal.viewer.replace.search")), searchField,
+            new Label(I18n.get("journal.viewer.replace.replacement")), replacementField,
+            regexCheck, ignoreCaseCheck, includeLogCheck,
+            new HBox(8, countButton, countLabel),
             warning);
+        appendPolicyReplacementHint(content);
         content.setPadding(new Insets(6));
-        content.setPrefWidth(460);
+        content.setPrefWidth(480);
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty()
-            .bind(secretField.textProperty().isEmpty());
-        Platform.runLater(secretField::requestFocus);
-        dialog.setResultConverter(button -> button == ButtonType.OK
-            ? new String[]{secretField.getText(), replacementField.getText()}
-            : null);
+            .bind(searchField.textProperty().isEmpty());
+        Platform.runLater(searchField::requestFocus);
+        dialog.setResultConverter(button -> button == ButtonType.OK ? collect.get() : null);
 
-        String[] input = dialog.showAndWait().orElse(null);
-        if (input == null || input[0] == null || input[0].isEmpty()) {
+        ReplaceRequest request = dialog.showAndWait().orElse(null);
+        if (request == null || request.rule().isEmpty()) {
             return;
         }
-        String secret = input[0];
-        String replacement = input[1] != null && !input[1].isEmpty() ? input[1] : "***";
-        editStatus.setText(I18n.get("journal.viewer.redact.running"));
+        applyReplacement(request.rule(), request.includeLog());
+    }
+
+    /** Names the organisation's automatic rules so a user is not surprised by them. */
+    private void appendPolicyReplacementHint(VBox content) {
+        List<SessionJournalReplacement> mandated = SessionJournalService.policyReplacements();
+        if (mandated.isEmpty()) {
+            return;
+        }
+        Label hint = new Label(I18n.get("journal.viewer.replace.policyHint", mandated.size()));
+        hint.setWrapText(true);
+        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        content.getChildren().add(hint);
+    }
+
+    /** Runs the rewrite off the FX thread, then reloads entries and regenerates the page. */
+    private void applyReplacement(SessionJournalReplacement rule, boolean includeLog) {
+        editStatus.setText(I18n.get("journal.viewer.replace.running"));
         Thread worker = new Thread(() -> {
             try {
                 SessionJournalService.RedactionResult result =
-                    service().redact(journalDir, secret, replacement);
+                    service().replace(journalDir, rule, includeLog, false);
                 Platform.runLater(() -> {
                     editStatus.setText("");
                     loadEntries();
                     showEntryInForm(null);
                     renderAndLoad(null);
-                    showInfo(I18n.get("journal.viewer.redact.done",
+                    showInfo(I18n.get("journal.viewer.replace.done",
                         result.entryHits(), result.logHits()));
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     editStatus.setText("");
-                    showError(I18n.get("journal.viewer.redact.error", e.getMessage()));
+                    showError(I18n.get("journal.viewer.replace.error", e.getMessage()));
                 });
             }
-        }, "SessionJournal-ViewerRedact");
+        }, "SessionJournal-ViewerReplace");
         worker.setDaemon(true);
         worker.start();
     }

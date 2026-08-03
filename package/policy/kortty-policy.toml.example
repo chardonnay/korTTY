@@ -114,6 +114,33 @@
 #   rotation-max-files = 14           # keep at most N rotated daily files (0 = unlimited)
 #   rotation-total-size-mb = 512      # cap total size of rotated files in MB (0 = uncapped)
 
+#   [rule.session-journal]
+#   enforced = true                   # write a journal for EVERY connection; users cannot stop it
+#   log-format = "json"               # "json" (default) | "xml" | "yaml"
+#   ai-max-lines = 100                # terminal lines per AI evaluation (0 = fill the context)
+#   storage-path = "/srv/audit/kortty-journals"   # fixed journal directory
+#   allow-rename = false              # forbid renaming journals in the manager
+#   allow-delete = false              # forbid deleting journals in the manager
+#   name-template = "{connection} {date} {time} ({user})"   # also {host}, {user}
+#   ai-title = true                   # let the AI name the journal when the session ends
+
+# Automatic search-and-replace in every journal. The rules run BEFORE a line is written,
+# so a matching text never reaches the log file at all, and they also cover AI summaries
+# and notes. Unlike the keys above, these merge across all matching rules and tiers — a
+# narrower rule can only add patterns, never switch the organization-wide ones off.
+# An invalid regular expression rejects the whole policy file (a rule that silently
+# matches nothing would look like redaction that is not there).
+#     [[rule.session-journal.replace]]
+#     pattern = "AKIA[0-9A-Z]{16}"    # regex when regex = true, otherwise literal text
+#     replacement = "***AWS-ACCESS-KEY***"   # default "***"; $1 inserts a captured group
+#     regex = true
+#     label = "AWS access keys"       # description for you; korTTY only counts the rules
+#
+#     [[rule.session-journal.replace]]
+#     pattern = "vpn.internal.acme.corp"
+#     replacement = "<internal-host>"
+#     ignore-case = true
+
 # A more specific rule can relax the baseline for a group or single users:
 # [[rule]]
 # name = "ops-exception"

@@ -15,6 +15,18 @@ public enum SessionJournalLogFormat {
     /** YAML block sequence of JSON-compatible flow mappings, one {@code - {...}} entry per line. */
     YAML("YAML", "yaml");
 
+    /**
+     * Format for new journals when nothing else is configured.
+     *
+     * <p>JSON Lines, measured against the other two on a realistic session: XML is ~9 bytes per
+     * entry smaller uncompressed, but JSON is the smallest once a finished log part is gzipped,
+     * and it is what log tooling ingests without a parser of its own. YAML is the largest of the
+     * three here — it is JSON flow mappings with a {@code "- "} prefix, so it costs two bytes per
+     * line on top of JSON and buys no readability. The spread is a few percent either way; the
+     * entry text dominates the file, and compression flattens the rest.</p>
+     */
+    public static final SessionJournalLogFormat DEFAULT = JSON;
+
     private final String displayName;
     private final String extension;
 

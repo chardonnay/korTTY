@@ -27,7 +27,7 @@ public final class EffectivePolicy {
         new PolicyRule.LoggingRule(null, null, null, null, null, null);
 
     private static final PolicyRule.SessionJournalRule EMPTY_SESSION_JOURNAL =
-        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null);
+        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, List.of());
 
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
@@ -322,6 +322,14 @@ public final class EffectivePolicy {
         return sessionJournal;
     }
 
+    /**
+     * Search-and-replace rules the organisation applies to every journal automatically. Empty
+     * when the feature is denied outright — no journal is written, so nothing needs rewriting.
+     */
+    public List<de.kortty.model.SessionJournalReplacement> sessionJournalReplacements() {
+        return sessionJournalAllowed() ? sessionJournal.replacements() : List.of();
+    }
+
     public boolean pluginsAllowed() {
         return decision(PolicyFeature.PLUGINS) != PolicyDecision.DENY;
     }
@@ -503,7 +511,33 @@ public final class EffectivePolicy {
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiTitle() : null,
             (a, b) -> a || b);
         return new PolicyRule.SessionJournalRule(
-            enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate, aiTitle);
+            enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
+            aiTitle, resolveSessionJournalReplacements(resolver));
+    }
+
+    /**
+     * The union of every tier's replacement rules, deduplicated, in file order.
+     *
+     * <p>Deliberately not the usual "highest tier that says anything wins": these rules remove
+     * secrets, so a user-tier rule adding one must not silence the organisation-wide list. More
+     * redaction is the more restrictive outcome, and that is what a policy resolves to.</p>
+     */
+    private static List<de.kortty.model.SessionJournalReplacement> resolveSessionJournalReplacements(
+            Resolver resolver) {
+        List<de.kortty.model.SessionJournalReplacement> merged = new ArrayList<>();
+        for (List<PolicyRule> tier : List.of(resolver.userTier(), resolver.groupTier(), resolver.allTier())) {
+            for (PolicyRule rule : tier) {
+                if (rule.sessionJournal() == null) {
+                    continue;
+                }
+                for (de.kortty.model.SessionJournalReplacement replacement : rule.sessionJournal().replacements()) {
+                    if (!merged.contains(replacement)) {
+                        merged.add(replacement);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged);
     }
 
     /** Combines caps where 0 means "unlimited": any cap beats 0, otherwise the smaller cap wins. */

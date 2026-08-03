@@ -112,7 +112,7 @@ public class SessionJournalService {
 
         SessionJournalLogFormat format = settings != null
             ? settings.getSessionJournalLogFormat()
-            : SessionJournalLogFormat.XML;
+            : SessionJournalLogFormat.DEFAULT;
         OffsetDateTime startedAt = OffsetDateTime.now();
 
         SessionJournalDocument document = new SessionJournalDocument();
@@ -134,6 +134,9 @@ public class SessionJournalService {
         if (knownSecrets != null) {
             knownSecrets.forEach(redactor::addSecret);
         }
+        // Policy replacements run on the capture thread, so an admin-mandated secret never
+        // reaches the log at all — there is nothing to clean up afterwards.
+        redactor.setReplacements(policyReplacements());
         SessionJournalConfig config = connection.getSessionJournalConfig();
         SessionJournalSession session = new SessionJournalSession(
             this,
@@ -193,6 +196,9 @@ public class SessionJournalService {
     /** Appends a copy of the entry to the journal document and returns the stored copy. */
     public SessionJournalEntry appendEntry(Path journalDir, SessionJournalEntry entry) throws IOException {
         SessionJournalEntry stored = new SessionJournalEntry(entry);
+        // An AI summary is written from already-redacted log text, but the model can still echo
+        // something a policy rule targets — and a user note is typed freely.
+        applyPolicyReplacements(stored);
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
             document.getEntries().add(stored);
@@ -213,6 +219,7 @@ public class SessionJournalService {
                 if (entries.get(i).getId() != null && entries.get(i).getId().equals(entry.getId())) {
                     SessionJournalEntry updated = new SessionJournalEntry(entry);
                     updated.setEditedAt(OffsetDateTime.now());
+                    applyPolicyReplacements(updated);
                     entries.set(i, updated);
                     replaced = true;
                     break;
@@ -249,67 +256,137 @@ public class SessionJournalService {
         if (secret == null || secret.isEmpty()) {
             return new RedactionResult(0, 0);
         }
-        if (isLive(journalDir)) {
-            throw new IOException("Cannot redact a session journal that is currently being written");
+        return replace(journalDir,
+            de.kortty.model.SessionJournalReplacement.literal(secret,
+                replacement != null ? replacement : SessionJournalRedactor.REPLACEMENT),
+            true, false);
+    }
+
+    /**
+     * Search and replace across a finished journal — the general form behind both the viewer's
+     * dialog and {@link #redact}. Literal or regular expression, optionally case-insensitive.
+     *
+     * @param includeLog false rewrites only the journal entries and leaves the capture log alone
+     * @param dryRun     true counts what would change and writes nothing (the dialog's preview)
+     * @throws IOException when the journal is still being written — the writer thread is appending
+     *                     to the log, and rewriting the file underneath it would lose entries
+     */
+    public RedactionResult replace(
+            Path journalDir,
+            de.kortty.model.SessionJournalReplacement rule,
+            boolean includeLog,
+            boolean dryRun) throws IOException {
+        if (rule == null || rule.isEmpty()) {
+            return new RedactionResult(0, 0);
         }
-        String mask = replacement != null ? replacement : SessionJournalRedactor.REPLACEMENT;
+        if (!dryRun && isLive(journalDir)) {
+            throw new IOException("Cannot rewrite a session journal that is currently being written");
+        }
+        SessionJournalReplacer replacer = SessionJournalReplacer.of(List.of(rule));
+        if (replacer.isEmpty()) {
+            throw new IOException("The search pattern is not a valid regular expression");
+        }
         int entryHits;
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
-            entryHits = redactEntries(document, secret, mask);
-            if (entryHits > 0) {
+            entryHits = replaceInEntries(document, replacer, dryRun);
+            if (entryHits > 0 && !dryRun) {
                 saveDocumentInternal(journalDir, document);
             }
         }
         int logHits = 0;
-        int parts = SessionJournalLogReader.countParts(journalDir);
-        for (int part = 1; part <= parts; part++) {
-            Path partFile = SessionJournalLogReader.findPartFile(journalDir, part);
-            if (partFile != null) {
-                logHits += redactLogPart(partFile, secret, mask);
+        if (includeLog) {
+            int parts = SessionJournalLogReader.countParts(journalDir);
+            for (int part = 1; part <= parts; part++) {
+                Path partFile = SessionJournalLogReader.findPartFile(journalDir, part);
+                if (partFile != null) {
+                    logHits += replaceInLogPart(partFile, replacer, dryRun);
+                }
             }
         }
-        // Never log the secret itself, not even its length.
-        logger.info("Redacted session journal {}: {} entry field(s), {} log line(s)",
-            journalDir.getFileName(), entryHits, logHits);
-        notifyChanged(journalDir);
+        if (!dryRun) {
+            // Never log the pattern itself: for a manual redaction it IS the secret.
+            logger.info("Rewrote session journal {}: {} entry field(s), {} log line(s)",
+                journalDir.getFileName(), entryHits, logHits);
+            notifyChanged(journalDir);
+        }
         return new RedactionResult(entryHits, logHits);
     }
 
-    private static int redactEntries(SessionJournalDocument document, String secret, String mask) {
+    /** Applies the policy-mandated rules to one entry in place; no-op without a policy. */
+    private void applyPolicyReplacements(SessionJournalEntry entry) {
+        SessionJournalReplacer replacer = SessionJournalReplacer.of(policyReplacements());
+        if (!replacer.isEmpty()) {
+            replaceInEntry(entry, replacer, false);
+        }
+    }
+
+    /** The organisation's automatic replacement rules, or empty when no policy is loaded. */
+    public static List<de.kortty.model.SessionJournalReplacement> policyReplacements() {
+        try {
+            return de.kortty.policy.PolicyManager.effective().sessionJournalReplacements();
+        } catch (Exception e) {
+            // Policy not initialized (tests, tools) — no mandated replacements.
+            return List.of();
+        }
+    }
+
+    private static int replaceInEntries(
+            SessionJournalDocument document, SessionJournalReplacer replacer, boolean dryRun) {
         int hits = 0;
         for (SessionJournalEntry entry : document.getEntries()) {
-            if (contains(entry.getTitle(), secret)) {
-                entry.setTitle(entry.getTitle().replace(secret, mask));
-                hits++;
-            }
-            if (contains(entry.getText(), secret)) {
-                entry.setText(entry.getText().replace(secret, mask));
-                hits++;
-            }
-            if (contains(entry.getUserNote(), secret)) {
-                entry.setUserNote(entry.getUserNote().replace(secret, mask));
-                hits++;
-            }
-            hits += redactLines(entry.getInputExcerpt(), secret, mask);
-            hits += redactLines(entry.getOutputExcerpt(), secret, mask);
+            hits += replaceInEntry(entry, replacer, dryRun);
         }
         return hits;
     }
 
-    private static int redactLines(List<String> lines, String secret, String mask) {
+    /** Rewrites every free-text field of one entry; returns how many fields changed. */
+    private static int replaceInEntry(
+            SessionJournalEntry entry, SessionJournalReplacer replacer, boolean dryRun) {
+        int hits = 0;
+        String title = replacer.apply(entry.getTitle());
+        if (changed(entry.getTitle(), title)) {
+            hits++;
+            if (!dryRun) {
+                entry.setTitle(title);
+            }
+        }
+        String text = replacer.apply(entry.getText());
+        if (changed(entry.getText(), text)) {
+            hits++;
+            if (!dryRun) {
+                entry.setText(text);
+            }
+        }
+        String note = replacer.apply(entry.getUserNote());
+        if (changed(entry.getUserNote(), note)) {
+            hits++;
+            if (!dryRun) {
+                entry.setUserNote(note);
+            }
+        }
+        hits += replaceInLines(entry.getInputExcerpt(), replacer, dryRun);
+        hits += replaceInLines(entry.getOutputExcerpt(), replacer, dryRun);
+        return hits;
+    }
+
+    private static int replaceInLines(
+            List<String> lines, SessionJournalReplacer replacer, boolean dryRun) {
         int hits = 0;
         for (int i = 0; i < lines.size(); i++) {
-            if (contains(lines.get(i), secret)) {
-                lines.set(i, lines.get(i).replace(secret, mask));
+            String rewritten = replacer.apply(lines.get(i));
+            if (changed(lines.get(i), rewritten)) {
                 hits++;
+                if (!dryRun) {
+                    lines.set(i, rewritten);
+                }
             }
         }
         return hits;
     }
 
-    private static boolean contains(String value, String secret) {
-        return value != null && value.contains(secret);
+    private static boolean changed(String before, String after) {
+        return before != null && !before.equals(after);
     }
 
     /**
@@ -317,7 +394,8 @@ public class SessionJournalService {
      * entries are copied verbatim, so the file keeps its structure (and its {@code tabSessionId},
      * which lives in the header alone).
      */
-    private int redactLogPart(Path partFile, String secret, String mask) throws IOException {
+    private int replaceInLogPart(Path partFile, SessionJournalReplacer replacer, boolean dryRun)
+            throws IOException {
         de.kortty.model.SessionJournalLogFormat format = SessionJournalLogReader.formatOf(partFile);
         if (format == null) {
             return 0;
@@ -325,15 +403,15 @@ public class SessionJournalService {
         Map<Long, String> replacements = new java.util.HashMap<>();
         SessionJournalLogSerializer serializer = SessionJournalLogSerializer.forFormat(format);
         for (SessionJournalLogEntry entry : SessionJournalLogReader.readPart(partFile)) {
-            if (contains(entry.text(), secret)) {
+            String rewrittenText = replacer.apply(entry.text());
+            if (changed(entry.text(), rewrittenText)) {
                 replacements.put(entry.seq(), serializer.entryLine(new SessionJournalLogEntry(
-                    entry.seq(), entry.timestamp(), entry.kind(),
-                    entry.text().replace(secret, mask),
+                    entry.seq(), entry.timestamp(), entry.kind(), rewrittenText,
                     entry.redacted(), entry.partial(), entry.file())));
             }
         }
-        if (replacements.isEmpty()) {
-            return 0;
+        if (replacements.isEmpty() || dryRun) {
+            return replacements.size();
         }
         String content = SessionJournalLogReader.readRawContent(partFile);
         StringBuilder rewritten = new StringBuilder(content.length());

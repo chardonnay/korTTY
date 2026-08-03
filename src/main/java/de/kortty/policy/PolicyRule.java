@@ -107,6 +107,8 @@ public record PolicyRule(
      * @param allowDelete   false forbids deleting journals in the manager
      * @param nameTemplate  initial journal title template with {connection}/{host}/{user}/{date}/{time}, or null
      * @param aiTitle       true forces the closing AI title regardless of the user setting
+     * @param replacements  {@code [[rule.session-journal.replace]]} search-and-replace rules applied
+     *                      to every captured line and every journal entry; never null, empty = none
      */
     public record SessionJournalRule(
         Boolean enforced,
@@ -116,11 +118,17 @@ public record PolicyRule(
         Boolean allowRename,
         Boolean allowDelete,
         String nameTemplate,
-        Boolean aiTitle) {
+        Boolean aiTitle,
+        List<de.kortty.model.SessionJournalReplacement> replacements) {
+
+        public SessionJournalRule {
+            replacements = replacements == null ? List.of() : List.copyOf(replacements);
+        }
 
         public boolean isEmpty() {
             return enforced == null && logFormat == null && aiMaxLines == null && storagePath == null
-                && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null;
+                && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
+                && replacements.isEmpty();
         }
     }
 

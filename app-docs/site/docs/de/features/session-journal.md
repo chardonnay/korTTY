@@ -15,12 +15,12 @@ Jedes Journal ist ein eigenständiges Verzeichnis unter `~/.kortty/journals` (ko
 | Datei | Zweck |
 |------|---------|
 | `journal.xml` | Das kuratierte Journaldokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen |
-| `session-log.xml` / `.json` / `.yaml` | Das Nur-Anhang-Capture-Log – zeitgestempelte Serverausgabe und typisierte Eingabezeilen mit Sequenz-IDs |
-| `session-log-2.xml.gz`, … | Gedrehte Stammteile; Geschlossene Teile werden automatisch gzip-komprimiert, das Journal löscht niemals den Verlauf |
+| `session-log.json` / `.xml` / `.yaml` | Das Nur-Anhang-Capture-Log – zeitgestempelte Serverausgabe und typisierte Eingabezeilen mit Sequenz-IDs |
+| `session-log-2.json.gz`, … | Gedrehte Stammteile; Geschlossene Teile werden automatisch gzip-komprimiert, das Journal löscht niemals den Verlauf |
 | `journal.html` | Die generierte Timeline-Seite, die nach jeder Änderung automatisch neu generiert wird |
 | `screenshots/*.png` | Screenshots, die Sie während der Sitzung angehängt haben |
 
-Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausgewählt werden: **XML** (Standard), **JSON** (JSON-Zeilen) oder **YAML**. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert. Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf `.gz`.
+Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausgewählt werden: **JSON** (JSON Lines, Standard), **XML** oder **YAML**. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. JSON ist die Standardeinstellung, da es das kleinste der drei ist, sobald ein fertiges Teil komprimiert ist, und weil Protokolltools es lesen, ohne dass ein eigener Parser erforderlich ist. XML ist unkomprimiert ein paar Prozent kleiner und YAML ist am größten, da es JSON-Zuordnungen mit einem `- `-Präfix schreibt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert. Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf `.gz`.
 
 ## Das Journal wird aktiviert
 
@@ -69,7 +69,7 @@ Wenn die Sitzung endet, schreibt die Zusammenfassung einen abschließenden **Sit
 
 ## Passwortschutz
 
-Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und mehrere Ebenen halten Passwörter aus dem Journal fern:
+Getippte Eingaben werden nur als vollständige übermittelte Zeilen erfasst und mehrere Ebenen halten Passwörter aus dem Journal fern:
 
 - Wenn die Serverausgabe mit einer Passwortabfrage endet (`password:`, `[sudo] password for …`, `passphrase`, `PIN` und lokalisierte Varianten), wird die nächste übermittelte Eingabezeile unterdrückt und als geschwärzter Platzhalter protokolliert – der eingegebene Text wird nie zwischengespeichert oder geschrieben.
 - Das eigene gespeicherte Passwort der Verbindung wird zusätzlich durch `***` ersetzt, wo immer es im erfassten Text erscheinen würde.
@@ -78,7 +78,7 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 !!! warning
     Bei der Prompt-Erkennung handelt es sich um eine Heuristik – ein Remote-Terminal kann nicht zuverlässig erkennen, wann der Server das Echo deaktiviert hat. Exotische oder Vollbild-Passwortabfragen werden möglicherweise nicht erkannt und in sichtbare Befehle eingefügte Geheimnisse (außer den Anmeldeinformationen der Verbindung) werden wie jeder andere Text erfasst. Behandeln Sie Protokolle sensibler Sitzungen entsprechend.
 
-Sollte dennoch etwas durchgerutscht sein, wird es durch die [Schwärzung](#sensible-inhalte-im-nachhinein-entfernen) des Viewers nachträglich aus den Einträgen und dem Capture-Log entfernt.
+Wenn trotzdem etwas durchgerutscht ist, dann das des Viewers [suchen und ersetzen](#suchen-und-ersetzen) entfernt es nachträglich aus den Einträgen und dem Capture-Log. Administratoren können korTTY-Muster auch automatisch schwärzen lassen – siehe [Unternehmenspolitik](#unternehmensrichtlinie) unten.
 
 ## Die Journalseite
 
@@ -131,19 +131,32 @@ Die Schaltflächen **A−**, **A** und **A+** im Seitenkopf skalieren die gesamt
 
 ### Der Viewer und die Bearbeitung
 
-Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: eine Eintragstabelle neben einem Formular mit **Titel** und **Zusammenfassung** des Eintrags, einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und einem Notizfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
+Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. **Im Browser öffnen** übergibt die Seite an Ihren Systembrowser. **Bearbeiten** teilt die Ansicht: eine Eintragstabelle neben einem Formular mit dem **Titel** des Eintrags, **Zusammenfassung**, einer Markierungsauswahl (**Keine / Info / Wichtig / Fehler**) und einem Notizfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert. Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI überschrieben.
 
-### Sensible Inhalte im Nachhinein entfernen
+### Suchen und ersetzen
 
-Manchmal landet etwas in einem Journal, das dort nicht bleiben darf – ein Passwort, das in einen sichtbaren Befehl eingefügt wurde, ein Token in einer Serverantwort. Im Bearbeitungsmodus gibt es zwei Möglichkeiten, es zu entfernen:
+Durch die Suche wird ein Begriff gefunden. **Suchen & ersetzen** schreibt jedes Vorkommen neu. Verwenden Sie es, um etwas zu löschen, das nicht im Journal bleiben darf – ein in einen sichtbaren Befehl eingefügtes Passwort, ein Token in einer Serverantwort – oder einfach um ein wiederkehrendes Wort zu korrigieren.
 
-- **Eintrag löschen** entfernt den ausgewählten Zeitstrahl-Eintrag nach einer Bestätigung. Die Bilddatei eines Screenshot-Eintrags wird mit gelöscht. Das Capture-Log bleibt dabei unberührt.
-- **Schwärzen…** entfernt einen wörtlich angegebenen Text aus dem **gesamten Journal**: aus jedem Eintragstitel, jeder Zusammenfassung, jeder Notiz und jedem Auszug *und* aus jedem Capture-Log-Teil, auch aus den komprimierten. Sie geben den zu entfernenden Text an und wodurch er ersetzt werden soll (standardmäßig `***`); korTTY meldet anschließend, wie viele Eintragsfelder und Log-Zeilen geändert wurden.
+Sie ist von zwei Stellen aus erreichbar: über die Schaltfläche **Suchen & ersetzen…** im Bearbeitungsmodus und über die Schaltfläche **Ersetzen…** in [der Suchleiste auf der Journalseite](#suche-im-journal), die das gleiche Dialogfeld mit dem von Ihnen gesuchten Begriff bereits ausgefüllt öffnet. Diese Schaltfläche erscheint nur in korTTY – die Seite wird *aus* den Journaldateien generiert, sodass eine in einem Browser geöffnete Kopie suchen kann, aber keine Möglichkeit hat, etwas umzuschreiben.
+
+| Option | Wirkung |
+|--------|--------|
+| **Suchen nach** / **Ersetzen durch** | Der zu suchende Text und was an seiner Stelle eingefügt werden soll (standardmäßig `***`) |
+| **Regulärer Ausdruck** | Behandelt den Suchtext als regulären Ausdruck; `$1` im Ersatz fügt eine erfasste Gruppe ein |
+| **Groß-/Kleinschreibung ignorieren** | Entspricht jeder Groß-/Kleinschreibung |
+| **Capture-Log ebenfalls umschreiben** | Standardmäßig aktiviert. Aus ändert nur die Journaleinträge und lässt das Capture-Log unberührt |
+| **Treffer zählen** | Ein Probelauf über das echte Journal: Gibt an, wie viele Eintragsfelder und Protokollzeilen sich *ändern* würden, ohne etwas zu schreiben |
+
+Das Ersetzen umfasst jeden Eintragstitel, jede KI-Zusammenfassung, jede Notiz und jeden Auszug sowie – sofern Sie es nicht deaktiviert haben – jeden Teil des Capture-Logs, einschließlich der komprimierten Teile. Der Dateikopf und jede unberührte Zeile bleiben exakt erhalten, sodass das Protokoll seine Struktur behält.
 
 !!! warning
-    Die Schwärzung schreibt die Dateien direkt neu und lässt sich nicht rückgängig machen. Bereits exportierte Dokumente sind eigene Dateien und werden nicht geändert – exportieren Sie sie danach erneut. Ein Journal, das noch geschrieben wird, kann nicht geschwärzt werden; beenden Sie dafür zuerst die Sitzung.
+    Durch das Ersetzen werden die vorhandenen Journaldateien neu geschrieben und können nicht rückgängig gemacht werden. Verwenden Sie zuerst **Treffer zählen**, insbesondere bei einem regulären Ausdruck. Dokumente, die Sie bereits exportiert haben, sind separate Dateien und werden nicht geändert – exportieren Sie sie anschließend erneut. Ein Journal, das noch geschrieben wird, kann nicht neu geschrieben werden; beenden Sie zunächst die Sitzung.
 
-Der Text wird wörtlich abgeglichen – geben Sie also genau die Zeichenfolge an, die verschwinden soll. Das Geheimnis selbst schreibt korTTY niemals in sein eigenes Protokoll.
+Der Suchtext wird niemals in korTTYs eigenes Protokoll geschrieben, da er für eine Schwärzung das Geheimnis ist.
+
+### Eintrag wird gelöscht
+
+**Eintrag löschen** entfernt nach einer Bestätigung den ausgewählten Timeline-Eintrag und damit auch die Bilddatei eines Screenshot-Eintrags. Das Capture-Log wird nicht berührt. Um einen Text auch von dort zu entfernen, verwenden Sie „Suchen und Ersetzen“.
 
 ## Exportieren
 
@@ -161,7 +174,7 @@ PDF und Markdown fragen, ob Screenshots enthalten sein sollen.
 
 Wenn mehr als ein Journal ausgewählt ist, erstellt der Export ein einzelnes ZIP-Archiv, das jedes Journal separat hält: ein PDF- oder Markdown-Dokument pro Journal oder ein Ordner pro Journal für das HTML-Bundle. Namen werden aus den Journaltiteln übernommen, mit einem numerischen Suffix, wenn zwei Titel kollidieren.
 
-Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – kann **mit einem Passwort geschützt** werden. Die Option befindet sich im Exportdialog und verschlüsselt das Archiv mit **AES-256**; ohne sie wird das Archiv unverschlüsselt geschrieben. Da Journale vollständige Terminal-Mitschriften enthalten, ist die Wahl eines ungeschützten Archivs eine bewusste Entscheidung.
+Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – kann **mit einem Passwort geschützt** werden. Die Option befindet sich im Exportdialog und verschlüsselt das Archiv mit **AES-256**; ohne sie wird das Archiv unverschlüsselt geschrieben. Da Journale vollständige Terminal-Mitschriften enthalten, ist die Wahl eines ungeschützten Archivs bewusst.
 
 !!! warning
     Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren.
@@ -175,3 +188,17 @@ Beide werden unter [**Konfiguration → Globale Einstellungen → Export**](../r
 ## Unternehmensrichtlinie
 
 Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über `[rule.session-journal]` festlegen: ein Journal für jede Verbindung erzwingen, das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis festlegen, das Umbenennen oder Löschen von Journalen verbieten, eine Benennungsvorlage vorschreiben und den abschließenden AI-Titel erzwingen. Die Schlüssel finden Sie unter [Unternehmensrichtlinie](../reference/enterprise-policy.md).
+
+### Automatische Schwärzung
+
+Eine `[[rule.session-journal.replace]]`-Liste sorgt dafür, dass korTTY das Suchen und Ersetzen automatisch anwendet, mit regulären Ausdrücken, wenn der Administrator dies wünscht – für Cloud-Zugriffsschlüssel, interne Hostnamen, Ticketnummern und alles, was niemals in einem Transkript landen darf:
+
+```toml
+[[rule.session-journal.replace]]
+pattern = "AKIA[0-9A-Z]{16}"
+replacement = "***AWS-ACCESS-KEY***"
+regex = true
+label = "AWS access keys"
+```
+
+Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Für jeden Schlüssel siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulesession-journalreplace).

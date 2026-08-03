@@ -171,7 +171,7 @@ public class GlobalSettings {
     private Integer sessionJournalSummarizeIntervalMinutes = 5;
 
     @XmlElement
-    private SessionJournalLogFormat sessionJournalLogFormat = SessionJournalLogFormat.XML;
+    private SessionJournalLogFormat sessionJournalLogFormat = SessionJournalLogFormat.DEFAULT;
 
     @XmlElement
     private Integer sessionJournalAiMaxLines = 100; // 0 = fill the model context (token budget)
@@ -1265,11 +1265,11 @@ public class GlobalSettings {
     }
 
     public SessionJournalLogFormat getSessionJournalLogFormat() {
-        return sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.XML;
+        return sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.DEFAULT;
     }
 
     public void setSessionJournalLogFormat(SessionJournalLogFormat sessionJournalLogFormat) {
-        this.sessionJournalLogFormat = sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.XML;
+        this.sessionJournalLogFormat = sessionJournalLogFormat != null ? sessionJournalLogFormat : SessionJournalLogFormat.DEFAULT;
     }
 
     /** Max terminal lines per AI evaluation window; 0 = fill the model context using the token budget. */

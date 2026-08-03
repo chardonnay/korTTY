@@ -524,7 +524,7 @@
     {
       "from": "Redact…",
       "to": "Schwärzen…",
-      "note": "UI label journal.viewer.redact; MT leaves the English button untranslated."
+      "note": "UI label journal.viewer.replace; MT leaves the English button untranslated."
     },
     {
       "from": "Journal-Redaktion",
@@ -586,6 +586,57 @@
     {
       "from": "Redigiert",
       "to": "Schwärzt"
+    },
+    {
+      "from": "Schreiben Sie auch das Capture-Log neu",
+      "to": "Capture-Log ebenfalls umschreiben",
+      "note": "UI label journal.viewer.replace.includeLog."
+    },
+    {
+      "from": "Anzahl Übereinstimmungen",
+      "to": "Treffer zählen",
+      "note": "UI label journal.viewer.replace.count."
+    },
+    {
+      "from": "Übereinstimmungen zählen",
+      "to": "Treffer zählen"
+    },
+    {
+      "from": "Matches zählen",
+      "to": "Treffer zählen"
+    },
+    {
+      "from": "Suchen & Ersetzen",
+      "to": "Suchen & ersetzen",
+      "note": "UI label journal.viewer.replace — lowercase verb, as in the button."
+    },
+    {
+      "from": "wie viele Eingabefelder",
+      "to": "wie viele Eintragsfelder",
+      "note": "Journal entry fields, not input fields; scoped so ordinary 'Eingabefelder' survives."
+    },
+    {
+      "from": "Rohprotokoll",
+      "to": "Capture-Log",
+      "note": "The journal's raw log keeps its product name."
+    },
+    {
+      "from": "; Beenden Sie",
+      "to": "; beenden Sie",
+      "note": "MT capitalizes after a semicolon."
+    },
+    {
+      "from": "JSON-Zeilen",
+      "to": "JSON Lines",
+      "note": "Format name, not a description."
+    },
+    {
+      "from": "AI-Auswertungsfenster",
+      "to": "KI-Auswertungsfenster"
+    },
+    {
+      "from": "Journaletitel",
+      "to": "Journaltitel"
     }
   ]
 }

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -435,6 +436,94 @@ class PolicyLoaderTest {
         EffectivePolicy adUser = EffectivePolicy.resolve(file,
             TestIdentities.of("zoe", "acme\\operations"));
         assertThat(adUser.aiAgentAllowed()).isTrue();
+    }
+
+    @Test
+    void parsesAutomaticSessionJournalReplacements() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            name = "redaction"
+              [rule.session-journal]
+              enforced = true
+                [[rule.session-journal.replace]]
+                pattern = "AKIA[0-9A-Z]{16}"
+                replacement = "***AWS-KEY***"
+                regex = true
+                label = "AWS access keys"
+                [[rule.session-journal.replace]]
+                pattern = "internal.acme.corp"
+                ignore-case = true
+            """));
+        assertThat(result.errors()).isEmpty();
+
+        List<de.kortty.model.SessionJournalReplacement> replacements =
+            result.file().rules().get(0).sessionJournal().replacements();
+        assertThat(replacements).hasSize(2);
+        assertThat(replacements.get(0).pattern()).isEqualTo("AKIA[0-9A-Z]{16}");
+        assertThat(replacements.get(0).replacement()).isEqualTo("***AWS-KEY***");
+        assertThat(replacements.get(0).regex()).isTrue();
+        assertThat(replacements.get(0).label()).isEqualTo("AWS access keys");
+        // Omitted keys fall back: literal, case-insensitive here, masked with ***.
+        assertThat(replacements.get(1).regex()).isFalse();
+        assertThat(replacements.get(1).ignoreCase()).isTrue();
+        assertThat(replacements.get(1).replacement()).isEqualTo("***");
+    }
+
+    @Test
+    void theShippedTemplatesSessionJournalSectionLoadsWhenUncommented() throws IOException {
+        // The example file is documented as a ready-to-use template, so its commented block has
+        // to be valid the moment an admin strips the leading "#" — including the nested
+        // [[rule.session-journal.replace]] array, which is easy to get wrong in TOML.
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              enforced = true
+              log-format = "json"
+              ai-max-lines = 100
+              storage-path = "/srv/audit/kortty-journals"
+              allow-rename = false
+              allow-delete = false
+              name-template = "{connection} {date} {time} ({user})"
+              ai-title = true
+                [[rule.session-journal.replace]]
+                pattern = "AKIA[0-9A-Z]{16}"
+                replacement = "***AWS-ACCESS-KEY***"
+                regex = true
+                label = "AWS access keys"
+                [[rule.session-journal.replace]]
+                pattern = "vpn.internal.acme.corp"
+                replacement = "<internal-host>"
+                ignore-case = true
+            """));
+        assertThat(result.errors()).isEmpty();
+        PolicyRule.SessionJournalRule journal = result.file().rules().get(0).sessionJournal();
+        assertThat(journal.enforced()).isTrue();
+        assertThat(journal.replacements()).hasSize(2);
+    }
+
+    @Test
+    void rejectsAnInvalidReplacementPattern() throws IOException {
+        // A rule that silently does nothing is worse than a policy the admin has to fix:
+        // they would believe the redaction is in place.
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            name = "broken"
+              [rule.session-journal]
+                [[rule.session-journal.replace]]
+                pattern = "AKIA[0-9A-Z"
+                regex = true
+            """));
+        assertThat(result.errors()).isNotEmpty();
+        assertThat(result.errors().get(0)).contains("not a valid regular expression");
     }
 
     private static final class TestIdentities {
