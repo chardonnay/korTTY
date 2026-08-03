@@ -169,6 +169,8 @@ class SessionJournalI18nCoverageTest {
         "journal.export.done.multiple",
         "journal.manager.delete.multiple.header",
         "journal.manager.delete.multiple.content",
+        "ai.local.preferences.journalProfile",
+        "ai.local.preferences.journalProfile.hint",
         "journal.pdf.started",
         "journal.pdf.duration",
         "journal.pdf.commands",

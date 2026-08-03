@@ -223,7 +223,7 @@ The manager combines profile, local-inference, retrieval, and saved-chat managem
 
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
 * **Local Models** - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.
-* **Local AI** - Assign Text/translation and Coding profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.
+* **Local AI** - Assign Text/translation, Coding and [session journal](session-journal.md#ai-summaries) profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.
 * **Knowledge Stores** - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.
 * **Saved Chats** - Open, rename, refresh, or delete previously saved AI conversations. Saved [AI Swarm](ai-swarm.md) conversations appear in their own **Swarm Chats** section, including those produced by scheduled swarm jobs.
 

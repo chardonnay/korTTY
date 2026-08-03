@@ -55,7 +55,7 @@ While the journal runs, the AI summarizer periodically reads the newest capture-
 | Split backlog into multiple prompts (chunking) | Journal manager **Options** | off |
 | AI profile for summaries | Journal manager **Options** or **Settings > Logging > Session Journal** | Default profile |
 
-Summaries use your **default AI profile** unless you pick a dedicated journal profile — either in the journal manager's **Options** dialog or under **Settings > Logging > Session Journal**. The Text/Coding role profiles are deliberately not used for the journal.
+Summaries use your **default AI profile** unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's **Options** dialog, **Settings > Logging > Session Journal**, and **AI > AI Manager > Local AI** next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.
 
 Setting **max lines to 0** switches to context filling: the summarizer packs as many of the newest lines as fit into the configured token budget. With **chunking** enabled the whole backlog is processed instead of only the newest window — consecutive windows of the configured size, one AI prompt each.
 
