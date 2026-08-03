@@ -2243,22 +2243,17 @@ public class MainWindow {
                 try {
                     terminalTab.connect();
                     
-                    // Set callback AFTER connect() to update dashboard when connection succeeds
-                    // Note: TerminalTab.connect() sets a callback for tab title/color update.
-                    // Since we're overwriting it, we need to also do what TerminalTab's callback does:
-                    // - Update tab title
-                    // - Reset tab color (setStyle(""))
-                    terminalTab.getTerminalView().setOnConnectedCallback(() -> {
-                        Platform.runLater(() -> {
-                            // Update tab title (what TerminalTab's callback does)
-                            terminalTab.updateTabTitle();
-                            // Reset tab color (TerminalTab's resetTabColor() does setStyle(""))
-                            terminalTab.setStyle("");
-                            // Update status and dashboard
-                            updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
-                                    connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
-                            updateDashboard(); // Update dashboard when connection succeeds
-                        });
+                    // Set callback AFTER connect() to update dashboard when connection succeeds.
+                    // This goes through TerminalTab's own callback slot (additive: it runs
+                    // alongside TerminalTab's internal callback, not instead of it) rather than
+                    // TerminalView's directly — that used to overwrite the tab's own registration
+                    // (tab title/color, the disconnected-status banner, and the journal bar's
+                    // refresh after an auto-started journal), silently dropping all of it whenever
+                    // this dashboard/status update also needed to run.
+                    terminalTab.setOnConnectedCallback(() -> {
+                        updateStatus(I18n.get("status.connectedToWithHostAndProtocol",
+                                connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
+                        updateDashboard(); // Update dashboard when connection succeeds
                     });
                     
                     // Restore history after connection is established
