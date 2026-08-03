@@ -21,5 +21,6 @@ public enum ManagedSetting {
     LOAD_INTO_SNIPPET_EDITOR,
     SERVER_ACCESS,
     CLIPBOARD,
-    LOGGING
+    LOGGING,
+    SESSION_JOURNAL
 }

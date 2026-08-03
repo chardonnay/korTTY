@@ -109,7 +109,13 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private TextField logFilePathField;
     private Spinner<Integer> maxFileSizeMBSpinner;
     private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> logFormatCombo;
-    
+
+    // Session Journal
+    private CheckBox enableJournalCheck;
+    private CheckBox journalCaptureInputCheck;
+    private CheckBox journalAiSummariesCheck;
+    private Spinner<Integer> journalSummaryIntervalSpinner;
+
     // Connection timeout
     private Spinner<Integer> timeoutSpinner;
     private Spinner<Integer> retrySpinner;
@@ -495,14 +501,18 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         // Tab 5: Terminal Logging
         Tab loggingTab = createLoggingTab();
-        
-        // Tab 6: Window Geometry
+
+        // Tab 6: Session Journal
+        Tab journalTab = createJournalTab();
+
+        // Tab 7: Window Geometry
         Tab geometryTab = createGeometryTab();
 
-        // Tab 7: AI profile and connection-scoped skills
+        // Tab 8: AI profile and connection-scoped skills
         Tab aiTab = createAiTab();
 
-        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, geometryTab, aiTab);
+        tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, journalTab,
+            geometryTab, aiTab);
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -713,6 +723,21 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     }
                 }
                 
+                // Save session journal settings
+                if (enableJournalCheck != null) {
+                    de.kortty.model.SessionJournalConfig journalConfig = connection.getSessionJournalConfig();
+                    journalConfig.setEnabled(enableJournalCheck.isSelected());
+                    if (journalCaptureInputCheck != null) {
+                        journalConfig.setCaptureInput(journalCaptureInputCheck.isSelected());
+                    }
+                    if (journalAiSummariesCheck != null && !journalAiSummariesCheck.isDisabled()) {
+                        journalConfig.setAiSummariesEnabled(journalAiSummariesCheck.isSelected());
+                    }
+                    if (journalSummaryIntervalSpinner != null) {
+                        journalConfig.setSummaryIntervalMinutes(journalSummaryIntervalSpinner.getValue());
+                    }
+                }
+
                 // Save window geometry settings
                 if (useCustomGeometryCheck != null && useCustomGeometryCheck.isSelected()) {
                     WindowGeometry customGeo = new WindowGeometry();
@@ -1552,6 +1577,71 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         return tab;
     }
     
+    private Tab createJournalTab() {
+        Tab tab = new Tab(I18n.get("connEdit.tab.journal"));
+        tab.setClosable(false);
+
+        VBox vbox = new VBox(15);
+        vbox.setPadding(new Insets(20));
+
+        de.kortty.model.SessionJournalConfig journalConfig = connection.getSessionJournalConfig();
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        boolean enforced = policy.sessionJournalEnforced();
+
+        enableJournalCheck = new CheckBox(I18n.get("connEdit.journal.enable"));
+        enableJournalCheck.setSelected((journalConfig != null && journalConfig.isEnabled()) || enforced);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setDisable(!enableJournalCheck.isSelected());
+
+        journalCaptureInputCheck = new CheckBox(I18n.get("connEdit.journal.captureInput"));
+        journalCaptureInputCheck.setSelected(journalConfig == null || journalConfig.isCaptureInput());
+
+        journalAiSummariesCheck = new CheckBox(I18n.get("connEdit.journal.aiSummaries"));
+        journalAiSummariesCheck.setSelected(journalConfig == null || journalConfig.isAiSummariesEnabled());
+
+        journalSummaryIntervalSpinner = new Spinner<>(0, 240,
+            journalConfig != null ? journalConfig.getSummaryIntervalMinutes() : 0);
+        journalSummaryIntervalSpinner.setEditable(true);
+        journalSummaryIntervalSpinner.setPrefWidth(100);
+        journalSummaryIntervalSpinner.disableProperty().bind(
+            journalAiSummariesCheck.selectedProperty().not());
+
+        int row = 0;
+        grid.add(journalCaptureInputCheck, 0, row++, 2, 1);
+        grid.add(journalAiSummariesCheck, 0, row++, 2, 1);
+        grid.add(new Label(I18n.get("connEdit.journal.summaryInterval")), 0, row);
+        grid.add(journalSummaryIntervalSpinner, 1, row++);
+
+        enableJournalCheck.selectedProperty().addListener((obs, old, newVal) -> grid.setDisable(!newVal));
+
+        Label infoLabel = new Label(I18n.get("connEdit.journal.info"));
+        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setWrapText(true);
+
+        vbox.getChildren().addAll(enableJournalCheck, new Separator(), grid, infoLabel);
+
+        if (!policy.sessionJournalAllowed()) {
+            vbox.setDisable(true);
+        } else if (enforced) {
+            // Mandated journals: the enable switch is locked on.
+            enableJournalCheck.setDisable(true);
+            Label managedLabel = new Label(I18n.get("journal.options.managed"));
+            managedLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            managedLabel.setWrapText(true);
+            vbox.getChildren().add(managedLabel);
+        }
+        if (!policy.sessionJournalAiSummariesAllowed()) {
+            journalAiSummariesCheck.setSelected(false);
+            journalAiSummariesCheck.setDisable(true);
+        }
+
+        tab.setContent(vbox);
+        return tab;
+    }
+
     private void browseForLogFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("connEdit.selectLogFile"));

@@ -486,6 +486,10 @@ public class TerminalTab extends Tab {
 
     public void toggleJournalFromUser() {
         if (isJournalActive()) {
+            if (de.kortty.policy.PolicyManager.effective().sessionJournalEnforced()) {
+                showJournalError(I18n.get("terminal.journal.error.enforced"));
+                return;
+            }
             stopJournal();
         } else {
             startJournal();
@@ -522,6 +526,10 @@ public class TerminalTab extends Tab {
 
     /** Starts a journal for the running session; the existing scrollback is imported as seed. */
     private void startJournal() {
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            showJournalError(I18n.get("terminal.journal.error.policy"));
+            return;
+        }
         if (!terminalView.isConnected()) {
             showJournalError(I18n.get("terminal.journal.error.notConnected"));
             return;

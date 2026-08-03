@@ -5076,13 +5076,18 @@ public class TerminalView extends BorderPane {
      */
     private void startSessionJournal() {
         try {
+            de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+            if (!policy.sessionJournalAllowed()) {
+                return;
+            }
             if (isSessionJournalActive()) {
                 attachJournalDataListener();
                 journalSession.noteReconnect();
                 return;
             }
             de.kortty.model.SessionJournalConfig config = connection.getSessionJournalConfig();
-            if (config == null || !config.isEnabled()) {
+            boolean enabled = config != null && config.isEnabled();
+            if (!enabled && !policy.sessionJournalEnforced()) {
                 return;
             }
             createAndStartSessionJournal(false, java.util.List.of());
@@ -5102,7 +5107,7 @@ public class TerminalView extends BorderPane {
         if (isSessionJournalActive()) {
             return true;
         }
-        if (ttyConnector == null) {
+        if (ttyConnector == null || !de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
             return false;
         }
         try {

@@ -190,6 +190,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     // Logging settings
     private final TextField logDirectoryPathField;
     private final Spinner<Integer> logRetentionDaysSpinner;
+    private TextField sessionJournalStoragePathField;
+    private CheckBox sessionJournalAiSummariesCheck;
+    private Spinner<Integer> sessionJournalIntervalSpinner;
+    private ComboBox<de.kortty.model.AiProfile> sessionJournalAiProfileCombo;
 
     // Update settings
     private final CheckBox updateChecksEnabledCheck;
@@ -960,6 +964,90 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         logCompressionInfo.setWrapText(true);
         logCompressionInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
         loggingGrid.add(logCompressionInfo, 0, loggingRow++, 2, 1);
+
+        // Session journal section (journal capture is logging-adjacent, so it lives on this tab)
+        loggingGrid.add(new Separator(), 0, loggingRow++, 2, 1);
+        Label journalHeader = new Label(I18n.get("settings.journal.section"));
+        journalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        loggingGrid.add(journalHeader, 0, loggingRow++, 2, 1);
+
+        de.kortty.policy.EffectivePolicy journalPolicy = de.kortty.policy.PolicyManager.effective();
+        sessionJournalStoragePathField = new TextField();
+        sessionJournalStoragePathField.setPrefWidth(420);
+        sessionJournalStoragePathField.setText(globalSettings != null
+            && globalSettings.getSessionJournalStoragePath() != null
+            ? globalSettings.getSessionJournalStoragePath() : "");
+        Button journalPathBrowseButton = new Button(I18n.get("settings.journal.browse"));
+        journalPathBrowseButton.setOnAction(event -> {
+            javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
+            chooser.setTitle(I18n.get("settings.journal.storagePath"));
+            java.io.File selected = chooser.showDialog(getDialogPane().getScene().getWindow());
+            if (selected != null) {
+                sessionJournalStoragePathField.setText(selected.getAbsolutePath());
+            }
+        });
+        if (journalPolicy.sessionJournal().storagePath() != null) {
+            sessionJournalStoragePathField.setDisable(true);
+            sessionJournalStoragePathField.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            journalPathBrowseButton.setDisable(true);
+        }
+        HBox journalPathBox = new HBox(10, sessionJournalStoragePathField, journalPathBrowseButton);
+        HBox.setHgrow(sessionJournalStoragePathField, Priority.ALWAYS);
+        loggingGrid.add(new Label(I18n.get("settings.journal.storagePath")), 0, loggingRow);
+        loggingGrid.add(journalPathBox, 1, loggingRow++);
+
+        sessionJournalAiSummariesCheck = new CheckBox(I18n.get("settings.journal.aiSummaries"));
+        sessionJournalAiSummariesCheck.setSelected(globalSettings == null
+            || globalSettings.isSessionJournalAiSummariesEnabled());
+        if (!journalPolicy.sessionJournalAiSummariesAllowed()) {
+            sessionJournalAiSummariesCheck.setSelected(false);
+            sessionJournalAiSummariesCheck.setDisable(true);
+            sessionJournalAiSummariesCheck.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
+        loggingGrid.add(sessionJournalAiSummariesCheck, 0, loggingRow++, 2, 1);
+
+        sessionJournalIntervalSpinner = new Spinner<>(1, 240,
+            globalSettings != null ? globalSettings.getSessionJournalSummarizeIntervalMinutes() : 5);
+        sessionJournalIntervalSpinner.setEditable(true);
+        sessionJournalIntervalSpinner.setPrefWidth(120);
+        sessionJournalIntervalSpinner.disableProperty().bind(
+            sessionJournalAiSummariesCheck.selectedProperty().not());
+        loggingGrid.add(new Label(I18n.get("settings.journal.interval")), 0, loggingRow);
+        loggingGrid.add(sessionJournalIntervalSpinner, 1, loggingRow++);
+
+        sessionJournalAiProfileCombo = new ComboBox<>();
+        de.kortty.model.AiProfile defaultProfilePlaceholder = null;
+        sessionJournalAiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiProfile profile) {
+                return profile != null && profile.getName() != null
+                    ? profile.getName()
+                    : I18n.get("settings.journal.defaultProfile");
+            }
+
+            @Override
+            public de.kortty.model.AiProfile fromString(String value) {
+                return null;
+            }
+        });
+        sessionJournalAiProfileCombo.getItems().add(defaultProfilePlaceholder);
+        String journalProfileId = globalSettings != null ? globalSettings.getSessionJournalAiProfileId() : null;
+        if (globalSettings != null && globalSettings.getAiProfiles() != null) {
+            for (de.kortty.model.AiProfile profile : globalSettings.getAiProfiles()) {
+                if (profile != null) {
+                    sessionJournalAiProfileCombo.getItems().add(profile);
+                    if (journalProfileId != null && journalProfileId.equals(profile.getId())) {
+                        sessionJournalAiProfileCombo.setValue(profile);
+                    }
+                }
+            }
+        }
+        sessionJournalAiProfileCombo.disableProperty().bind(
+            sessionJournalAiSummariesCheck.selectedProperty().not());
+        loggingGrid.add(new Label(I18n.get("settings.journal.aiProfile")), 0, loggingRow);
+        loggingGrid.add(sessionJournalAiProfileCombo, 1, loggingRow++);
 
         loggingTab.setContent(loggingGrid);
 
@@ -3019,6 +3107,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setLogDirectoryPath(logDirectory.toString());
         }
         globalSettings.setLogRetentionDays(logRetentionDaysSpinner.getValue());
+
+        if (sessionJournalStoragePathField != null && !sessionJournalStoragePathField.isDisabled()) {
+            globalSettings.setSessionJournalStoragePath(sessionJournalStoragePathField.getText());
+        }
+        if (sessionJournalAiSummariesCheck != null && !sessionJournalAiSummariesCheck.isDisabled()) {
+            globalSettings.setSessionJournalAiSummariesEnabled(sessionJournalAiSummariesCheck.isSelected());
+        }
+        if (sessionJournalIntervalSpinner != null) {
+            globalSettings.setSessionJournalSummarizeIntervalMinutes(sessionJournalIntervalSpinner.getValue());
+        }
+        if (sessionJournalAiProfileCombo != null) {
+            de.kortty.model.AiProfile selectedProfile = sessionJournalAiProfileCombo.getValue();
+            globalSettings.setSessionJournalAiProfileId(
+                selectedProfile != null ? selectedProfile.getId() : null);
+        }
         return true;
     }
 

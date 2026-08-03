@@ -80,6 +80,23 @@ public final class PolicyClamp {
         if (policy.logging().retentionDays() != null) {
             settings.setLogRetentionDays(policy.logging().retentionDays());
         }
+        PolicyRule.SessionJournalRule sessionJournal = policy.sessionJournal();
+        if (sessionJournal.logFormat() != null) {
+            de.kortty.model.SessionJournalLogFormat format =
+                de.kortty.model.SessionJournalLogFormat.fromKey(sessionJournal.logFormat());
+            if (format != null) {
+                settings.setSessionJournalLogFormat(format);
+            }
+        }
+        if (sessionJournal.aiMaxLines() != null) {
+            settings.setSessionJournalAiMaxLines(sessionJournal.aiMaxLines());
+        }
+        if (sessionJournal.storagePath() != null) {
+            settings.setSessionJournalStoragePath(sessionJournal.storagePath());
+        }
+        if (Boolean.TRUE.equals(sessionJournal.aiTitle())) {
+            settings.setSessionJournalAiTitleEnabled(true);
+        }
     }
 
     /**

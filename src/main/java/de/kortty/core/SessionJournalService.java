@@ -69,8 +69,17 @@ public class SessionJournalService {
         }
     }
 
-    /** Storage root for journals: settings override or {@code ~/.kortty/journals}. */
+    /** Storage root for journals: policy mandate, then settings override, then {@code ~/.kortty/journals}. */
     public static Path resolveJournalsDirectory(GlobalSettings settings) {
+        String policyPath = null;
+        try {
+            policyPath = de.kortty.policy.PolicyManager.effective().sessionJournal().storagePath();
+        } catch (Exception e) {
+            // policy not initialized (tests, tools) — fall through to settings
+        }
+        if (policyPath != null && !policyPath.isBlank()) {
+            return Path.of(policyPath.trim()).toAbsolutePath().normalize();
+        }
         String configured = settings != null ? settings.getSessionJournalStoragePath() : null;
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured.trim()).toAbsolutePath().normalize();
@@ -107,7 +116,7 @@ public class SessionJournalService {
 
         SessionJournalDocument document = new SessionJournalDocument();
         SessionJournalMeta meta = document.getMeta();
-        meta.setTitle(buildDefaultTitle(connection.getName(), startedAt));
+        meta.setTitle(resolveInitialTitle(connection, startedAt));
         meta.setConnectionId(connection.getId());
         meta.setConnectionName(connection.getName());
         meta.setHost(connection.getHost());
@@ -221,6 +230,9 @@ public class SessionJournalService {
     }
 
     public void renameJournal(Path journalDir, String newTitle) throws IOException {
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalRenameAllowed()) {
+            throw new IOException("Renaming session journals is disabled by your organization's policy");
+        }
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
             document.getMeta().setTitle(newTitle != null ? newTitle.strip() : null);
@@ -254,6 +266,9 @@ public class SessionJournalService {
      * configured journals root.
      */
     public void deleteJournal(GlobalSettings settings, Path journalDir) throws IOException {
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalDeleteAllowed()) {
+            throw new IOException("Deleting session journals is disabled by your organization's policy");
+        }
         Path normalized = normalize(journalDir);
         if (liveSessions.containsKey(normalized)) {
             throw new IOException("Cannot delete a session journal that is currently being written");
@@ -431,6 +446,28 @@ public class SessionJournalService {
     private static String buildDefaultTitle(String connectionName, OffsetDateTime startedAt) {
         String name = connectionName != null && !connectionName.isBlank() ? connectionName.strip() : "terminal";
         return name + " — " + startedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+    }
+
+    /**
+     * Resolves the initial journal title: the enterprise policy's name template (with
+     * {connection}/{host}/{user}/{date}/{time} placeholders) when set, otherwise the default.
+     */
+    private static String resolveInitialTitle(ServerConnection connection, OffsetDateTime startedAt) {
+        try {
+            String template = de.kortty.policy.PolicyManager.effective().sessionJournal().nameTemplate();
+            if (template != null && !template.isBlank()) {
+                return template
+                    .replace("{connection}", connection.getName() != null ? connection.getName() : "")
+                    .replace("{host}", connection.getHost() != null ? connection.getHost() : "")
+                    .replace("{user}", connection.getUsername() != null ? connection.getUsername() : "")
+                    .replace("{date}", startedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+                    .replace("{time}", startedAt.format(DateTimeFormatter.ofPattern("HH:mm")))
+                    .strip();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply session journal name template: {}", e.getMessage());
+        }
+        return buildDefaultTitle(connection.getName(), startedAt);
     }
 
     private static String resolveLanguageCode() {

@@ -167,6 +167,12 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination AI_PLANNING_ACCELERATOR =
         new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination SESSION_JOURNAL_MANAGER_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination SESSION_JOURNAL_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination SESSION_JOURNAL_SCREENSHOT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     // F11 is intercepted system-wide by macOS ("Show Desktop") and F12 is used for regular OS
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
@@ -270,6 +276,9 @@ public class MainWindow {
     private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
     private AiManagerDialog aiManagerDialog;
     private SavedChatsDialog savedChatsDialog;
+    private SessionJournalManagerDialog sessionJournalManagerDialog;
+    /** Open journal viewers keyed by normalized journal directory (one viewer per journal). */
+    private final Map<java.nio.file.Path, SessionJournalViewerDialog> sessionJournalViewers = new HashMap<>();
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -1466,6 +1475,24 @@ public class MainWindow {
         toggleRecording.setAccelerator(RECORDING_TOGGLE_ACCELERATOR);
         toggleRecording.setOnAction(e -> toggleTerminalRecording());
 
+        MenuItem sessionJournals = new MenuItem(I18n.get("menu.tools.sessionJournals"));
+        sessionJournals.setAccelerator(SESSION_JOURNAL_MANAGER_ACCELERATOR);
+        sessionJournals.setOnAction(e -> showSessionJournalManager());
+
+        MenuItem toggleSessionJournal = new MenuItem(I18n.get("menu.tools.toggleSessionJournal"));
+        toggleSessionJournal.setAccelerator(SESSION_JOURNAL_TOGGLE_ACCELERATOR);
+        toggleSessionJournal.setOnAction(e -> toggleSessionJournal());
+
+        MenuItem journalScreenshot = new MenuItem(I18n.get("menu.tools.journalScreenshot"));
+        journalScreenshot.setAccelerator(SESSION_JOURNAL_SCREENSHOT_ACCELERATOR);
+        journalScreenshot.setOnAction(e -> takeSessionJournalScreenshot());
+
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            sessionJournals.setDisable(true);
+            toggleSessionJournal.setDisable(true);
+            journalScreenshot.setDisable(true);
+        }
+
         MenuItem asciiArt = new MenuItem(I18n.get("menu.tools.asciiArt"));
         asciiArt.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         asciiArt.setOnAction(e -> showAsciiArtBanner());
@@ -1477,6 +1504,10 @@ public class MainWindow {
             new SeparatorMenuItem(),
             videoManager,
             toggleRecording,
+            new SeparatorMenuItem(),
+            sessionJournals,
+            toggleSessionJournal,
+            journalScreenshot,
             new SeparatorMenuItem(),
             asciiArt);
         return toolsMenu;
@@ -8164,6 +8195,103 @@ public class MainWindow {
         }
     }
 
+    private void showSessionJournalManager() {
+        de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TOOL_OPENED,
+            Map.of("tool", "session_journals"));
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            return;
+        }
+        try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("sessionJournals") == null) {
+                    hostToolTab("sessionJournals", new SessionJournalManagerDialog(this), null);
+                }
+                return;
+            }
+            if (sessionJournalManagerDialog != null) {
+                if (sessionJournalManagerDialog.isShowing()) {
+                    sessionJournalManagerDialog.refresh();
+                    bringDialogToFront(sessionJournalManagerDialog);
+                    return;
+                }
+                sessionJournalManagerDialog = null;
+            }
+            SessionJournalManagerDialog dialog = new SessionJournalManagerDialog(this);
+            dialog.initOwner(stage);
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                if (sessionJournalManagerDialog == dialog) {
+                    sessionJournalManagerDialog = null;
+                }
+            });
+            sessionJournalManagerDialog = dialog;
+            dialog.show();
+            bringDialogToFront(dialog);
+        } catch (Exception e) {
+            if (sessionJournalManagerDialog != null && !sessionJournalManagerDialog.isShowing()) {
+                sessionJournalManagerDialog = null;
+            }
+            logger.error("Failed to open session journal manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** Opens (or re-fronts) the viewer for one journal; several journals can be open side by side. */
+    void openSessionJournal(de.kortty.model.SessionJournalMeta meta) {
+        if (meta == null || meta.getDirectory() == null) {
+            return;
+        }
+        java.nio.file.Path key = meta.getDirectory().toAbsolutePath().normalize();
+        try {
+            SessionJournalViewerDialog existing = sessionJournalViewers.get(key);
+            if (existing != null) {
+                if (existing.isOpenAsDialogOrTab()) {
+                    bringDialogToFront(existing);
+                    return;
+                }
+                sessionJournalViewers.remove(key);
+            }
+            SessionJournalViewerDialog viewer = new SessionJournalViewerDialog(this, meta);
+            sessionJournalViewers.put(key, viewer);
+            if (toolTabsEnabled()) {
+                hostMultiInstanceToolTab(viewer);
+                return;
+            }
+            viewer.initOwner(stage);
+            viewer.show();
+            bringDialogToFront(viewer);
+        } catch (Exception e) {
+            sessionJournalViewers.remove(key);
+            logger.error("Failed to open session journal viewer", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** Called by the viewer when it is disposed so a later open creates a fresh instance. */
+    void onSessionJournalViewerClosed(java.nio.file.Path journalDir) {
+        if (journalDir != null) {
+            sessionJournalViewers.remove(journalDir.toAbsolutePath().normalize());
+        }
+    }
+
+    private void toggleSessionJournal() {
+        TerminalTab activeTab = getActiveTerminalTab();
+        if (activeTab != null) {
+            activeTab.toggleJournalFromMenuOrShortcut();
+            updateAllTabContextMenus();
+        } else {
+            updateStatus(I18n.get("terminal.journal.error.notConnected"));
+        }
+    }
+
+    private void takeSessionJournalScreenshot() {
+        TerminalTab activeTab = getActiveTerminalTab();
+        if (activeTab != null) {
+            activeTab.takeJournalScreenshot(null);
+        } else {
+            updateStatus(I18n.get("terminal.journal.error.notConnected"));
+        }
+    }
+
     private static void bringDialogToFront(Dialog<?> dialog) {
         Window window = dialog.getDialogPane().getScene() != null
             ? dialog.getDialogPane().getScene().getWindow()
@@ -8872,7 +9000,26 @@ public class MainWindow {
             terminalTab.triggerReconnect();
         });
         contextMenu.getItems().add(reconnectItem);
-        
+
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            Menu journalMenu = new Menu(I18n.get("tab.contextMenu.journal"));
+            MenuItem journalToggleItem = new MenuItem(I18n.get(terminalTab.isJournalActive()
+                ? "tab.contextMenu.journal.stop"
+                : "tab.contextMenu.journal.start"));
+            journalToggleItem.setOnAction(e -> {
+                terminalTab.toggleJournalFromMenuOrShortcut();
+                updateAllTabContextMenus();
+            });
+            MenuItem journalShotItem = new MenuItem(I18n.get("tab.contextMenu.journal.screenshot"));
+            journalShotItem.setDisable(!terminalTab.isJournalActive());
+            journalShotItem.setOnAction(e -> terminalTab.takeJournalScreenshot(null));
+            MenuItem journalNoteItem = new MenuItem(I18n.get("tab.contextMenu.journal.note"));
+            journalNoteItem.setDisable(!terminalTab.isJournalActive());
+            journalNoteItem.setOnAction(e -> terminalTab.addJournalNote());
+            journalMenu.getItems().addAll(journalToggleItem, journalShotItem, journalNoteItem);
+            contextMenu.getItems().add(journalMenu);
+        }
+
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
             Menu terminalEffectMenu = createTerminalEffectMenu(terminalTab);
