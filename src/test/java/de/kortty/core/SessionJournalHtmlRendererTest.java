@@ -201,6 +201,52 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void journalWideSearchBarIsPresentButHidden() {
+        document.getEntries().add(summaryEntry());
+        String html = renderer.render(document, sampleLog());
+        assertThat(html).contains("id=\"searchToggle\"");
+        assertThat(html).contains("id=\"searchBar\" class=\"search-bar\" hidden");
+        assertThat(html).contains("id=\"journalSearch\"");
+        assertThat(html).contains("id=\"journalMatchCount\"");
+        assertThat(html).contains("id=\"journalPrev\"");
+        assertThat(html).contains("id=\"journalNext\"");
+        assertThat(html).contains("id=\"journalSearchClose\"");
+        // Highlighting wraps text nodes so the cards keep their listeners.
+        assertThat(html).contains("createTreeWalker");
+        assertThat(html).contains("mark.gs");
+    }
+
+    @Test
+    void everyEntryCarriesCopyButtons() {
+        SessionJournalEntry shot = new SessionJournalEntry();
+        shot.setKind(SessionJournalEntryKind.SCREENSHOT);
+        shot.setScreenshotFile("screenshots/shot-000004.png");
+        shot.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 21, 0, 0, ZoneOffset.ofHours(2)));
+        document.getEntries().add(summaryEntry());
+        document.getEntries().add(shot);
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("class=\"card-actions\"");
+        assertThat(html).contains("data-copy=\"text\"");
+        assertThat(html).contains("data-copy=\"image\"");
+        // The screenshot entry has no text of its own, so it only offers the image button.
+        assertThat(countOccurrences(html, "data-copy=\"text\"")).isEqualTo(1);
+        assertThat(countOccurrences(html, "data-copy=\"image\"")).isEqualTo(1);
+        // The log panel can be copied too.
+        assertThat(html).contains("id=\"copyLog\"");
+    }
+
+    private static int countOccurrences(String haystack, String needle) {
+        int count = 0;
+        int index = haystack.indexOf(needle);
+        while (index >= 0) {
+            count++;
+            index = haystack.indexOf(needle, index + needle.length());
+        }
+        return count;
+    }
+
+    @Test
     void panelAndSearchScaffoldingIsPresent() {
         String html = renderer.render(document, sampleLog());
         assertThat(html).contains("id=\"logPanel\"");

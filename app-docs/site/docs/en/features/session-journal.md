@@ -89,9 +89,18 @@ Typed input is captured only as complete submitted lines, and several layers kee
 - The page renders dark by default, follows the system light/dark preference and has its own theme toggle.
 - Screenshots, excerpt panels, the timeline column and the log panel size themselves to the window, so the page stays readable in a narrow viewer tab as well as full screen. Long excerpts scroll inside their own box instead of stretching the timeline.
 
+### Searching the journal
+
+The magnifier in the header opens a search bar directly under the connection details (++ctrl+f++ works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or ++enter++ / ++shift+enter++ jump between the hits, ++esc++ or ✕ closes the bar and clears the highlighting.
+
+!!! note
+    This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across *all* journals with **Search contents**.
+
 ### Copying content
 
-Right-clicking the page opens a copy menu whose entries depend on what you clicked:
+Every entry carries a copy button in its top-right corner: text entries copy the whole entry, screenshot entries copy the image. The log panel has the same button for the log section it currently shows.
+
+Right-clicking the page opens a copy menu with more targeted actions, depending on what you clicked:
 
 | Action | Copies |
 |--------|--------|

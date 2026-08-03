@@ -47,6 +47,17 @@ public final class SessionJournalHtmlRenderer {
     /** Above this much embedded log text, only entry-referenced ranges are embedded. */
     private static final long MAX_EMBEDDED_LOG_CHARS = 8L * 1024 * 1024;
 
+    // Inline icons keep the page self-contained (no icon font, no external sprite).
+    private static final String ICON_COPY_TEXT = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
+        + "<path d=\"M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11"
+        + "c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z\"/></svg>";
+    private static final String ICON_COPY_IMAGE = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
+        + "<path d=\"M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2z"
+        + "M8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\"/></svg>";
+    private static final String ICON_SEARCH = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
+        + "<path d=\"M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5z"
+        + "m-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z\"/></svg>";
+
     private static final DateTimeFormatter TIME_HM = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter TIME_HMS = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter DATE_FULL = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -142,7 +153,7 @@ public final class SessionJournalHtmlRenderer {
 
     private void appendHeader(StringBuilder html, SessionJournalMeta meta, List<SessionJournalEntry> entries) {
         long screenshots = entries.stream().filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT).count();
-        html.append("<header class=\"session-head\">\n<div class=\"head-main\">\n");
+        html.append("<header class=\"session-head\">\n<div class=\"head-top\">\n<div class=\"head-main\">\n");
         html.append("<h1>").append(escapeHtml(titleOf(meta))).append("</h1>\n");
         // Only what the title does not already say — a journal named after its endpoint would
         // otherwise show the same connection three times.
@@ -169,6 +180,9 @@ public final class SessionJournalHtmlRenderer {
         appendStat(html, i18n("journal.html.errors", "Errors"), String.valueOf(meta.getErrorCount()));
         appendStat(html, i18n("journal.html.screenshots", "Screenshots"), String.valueOf(screenshots));
         html.append("<div class=\"head-buttons\">");
+        html.append("<button id=\"searchToggle\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.title", "Search journal"))).append("\">")
+            .append(ICON_SEARCH).append("</button>");
         html.append("<button id=\"fontSmaller\" class=\"icon-button\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.fontSmaller", "Smaller font"))).append("\">A−</button>");
         html.append("<button id=\"fontReset\" class=\"icon-button\" type=\"button\" title=\"")
@@ -178,7 +192,25 @@ public final class SessionJournalHtmlRenderer {
         html.append("<button id=\"themeToggle\" class=\"icon-button\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.theme", "Theme"))).append("\">◐</button>");
         html.append("</div>\n");
-        html.append("</div>\n</header>\n");
+        html.append("</div>\n</div>\n");
+        appendSearchBar(html);
+        html.append("</header>\n");
+    }
+
+    /** Journal-wide search, revealed by the header's magnifier and hidden by default. */
+    private void appendSearchBar(StringBuilder html) {
+        html.append("<div id=\"searchBar\" class=\"search-bar\" hidden>\n")
+            .append("<input type=\"search\" id=\"journalSearch\" autocomplete=\"off\" placeholder=\"")
+            .append(escapeAttr(i18n("journal.html.search.journalPlaceholder", "Search the journal...")))
+            .append("\">\n")
+            .append("<span id=\"journalMatchCount\" class=\"match-count\">0/0</span>\n")
+            .append("<button type=\"button\" id=\"journalPrev\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.prev", "Previous match"))).append("\">▲</button>\n")
+            .append("<button type=\"button\" id=\"journalNext\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.next", "Next match"))).append("\">▼</button>\n")
+            .append("<button type=\"button\" id=\"journalSearchClose\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.close", "Close search"))).append("\">✕</button>\n")
+            .append("</div>\n");
     }
 
     private void appendStat(StringBuilder html, String label, String value) {
@@ -229,7 +261,9 @@ public final class SessionJournalHtmlRenderer {
                 .append("\" data-to=\"").append(entry.getLogEndSeq())
                 .append("\" tabindex=\"0\" role=\"button\"");
         }
-        html.append(">\n<div class=\"card-head\">");
+        html.append(">\n");
+        appendCardActions(html, entry);
+        html.append("<div class=\"card-head\">");
         if (entry.getMarker() != de.kortty.model.SessionJournalMarker.NONE) {
             html.append("<span class=\"badge badge-").append(marker).append("\">")
                 .append(escapeHtml(i18n("journal.marker." + marker, entry.getMarker().name())))
@@ -283,6 +317,33 @@ public final class SessionJournalHtmlRenderer {
         html.append("</div>\n</article>\n");
     }
 
+    /** Always-visible copy buttons so the information can be taken without the right-click menu. */
+    private void appendCardActions(StringBuilder html, SessionJournalEntry entry) {
+        boolean hasText = notBlank(entry.getTitle()) || notBlank(entry.getText()) || notBlank(entry.getUserNote())
+            || !entry.getInputExcerpt().isEmpty() || !entry.getOutputExcerpt().isEmpty();
+        boolean hasImage = entry.getKind() == SessionJournalEntryKind.SCREENSHOT
+            && entry.getScreenshotFile() != null;
+        if (!hasText && !hasImage) {
+            return;
+        }
+        html.append("<div class=\"card-actions\">");
+        if (hasText) {
+            html.append("<button type=\"button\" class=\"copy-btn\" data-copy=\"text\" title=\"")
+                .append(escapeAttr(i18n("journal.html.copy.entry", "Copy entry"))).append("\">")
+                .append(ICON_COPY_TEXT).append("</button>");
+        }
+        if (hasImage) {
+            html.append("<button type=\"button\" class=\"copy-btn\" data-copy=\"image\" title=\"")
+                .append(escapeAttr(i18n("journal.html.copy.screenshot", "Copy screenshot"))).append("\">")
+                .append(ICON_COPY_IMAGE).append("</button>");
+        }
+        html.append("</div>\n");
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
     private void appendLightbox(StringBuilder html) {
         html.append("<div id=\"lightbox\" class=\"lightbox\" hidden><img alt=\"\">")
             .append("<button type=\"button\" class=\"lightbox-close\">✕</button></div>\n");
@@ -315,6 +376,9 @@ public final class SessionJournalHtmlRenderer {
             .append("<span id=\"matchCount\" class=\"match-count\">0/0</span>\n")
             .append("<button type=\"button\" id=\"prevMatch\" title=\"Shift+Enter\">▲</button>\n")
             .append("<button type=\"button\" id=\"nextMatch\" title=\"Enter\">▼</button>\n")
+            .append("<button type=\"button\" id=\"copyLog\" class=\"copy-btn\" title=\"")
+            .append(escapeAttr(i18n("journal.html.copy.log", "Copy log section"))).append("\">")
+            .append(ICON_COPY_TEXT).append("</button>\n")
             .append("<button type=\"button\" id=\"closePanel\">✕</button>\n")
             .append("</div>\n<pre id=\"logBody\" class=\"log-body\"></pre>\n</aside>\n");
     }
@@ -425,10 +489,22 @@ public final class SessionJournalHtmlRenderer {
               font-size:calc(15px * var(--font-scale));line-height:1.5;
               padding-bottom:12px}
             body.panel-open{padding-bottom:46vh}
-            .session-head{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:12px;
-              justify-content:space-between;align-items:flex-start;padding:16px clamp(12px,3vw,24px);
+            .session-head{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;
+              padding:16px clamp(12px,3vw,24px);
               background:color-mix(in srgb,var(--surface) 88%,transparent);
               backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+            .head-top{display:flex;flex-wrap:wrap;gap:12px;
+              justify-content:space-between;align-items:flex-start}
+            .search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+              padding-top:8px;border-top:1px solid var(--border)}
+            .search-bar[hidden]{display:none}
+            #journalSearch{flex:1 1 240px;min-width:min(200px,50vw);background:var(--surface2);
+              border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;
+              font-size:.87em;font-family:inherit}
+            .search-bar button{background:var(--surface2);border:1px solid var(--border);
+              color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;
+              font-size:.87em}
+            .search-bar button:hover{border-color:var(--accent)}
             .session-head h1{margin:0 0 4px;font-size:1.27em}
             .conn{color:var(--muted);font-size:.87em}
             .live-badge{color:var(--err);font-size:.8em;margin-left:6px}
@@ -442,6 +518,7 @@ public final class SessionJournalHtmlRenderer {
               border-radius:8px;padding:4px 9px;cursor:pointer;font-size:.87em;font-family:inherit;
               line-height:1.2;min-width:32px}
             .icon-button:hover{border-color:var(--accent)}
+            .icon-button svg{width:1em;height:1em;fill:currentColor;display:block;margin:0 auto}
             .font-larger{font-size:1em}
             .timeline{max-width:min(1200px,94vw);margin:0 auto;padding:20px clamp(10px,3vw,24px) 60px}
             .day-divider{position:sticky;top:78px;z-index:10;margin:18px 0 10px clamp(52px,8vw,74px)}
@@ -457,13 +534,20 @@ public final class SessionJournalHtmlRenderer {
               background:var(--none);border:2px solid var(--bg)}
             .dot-error{background:var(--err)} .dot-important{background:var(--imp)}
             .dot-info{background:var(--info)}
-            .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
-              padding:12px 14px;transition:transform .15s,box-shadow .15s}
+            .card{position:relative;background:var(--surface);border:1px solid var(--border);
+              border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s}
+            .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
+            .copy-btn{border:1px solid var(--border);background:var(--surface2);color:var(--muted);
+              border-radius:6px;padding:4px 6px;cursor:pointer;line-height:0;opacity:.7;
+              transition:opacity .15s,color .15s,border-color .15s}
+            .copy-btn:hover{opacity:1;color:var(--text);border-color:var(--accent)}
+            .copy-btn svg{width:1.05em;height:1.05em;fill:currentColor;display:block}
             .card[data-from]{cursor:pointer}
             .card[data-from]:hover,.card[data-from]:focus-visible{transform:translateY(-1px);
               box-shadow:0 4px 14px rgba(0,0,0,.25);outline:none;border-color:var(--accent)}
             .card.active{border-color:var(--accent)}
-            .card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+            /* Leaves room for the always-visible copy buttons in the card's top-right corner. */
+            .card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:72px}
             .card-head h3{margin:0;font-size:1em}
             .badge{border-radius:999px;padding:1px 9px;font-size:.73em;font-weight:600;color:#fff}
             .badge-error{background:var(--err)} .badge-important{background:var(--imp)}
@@ -539,7 +623,8 @@ public final class SessionJournalHtmlRenderer {
               .entry{gap:6px}
             }
             @media print{
-              .log-panel,.lightbox,.ctx-menu,.toast,.head-buttons{display:none !important}
+              .log-panel,.lightbox,.ctx-menu,.toast,.head-buttons,
+              .search-bar,.card-actions{display:none !important}
               .session-head{position:static}
               .card{break-inside:avoid}
               .excerpt{max-height:none}
@@ -647,6 +732,8 @@ public final class SessionJournalHtmlRenderer {
                 activate();
               });
               card.addEventListener("keydown",function(e){
+                // Enter on a focused copy button must not also open the log panel.
+                if(e.target!==card){return;}
                 if(e.key==="Enter"||e.key===" "){e.preventDefault();activate();}
               });
             });
@@ -843,6 +930,117 @@ public final class SessionJournalHtmlRenderer {
               if(img){copyText(img.dataset.rel||img.getAttribute("src"));}});
             items.log.addEventListener("click",function(){
               hideMenu(); copyText(logText());});
+
+            /* ---- copy buttons ------------------------------------------------------- */
+            document.querySelectorAll(".card .copy-btn").forEach(function(button){
+              button.addEventListener("click",function(event){
+                // The card itself opens the log panel on click; the button must not trigger it.
+                event.stopPropagation();
+                var card=button.closest(".card");
+                if(!card){return;}
+                if(button.dataset.copy==="image"){
+                  var img=card.querySelector("img.thumb");
+                  if(img){copyImage(img);}
+                }else{
+                  copyText(entryText(card,true));
+                }
+              });
+            });
+            document.getElementById("copyLog").addEventListener("click",function(){
+              copyText(logText());});
+
+            /* ---- journal-wide search ------------------------------------------------ */
+            var searchBar=document.getElementById("searchBar");
+            var journalSearch=document.getElementById("journalSearch");
+            var journalCount=document.getElementById("journalMatchCount");
+            var timeline=document.querySelector(".timeline");
+            var hits=[],hitIndex=-1;
+            function clearHighlights(){
+              timeline.querySelectorAll("mark.gs").forEach(function(mark){
+                var parent=mark.parentNode;
+                parent.replaceChild(document.createTextNode(mark.textContent),mark);
+                parent.normalize();
+              });
+              hits=[]; hitIndex=-1;
+            }
+            function markMatches(query){
+              // Collect first, wrap afterwards: the walker must not see its own new nodes. Wrapping
+              // text nodes (instead of rewriting innerHTML) keeps the cards' event listeners alive.
+              var walker=document.createTreeWalker(timeline,NodeFilter.SHOW_TEXT,null);
+              var targets=[],node;
+              while((node=walker.nextNode())){
+                if(node.nodeValue&&node.nodeValue.toLowerCase().indexOf(query)>=0){targets.push(node);}
+              }
+              targets.forEach(function(text){
+                var value=text.nodeValue,lower=value.toLowerCase(),index=0;
+                var fragment=document.createDocumentFragment();
+                while(true){
+                  var hit=lower.indexOf(query,index);
+                  if(hit<0){
+                    fragment.appendChild(document.createTextNode(value.substring(index)));
+                    break;
+                  }
+                  if(hit>index){
+                    fragment.appendChild(document.createTextNode(value.substring(index,hit)));
+                  }
+                  var mark=document.createElement("mark");
+                  mark.className="gs";
+                  mark.textContent=value.substring(hit,hit+query.length);
+                  fragment.appendChild(mark);
+                  index=hit+query.length;
+                }
+                text.parentNode.replaceChild(fragment,text);
+              });
+              hits=Array.prototype.slice.call(timeline.querySelectorAll("mark.gs"));
+              hitIndex=hits.length?0:-1;
+            }
+            function focusHit(scroll){
+              for(var i=0;i<hits.length;i++){hits[i].classList.toggle("cur",i===hitIndex);}
+              if(scroll&&hitIndex>=0){
+                hits[hitIndex].scrollIntoView({block:"center",behavior:"smooth"});
+              }
+              journalCount.textContent=hits.length?((hitIndex+1)+"/"+hits.length):"0/0";
+            }
+            function runJournalSearch(){
+              var query=journalSearch.value.trim().toLowerCase();
+              clearHighlights();
+              if(query){markMatches(query);}
+              focusHit(true);
+            }
+            function moveJournal(step){
+              if(!hits.length){return;}
+              hitIndex=(hitIndex+step+hits.length)%hits.length;
+              focusHit(true);
+            }
+            function toggleSearch(show){
+              searchBar.hidden=!show;
+              if(show){journalSearch.focus();journalSearch.select();}
+              else{journalSearch.value=""; clearHighlights(); journalCount.textContent="0/0";}
+            }
+            var journalSearchTimer=null;
+            journalSearch.addEventListener("input",function(){
+              if(journalSearchTimer){clearTimeout(journalSearchTimer);}
+              journalSearchTimer=setTimeout(runJournalSearch,180);
+            });
+            journalSearch.addEventListener("keydown",function(e){
+              if(e.key==="Enter"){e.preventDefault();
+                if(journalSearchTimer){clearTimeout(journalSearchTimer);runJournalSearch();}
+                else{moveJournal(e.shiftKey?-1:1);}}
+            });
+            document.getElementById("journalNext").addEventListener("click",function(){moveJournal(1);});
+            document.getElementById("journalPrev").addEventListener("click",function(){moveJournal(-1);});
+            document.getElementById("journalSearchClose").addEventListener("click",function(){
+              toggleSearch(false);});
+            document.getElementById("searchToggle").addEventListener("click",function(){
+              toggleSearch(searchBar.hidden);});
+            document.addEventListener("keydown",function(e){
+              if((e.ctrlKey||e.metaKey)&&e.key==="f"&&!panel.classList.contains("open")){
+                e.preventDefault(); toggleSearch(true);
+              }
+              if(e.key==="Escape"&&!searchBar.hidden&&document.activeElement===journalSearch){
+                toggleSearch(false);
+              }
+            });
             })();
             """;
     }

@@ -89,9 +89,18 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 - Die Seite wird standardmäßig dunkel gerendert, folgt der Hell/Dunkel-Einstellung des Systems und verfügt über eine eigene Designumschaltung.
 - Screenshots, Auszugsfenster, die Zeitleistenspalte und das Protokollfenster passen sich dem Fenster an, sodass die Seite sowohl in einem schmalen Viewer-Tab als auch im Vollbildmodus lesbar bleibt. Lange Ausschnitte scrollen in ihrem eigenen Rahmen, anstatt die Zeitleiste zu dehnen.
 
+### Suche im Journal
+
+Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (++ctrl+f++ funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, Eingabe- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Übereinstimmungszähler angezeigt; ▲ und ▼ oder ++enter++ / ++shift+enter++ springen zwischen den Treffern, ++esc++ oder ✕ schließt die Leiste und löscht die Hervorhebung.
+
+!!! note
+    Dadurch werden die Journaleinträge durchsucht. Das Roherfassungsprotokoll verfügt über eine eigene Suche im Protokollbereich, und der Journalmanager kann mit **Inhalte durchsuchen** in *allen* Journalen suchen.
+
 ### Inhalt wird kopiert
 
-Wenn Sie mit der rechten Maustaste auf die Seite klicken, wird ein Kopiermenü geöffnet, dessen Einträge davon abhängen, was Sie angeklickt haben:
+Jeder Eintrag trägt in der oberen rechten Ecke eine Schaltfläche zum Kopieren: Texteinträge kopieren den gesamten Eintrag, Screenshot-Einträge kopieren das Bild. Das Protokollfenster verfügt über dieselbe Schaltfläche für den Protokollabschnitt, den es gerade anzeigt.
+
+Wenn Sie mit der rechten Maustaste auf die Seite klicken, wird ein Kopiermenü mit gezielteren Aktionen geöffnet, je nachdem, was Sie angeklickt haben:
 
 | Aktion | Kopiert |
 |--------|--------|
