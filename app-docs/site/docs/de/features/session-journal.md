@@ -53,7 +53,9 @@ Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neues
 | Max. Terminalzeilen pro KI-Auswertung | Journalmanager **Optionen** | 100 |
 | Token-Budget für Kontextfüllung | Journalmanager **Optionen**, sichtbar, wenn die maximale Anzahl an Zeilen 0 beträgt | 130000 |
 | Rückstand auf mehrere Prompts aufteilen (Chunking) | Journalmanager **Optionen** | aus |
-| AI-Profil für Zusammenfassungen | **Einstellungen > Protokollierung > Sitzungsjournal** | Textrolle / Standardprofil |
+| AI-Profil für Zusammenfassungen | Journalmanager **Optionen** oder **Einstellungen > Protokollierung > Sitzungsjournal** | Standardprofil |
+
+Zusammenfassungen verwenden Ihr **Standard-KI-Profil**, es sei denn, Sie wählen ein dediziertes Journalprofil aus – entweder im Dialogfeld **Optionen** des Journalmanagers oder unter **Einstellungen > Protokollierung > Sitzungsjournal**. Die Rollenprofile Text/Coding werden für das Journal bewusst nicht verwendet.
 
 Wenn Sie **max Zeilen auf 0** setzen, wird auf Kontextfüllung umgeschaltet: Der Zusammenfassungstext packt so viele der neuesten Zeilen, wie in das konfigurierte Token-Budget passen. Wenn **Chunking** aktiviert ist, wird das gesamte Backlog verarbeitet und nicht nur das neueste Fenster – aufeinanderfolgende Fenster der konfigurierten Größe, jeweils eine KI-Eingabeaufforderung.
 

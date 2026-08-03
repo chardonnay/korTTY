@@ -53,7 +53,9 @@ While the journal runs, the AI summarizer periodically reads the newest capture-
 | Max. terminal lines per AI evaluation | Journal manager **Options** | 100 |
 | Token budget for context fill | Journal manager **Options**, visible when max lines is 0 | 130000 |
 | Split backlog into multiple prompts (chunking) | Journal manager **Options** | off |
-| AI profile for summaries | **Settings > Logging > Session Journal** | Text role / default profile |
+| AI profile for summaries | Journal manager **Options** or **Settings > Logging > Session Journal** | Default profile |
+
+Summaries use your **default AI profile** unless you pick a dedicated journal profile — either in the journal manager's **Options** dialog or under **Settings > Logging > Session Journal**. The Text/Coding role profiles are deliberately not used for the journal.
 
 Setting **max lines to 0** switches to context filling: the summarizer packs as many of the newest lines as fit into the configured token budget. With **chunking** enabled the whole backlog is processed instead of only the newest window — consecutive windows of the configured size, one AI prompt each.
 

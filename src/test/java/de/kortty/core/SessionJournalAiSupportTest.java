@@ -50,6 +50,34 @@ class SessionJournalAiSupportTest {
     }
 
     @Test
+    void resolveProfilePrefersJournalProfileThenDefaultNeverTextRole() {
+        de.kortty.model.AiProfile defaultProfile = profile("default-id", "Default");
+        de.kortty.model.AiProfile textProfile = profile("text-id", "Text role");
+        de.kortty.model.AiProfile journalProfile = profile("journal-id", "Journal");
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.getAiProfiles().addAll(java.util.List.of(defaultProfile, textProfile, journalProfile));
+        settings.setDefaultAiProfileId("default-id");
+        settings.setTextAiProfileId("text-id");
+
+        // Without a journal profile the DEFAULT profile wins — never the Text-role profile.
+        assertThat(SessionJournalAiSupport.resolveProfile(settings)).isSameInstanceAs(defaultProfile);
+
+        settings.setSessionJournalAiProfileId("journal-id");
+        assertThat(SessionJournalAiSupport.resolveProfile(settings)).isSameInstanceAs(journalProfile);
+
+        // A stale journal profile id falls back to the default profile.
+        settings.setSessionJournalAiProfileId("gone");
+        assertThat(SessionJournalAiSupport.resolveProfile(settings)).isSameInstanceAs(defaultProfile);
+    }
+
+    private static de.kortty.model.AiProfile profile(String id, String name) {
+        de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
+        profile.setId(id);
+        profile.setName(name);
+        return profile;
+    }
+
+    @Test
     void normalizeTitleStripsMarkupAndCapsLength() {
         assertThat(SessionJournalAiSupport.normalizeTitle("  `My   #Title*` \"quoted\"  ", "fb", 80))
             .isEqualTo("My Title quoted");

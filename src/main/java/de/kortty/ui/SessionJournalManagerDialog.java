@@ -537,6 +537,35 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         CheckBox aiTitleCheck = new CheckBox(I18n.get("journal.options.aiTitle"));
         aiTitleCheck.setSelected(settings.isSessionJournalAiTitleEnabled());
 
+        // Dedicated journal AI profile; empty = the user's default AI profile.
+        ComboBox<de.kortty.model.AiProfile> aiProfileCombo = new ComboBox<>();
+        aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiProfile profile) {
+                return profile != null && profile.getName() != null
+                    ? profile.getName()
+                    : I18n.get("settings.journal.defaultProfile");
+            }
+
+            @Override
+            public de.kortty.model.AiProfile fromString(String value) {
+                return null;
+            }
+        });
+        aiProfileCombo.getItems().add(null);
+        aiProfileCombo.setValue(null);
+        String journalProfileId = settings.getSessionJournalAiProfileId();
+        if (settings.getAiProfiles() != null) {
+            for (de.kortty.model.AiProfile profile : settings.getAiProfiles()) {
+                if (profile != null) {
+                    aiProfileCombo.getItems().add(profile);
+                    if (journalProfileId != null && journalProfileId.equals(profile.getId())) {
+                        aiProfileCombo.setValue(profile);
+                    }
+                }
+            }
+        }
+
         Label managedHint = new Label(I18n.get("journal.options.managed"));
         managedHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
         managedHint.setWrapText(true);
@@ -570,6 +599,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         grid.add(maxLinesSpinner, 1, row++);
         grid.add(tokenBudgetLabel, 0, row);
         grid.add(tokenBudgetSpinner, 1, row++);
+        grid.add(new Label(I18n.get("settings.journal.aiProfile")), 0, row);
+        grid.add(aiProfileCombo, 1, row++);
         grid.add(chunkingCheck, 0, row++, 2, 1);
         grid.add(chunkingWarning, 0, row++, 2, 1);
         grid.add(aiTitleCheck, 0, row++, 2, 1);
@@ -592,6 +623,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         if (!aiTitleCheck.isDisabled()) {
             settings.setSessionJournalAiTitleEnabled(aiTitleCheck.isSelected());
         }
+        de.kortty.model.AiProfile selectedProfile = aiProfileCombo.getValue();
+        settings.setSessionJournalAiProfileId(selectedProfile != null ? selectedProfile.getId() : null);
         try {
             app.getGlobalSettingsManager().save();
         } catch (Exception e) {

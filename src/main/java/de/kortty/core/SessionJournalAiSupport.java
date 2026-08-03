@@ -78,7 +78,11 @@ public final class SessionJournalAiSupport {
         };
     }
 
-    /** Journal profile id → TEXT workload role profile → default profile → first profile. */
+    /**
+     * Journal profile id → default profile → first profile. Deliberately NOT routed through the
+     * Text/Coding role profiles: the journal must follow the user's default AI profile unless a
+     * dedicated journal profile is selected.
+     */
     public static AiProfile resolveProfile(GlobalSettings settings) {
         if (settings == null || settings.getAiProfiles() == null || settings.getAiProfiles().isEmpty()) {
             return null;
@@ -88,12 +92,7 @@ public final class SessionJournalAiSupport {
         if (journalProfile != null) {
             return journalProfile;
         }
-        return AiProfileSelectionSupport.workloadProfile(
-            profiles,
-            de.kortty.model.AiWorkload.TEXT,
-            settings.getTextAiProfileId(),
-            settings.getCodingAiProfileId(),
-            settings.getDefaultAiProfileId());
+        return AiProfileSelectionSupport.defaultProfile(profiles, settings.getDefaultAiProfileId());
     }
 
     private static AiProfile findById(List<AiProfile> profiles, String id) {
