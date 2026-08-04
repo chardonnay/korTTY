@@ -347,11 +347,31 @@ pages:
       - src/main/java/de/kortty/ui/SessionJournalManagerDialog.java
       - src/main/java/de/kortty/ui/SessionJournalViewerDialog.java
       - src/main/java/de/kortty/ui/TerminalTab.java
+      - src/main/java/de/kortty/core/SessionJournalBundleWriter.java
+      - src/main/java/de/kortty/core/SessionJournalExportDescriptions.java
+      - src/main/java/de/kortty/core/SessionJournalExportFilter.java
+      - src/main/java/de/kortty/core/SessionJournalLogFilter.java
+      - src/main/java/de/kortty/core/SessionJournalMarkerRules.java
+      - src/main/java/de/kortty/core/SessionJournalMarkers.java
+      - src/main/java/de/kortty/core/SessionJournalPageAppearance.java
+      - src/main/java/de/kortty/core/SessionJournalTopicSelector.java
+      - src/main/java/de/kortty/model/SessionJournalMarkerDefinition.java
+      - src/main/java/de/kortty/model/SessionJournalMarkerRule.java
+      - src/main/java/de/kortty/model/SessionJournalPageScheme.java
+      - src/main/java/de/kortty/ui/SessionJournalAppearancePopover.java
+      - src/main/java/de/kortty/ui/SessionJournalExportOptionsDialog.java
+      - src/main/java/de/kortty/ui/SessionJournalMarkerDialog.java
+      - src/main/java/de/kortty/ui/SessionJournalPageSchemes.java
+      - src/main/java/de/kortty/core/SessionJournalScreenshotAnnotator.java
+      - src/main/java/de/kortty/model/SessionJournalAnnotation.java
+      - src/main/java/de/kortty/ui/SessionJournalScreenshotEditorDialog.java
     diagrams: [session-journal-flow.svg]
     screenshots:
       - journal/journal-manager.png
       - journal/journal-viewer.png
-    last_synced_ref: "7deb904"
+      - journal/journal-export-options.png
+      - journal/journal-markers.png
+    last_synced_ref: "df7fde4"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]

@@ -85,7 +85,7 @@ If something slipped through anyway, the viewer's [search and replace](#search-a
 `journal.html` is fully self-contained (no external resources) and works in the built-in viewer, in any browser, and inside the exported bundle:
 
 - A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a **live** badge. The line below the title only carries what the title does not already say, so a journal named after its endpoint states the connection once instead of three times.
-- The timeline groups entries by day; each entry carries its time, a colored marker dot/badge (red = error, amber = important, blue = info), the AI title and summary, and color-coded input (green) and output (blue) excerpts.
+- The timeline groups entries by day; each entry carries its time, a marker dot and badge in the colour you gave that marker, the AI title and summary, and color-coded input (green) and output (blue) excerpts.
 - Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (++enter++ / ++shift+enter++ also cycle matches, ++esc++ closes), and colors input and output lines differently.
 - Screenshot entries show thumbnails; clicking one opens a full-size lightbox.
 - The page renders dark by default, follows the system light/dark preference and has its own theme toggle.
@@ -97,6 +97,24 @@ The magnifier in the header opens a search bar directly under the connection det
 
 !!! note
     This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across *all* journals with **Search contents**.
+
+### Jumping between marked entries
+
+When at least one entry carries a marker, the header gains a ◆ button that opens a marker bar. Pick **All markers** or a single one, then step through the matches with ▲ and ▼ — the list wraps around, and the current entry is scrolled into view and briefly outlined. ++alt+down++ and ++alt+up++ do the same without the mouse, and ++alt+m++ toggles the bar; ++esc++ closes it.
+
+A journal without markers ships neither the button nor the bar, so the header stays as it was.
+
+### Picking a time range with the mouse
+
+Inside korTTY the header also carries a ⇥ button that switches the timeline into range mode. Click the first entry, then the last one — everything between them is highlighted and the bar shows the span and how many entries it covers. The order does not matter: clicking the later entry first works just as well.
+
+- **Add another window** puts the current selection aside and starts a new one, so several windows can be collected in one pass.
+- **Use for export** opens the export dialog with those windows already filled in.
+- **Cancel** or ++esc++ leaves range mode.
+
+While range mode is on, clicking an entry selects instead of opening the log panel. The button is absent in an external browser, because exporting needs the app.
+
+In the edit mode's entry table the same thing is available without the timeline: select several rows, right-click and choose **Use selection as time window**.
 
 ### Copying content
 
@@ -115,9 +133,20 @@ Right-clicking the page opens a copy menu with more targeted actions, depending 
 
 Inside korTTY the copy actions use the app's clipboard, so images land on the system clipboard ready to paste. In an external browser text still copies normally; copying an image may fall back to its path, because browsers block reading local image data from a `file://` page.
 
-### Font size
+### Appearance
 
 The **A−**, **A** and **A+** buttons in the page header scale the whole page between 70 % and 250 %. korTTY remembers the size and applies it to every journal page it renders afterwards, so a page that regenerates (a new AI summary, an edited marker) comes back at the size you chose. Opened standalone in a browser the page remembers the size per browser instead.
+
+The viewer's **Appearance** button opens a small panel with the rest:
+
+| Setting | Effect |
+|---------|--------|
+| **Colour scheme** | *Automatic* keeps the page's own dark/light pair and follows the operating system. *Follow the terminal theme* derives the page colours from your terminal's background and foreground. The remaining entries (Paper, Midnight, Ocean, Forest, Retrowave, High contrast) are fixed palettes. |
+| **Text font** | The font for headings, summaries and notes. *(default)* restores the page's own stack. |
+| **Monospace font** | The font for the input/output excerpts and the log panel. |
+| **Text size** | The same 70–250 % as the A−/A/A+ buttons. |
+
+Changes preview immediately in the viewer and are saved for every journal page. With a fixed scheme the page's ◐ toggle stays visible but is disabled, since the scheme already decides the colours.
 
 ## Managing journals
 
@@ -135,7 +164,65 @@ The **A−**, **A** and **A+** buttons in the page header scale the whole page b
 
 ![Session journal viewer](../assets/screenshots/journal/journal-viewer.png)
 
-The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table next to a form with the entry's **Title**, **Summary**, a marker choice (**None / Info / Important / Error**) and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI.
+The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. **Open in browser** hands the page to your system browser. **Edit** splits the view: an entry table next to a form with the entry's **Title**, **Summary**, a marker picker and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI or by a rule.
+
+The quickest way to mark a single entry is the timeline itself: right-click it and choose **Set marker…**.
+
+### Screenshot notes and annotations
+
+A screenshot on its own rarely says why it was taken. Right-clicking one — the thumbnail in the timeline or the full-size lightbox — offers two actions of its own:
+
+| Action | What it does |
+|--------|--------------|
+| **Edit screenshot…** | Opens the editor described below |
+| **Export screenshot…** | Saves the picture, with its marks, to a file you choose |
+
+Both also sit in the context menu of the edit mode's entry table, and double-clicking a screenshot row opens the editor directly. They only appear inside korTTY: a standalone page in a browser can neither rewrite the journal nor reach a file dialog.
+
+Inside korTTY the journal's **title** is editable from the page too: double-click it, or right-click it and choose **Rename journal…** — the same rename the manager offers, subject to the same organisation policy.
+
+The editor itself:
+
+| Tool | What it does |
+|------|--------------|
+| **Pen** | A thick freehand stroke for circling or underlining something |
+| **Box** | A rectangle you drag to whatever size you need |
+| **Unreadable** | A rectangle whose contents are coarsened into blocks until they cannot be read — for hiding a value while leaving the surrounding context in place. **Width** sets how coarse the blocks are. |
+| **Text** | A label with a dark halo, so it stays readable on a light terminal background |
+
+**Colour** applies to the next mark (red to start with), **Width** sets the pen thickness and scales the text labels with it. **Undo** removes the last mark, **Remove all** clears them. Below the picture sits a five-line **Note** field for the remark that belongs to the screenshot; it is the same note the entry carries elsewhere in the journal.
+
+Marks are stored as data and are re-editable at any time — reopening the editor shows them again rather than a flattened picture. The annotated version becomes the image the timeline, the PDF, the Markdown export and the HTML bundle all show; the unmarked capture stays in the journal folder as `shot-000004.orig.png`.
+
+!!! warning
+    Annotation draws **on top of** the picture — **Unreadable** included. It is not redaction. The unmarked capture remains on this machine inside the journal folder as `shot-000004.orig.png`. It is never copied into an export, so a box you drew over something sensitive does hold in an exported document, but anyone with access to the journal folder itself can still open the original. To remove something from a journal for good, use **Search and replace** or the redaction rules — and delete the `.orig.png` by hand if a screenshot is the problem.
+
+### Markers
+
+![Managing journal markers](../assets/screenshots/journal/journal-markers.png)
+
+Beyond the four built-in markers (**None**, **Info**, **Important**, **Error**) you can define your own — a name like *Software installation* and a colour of your choice. **Manage markers…** next to the marker picker opens the editor:
+
+- **Colour**, **Name** and **Counts as**. The last one decides which built-in value the marker degrades to, which is what keeps a journal readable in an older korTTY and what makes an *Outage* marker count towards the error total.
+- **Add**, **Duplicate** and **Delete**. Deleting also removes the rules that pointed at that marker, so no rule is left silently doing nothing.
+
+Markers live in your settings and are available in every journal. A marker you actually use is additionally stored inside that journal, so an exported or shared journal renders in the right colours on its own — and deleting a marker later never changes how an existing journal looks.
+
+#### Automatic markers
+
+The lower half of the same dialog holds rules that set markers on their own. Switch on **Set markers automatically in new entries**, then add a rule per search term:
+
+| Column | Meaning |
+|--------|---------|
+| **Active** | Whether the rule is applied at all |
+| **Marker** | Which marker to set |
+| **Search term** | A word or a whole sentence; with **Regex** off it is matched literally |
+| **Regex** | Treat the search term as a regular expression |
+| **Ignore case** | On by default |
+
+Rules are checked from top to bottom and the first match wins — use ▲/▼ to order them. They look at the entry's title, summary, note and the input/output excerpts, never at the raw capture log, and they run after the redaction rules, so a redacted secret can never trigger one.
+
+A marker **you** set by hand is never overwritten; a marker the AI suggested may be. **Apply now** runs the rules over the journal that is currently open and reports how many entries changed — that also works while the session is still running. Tick **Also overwrite markers set by hand** only if you really want your own choices replaced.
 
 ### Search and replace
 
@@ -174,9 +261,40 @@ The **Export** menu in the manager and the viewer offers three formats:
 
 PDF and Markdown ask whether screenshots should be included.
 
+### Exporting only part of a journal
+
+![Journal export options](../assets/screenshots/journal/journal-export-options.png)
+
+The export dialog can narrow down what actually goes into the document. Every filter is optional, and the footer keeps a live count of how many entries would be exported.
+
+**Time windows.** Add as many as you like; an entry only has to fall into *one* of them, so `08:00–12:00` plus `14:00–16:00` exports both blocks of a day. Leaving the dates empty applies the window to every day the journal spans, and a window whose start is later than its end runs across midnight.
+
+The times may be approximate — that is the point:
+
+- The input is forgiving: `8`, `08`, `8:00`, `8.30` and `0800` all work.
+- Each window is widened by the **Tolerance** (± 5 minutes by default, set it to 0 for exact boundaries).
+- An entry summarizes everything since the previous one, so an entry written at 12:03 that covers 11:58 onwards still belongs to a window ending at 12:00. Without that, the entry on the boundary — usually the interesting one — would fall out of every window.
+
+**Topic.** A word or a sentence, matched against titles, summaries, notes and excerpts; **Regular expression** switches to regex matching. **Let the AI choose the entries** hands the topic and the entries to the AI instead, which finds *installing Apache* even where none of those words appear literally. It needs an AI profile and is greyed out otherwise; if the model is unreachable or answers with nonsense, the export falls back to the text match and says so rather than failing.
+
+**Markers.** All entries, only marked ones, or only the markers you tick. The list shows the markers that journal actually uses.
+
+### Filtered HTML bundles
+
+Without a filter the HTML bundle stays the verbatim copy it always was. With one it is **rebuilt**:
+
+- `journal.xml` holds only the exported entries, and the marker definitions travel with them.
+- The capture log is rewritten to the sequence ranges those entries reference, clipped to the requested time windows. This is not optional — a bundle is the artefact you hand to someone else, and twelve entries next to eight hours of terminal output would be exactly the leak the filter is meant to prevent.
+- Only the screenshots still referenced are copied, and `journal.html` is re-rendered so its deep links resolve.
+- The header counts are recalculated to match what the bundle shows.
+
+Every filtered export — PDF, Markdown and bundle alike — carries an **Excerpt** banner naming the range and the entry count, so nobody mistakes it for the complete session.
+
 ### Exporting several journals
 
 With more than one journal selected, the export writes a single zip archive that keeps each journal separate: one PDF or Markdown document per journal, or one folder per journal for the HTML bundle. Names are taken from the journal titles, with a numeric suffix if two titles collide.
+
+Filters apply to every selected journal. A journal in which the filter matches nothing is skipped and reported afterwards, so one empty result cannot kill a ten-journal export; only if *every* journal comes out empty does the export refuse — before writing a file.
 
 Every archive — including the HTML bundle of a single journal — can be **protected with a password**. The option sits in the export dialog and encrypts the archive with **AES-256**; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.
 

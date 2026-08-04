@@ -195,12 +195,23 @@ public class KorTTYApplication extends Application {
         sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
         sessionJournalHtmlRenderer.attachToServiceChanges();
-        // A regenerated page keeps the font size the user set with the page's A-/A+ buttons.
-        sessionJournalHtmlRenderer.setFontScaleSupplier(() -> {
+        // A regenerated page keeps the look the user chose: the font size from the page's A-/A+
+        // buttons and the scheme and fonts from the viewer's appearance popover.
+        sessionJournalHtmlRenderer.setAppearanceSupplier(() -> {
             GlobalSettings journalSettings =
                 globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
-            return journalSettings != null ? journalSettings.getSessionJournalFontScalePercent() : 100;
+            if (journalSettings == null) {
+                return de.kortty.core.SessionJournalPageAppearance.defaults();
+            }
+            return new de.kortty.core.SessionJournalPageAppearance(
+                journalSettings.getSessionJournalPageSchemeId(),
+                journalSettings.getSessionJournalPageUiFont(),
+                journalSettings.getSessionJournalPageMonoFont(),
+                journalSettings.getSessionJournalFontScalePercent(),
+                journalSettings.getSessionJournalPageTheme());
         });
+        sessionJournalHtmlRenderer.setSchemeResolver(
+            schemeId -> de.kortty.ui.SessionJournalPageSchemes.resolve(schemeId, this));
         sessionJournalHtmlRenderer.setBrandingSupplier(() -> de.kortty.core.ExportBranding.fromSettings(
             globalSettingsManager != null ? globalSettingsManager.getSettings() : null));
         telemetryService = new TelemetryService(globalSettingsManager, configDir);

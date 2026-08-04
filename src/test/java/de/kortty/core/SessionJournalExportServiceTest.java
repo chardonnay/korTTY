@@ -42,6 +42,9 @@ class SessionJournalExportServiceTest {
         settings = new GlobalSettings();
         settings.setSessionJournalStoragePath(tempDir.resolve("journals").toString());
         service = new SessionJournalService();
+        // The custom marker must be resolvable so appendEntry can snapshot it into the journal.
+        settings.getSessionJournalMarkers().add(DEPLOY);
+        service.setSettingsSupplier(() -> settings);
         renderer = new SessionJournalHtmlRenderer(service);
         exportService = new SessionJournalExportService(service, renderer);
         journalDir = buildSampleJournal();
@@ -158,7 +161,9 @@ class SessionJournalExportServiceTest {
         assertThat(md).contains("**Connection:** daniel@192.168.1.50:22\n");
         assertThat(md).doesNotContain("Web01 (daniel@192.168.1.50:22)");
         assertThat(md).contains("Checked nginx status");
-        assertThat(md).contains("`[IMPORTANT]`");
+        // The badge now carries the marker's display name, so a custom marker exports under its
+        // own name; built-ins keep going through the same i18n key the page and the PDF use.
+        assertThat(md).contains("`[" + de.kortty.ui.I18n.get("journal.marker.important") + "]`");
         assertThat(md).contains("```console\n$ systemctl status nginx\n```");
         assertThat(md).contains("](my-journal-files/");
         Path assetDir = tempDir.resolve("my-journal-files");
@@ -318,5 +323,270 @@ class SessionJournalExportServiceTest {
             + de.kortty.model.SessionJournalLogFormat.DEFAULT.getExtension());
         assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
         assertThat(names.stream().anyMatch(n -> n.startsWith("screenshots/") && n.endsWith(".png"))).isTrue();
+    }
+
+    // ==== filtered exports ======================================================================
+
+    private static final de.kortty.model.SessionJournalMarkerDefinition DEPLOY =
+        new de.kortty.model.SessionJournalMarkerDefinition("deploy", "Deployment", "#7c3aed",
+            false, SessionJournalMarker.IMPORTANT);
+
+    /**
+     * A closed journal with four log lines and two entries covering seq 1-2 and 3-4, so a filter
+     * that keeps one entry must visibly trim the log.
+     */
+    private Path buildTwoPartJournal() throws Exception {
+        ServerConnection connection = new ServerConnection("Web02", "192.168.1.51", 22, "daniel");
+        connection.getSessionJournalConfig().setEnabled(true);
+        SessionJournalSession session = service.createSession(
+            connection, "tab-abcdef012345", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("morning-output\n");
+        session.appendInputLine("morning-command");
+        session.appendOutputChunk("afternoon-output\n");
+        session.appendInputLine("afternoon-command");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalEntry morning = new SessionJournalEntry();
+        morning.setKind(SessionJournalEntryKind.AI_SUMMARY);
+        morning.setTitle("Morning work");
+        morning.setMarker(SessionJournalMarker.INFO);
+        morning.setLogStartSeq(1L);
+        morning.setLogEndSeq(2L);
+        service.appendEntry(dir, morning);
+
+        SessionJournalEntry afternoon = new SessionJournalEntry();
+        afternoon.setKind(SessionJournalEntryKind.AI_SUMMARY);
+        afternoon.setTitle("Afternoon deployment");
+        SessionJournalMarkers.apply(afternoon, DEPLOY);
+        afternoon.setLogStartSeq(3L);
+        afternoon.setLogEndSeq(4L);
+        service.appendEntry(dir, afternoon);
+        return dir;
+    }
+
+    private static SessionJournalExportService.Options markerOptions(String... markerIds) {
+        SessionJournalExportFilter filter = new SessionJournalExportFilter(
+            List.of(), 0, null, false, false,
+            SessionJournalExportFilter.MarkerMode.SELECTED, java.util.Set.of(markerIds),
+            java.time.ZoneId.systemDefault());
+        return new SessionJournalExportService.Options(true, filter);
+    }
+
+    private static SessionJournalExportService.Options windowOptions(
+            java.time.LocalDate from, java.time.LocalDate to) {
+        SessionJournalExportFilter filter = SessionJournalExportFilter.none()
+            .withWindows(List.of(SessionJournalExportFilter.TimeWindow.ofDates(from, to)));
+        return new SessionJournalExportService.Options(true, filter);
+    }
+
+    @Test
+    void pdfExportHonoursTheMarkerFilterAndAnnouncesTheExcerpt() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("filtered.pdf");
+
+        var result = exportService.export(
+            SessionJournalExportService.Format.PDF, dir, target, markerOptions("deploy"));
+
+        assertThat(result.exportedEntries()).isEqualTo(1);
+        assertThat(result.totalEntries()).isEqualTo(2);
+        assertThat(result.filtered()).isTrue();
+        try (PDDocument pdf = Loader.loadPDF(target.toFile())) {
+            String text = new PDFTextStripper().getText(pdf);
+            assertThat(text).contains("Afternoon deployment");
+            assertThat(text).doesNotContain("Morning work");
+            // A filtered document must say that it is one, and name the marker rather than its id.
+            assertThat(text).contains("Markers: Deployment · 1 of 2 entries");
+            // The badge itself is drawn in caps, like every other marker badge.
+            assertThat(text).contains("DEPLOYMENT");
+        }
+    }
+
+    @Test
+    void markdownExportHonoursTheMarkerFilter() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("filtered.md");
+
+        exportService.export(SessionJournalExportService.Format.MARKDOWN, dir, target,
+            markerOptions("deploy"));
+
+        String md = Files.readString(target, StandardCharsets.UTF_8);
+        assertThat(md).contains("Afternoon deployment");
+        assertThat(md).doesNotContain("Morning work");
+        // The custom marker exports under its own name, not under the legacy enum value.
+        assertThat(md).contains("`[Deployment]`");
+    }
+
+    @Test
+    void aFilterThatMatchesNothingFailsBeforeWritingAnyFile() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("empty.pdf");
+
+        try {
+            exportService.export(SessionJournalExportService.Format.PDF, dir, target,
+                markerOptions("does-not-exist"));
+            throw new AssertionError("expected an EmptyExportSelectionException");
+        } catch (SessionJournalExportService.EmptyExportSelectionException expected) {
+            assertThat(Files.exists(target)).isFalse();
+        }
+    }
+
+    @Test
+    void anEmptyJournalWithoutFiltersStillExports() throws Exception {
+        ServerConnection connection = new ServerConnection("Empty", "10.0.0.1", 22, "daniel");
+        connection.getSessionJournalConfig().setEnabled(true);
+        SessionJournalSession session = service.createSession(
+            connection, "tab-000000000000", settings, List.of(), false);
+        session.close();
+        Path target = tempDir.resolve("empty-ok.md");
+
+        exportService.export(SessionJournalExportService.Format.MARKDOWN, session.getDirectory(),
+            target, SessionJournalExportService.Options.defaults());
+
+        assertThat(Files.exists(target)).isTrue();
+    }
+
+    @Test
+    void anUnfilteredBundleStaysTheVerbatimCopyItAlwaysWas() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("verbatim.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            SessionJournalExportService.Options.defaults());
+
+        String log = readZipEntry(target, SessionJournalLogReader.BASE_FILE_NAME + ".json");
+        assertThat(log).contains("morning-command");
+        assertThat(log).contains("afternoon-command");
+        assertThat(readZipEntry(target, "journal.xml")).contains("Morning work");
+    }
+
+    @Test
+    void aFilteredBundleTrimsTheLogToWhatTheExportedEntriesReference() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("filtered-bundle.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            markerOptions("deploy"));
+
+        String log = readZipEntry(target, SessionJournalLogReader.BASE_FILE_NAME + ".json");
+        // Only the sequence range of the surviving entry survives with it.
+        assertThat(log).contains("afternoon-command");
+        assertThat(log).contains("afternoon-output");
+        assertThat(log).doesNotContain("morning-command");
+        assertThat(log).doesNotContain("morning-output");
+
+        String xml = readZipEntry(target, "journal.xml");
+        assertThat(xml).contains("Afternoon deployment");
+        assertThat(xml).doesNotContain("Morning work");
+        // The marker definition travels with the bundle so it renders standalone.
+        assertThat(xml).contains("#7c3aed");
+
+        String html = readZipEntry(target, "journal.html");
+        assertThat(html).contains("Afternoon deployment");
+        assertThat(html).doesNotContain("Morning work");
+        assertThat(html).contains("excerpt-banner");
+    }
+
+    @Test
+    void aFilteredBundleRecomputesTheHeaderCountsSoTheyMatchWhatItShows() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("counted-bundle.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            markerOptions("deploy"));
+
+        String xml = readZipEntry(target, "journal.xml");
+        // One input line survives the trim, so the command count must say one, not two.
+        assertThat(xml).contains("<commandCount>1</commandCount>");
+    }
+
+    @Test
+    void aFilteredBundleKeepsALogPartThatStillHasContentAndDropsTheRest() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("kept-part.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            markerOptions("deploy"));
+
+        List<String> names = zipEntryNames(target, null);
+        assertThat(names.stream().filter(n -> n.startsWith(SessionJournalLogReader.BASE_FILE_NAME)).count())
+            .isEqualTo(1);
+        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
+    }
+
+    @Test
+    void theRewrittenLogIsStillReadableByTheLogReader() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path target = tempDir.resolve("readable-bundle.zip");
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            markerOptions("deploy"));
+
+        Path extracted = tempDir.resolve("extracted-bundle");
+        try (net.lingala.zip4j.ZipFile zip = new net.lingala.zip4j.ZipFile(target.toFile())) {
+            zip.extractAll(extracted.toString());
+        }
+        List<SessionJournalLogEntry> lines = SessionJournalLogReader.readAfter(extracted, 0);
+
+        assertThat(lines).hasSize(2);
+        assertThat(lines.stream().map(SessionJournalLogEntry::seq).toList()).containsExactly(3L, 4L);
+    }
+
+    @Test
+    void anArchiveSkipsJournalsWhereTheFilterMatchesNothingAndReportsThem() throws Exception {
+        Path withDeploy = buildTwoPartJournal();
+        Path withoutDeploy = buildSampleJournal();
+        Path target = tempDir.resolve("mixed.zip");
+
+        var result = exportService.exportArchive(SessionJournalExportService.Format.MARKDOWN,
+            List.of(withDeploy, withoutDeploy), target, markerOptions("deploy"), null);
+
+        assertThat(result.skippedJournals()).containsExactly(withoutDeploy);
+        assertThat(zipEntryNames(target, null)).hasSize(1);
+    }
+
+    @Test
+    void anArchiveFailsOnlyWhenEveryJournalCameOutEmpty() throws Exception {
+        Path target = tempDir.resolve("all-empty.zip");
+
+        try {
+            exportService.exportArchive(SessionJournalExportService.Format.MARKDOWN,
+                List.of(journalDir), target, markerOptions("does-not-exist"), null);
+            throw new AssertionError("expected an EmptyExportSelectionException");
+        } catch (SessionJournalExportService.EmptyExportSelectionException expected) {
+            assertThat(Files.exists(target)).isFalse();
+        }
+    }
+
+    @Test
+    void previewCountsWithoutWritingAnythingOrCallingTheAi() throws Exception {
+        Path dir = buildTwoPartJournal();
+
+        var preview = exportService.preview(dir, markerOptions("deploy"));
+
+        assertThat(preview.totalEntries()).isEqualTo(2);
+        assertThat(preview.keptEntries()).isEqualTo(1);
+    }
+
+    @Test
+    void aDateWindowCoveringTodayKeepsEverythingAndOneInThePastKeepsNothing() throws Exception {
+        Path dir = buildTwoPartJournal();
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        assertThat(exportService.preview(dir, windowOptions(today, today)).keptEntries()).isEqualTo(2);
+        assertThat(exportService.preview(dir,
+            windowOptions(today.minusYears(1), today.minusYears(1))).keptEntries()).isEqualTo(0);
+    }
+
+    private static String readZipEntry(Path archive, String entryName) throws Exception {
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive.toFile())) {
+            ZipEntry entry = zip.getEntry(entryName);
+            if (entry == null) {
+                throw new AssertionError("no entry " + entryName + " in " + archive.getFileName());
+            }
+            try (var in = zip.getInputStream(entry)) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
     }
 }

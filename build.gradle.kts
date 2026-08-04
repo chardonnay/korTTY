@@ -2479,6 +2479,14 @@ tasks.register<JavaExec>("monacoWebViewSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("sessionJournalPageWebViewSmoke") {
+    group = "verification"
+    description = "Drives the journal page's context menu inside the real JavaFX WebView."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionJournalPageWebViewSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("webFormatterSmoke") {
     group = "verification"
     description = "Formats web and SQL samples through the bundled Node-free JavaFX WebView backend."
@@ -2766,6 +2774,14 @@ tasks.register<JavaExec>("generateAiSkillsTabScreenshot") {
     description = "Renders the AI Manager > AI Skills screenshot for the manual via Node.snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiSkillsTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateSessionJournalScreenshots") {
+    group = "build"
+    description = "Renders the journal export-options and marker screenshots for the manual."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionJournalScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

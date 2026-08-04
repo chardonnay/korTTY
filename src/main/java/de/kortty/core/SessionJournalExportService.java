@@ -81,10 +81,66 @@ public final class SessionJournalExportService {
         }
     }
 
-    /** Export options; screenshots apply to PDF (embedding) and Markdown (sibling copies). */
-    public record Options(boolean includeScreenshots) {
+    /**
+     * Export options; screenshots apply to PDF (embedding) and Markdown (sibling copies). The
+     * filter selects which entries are exported and, for the HTML bundle, how far the capture log
+     * is trimmed. The single-argument constructor keeps every existing call site compiling.
+     */
+    public record Options(boolean includeScreenshots, SessionJournalExportFilter filter) {
+
+        public Options {
+            filter = filter != null ? filter : SessionJournalExportFilter.none();
+        }
+
+        public Options(boolean includeScreenshots) {
+            this(includeScreenshots, null);
+        }
+
         public static Options defaults() {
             return new Options(true);
+        }
+
+        public boolean hasFilters() {
+            return filter.isActive();
+        }
+    }
+
+    /**
+     * What an export produced. Callers may ignore it — the return type only changed from
+     * {@code void}, which is source compatible — but it is how a degraded AI topic selection and
+     * skipped journals become visible instead of silent.
+     */
+    public record ExportResult(int exportedEntries, int totalEntries, boolean filtered,
+                               boolean aiSelectionUsed, String aiSelectionWarning,
+                               List<Path> skippedJournals) {
+    }
+
+    /**
+     * Thrown before a single byte is written when an active filter selects nothing. An empty
+     * journal with no filter still exports as an empty journal, exactly as before — this is only
+     * about a filter the user got wrong.
+     */
+    public static class EmptyExportSelectionException extends IOException {
+        public EmptyExportSelectionException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Provenance line for a filtered export. A document that shows 12 of 120 entries must say so,
+     * otherwise its reader takes it for the complete session.
+     */
+    public record ExportExcerpt(String rangeText, int exportedEntries, int totalEntries) {
+
+        /** The banner text, e.g. "Excerpt: 08:00–12:00 · 12 of 120 entries". */
+        public String describe() {
+            String counts = i18n("journal.export.excerpt.counts", "{0} of {1} entries")
+                .replace("{0}", String.valueOf(exportedEntries))
+                .replace("{1}", String.valueOf(totalEntries));
+            String label = i18n("journal.export.excerpt", "Excerpt");
+            return rangeText == null || rangeText.isBlank()
+                ? label + ": " + counts
+                : label + ": " + rangeText + " · " + counts;
         }
     }
 
@@ -110,6 +166,9 @@ public final class SessionJournalExportService {
     private final SessionJournalHtmlRenderer renderer;
     private final ExportBranding branding;
 
+    /** Test seam; null means "resolve the application invoker when the AI is actually needed". */
+    private SessionJournalTopicSelector topicSelector;
+
     public SessionJournalExportService(SessionJournalService service, SessionJournalHtmlRenderer renderer) {
         this(service, renderer, resolveBranding());
     }
@@ -119,6 +178,11 @@ public final class SessionJournalExportService {
         this.service = service;
         this.renderer = renderer;
         this.branding = branding != null ? branding : ExportBranding.defaults();
+    }
+
+    /** Test seam: injects the AI topic selector instead of resolving the application invoker. */
+    void setTopicSelector(SessionJournalTopicSelector topicSelector) {
+        this.topicSelector = topicSelector;
     }
 
     private static ExportBranding resolveBranding() {
@@ -132,23 +196,80 @@ public final class SessionJournalExportService {
     }
 
     /** Exports the journal in {@code journalDir} to {@code target}. */
-    public void export(Format format, Path journalDir, Path target, Options options) throws IOException {
-        export(format, journalDir, target, options, null);
+    public ExportResult export(Format format, Path journalDir, Path target, Options options) throws IOException {
+        return export(format, journalDir, target, options, null);
     }
 
     /**
      * Exports one journal. A {@code password} encrypts the produced archive (HTML bundle only) with
      * AES-256; it is ignored for the single-file formats.
      */
-    public void export(Format format, Path journalDir, Path target, Options options, char[] password)
+    public ExportResult export(Format format, Path journalDir, Path target, Options options, char[] password)
             throws IOException {
         SessionJournalDocument document = service.loadDocument(journalDir);
         Options effective = options != null ? options : Options.defaults();
-        switch (format) {
-            case PDF -> writePdf(target, document, journalDir, effective);
-            case MARKDOWN -> writeMarkdown(target, document, journalDir, effective);
-            case HTML_BUNDLE -> writeBundle(target, journalDir, password);
+        Selection selection = select(document, effective);
+        if (effective.hasFilters() && selection.entries().isEmpty()) {
+            throw new EmptyExportSelectionException(i18n("journal.export.empty",
+                "No journal entries match the selected filters."));
         }
+        ExportExcerpt excerpt = excerptFor(effective, selection, document);
+        switch (format) {
+            case PDF -> writePdf(target, document, journalDir, effective, selection.entries(), excerpt);
+            case MARKDOWN -> writeMarkdown(target, document, journalDir, effective, selection.entries(), excerpt);
+            case HTML_BUNDLE -> writeBundle(target, journalDir, document, effective, selection, excerpt, password);
+        }
+        return new ExportResult(selection.entries().size(), selection.result().totalEntries(),
+            effective.hasFilters(), selection.aiUsed(), selection.warning(), List.of());
+    }
+
+    /** The filtered entry set plus what the AI step did, if anything. */
+    private record Selection(SessionJournalExportFilter.Result result, List<SessionJournalEntry> entries,
+                             boolean aiUsed, String warning) {
+    }
+
+    /**
+     * Applies the filter and, when the topic is delegated to the AI, narrows the survivors further.
+     * A failing or unavailable AI degrades to the deterministic text match and reports a warning —
+     * the user has already picked a file and waited, and an export that dies because a local model
+     * is down is strictly worse than one that says how it was filtered.
+     */
+    private Selection select(SessionJournalDocument document, Options options) {
+        SessionJournalExportFilter filter = options.filter();
+        SessionJournalExportFilter.Result result = SessionJournalExportFilter.apply(document, filter);
+        if (!filter.hasTopicFilter() || !filter.topicAi()) {
+            return new Selection(result, result.entries(), false, null);
+        }
+        SessionJournalTopicSelector selector = topicSelector != null
+            ? topicSelector : SessionJournalTopicSelector.application();
+        SessionJournalTopicSelector.Selection ai = selector.select(
+            result.entries(), filter.topic(), de.kortty.core.LanguageManager.getInstance().getCurrentLanguageCode());
+        if (!ai.aiUsed()) {
+            List<SessionJournalEntry> textMatched = result.entries().stream()
+                .filter(filter::matchesTopicText).toList();
+            return new Selection(result, textMatched, false, ai.warning());
+        }
+        return new Selection(result, SessionJournalExportFilter.byIds(result.entries(), ai.entryIds()),
+            true, ai.warning());
+    }
+
+    private static ExportExcerpt excerptFor(Options options, Selection selection,
+                                            SessionJournalDocument document) {
+        if (!options.hasFilters()) {
+            return null;
+        }
+        return new ExportExcerpt(SessionJournalExportDescriptions.describe(options.filter(), document),
+            selection.entries().size(), selection.result().totalEntries());
+    }
+
+    /**
+     * How many entries an export would contain right now. Text only — a preview must be instant
+     * and free, so this never calls a model even when the topic is delegated to the AI.
+     */
+    public SessionJournalExportFilter.Result preview(Path journalDir, Options options) throws IOException {
+        SessionJournalDocument document = service.loadDocument(journalDir);
+        return SessionJournalExportFilter.apply(document,
+            options != null ? options.filter() : SessionJournalExportFilter.none());
     }
 
     /**
@@ -157,23 +278,47 @@ public final class SessionJournalExportService {
      * encrypts the archive with AES-256 — journals hold terminal transcripts, so an unprotected
      * archive is a deliberate choice the caller makes.
      */
-    public void exportArchive(Format format, List<Path> journalDirs, Path targetZip, Options options,
-                              char[] password) throws IOException {
+    public ExportResult exportArchive(Format format, List<Path> journalDirs, Path targetZip, Options options,
+                                      char[] password) throws IOException {
         Options effective = options != null ? options : Options.defaults();
         Path stagingDir = Files.createTempDirectory("kortty-journal-export");
         try {
             Set<String> usedNames = new HashSet<>();
+            List<Path> skipped = new ArrayList<>();
+            int exported = 0;
+            int total = 0;
+            boolean aiUsed = false;
+            String warning = null;
             for (Path journalDir : journalDirs) {
                 SessionJournalDocument document = service.loadDocument(journalDir);
+                Selection selection = select(document, effective);
+                total += selection.result().totalEntries();
+                // One empty journal must not kill a ten-journal export; it is reported instead.
+                if (effective.hasFilters() && selection.entries().isEmpty()) {
+                    skipped.add(journalDir);
+                    continue;
+                }
+                exported += selection.entries().size();
+                aiUsed |= selection.aiUsed();
+                warning = warning != null ? warning : selection.warning();
+                ExportExcerpt excerpt = excerptFor(effective, selection, document);
                 String name = uniqueName(usedNames, document.getMeta().getTitle(), journalDir);
                 switch (format) {
-                    case PDF -> writePdf(stagingDir.resolve(name + ".pdf"), document, journalDir, effective);
-                    case MARKDOWN -> writeMarkdown(stagingDir.resolve(name + ".md"), document, journalDir, effective);
-                    case HTML_BUNDLE -> copyBundleInto(journalDir, stagingDir.resolve(name));
+                    case PDF -> writePdf(stagingDir.resolve(name + ".pdf"), document, journalDir, effective,
+                        selection.entries(), excerpt);
+                    case MARKDOWN -> writeMarkdown(stagingDir.resolve(name + ".md"), document, journalDir,
+                        effective, selection.entries(), excerpt);
+                    case HTML_BUNDLE -> writeBundleInto(stagingDir.resolve(name), journalDir, document,
+                        effective, selection, excerpt);
                 }
+            }
+            if (effective.hasFilters() && skipped.size() == journalDirs.size()) {
+                throw new EmptyExportSelectionException(i18n("journal.export.empty",
+                    "No journal entries match the selected filters."));
             }
             Files.deleteIfExists(targetZip);
             zipDirectoryContents(stagingDir, targetZip, password);
+            return new ExportResult(exported, total, effective.hasFilters(), aiUsed, warning, List.copyOf(skipped));
         } finally {
             deleteRecursively(stagingDir);
         }
@@ -190,17 +335,10 @@ public final class SessionJournalExportService {
         return candidate;
     }
 
-    private static List<SessionJournalEntry> sortedEntries(SessionJournalDocument document) {
-        List<SessionJournalEntry> entries = new ArrayList<>(document.getEntries());
-        entries.sort(Comparator.comparing(SessionJournalEntry::getCreatedAt,
-            Comparator.nullsLast(Comparator.naturalOrder())));
-        return entries;
-    }
-
     // ==== Markdown ==============================================================================
 
-    private void writeMarkdown(Path target, SessionJournalDocument document, Path journalDir, Options options)
-            throws IOException {
+    private void writeMarkdown(Path target, SessionJournalDocument document, Path journalDir, Options options,
+                               List<SessionJournalEntry> entries, ExportExcerpt excerpt) throws IOException {
         SessionJournalMeta meta = document.getMeta();
         String assetDirName = stripExtension(target.getFileName().toString()) + "-files";
         Path assetDir = target.resolveSibling(assetDirName);
@@ -227,10 +365,13 @@ public final class SessionJournalExportService {
             md.append("- **").append(i18n("journal.md.description", "Description")).append(":** ")
                 .append(meta.getDescription().replace('\n', ' ')).append('\n');
         }
+        if (excerpt != null) {
+            md.append("- **").append(excerpt.describe()).append("**\n");
+        }
         md.append('\n');
 
         LocalDate currentDay = null;
-        for (SessionJournalEntry entry : sortedEntries(document)) {
+        for (SessionJournalEntry entry : entries) {
             OffsetDateTime createdAt = entry.getCreatedAt();
             LocalDate day = createdAt != null ? createdAt.atZoneSameInstant(zone).toLocalDate() : null;
             if (day != null && !day.equals(currentDay)) {
@@ -242,8 +383,10 @@ public final class SessionJournalExportService {
             if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
                 md.append(" — ").append(entry.getTitle());
             }
-            if (entry.getMarker() != SessionJournalMarker.NONE) {
-                md.append("  `[").append(entry.getMarker().name()).append("]`");
+            de.kortty.model.SessionJournalMarkerDefinition marker =
+                SessionJournalMarkers.resolve(entry, document);
+            if (!marker.isNone()) {
+                md.append("  `[").append(SessionJournalMarkers.displayName(marker)).append("]`");
             }
             md.append("\n\n");
             if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
@@ -322,15 +465,34 @@ public final class SessionJournalExportService {
      * Zip archive matching the on-disk journal layout. Capture logs are stored decompressed —
      * the zip compresses anyway and the unzipped bundle stays immediately readable.
      */
-    private void writeBundle(Path target, Path journalDir, char[] password) throws IOException {
+    private void writeBundle(Path target, Path journalDir, SessionJournalDocument document, Options options,
+                             Selection selection, ExportExcerpt excerpt, char[] password) throws IOException {
         Path stagingDir = Files.createTempDirectory("kortty-journal-bundle");
         try {
-            copyBundleInto(journalDir, stagingDir);
+            writeBundleInto(stagingDir, journalDir, document, options, selection, excerpt);
             Files.deleteIfExists(target);
             zipDirectoryContents(stagingDir, target, password);
         } finally {
             deleteRecursively(stagingDir);
         }
+    }
+
+    /**
+     * Two paths on purpose. Without a filter the bundle stays the verbatim copy it always was —
+     * fast and byte for byte. With one, it is rebuilt from the filtered data and the capture log
+     * is trimmed to what the exported entries reference: a bundle is the artefact you hand to
+     * someone else, and twelve entries next to eight hours of terminal output would be exactly the
+     * leak the filter is supposed to prevent.
+     */
+    private void writeBundleInto(Path targetDir, Path journalDir, SessionJournalDocument document,
+                                 Options options, Selection selection, ExportExcerpt excerpt)
+            throws IOException {
+        if (!options.hasFilters()) {
+            copyBundleInto(journalDir, targetDir);
+            return;
+        }
+        new SessionJournalBundleWriter(service, renderer).write(
+            targetDir, journalDir, document, selection.entries(), options.filter(), excerpt);
     }
 
     /** Lays the journal out in {@code targetDir} exactly as the bundle should appear when unzipped. */
@@ -419,7 +581,8 @@ public final class SessionJournalExportService {
 
     // ==== PDF ===================================================================================
 
-    private void writePdf(Path target, SessionJournalDocument document, Path journalDir, Options options)
+    private void writePdf(Path target, SessionJournalDocument document, Path journalDir, Options options,
+                          List<SessionJournalEntry> entries, ExportExcerpt excerpt)
             throws IOException {
         SessionJournalMeta meta = document.getMeta();
         ZoneId zone = ZoneId.systemDefault();
@@ -431,16 +594,21 @@ public final class SessionJournalExportService {
 
             Cursor cursor = newPage(pdf, null);
             cursor = drawHeader(pdf, cursor, fonts, meta);
+            if (excerpt != null) {
+                cursor = drawParagraph(pdf, cursor, fonts.sansBold(), 9.5f, new Color(0x9a, 0x67, 0x00),
+                    excerpt.describe(), 8f, PAGE_MARGIN, contentWidth());
+            }
 
             LocalDate currentDay = null;
-            for (SessionJournalEntry entry : sortedEntries(document)) {
+            for (SessionJournalEntry entry : entries) {
                 OffsetDateTime createdAt = entry.getCreatedAt();
                 LocalDate day = createdAt != null ? createdAt.atZoneSameInstant(zone).toLocalDate() : null;
                 if (day != null && !day.equals(currentDay)) {
                     currentDay = day;
                     cursor = drawDayDivider(pdf, cursor, fonts, day.format(DATE_FULL));
                 }
-                cursor = drawEntry(pdf, cursor, fonts, entry, journalDir, options, zone);
+                cursor = drawEntry(pdf, cursor, fonts, entry, journalDir, options, zone,
+                    SessionJournalMarkers.resolve(entry, document));
             }
             cursor.stream().close();
             drawFooters(pdf, fonts);
@@ -486,7 +654,8 @@ public final class SessionJournalExportService {
     }
 
     private Cursor drawEntry(PDDocument pdf, Cursor cursor, PdfFonts fonts, SessionJournalEntry entry,
-                             Path journalDir, Options options, ZoneId zone) throws IOException {
+                             Path journalDir, Options options, ZoneId zone,
+                             de.kortty.model.SessionJournalMarkerDefinition marker) throws IOException {
         cursor = ensureSpace(pdf, cursor, 36f);
         float bodyX = PAGE_MARGIN + TIME_COLUMN_WIDTH;
         float bodyWidth = contentWidth() - TIME_COLUMN_WIDTH;
@@ -497,11 +666,9 @@ public final class SessionJournalExportService {
             cursor.y() - 10f, time);
 
         float badgeOffset = 0f;
-        if (entry.getMarker() != SessionJournalMarker.NONE) {
-            String label = i18n("journal.marker." + entry.getMarker().name().toLowerCase(java.util.Locale.ROOT),
-                entry.getMarker().name());
-            badgeOffset = drawBadge(cursor.stream(), fonts.sansBold(), bodyX, cursor.y() - 12.5f, label,
-                markerColor(entry.getMarker())) + 6f;
+        if (marker != null && !marker.isNone()) {
+            badgeOffset = drawBadge(cursor.stream(), fonts.sansBold(), bodyX, cursor.y() - 12.5f,
+                SessionJournalMarkers.displayName(marker), markerColor(marker)) + 6f;
         }
         String title = entry.getTitle();
         if (entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY) {
@@ -625,8 +792,17 @@ public final class SessionJournalExportService {
         }
     }
 
-    private static Color markerColor(SessionJournalMarker marker) {
-        return switch (marker) {
+    /**
+     * A marker's badge colour: the definition's own hex when it has one, otherwise the exporter's
+     * palette for the legacy value it degrades to. Built-ins carry no colour, so legacy journals
+     * keep exactly the colours they had.
+     */
+    private static Color markerColor(de.kortty.model.SessionJournalMarkerDefinition definition) {
+        return SessionJournalMarkers.awtColor(definition, paletteColor(definition.getLegacyMarker()));
+    }
+
+    private static Color paletteColor(SessionJournalMarker marker) {
+        return switch (marker != null ? marker : SessionJournalMarker.NONE) {
             case ERROR -> new Color(0xcf, 0x22, 0x2e);
             case IMPORTANT -> new Color(0x9a, 0x67, 0x00);
             case INFO -> new Color(0x09, 0x69, 0xda);

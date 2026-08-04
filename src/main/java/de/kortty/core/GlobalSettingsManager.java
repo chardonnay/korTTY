@@ -70,7 +70,9 @@ public class GlobalSettingsManager {
                 de.kortty.model.TerminalRecordingScope.class,
                 de.kortty.model.WindowGeometry.class,
                 de.kortty.model.TeamworkSourceConfig.class,
-                de.kortty.model.TeamworkSourceType.class
+                de.kortty.model.TeamworkSourceType.class,
+                de.kortty.model.SessionJournalMarkerDefinition.class,
+                de.kortty.model.SessionJournalMarkerRule.class
             );
             Unmarshaller unmarshaller = context.createUnmarshaller();
             this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
@@ -104,7 +106,9 @@ public class GlobalSettingsManager {
             de.kortty.model.TerminalRecordingScope.class,
             de.kortty.model.WindowGeometry.class,
             de.kortty.model.TeamworkSourceConfig.class,
-            de.kortty.model.TeamworkSourceType.class
+            de.kortty.model.TeamworkSourceType.class,
+            de.kortty.model.SessionJournalMarkerDefinition.class,
+            de.kortty.model.SessionJournalMarkerRule.class
         );
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);

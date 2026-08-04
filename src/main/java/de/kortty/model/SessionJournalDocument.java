@@ -34,6 +34,16 @@ public class SessionJournalDocument {
     @XmlElement(name = "entry")
     private List<SessionJournalEntry> entries = new ArrayList<>();
 
+    /**
+     * Snapshot of the user-defined markers this journal actually uses. Built-ins are never stored
+     * here, so a document written before custom markers existed stays byte identical. The
+     * snapshot is what lets an exported or shared journal render exactly as it did when it was
+     * shared, independent of the settings that produced it.
+     */
+    @XmlElementWrapper(name = "markerDefinitions")
+    @XmlElement(name = "marker")
+    private List<SessionJournalMarkerDefinition> markerDefinitions = new ArrayList<>();
+
     public SessionJournalDocument() {
         this.id = UUID.randomUUID().toString();
     }
@@ -46,6 +56,12 @@ public class SessionJournalDocument {
         if (other.entries != null) {
             for (SessionJournalEntry entry : other.entries) {
                 this.entries.add(new SessionJournalEntry(entry));
+            }
+        }
+        this.markerDefinitions = new ArrayList<>();
+        if (other.markerDefinitions != null) {
+            for (SessionJournalMarkerDefinition definition : other.markerDefinitions) {
+                this.markerDefinitions.add(new SessionJournalMarkerDefinition(definition));
             }
         }
     }
@@ -86,5 +102,31 @@ public class SessionJournalDocument {
 
     public void setEntries(List<SessionJournalEntry> entries) {
         this.entries = entries != null ? new ArrayList<>(entries) : new ArrayList<>();
+    }
+
+    /** Live list; {@code SessionJournalMarkers} adds to it when a custom marker is applied. */
+    public List<SessionJournalMarkerDefinition> getMarkerDefinitions() {
+        if (markerDefinitions == null) {
+            markerDefinitions = new ArrayList<>();
+        }
+        return markerDefinitions;
+    }
+
+    public void setMarkerDefinitions(List<SessionJournalMarkerDefinition> markerDefinitions) {
+        this.markerDefinitions = markerDefinitions != null
+            ? new ArrayList<>(markerDefinitions) : new ArrayList<>();
+    }
+
+    /**
+     * Drops the empty snapshot list before marshalling. JAXB writes an {@code @XmlElementWrapper}
+     * even for an empty collection (see the {@code <inputExcerpt/>} elements on every entry), and
+     * a journal that uses no custom markers must not grow a stray element just because it was
+     * opened once. The getter recreates the list on demand.
+     */
+    @SuppressWarnings("unused")
+    private void beforeMarshal(jakarta.xml.bind.Marshaller marshaller) {
+        if (markerDefinitions != null && markerDefinitions.isEmpty()) {
+            markerDefinitions = null;
+        }
     }
 }

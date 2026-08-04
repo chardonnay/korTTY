@@ -255,6 +255,117 @@ class SessionJournalServiceTest {
         session.close();
     }
 
+    /** Enables the rule engine with one "apache -> deploy" rule and returns the journal directory. */
+    private SessionJournalSession sessionWithDeployRule(boolean enabled) throws IOException {
+        settings.getSessionJournalMarkers().add(new de.kortty.model.SessionJournalMarkerDefinition(
+            "deploy", "Deployment", "#7c3aed", false, SessionJournalMarker.IMPORTANT));
+        settings.getSessionJournalMarkerRules().add(
+            new de.kortty.model.SessionJournalMarkerRule("deploy", "apache", false));
+        settings.setSessionJournalMarkerRulesEnabled(enabled);
+        service.setSettingsSupplier(() -> settings);
+        return service.createSession(sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+    }
+
+    private static SessionJournalEntry noteEntry(String text) {
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setText(text);
+        return note;
+    }
+
+    @Test
+    void appendEntryAppliesAMarkerRuleAndSnapshotsTheDefinition() throws IOException {
+        SessionJournalSession session = sessionWithDeployRule(true);
+        Path dir = session.getDirectory();
+
+        service.appendEntry(dir, noteEntry("Installed apache2 from the repo"));
+
+        SessionJournalDocument document = service.loadDocument(dir);
+        SessionJournalEntry stored = document.getEntries().get(0);
+        assertThat(stored.getMarkerId()).isEqualTo("deploy");
+        assertThat(stored.getMarkerSource()).isEqualTo(SessionJournalEntry.MarkerSource.RULE);
+        // The definition travels inside the journal, so an export renders standalone.
+        assertThat(document.getMarkerDefinitions()).hasSize(1);
+        assertThat(document.getMarkerDefinitions().get(0).getColor()).isEqualTo("#7c3aed");
+        session.close();
+    }
+
+    @Test
+    void appendEntryLeavesTheEntryAloneWhenTheRuleEngineIsDisabled() throws IOException {
+        SessionJournalSession session = sessionWithDeployRule(false);
+
+        service.appendEntry(session.getDirectory(), noteEntry("Installed apache2 from the repo"));
+
+        SessionJournalEntry stored = service.loadDocument(session.getDirectory()).getEntries().get(0);
+        assertThat(stored.getMarkerId()).isNull();
+        assertThat(stored.getMarker()).isEqualTo(SessionJournalMarker.NONE);
+        session.close();
+    }
+
+    @Test
+    void appendEntryNeverOverridesAMarkerTheUserSetByHand() throws IOException {
+        SessionJournalSession session = sessionWithDeployRule(true);
+        SessionJournalEntry manual = noteEntry("Installed apache2 from the repo");
+        manual.setMarker(SessionJournalMarker.ERROR);
+        manual.setMarkerSource(SessionJournalEntry.MarkerSource.USER);
+
+        service.appendEntry(session.getDirectory(), manual);
+
+        SessionJournalEntry stored = service.loadDocument(session.getDirectory()).getEntries().get(0);
+        assertThat(stored.getMarkerId()).isNull();
+        assertThat(stored.getMarker()).isEqualTo(SessionJournalMarker.ERROR);
+        session.close();
+    }
+
+    @Test
+    void aRuleMarkerThatDegradesToErrorStillCountsTowardsTheErrorTotal() throws IOException {
+        settings.getSessionJournalMarkers().add(new de.kortty.model.SessionJournalMarkerDefinition(
+            "outage", "Outage", "#f85149", false, SessionJournalMarker.ERROR));
+        settings.getSessionJournalMarkerRules().add(
+            new de.kortty.model.SessionJournalMarkerRule("outage", "segfault", false));
+        settings.setSessionJournalMarkerRulesEnabled(true);
+        service.setSettingsSupplier(() -> settings);
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+
+        service.appendEntry(session.getDirectory(), noteEntry("nginx died with a segfault"));
+
+        assertThat(service.loadDocument(session.getDirectory()).getMeta().getErrorCount()).isEqualTo(1);
+        session.close();
+    }
+
+    @Test
+    void applyMarkerRulesRunsOnALiveJournalUnlikeTheRewritingReplacePath() throws IOException {
+        SessionJournalSession session = sessionWithDeployRule(false);
+        Path dir = session.getDirectory();
+        service.appendEntry(dir, noteEntry("Installed apache2 from the repo"));
+        service.appendEntry(dir, noteEntry("Nothing to see here"));
+        settings.setSessionJournalMarkerRulesEnabled(true);
+
+        // The journal is still open; replace() would refuse, applyMarkerRules must not.
+        assertThat(service.applyMarkerRules(dir, false)).isEqualTo(1);
+
+        SessionJournalDocument document = service.loadDocument(dir);
+        assertThat(document.getEntries().get(0).getMarkerId()).isEqualTo("deploy");
+        assertThat(document.getEntries().get(1).getMarkerId()).isNull();
+        // Idempotent: a second pass must not rewrite the journal for nothing.
+        assertThat(service.applyMarkerRules(dir, false)).isEqualTo(0);
+        session.close();
+    }
+
+    @Test
+    void deletingTheLastEntryUsingAMarkerDropsItsSnapshot() throws IOException {
+        SessionJournalSession session = sessionWithDeployRule(true);
+        Path dir = session.getDirectory();
+        SessionJournalEntry stored = service.appendEntry(dir, noteEntry("Installed apache2"));
+        assertThat(service.loadDocument(dir).getMarkerDefinitions()).hasSize(1);
+
+        service.deleteEntry(dir, stored.getId());
+
+        assertThat(service.loadDocument(dir).getMarkerDefinitions()).isEmpty();
+        session.close();
+    }
+
     @Test
     void deleteRefusesLiveJournalsAndForeignPaths() throws IOException {
         SessionJournalSession session = service.createSession(

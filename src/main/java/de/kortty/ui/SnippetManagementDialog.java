@@ -418,44 +418,14 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     private void restoreGeometry() {
-        try {
-            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            var geo = gs.getSnippetManagerGeometry();
-            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
-                getDialogPane().setPrefWidth(geo.getWidth());
-                getDialogPane().setPrefHeight(geo.getHeight());
-                setOnShowing(event -> {
-                    javafx.stage.Window window = getDialogPane().getScene().getWindow();
-                    if (window instanceof javafx.stage.Stage stage) {
-                        stage.setX(geo.getX());
-                        stage.setY(geo.getY());
-                        stage.setWidth(geo.getWidth());
-                        stage.setHeight(geo.getHeight());
-                    }
-                });
-            }
-        } catch (Exception e) {
-            logger.debug("Could not restore snippet manager geometry", e);
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getSnippetManagerGeometry());
     }
     
     private void saveGeometry() {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        try {
-            javafx.stage.Window window = getDialogPane().getScene().getWindow();
-            if (window instanceof javafx.stage.Stage stage) {
-                var geo = new de.kortty.model.WindowGeometry(
-                        stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-                gs.setSnippetManagerGeometry(geo);
-                gs.setSnippetManagerPreviewDividerPosition(currentPreviewDividerPosition());
-                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
-            }
-        } catch (Exception e) {
-            logger.debug("Could not save snippet manager geometry", e);
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetManagerGeometry(geometry));
     }
 
     private double loadPreviewDividerPosition() {
