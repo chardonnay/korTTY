@@ -65,10 +65,13 @@ class TerminalLogConfigCompatibilityTest {
     @Test
     void mapsAnOldFilePathToTheFolderThatHoldsIt() {
         // A stored file name has to become a directory, or the first log would land beside it.
-        assertThat(TerminalLogConfig.resolveDirectory("/var/log/kortty/web01.log"))
-            .isEqualTo("/var/log/kortty");
-        assertThat(TerminalLogConfig.resolveDirectory("/var/log/kortty/session.json"))
-            .isEqualTo("/var/log/kortty");
+        // Compared as paths, not raw strings: resolveDirectory runs the value through
+        // java.nio.file.Path, which renders Windows' separator on Windows even for a
+        // forward-slash input — a real path, just not byte-identical to the POSIX one.
+        assertThat(Path.of(TerminalLogConfig.resolveDirectory("/var/log/kortty/web01.log")))
+            .isEqualTo(Path.of("/var/log/kortty"));
+        assertThat(Path.of(TerminalLogConfig.resolveDirectory("/var/log/kortty/session.json")))
+            .isEqualTo(Path.of("/var/log/kortty"));
     }
 
     @Test
