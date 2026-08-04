@@ -162,8 +162,14 @@ The file currently being written stays uncompressed so that a crash cannot trunc
 
 Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to `0` to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.
 
-!!! warning "Logs are not redacted"
-    Unlike the Session Journal, the terminal log stores the output exactly as it arrived, with no redaction of passwords or other secrets that a command echoes to the terminal. Choose the log folder accordingly.
+### What is removed before writing
+
+Captured lines go through the same redaction as the [Session Journal](session-journal.md), on the capture thread, before anything is buffered or written: the connection's own password and any replacement rules your organisation's policy defines. The secret never reaches the file, so there is nothing to clean up afterwards.
+
+Log files and a log folder KorTTY created itself are set to owner-only permissions where the filesystem supports it. A folder you chose yourself is left with the permissions you gave it.
+
+!!! warning "Redaction only covers what KorTTY knows"
+    A password KorTTY stores for the connection is redacted. A secret you type into a command yourself, or one a program prints, is not — KorTTY has no way to recognise it. Treat the log folder as sensitive, and use policy replacement rules for patterns that recur.
 
 ## Terminal recording
 

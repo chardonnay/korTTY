@@ -55,11 +55,13 @@ class TerminalLoggerTest {
 
     private Path tempDir;
     private MovableClock clock;
+    private SessionJournalRedactor redactor;
 
     @BeforeMethod
     void setUp() throws IOException {
         tempDir = Files.createTempDirectory("kortty-terminal-logger-test");
         clock = new MovableClock("2026-08-04T14:30:12Z");
+        redactor = new SessionJournalRedactor();
     }
 
     @AfterMethod
@@ -89,7 +91,7 @@ class TerminalLoggerTest {
     }
 
     private TerminalLogger logger(TerminalLogConfig config) {
-        return new TerminalLogger(config, "web01", tempDir, clock);
+        return new TerminalLogger(config, "web01", tempDir, clock, redactor);
     }
 
     private List<Path> files() throws IOException {
@@ -304,6 +306,61 @@ class TerminalLoggerTest {
         // The old rotateLog() deleted the file instead; both parts must survive.
         assertThat(names.size()).isAtLeast(2);
         assertThat(names.stream().anyMatch(name -> name.contains(".p2."))).isTrue();
+    }
+
+    @Test
+    void neverWritesAKnownSecretToTheFile() throws Exception {
+        redactor.addSecret("hunter2secret");
+        TerminalLogger logger = logger(config(TerminalLogConfig.LogFormat.PLAIN_TEXT));
+        logger.start();
+        // The shape that makes this matter: a command that echoes its own password.
+        logger.log("$ mysql -uroot -phunter2secret\n");
+        logger.log("Using password: hunter2secret\n");
+        logger.awaitQuiet(2000);
+        logger.stop();
+
+        String content = readArchive(files().get(0));
+        assertThat(content).doesNotContain("hunter2secret");
+        assertThat(content).contains(SessionJournalRedactor.REPLACEMENT);
+        // Everything around the secret still has to be there, or the log is useless.
+        assertThat(content).contains("mysql -uroot -p");
+    }
+
+    @Test
+    void redactsInsideTheStructuredFormatsToo() throws Exception {
+        redactor.addSecret("hunter2secret");
+        TerminalLogger logger = logger(config(TerminalLogConfig.LogFormat.JSON));
+        logger.start();
+        logger.log("password=hunter2secret\n");
+        logger.awaitQuiet(2000);
+        logger.stop();
+
+        String json = readArchive(files().get(0));
+        assertThat(json).doesNotContain("hunter2secret");
+        assertThat(JsonParser.parseString(json).getAsJsonObject()
+            .getAsJsonArray("entries").get(0).getAsJsonObject().get("line").getAsString())
+            .isEqualTo("password=" + SessionJournalRedactor.REPLACEMENT);
+    }
+
+    @Test
+    void keepsTheFilesReadableOnlyByTheirOwner() throws Exception {
+        TerminalLogger logger = logger(config(TerminalLogConfig.LogFormat.PLAIN_TEXT));
+        logger.start();
+        logger.log("secret-ish output\n");
+        logger.awaitQuiet(2000);
+        logger.stop();
+
+        Path archive = files().get(0);
+        java.util.Set<java.nio.file.attribute.PosixFilePermission> permissions;
+        try {
+            permissions = Files.getPosixFilePermissions(archive);
+        } catch (UnsupportedOperationException e) {
+            return; // Windows: nothing to assert, the code is a no-op there by design
+        }
+        // The compressor writes a new file, so the mode has to be re-applied after gzipping.
+        assertThat(permissions).containsNoneOf(
+            java.nio.file.attribute.PosixFilePermission.GROUP_READ,
+            java.nio.file.attribute.PosixFilePermission.OTHERS_READ);
     }
 
     @Test

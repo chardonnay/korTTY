@@ -52,6 +52,7 @@ public class TerminalLogger {
     private final String connectionName;
     private final Path directory;
     private final Clock clock;
+    private final SessionJournalRedactor redactor;
     private final BlockingQueue<String> logQueue;
     private final Thread writerThread;
     private final SessionJournalAnsiProcessor ansi;
@@ -72,21 +73,30 @@ public class TerminalLogger {
     private int consecutiveFailures;
     private boolean stopped;
 
-    public TerminalLogger(TerminalLogConfig config, String connectionName) {
-        this(config, connectionName, resolveDirectory(config), Clock.systemDefaultZone());
+    /**
+     * @param redactor removes known secrets and policy-mandated patterns; must not be null, since
+     *                 a logger without one writes whatever the terminal echoed straight to disk
+     */
+    public TerminalLogger(TerminalLogConfig config, String connectionName,
+                          SessionJournalRedactor redactor) {
+        this(config, connectionName, resolveDirectory(config), Clock.systemDefaultZone(), redactor);
     }
 
     /** Test seam: an explicit directory and clock make rotation and retention observable. */
-    TerminalLogger(TerminalLogConfig config, String connectionName, Path directory, Clock clock) {
+    TerminalLogger(TerminalLogConfig config, String connectionName, Path directory, Clock clock,
+                   SessionJournalRedactor redactor) {
         this.config = config;
         this.connectionName = connectionName;
         this.directory = directory;
         this.clock = clock;
+        this.redactor = redactor != null ? redactor : new SessionJournalRedactor();
         this.logQueue = new LinkedBlockingQueue<>(10000);
         this.ansi = new SessionJournalAnsiProcessor(line -> {
             // Partial lines are a live-view idea; a log file only wants finished ones.
             if (!line.partial()) {
-                enqueue(line.text());
+                // Redacted here, on the capture thread, so the secret never reaches the queue
+                // let alone the file — the same point the journal redacts at.
+                enqueue(this.redactor.redact(line.text()));
             }
         });
         this.writerThread = new Thread(this::writerLoop, "TerminalLogger-" + safeThreadName(connectionName));
@@ -334,7 +344,9 @@ public class TerminalLogger {
         }
         LIVE_FILES.remove(finished.toAbsolutePath().normalize());
         if (config.isCompress()) {
-            SessionJournalLogCompressor.compress(finished);
+            // The compressor creates a new file, so the owner-only mode has to be re-applied;
+            // otherwise the archive is world-readable while the plain file was not.
+            TerminalLogNaming.restrictArchiveToOwner(SessionJournalLogCompressor.compress(finished));
         }
     }
 

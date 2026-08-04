@@ -162,8 +162,14 @@ Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Abstur
 
 Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf `0` ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.
 
-!!! warning "Protokolle werden nicht geschwärzt"
-    Im Gegensatz zum Sitzungsjournal speichert das Terminalprotokoll die Ausgabe genau so, wie sie eingegangen ist, ohne dass Passwörter oder andere Geheimnisse geschwärzt werden, die ein Befehl an das Terminal zurückgibt. Wählen Sie den Protokollordner entsprechend aus.
+### Was vor dem Schreiben entfernt wird
+
+Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das [Sitzungsjournal](session-journal.md) im Erfassungsthread, bevor irgendetwas gepuffert oder geschrieben wird: das eigene Passwort der Verbindung und alle Ersetzungsregeln, die in der Richtlinie Ihrer Organisation definiert sind. Das Geheimnis gelangt nie in die Datei, sodass hinterher nichts bereinigt werden muss.
+
+Protokolldateien und ein Protokollordner, den KorTTY selbst erstellt hat, sind auf Besitzerrechte eingestellt, sofern das Dateisystem dies unterstützt. Ein Ordner, den Sie selbst ausgewählt haben, behält die von Ihnen erteilten Berechtigungen.
+
+!!! warning "Die Schwärzung deckt nur ab, was korTTY kennt"
+    Ein Passwort, das KorTTY für die Verbindung speichert, wird geschwärzt. Ein Geheimnis, das du selbst in einen Befehl eintippst oder das ein Programm ausgibt, wird nicht geschwärzt – korTTY kann es nicht erkennen. Behandle den Protokollordner als vertraulich und nutze für wiederkehrende Muster die Ersetzungsregeln der Richtlinie.
 
 ## Terminalaufzeichnung
 

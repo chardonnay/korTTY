@@ -1720,6 +1720,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#was-vor-dem-schreiben-entfernt-wird" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was vor dem Schreiben entfernt wird
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2750,6 +2761,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#was-vor-dem-schreiben-entfernt-wird" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was vor dem Schreiben entfernt wird
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3000,9 +3022,12 @@
 <p>Eine neue Datei wird <strong>jeden Tag</strong> gestartet, und immer dann erneut, wenn die maximale Größe erreicht ist (diese Teile sind mit <code>.p2</code>, <code>.p3</code>, … nummeriert). Durch die Rotation wird nie etwas überschrieben oder gelöscht.</p>
 <p>Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann; sobald eine Datei geschlossen wird, wird sie nach <code>.gz</code> komprimiert. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.</p>
 <p>Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf <code>0</code> ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.</p>
+<h3 id="was-vor-dem-schreiben-entfernt-wird">Was vor dem Schreiben entfernt wird<a class="headerlink" href="#was-vor-dem-schreiben-entfernt-wird" title="Permanent link">&para;</a></h3>
+<p>Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das <a href="session-journal.html">Sitzungsjournal</a> im Erfassungsthread, bevor irgendetwas gepuffert oder geschrieben wird: das eigene Passwort der Verbindung und alle Ersetzungsregeln, die in der Richtlinie Ihrer Organisation definiert sind. Das Geheimnis gelangt nie in die Datei, sodass hinterher nichts bereinigt werden muss.</p>
+<p>Protokolldateien und ein Protokollordner, den KorTTY selbst erstellt hat, sind auf Besitzerrechte eingestellt, sofern das Dateisystem dies unterstützt. Ein Ordner, den Sie selbst ausgewählt haben, behält die von Ihnen erteilten Berechtigungen.</p>
 <div class="admonition warning">
-<p class="admonition-title">Protokolle werden nicht geschwärzt</p>
-<p>Im Gegensatz zum Sitzungsjournal speichert das Terminalprotokoll die Ausgabe genau so, wie sie eingegangen ist, ohne dass Passwörter oder andere Geheimnisse geschwärzt werden, die ein Befehl an das Terminal zurückgibt. Wählen Sie den Protokollordner entsprechend aus.</p>
+<p class="admonition-title">Die Schwärzung deckt nur ab, was korTTY kennt</p>
+<p>Ein Passwort, das KorTTY für die Verbindung speichert, wird geschwärzt. Ein Geheimnis, das du selbst in einen Befehl eintippst oder das ein Programm ausgibt, wird nicht geschwärzt – korTTY kann es nicht erkennen. Behandle den Protokollordner als vertraulich und nutze für wiederkehrende Muster die Ersetzungsregeln der Richtlinie.</p>
 </div>
 <h2 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h2>
 <p>Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten <code>.korttyrec.jsonl.gz</code>-Datei pro Terminal-Tab-Sitzung auf. Ältere <code>.korttyrec.jsonl</code>-Wiedergabedateien bleiben lesbar.</p>

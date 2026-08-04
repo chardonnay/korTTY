@@ -84,7 +84,13 @@ public final class TerminalLogNaming {
      */
     public static Allocated open(Path directory, String slug, LocalDateTime stamp,
                                  String extension, int part, int preferredSeq) throws IOException {
+        boolean fresh = !Files.isDirectory(directory);
         Files.createDirectories(directory);
+        if (fresh) {
+            // Terminal output is not redacted beyond known secrets, so a directory korTTY created
+            // itself is kept private. A directory the user chose is left as they set it up.
+            restrictToOwner(directory, "rwx------");
+        }
         int first = Math.max(1, preferredSeq);
         for (int sequence = first; sequence <= MAX_SEQUENCE; sequence++) {
             Path candidate = directory.resolve(fileName(slug, stamp, extension, part, sequence));
@@ -96,6 +102,7 @@ public final class TerminalLogNaming {
             try {
                 BufferedWriter writer = Files.newBufferedWriter(candidate, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                restrictToOwner(candidate, "rw-------");
                 return new Allocated(candidate, writer, sequence);
             } catch (FileAlreadyExistsException e) {
                 // Someone else won the race for this number; take the next one.
@@ -103,6 +110,23 @@ public final class TerminalLogNaming {
         }
         throw new IOException("No free terminal log name in " + directory
             + " after " + MAX_SEQUENCE + " attempts");
+    }
+
+    /** Re-applies owner-only mode to a compressed archive, which the compressor creates anew. */
+    static void restrictArchiveToOwner(Path archive) {
+        if (archive != null) {
+            restrictToOwner(archive, "rw-------");
+        }
+    }
+
+    /** Owner-only permissions where the filesystem has them; a no-op on Windows and on FAT. */
+    private static void restrictToOwner(Path path, String permissions) {
+        try {
+            Files.setPosixFilePermissions(path,
+                java.nio.file.attribute.PosixFilePermissions.fromString(permissions));
+        } catch (UnsupportedOperationException | IOException e) {
+            // Best effort: the log is still written, it is just not locked down.
+        }
     }
 
     /** The file name for one specific slot; part 1 carries no part suffix. */

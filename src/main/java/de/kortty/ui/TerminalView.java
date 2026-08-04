@@ -4994,6 +4994,20 @@ public class TerminalView extends BorderPane {
     /**
      * Starts the terminal logger if logging is enabled for this connection.
      */
+    /**
+     * The redaction applied to captured output: the connection's own password plus whatever the
+     * organisation's policy mandates. Same construction the session journal gets — a log file the
+     * user keeps for thirty days should not be the one place a password survives in the clear.
+     */
+    private de.kortty.core.SessionJournalRedactor buildCaptureRedactor() {
+        de.kortty.core.SessionJournalRedactor redactor = new de.kortty.core.SessionJournalRedactor();
+        if (password != null && !password.isBlank()) {
+            redactor.addSecret(password);
+        }
+        redactor.setReplacements(de.kortty.core.SessionJournalService.policyReplacements());
+        return redactor;
+    }
+
     private void startLogger() {
         de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
         if (logConfig == null || !logConfig.isEnabled()) {
@@ -5001,7 +5015,8 @@ public class TerminalView extends BorderPane {
         }
         
         try {
-            terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
+            terminalLogger = new de.kortty.core.TerminalLogger(
+                logConfig, connection.getDisplayName(), buildCaptureRedactor());
             // Logging can give up on its own (disk full, volume unmounted); say so once instead of
             // leaving the user to discover an empty file later.
             terminalLogger.setWarningListener(reason ->

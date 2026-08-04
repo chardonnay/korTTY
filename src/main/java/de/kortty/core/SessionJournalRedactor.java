@@ -6,12 +6,16 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Known-secret literal redaction for the session journal. Seeded with the connection's own vault
- * credentials so at least the secrets korTTY already stores can never reach the capture log, and
+ * Known-secret literal redaction for captured terminal output. Seeded with the connection's own
+ * vault credentials so at least the secrets korTTY already stores can never reach a log file, and
  * with the organisation's {@code [[rule.session-journal.replace]]} rules when a policy defines any.
  *
  * <p>Applied on the capture thread BEFORE a line is buffered or enqueued — house rule: the secret
  * must never flow into the string that gets written (never construct-then-mask).</p>
+ *
+ * <p>Used by both capture features: {@link SessionJournalSession} and {@link TerminalLogger}. The
+ * name still says journal because that is where it started and renaming it would churn every
+ * caller; the behaviour has nothing journal-specific about it.</p>
  */
 public final class SessionJournalRedactor {
 
