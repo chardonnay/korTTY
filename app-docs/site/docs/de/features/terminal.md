@@ -148,7 +148,7 @@ An einer der beiden Stellen einstellbar:
    - **Plain Text** – Eine Zeile pro Ausgabezeile, mit Zeitstempel.
    - **XML** – Strukturiertes XML mit Zeitstempeln.
    - **JSON** – Strukturiertes JSON mit Zeitstempeln.
-4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB), den **Aufbewahrungszeitraum** (Standard: 30 Tage) und die Komprimierung geschlossener Dateien an.
+4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB) und den **Aufbewahrungszeitraum** (Standard: 30 Tage) an und deaktivieren Sie **Jeden Tag eine neue Datei starten** oder **Geschlossene Dateien komprimieren (gzip)** – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ von Quick Connect behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.
 
 ### Dateinamen
 
@@ -156,9 +156,9 @@ Jede Datei trägt den Namen `<date>-<time>-<server>_<number>`, zum Beispiel `202
 
 ### Rotation, Komprimierung und Aufbewahrung
 
-Eine neue Datei wird **jeden Tag** gestartet, und immer dann erneut, wenn die maximale Größe erreicht ist (diese Teile sind mit `.p2`, `.p3`, … nummeriert). Durch die Rotation wird nie etwas überschrieben oder gelöscht.
+Standardmäßig wird **jeden Tag** eine neue Datei gestartet und immer wieder, wenn die maximale Größe erreicht ist (diese Teile sind mit `.p2`, `.p3`, … nummeriert); Die tägliche Rotation kann ausgeschaltet werden, um nur nach Größe zu rollen. Durch die Rotation wird nie etwas überschrieben oder gelöscht.
 
-Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann; sobald eine Datei geschlossen wird, wird sie nach `.gz` komprimiert. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.
+Geschlossene Dateien werden standardmäßig komprimiert. Die aktuell geschriebene Datei bleibt immer unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann. Deaktivieren Sie **Geschlossene Dateien komprimieren (gzip)**, um fertige Dateien stattdessen als einfachen Text beizubehalten. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.
 
 Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf `0` ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.
 

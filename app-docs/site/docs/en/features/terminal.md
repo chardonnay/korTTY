@@ -148,7 +148,7 @@ Configure it in either place:
    - **Plain Text** - One timestamped line per line of output.
    - **XML** - Structured XML with timestamps.
    - **JSON** - Structured JSON with timestamps.
-4. Optionally adjust the **maximum file size** (default: 10 MB), the **retention period** (default: 30 days) and whether closed files are compressed.
+4. Optionally adjust the **maximum file size** (default: 10 MB) and the **retention period** (default: 30 days), and turn off **Start a new file every day** or **Compress closed files (gzip)** — both are on by default. Quick Connect's Terminal log section covers enable, folder, format and compression; size limit, retention and daily rotation keep their configured or default values.
 
 ### File names
 
@@ -156,9 +156,9 @@ Every file is named `<date>-<time>-<server>_<number>`, for example `2026-08-04-1
 
 ### Rotation, compression and retention
 
-A new file is started **every day**, and again whenever the maximum size is reached (those parts are numbered `.p2`, `.p3`, …). Nothing is ever overwritten or deleted by rotation.
+By default a new file is started **every day**, and always again whenever the maximum size is reached (those parts are numbered `.p2`, `.p3`, …); daily rotation can be turned off to roll only by size. Nothing is ever overwritten or deleted by rotation.
 
-The file currently being written stays uncompressed so that a crash cannot truncate it; the moment a file is closed it is gzipped to `.gz`. A connection that produces no output creates no file at all.
+Closed files are gzipped by default; the file currently being written always stays uncompressed so that a crash cannot truncate it. Turn off **Compress closed files (gzip)** to keep finished files as plain text instead. A connection that produces no output creates no file at all.
 
 Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to `0` to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.
 

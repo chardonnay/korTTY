@@ -22,7 +22,7 @@ The connection editor has these tabs:
 | Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
-| Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
+| Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
 | Window Geometry | Saved size/position for this connection |
 
 ## Protocols

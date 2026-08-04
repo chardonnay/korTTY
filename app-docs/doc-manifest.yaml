@@ -10,7 +10,7 @@
 schema_version: 1
 
 # Mirrored from build.gradle.kts:12 by scripts/sync-version.py.
-version: "2.8.0"
+version: "2.9.0"
 
 coverage:
   i18n_source: src/main/resources/i18n/messages_en.properties
@@ -221,7 +221,7 @@ pages:
     owns_i18n: [connEdit.log., connEdit.loggingInfo, quickConnect.log., quickConnect.section.terminalLog, terminal.log.]
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/core/TerminalLogger.java, src/main/java/de/kortty/core/TerminalLogNaming.java, src/main/java/de/kortty/core/TerminalLogRetention.java, src/main/java/de/kortty/model/TerminalLogConfig.java, src/main/java/de/kortty/core/SessionJournalRedactor.java]
     diagrams: [session-lifecycle.svg]
-    last_synced_ref: "df7fde4"
+    last_synced_ref: "849be17"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
@@ -371,7 +371,7 @@ pages:
       - journal/journal-viewer.png
       - journal/journal-export-options.png
       - journal/journal-markers.png
-    last_synced_ref: "df7fde4"
+    last_synced_ref: "849be17"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
