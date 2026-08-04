@@ -110,6 +110,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private ColorPicker backgroundColorPicker;
     private CheckBox terminalColorsEnabledCheck;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
+    private CheckBox quickLogEnabledCheck;
+    private TextField quickLogDirectoryField;
+    private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> quickLogFormatCombo;
+    private CheckBox quickLogCompressCheck;
     private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
     
     // Group tab
@@ -821,6 +825,54 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 collapsibleSection("terminalEffect", I18n.get("connection.terminalEffect"), effectGrid));
         }
 
+        // ===== Terminal log (write this session's output to a file) =====
+        GridPane logGrid = sectionGrid();
+        quickLogEnabledCheck = new CheckBox(I18n.get("quickConnect.log.enable"));
+        quickLogDirectoryField = new TextField();
+        quickLogDirectoryField.setPromptText(de.kortty.core.TerminalLogger.defaultDirectory().toString());
+        quickLogDirectoryField.setPrefWidth(260);
+        Button quickLogBrowse = new Button(I18n.get("connEdit.browse"));
+        quickLogBrowse.setOnAction(e -> {
+            javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
+            chooser.setTitle(I18n.get("connEdit.log.selectDirectory"));
+            String current = quickLogDirectoryField.getText() != null
+                ? quickLogDirectoryField.getText().trim() : "";
+            java.io.File start = current.isEmpty() ? null : new java.io.File(current);
+            chooser.setInitialDirectory(start != null && start.isDirectory()
+                ? start : new java.io.File(System.getProperty("user.home")));
+            java.io.File chosen = chooser.showDialog(getDialogPane().getScene().getWindow());
+            if (chosen != null) {
+                quickLogDirectoryField.setText(chosen.getAbsolutePath());
+            }
+        });
+        quickLogFormatCombo = new ComboBox<>();
+        quickLogFormatCombo.getItems().addAll(de.kortty.model.TerminalLogConfig.LogFormat.values());
+        quickLogFormatCombo.setValue(de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT);
+        quickLogFormatCombo.setPrefWidth(220);
+        quickLogCompressCheck = new CheckBox(I18n.get("connEdit.log.compress"));
+        quickLogCompressCheck.setSelected(true);
+
+        HBox quickLogPathBox = new HBox(8, quickLogDirectoryField, quickLogBrowse);
+        int lrow = 0;
+        logGrid.add(quickLogEnabledCheck, 0, lrow++, 2, 1);
+        logGrid.add(new Label(I18n.get("connEdit.log.directory")), 0, lrow);
+        logGrid.add(quickLogPathBox, 1, lrow++);
+        logGrid.add(new Label(I18n.get("connEdit.format")), 0, lrow);
+        logGrid.add(quickLogFormatCombo, 1, lrow++);
+        logGrid.add(quickLogCompressCheck, 1, lrow++);
+        Label quickLogHint = new Label(I18n.get("quickConnect.log.hint"));
+        quickLogHint.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        quickLogHint.setWrapText(true);
+        logGrid.add(quickLogHint, 0, lrow++, 2, 1);
+
+        // Only the enable box is usable until logging is actually switched on.
+        for (javafx.scene.Node node : java.util.List.of(quickLogDirectoryField, quickLogBrowse,
+                quickLogFormatCombo, quickLogCompressCheck)) {
+            node.disableProperty().bind(quickLogEnabledCheck.selectedProperty().not());
+        }
+        collapsibleSections.getChildren().add(
+            collapsibleSection("terminalLog", I18n.get("quickConnect.section.terminalLog"), logGrid));
+
         // ===== AI (profile + connection skills) =====
         java.util.List<de.kortty.model.AiProfile> aiProfiles = loadAiProfilesSorted();
         java.util.List<de.kortty.model.AiSkill> connectionAiSkills = loadConnectionTargetAiSkills();
@@ -895,6 +947,35 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         inputCol.setMinWidth(400);
         g.getColumnConstraints().addAll(labelCol, inputCol);
         return g;
+    }
+
+    /**
+     * The fields every "modified copy of a saved connection" branch sets the same way: identity,
+     * endpoint, terminal settings and the values the spinners own. Auth is left to the caller,
+     * since that is the only thing those branches actually disagree about.
+     *
+     * <p>Copying a connection field by field is what lost the capture settings: each branch was
+     * written separately and none of them carried {@code logConfig} or {@code sessionJournalConfig}
+     * over, so logging and journaling configured in the Connection Manager silently did nothing
+     * whenever the session was started from here with a changed auth method.</p>
+     */
+    private ServerConnection baseCopyOf(ServerConnection selected) {
+        ServerConnection modified = new ServerConnection();
+        modified.setId(selected.getId());
+        modified.setName(selected.getName());
+        modified.setHost(selected.getHost());
+        modified.setPort(selected.getPort());
+        modified.setUsername(selected.getUsername());
+        modified.setGroup(selected.getGroup());
+        modified.setSettings(copyTerminalSettings(selected));
+        modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+        modified.setRetryCount(retrySpinner.getValue());
+        modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+        applySelectedTerminalEmulation(modified, selected);
+        modified.setLogConfig(new de.kortty.model.TerminalLogConfig(selected.getLogConfig()));
+        modified.setSessionJournalConfig(
+            new de.kortty.model.SessionJournalConfig(selected.getSessionJournalConfig()));
+        return modified;
     }
 
     /**
@@ -1300,6 +1381,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         usernameField.setText(conn.getUsername());
         protocolCombo.setValue(conn.getProtocol());
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, conn.getTerminalEmulationType());
+        showTerminalLogSettings(conn);
         updateCredentialCombo(conn.getHost());
         if (conn.getCredentialId() != null && credentialManager != null) {
             credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(cred -> {
@@ -1466,19 +1548,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             // Also update timeout and retries from spinner values
             
             if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
-                ServerConnection modified = new ServerConnection();
-                modified.setId(selected.getId());
-                modified.setName(selected.getName());
-                modified.setHost(selected.getHost());
-                modified.setPort(selected.getPort());
-                modified.setUsername(selected.getUsername());
-                modified.setGroup(selected.getGroup());
-                modified.setSettings(copyTerminalSettings(selected));
-                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
-                modified.setRetryCount(retrySpinner.getValue());
+                ServerConnection modified = baseCopyOf(selected);
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
-                applySelectedTerminalEmulation(modified, selected);
                 
                 TemporarySSHKey tempKey = null;
                 String keyText = temporaryKeyArea != null ? temporaryKeyArea.getText() : null;
@@ -1520,19 +1591,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             }
 
             if (passwordAuthRadio.isSelected()) {
-                ServerConnection modified = new ServerConnection();
-                modified.setId(selected.getId());
-                modified.setName(selected.getName());
-                modified.setHost(selected.getHost());
-                modified.setPort(selected.getPort());
-                modified.setUsername(selected.getUsername());
-                modified.setGroup(selected.getGroup());
-                modified.setSettings(copyTerminalSettings(selected));
-                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
-                modified.setRetryCount(retrySpinner.getValue());
+                ServerConnection modified = baseCopyOf(selected);
                 modified.setAuthMethod(AuthMethod.PASSWORD);
-                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
-                applySelectedTerminalEmulation(modified, selected);
                 modified.setSshKeyId(null);
                 modified.setPrivateKeyPath(null);
                 modified.setTemporaryKeyContent(null);
@@ -1550,20 +1610,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             
             if (keyAuthRadio.isSelected() && selected.getAuthMethod() != AuthMethod.PUBLIC_KEY) {
                 // User switched to key auth, need to update connection
-                ServerConnection modified = new ServerConnection();
-                modified.setId(selected.getId());
-                modified.setName(selected.getName());
-                modified.setHost(selected.getHost());
-                modified.setPort(selected.getPort());
-                modified.setUsername(selected.getUsername());
-                modified.setGroup(selected.getGroup());
-                modified.setSettings(copyTerminalSettings(selected));
-                // Use values from spinners, not from saved connection
-                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
-                modified.setRetryCount(retrySpinner.getValue());
+                ServerConnection modified = baseCopyOf(selected);
                 modified.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
-                applySelectedTerminalEmulation(modified, selected);
                 if (savedSSHKeysCombo.getValue() != null) {
                     modified.setSshKeyId(savedSSHKeysCombo.getValue().getId());
                     modified.setPrivateKeyPath(sshKeyManager != null ? 
@@ -1575,20 +1623,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 return new ConnectionResult(modified, null, false, true, null, false, null);
             } else if (passwordAuthRadio.isSelected() && selected.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
                 // User switched to password auth
-                ServerConnection modified = new ServerConnection();
-                modified.setId(selected.getId());
-                modified.setName(selected.getName());
-                modified.setHost(selected.getHost());
-                modified.setPort(selected.getPort());
-                modified.setUsername(selected.getUsername());
-                modified.setGroup(selected.getGroup());
-                modified.setSettings(copyTerminalSettings(selected));
-                // Use values from spinners, not from saved connection
-                modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
-                modified.setRetryCount(retrySpinner.getValue());
+                ServerConnection modified = baseCopyOf(selected);
                 modified.setAuthMethod(AuthMethod.PASSWORD);
-                modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
-                applySelectedTerminalEmulation(modified, selected);
                 modified.setSshKeyId(null);
                 modified.setPrivateKeyPath(null);
                 modified.setTemporaryKeyContent(null);
@@ -1602,26 +1638,14 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 return new ConnectionResult(modified, resolvedPassword, false, true, null, false, null);
             }
             // Using an existing saved connection, but update timeout and retries from spinners
-            ServerConnection modified = new ServerConnection();
-            modified.setId(selected.getId());
-            modified.setName(selected.getName());
-            modified.setHost(selected.getHost());
-            modified.setPort(selected.getPort());
-            modified.setUsername(selected.getUsername());
-            modified.setGroup(selected.getGroup());
-            modified.setSettings(copyTerminalSettings(selected));
+            ServerConnection modified = baseCopyOf(selected);
             modified.setAuthMethod(selected.getAuthMethod());
-            modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
-            applySelectedTerminalEmulation(modified, selected);
             modified.setSshKeyId(selected.getSshKeyId());
             modified.setPrivateKeyPath(selected.getPrivateKeyPath());
             // Preserve temporary SSH key fields for reconnection
             modified.setTemporaryKeyContent(selected.getTemporaryKeyContent());
             modified.setTemporaryKeyExpirationMinutes(selected.getTemporaryKeyExpirationMinutes());
             modified.setTemporaryKeyPermanent(selected.isTemporaryKeyPermanent());
-            // Use values from spinners, not from saved connection
-            modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
-            modified.setRetryCount(retrySpinner.getValue());
             // Look up temporary SSH key from manager if connection uses one
             TemporarySSHKey existingTempKey = null;
             if (selected.getTemporaryKeyContent() != null && !selected.getTemporaryKeyContent().trim().isEmpty()) {
@@ -2061,6 +2085,50 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         } else {
             connection.getSettings().setThemeId(null);
         }
+        applyTerminalLogSettings(connection);
+    }
+
+    /**
+     * Writes the terminal-log section onto the connection about to be used.
+     *
+     * <p>Hooked into {@link #applyTerminalSettings} rather than added to each branch of the result
+     * converter: every branch already calls that one method, so no future branch can forget this
+     * the way they all forgot to copy {@code logConfig}.</p>
+     */
+    private void applyTerminalLogSettings(ServerConnection connection) {
+        if (quickLogEnabledCheck == null) {
+            return; // section not built (headless construction in tests)
+        }
+        de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+        if (logConfig == null) {
+            logConfig = new de.kortty.model.TerminalLogConfig();
+            connection.setLogConfig(logConfig);
+        }
+        logConfig.setEnabled(quickLogEnabledCheck.isSelected());
+        if (!quickLogEnabledCheck.isSelected()) {
+            return; // leave the rest as configured; the user may re-enable it later
+        }
+        logConfig.setLogDirectoryPath(quickLogDirectoryField.getText() != null
+            ? quickLogDirectoryField.getText().trim() : "");
+        if (quickLogFormatCombo.getValue() != null) {
+            logConfig.setFormat(quickLogFormatCombo.getValue());
+        }
+        logConfig.setCompress(quickLogCompressCheck.isSelected());
+    }
+
+    /** Shows what a picked saved connection already has configured, so the section is not a lie. */
+    private void showTerminalLogSettings(ServerConnection connection) {
+        if (quickLogEnabledCheck == null || connection == null) {
+            return;
+        }
+        de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
+        if (logConfig == null) {
+            return;
+        }
+        quickLogEnabledCheck.setSelected(logConfig.isEnabled());
+        quickLogDirectoryField.setText(logConfig.getLogDirectoryPath());
+        quickLogFormatCombo.setValue(logConfig.getFormat());
+        quickLogCompressCheck.setSelected(logConfig.isCompress());
     }
 
     private boolean isThemeFontApplyEnabled() {

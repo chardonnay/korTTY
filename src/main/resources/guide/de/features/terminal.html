@@ -1695,6 +1695,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Terminalprotokollierung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dateinamen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateinamen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation-komprimierung-und-aufbewahrung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotation, Komprimierung und Aufbewahrung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2697,6 +2725,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Terminalprotokollierung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dateinamen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dateinamen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation-komprimierung-und-aufbewahrung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotation, Komprimierung und Aufbewahrung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2921,16 +2977,33 @@
 <p>Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.</p>
 </div>
 <h2 id="terminalprotokollierung">Terminalprotokollierung<a class="headerlink" href="#terminalprotokollierung" title="Permanent link">&para;</a></h2>
-<p>Protokollieren Sie die Ausgabe der Terminalsitzung automatisch zu Prüf- und Debugging-Zwecken:</p>
-<ol>
-<li>Aktivieren Sie die Protokollierung auf der Registerkarte <strong>Terminalprotokollierung</strong> der Verbindung.</li>
+<p>Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in eine Datei. Dies ist unabhängig vom <a href="session-journal.html">Sitzungsjournal</a>: Es handelt sich um ein einfaches Transkript ohne Zusammenfassungen, Markierungen oder Screenshots, und beide können gleichzeitig ausgeführt werden.</p>
+<p>An einer der beiden Stellen einstellbar:</p>
+<ul>
+<li><strong>Verbindungsmanager &gt; Verbindung bearbeiten &gt; Terminal-Logging</strong> für eine gespeicherte Verbindung.</li>
+<li>
+<p><strong>Quick Connect &gt; Terminalprotokoll</strong> für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.</p>
+</li>
+<li>
+<p>Protokollierung aktivieren.</p>
+</li>
+<li>Wählen Sie einen <strong>Protokollordner</strong>. Bleibt es leer, verwendet KorTTY <code>~/.kortty/terminal-logs</code>. Den Ordner wählst du, die Dateinamen vergibt korTTY.</li>
 <li>Wählen Sie ein Protokollformat:</li>
-<li><strong>Einfacher Text</strong> – Rohe Terminalausgabe.</li>
+<li><strong>Plain Text</strong> – Eine Zeile pro Ausgabezeile, mit Zeitstempel.</li>
 <li><strong>XML</strong> – Strukturiertes XML mit Zeitstempeln.</li>
 <li><strong>JSON</strong> – Strukturiertes JSON mit Zeitstempeln.</li>
-<li>Legen Sie eine <strong>maximale Dateigröße</strong> fest (Standard: 10 MB). Bei Überschreitung wird die Protokolldatei rotiert.</li>
-<li>Protokolle werden in <code>~/.kortty/history/</code> als komprimierte Dateien gespeichert.</li>
-</ol>
+<li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB), den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) und die Komprimierung geschlossener Dateien an.</li>
+</ul>
+<h3 id="dateinamen">Dateinamen<a class="headerlink" href="#dateinamen" title="Permanent link">&para;</a></h3>
+<p>Jede Datei trägt den Namen <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, zum Beispiel <code>2026-08-04-14-30-12-web01_1.log.gz</code>. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten <code>_1</code> und <code>_2</code> und schreiben niemals in die Datei des anderen.</p>
+<h3 id="rotation-komprimierung-und-aufbewahrung">Rotation, Komprimierung und Aufbewahrung<a class="headerlink" href="#rotation-komprimierung-und-aufbewahrung" title="Permanent link">&para;</a></h3>
+<p>Eine neue Datei wird <strong>jeden Tag</strong> gestartet, und immer dann erneut, wenn die maximale Größe erreicht ist (diese Teile sind mit <code>.p2</code>, <code>.p3</code>, … nummeriert). Durch die Rotation wird nie etwas überschrieben oder gelöscht.</p>
+<p>Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann; sobald eine Datei geschlossen wird, wird sie nach <code>.gz</code> komprimiert. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.</p>
+<p>Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf <code>0</code> ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.</p>
+<div class="admonition warning">
+<p class="admonition-title">Protokolle werden nicht geschwärzt</p>
+<p>Im Gegensatz zum Sitzungsjournal speichert das Terminalprotokoll die Ausgabe genau so, wie sie eingegangen ist, ohne dass Passwörter oder andere Geheimnisse geschwärzt werden, die ein Befehl an das Terminal zurückgibt. Wählen Sie den Protokollordner entsprechend aus.</p>
+</div>
 <h2 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h2>
 <p>Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten <code>.korttyrec.jsonl.gz</code>-Datei pro Terminal-Tab-Sitzung auf. Ältere <code>.korttyrec.jsonl</code>-Wiedergabedateien bleiben lesbar.</p>
 <h3 id="aufzeichnungen-konfigurieren">Aufzeichnungen konfigurieren<a class="headerlink" href="#aufzeichnungen-konfigurieren" title="Permanent link">&para;</a></h3>

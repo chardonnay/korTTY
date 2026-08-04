@@ -135,15 +135,35 @@ Verhindern Sie, dass Verbindungen aufgrund von Inaktivität unterbrochen werden,
 
 ## Terminalprotokollierung
 
-Protokollieren Sie die Ausgabe der Terminalsitzung automatisch zu Prüf- und Debugging-Zwecken:
+Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in eine Datei. Dies ist unabhängig vom [Sitzungsjournal](session-journal.md): Es handelt sich um ein einfaches Transkript ohne Zusammenfassungen, Markierungen oder Screenshots, und beide können gleichzeitig ausgeführt werden.
 
-1. Aktivieren Sie die Protokollierung auf der Registerkarte **Terminalprotokollierung** der Verbindung.
-2. Wählen Sie ein Protokollformat:
-   - **Einfacher Text** – Rohe Terminalausgabe.
+An einer der beiden Stellen einstellbar:
+
+- **Verbindungsmanager > Verbindung bearbeiten > Terminal-Logging** für eine gespeicherte Verbindung.
+- **Quick Connect > Terminalprotokoll** für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.
+
+1. Protokollierung aktivieren.
+2. Wählen Sie einen **Protokollordner**. Bleibt es leer, verwendet KorTTY `~/.kortty/terminal-logs`. Den Ordner wählst du, die Dateinamen vergibt korTTY.
+3. Wählen Sie ein Protokollformat:
+   - **Plain Text** – Eine Zeile pro Ausgabezeile, mit Zeitstempel.
    - **XML** – Strukturiertes XML mit Zeitstempeln.
    - **JSON** – Strukturiertes JSON mit Zeitstempeln.
-3. Legen Sie eine **maximale Dateigröße** fest (Standard: 10 MB). Bei Überschreitung wird die Protokolldatei rotiert.
-4. Protokolle werden in `~/.kortty/history/` als komprimierte Dateien gespeichert.
+4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB), den **Aufbewahrungszeitraum** (Standard: 30 Tage) und die Komprimierung geschlossener Dateien an.
+
+### Dateinamen
+
+Jede Datei trägt den Namen `<date>-<time>-<server>_<number>`, zum Beispiel `2026-08-04-14-30-12-web01_1.log.gz`. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten `_1` und `_2` und schreiben niemals in die Datei des anderen.
+
+### Rotation, Komprimierung und Aufbewahrung
+
+Eine neue Datei wird **jeden Tag** gestartet, und immer dann erneut, wenn die maximale Größe erreicht ist (diese Teile sind mit `.p2`, `.p3`, … nummeriert). Durch die Rotation wird nie etwas überschrieben oder gelöscht.
+
+Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann; sobald eine Datei geschlossen wird, wird sie nach `.gz` komprimiert. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.
+
+Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf `0` ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.
+
+!!! warning "Protokolle werden nicht geschwärzt"
+    Im Gegensatz zum Sitzungsjournal speichert das Terminalprotokoll die Ausgabe genau so, wie sie eingegangen ist, ohne dass Passwörter oder andere Geheimnisse geschwärzt werden, die ein Befehl an das Terminal zurückgibt. Wählen Sie den Protokollordner entsprechend aus.
 
 ## Terminalaufzeichnung
 

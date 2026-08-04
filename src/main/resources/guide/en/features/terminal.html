@@ -1695,6 +1695,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Terminal logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation-compression-and-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotation, compression and retention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2697,6 +2725,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Terminal logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation-compression-and-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotation, compression and retention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2921,16 +2977,33 @@
 <p>If a server, firewall, VPN, or NAT gateway closes idle sessions sooner than the configured interval, the connection can still end. In that case, check the server-side SSH configuration and network idle-timeout settings as well as the KorTTY log.</p>
 </div>
 <h2 id="terminal-logging">Terminal logging<a class="headerlink" href="#terminal-logging" title="Permanent link">&para;</a></h2>
-<p>Automatically log terminal session output for audit and debugging purposes:</p>
-<ol>
-<li>Enable logging in the connection's <strong>Terminal Logging</strong> tab.</li>
+<p>Writes a connection's terminal output to a file, for audit and debugging. This is independent of the <a href="session-journal.html">Session Journal</a>: it is a plain transcript with no summaries, markers or screenshots, and the two can run at the same time.</p>
+<p>Configure it in either place:</p>
+<ul>
+<li><strong>Connection Manager &gt; Edit connection &gt; Logging</strong> for a saved connection.</li>
+<li>
+<p><strong>Quick Connect &gt; Terminal log</strong> for a one-off session, or to change the setting for the connection you are about to open.</p>
+</li>
+<li>
+<p>Enable logging.</p>
+</li>
+<li>Choose a <strong>log folder</strong>. Left empty, KorTTY uses <code>~/.kortty/terminal-logs</code>. You pick the folder; the file names are KorTTY's.</li>
 <li>Choose a log format:</li>
-<li><strong>Plain Text</strong> - Raw terminal output.</li>
+<li><strong>Plain Text</strong> - One timestamped line per line of output.</li>
 <li><strong>XML</strong> - Structured XML with timestamps.</li>
 <li><strong>JSON</strong> - Structured JSON with timestamps.</li>
-<li>Set a <strong>maximum file size</strong> (default: 10 MB). When exceeded, the log file is rotated.</li>
-<li>Logs are stored in <code>~/.kortty/history/</code> as compressed files.</li>
-</ol>
+<li>Optionally adjust the <strong>maximum file size</strong> (default: 10 MB), the <strong>retention period</strong> (default: 30 days) and whether closed files are compressed.</li>
+</ul>
+<h3 id="file-names">File names<a class="headerlink" href="#file-names" title="Permanent link">&para;</a></h3>
+<p>Every file is named <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, for example <code>2026-08-04-14-30-12-web01_1.log.gz</code>. The date leads so a folder listing sorts chronologically, and the trailing number distinguishes connections that are open at the same time — two tabs on the same server get <code>_1</code> and <code>_2</code> and never write into one another's file.</p>
+<h3 id="rotation-compression-and-retention">Rotation, compression and retention<a class="headerlink" href="#rotation-compression-and-retention" title="Permanent link">&para;</a></h3>
+<p>A new file is started <strong>every day</strong>, and again whenever the maximum size is reached (those parts are numbered <code>.p2</code>, <code>.p3</code>, …). Nothing is ever overwritten or deleted by rotation.</p>
+<p>The file currently being written stays uncompressed so that a crash cannot truncate it; the moment a file is closed it is gzipped to <code>.gz</code>. A connection that produces no output creates no file at all.</p>
+<p>Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to <code>0</code> to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.</p>
+<div class="admonition warning">
+<p class="admonition-title">Logs are not redacted</p>
+<p>Unlike the Session Journal, the terminal log stores the output exactly as it arrived, with no redaction of passwords or other secrets that a command echoes to the terminal. Choose the log folder accordingly.</p>
+</div>
 <h2 id="terminal-recording">Terminal recording<a class="headerlink" href="#terminal-recording" title="Permanent link">&para;</a></h2>
 <p>Terminal recording is designed as a low-resource replay feature. KorTTY records terminal screen-state changes and timing events into one JDK/GZIP streaming-compressed <code>.korttyrec.jsonl.gz</code> file per terminal tab session. Legacy <code>.korttyrec.jsonl</code> replay files remain readable.</p>
 <h3 id="configure-recordings">Configure recordings<a class="headerlink" href="#configure-recordings" title="Permanent link">&para;</a></h3>

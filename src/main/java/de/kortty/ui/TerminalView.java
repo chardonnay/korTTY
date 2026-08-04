@@ -5002,6 +5002,10 @@ public class TerminalView extends BorderPane {
         
         try {
             terminalLogger = new de.kortty.core.TerminalLogger(logConfig, connection.getDisplayName());
+            // Logging can give up on its own (disk full, volume unmounted); say so once instead of
+            // leaving the user to discover an empty file later.
+            terminalLogger.setWarningListener(reason ->
+                showError(I18n.get("terminal.log.error.start", reason != null ? reason : "")));
             terminalLogger.start();
             if (logConfig.getFormat() != null) {
                 // Measures actual logging sessions, not just configuration.
@@ -5019,10 +5023,10 @@ public class TerminalView extends BorderPane {
                 observableConnector.addDataListener(terminalLoggerDataListener);
             }
             
-            logger.info("Terminal logging started for {}", connection.getDisplayName());
+            logger.info("Terminal logging started");
         } catch (Exception e) {
             logger.error("Failed to start terminal logger: {}", e.getMessage(), e);
-            showError("Logging konnte nicht gestartet werden: " + e.getMessage());
+            showError(I18n.get("terminal.log.error.start", e.getMessage()));
         }
     }
     

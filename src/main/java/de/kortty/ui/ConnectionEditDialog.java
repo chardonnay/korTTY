@@ -109,6 +109,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private TextField logFilePathField;
     private Spinner<Integer> maxFileSizeMBSpinner;
     private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> logFormatCombo;
+    private CheckBox logCompressCheck;
+    private CheckBox logRotateDailyCheck;
+    private Spinner<Integer> logRetentionDaysSpinner;
+    private Label logNamePreviewLabel;
 
     // Session Journal
     private CheckBox enableJournalCheck;
@@ -713,12 +717,22 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 if (enableLoggingCheck != null) {
                     logConfig.setEnabled(enableLoggingCheck.isSelected());
                     if (enableLoggingCheck.isSelected()) {
-                        logConfig.setLogFilePath(logFilePathField != null && logFilePathField.getText() != null ? logFilePathField.getText().trim() : "");
+                        logConfig.setLogDirectoryPath(logFilePathField != null && logFilePathField.getText() != null
+                            ? logFilePathField.getText().trim() : "");
                         if (maxFileSizeMBSpinner != null) {
                             logConfig.setMaxFileSizeMB(maxFileSizeMBSpinner.getValue());
                         }
                         if (logFormatCombo != null) {
                             logConfig.setFormat(logFormatCombo.getValue());
+                        }
+                        if (logCompressCheck != null) {
+                            logConfig.setCompress(logCompressCheck.isSelected());
+                        }
+                        if (logRotateDailyCheck != null) {
+                            logConfig.setRotateDaily(logRotateDailyCheck.isSelected());
+                        }
+                        if (logRetentionDaysSpinner != null) {
+                            logConfig.setRetentionDays(logRetentionDaysSpinner.getValue());
                         }
                     }
                 }
@@ -1525,43 +1539,76 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         grid.setVgap(10);
         grid.setDisable(logConfig == null || !logConfig.isEnabled());
         
-        // Log file path
+        // Target directory — the file names themselves are generated, not configured.
         logFilePathField = new TextField();
-        logFilePathField.setPromptText("/path/to/terminal.log");
+        logFilePathField.setPromptText(de.kortty.core.TerminalLogger.defaultDirectory().toString());
         logFilePathField.setPrefWidth(300);
         if (logConfig != null) {
-            logFilePathField.setText(logConfig.getLogFilePath());
+            logFilePathField.setText(logConfig.getLogDirectoryPath());
         }
-        
+
         Button browseLogButton = new Button(I18n.get("connEdit.browse"));
-        browseLogButton.setOnAction(e -> browseForLogFile());
-        
+        browseLogButton.setOnAction(e -> browseForLogDirectory());
+
         // Max file size
         maxFileSizeMBSpinner = new Spinner<>(1, 1000, logConfig != null ? logConfig.getMaxFileSizeMB() : 10);
         maxFileSizeMBSpinner.setEditable(true);
         maxFileSizeMBSpinner.setPrefWidth(100);
-        
+
         // Log format
         logFormatCombo = new ComboBox<>();
         logFormatCombo.getItems().addAll(de.kortty.model.TerminalLogConfig.LogFormat.values());
         logFormatCombo.setValue(logConfig != null ? logConfig.getFormat() : de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT);
         logFormatCombo.setPrefWidth(200);
-        
+
+        logCompressCheck = new CheckBox(I18n.get("connEdit.log.compress"));
+        logCompressCheck.setSelected(logConfig == null || logConfig.isCompress());
+        logCompressCheck.setTooltip(new Tooltip(I18n.get("connEdit.log.compress.hint")));
+
+        logRotateDailyCheck = new CheckBox(I18n.get("connEdit.log.rotateDaily"));
+        logRotateDailyCheck.setSelected(logConfig == null || logConfig.isRotateDaily());
+
+        logRetentionDaysSpinner = new Spinner<>(0, 3650, logConfig != null
+            ? logConfig.getRetentionDays() : de.kortty.model.TerminalLogConfig.DEFAULT_RETENTION_DAYS);
+        logRetentionDaysSpinner.setEditable(true);
+        logRetentionDaysSpinner.setPrefWidth(100);
+        logRetentionDaysSpinner.setTooltip(new Tooltip(I18n.get("connEdit.log.retention.hint")));
+
+        // The naming scheme is not guessable from the controls, so show a real example.
+        logNamePreviewLabel = new Label();
+        logNamePreviewLabel.setStyle("-fx-font-family: monospace; -fx-text-fill: gray;");
+        Runnable refreshPreview = () -> logNamePreviewLabel.setText(previewLogFileName());
+        refreshPreview.run();
+        logFormatCombo.valueProperty().addListener((obs, old, value) -> refreshPreview.run());
+        logCompressCheck.selectedProperty().addListener((obs, old, value) -> refreshPreview.run());
+
         // Layout
         int row = 0;
-        grid.add(new Label(I18n.get("connEdit.logFile")), 0, row);
+        grid.add(new Label(I18n.get("connEdit.log.directory")), 0, row);
         HBox logPathBox = new HBox(10);
         logPathBox.getChildren().addAll(logFilePathField, browseLogButton);
         grid.add(logPathBox, 1, row++);
-        
+
+        grid.add(new Label(I18n.get("connEdit.format")), 0, row);
+        grid.add(logFormatCombo, 1, row++);
+
+        grid.add(new Label(I18n.get("connEdit.log.namePreview")), 0, row);
+        grid.add(logNamePreviewLabel, 1, row++);
+
         grid.add(new Label(I18n.get("connEdit.maxFileSize")), 0, row);
         HBox sizeBox = new HBox(10);
         sizeBox.getChildren().addAll(maxFileSizeMBSpinner, new Label("MB"));
         grid.add(sizeBox, 1, row++);
-        
-        grid.add(new Label(I18n.get("connEdit.format")), 0, row);
-        grid.add(logFormatCombo, 1, row++);
-        
+
+        grid.add(new Label(I18n.get("connEdit.log.retention")), 0, row);
+        HBox retentionBox = new HBox(10);
+        retentionBox.getChildren().addAll(logRetentionDaysSpinner,
+            new Label(I18n.get("connEdit.log.retention.unit")));
+        grid.add(retentionBox, 1, row++);
+
+        grid.add(logRotateDailyCheck, 1, row++);
+        grid.add(logCompressCheck, 1, row++);
+
         // Enable/disable grid based on checkbox
         enableLoggingCheck.selectedProperty().addListener((obs, old, newVal) -> {
             grid.setDisable(!newVal);
@@ -1642,29 +1689,31 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         return tab;
     }
 
-    private void browseForLogFile() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(I18n.get("connEdit.selectLogFile"));
-        
-        // Start in user home
-        File homeDir = new File(System.getProperty("user.home"));
-        fileChooser.setInitialDirectory(homeDir);
-        
-        // Suggest file name based on connection
-        String suggestedName = connection.getName() != null ? 
-                connection.getName().replaceAll("[^a-zA-Z0-9-_]", "_") + ".log" : 
-                "terminal.log";
-        fileChooser.setInitialFileName(suggestedName);
-        
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter(I18n.get("connEdit.logFiles"), "*.log", "*.txt", "*.xml", "*.json"),
-                new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*")
-        );
-        
-        File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
-        if (file != null) {
-            logFilePathField.setText(file.getAbsolutePath());
+    /** Picks the folder the generated log files land in; the names are korTTY's to choose. */
+    private void browseForLogDirectory() {
+        javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
+        chooser.setTitle(I18n.get("connEdit.log.selectDirectory"));
+
+        String current = logFilePathField.getText() != null ? logFilePathField.getText().trim() : "";
+        File start = current.isEmpty() ? null : new File(current);
+        chooser.setInitialDirectory(start != null && start.isDirectory()
+            ? start : new File(System.getProperty("user.home")));
+
+        File directory = chooser.showDialog(getDialogPane().getScene().getWindow());
+        if (directory != null) {
+            logFilePathField.setText(directory.getAbsolutePath());
         }
+    }
+
+    /** A real example of the name the current settings produce, using today's date and time. */
+    private String previewLogFileName() {
+        var format = logFormatCombo.getValue() != null
+            ? logFormatCombo.getValue() : de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT;
+        String name = de.kortty.core.TerminalLogNaming.fileName(
+            de.kortty.core.TerminalLogNaming.slug(connection.getDisplayName()),
+            java.time.LocalDateTime.now(), format.getExtension(), 1, 1);
+        return logCompressCheck.isSelected()
+            ? name + de.kortty.core.SessionJournalLogCompressor.GZIP_SUFFIX : name;
     }
     
     

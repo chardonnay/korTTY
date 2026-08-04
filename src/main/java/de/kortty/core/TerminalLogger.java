@@ -4,198 +4,192 @@ import de.kortty.model.TerminalLogConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
- * Logs terminal output to a file with rotation and format support.
+ * Writes a connection's terminal output to a file, rotating daily and compressing what it closes.
+ *
+ * <p>Files are named by {@link TerminalLogNaming}, so several connections open at the same time
+ * each get their own; nothing ever appends to a file a previous run left behind. Every closed file
+ * is a complete, self-contained document — header and footer included for the structured formats —
+ * which is what makes gzipping each one on its own worthwhile.</p>
+ *
+ * <p><strong>Threading:</strong> {@link #log(String)} runs on the connector's reader thread and
+ * only enqueues. Everything that touches a file happens on the single writer thread, including the
+ * first open and the retention sweep, so there is no lock to get wrong.</p>
  */
 public class TerminalLogger {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(TerminalLogger.class);
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-    
+
+    /** How long a poll waits, and therefore how soon after midnight the day roll happens. */
+    private static final long POLL_MILLIS = 100;
+
+    /** Consecutive write failures before the logger gives up rather than erroring every line. */
+    private static final int MAX_CONSECUTIVE_FAILURES = 20;
+
+    /** Stops a runaway size rotation from filling a directory with parts. */
+    private static final int MAX_PARTS = 500;
+
+    /** Files currently open for writing; the retention sweep must not touch these. */
+    private static final Set<Path> LIVE_FILES = ConcurrentHashMap.newKeySet();
+
     private final TerminalLogConfig config;
     private final String connectionName;
+    private final Path directory;
+    private final Clock clock;
     private final BlockingQueue<String> logQueue;
     private final Thread writerThread;
-    private volatile boolean running = false;
-    
-    private Path logFile;
+    private final SessionJournalAnsiProcessor ansi;
+
+    /** Notified once when logging stops by itself, so the tab can tell the user. */
+    private volatile Consumer<String> warningListener;
+
+    private volatile boolean running;
+    private volatile boolean draining;
+
+    // ---- Writer-thread state; never touched from anywhere else. ----
     private BufferedWriter writer;
-    private long currentFileSize = 0;
-    private boolean headerWritten = false;
-    private final StringBuilder lineBuffer = new StringBuilder();
-    
+    private Path currentFile;
+    private LocalDate currentDay;
+    private long currentFileSize;
+    private int sequence = 1;
+    private int part = 1;
+    private int consecutiveFailures;
+    private boolean stopped;
+
     public TerminalLogger(TerminalLogConfig config, String connectionName) {
+        this(config, connectionName, resolveDirectory(config), Clock.systemDefaultZone());
+    }
+
+    /** Test seam: an explicit directory and clock make rotation and retention observable. */
+    TerminalLogger(TerminalLogConfig config, String connectionName, Path directory, Clock clock) {
         this.config = config;
         this.connectionName = connectionName;
-        this.logQueue = new LinkedBlockingQueue<>(10000); // Buffer up to 10k lines
-        this.writerThread = new Thread(this::writerLoop, "TerminalLogger-" + connectionName);
+        this.directory = directory;
+        this.clock = clock;
+        this.logQueue = new LinkedBlockingQueue<>(10000);
+        this.ansi = new SessionJournalAnsiProcessor(line -> {
+            // Partial lines are a live-view idea; a log file only wants finished ones.
+            if (!line.partial()) {
+                enqueue(line.text());
+            }
+        });
+        this.writerThread = new Thread(this::writerLoop, "TerminalLogger-" + safeThreadName(connectionName));
         this.writerThread.setDaemon(true);
     }
-    
+
+    /** Where logs go when the connection does not name a directory. */
+    static Path resolveDirectory(TerminalLogConfig config) {
+        String configured = config != null
+            ? TerminalLogConfig.resolveDirectory(config.getLogDirectoryPath()) : null;
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured).toAbsolutePath().normalize();
+        }
+        return defaultDirectory();
+    }
+
+    /** The directory used when a connection leaves the field blank. */
+    public static Path defaultDirectory() {
+        return Path.of(System.getProperty("user.home"), ".kortty", "terminal-logs")
+            .toAbsolutePath()
+            .normalize();
+    }
+
+    /** Called once if logging stops on its own (disk full, directory gone). */
+    public void setWarningListener(Consumer<String> warningListener) {
+        this.warningListener = warningListener;
+    }
+
     /**
-     * Starts the logger.
+     * Starts the logger. The file itself is opened on the writer thread when the first output
+     * arrives, so connecting to a silent host does not create an empty archive.
      */
     public synchronized void start() throws IOException {
         if (running) {
             return;
         }
-        
-        if (config.getLogFilePath() == null || config.getLogFilePath().trim().isEmpty()) {
-            throw new IOException("Log file path is not configured");
-        }
-        
-        logFile = Paths.get(config.getLogFilePath());
-        
-        // Create parent directories if needed
-        Path parent = logFile.getParent();
-        if (parent != null && !Files.exists(parent)) {
-            Files.createDirectories(parent);
-        }
-        
-        // Initialize file and writer
-        initializeWriter();
-        
         running = true;
         writerThread.start();
-        
-        logger.info("Terminal logger started for {}, format={}, file={}", 
-                    connectionName, config.getFormat(), logFile);
+        logger.info("Terminal logger started, format={}, directory={}",
+            config.getFormat(), directory);
     }
-    
+
     /**
-     * Stops the logger.
+     * Stops the logger, writing out everything already captured.
+     *
+     * <p>The queue is drained before the thread is asked to end. Interrupting first would discard
+     * whatever is still queued — which is exactly the output from just before a disconnect, the
+     * part worth having.</p>
      */
     public synchronized void stop() {
         if (!running) {
             return;
         }
-        
+        // Order matters: draining has to be visible, and the tail has to be queued, before the
+        // loop can observe running == false — otherwise it exits while the last lines are in
+        // flight and they never reach the file.
+        draining = true;
+        ansi.flushRemaining();
         running = false;
-        
-        // Flush any remaining buffered data
-        synchronized (lineBuffer) {
-            if (lineBuffer.length() > 0) {
-                String remaining = sanitizeLine(lineBuffer.toString());
-                if (!remaining.isEmpty()) {
-                    logQueue.offer(remaining);
-                }
-                lineBuffer.setLength(0);
-            }
-        }
-        
-        writerThread.interrupt();
-        
+
         try {
+            // Generous enough for a full queue, short enough not to hang a closing tab.
             writerThread.join(5000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
-        closeWriter();
-        logger.info("Terminal logger stopped for {}", connectionName);
+        if (writerThread.isAlive()) {
+            logger.warn("Terminal logger did not drain in time; {} line(s) dropped", logQueue.size());
+            writerThread.interrupt();
+        }
+        logger.info("Terminal logger stopped");
     }
-    
+
     /**
-     * Logs terminal output data (may be partial).
-     * Data is buffered until a complete line is available.
+     * Accepts a chunk of terminal output. Chunks may split lines, escape sequences and even UTF-8
+     * characters at arbitrary boundaries; {@link SessionJournalAnsiProcessor} is built for that.
      */
     public void log(String data) {
         if (!running || data == null || data.isEmpty()) {
             return;
         }
-        
-        synchronized (lineBuffer) {
-            // Append data to buffer
-            lineBuffer.append(data);
-            
-            // Process complete lines (ending with \n or \r\n)
-            String bufferContent = lineBuffer.toString();
-            int lastNewline = Math.max(bufferContent.lastIndexOf('\n'), bufferContent.lastIndexOf('\r'));
-            
-            if (lastNewline >= 0) {
-                // Extract complete lines
-                String completeLinesStr = bufferContent.substring(0, lastNewline + 1);
-                String remaining = bufferContent.substring(lastNewline + 1);
-                
-                // Split into individual lines and process
-                String[] lines = completeLinesStr.split("[\\r\\n]+");
-                for (String line : lines) {
-                    if (!line.trim().isEmpty()) {
-                        // Remove ANSI escape sequences and non-ASCII characters
-                        String cleanLine = sanitizeLine(line);
-                        
-                        if (!cleanLine.trim().isEmpty() && !logQueue.offer(cleanLine)) {
-                            logger.warn("Log queue full for {}, dropping line", connectionName);
-                        }
-                    }
-                }
-                
-                // Keep remaining incomplete line in buffer
-                lineBuffer.setLength(0);
-                lineBuffer.append(remaining);
-            }
-            
-            // Prevent buffer from growing too large
-            if (lineBuffer.length() > 10000) {
-                logger.warn("Line buffer too large for {}, flushing", connectionName);
-                String cleanLine = sanitizeLine(lineBuffer.toString());
-                if (!cleanLine.trim().isEmpty()) {
-                    logQueue.offer(cleanLine);
-                }
-                lineBuffer.setLength(0);
-            }
+        ansi.accept(data);
+    }
+
+    private void enqueue(String line) {
+        if (!logQueue.offer(line)) {
+            logger.warn("Terminal log queue full, dropping line");
         }
     }
-    
-    /**
-     * Sanitizes a line by removing ANSI escape sequences and non-ASCII characters.
-     */
-    private String sanitizeLine(String line) {
-        if (line == null || line.isEmpty()) {
-            return "";
-        }
-        
-        // Remove ANSI CSI escape sequences (ESC[...)
-        String cleaned = line.replaceAll("\\x1B\\[[;\\d]*m", "");
-        cleaned = cleaned.replaceAll("\\x1B\\[\\?[0-9;]*[a-zA-Z]", "");
-        cleaned = cleaned.replaceAll("\\x1B\\[[0-9;]*[A-Za-z~]", "");
-        
-        // Remove ANSI OSC sequences (ESC]... - like ]3008;...)
-        cleaned = cleaned.replaceAll("\\x1B\\].*?(?:\\x07|\\x1B\\\\)", "");
-        cleaned = cleaned.replaceAll("\\]\\d+;[^\\\\]*\\\\", "");
-        
-        // Remove standalone backslashes at end
-        cleaned = cleaned.replaceAll("\\\\+$", "");
-        
-        // Keep only ASCII printable characters, tabs
-        StringBuilder sb = new StringBuilder();
-        for (char c : cleaned.toCharArray()) {
-            if ((c >= 32 && c <= 126) || c == '\t') {
-                sb.append(c);
-            }
-        }
-        
-        return sb.toString().trim();
-    }
-    
-    /**
-     * Writer loop that processes queued log entries.
-     */
+
+    // ==== Writer thread ==========================================================================
+
     private void writerLoop() {
-        while (running || !logQueue.isEmpty()) {
+        sweepRetention();
+        while (running || (draining && !logQueue.isEmpty())) {
             try {
-                String line = logQueue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+                if (config.isRotateDaily() && currentDay != null
+                    && !LocalDate.now(clock).equals(currentDay)) {
+                    // Not isAfter: a clock stepped backwards (NTP, timezone edit) must also roll,
+                    // or a whole day's output lands in yesterday's file.
+                    roll(true);
+                }
+                String line = logQueue.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
                 if (line != null) {
                     writeLine(line);
                 }
@@ -203,187 +197,255 @@ public class TerminalLogger {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                logger.error("Error writing log for {}: {}", connectionName, e.getMessage(), e);
+                if (recordFailure(e)) {
+                    break;
+                }
+            }
+        }
+        drainRemainder();
+        closeCurrentFile();
+        draining = false;
+    }
+
+    /** Catches anything queued between the loop's last check and its exit. */
+    private void drainRemainder() {
+        String line;
+        while (!stopped && (line = logQueue.poll()) != null) {
+            try {
+                writeLine(line);
+            } catch (Exception e) {
+                if (recordFailure(e)) {
+                    return;
+                }
             }
         }
     }
-    
-    /**
-     * Writes a line to the log file.
-     */
+
+    /** Returns true when the logger has given up. */
+    private boolean recordFailure(Exception e) {
+        consecutiveFailures++;
+        if (consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
+            logger.error("Error writing terminal log: {}", e.getMessage());
+            return false;
+        }
+        // A gone volume or a full disk would otherwise produce ten errors a second forever,
+        // flooding korTTY's own log along with it.
+        logger.error("Terminal logging stopped after {} consecutive failures: {}",
+            consecutiveFailures, e.getMessage());
+        running = false;
+        stopped = true;
+        Consumer<String> listener = warningListener;
+        if (listener != null) {
+            listener.accept(e.getMessage());
+        }
+        return true;
+    }
+
     private void writeLine(String line) throws IOException {
+        if (stopped) {
+            return;
+        }
+        if (writer == null) {
+            openNewFile(part);
+        }
+        String formatted = formatLine(line);
+        byte[] bytes = formatted.getBytes(StandardCharsets.UTF_8);
+
+        if (currentFileSize + bytes.length > config.getMaxFileSizeBytes()) {
+            if (part >= MAX_PARTS) {
+                logger.warn("Terminal log reached {} parts; stopping to avoid filling the directory",
+                    MAX_PARTS);
+                running = false;
+                stopped = true;
+                return;
+            }
+            roll(false);
+            openNewFile(part);
+            formatted = formatLine(line);
+            bytes = formatted.getBytes(StandardCharsets.UTF_8);
+        }
+
+        writer.write(formatted);
+        writer.flush();
+        currentFileSize += bytes.length;
+        consecutiveFailures = 0;
+    }
+
+    /**
+     * Closes the current file and prepares the next one.
+     *
+     * @param dayChanged true for the midnight roll, which restarts part numbering and re-sweeps
+     */
+    private void roll(boolean dayChanged) {
+        closeCurrentFile();
+        if (dayChanged) {
+            part = 1;
+            sweepRetention();
+        } else {
+            part++;
+        }
+        // The new file is opened lazily by writeLine, so an idle connection does not leave one
+        // empty archive per day behind.
+    }
+
+    private void openNewFile(int partNumber) throws IOException {
+        LocalDateTime now = LocalDateTime.now(clock);
+        TerminalLogNaming.Allocated allocated = TerminalLogNaming.open(
+            directory, TerminalLogNaming.slug(connectionName), now,
+            config.getFormat().getExtension(), partNumber, sequence);
+
+        writer = allocated.writer();
+        currentFile = allocated.file();
+        // Keeping the number across a roll: it distinguishes connections open at the same time,
+        // and that set does not change at midnight.
+        sequence = allocated.sequence();
+        currentDay = now.toLocalDate();
+        currentFileSize = 0;
+        LIVE_FILES.add(currentFile.toAbsolutePath().normalize());
+
+        String header = fileHeader();
+        if (!header.isEmpty()) {
+            writer.write(header);
+            writer.flush();
+            currentFileSize += header.getBytes(StandardCharsets.UTF_8).length;
+        }
+    }
+
+    private void closeCurrentFile() {
         if (writer == null) {
             return;
         }
-        
-        String formattedLine = formatLine(line);
-        byte[] bytes = formattedLine.getBytes(StandardCharsets.UTF_8);
-        
-        // Check if rotation is needed
-        if (currentFileSize + bytes.length > config.getMaxFileSizeBytes()) {
-            rotateLog();
+        try {
+            String footer = fileFooter();
+            if (!footer.isEmpty()) {
+                writer.write(footer);
+            }
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            logger.error("Error closing terminal log: {}", e.getMessage());
         }
-        
-        writer.write(formattedLine);
-        writer.flush();
-        currentFileSize += bytes.length;
+        writer = null;
+
+        Path finished = currentFile;
+        currentFile = null;
+        if (finished == null) {
+            return;
+        }
+        LIVE_FILES.remove(finished.toAbsolutePath().normalize());
+        if (config.isCompress()) {
+            SessionJournalLogCompressor.compress(finished);
+        }
     }
-    
-    /**
-     * Formats a line according to the configured format.
-     */
+
+    private void sweepRetention() {
+        try {
+            TerminalLogRetention.sweep(directory, config.getRetentionDays(),
+                LocalDate.now(clock), LIVE_FILES);
+        } catch (Exception e) {
+            logger.warn("Terminal log retention sweep failed: {}", e.getMessage());
+        }
+    }
+
+    // ==== Formats ================================================================================
+
+    /** Header for a fresh file; every file is a document of its own, so this runs once per file. */
+    private String fileHeader() {
+        return switch (config.getFormat()) {
+            case XML -> "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<terminal-log connection=\""
+                + escapeXml(connectionName) + "\">\n";
+            case JSON -> "{\n  \"connection\": \"" + escapeJson(connectionName) + "\",\n"
+                + "  \"entries\": [\n";
+            default -> "";
+        };
+    }
+
+    private String fileFooter() {
+        return switch (config.getFormat()) {
+            case XML -> "</terminal-log>\n";
+            // No trailing comma before the bracket: an empty file must still be valid JSON.
+            case JSON -> (currentFileSize > jsonHeaderLength() ? "\n" : "") + "  ]\n}\n";
+            default -> "";
+        };
+    }
+
+    private long jsonHeaderLength() {
+        return fileHeader().getBytes(StandardCharsets.UTF_8).length;
+    }
+
     private String formatLine(String line) {
-        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
-        
-        switch (config.getFormat()) {
-            case PLAIN_TEXT:
-                return String.format("[%s] %s\n", timestamp, line);
-                
-            case XML:
-                if (!headerWritten) {
-                    headerWritten = true;
-                    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<terminal-log connection=\"" + 
-                           escapeXml(connectionName) + "\">\n" +
-                           "  <entry timestamp=\"" + timestamp + "\"><![CDATA[" + line + "]]></entry>\n";
-                }
-                return "  <entry timestamp=\"" + timestamp + "\"><![CDATA[" + line + "]]></entry>\n";
-                
-            case JSON:
-                if (!headerWritten) {
-                    headerWritten = true;
-                    return "{\n  \"connection\": \"" + escapeJson(connectionName) + "\",\n" +
-                           "  \"entries\": [\n" +
-                           "    {\"timestamp\": \"" + timestamp + "\", \"line\": \"" + escapeJson(line) + "\"}";
-                }
-                return ",\n    {\"timestamp\": \"" + timestamp + "\", \"line\": \"" + escapeJson(line) + "\"}";
-                
-            default:
-                return line + "\n";
-        }
+        String timestamp = LocalDateTime.now(clock).format(TIMESTAMP_FORMAT);
+        return switch (config.getFormat()) {
+            case PLAIN_TEXT -> String.format("[%s] %s%n", timestamp, line);
+            case XML -> "  <entry timestamp=\"" + timestamp + "\">" + escapeXml(line) + "</entry>\n";
+            case JSON -> (currentFileSize > jsonHeaderLength() ? ",\n" : "")
+                + "    {\"timestamp\": \"" + timestamp + "\", \"line\": \"" + escapeJson(line) + "\"}";
+        };
     }
-    
+
     /**
-     * Escapes XML special characters.
+     * Escapes XML text. The old implementation wrapped lines in CDATA, which silently produced
+     * broken documents as soon as terminal output contained {@code ]]>} — plain escaping cannot.
      */
     private String escapeXml(String text) {
-        if (text == null) return "";
+        if (text == null) {
+            return "";
+        }
         return text.replace("&", "&amp;")
                    .replace("<", "&lt;")
                    .replace(">", "&gt;")
                    .replace("\"", "&quot;")
                    .replace("'", "&apos;");
     }
-    
-    /**
-     * Escapes JSON special characters.
-     */
+
     private String escapeJson(String text) {
-        if (text == null) return "";
-        return text.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
-    }
-    
-    /**
-     * Initializes the file writer.
-     */
-    private void initializeWriter() throws IOException {
-        boolean fileExists = Files.exists(logFile);
-        
-        if (fileExists) {
-            currentFileSize = Files.size(logFile);
-            
-            // Check if rotation is immediately needed
-            if (currentFileSize >= config.getMaxFileSizeBytes()) {
-                rotateLog();
-                fileExists = false;
+        if (text == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(text.length() + 8);
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '"' -> out.append("\\\"");
+                case '\n' -> out.append("\\n");
+                case '\r' -> out.append("\\r");
+                case '\t' -> out.append("\\t");
+                default -> {
+                    if (c < 0x20) {
+                        out.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        out.append(c);
+                    }
+                }
             }
         }
-        
-        writer = Files.newBufferedWriter(
-            logFile, 
-            StandardCharsets.UTF_8,
-            fileExists ? StandardOpenOption.APPEND : StandardOpenOption.CREATE
-        );
-        
-        headerWritten = fileExists;
-        
-        if (!headerWritten) {
-            // Write header for new files
-            if (config.getFormat() == TerminalLogConfig.LogFormat.XML) {
-                String header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                               "<terminal-log connection=\"" + escapeXml(connectionName) + "\">\n";
-                writer.write(header);
-                currentFileSize += header.getBytes(StandardCharsets.UTF_8).length;
-            } else if (config.getFormat() == TerminalLogConfig.LogFormat.JSON) {
-                String header = "{\n  \"connection\": \"" + escapeJson(connectionName) + "\",\n" +
-                               "  \"entries\": [\n";
-                writer.write(header);
-                currentFileSize += header.getBytes(StandardCharsets.UTF_8).length;
+        return out.toString();
+    }
+
+    /** Thread names end up in stack traces and logs, so no connection details go in. */
+    private static String safeThreadName(String connectionName) {
+        return connectionName != null ? Integer.toHexString(connectionName.hashCode()) : "anon";
+    }
+
+    // ---- Test accessors ----
+
+    Path currentFile() {
+        return currentFile;
+    }
+
+    int sequence() {
+        return sequence;
+    }
+
+    /** Blocks until the writer thread has caught up, so a test can assert on the file. */
+    void awaitQuiet(long millis) throws InterruptedException {
+        long deadline = System.nanoTime() + millis * 1_000_000L;
+        while (System.nanoTime() < deadline) {
+            if (logQueue.isEmpty() && writer != null) {
+                return;
             }
-        }
-    }
-    
-    /**
-     * Rotates the log file when it exceeds the maximum size.
-     */
-    private void rotateLog() throws IOException {
-        logger.info("Rotating log file for {}, current size: {} bytes", 
-                    connectionName, currentFileSize);
-        
-        // Close footer if needed
-        closeFileFooter();
-        
-        closeWriter();
-        
-        // Delete old file (simple rotation - just truncate)
-        if (Files.exists(logFile)) {
-            Files.delete(logFile);
-        }
-        
-        // Reset state
-        currentFileSize = 0;
-        headerWritten = false;
-        
-        // Reinitialize writer with new file
-        initializeWriter();
-    }
-    
-    /**
-     * Closes the file footer for structured formats.
-     */
-    private void closeFileFooter() throws IOException {
-        if (writer == null) {
-            return;
-        }
-        
-        if (config.getFormat() == TerminalLogConfig.LogFormat.XML) {
-            writer.write("</terminal-log>\n");
-        } else if (config.getFormat() == TerminalLogConfig.LogFormat.JSON) {
-            writer.write("\n  ]\n}\n");
-        }
-        
-        writer.flush();
-    }
-    
-    /**
-     * Closes the writer.
-     */
-    private void closeWriter() {
-        if (writer != null) {
-            try {
-                closeFileFooter();
-                writer.close();
-            } catch (IOException e) {
-                logger.error("Error closing writer for {}: {}", connectionName, e.getMessage());
-            }
-            writer = null;
+            Thread.sleep(5);
         }
     }
 }
-
-
-
-
