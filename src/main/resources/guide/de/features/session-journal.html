@@ -2946,7 +2946,7 @@
 </tr>
 </tbody>
 </table>
-<p>The capture-log format is selectable in the journal manager's <strong>Options</strong> dialog: <strong>JSON</strong> (JSON Lines, the default), <strong>XML</strong> or <strong>YAML</strong>. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. JSON is the default because it is the smallest of the three once a finished part is compressed, and because log tooling reads it without needing a parser of its own; XML is a few percent smaller uncompressed, and YAML is the largest, since it writes JSON mappings with a <code>-</code> prefix. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to <code>.gz</code>.</p>
+<p>Das Capture-Log-Format kann im Dialogfeld <strong>Optionen</strong> des Journalmanagers ausgewählt werden: <strong>JSON</strong> (JSON Lines, Standard), <strong>XML</strong> oder <strong>YAML</strong>. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. JSON ist die Standardeinstellung, weil die Protokolltools es lesen, ohne dass ein eigener Parser erforderlich ist – und nicht, weil es Platz spart. Die Größe trennt die drei kaum voneinander: Bei normaler Ausgabe ist XML etwa 9 Byte pro Eintrag kleiner, bei Ausgabe voller <code>&lt;</code>, <code>&gt;</code> und <code>&amp;</code> ist JSON etwa 10 % kleiner (XML muss diese maskieren, JSON nicht), und sobald ein fertiger Teil gzip-komprimiert ist, liegen alle drei innerhalb von 2 % voneinander. YAML ist am größten, da es JSON-Zuordnungen mit dem Präfix <code>-</code> schreibt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert; Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf <code>.gz</code>.</p>
 <h2 id="das-journal-wird-aktiviert">Das Journal wird aktiviert<a class="headerlink" href="#das-journal-wird-aktiviert" title="Permanent link">&para;</a></h2>
 <h3 id="automatisch-fur-eine-verbindung">Automatisch für eine Verbindung<a class="headerlink" href="#automatisch-fur-eine-verbindung" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2960,7 +2960,7 @@
 <h3 id="die-journalleiste">Die Journalleiste<a class="headerlink" href="#die-journalleiste" title="Permanent link">&para;</a></h3>
 <p>Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (<strong>Journal aktiv seit HH:MM</strong>) und bietet <strong>Journal stoppen</strong>, <strong>Screenshot</strong> und <strong>Notiz</strong>:</p>
 <ul>
-<li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.</li>
+<li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.</li>
 <li><strong>Notiz</strong> öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.</li>
 </ul>
 <h2 id="ki-zusammenfassungen">KI-Zusammenfassungen<a class="headerlink" href="#ki-zusammenfassungen" title="Permanent link">&para;</a></h2>
@@ -3126,7 +3126,7 @@
 <ul>
 <li>Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer und Beschreibung; Wenn Sie <strong>Inhalte durchsuchen</strong> aktivieren, werden zusätzlich die Journaleinträge gescannt und Protokolle aller Journale im Hintergrund erfasst.</li>
 <li><strong>Öffnen</strong> (oder Doppelklick) öffnet den Journal-Viewer; <strong>Umbenennen</strong> ändert den Titel; <strong>Löschen</strong> fragt nach einer Bestätigung und entfernt dann dauerhaft den Journalordner einschließlich des Protokolls und aller Screenshots.</li>
-<li>Several journals can be selected at once (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span> click) to delete or export them in one step. Running journals cannot be renamed or deleted.</li>
+<li>Es können mehrere Journale gleichzeitig ausgewählt werden (Klick <span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span>), um sie in einem Schritt zu löschen oder zu exportieren. Laufende Journale können nicht umbenannt oder gelöscht werden.</li>
 <li>Der Bereich <strong>Beschreibung</strong> unterhalb der Tabelle speichert eine Freitextbeschreibung pro Journal; Es erscheint auf der Journalseite und in jedem Export und wird in die Inhaltssuche einbezogen.</li>
 <li><strong>Optionen</strong> enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen.</li>
 </ul>

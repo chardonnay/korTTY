@@ -687,6 +687,11 @@
       "from": "mit Anmerkungen versehene Version",
       "to": "markierte Version",
       "note": "Keeps the annotation wording aligned with the UI label."
+    },
+    {
+      "from": "gkomprimiert",
+      "to": "gzip-komprimiert",
+      "note": "MT mangles 'gzipped' into a non-word. Safe as a substring rule because 'gkomprimiert' is not German; the ambiguous sibling ('escape' -> 'entkommen') is deliberately NOT listed, since 'entkommen' is a real word elsewhere."
     }
   ]
 }
