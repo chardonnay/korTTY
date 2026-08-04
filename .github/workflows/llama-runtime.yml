@@ -19,7 +19,11 @@ name: llama.cpp runtime candidates
 
 on:
   schedule:
-    - cron: "17 4 * * *"
+    # Weekly, Monday 04:17 UTC. llama.cpp tags nearly every push to master — several bNNNN releases
+    # a day — and only the single newest tag at run time is ever picked, so a daily detect run just
+    # produced more candidate PRs than anyone reviewed; the pin isn't meaningfully staler at a week's
+    # cadence, since every intermediate tag is skipped either way.
+    - cron: "17 4 * * 1"
   pull_request:
     # Keep this list and the `scope` job's full-matrix pattern in step.
     paths:
