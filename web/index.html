@@ -72,6 +72,10 @@ body {
 .nav a { white-space: nowrap; }
 .nav a[aria-current='location'] { color: var(--color-accent); } /* in-page anchor, not
    a page link — 'location' is the truthful value; carry the component's active ink */
+/* between phone and desktop the section anchors drop out first — the row must
+   never push the primary action past the viewport edge, and translated labels
+   (Automatisierung, Anleitung) make it widest exactly where it is tightest */
+@media (max-width: 1020px) { .nav a:not(.btn):not(.nav-brand) { display: none; } }
 @media (max-width: 480px) { .nav a { display: none; } } /* phone width: the nav
    keeps brand + the one action (layout-only — the component's look is
    untouched); the full link row's min-content crosses narrow-phone widths */
@@ -250,8 +254,9 @@ footer { padding: calc(2 * var(--leading)) 0; font-size: 13px; line-height: var(
 
 /* — responsive collapse — */
 /* the feature grid's fixed-max columns (160 + 420 + gaps) crush the copy
-   column in the tablet band, so it collapses earlier than the page */
-@media (max-width: 880px) {
+   column in the tablet band, so it collapses before the page narrows —
+   same band the nav sheds its section anchors in */
+@media (max-width: 1020px) {
   .feature { grid-template-columns: 1fr; gap: var(--half); }
   .f-copy { max-width: var(--measure); }
 }
@@ -305,7 +310,9 @@ p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { col
   max-width: 62ch; margin: calc(var(--leading) - 1cap) 0 0; text-box: trim-both cap alphabetic; }
 .kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
   color: var(--color-accent-200); border: 1px solid var(--color-neutral-700); border-radius: 6px;
-  padding: 2px 8px; background: color-mix(in srgb, var(--color-neutral-800) 60%, transparent); white-space: nowrap; }
+  padding: 2px 8px; background: color-mix(in srgb, var(--color-neutral-800) 60%, transparent);
+  white-space: nowrap; overflow-wrap: anywhere; } /* long setting names (ai-agent-execution,
+   *.prod.acme.com) must break rather than push the page wider than the viewport */
 .chipline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--half); }
 /* — terminal mockups (authentic korTTY palette) — */
 /* cast shadow shared by every framed window/mockup: ambient darkness on the dark ground */
@@ -394,7 +401,7 @@ p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { col
 .tick { color: var(--color-accent-300); } .no { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
 .half { color: #d29922; }
 /* — AI-function card grid (snippet editor) — */
-.policy-code { margin: 0; padding: var(--space-4) var(--space-5); overflow-x: auto; font-size: 13px; line-height: 1.6;
+.policy-code { margin: 0; padding: var(--space-6) var(--space-8); overflow-x: auto; font-size: 13px; line-height: 1.6;
   font-family: var(--font-mono, ui-monospace, monospace); color: var(--color-neutral-200); tab-size: 2; }
 .policy-code .tc { color: var(--color-accent-300); }
 .policy-code .tk { color: var(--color-neutral-100); }
@@ -568,6 +575,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <a href="#automation" data-i18n="nav.automation">Automation</a>
   <a href="#security" data-i18n="nav.security">Security</a>
   <a href="#download" data-i18n="nav.download">Download</a>
+  <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="nav.guide">Guide</a>
   <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option></select>
   <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
 </nav>
@@ -591,7 +599,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <div class="term" aria-label="korTTY terminal demo: the AI agent fixes a full disk">
       <div class="term-bar">
         <span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span>
-        <span class="term-menu"><span>File</span><span>Connections</span><span>Tools</span><span style="color:#d6dae2">AI</span><span>Plugins</span><span>Help</span></span>
+        <span class="term-menu"><span data-i18n="mb.file">File</span><span data-i18n="mb.conn">Connections</span><span data-i18n="mb.tools">Tools</span><span style="color:#d6dae2">AI</span><span data-i18n="mb.plug">Plugins</span><span data-i18n="mb.help">Help</span></span>
       </div>
       <div class="term-body demo-static" id="demo" style="min-height: 320px"><span class="ln" style="--i:0"><span class="t-host">ops@prod-web-01</span><span class="t-run">:~$</span> <span class="t-cmd">agent /var is at 94% — find out why and fix it</span></span><span class="ln t-agent" style="--i:1">🤖 AI Agent · local/qwen3-4b · cwd: /home/ops</span><span class="ln t-run" style="--i:2">→ df -h /var</span><span class="ln t-run" style="--i:3">→ du -sh /var/log/* | sort -h | tail -3</span><span class="ln t-think" style="--i:4">💭 journald has no size cap — vacuum now, then persist a 200M limit</span><span class="ln t-run" style="--i:5">→ sudo journalctl --vacuum-size=200M <span class="t-ok">[approved]</span></span><span class="ln t-ok" style="--i:6">✓ /var: 94% → 41%. Root cause: unbounded journald retention.</span><span class="ln" style="--i:7"><span class="t-host">ops@prod-web-01</span><span class="t-run">:~$</span> <span class="caret"></span></span></div>
     </div>
@@ -661,7 +669,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="local-llm" data-screen-label="Local LLMs">
     <div class="split" style="padding: 0; align-items: start">
-      <div class="split-copy" data-i18n="__never__">
+      <div class="split-copy">
         <span class="kicker" data-i18n="k3">03 — LLMs, in-process</span>
         <h2 class="split-title" data-i18n="t3">No Ollama. No LM Studio. No excuses.</h2>
         <p class="note" data-i18n="n3a">korTTY is the only terminal that runs GGUF models itself: an integrated llama.cpp runtime starts one authenticated, loopback-only <span class="kbd">llama-server</span> per model — offline, on <span class="kbd">127.0.0.1</span>, with a generated API key. Several models run concurrently; idle tensors unload after a configurable timeout.</p>
@@ -751,9 +759,52 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
   </section>
 
+  <section class="sec" id="journal" data-screen-label="Session journal">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="sj.k">08 — Session journal</span>
+      <h2 class="sec-title" data-i18n="sj.t">The session writes its own report</h2>
+      <p class="lead" data-i18n="sj.l">Every terminal tab can keep a journal: server output and typed commands go into an append-only capture log, an AI condenses the activity into a readable timeline, and screenshots and notes drop in from the journal bar. Enable it per connection, or mid-session with <span class="kbd">Ctrl/Cmd+Alt+T</span> — the existing scrollback is imported first, so the timeline covers what already happened.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Session Journal — Web Server — Checked and reloaded nginx</span></div>
+      <span class="shot-live" style="--pd:29s;--cd:18s;--cdel:-3s;--po:30% 35%;--px:-1.1%;--py:1.2%;--s1x:25%;--s1y:26%;--s2x:21%;--s2y:45%;--s3x:31%;--s3y:70%"><img src="screenshots/journal/journal-viewer.png" alt="korTTY session journal viewer: header with connection details and counts, one AI-summarised timeline entry marked Important, command and output excerpts" decoding="async" /><span class="shot-tip t1" data-i18n="tp.sj1">Header counts entries, commands, errors and screenshots</span><span class="shot-tip t2" data-i18n="tp.sj2">AI title, summary and the marker it suggested</span><span class="shot-tip t3" data-i18n="tp.sj3">Commands in green, output in blue — click for the raw log</span><span class="shot-cursor"></span></span>
+    </figure>
+    <p class="figcap" data-i18n="sj.cap1">What this window shows: a 27-minute maintenance session on web01, condensed by the AI into one timeline entry it flagged <em>Important</em> — three commands against the nginx service (green) and the output excerpt that made it interesting (blue): a missing-file error in the error log. Clicking an entry slides in the exact capture-log range behind it, with its own search.</p>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="sj1t">Passwords stay out of it</h3>
+      <p class="f-copy" data-i18n="sj1c">Typed input is captured as complete submitted lines only. When the server output ends in a password prompt — <span class="kbd">password:</span>, <span class="kbd">[sudo] password for …</span>, passphrase, PIN and localized variants — the next line is suppressed and logged as a placeholder, never buffered. The connection's own password is replaced by <span class="kbd">***</span> wherever it would appear, and capturing typed input can be switched off per connection entirely.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="sj2t">An AI that keeps minutes</h3>
+      <p class="f-copy" data-i18n="sj2c">Every five minutes — configurable globally and per connection — the summarizer reads the newest capture-log lines and appends a short entry: title, summary and a suggested marker (info, important, error). The end of the session adds a closing summary of what was accomplished and what failed, and optionally lets the AI name the journal. Without AI the timeline still records raw activity.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="sj3t">One folder, nothing to install</h3>
+      <p class="f-copy" data-i18n="sj3c">Each journal is a self-contained directory under <span class="kbd">~/.kortty/journals</span>: the curated <span class="kbd">journal.xml</span>, the capture log as JSON Lines (XML or YAML on request), gzipped rotated parts — history is compressed, never deleted — your screenshots, and <span class="kbd">journal.html</span>. That page has no external resources: it opens in the viewer or any browser, scales 70–250 %, follows your light/dark preference, and searches the whole timeline.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="sj4t">Manager, editing, redaction</h3>
+      <p class="f-copy" data-i18n="sj4c">Tools → Session Journals (<span class="kbd">Ctrl/Cmd+Alt+J</span>) lists every journal with duration, connection, server, title and entry count; <em>Search contents</em> scans the entries and capture logs of all of them. In the viewer, <em>Edit</em> corrects titles, summaries and markers — a marker you set is never overwritten by the AI. If a secret slipped through anyway, <em>Search &amp; replace</em> rewrites the entries and every capture-log part including the compressed ones, with <em>Count matches</em> as a dry run first.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Session Journals</span></div>
+      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-7s;--po:45% 60%;--px:1.2%;--py:-1.1%;--s1x:62%;--s1y:5%;--s2x:26%;--s2y:74%;--s3x:32%;--s3y:85%"><img src="screenshots/journal/journal-manager.png" alt="korTTY session journal manager: journals in a sortable table with duration, connection, server, AI title and entry count, plus description and export actions" decoding="async" /><span class="shot-tip t1 l" data-i18n="tp.sjm1">Filter by title, host or user — or search inside every journal</span><span class="shot-tip t2" data-i18n="tp.sjm2">Export as PDF, Markdown or a complete HTML bundle</span><span class="shot-tip t3 u" data-i18n="tp.sjm3">A description per journal, searchable and in every export</span><span class="shot-cursor"></span></span>
+    </figure>
+    <p class="figcap" data-i18n="sj.cap2">The manager: three journals from one afternoon, newest first, with duration, connection, server, AI title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
+    <div class="feature">
+      <p class="f-num">05</p>
+      <h3 class="f-title" data-i18n="sj5t">Exports that leave the building</h3>
+      <p class="f-copy" data-i18n="sj5c">PDF with downscaled embedded screenshots, Markdown with a sibling files folder, or the complete HTML bundle as a zip — select several journals and each stays separate inside one archive, optionally AES-256 encrypted. Footer and an optional diagonal watermark are set once under Configuration → Global Settings → Export. Administrators can deny or mandate the whole feature, and a <span class="kbd">[[rule.session-journal.replace]]</span> policy list redacts patterns such as <span class="kbd">AKIA[0-9A-Z]{16}</span> on the capture thread — before a matching line is ever written.</p>
+    </div>
+  </section>
+
   <section class="sec" id="broadcast" data-screen-label="Split-screen broadcast">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k8">08 — Split-screen broadcast</span>
+      <span class="kicker" data-i18n="k8">09 — Split-screen broadcast</span>
       <h2 class="sec-title" data-i18n="t8">Type once, land everywhere</h2>
       <p class="lead" data-i18n="l8">Split a tab horizontally or vertically, put a different connection in every pane, and flip on broadcast: keystrokes go to all visible panes simultaneously. The fastest way to run one command on three boxes — and the second-fastest way to run it on the wrong three.</p>
     </div>
@@ -774,7 +825,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="themes" data-screen-label="Themes and designs">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k9">09 — Themes &amp; designs</span>
+        <span class="kicker" data-i18n="k9">10 — Themes &amp; designs</span>
         <h2 class="split-title" data-i18n="t9">Dress the whole app, not just the text</h2>
         <p class="note" data-i18n="n9a">Terminal theme profiles — IntelliJ-inspired presets, live preview, fully editable — stay separate from app designs, which restyle every window and dialog: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula.</p>
         <p class="note" data-i18n="n9b">On top: terminal-effect plugins per pane — Digital Rain, VHS 1987, Deep Space Radar, or the MU/TH/UR 6000 reference effect — with animated previews and a plugin SPI for writing your own.</p>
@@ -795,7 +846,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="files" data-screen-label="SFTP and Snippets">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k10">10 — Files &amp; snippets</span>
+      <span class="kicker" data-i18n="k10">11 — Files &amp; snippets</span>
       <h2 class="sec-title" data-i18n="t10">The toolbox around the terminal</h2>
       <p class="lead" data-i18n="l10">An SFTP manager with user/group columns, remote editing through the Snippet Editor, and archive jobs with exclude patterns — next to a Snippet Manager with Monaco highlighting, categories, script arguments, and ZIP/GPG-encrypted exports.</p>
     </div>
@@ -872,7 +923,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="automation" data-screen-label="JobScheduler">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k11">11 — JobScheduler</span>
+        <span class="kicker" data-i18n="k11">12 — JobScheduler</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
         <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
         <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
@@ -895,7 +946,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="security" data-screen-label="Security">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k12">12 — Security</span>
+      <span class="kicker" data-i18n="k12">13 — Security</span>
       <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
       <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
     </div>
@@ -981,7 +1032,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="languages" data-screen-label="Languages">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k13">13 — Languages</span>
+        <span class="kicker" data-i18n="k13">14 — Languages</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
         <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
       </div>
@@ -1004,7 +1055,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="compare" data-screen-label="Comparison">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k14">14 — The obligatory table</span>
+      <span class="kicker" data-i18n="k14">15 — The obligatory table</span>
       <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
       <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
     </div>
@@ -1017,9 +1068,9 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
           <tr><td data-i18n="cmp3">Multi-server AI swarm</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
           <tr><td data-i18n="cmp4">Tabs, splits &amp; broadcast input</td><td class="tick">✓</td><td class="no">—</td><td class="tick">✓</td><td class="tick">✓</td></tr>
           <tr><td data-i18n="cmp5">Built-in SFTP tooling</td><td class="tick">✓</td><td class="half">psftp CLI</td><td class="tick">✓</td><td class="no">—</td></tr>
-          <tr><td data-i18n="cmp6">Background job scheduler</td><td class="tick">✓</td><td class="no">—</td><td class="half">macros</td><td class="half">triggers</td></tr>
-          <tr><td data-i18n="cmp7">Encrypted credential vault</td><td class="tick">✓</td><td class="no">—</td><td class="half">master pw</td><td class="half">Keychain</td></tr>
-          <tr><td>macOS · Windows · Linux</td><td class="tick">✓</td><td class="half">Win-first</td><td class="no">Windows</td><td class="no">macOS</td></tr>
+          <tr><td data-i18n="cmp6">Background job scheduler</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.macros">macros</td><td class="half" data-i18n="cmp.trig">triggers</td></tr>
+          <tr><td data-i18n="cmp7">Encrypted credential vault</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.mpw">master pw</td><td class="half">Keychain</td></tr>
+          <tr><td>macOS · Windows · Linux</td><td class="tick">✓</td><td class="half" data-i18n="cmp.winf">Win-first</td><td class="no">Windows</td><td class="no">macOS</td></tr>
           <tr><td data-i18n="cmp9">Open source &amp; free</td><td class="tick">MIT</td><td class="tick">MIT</td><td class="half">freemium</td><td class="tick">GPL</td></tr>
         </tbody>
       </table>
@@ -1029,7 +1080,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="download" data-screen-label="Download">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k15">15 — Download</span>
+      <span class="kicker" data-i18n="k15">16 — Download</span>
       <h2 class="sec-title" data-i18n="t15">Pick your poison</h2>
       <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
     </div>
@@ -1058,7 +1109,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="release" data-screen-label="Release 2.7">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">16 — What's new in v2.7.0</span>
+      <span class="kicker" data-i18n="k16">17 — What's new in v2.7.0</span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
     <div class="feature">
@@ -1086,7 +1137,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="faq" data-screen-label="FAQ">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k17">17 — FAQ</span>
+      <span class="kicker" data-i18n="k17">18 — FAQ</span>
       <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
     </div>
     <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
@@ -1117,13 +1168,13 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
 
   <section class="close" id="opensource" data-screen-label="Open source close">
-    <span class="kicker" data-i18n="k18">18 — Open source</span>
+    <span class="kicker" data-i18n="k18">19 — Open source</span>
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
       <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
       <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="cl.star">Star on GitHub</a>
-      <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY/blob/main/app-docs/USER_GUIDE.adoc" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
+      <a class="btn btn-ghost" data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
     </div>
   </section>
 
@@ -1133,7 +1184,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
       <a href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener" data-i18n="ft.rel">Releases</a>
       <a href="https://github.com/chardonnay/korTTY/issues" target="_blank" rel="noopener" data-i18n="ft.iss">Issues</a>
-      <a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/USER_GUIDE.adoc" target="_blank" rel="noopener" data-i18n="ft.guide">User Guide</a>
+      <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="ft.guide">User Guide</a>
     </div>
   </footer>
 </div>
