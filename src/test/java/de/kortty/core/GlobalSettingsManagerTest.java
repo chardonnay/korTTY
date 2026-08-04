@@ -49,6 +49,41 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesSessionJournalMarkersAndRules() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().getSessionJournalMarkers().add(
+                new de.kortty.model.SessionJournalMarkerDefinition("deploy", "Deployment", "#7c3aed",
+                    false, de.kortty.model.SessionJournalMarker.IMPORTANT));
+            de.kortty.model.SessionJournalMarkerRule rule =
+                new de.kortty.model.SessionJournalMarkerRule("deploy", "apt-get install", false);
+            rule.setIgnoreCase(false);
+            manager.getSettings().getSessionJournalMarkerRules().add(rule);
+            manager.getSettings().setSessionJournalMarkerRulesEnabled(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            var markers = reloaded.getSettings().getSessionJournalMarkers();
+            assertThat(markers).hasSize(1);
+            assertThat(markers.get(0).getId()).isEqualTo("deploy");
+            assertThat(markers.get(0).getColor()).isEqualTo("#7c3aed");
+            assertThat(markers.get(0).getLegacyMarker())
+                .isEqualTo(de.kortty.model.SessionJournalMarker.IMPORTANT);
+            var rules = reloaded.getSettings().getSessionJournalMarkerRules();
+            assertThat(rules).hasSize(1);
+            assertThat(rules.get(0).getPattern()).isEqualTo("apt-get install");
+            assertThat(rules.get(0).isIgnoreCase()).isFalse();
+            assertThat(rules.get(0).isEnabled()).isTrue();
+            assertThat(reloaded.getSettings().isSessionJournalMarkerRulesEnabled()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesCustomSnippetCodeLanguages() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

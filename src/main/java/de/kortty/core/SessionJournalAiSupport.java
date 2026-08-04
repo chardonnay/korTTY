@@ -199,6 +199,45 @@ public final class SessionJournalAiSupport {
         return normalized;
     }
 
+    /**
+     * Parses a {@code {"ids":[1,4,9]}} selection reply into ordinals in {@code 1..maxOrdinal},
+     * dropping duplicates and anything out of range. Returns {@code null} when the reply cannot be
+     * parsed at all — unlike a summary, a selection has no meaningful degraded form, so the caller
+     * must be able to tell "nothing matched" from "the model did not answer".
+     */
+    public static java.util.List<Integer> parseIdSelection(String content, int maxOrdinal) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(AiResponseSanitizer.sanitizeForDisplay(content).strip());
+        int start = candidate.indexOf('{');
+        int end = candidate.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser
+                .parseString(candidate.substring(start, end + 1)).getAsJsonObject();
+            if (!json.has("ids") || !json.get("ids").isJsonArray()) {
+                return null;
+            }
+            java.util.LinkedHashSet<Integer> ids = new java.util.LinkedHashSet<>();
+            for (com.google.gson.JsonElement element : json.getAsJsonArray("ids")) {
+                try {
+                    int value = element.getAsInt();
+                    if (value >= 1 && value <= maxOrdinal) {
+                        ids.add(value);
+                    }
+                } catch (RuntimeException ignored) {
+                    // A non-numeric element is a model slip, not a reason to discard the answer.
+                }
+            }
+            return java.util.List.copyOf(ids);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     private static String stripJsonFence(String content) {
         String result = content;
         if (result.startsWith("```")) {

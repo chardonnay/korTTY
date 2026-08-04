@@ -8,7 +8,6 @@ import de.kortty.core.WorkflowScriptSupport.HeaderFacts;
 import de.kortty.core.WorkflowScriptSupport.ScriptLanguage;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetDiagram;
-import de.kortty.model.WindowGeometry;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -146,44 +145,11 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     // ---------------------------------------------------------------- geometry
 
     private void restoreGeometry() {
-        try {
-            var settings = KorTTYApplication.getInstance() != null
-                ? KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings()
-                : null;
-            WindowGeometry geometry = settings != null ? settings.getWorkflowScriptDialogGeometry() : null;
-            if (geometry != null && geometry.getWidth() > 100 && geometry.getHeight() > 100) {
-                getDialogPane().setPrefWidth(geometry.getWidth());
-                getDialogPane().setPrefHeight(geometry.getHeight());
-                setOnShowing(event -> {
-                    Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-                    if (window instanceof Stage stage) {
-                        stage.setX(geometry.getX());
-                        stage.setY(geometry.getY());
-                        stage.setWidth(geometry.getWidth());
-                        stage.setHeight(geometry.getHeight());
-                    }
-                });
-            }
-        } catch (Exception ignored) {
-            // best-effort
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getWorkflowScriptDialogGeometry());
     }
 
     private void saveGeometry() {
-        try {
-            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-            if (window instanceof Stage stage && stage.getWidth() > 100 && stage.getHeight() > 100) {
-                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                var settingsManager = KorTTYApplication.getInstance() != null
-                    ? KorTTYApplication.getInstance().getGlobalSettingsManager() : null;
-                if (settingsManager != null && settingsManager.getSettings() != null) {
-                    settingsManager.getSettings().setWorkflowScriptDialogGeometry(geometry);
-                    settingsManager.save();
-                }
-            }
-        } catch (Exception ignored) {
-            // best-effort
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setWorkflowScriptDialogGeometry(geometry));
     }
 
     // ---------------------------------------------------------------- layout

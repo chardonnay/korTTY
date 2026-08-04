@@ -20,7 +20,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -377,26 +376,20 @@ public final class GuideViewer {
     /** Restores the saved window position/size, or centers on screen when the stored geometry is missing, too small, or off-screen. */
     private void restoreGeometry() {
         try {
-            WindowGeometry geometry = settings() != null ? settings().getGuideViewerGeometry() : null;
-            if (geometry == null || geometry.getWidth() <= 100 || geometry.getHeight() <= 100) {
+            WindowGeometry stored = settings() != null ? settings().getGuideViewerGeometry() : null;
+            // Shares the dialogs' off-screen recovery: a window left on a monitor that is gone,
+            // or dragged so far out that no edge is left to grab, comes back into reach.
+            WindowGeometry geometry = DialogGeometrySupport.sanitize(
+                stored, DialogGeometrySupport.visualScreenBounds());
+            if (geometry == null) {
                 stage.centerOnScreen();
                 return;
             }
-            double x = geometry.getX();
-            double y = geometry.getY();
-            double w = geometry.getWidth();
-            double h = geometry.getHeight();
-            stage.setWidth(w);
-            stage.setHeight(h);
-            // Guard against a saved position on a now-disconnected monitor: if the
-            // rectangle is on no current screen, keep the size but re-center on screen.
-            if (Screen.getScreensForRectangle(x, y, w, h).isEmpty()) {
-                stage.centerOnScreen();
-            } else {
-                stage.setX(x);
-                stage.setY(y);
-            }
-            stage.setMaximized(geometry.isMaximized());
+            stage.setWidth(geometry.getWidth());
+            stage.setHeight(geometry.getHeight());
+            stage.setX(geometry.getX());
+            stage.setY(geometry.getY());
+            stage.setMaximized(stored.isMaximized());
         } catch (Exception e) {
             logger.debug("Could not restore guide viewer geometry", e);
         }

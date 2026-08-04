@@ -3,7 +3,6 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedSwarmChat;
-import de.kortty.model.WindowGeometry;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -321,25 +320,7 @@ public class SavedChatsDialog extends ThemeAwareDialog<Void> {
 
     /** Restore the user's last size/position for this dialog (mirrors other korTTY dialogs). */
     private void restoreGeometry() {
-        try {
-            var settings = app != null && app.getGlobalSettingsManager() != null
-                ? app.getGlobalSettingsManager().getSettings() : null;
-            WindowGeometry geometry = settings != null ? settings.getSavedChatsDialogGeometry() : null;
-            if (geometry != null && geometry.getWidth() > 100 && geometry.getHeight() > 100) {
-                getDialogPane().setPrefWidth(geometry.getWidth());
-                getDialogPane().setPrefHeight(geometry.getHeight());
-                setOnShowing(event -> {
-                    Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-                    if (window instanceof Stage stage) {
-                        stage.setX(geometry.getX());
-                        stage.setY(geometry.getY());
-                        stage.setWidth(geometry.getWidth());
-                        stage.setHeight(geometry.getHeight());
-                    }
-                });
-            }
-        } catch (Exception ignored) {
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getSavedChatsDialogGeometry());
     }
 
     /** Persist the current size/position so it is restored next time the dialog opens. */
@@ -347,17 +328,6 @@ public class SavedChatsDialog extends ThemeAwareDialog<Void> {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        try {
-            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-            if (window instanceof Stage stage) {
-                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                var settingsManager = app != null ? app.getGlobalSettingsManager() : null;
-                if (settingsManager != null && settingsManager.getSettings() != null) {
-                    settingsManager.getSettings().setSavedChatsDialogGeometry(geometry);
-                    settingsManager.save();
-                }
-            }
-        } catch (Exception ignored) {
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSavedChatsDialogGeometry(geometry));
     }
 }

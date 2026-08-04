@@ -3,6 +3,7 @@ package de.kortty.core;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
+import de.kortty.model.SessionJournalMarkerDefinition;
 import de.kortty.model.SessionJournalMeta;
 import de.kortty.ui.I18n;
 import org.slf4j.Logger;
@@ -71,8 +72,12 @@ public final class SessionJournalHtmlRenderer {
         return t;
     });
     private final Map<Path, ScheduledFuture<?>> pendingRenders = new ConcurrentHashMap<>();
-    /** Baked into every page so a regenerated page keeps the user's chosen font size. */
-    private volatile java.util.function.IntSupplier fontScaleSupplier = () -> 100;
+    /** Baked into every page so a regenerated page keeps the user's chosen look. */
+    private volatile java.util.function.Supplier<SessionJournalPageAppearance> appearanceSupplier =
+        SessionJournalPageAppearance::defaults;
+    /** Resolves a scheme id into its palette; wired by the app so "theme" can follow the terminal. */
+    private volatile java.util.function.Function<String, de.kortty.model.SessionJournalPageScheme> schemeResolver =
+        id -> null;
     /** Footer text/visibility, shared with the PDF and Markdown exports. */
     private volatile java.util.function.Supplier<ExportBranding> brandingSupplier = ExportBranding::defaults;
 
@@ -80,9 +85,15 @@ public final class SessionJournalHtmlRenderer {
         this.service = service;
     }
 
-    /** Supplies the persisted page font size in percent (the app wires this to GlobalSettings). */
-    public void setFontScaleSupplier(java.util.function.IntSupplier supplier) {
-        this.fontScaleSupplier = supplier != null ? supplier : () -> 100;
+    /** Supplies the persisted page look (the app wires this to GlobalSettings). */
+    public void setAppearanceSupplier(java.util.function.Supplier<SessionJournalPageAppearance> supplier) {
+        this.appearanceSupplier = supplier != null ? supplier : SessionJournalPageAppearance::defaults;
+    }
+
+    /** Supplies the palette for a scheme id; the app wires this to the scheme registry. */
+    public void setSchemeResolver(
+            java.util.function.Function<String, de.kortty.model.SessionJournalPageScheme> resolver) {
+        this.schemeResolver = resolver != null ? resolver : id -> null;
     }
 
     /** Supplies the user's footer choice (the app wires this to GlobalSettings). */
@@ -130,36 +141,62 @@ public final class SessionJournalHtmlRenderer {
 
     /** Pure rendering; testable without the file system. */
     public String render(SessionJournalDocument document, List<SessionJournalLogEntry> logEntries) {
+        return render(document, logEntries, null);
+    }
+
+    /**
+     * Renders the page, optionally with an excerpt banner. A filtered bundle must say that it is
+     * an excerpt — otherwise whoever receives it takes it for the complete session.
+     */
+    public String render(SessionJournalDocument document, List<SessionJournalLogEntry> logEntries,
+                         SessionJournalExportService.ExportExcerpt excerpt) {
         SessionJournalMeta meta = document.getMeta();
         List<SessionJournalEntry> entries = new ArrayList<>(document.getEntries());
         entries.sort(Comparator.comparing(SessionJournalEntry::getCreatedAt,
             Comparator.nullsLast(Comparator.naturalOrder())));
         List<SessionJournalLogEntry> embeddable = capForEmbedding(logEntries, entries);
+        Map<String, SessionJournalMarkerDefinition> markers = resolveMarkers(entries, document);
+        List<SessionJournalMarkerDefinition> usedMarkers = usedMarkers(entries, markers);
 
-        int fontScalePercent = Math.max(70, Math.min(fontScaleSupplier.getAsInt(), 250));
+        SessionJournalPageAppearance appearance = appearanceSupplier.get();
+        if (appearance == null) {
+            appearance = SessionJournalPageAppearance.defaults();
+        }
+        de.kortty.model.SessionJournalPageScheme scheme = appearance.hasFixedScheme()
+            ? schemeResolver.apply(appearance.schemeId()) : null;
+        String schemeId = scheme != null ? cssIdent(scheme.id()) : null;
 
         StringBuilder html = new StringBuilder(64 * 1024);
         html.append("<!doctype html>\n<html lang=\"")
             .append(escapeAttr(meta.getAppLanguageCode() != null ? meta.getAppLanguageCode() : "en"))
-            .append("\" data-theme=\"auto\" style=\"--font-scale:")
-            .append(fontScalePercent / 100.0)
+            // The user's own light/dark choice, so a regenerated page keeps it.
+            .append("\" data-theme=\"").append(escapeAttr(appearance.theme())).append('"');
+        if (schemeId != null) {
+            html.append(" data-scheme=\"").append(schemeId).append('"');
+        }
+        html.append(" style=\"").append(appearance.htmlStyle())
             .append("\">\n<head>\n<meta charset=\"utf-8\">\n")
             .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
             .append("<title>").append(escapeHtml(titleOf(meta))).append("</title>\n")
-            .append("<style>\n").append(css()).append("</style>\n</head>\n<body>\n");
-        appendHeader(html, meta, entries);
-        appendTimeline(html, entries, meta);
+            .append("<style>\n").append(css()).append(markerCss(usedMarkers))
+            .append(SessionJournalPageAppearance.schemeCss(scheme))
+            .append("</style>\n</head>\n<body>\n");
+        appendHeader(html, meta, entries, usedMarkers, schemeId != null);
+        appendExcerptBanner(html, excerpt);
+        appendTimeline(html, entries, meta, markers);
         appendPageFooter(html);
         appendLightbox(html);
         appendLogPanel(html);
         appendContextMenu(html);
-        html.append("<script>\n").append(js(embeddable)).append("</script>\n</body>\n</html>\n");
+        html.append("<script>\n").append(js(embeddable, !usedMarkers.isEmpty()))
+            .append("</script>\n</body>\n</html>\n");
         return html.toString();
     }
 
     // ==== sections ====
 
-    private void appendHeader(StringBuilder html, SessionJournalMeta meta, List<SessionJournalEntry> entries) {
+    private void appendHeader(StringBuilder html, SessionJournalMeta meta, List<SessionJournalEntry> entries,
+                              List<SessionJournalMarkerDefinition> usedMarkers, boolean fixedScheme) {
         long screenshots = entries.stream().filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT).count();
         html.append("<header class=\"session-head\">\n<div class=\"head-top\">\n<div class=\"head-main\">\n");
         html.append("<h1>").append(escapeHtml(titleOf(meta))).append("</h1>\n");
@@ -188,6 +225,14 @@ public final class SessionJournalHtmlRenderer {
         appendStat(html, i18n("journal.html.errors", "Errors"), String.valueOf(meta.getErrorCount()));
         appendStat(html, i18n("journal.html.screenshots", "Screenshots"), String.valueOf(screenshots));
         html.append("<div class=\"head-buttons\">");
+        html.append("<button id=\"rangeToggle\" class=\"icon-button\" type=\"button\" hidden title=\"")
+            .append(escapeAttr(i18n("journal.html.range.title", "Pick an export time range")))
+            .append("\">⇥</button>");
+        if (!usedMarkers.isEmpty()) {
+            html.append("<button id=\"markerToggle\" class=\"icon-button\" type=\"button\" title=\"")
+                .append(escapeAttr(i18n("journal.html.marker.title", "Jump between marked entries")))
+                .append("\">◆</button>");
+        }
         html.append("<button id=\"searchToggle\" class=\"icon-button\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.title", "Search journal"))).append("\">")
             .append(ICON_SEARCH).append("</button>");
@@ -197,12 +242,74 @@ public final class SessionJournalHtmlRenderer {
             .append(escapeAttr(i18n("journal.html.fontReset", "Reset font size"))).append("\">A</button>");
         html.append("<button id=\"fontLarger\" class=\"icon-button font-larger\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.fontLarger", "Larger font"))).append("\">A+</button>");
-        html.append("<button id=\"themeToggle\" class=\"icon-button\" type=\"button\" title=\"")
-            .append(escapeAttr(i18n("journal.html.theme", "Theme"))).append("\">◐</button>");
+        // A fixed scheme outranks the light/dark toggle, so the button says why it does nothing
+        // rather than disappearing — the quick-access controls are meant to stay put.
+        html.append("<button id=\"themeToggle\" class=\"icon-button\" type=\"button\"")
+            .append(fixedScheme ? " disabled" : "").append(" title=\"")
+            .append(escapeAttr(fixedScheme
+                ? i18n("journal.html.theme.fixed", "The colour scheme is fixed in the settings")
+                : i18n("journal.html.theme", "Theme")))
+            .append("\">◐</button>");
         html.append("</div>\n");
         html.append("</div>\n</div>\n");
         appendSearchBar(html);
+        appendMarkerBar(html, usedMarkers);
+        appendRangeBar(html);
         html.append("</header>\n");
+    }
+
+    /**
+     * Picks an export time window by clicking two entries. Exporting is something only the app can
+     * do, so the whole control stays hidden until the Java bridge answers — a standalone copy in a
+     * browser never offers an action it cannot perform.
+     */
+    private void appendRangeBar(StringBuilder html) {
+        html.append("<div id=\"rangeBar\" class=\"range-bar\" hidden>\n")
+            .append("<span id=\"rangeLabel\">")
+            .append(escapeHtml(i18n("journal.html.range.prompt", "Click the first and last entry")))
+            .append("</span>\n")
+            .append("<button type=\"button\" id=\"rangeApply\" disabled>")
+            .append(escapeHtml(i18n("journal.html.range.apply", "Use for export"))).append("</button>\n")
+            .append("<button type=\"button\" id=\"rangeAdd\" disabled>")
+            .append(escapeHtml(i18n("journal.html.range.another", "Add another window"))).append("</button>\n")
+            .append("<button type=\"button\" id=\"rangeCancel\">")
+            .append(escapeHtml(i18n("journal.html.range.cancel", "Cancel"))).append("</button>\n")
+            .append("</div>\n");
+    }
+
+    /**
+     * Navigation between marked entries. Emitted only when at least one entry actually carries a
+     * marker — the requirement is that this appears only then, and enforcing it at generation time
+     * is stronger than hiding an empty control.
+     */
+    private void appendMarkerBar(StringBuilder html, List<SessionJournalMarkerDefinition> usedMarkers) {
+        if (usedMarkers.isEmpty()) {
+            return;
+        }
+        html.append("<div id=\"markerBar\" class=\"marker-bar\" hidden>\n")
+            .append("<label for=\"markerSelect\">")
+            .append(escapeHtml(i18n("journal.html.marker.bar", "Markers"))).append("</label>\n")
+            .append("<select id=\"markerSelect\"><option value=\"\">")
+            .append(escapeHtml(i18n("journal.html.marker.all", "All markers"))).append("</option>");
+        for (SessionJournalMarkerDefinition definition : usedMarkers) {
+            String id = cssIdent(definition.getId());
+            if (id == null) {
+                continue;
+            }
+            html.append("<option value=\"").append(id).append("\">")
+                .append(escapeHtml(SessionJournalMarkers.displayName(definition))).append("</option>");
+        }
+        html.append("</select>\n")
+            .append("<span id=\"markerCount\" class=\"match-count\">0/0</span>\n")
+            .append("<button type=\"button\" id=\"markerPrev\" title=\"")
+            .append(escapeAttr(i18n("journal.html.marker.prev", "Previous marked entry (Alt+Up)")))
+            .append("\">▲</button>\n")
+            .append("<button type=\"button\" id=\"markerNext\" title=\"")
+            .append(escapeAttr(i18n("journal.html.marker.next", "Next marked entry (Alt+Down)")))
+            .append("\">▼</button>\n")
+            .append("<button type=\"button\" id=\"markerBarClose\" title=\"")
+            .append(escapeAttr(i18n("journal.html.marker.close", "Close"))).append("\">✕</button>\n")
+            .append("</div>\n");
     }
 
     /** Journal-wide search, revealed by the header's magnifier and hidden by default. */
@@ -228,12 +335,178 @@ public final class SessionJournalHtmlRenderer {
             .append("</div>\n");
     }
 
+    /** Says plainly that this page shows a filtered selection, not the whole session. */
+    private void appendExcerptBanner(StringBuilder html, SessionJournalExportService.ExportExcerpt excerpt) {
+        if (excerpt == null) {
+            return;
+        }
+        html.append("<div class=\"excerpt-banner\">").append(escapeHtml(excerpt.describe()))
+            .append("</div>\n");
+    }
+
     private void appendStat(StringBuilder html, String label, String value) {
         html.append("<div class=\"stat\"><span class=\"stat-label\">").append(escapeHtml(label))
             .append("</span><span class=\"stat-value\">").append(escapeHtml(value)).append("</span></div>\n");
     }
 
-    private void appendTimeline(StringBuilder html, List<SessionJournalEntry> entries, SessionJournalMeta meta) {
+    // ==== markers ====
+
+    /** One resolved definition per entry id; resolution never consults the global settings. */
+    private static Map<String, SessionJournalMarkerDefinition> resolveMarkers(
+            List<SessionJournalEntry> entries, SessionJournalDocument document) {
+        Map<String, SessionJournalMarkerDefinition> resolved = new java.util.HashMap<>();
+        for (SessionJournalEntry entry : entries) {
+            resolved.put(nullSafe(entry.getId()), SessionJournalMarkers.resolve(entry, document));
+        }
+        return resolved;
+    }
+
+    /** The distinct non-empty markers actually used, in first-appearance order. */
+    private static List<SessionJournalMarkerDefinition> usedMarkers(
+            List<SessionJournalEntry> entries, Map<String, SessionJournalMarkerDefinition> markers) {
+        java.util.LinkedHashMap<String, SessionJournalMarkerDefinition> used = new java.util.LinkedHashMap<>();
+        for (SessionJournalEntry entry : entries) {
+            SessionJournalMarkerDefinition definition = markers.get(nullSafe(entry.getId()));
+            if (definition != null && !definition.isNone()) {
+                used.putIfAbsent(definition.getId(), definition);
+            }
+        }
+        return new ArrayList<>(used.values());
+    }
+
+    /**
+     * One CSS rule per used marker, setting the {@code --mk} custom property the dot and badge
+     * read. Built-ins without an explicit colour keep pointing at the palette variables, so they
+     * stay light/dark aware; custom markers get their (validated) hex.
+     */
+    private static String markerCss(List<SessionJournalMarkerDefinition> usedMarkers) {
+        if (usedMarkers.isEmpty()) {
+            return "";
+        }
+        StringBuilder css = new StringBuilder(64 * usedMarkers.size());
+        for (SessionJournalMarkerDefinition definition : usedMarkers) {
+            String id = cssIdent(definition.getId());
+            if (id == null) {
+                continue;
+            }
+            String colour = paletteVariable(definition);
+            css.append(".entry[data-marker=\"").append(id).append("\"]{--mk:").append(colour);
+            String explicit = cssColor(definition.getColor());
+            if (explicit != null) {
+                css.append(";--mk-fg:").append(contrastFor(explicit));
+            }
+            css.append("}\n");
+        }
+        return css.toString();
+    }
+
+    /**
+     * The validated hex when the definition has one, otherwise the palette variable of the legacy
+     * value it degrades to. Keying on the legacy value rather than the id means a custom marker
+     * whose colour is missing or unusable still shows its severity instead of turning grey.
+     */
+    private static String paletteVariable(SessionJournalMarkerDefinition definition) {
+        String explicit = cssColor(definition.getColor());
+        if (explicit != null) {
+            return explicit;
+        }
+        return switch (definition.getLegacyMarker()) {
+            case ERROR -> "var(--err)";
+            case IMPORTANT -> "var(--imp)";
+            case INFO -> "var(--info)";
+            case NONE -> "var(--none)";
+        };
+    }
+
+    /**
+     * Only {@code #rgb} and {@code #rrggbb} survive; anything else returns {@code null}. Marker
+     * colours are the first free-text user values ever emitted into CSS by this page, so a name
+     * like {@code red;background:url(http://…)} must not be able to reach the stylesheet.
+     */
+    static String cssColor(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (!trimmed.startsWith("#")) {
+            trimmed = "#" + trimmed;
+        }
+        if (trimmed.length() != 4 && trimmed.length() != 7) {
+            return null;
+        }
+        for (int i = 1; i < trimmed.length(); i++) {
+            char c = Character.toLowerCase(trimmed.charAt(i));
+            boolean hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+            if (!hex) {
+                return null;
+            }
+        }
+        return trimmed.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * A font family safe to put inside a quoted CSS value: letters, digits, spaces, hyphens and
+     * underscores only. Everything else — quotes, semicolons, parentheses — is dropped, so a
+     * family name can never break out of the style attribute it is written into.
+     */
+    static String cssFontFamily(String value) {
+        if (value == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            boolean allowed = Character.isLetterOrDigit(c) || c == ' ' || c == '-' || c == '_';
+            if (allowed) {
+                sb.append(c);
+            }
+        }
+        String cleaned = sb.toString().trim();
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    /** Only {@code [A-Za-z0-9_-]} survives; used for values placed inside CSS selectors. */
+    static String cssIdent(String value) {
+        if (value == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            boolean allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                || (c >= '0' && c <= '9') || c == '-' || c == '_';
+            if (allowed) {
+                sb.append(c);
+            }
+        }
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    /** Black or white, whichever reads better on the given background. */
+    static String contrastFor(String hexColor) {
+        String hex = cssColor(hexColor);
+        if (hex == null) {
+            return "#fff";
+        }
+        int r;
+        int g;
+        int b;
+        if (hex.length() == 4) {
+            r = Integer.parseInt(hex.substring(1, 2).repeat(2), 16);
+            g = Integer.parseInt(hex.substring(2, 3).repeat(2), 16);
+            b = Integer.parseInt(hex.substring(3, 4).repeat(2), 16);
+        } else {
+            r = Integer.parseInt(hex.substring(1, 3), 16);
+            g = Integer.parseInt(hex.substring(3, 5), 16);
+            b = Integer.parseInt(hex.substring(5, 7), 16);
+        }
+        // Rec. 709 luma; the 0.6 threshold matches what the badge text needs to stay readable.
+        double luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+        return luma > 0.6 ? "#000" : "#fff";
+    }
+
+    private void appendTimeline(StringBuilder html, List<SessionJournalEntry> entries, SessionJournalMeta meta,
+                                Map<String, SessionJournalMarkerDefinition> markers) {
         html.append("<main class=\"timeline\">\n");
         if (entries.isEmpty()) {
             html.append("<p class=\"empty\">").append(escapeHtml(i18n("journal.html.empty",
@@ -248,13 +521,17 @@ public final class SessionJournalHtmlRenderer {
                 currentDay = day;
                 html.append("<div class=\"day-divider\"><span>").append(day.format(DATE_FULL)).append("</span></div>\n");
             }
-            appendEntryCard(html, entry, zone);
+            appendEntryCard(html, entry, zone, markers.get(nullSafe(entry.getId())));
         }
         html.append("</main>\n");
     }
 
-    private void appendEntryCard(StringBuilder html, SessionJournalEntry entry, ZoneId zone) {
-        String marker = entry.getMarker().name().toLowerCase(java.util.Locale.ROOT);
+    private void appendEntryCard(StringBuilder html, SessionJournalEntry entry, ZoneId zone,
+                                 SessionJournalMarkerDefinition definition) {
+        SessionJournalMarkerDefinition marked = definition != null
+            ? definition : SessionJournalMarkers.builtIn(entry.getMarker());
+        String markerId = cssIdent(marked.getId());
+        boolean hasMarker = markerId != null && !marked.isNone();
         String kindClass = switch (entry.getKind()) {
             case SCREENSHOT -> "shot";
             case USER_NOTE -> "user-note";
@@ -264,10 +541,18 @@ public final class SessionJournalHtmlRenderer {
         String time = entry.getCreatedAt() != null
             ? entry.getCreatedAt().atZoneSameInstant(zone).format(TIME_HM)
             : "";
-        html.append("<article class=\"entry ").append(kindClass)
-            .append("\" id=\"entry-").append(escapeAttr(nullSafe(entry.getId()))).append("\">\n");
+        html.append("<article class=\"entry ").append(kindClass).append(hasMarker ? " marked" : "")
+            .append("\" id=\"entry-").append(escapeAttr(nullSafe(entry.getId()))).append('"');
+        if (hasMarker) {
+            html.append(" data-marker=\"").append(markerId).append('"');
+        }
+        // Full timestamp for the range selection; the visible time is minute-only and undated.
+        if (entry.getCreatedAt() != null) {
+            html.append(" data-time=\"").append(escapeAttr(entry.getCreatedAt().toString())).append('"');
+        }
+        html.append(">\n");
         html.append("<div class=\"node\"><time>").append(escapeHtml(time))
-            .append("</time><span class=\"dot dot-").append(marker).append("\"></span></div>\n");
+            .append("</time><span class=\"dot\"></span></div>\n");
 
         boolean linkable = entry.getLogStartSeq() != null && entry.getLogEndSeq() != null;
         html.append("<div class=\"card\"");
@@ -279,9 +564,9 @@ public final class SessionJournalHtmlRenderer {
         html.append(">\n");
         appendCardActions(html, entry);
         html.append("<div class=\"card-head\">");
-        if (entry.getMarker() != de.kortty.model.SessionJournalMarker.NONE) {
-            html.append("<span class=\"badge badge-").append(marker).append("\">")
-                .append(escapeHtml(i18n("journal.marker." + marker, entry.getMarker().name())))
+        if (hasMarker) {
+            html.append("<span class=\"badge\">")
+                .append(escapeHtml(SessionJournalMarkers.displayName(marked)))
                 .append("</span>");
         }
         if (entry.getState() == SessionJournalEntry.State.RAW) {
@@ -301,8 +586,15 @@ public final class SessionJournalHtmlRenderer {
         html.append("</div>\n");
 
         if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
+            // An edited screenshot keeps its file name, so without a token that changes with the
+            // marks the browser would go on showing the copy it already cached.
+            String version = de.kortty.model.SessionJournalAnnotation.versionToken(entry.getAnnotations());
             html.append("<img class=\"thumb\" loading=\"lazy\" src=\"")
-                .append(escapeAttr(entry.getScreenshotFile())).append("\" alt=\"")
+                .append(escapeAttr(entry.getScreenshotFile()))
+                .append(version != null ? "?v=" + version : "")
+                // The plain path for everything that resolves it against the journal folder.
+                .append("\" data-rel=\"").append(escapeAttr(entry.getScreenshotFile()))
+                .append("\" alt=\"")
                 .append(escapeAttr(i18n("journal.html.screenshot", "Screenshot"))).append("\">\n");
         }
         if (entry.getText() != null && !entry.getText().isBlank()) {
@@ -389,6 +681,11 @@ public final class SessionJournalHtmlRenderer {
             .append(ctxItem("ctxScreenshot", i18n("journal.html.copy.screenshot", "Copy screenshot")))
             .append(ctxItem("ctxPath", i18n("journal.html.copy.path", "Copy screenshot path")))
             .append(ctxItem("ctxLog", i18n("journal.html.copy.log", "Copy log section")))
+            // Only work inside korTTY, so the script hides them when the bridge does not answer.
+            .append(ctxItem("ctxSetMarker", i18n("journal.html.marker.set", "Set marker…")))
+            .append(ctxItem("ctxAnnotate", i18n("journal.html.screenshot.edit", "Edit screenshot…")))
+            .append(ctxItem("ctxSaveImage", i18n("journal.html.screenshot.export", "Export screenshot…")))
+            .append(ctxItem("ctxRename", i18n("journal.html.rename", "Rename journal…")))
             .append("</div>\n")
             .append("<div id=\"toast\" class=\"toast\" role=\"status\" aria-live=\"polite\"></div>\n");
     }
@@ -449,7 +746,7 @@ public final class SessionJournalHtmlRenderer {
         return result;
     }
 
-    private String js(List<SessionJournalLogEntry> logEntries) {
+    private String js(List<SessionJournalLogEntry> logEntries, boolean hasMarkers) {
         StringBuilder data = new StringBuilder(logEntries.size() * 48 + 1024);
         data.append("const LOG=[");
         ZoneId zone = ZoneId.systemDefault();
@@ -482,8 +779,27 @@ public final class SessionJournalHtmlRenderer {
             .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.copied", "Copied")))
             .append(",failed:")
             .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.copyFailed", "Copy failed")))
+            .append(",rangePrompt:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.range.prompt", "Click the first and last entry")))
+            .append(",rangeEntries:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.range.entries", "entries")))
+            .append(",theme:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.theme", "Theme")))
+            .append(",themeAuto:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.theme.auto", "follows the system")))
+            .append(",themeLight:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.theme.light", "light")))
+            .append(",renameHint:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.rename.hint", "Double-click to rename the journal")))
+            .append(",themeDark:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.theme.dark", "dark")))
             .append("};\n");
-        return data + behaviorJs();
+        // The marker block goes inside behaviorJs's closure — hence the closing "})();" here.
+        return data + behaviorJs() + (hasMarkers ? markerJs() : "") + "})();\n";
     }
 
     // ==== static page assets ====
@@ -516,7 +832,7 @@ public final class SessionJournalHtmlRenderer {
             /* Every font size below is em-relative to this one, so the A-/A+ buttons scale the
                whole page by changing a single custom property. */
             body{margin:0;background:var(--bg);color:var(--text);
-              font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+              font-family:var(--ui-font,ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif);
               font-size:calc(15px * var(--font-scale));line-height:1.5;
               padding-bottom:12px}
             body.panel-open{padding-bottom:46vh}
@@ -561,10 +877,12 @@ public final class SessionJournalHtmlRenderer {
               width:2px;background:var(--border)}
             .node{position:relative;text-align:right;padding-right:16px;color:var(--muted);
               font-size:.8em;padding-top:8px}
+            /* --mk is set per marker by the generated rules in markerCss(); the fallback covers
+               unmarked entries. The old .dot-error/.dot-important colour rules are gone on
+               purpose: they came after .dot at equal specificity and would beat var(--mk), so a
+               recoloured built-in marker would silently have no effect. */
             .dot{position:absolute;right:-5px;top:12px;width:10px;height:10px;border-radius:50%;
-              background:var(--none);border:2px solid var(--bg)}
-            .dot-error{background:var(--err)} .dot-important{background:var(--imp)}
-            .dot-info{background:var(--info)}
+              background:var(--mk,var(--none));border:2px solid var(--bg)}
             .card{position:relative;background:var(--surface);border:1px solid var(--border);
               border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s}
             .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
@@ -580,9 +898,34 @@ public final class SessionJournalHtmlRenderer {
             /* Leaves room for the always-visible copy buttons in the card's top-right corner. */
             .card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:72px}
             .card-head h3{margin:0;font-size:1em}
-            .badge{border-radius:999px;padding:1px 9px;font-size:.73em;font-weight:600;color:#fff}
-            .badge-error{background:var(--err)} .badge-important{background:var(--imp)}
-            .badge-info{background:var(--info)} .badge-none{background:var(--none)}
+            .badge{border-radius:999px;padding:1px 9px;font-size:.73em;font-weight:600;
+              background:var(--mk,var(--none));color:var(--mk-fg,#fff)}
+            /* Filtered exports must announce themselves; printed too, unlike the page chrome. */
+            .excerpt-banner{margin:0 auto;max-width:1100px;padding:8px 14px;border-radius:8px;
+              border:1px solid var(--imp);color:var(--imp);font-size:.85em;font-weight:600}
+            .marker-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:8px;
+              border-top:1px solid var(--border)}
+            .marker-bar[hidden]{display:none}
+            .marker-bar select,.marker-bar button{background:var(--surface2);
+              border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 9px;
+              cursor:pointer;font-family:inherit;font-size:.87em}
+            .marker-bar label{font-size:.87em;color:var(--muted)}
+            /* One pulse, drawn as an outline so nothing in the timeline shifts. */
+            .entry.marker-current .card{outline:2px solid var(--mk,var(--accent));outline-offset:3px;
+              animation:mkpulse .9s ease-out 1}
+            @keyframes mkpulse{from{outline-color:transparent}}
+            .range-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:8px;
+              border-top:1px solid var(--border)}
+            .range-bar[hidden]{display:none}
+            .range-bar button{background:var(--surface2);border:1px solid var(--border);
+              color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;
+              font-family:inherit;font-size:.87em}
+            .range-bar button:disabled{opacity:.45;cursor:default}
+            .range-bar #rangeLabel{font-size:.87em;color:var(--muted)}
+            body.range-mode .card{cursor:crosshair}
+            body.range-mode .entry.range-end .card,body.range-mode .entry.range-start .card{
+              outline:2px solid var(--accent);outline-offset:3px}
+            body.range-mode .entry.in-range .card{border-color:var(--accent)}
             .state-tag{border:1px solid var(--border);border-radius:4px;color:var(--muted);
               font-size:.67em;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px}
             .state-tag.failed{color:var(--err);border-color:var(--err)}
@@ -591,7 +934,7 @@ public final class SessionJournalHtmlRenderer {
             .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
             .excerpt{margin:0;padding:8px 10px;border-radius:8px;background:var(--surface2);
-              font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+              font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.45;
               overflow:auto;max-height:min(340px,34vh);white-space:pre}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
@@ -629,7 +972,7 @@ public final class SessionJournalHtmlRenderer {
             .panel-head button{background:var(--surface2);border:1px solid var(--border);
               color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit}
             .log-body{flex:1;margin:0;overflow:auto;padding:10px clamp(8px,2vw,14px);
-              font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+              font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.5;white-space:pre-wrap}
             .log-body::-webkit-scrollbar{width:10px}
             .log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
@@ -658,9 +1001,10 @@ public final class SessionJournalHtmlRenderer {
             }
             @media print{
               .log-panel,.lightbox,.ctx-menu,.toast,.head-buttons,
-              .search-bar,.card-actions{display:none !important}
+              .search-bar,.marker-bar,.range-bar,.card-actions{display:none !important}
               .session-head{position:static}
               .card{break-inside:avoid}
+              .entry.marker-current .card{outline:none}
               .excerpt{max-height:none}
             }
             """;
@@ -763,6 +1107,8 @@ public final class SessionJournalHtmlRenderer {
               }
               card.addEventListener("click",function(e){
                 if(e.target.tagName==="IMG"){return;}
+                // In range mode the click picks the range's ends instead of opening the log.
+                if(document.body.classList.contains("range-mode")){return;}
                 activate();
               });
               card.addEventListener("keydown",function(e){
@@ -778,7 +1124,11 @@ public final class SessionJournalHtmlRenderer {
                 lightboxImg.src=img.src;
                 // Keep the directory-relative path: the Java bridge resolves it against the
                 // journal folder, and img.src would be an absolute file:/ URL.
-                lightboxImg.dataset.rel=img.getAttribute("src");
+                // data-rel is the plain journal path; src may carry a cache-busting token.
+                lightboxImg.dataset.rel=img.dataset.rel||img.getAttribute("src");
+                // Carry the entry over so Edit works on the full-size view too.
+                var article=img.closest?img.closest(".entry"):null;
+                if(article&&article.id){lightboxImg.dataset.entry=article.id.slice(6);}
                 lightbox.hidden=false;
               });
             });
@@ -802,16 +1152,56 @@ public final class SessionJournalHtmlRenderer {
               var saved=localStorage.getItem("kortty-journal-theme");
               if(saved){root.setAttribute("data-theme",saved);}
             }catch(err){}
-            toggle.addEventListener("click",function(){
+            /* What the page actually shows right now, which is not the same as the attribute:
+               "auto" resolves to whatever the desktop is set to. */
+            function effectiveTheme(){
               var cur=root.getAttribute("data-theme");
-              var next=cur==="light"?"dark":(cur==="dark"?"auto":"light");
+              if(cur==="light"||cur==="dark"){return cur;}
+              return window.matchMedia
+                && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
+            var themeOrder=null;
+            function nextTheme(){
+              var cur=root.getAttribute("data-theme");
+              if(cur!=="light"&&cur!=="dark"){
+                /* Leaving "auto": go to whichever is NOT on screen. The old cycle always went to
+                   "light" first, which on a light desktop changed nothing and read as a dead
+                   button. */
+                themeOrder=effectiveTheme()==="dark"?["light","dark"]:["dark","light"];
+                return themeOrder[0];
+              }
+              if(!themeOrder){themeOrder=cur==="light"?["light","dark"]:["dark","light"];}
+              return cur===themeOrder[0]?themeOrder[1]:"auto";
+            }
+            function labelTheme(value){
+              return T.theme+": "+(value==="light"?T.themeLight
+                :(value==="dark"?T.themeDark:T.themeAuto));
+            }
+            toggle.title=labelTheme(root.getAttribute("data-theme"));
+            toggle.addEventListener("click",function(){
+              var next=nextTheme();
               root.setAttribute("data-theme",next);
+              toggle.title=labelTheme(next);
               try{localStorage.setItem("kortty-journal-theme",next);}catch(err){}
+              // Inside korTTY the choice belongs in the settings: the page is regenerated on every
+              // journal change, and localStorage alone would not survive that reliably.
+              callBridge("themeChanged",next);
             });
 
             /* ---- font size ---------------------------------------------------------- */
             var FONT_MIN=0.7,FONT_MAX=2.5,FONT_STEP=0.1;
             function bridge(){return window.korttyJournal;}
+            /* Calls a bridge method without ever reading it as a property first: the Java object
+               behind window.korttyJournal is not a plain JS object, and probing b.someMethod is
+               undefined at best and throws at worst. */
+            function callBridge(name,arg){
+              try{
+                var b=bridge();
+                if(!b){return false;}
+                if(arg===undefined){b[name]();}else{b[name](arg);}
+                return true;
+              }catch(err){return false;}
+            }
             function currentScale(){
               var v=parseFloat(root.style.getPropertyValue("--font-scale"));
               return isNaN(v)?1:v;
@@ -823,8 +1213,7 @@ public final class SessionJournalHtmlRenderer {
               try{localStorage.setItem("kortty-journal-font-scale",String(v));}catch(err){}
               // In the app the bridge persists the size in the korTTY settings, so a regenerated
               // page (new AI entry, edited marker) comes back at the size the user chose.
-              var b=bridge();
-              if(b&&b.fontScaleChanged){try{b.fontScaleChanged(Math.round(v*100));}catch(err){}}
+              callBridge("fontScaleChanged",Math.round(v*100));
             }
             try{
               var storedScale=parseFloat(localStorage.getItem("kortty-journal-font-scale"));
@@ -918,8 +1307,21 @@ public final class SessionJournalHtmlRenderer {
               entry:document.getElementById("ctxEntry"),
               screenshot:document.getElementById("ctxScreenshot"),
               path:document.getElementById("ctxPath"),
-              log:document.getElementById("ctxLog")};
+              log:document.getElementById("ctxLog"),
+              setMarker:document.getElementById("ctxSetMarker"),
+              annotate:document.getElementById("ctxAnnotate"),
+              saveImage:document.getElementById("ctxSaveImage"),
+              rename:document.getElementById("ctxRename")};
             var ctxCard=null,ctxImage=null,ctxSelection="";
+            /* Turned on by the app once the Java bridge is installed; a standalone page in a
+               browser never offers an action it cannot perform. */
+            var appActions=false;
+            window.korttyEnableAppActions=function(){
+              appActions=true;
+              /* Only inside korTTY is the title editable, so only there does it say so. */
+              var h1=document.querySelector(".head-main h1");
+              if(h1){h1.title=T.renameHint;}
+            };
             function hideMenu(){
               menu.classList.remove("open");
               ctxCard=null; ctxImage=null; ctxSelection="";
@@ -937,6 +1339,17 @@ public final class SessionJournalHtmlRenderer {
               show("screenshot",!!ctxImage);
               show("path",!!ctxImage);
               show("log",inLog&&records.length>0);
+              // These rewrite the journal or open a file dialog, so they only exist inside korTTY.
+              // The flag is set by the app; probing bridge().someMethod would NOT work — reading a
+              // method off a Java object exposed through JSObject.setMember throws, and the throw
+              // would abort this handler before preventDefault, killing the whole menu.
+              var inHead=target.closest?!!target.closest(".head-main"):false;
+              try{
+                show("setMarker",!!ctxCard&&appActions);
+                show("annotate",!!ctxImage&&appActions);
+                show("saveImage",!!ctxImage&&appActions);
+                show("rename",inHead&&appActions);
+              }catch(err){}
               if(!menu.querySelector("button.available")){hideMenu();return;}
               event.preventDefault();
               menu.classList.add("open");
@@ -964,6 +1377,41 @@ public final class SessionJournalHtmlRenderer {
               if(img){copyText(img.dataset.rel||img.getAttribute("src"));}});
             items.log.addEventListener("click",function(){
               hideMenu(); copyText(logText());});
+            /* The entry an image belongs to. In the timeline it is the enclosing article; the
+               lightbox sits outside it, so the thumbnail hands the id over when it opens. */
+            function entryIdOf(img){
+              if(!img){return null;}
+              var article=img.closest?img.closest(".entry"):null;
+              if(article&&article.id){return article.id.slice(6);}
+              return img.dataset&&img.dataset.entry?img.dataset.entry:null;
+            }
+            items.annotate.addEventListener("click",function(){
+              var img=ctxImage; hideMenu();
+              var id=entryIdOf(img);
+              if(!id){return;}
+              callBridge("requestAnnotate",id);
+            });
+            items.rename.addEventListener("click",function(){
+              hideMenu(); callBridge("requestRename");
+            });
+            /* The title itself is the natural place to rename; double-click works too. */
+            var titleEl=document.querySelector(".head-main h1");
+            if(titleEl){
+              titleEl.addEventListener("dblclick",function(){callBridge("requestRename");});
+            }
+            items.saveImage.addEventListener("click",function(){
+              var img=ctxImage; hideMenu();
+              if(!img){return;}
+              var rel=img.dataset&&img.dataset.rel?img.dataset.rel:img.getAttribute("src");
+              callBridge("requestSaveImage",rel);
+            });
+            items.setMarker.addEventListener("click",function(){
+              var card=ctxCard; hideMenu();
+              var article=card&&card.closest?card.closest(".entry"):null;
+              if(!article||!article.id){return;}
+              // The id is already "entry-<uuid>", so no extra attribute is needed.
+              callBridge("requestMarker",article.id.slice(6));
+            });
 
             /* ---- copy buttons ------------------------------------------------------- */
             document.querySelectorAll(".card .copy-btn").forEach(function(button){
@@ -988,14 +1436,38 @@ public final class SessionJournalHtmlRenderer {
             var journalSearch=document.getElementById("journalSearch");
             var journalCount=document.getElementById("journalMatchCount");
             var timeline=document.querySelector(".timeline");
-            var hits=[],hitIndex=-1;
+            /* One navigator implementation for both the search hits and the marked entries:
+               same wrap-around, same scroll-into-view, same "i/n" counter. */
+            function makeNav(countEl,cls){
+              var items=[],idx=-1;
+              return {
+                set:function(list){items=list;idx=items.length?0:-1;},
+                size:function(){return items.length;},
+                focus:function(scroll){
+                  for(var i=0;i<items.length;i++){items[i].classList.toggle(cls,i===idx);}
+                  if(scroll&&idx>=0){items[idx].scrollIntoView({block:"center",behavior:"smooth"});}
+                  if(countEl){countEl.textContent=items.length?((idx+1)+"/"+items.length):"0/0";}
+                },
+                move:function(step){
+                  if(!items.length){return;}
+                  idx=(idx+step+items.length)%items.length;
+                  this.focus(true);
+                },
+                clear:function(){
+                  for(var i=0;i<items.length;i++){items[i].classList.remove(cls);}
+                  items=[];idx=-1;
+                  if(countEl){countEl.textContent="0/0";}
+                }
+              };
+            }
+            var journalNav=makeNav(journalCount,"cur");
             function clearHighlights(){
               timeline.querySelectorAll("mark.gs").forEach(function(mark){
                 var parent=mark.parentNode;
                 parent.replaceChild(document.createTextNode(mark.textContent),mark);
                 parent.normalize();
               });
-              hits=[]; hitIndex=-1;
+              journalNav.clear();
             }
             function markMatches(query){
               // Collect first, wrap afterwards: the walker must not see its own new nodes. Wrapping
@@ -1025,31 +1497,19 @@ public final class SessionJournalHtmlRenderer {
                 }
                 text.parentNode.replaceChild(fragment,text);
               });
-              hits=Array.prototype.slice.call(timeline.querySelectorAll("mark.gs"));
-              hitIndex=hits.length?0:-1;
-            }
-            function focusHit(scroll){
-              for(var i=0;i<hits.length;i++){hits[i].classList.toggle("cur",i===hitIndex);}
-              if(scroll&&hitIndex>=0){
-                hits[hitIndex].scrollIntoView({block:"center",behavior:"smooth"});
-              }
-              journalCount.textContent=hits.length?((hitIndex+1)+"/"+hits.length):"0/0";
+              journalNav.set(Array.prototype.slice.call(timeline.querySelectorAll("mark.gs")));
             }
             function runJournalSearch(){
               var query=journalSearch.value.trim().toLowerCase();
               clearHighlights();
               if(query){markMatches(query);}
-              focusHit(true);
+              journalNav.focus(true);
             }
-            function moveJournal(step){
-              if(!hits.length){return;}
-              hitIndex=(hitIndex+step+hits.length)%hits.length;
-              focusHit(true);
-            }
+            function moveJournal(step){journalNav.move(step);}
             function toggleSearch(show){
               searchBar.hidden=!show;
               if(show){journalSearch.focus();journalSearch.select();}
-              else{journalSearch.value=""; clearHighlights(); journalCount.textContent="0/0";}
+              else{journalSearch.value=""; clearHighlights();}
             }
             var journalSearchTimer=null;
             journalSearch.addEventListener("input",function(){
@@ -1070,8 +1530,7 @@ public final class SessionJournalHtmlRenderer {
             // installed after the load finishes, so the app reveals the button by calling this.
             var journalReplace=document.getElementById("journalReplace");
             journalReplace.addEventListener("click",function(){
-              var b=bridge();
-              if(b&&b.requestReplace){try{b.requestReplace(journalSearch.value);}catch(err){}}
+              callBridge("requestReplace",journalSearch.value);
             });
             window.korttyEnableReplace=function(){journalReplace.hidden=false;};
             document.getElementById("searchToggle").addEventListener("click",function(){
@@ -1084,7 +1543,150 @@ public final class SessionJournalHtmlRenderer {
                 toggleSearch(false);
               }
             });
-            })();
+
+            /* ---- range selection ------------------------------------------------------ */
+            var rangeBar=document.getElementById("rangeBar");
+            var rangeToggle=document.getElementById("rangeToggle");
+            var rangeLabel=document.getElementById("rangeLabel");
+            var rangeApply=document.getElementById("rangeApply");
+            var rangeAdd=document.getElementById("rangeAdd");
+            var rangeStart=null,rangeEnd=null,pendingWindows=[];
+            var datedEntries=Array.prototype.slice.call(timeline.querySelectorAll(".entry[data-time]"));
+            function clearRangeMarks(){
+              datedEntries.forEach(function(entry){
+                entry.classList.remove("range-start","range-end","in-range");
+              });
+            }
+            function orderedRange(){
+              if(!rangeStart){return null;}
+              var a=datedEntries.indexOf(rangeStart);
+              var b=rangeEnd?datedEntries.indexOf(rangeEnd):a;
+              /* Clicking the later entry first is not a mistake, it is just the other direction. */
+              return a<=b?[a,b]:[b,a];
+            }
+            function paintRange(){
+              clearRangeMarks();
+              var span=orderedRange();
+              if(!span){
+                rangeLabel.textContent=T.rangePrompt;
+                rangeApply.disabled=true; rangeAdd.disabled=true;
+                return;
+              }
+              for(var i=span[0];i<=span[1];i++){datedEntries[i].classList.add("in-range");}
+              datedEntries[span[0]].classList.add("range-start");
+              datedEntries[span[1]].classList.add("range-end");
+              var count=span[1]-span[0]+1;
+              var from=datedEntries[span[0]].querySelector("time");
+              var to=datedEntries[span[1]].querySelector("time");
+              rangeLabel.textContent=(from?from.textContent:"")+" – "+(to?to.textContent:"")
+                +" · "+count+" "+T.rangeEntries
+                +(pendingWindows.length?" (+"+pendingWindows.length+")":"");
+              rangeApply.disabled=false; rangeAdd.disabled=false;
+            }
+            function currentWindow(){
+              var span=orderedRange();
+              if(!span){return null;}
+              return {from:datedEntries[span[0]].getAttribute("data-time"),
+                      to:datedEntries[span[1]].getAttribute("data-time")};
+            }
+            function setRangeMode(on){
+              document.body.classList.toggle("range-mode",!!on);
+              rangeBar.hidden=!on;
+              if(!on){rangeStart=null;rangeEnd=null;pendingWindows=[];clearRangeMarks();}
+              else{paintRange();}
+            }
+            datedEntries.forEach(function(entry){
+              entry.addEventListener("click",function(e){
+                if(!document.body.classList.contains("range-mode")){return;}
+                if(e.target.tagName==="IMG"){return;}
+                e.preventDefault(); e.stopPropagation();
+                if(!rangeStart||(rangeStart&&rangeEnd&&!e.shiftKey)){
+                  rangeStart=entry; rangeEnd=null;
+                }else{
+                  rangeEnd=entry;
+                }
+                paintRange();
+              },true);
+            });
+            rangeAdd.addEventListener("click",function(){
+              var window_=currentWindow();
+              if(!window_){return;}
+              pendingWindows.push(window_);
+              rangeStart=null; rangeEnd=null;
+              paintRange();
+            });
+            rangeApply.addEventListener("click",function(){
+              var windows=pendingWindows.slice();
+              var window_=currentWindow();
+              if(window_){windows.push(window_);}
+              if(!windows.length){return;}
+              callBridge("applyTimeWindows",JSON.stringify(windows));
+              setRangeMode(false);
+            });
+            rangeCancelSetup();
+            function rangeCancelSetup(){
+              document.getElementById("rangeCancel").addEventListener("click",function(){
+                setRangeMode(false);});
+              rangeToggle.addEventListener("click",function(){
+                setRangeMode(rangeBar.hidden);});
+              document.addEventListener("keydown",function(e){
+                if(e.key==="Escape"&&!rangeBar.hidden){setRangeMode(false);}
+              });
+            }
+            /* Revealed by the app once the bridge is installed, and startable from the dialog. */
+            window.korttyEnableRange=function(){rangeToggle.hidden=false;};
+            window.korttyStartRange=function(){setRangeMode(true);};
+            """;
+    }
+
+    /**
+     * Marker navigation. Appended inside the same closure as {@link #behaviorJs()} so it can reuse
+     * {@code makeNav} and {@code timeline}, and only when the bar exists — a journal without
+     * markers ships neither the control nor the code that would drive it.
+     */
+    private static String markerJs() {
+        return """
+
+            /* ---- marker navigation --------------------------------------------------- */
+            var markerBar=document.getElementById("markerBar");
+            var markerSelect=document.getElementById("markerSelect");
+            var markerNav=makeNav(document.getElementById("markerCount"),"marker-current");
+            function refreshMarkers(){
+              var id=markerSelect.value;
+              var selector=id?'.entry[data-marker="'+id+'"]':".entry[data-marker]";
+              markerNav.clear();
+              markerNav.set(Array.prototype.slice.call(timeline.querySelectorAll(selector)));
+              markerNav.focus(true);
+            }
+            function toggleMarkerBar(show){
+              markerBar.hidden=!show;
+              if(show){refreshMarkers();markerSelect.focus();}
+              else{markerNav.clear();}
+            }
+            markerSelect.addEventListener("change",refreshMarkers);
+            document.getElementById("markerNext").addEventListener("click",function(){markerNav.move(1);});
+            document.getElementById("markerPrev").addEventListener("click",function(){markerNav.move(-1);});
+            document.getElementById("markerBarClose").addEventListener("click",function(){
+              toggleMarkerBar(false);});
+            document.getElementById("markerToggle").addEventListener("click",function(){
+              toggleMarkerBar(markerBar.hidden);});
+            document.addEventListener("keydown",function(e){
+              if(e.key==="Escape"&&!markerBar.hidden){toggleMarkerBar(false);return;}
+              /* Alt+Down/Up/M avoid every binding the page already uses: Ctrl+F, Enter,
+                 Shift+Enter, F3, "/" and Escape. */
+              if(!e.altKey||e.ctrlKey||e.metaKey){return;}
+              var tag=e.target&&e.target.tagName;
+              if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"){return;}
+              if(e.key==="ArrowDown"){
+                e.preventDefault();
+                if(markerBar.hidden){toggleMarkerBar(true);}else{markerNav.move(1);}
+              }else if(e.key==="ArrowUp"){
+                e.preventDefault();
+                if(markerBar.hidden){toggleMarkerBar(true);}else{markerNav.move(-1);}
+              }else if(e.key==="m"||e.key==="M"){
+                e.preventDefault(); toggleMarkerBar(markerBar.hidden);
+              }
+            });
             """;
     }
 

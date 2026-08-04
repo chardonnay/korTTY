@@ -23,9 +23,15 @@ import java.util.UUID;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class SessionJournalEntry {
 
-    /** Who set the current marker; USER edits are never overwritten by AI regeneration. */
+    /**
+     * Who set the current marker. Precedence is USER &gt; RULE &gt; AI: an auto-marker rule may
+     * overwrite an AI category (a rule is an explicit, deterministic instruction), but never a
+     * marker the user chose by hand. An older korTTY reads an unknown {@code RULE} as {@code null}
+     * and {@link #getMarkerSource()} defaults it to {@code AI}, i.e. to "regenerable" — which is
+     * the correct degradation.
+     */
     @XmlEnum
-    public enum MarkerSource { AI, USER }
+    public enum MarkerSource { AI, USER, RULE }
 
     /** Production state of an AI entry; RAW entries exist when AI summaries are unavailable. */
     @XmlEnum
@@ -39,6 +45,15 @@ public class SessionJournalEntry {
 
     @XmlElement
     private SessionJournalMarker marker = SessionJournalMarker.NONE;
+
+    /**
+     * Id of the applied {@link SessionJournalMarkerDefinition}, or {@code null} for a built-in
+     * marker and on every document written before custom markers existed — then {@link #marker}
+     * decides. Whenever this is set, {@code marker} is set to the definition's legacy value too,
+     * so an older korTTY still shows a sensible badge.
+     */
+    @XmlElement
+    private String markerId;
 
     @XmlElement
     private MarkerSource markerSource = MarkerSource.AI;
@@ -85,6 +100,14 @@ public class SessionJournalEntry {
     @XmlElement(name = "line")
     private List<String> outputExcerpt = new ArrayList<>();
 
+    /**
+     * Marks drawn on a SCREENSHOT entry's image. Kept as data rather than only burnt into the PNG
+     * so they stay editable; the untouched capture lives next to it as {@code *.orig.png}.
+     */
+    @XmlElementWrapper(name = "annotations")
+    @XmlElement(name = "annotation")
+    private List<SessionJournalAnnotation> annotations;
+
     public SessionJournalEntry() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = OffsetDateTime.now();
@@ -94,6 +117,7 @@ public class SessionJournalEntry {
         this.id = other.id;
         this.kind = other.kind;
         this.marker = other.marker;
+        this.markerId = other.markerId;
         this.markerSource = other.markerSource;
         this.state = other.state;
         this.createdAt = other.createdAt;
@@ -107,6 +131,12 @@ public class SessionJournalEntry {
         this.logEndSeq = other.logEndSeq;
         this.inputExcerpt = new ArrayList<>(other.inputExcerpt != null ? other.inputExcerpt : List.of());
         this.outputExcerpt = new ArrayList<>(other.outputExcerpt != null ? other.outputExcerpt : List.of());
+        if (other.annotations != null) {
+            this.annotations = new ArrayList<>();
+            for (SessionJournalAnnotation annotation : other.annotations) {
+                this.annotations.add(new SessionJournalAnnotation(annotation));
+            }
+        }
     }
 
     public String getId() {
@@ -131,6 +161,16 @@ public class SessionJournalEntry {
 
     public void setMarker(SessionJournalMarker marker) {
         this.marker = marker;
+    }
+
+    /** Raw id; use {@code SessionJournalMarkers.resolve} to get the definition to render with. */
+    public String getMarkerId() {
+        return markerId;
+    }
+
+    public void setMarkerId(String markerId) {
+        String normalized = SessionJournalMarkerDefinition.normalizeId(markerId);
+        this.markerId = normalized;
     }
 
     public MarkerSource getMarkerSource() {
@@ -241,5 +281,33 @@ public class SessionJournalEntry {
 
     public void setOutputExcerpt(List<String> outputExcerpt) {
         this.outputExcerpt = outputExcerpt != null ? new ArrayList<>(outputExcerpt) : new ArrayList<>();
+    }
+
+    /** Live list; only SCREENSHOT entries ever carry marks. */
+    public List<SessionJournalAnnotation> getAnnotations() {
+        if (annotations == null) {
+            annotations = new ArrayList<>();
+        }
+        return annotations;
+    }
+
+    public void setAnnotations(List<SessionJournalAnnotation> annotations) {
+        this.annotations = annotations != null ? new ArrayList<>(annotations) : new ArrayList<>();
+    }
+
+    public boolean hasAnnotations() {
+        return annotations != null && !annotations.isEmpty();
+    }
+
+    /**
+     * Drops the empty annotation list before marshalling. JAXB writes an
+     * {@code @XmlElementWrapper} even when the collection is empty, and every non-screenshot entry
+     * would otherwise grow a stray element. The getter recreates the list on demand.
+     */
+    @SuppressWarnings("unused")
+    private void beforeMarshal(jakarta.xml.bind.Marshaller marshaller) {
+        if (annotations != null && annotations.isEmpty()) {
+            annotations = null;
+        }
     }
 }

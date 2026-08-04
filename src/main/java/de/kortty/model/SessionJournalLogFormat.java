@@ -18,12 +18,22 @@ public enum SessionJournalLogFormat {
     /**
      * Format for new journals when nothing else is configured.
      *
-     * <p>JSON Lines, measured against the other two on a realistic session: XML is ~9 bytes per
-     * entry smaller uncompressed, but JSON is the smallest once a finished log part is gzipped,
-     * and it is what log tooling ingests without a parser of its own. YAML is the largest of the
-     * three here — it is JSON flow mappings with a {@code "- "} prefix, so it costs two bytes per
-     * line on top of JSON and buys no readability. The spread is a few percent either way; the
-     * entry text dominates the file, and compression flattens the rest.</p>
+     * <p>JSON Lines, chosen because log tooling ingests it without a parser of its own — <em>not</em>
+     * because it is smaller. Measured over 500 entries per case:</p>
+     *
+     * <ul>
+     *   <li>Ordinary terminal output: XML is ~9 bytes per entry smaller, because
+     *       {@code <out seq="1" t="…">} beats {@code {"seq":1,"t":"…","k":"out","x":"…"}}.</li>
+     *   <li>Output heavy in {@code < > & "}: JSON turns ~10 % smaller, because XML escaping
+     *       expands each of those to four or five characters while JSON escapes only quote and
+     *       backslash.</li>
+     *   <li>Gzipped — which is what a finished log part and every export actually store — all
+     *       three land within 2 % of each other, in both directions.</li>
+     * </ul>
+     *
+     * <p>So size is not a reason to prefer any of them; an earlier version of this comment claimed
+     * JSON won after gzip, which does not reproduce. YAML is JSON flow mappings with a {@code "- "}
+     * prefix: two bytes per line on top of JSON, and no readability in return.</p>
      */
     public static final SessionJournalLogFormat DEFAULT = JSON;
 

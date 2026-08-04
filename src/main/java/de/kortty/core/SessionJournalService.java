@@ -59,12 +59,33 @@ public class SessionJournalService {
     private final ConcurrentHashMap<Path, CachedMeta> metaCache = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Consumer<Path>> changeListeners = new CopyOnWriteArrayList<>();
 
+    /**
+     * Where the auto-marker rules come from. Injected so the rule hook can be tested without a
+     * running application; mirrors {@code SessionJournalSummarizer}'s settings supplier.
+     */
+    private volatile java.util.function.Supplier<de.kortty.model.GlobalSettings> settingsSupplier =
+        SessionJournalService::applicationSettings;
+
+    private static de.kortty.model.GlobalSettings applicationSettings() {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        return app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+    }
+
+    /** Test seam: overrides where the marker rules and definitions are read from. */
+    void setSettingsSupplier(java.util.function.Supplier<de.kortty.model.GlobalSettings> supplier) {
+        this.settingsSupplier = supplier != null ? supplier : SessionJournalService::applicationSettings;
+    }
+
     public SessionJournalService() {
         try {
             this.jaxbContext = JAXBContext.newInstance(
                 SessionJournalDocument.class,
                 SessionJournalMeta.class,
-                SessionJournalEntry.class);
+                SessionJournalEntry.class,
+                de.kortty.model.SessionJournalMarkerDefinition.class,
+                de.kortty.model.SessionJournalAnnotation.class);
         } catch (JAXBException e) {
             throw new IllegalStateException("Failed to create JAXB context for session journals", e);
         }
@@ -201,12 +222,85 @@ public class SessionJournalService {
         applyPolicyReplacements(stored);
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
+            // After the policy pass so a redacted secret can never be matched by a rule, and
+            // before the entry is added so the definition lands in the document's snapshot and
+            // refreshErrorCount sees the final marker.
+            applyMarkerRules(document, stored);
+            snapshotEntryMarker(document, stored);
             document.getEntries().add(stored);
             refreshErrorCount(document);
             saveDocumentInternal(journalDir, document);
         }
         notifyChanged(journalDir);
         return new SessionJournalEntry(stored);
+    }
+
+    /**
+     * Copies the entry's marker definition into the document. Without this a custom marker would
+     * render correctly only as long as the global settings that define it are around — which is
+     * exactly what breaks when a journal is exported or handed to someone else.
+     */
+    private void snapshotEntryMarker(SessionJournalDocument document, SessionJournalEntry entry) {
+        if (entry.getMarkerId() == null) {
+            return;
+        }
+        de.kortty.model.GlobalSettings settings = settingsSupplier.get();
+        de.kortty.model.SessionJournalMarkerDefinition definition = SessionJournalMarkers.byId(
+            entry.getMarkerId(), SessionJournalMarkers.registry(settings));
+        if (definition != null) {
+            SessionJournalMarkers.snapshot(document, definition);
+        }
+    }
+
+    /** Runs the enabled auto-marker rules over one entry and snapshots what they applied. */
+    private void applyMarkerRules(SessionJournalDocument document, SessionJournalEntry entry) {
+        de.kortty.model.GlobalSettings settings = settingsSupplier.get();
+        if (settings == null || !settings.isSessionJournalMarkerRulesEnabled()) {
+            return;
+        }
+        List<SessionJournalMarkerRules.Compiled> rules =
+            SessionJournalMarkerRules.compile(settings.getSessionJournalMarkerRules());
+        if (rules.isEmpty()) {
+            return;
+        }
+        List<de.kortty.model.SessionJournalMarkerDefinition> registry =
+            SessionJournalMarkers.registry(settings);
+        if (SessionJournalMarkerRules.apply(entry, rules, registry)) {
+            SessionJournalMarkers.snapshot(document,
+                SessionJournalMarkers.byId(entry.getMarkerId(), registry));
+        }
+    }
+
+    /**
+     * Re-runs the auto-marker rules over a whole journal. Unlike {@link #replace}, this works on a
+     * live journal: it only rewrites {@code journal.xml} under the same lock {@link #appendEntry}
+     * uses and never touches the append-only capture log. Returns how many entries changed.
+     */
+    public int applyMarkerRules(Path journalDir, boolean overwriteManual) throws IOException {
+        de.kortty.model.GlobalSettings settings = settingsSupplier.get();
+        if (settings == null) {
+            return 0;
+        }
+        List<SessionJournalMarkerRules.Compiled> rules =
+            SessionJournalMarkerRules.compile(settings.getSessionJournalMarkerRules());
+        if (rules.isEmpty()) {
+            return 0;
+        }
+        List<de.kortty.model.SessionJournalMarkerDefinition> registry =
+            SessionJournalMarkers.registry(settings);
+        int changed;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            changed = SessionJournalMarkerRules.applyAll(document, rules, registry, overwriteManual);
+            if (changed > 0) {
+                refreshErrorCount(document);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (changed > 0) {
+            notifyChanged(journalDir);
+        }
+        return changed;
     }
 
     /** Replaces the stored entry with the same id (marker/note edits). Unknown ids are ignored. */
@@ -220,6 +314,7 @@ public class SessionJournalService {
                     SessionJournalEntry updated = new SessionJournalEntry(entry);
                     updated.setEditedAt(OffsetDateTime.now());
                     applyPolicyReplacements(updated);
+                    snapshotEntryMarker(document, updated);
                     entries.set(i, updated);
                     replaced = true;
                     break;
@@ -484,6 +579,8 @@ public class SessionJournalService {
             }
             if (removed) {
                 refreshErrorCount(document);
+                // The only place a marker snapshot can become unreferenced.
+                SessionJournalMarkers.pruneUnused(document);
                 saveDocumentInternal(journalDir, document);
             }
         }
@@ -680,6 +777,23 @@ public class SessionJournalService {
             metaCache.remove(normalize(journalDir));
         } catch (JAXBException e) {
             throw new IOException("Could not write session journal document " + documentFile, e);
+        }
+    }
+
+    /**
+     * Marshals a document to an arbitrary path. Used by the filtered HTML bundle, whose target
+     * lies outside any journal directory — so unlike {@link #saveDocument} this takes no directory
+     * lock, runs no policy replacements and touches no cache.
+     */
+    public void writeDocument(SessionJournalDocument document, Path target) throws IOException {
+        try {
+            Marshaller marshaller = jaxbContext.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+            StringWriter writer = new StringWriter();
+            marshaller.marshal(document, writer);
+            AtomicFileWriter.writeStringAtomically(target, writer.toString());
+        } catch (JAXBException e) {
+            throw new IOException("Could not write session journal document " + target, e);
         }
     }
 

@@ -188,6 +188,31 @@ public class GlobalSettings {
     @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
+    /** User-defined markers; the four built-ins are added by SessionJournalMarkers, not stored. */
+    @XmlElementWrapper(name = "sessionJournalMarkers")
+    @XmlElement(name = "marker")
+    private java.util.List<SessionJournalMarkerDefinition> sessionJournalMarkers = new java.util.ArrayList<>();
+
+    /** Auto-marker rules, in priority order: the first enabled match wins. */
+    @XmlElementWrapper(name = "sessionJournalMarkerRules")
+    @XmlElement(name = "rule")
+    private java.util.List<SessionJournalMarkerRule> sessionJournalMarkerRules = new java.util.ArrayList<>();
+
+    @XmlElement
+    private boolean sessionJournalMarkerRulesEnabled = false; // Opt-in: rules touch every new entry
+
+    @XmlElement
+    private String sessionJournalPageSchemeId; // Null/"auto" = the page's own light/dark pair
+
+    @XmlElement
+    private String sessionJournalPageUiFont; // Null = the page's default sans stack
+
+    @XmlElement
+    private String sessionJournalPageMonoFont; // Null = the page's default monospace stack
+
+    @XmlElement
+    private String sessionJournalPageTheme; // auto (follow the OS) | light | dark
+
     // ---- PDF export branding (shared by session journal and AI chat exports) ----
 
     @XmlElement
@@ -760,6 +785,9 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry sessionJournalViewerGeometry;
 
+    @XmlElement
+    private WindowGeometry sessionJournalScreenshotEditorGeometry;
+
     /** Persisted divider position of the session journal viewer's edit split pane. */
     @XmlElement
     private Double sessionJournalViewerEditDividerPosition;
@@ -1325,6 +1353,78 @@ public class GlobalSettings {
         this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
             ? 100
             : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    /** User-defined markers only; {@code SessionJournalMarkers.registry} adds the built-ins. */
+    public java.util.List<SessionJournalMarkerDefinition> getSessionJournalMarkers() {
+        if (sessionJournalMarkers == null) {
+            sessionJournalMarkers = new java.util.ArrayList<>();
+        }
+        return sessionJournalMarkers;
+    }
+
+    public void setSessionJournalMarkers(java.util.List<SessionJournalMarkerDefinition> markers) {
+        this.sessionJournalMarkers = markers != null
+            ? new java.util.ArrayList<>(markers) : new java.util.ArrayList<>();
+    }
+
+    /** Auto-marker rules in priority order; the first enabled match wins. */
+    public java.util.List<SessionJournalMarkerRule> getSessionJournalMarkerRules() {
+        if (sessionJournalMarkerRules == null) {
+            sessionJournalMarkerRules = new java.util.ArrayList<>();
+        }
+        return sessionJournalMarkerRules;
+    }
+
+    public void setSessionJournalMarkerRules(java.util.List<SessionJournalMarkerRule> rules) {
+        this.sessionJournalMarkerRules = rules != null
+            ? new java.util.ArrayList<>(rules) : new java.util.ArrayList<>();
+    }
+
+    public boolean isSessionJournalMarkerRulesEnabled() {
+        return sessionJournalMarkerRulesEnabled;
+    }
+
+    public void setSessionJournalMarkerRulesEnabled(boolean sessionJournalMarkerRulesEnabled) {
+        this.sessionJournalMarkerRulesEnabled = sessionJournalMarkerRulesEnabled;
+    }
+
+    /** Colour scheme of the generated journal page; "auto" follows the operating system. */
+    public String getSessionJournalPageSchemeId() {
+        return sessionJournalPageSchemeId != null ? sessionJournalPageSchemeId : "auto";
+    }
+
+    public void setSessionJournalPageSchemeId(String sessionJournalPageSchemeId) {
+        String trimmed = sessionJournalPageSchemeId != null ? sessionJournalPageSchemeId.trim() : "";
+        this.sessionJournalPageSchemeId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public String getSessionJournalPageUiFont() {
+        return sessionJournalPageUiFont;
+    }
+
+    public void setSessionJournalPageUiFont(String sessionJournalPageUiFont) {
+        String trimmed = sessionJournalPageUiFont != null ? sessionJournalPageUiFont.trim() : "";
+        this.sessionJournalPageUiFont = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** The journal page's light/dark choice; "auto" follows the operating system. */
+    public String getSessionJournalPageTheme() {
+        return sessionJournalPageTheme != null ? sessionJournalPageTheme : "auto";
+    }
+
+    public void setSessionJournalPageTheme(String sessionJournalPageTheme) {
+        String trimmed = sessionJournalPageTheme != null ? sessionJournalPageTheme.trim() : "";
+        this.sessionJournalPageTheme = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public String getSessionJournalPageMonoFont() {
+        return sessionJournalPageMonoFont;
+    }
+
+    public void setSessionJournalPageMonoFont(String sessionJournalPageMonoFont) {
+        String trimmed = sessionJournalPageMonoFont != null ? sessionJournalPageMonoFont.trim() : "";
+        this.sessionJournalPageMonoFont = trimmed.isEmpty() ? null : trimmed;
     }
 
     public boolean isPdfWatermarkEnabled() {
@@ -2982,6 +3082,15 @@ public class GlobalSettings {
     /** Stores the session journal viewer dialog window position/size. */
     public void setSessionJournalViewerGeometry(WindowGeometry sessionJournalViewerGeometry) {
         this.sessionJournalViewerGeometry = sessionJournalViewerGeometry;
+    }
+
+    public WindowGeometry getSessionJournalScreenshotEditorGeometry() {
+        return sessionJournalScreenshotEditorGeometry;
+    }
+
+    /** Stores the screenshot edit window position/size. */
+    public void setSessionJournalScreenshotEditorGeometry(WindowGeometry geometry) {
+        this.sessionJournalScreenshotEditorGeometry = geometry;
     }
 
     public Double getSessionJournalViewerEditDividerPosition() { return sessionJournalViewerEditDividerPosition; }

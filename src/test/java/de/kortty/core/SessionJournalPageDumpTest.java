@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.SessionJournalEntry;
+import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntryKind;
 import org.testng.annotations.Test;
 
@@ -17,6 +18,21 @@ import static com.google.common.truth.Truth.assertThat;
  * every interaction on the page (this happened once already), and no unit test executes it.
  */
 class SessionJournalPageDumpTest {
+
+    /** A tiny opaque PNG; the dump only needs something a browser will actually render. */
+    private static byte[] samplePngBytes() throws IOException {
+        java.awt.image.BufferedImage image =
+            new java.awt.image.BufferedImage(320, 160, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        graphics.setColor(new java.awt.Color(0x1e, 0x28, 0x36));
+        graphics.fillRect(0, 0, 320, 160);
+        graphics.setColor(new java.awt.Color(0x7e, 0xe7, 0x87));
+        graphics.drawString("Active: active (running)", 20, 80);
+        graphics.dispose();
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "png", out);
+        return out.toByteArray();
+    }
 
     @Test
     void writesARenderedPageForManualInspection() throws IOException {
@@ -36,6 +52,9 @@ class SessionJournalPageDumpTest {
             session.appendInputLine("systemctl status nginx");
             session.appendOutputChunk("nginx.service - A high performance web server\n");
             session.appendOutputChunk("   Active: active (running)\n");
+            // A screenshot so the dump also exercises the thumbnail, the lightbox and the
+            // image-only context menu actions.
+            session.attachScreenshot(samplePngBytes(), "nginx status output");
             session.close();
 
             Path dir = session.getDirectory();
@@ -45,7 +64,24 @@ class SessionJournalPageDumpTest {
             entry.setText("The service was queried and reported as running.");
             entry.getInputExcerpt().add("systemctl status nginx");
             entry.getOutputExcerpt().add("Active: active (running)");
+            entry.setMarker(de.kortty.model.SessionJournalMarker.INFO);
             service.appendEntry(dir, entry);
+
+            // A second, custom-marked entry so the dump exercises the marker bar with more than
+            // one option — the marker JS is only emitted when a journal actually uses markers.
+            SessionJournalEntry deployed = new SessionJournalEntry();
+            deployed.setKind(SessionJournalEntryKind.AI_SUMMARY);
+            deployed.setTitle("Rolled out the new configuration");
+            deployed.setText("The updated nginx configuration was deployed and reloaded.");
+            SessionJournalMarkers.apply(deployed, new de.kortty.model.SessionJournalMarkerDefinition(
+                "deploy", "Deployment", "#7c3aed", false,
+                de.kortty.model.SessionJournalMarker.IMPORTANT));
+            service.appendEntry(dir, deployed);
+            SessionJournalDocument document = service.loadDocument(dir);
+            SessionJournalMarkers.snapshot(document, new de.kortty.model.SessionJournalMarkerDefinition(
+                "deploy", "Deployment", "#7c3aed", false,
+                de.kortty.model.SessionJournalMarker.IMPORTANT));
+            service.saveDocument(dir, document);
 
             SessionJournalHtmlRenderer renderer = new SessionJournalHtmlRenderer(service);
             Path rendered = renderer.renderToFile(dir);
@@ -61,6 +97,20 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("id=\"journalReplace\"");
             assertThat(html).contains("window.korttyEnableReplace");
             assertThat(html).contains("id=\"journalReplace\" hidden");
+            // The marker bar and the navigator it shares with the search must both be present.
+            assertThat(html).contains("id=\"markerBar\"");
+            assertThat(html).contains("id=\"markerToggle\"");
+            assertThat(html).contains("makeNav");
+            assertThat(html).contains(".entry[data-marker=\"deploy\"]{--mk:#7c3aed");
+            // Both markers of the journal are offered in the selector.
+            assertThat(html).contains("<option value=\"deploy\">Deployment</option>");
+            assertThat(html).contains("<option value=\"info\">");
+            // Edit and Export only make sense inside korTTY, so they ship in the menu but are
+            // revealed by the script only when the bridge answers.
+            assertThat(html).contains("id=\"ctxAnnotate\"");
+            assertThat(html).contains("id=\"ctxSaveImage\"");
+            assertThat(html).contains("id=\"ctxRename\"");
+            assertThat(html).contains("class=\"thumb\"");
         } finally {
             try (var paths = Files.walk(tempDir)) {
                 paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {

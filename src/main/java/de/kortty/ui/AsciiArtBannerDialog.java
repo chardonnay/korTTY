@@ -414,20 +414,7 @@ public class AsciiArtBannerDialog extends ThemeAwareDialog<Void> {
             GlobalSettings settings = currentSettings();
             if (settings == null) return;
             previewFontSize = AsciiArtSupport.clampPreviewFontSize(settings.getAsciiArtPreviewFontSize());
-            WindowGeometry geo = settings.getAsciiArtDialogGeometry();
-            if (geo != null && geo.getWidth() > 100 && geo.getHeight() > 100) {
-                getDialogPane().setPrefWidth(geo.getWidth());
-                getDialogPane().setPrefHeight(geo.getHeight());
-                setOnShowing(e -> {
-                    javafx.stage.Window window = getDialogPane().getScene().getWindow();
-                    if (window instanceof Stage s) {
-                        s.setX(geo.getX());
-                        s.setY(geo.getY());
-                        s.setWidth(geo.getWidth());
-                        s.setHeight(geo.getHeight());
-                    }
-                });
-            }
+            DialogGeometrySupport.restore(this, settings.getAsciiArtDialogGeometry());
         } catch (Exception ignored) { /* use default size/position/zoom */ }
     }
 
@@ -437,11 +424,11 @@ public class AsciiArtBannerDialog extends ThemeAwareDialog<Void> {
             de.kortty.core.GlobalSettingsManager gsm =
                 de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
             if (gsm == null || gsm.getSettings() == null) return;
-            javafx.stage.Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-            if (window instanceof Stage stage) {
-                gsm.getSettings().setAsciiArtDialogGeometry(new WindowGeometry(
-                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
+            WindowGeometry geometry = DialogGeometrySupport.capture(this);
+            if (geometry != null) {
+                gsm.getSettings().setAsciiArtDialogGeometry(geometry);
             }
+            // One save for both; persist(...) would write the settings file a second time.
             gsm.getSettings().setAsciiArtPreviewFontSize(previewFontSize);
             gsm.save();
         } catch (Exception ignored) { /* skip save on error */ }
