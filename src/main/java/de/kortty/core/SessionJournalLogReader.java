@@ -225,6 +225,47 @@ public final class SessionJournalLogReader {
         return readContent(partFile, isCompressed(partFile));
     }
 
+    /**
+     * The header block of a part file, verbatim and including its trailing newline.
+     *
+     * <p>Needed when a part is rewritten (the filtered HTML bundle): the header carries the
+     * {@code tabSessionId}, which lives nowhere else — not in {@link SessionJournalMeta} — so it
+     * can only be preserved by copying the original bytes rather than regenerating them.</p>
+     *
+     * <p>Returns an empty string when the format cannot be determined or the file is shorter than
+     * its own header, so a torn part degrades instead of throwing.</p>
+     */
+    public static String readHeader(Path partFile) throws IOException {
+        SessionJournalLogFormat format = formatOf(partFile);
+        if (format == null) {
+            return "";
+        }
+        return headerOf(readRawContent(partFile), format);
+    }
+
+    /** Testable variant of {@link #readHeader(Path)} operating on already-read content. */
+    static String headerOf(String content, SessionJournalLogFormat format) {
+        if (content == null || content.isEmpty() || format == null) {
+            return "";
+        }
+        // XML: <?xml?>, <session-log>, <meta/>. JSONL: one meta object. YAML: four scalars plus
+        // the "entries:" key that opens the block sequence.
+        int headerLines = switch (format) {
+            case XML -> 3;
+            case JSON -> 1;
+            case YAML -> 5;
+        };
+        int index = 0;
+        for (int line = 0; line < headerLines; line++) {
+            int newline = content.indexOf('\n', index);
+            if (newline < 0) {
+                return content.substring(0, index);
+            }
+            index = newline + 1;
+        }
+        return content.substring(0, index);
+    }
+
     private static SessionJournalLogFormat formatFromFileName(String plainName) {
         int dot = plainName.lastIndexOf('.');
         if (dot < 0) {

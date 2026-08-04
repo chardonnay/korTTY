@@ -747,43 +747,17 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
      * the pane's preferred size covers the initial layout pass.
      */
     private void restoreGeometry() {
-        try {
-            GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
-            WindowGeometry geometry = settings != null ? settings.getSnippetCodeAnalysisDialogGeometry() : null;
-            if (geometry == null || geometry.getWidth() <= 100 || geometry.getHeight() <= 100) {
-                return;
-            }
-            getDialogPane().setPrefWidth(geometry.getWidth());
-            getDialogPane().setPrefHeight(geometry.getHeight());
-            setOnShowing(event -> {
-                if (dialogStage() instanceof Stage stage) {
-                    stage.setX(geometry.getX());
-                    stage.setY(geometry.getY());
-                    stage.setWidth(geometry.getWidth());
-                    stage.setHeight(geometry.getHeight());
-                }
-            });
-        } catch (Exception ignored) {
-        }
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        DialogGeometrySupport.restore(this,
+            settings != null ? settings.getSnippetCodeAnalysisDialogGeometry() : null);
     }
 
     private void persistGeometry() {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        try {
-            if (!(dialogStage() instanceof Stage stage)) {
-                return;
-            }
-            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
-            GlobalSettings settings = manager != null ? manager.getSettings() : null;
-            if (settings != null) {
-                settings.setSnippetCodeAnalysisDialogGeometry(
-                    new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
-                manager.save();
-            }
-        } catch (Exception ignored) {
-        }
+        DialogGeometrySupport.persist(this,
+            (settings, geometry) -> settings.setSnippetCodeAnalysisDialogGeometry(geometry));
     }
 
     private Window dialogStage() {

@@ -1993,45 +1993,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void restoreGeometry() {
-        try {
-            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            var geo = gs.getSnippetEditGeometry();
-            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
-                getDialogPane().setPrefWidth(geo.getWidth());
-                getDialogPane().setPrefHeight(geo.getHeight());
-                setOnShowing(event -> {
-                    javafx.stage.Window window = getDialogPane().getScene().getWindow();
-                    if (window instanceof javafx.stage.Stage stage) {
-                        stage.setX(geo.getX());
-                        stage.setY(geo.getY());
-                        stage.setWidth(geo.getWidth());
-                        stage.setHeight(geo.getHeight());
-                    }
-                });
-            }
-        } catch (Exception e) {
-            // Ignore - use defaults
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getSnippetEditGeometry());
     }
-    
+
     private void saveGeometry() {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        try {
-            javafx.stage.Window window = getDialogPane().getScene().getWindow();
-            if (window instanceof javafx.stage.Stage stage) {
-                var geo = new WindowGeometry(
-                        stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-                gs.setSnippetEditGeometry(geo);
-                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
-            }
-        } catch (Exception e) {
-            // Ignore - non-critical
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetEditGeometry(geometry));
     }
-    
+
+
     private boolean loadWordWrapSetting() {
         try {
             return KorTTYApplication.getInstance().getGlobalSettingsManager()
@@ -3982,39 +3954,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void restoreCustomImprovementGeometry(ThemeAwareDialog<?> dialog) {
-        try {
-            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            WindowGeometry geo = gs.getCustomAiImprovementDialogGeometry();
-            if (geo != null && geo.getWidth() > 0 && geo.getHeight() > 0) {
-                DialogPane pane = dialog.getDialogPane();
-                pane.setPrefWidth(geo.getWidth());
-                pane.setPrefHeight(geo.getHeight());
-                dialog.setOnShowing(event -> {
-                    javafx.stage.Window window = pane.getScene() != null ? pane.getScene().getWindow() : null;
-                    if (window instanceof javafx.stage.Stage stage) {
-                        stage.setWidth(geo.getWidth());
-                        stage.setHeight(geo.getHeight());
-                    }
-                });
-            }
-        } catch (Exception ignored) {
-            // Non-critical: fall back to default size.
-        }
+        DialogGeometrySupport.restore(dialog, settings -> settings.getCustomAiImprovementDialogGeometry());
     }
 
     private void saveCustomImprovementGeometry(ThemeAwareDialog<?> dialog) {
-        try {
-            javafx.stage.Window window = dialog.getDialogPane().getScene() != null
-                ? dialog.getDialogPane().getScene().getWindow() : null;
-            if (window instanceof javafx.stage.Stage stage && stage.getWidth() > 0 && stage.getHeight() > 0) {
-                var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-                gs.setCustomAiImprovementDialogGeometry(new WindowGeometry(
-                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()));
-                KorTTYApplication.getInstance().getGlobalSettingsManager().save();
-            }
-        } catch (Exception ignored) {
-            // Non-critical.
-        }
+        DialogGeometrySupport.persist(dialog,
+            (settings, geometry) -> settings.setCustomAiImprovementDialogGeometry(geometry));
     }
 
     private void runCodeImprovement(String theme) {

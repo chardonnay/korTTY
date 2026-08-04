@@ -637,6 +637,61 @@
     {
       "from": "Journaletitel",
       "to": "Journaltitel"
+    },
+    {
+      "from": "(Papier, Mitternacht, Ozean, Wald, Retrowave, hoher Kontrast)",
+      "to": "(Paper, Midnight, Ocean, Forest, Retrowave, High contrast)",
+      "note": "Journal page scheme names are fixed English labels in the app; translating them hides the control."
+    },
+    {
+      "from": "Auswahl als Zeitfenster verwenden",
+      "to": "Auswahl als Zeitfenster übernehmen",
+      "note": "UI label journal.viewer.useSelectionAsWindow."
+    },
+    {
+      "from": "Dem Terminalthema folgen",
+      "to": "Dem Terminal-Theme folgen",
+      "note": "UI label journal.scheme.theme."
+    },
+    {
+      "from": "Monospace-Schriftart",
+      "to": "Festbreitenschrift",
+      "note": "UI label journal.viewer.appearance.monoFont."
+    },
+    {
+      "from": "Markierung setzen",
+      "to": "Marker setzen",
+      "note": "UI label journal.html.marker.set; korTTY calls these Marker, not Markierungen."
+    },
+    {
+      "from": "Textschriftart",
+      "to": "Textschrift",
+      "note": "UI label journal.viewer.appearance.uiFont."
+    },
+    {
+      "from": "stellt den eigenen Stapel der Seite wieder her",
+      "to": "stellt die Standardschriften der Seite wieder her",
+      "note": "MT reads the CSS 'font stack' as a pile of things."
+    },
+    {
+      "from": "Dem Terminal-Thema folgen",
+      "to": "Dem Terminal-Theme folgen",
+      "note": "UI label journal.scheme.theme; korTTY calls these Themes."
+    },
+    {
+      "from": "Screenshot mit Anmerkungen versehen",
+      "to": "Screenshot markieren",
+      "note": "UI label journal.html.screenshot.annotate."
+    },
+    {
+      "from": "mit Anmerkungen versehene Version",
+      "to": "markierte Version",
+      "note": "Keeps the annotation wording aligned with the UI label."
+    },
+    {
+      "from": "gkomprimiert",
+      "to": "gzip-komprimiert",
+      "note": "MT mangles 'gzipped' into a non-word. Safe as a substring rule because 'gkomprimiert' is not German; the ambiguous sibling ('escape' -> 'entkommen') is deliberately NOT listed, since 'entkommen' is a real word elsewhere."
     }
   ]
 }

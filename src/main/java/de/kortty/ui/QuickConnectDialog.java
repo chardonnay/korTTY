@@ -779,7 +779,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         appearanceGrid.add(themeCombo, 1, arow++);
 
         fontFamilyCombo = new ComboBox<>();
-        fontFamilyCombo.getItems().addAll(getMonospaceFonts());
+        fontFamilyCombo.getItems().addAll(MonospaceFontFamilies.monospaceFirst());
         fontFamilyCombo.setValue("Monospaced");
         fontFamilyCombo.setPrefWidth(200);
 
@@ -2027,37 +2027,6 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         } catch (Exception e) {
             // Ignore, settings will be saved next time
         }
-    }
-    
-    /**
-     * Returns a list of monospace fonts available on the system.
-     */
-    /**
-     * Returns all system-available font families, with common monospace fonts first.
-     */
-    private List<String> getMonospaceFonts() {
-        java.util.Set<String> preferred = new java.util.LinkedHashSet<>();
-        preferred.add("Monospaced");
-        preferred.add("Courier New");
-        preferred.add("Monaco");
-        preferred.add("Menlo");
-        preferred.add("Consolas");
-        preferred.add("DejaVu Sans Mono");
-        preferred.add("Liberation Mono");
-        preferred.add("Ubuntu Mono");
-        preferred.add("Fira Code");
-        preferred.add("JetBrains Mono");
-        preferred.add("Source Code Pro");
-        preferred.add("SF Mono");
-        java.util.List<String> system = javafx.scene.text.Font.getFamilies();
-        java.util.List<String> result = new java.util.ArrayList<>(preferred.size() + system.size());
-        for (String f : preferred) {
-            if (system.contains(f)) result.add(f);
-        }
-        for (String f : system) {
-            if (!preferred.contains(f)) result.add(f);
-        }
-        return result;
     }
     
     /**

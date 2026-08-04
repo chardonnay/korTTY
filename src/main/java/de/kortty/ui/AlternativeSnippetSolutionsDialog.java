@@ -4,7 +4,6 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.model.GlobalSettings;
-import de.kortty.model.WindowGeometry;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.concurrent.Task;
@@ -349,39 +348,11 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
     }
 
     private void restoreGeometry() {
-        try {
-            var settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            WindowGeometry geometry = settings != null ? settings.getAlternativeSnippetSolutionsDialogGeometry() : null;
-            if (geometry != null && geometry.getWidth() > 100 && geometry.getHeight() > 100) {
-                getDialogPane().setPrefWidth(geometry.getWidth());
-                getDialogPane().setPrefHeight(geometry.getHeight());
-                setOnShowing(event -> {
-                    Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-                    if (window instanceof Stage stage) {
-                        stage.setX(geometry.getX());
-                        stage.setY(geometry.getY());
-                        stage.setWidth(geometry.getWidth());
-                        stage.setHeight(geometry.getHeight());
-                    }
-                });
-            }
-        } catch (Exception ignored) {
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getAlternativeSnippetSolutionsDialogGeometry());
     }
 
     private void saveGeometry() {
-        try {
-            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-            if (window instanceof Stage stage) {
-                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                var settingsManager = KorTTYApplication.getInstance().getGlobalSettingsManager();
-                if (settingsManager != null && settingsManager.getSettings() != null) {
-                    settingsManager.getSettings().setAlternativeSnippetSolutionsDialogGeometry(geometry);
-                    settingsManager.save();
-                }
-            }
-        } catch (Exception ignored) {
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setAlternativeSnippetSolutionsDialogGeometry(geometry));
     }
 
     private void setBusy(boolean busy) {

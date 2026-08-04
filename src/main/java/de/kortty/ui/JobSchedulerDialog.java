@@ -19,7 +19,6 @@ import de.kortty.jobscheduler.SftpSyncDirection;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Snippet;
-import de.kortty.model.WindowGeometry;
 import de.kortty.security.EncryptionService;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -2019,26 +2018,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void restoreGeometry() {
-        try {
-            WindowGeometry geometry = app.getGlobalSettingsManager().getSettings().getJobSchedulerDialogGeometry();
-            if (geometry == null || geometry.getWidth() <= 100 || geometry.getHeight() <= 100) {
-                return;
-            }
-            getDialogPane().setPrefWidth(geometry.getWidth());
-            getDialogPane().setPrefHeight(geometry.getHeight());
-            setOnShowing(event -> {
-                Window window = getDialogPane().getScene().getWindow();
-                if (window instanceof Stage stage) {
-                    stage.setX(geometry.getX());
-                    stage.setY(geometry.getY());
-                    stage.setWidth(geometry.getWidth());
-                    stage.setHeight(geometry.getHeight());
-                    stage.setMaximized(geometry.isMaximized());
-                }
-            });
-        } catch (Exception e) {
-            logger.debug("Could not restore JobScheduler geometry", e);
-        }
+        DialogGeometrySupport.restore(this, settings -> settings.getJobSchedulerDialogGeometry());
     }
 
     private void installGeometryPersistence() {
@@ -2064,17 +2044,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        try {
-            Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
-            if (window instanceof Stage stage) {
-                WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
-                geometry.setMaximized(stage.isMaximized());
-                app.getGlobalSettingsManager().getSettings().setJobSchedulerDialogGeometry(geometry);
-                app.getGlobalSettingsManager().save();
-            }
-        } catch (Exception e) {
-            logger.debug("Could not save JobScheduler geometry", e);
-        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setJobSchedulerDialogGeometry(geometry));
     }
 
     private double getJournalDetailDividerPosition() {

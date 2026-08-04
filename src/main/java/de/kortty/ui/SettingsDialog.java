@@ -495,7 +495,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fontGrid.setPadding(new Insets(20));
         
         fontFamilyCombo = new ComboBox<>();
-        fontFamilyCombo.getItems().addAll(getMonospaceFonts());
+        fontFamilyCombo.getItems().addAll(MonospaceFontFamilies.monospaceFirst());
         fontFamilyCombo.setValue(settings.getFontFamily());
         fontFamilyCombo.setPrefWidth(200);
         
@@ -2593,7 +2593,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Font family
         snippetFontFamilyCombo = new ComboBox<>();
         snippetFontFamilyCombo.getItems().add(""); // empty = inherit from terminal
-        snippetFontFamilyCombo.getItems().addAll(getMonospaceFonts());
+        snippetFontFamilyCombo.getItems().addAll(MonospaceFontFamilies.monospaceFirst());
         String savedSnippetFont = globalSettings.getSnippetFontFamily();
         snippetFontFamilyCombo.setValue(savedSnippetFont != null ? savedSnippetFont : "");
         snippetFontFamilyCombo.setPrefWidth(200);
@@ -3620,34 +3620,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return copy;
     }
     
-    /**
-     * Returns all system-available font families, with common monospace fonts first.
-     */
-    private List<String> getMonospaceFonts() {
-        java.util.Set<String> preferred = new java.util.LinkedHashSet<>();
-        preferred.add("Monospaced");
-        preferred.add("Courier New");
-        preferred.add("Consolas");
-        preferred.add("Monaco");
-        preferred.add("Menlo");
-        preferred.add("Source Code Pro");
-        preferred.add("JetBrains Mono");
-        preferred.add("Fira Code");
-        preferred.add("SF Mono");
-        preferred.add("DejaVu Sans Mono");
-        preferred.add("Liberation Mono");
-        preferred.add("Ubuntu Mono");
-        java.util.List<String> system = javafx.scene.text.Font.getFamilies();
-        java.util.List<String> result = new java.util.ArrayList<>(preferred.size() + system.size());
-        for (String f : preferred) {
-            if (system.contains(f)) result.add(f);
-        }
-        for (String f : system) {
-            if (!preferred.contains(f)) result.add(f);
-        }
-        return result;
-    }
-
     /**
      * Builds the target-language list for dynamic translations.
      * Uses ISO language codes as base so packaged runtime images still show many entries,
