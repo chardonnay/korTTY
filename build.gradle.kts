@@ -17,6 +17,8 @@ import java.util.Properties
 import java.util.zip.ZipFile
 
 group = "de.kortty"
+// The korTTY application version — unrelated to llamaCppTag/llamaRuntimeRevision below,
+// which version the bundled llama.cpp runtime independently.
 version = "2.8.0"
 
 // Resolved JDK major for this build. Native release packaging defaults to 25;
