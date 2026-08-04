@@ -187,7 +187,9 @@ public class ServerConnection {
         c.jumpServer = source.jumpServer;
         c.credentialId = source.credentialId;
         c.sshKeyId = source.sshKeyId;
-        c.logConfig = source.logConfig;
+        // Per-connection capture settings are copied rather than shared: editing them on a copy
+        // used to reach straight back into the stored connection.
+        c.logConfig = source.logConfig != null ? new TerminalLogConfig(source.logConfig) : null;
         c.sessionJournalConfig = source.sessionJournalConfig;
         c.connectionTimeoutSeconds = source.connectionTimeoutSeconds;
         c.retryCount = source.retryCount;

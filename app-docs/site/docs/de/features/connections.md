@@ -22,7 +22,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
-| Terminalprotokollierung | Protokollformat und Ziel pro Verbindung |
+| Protokollierung | Schreibt die Terminalausgabe dieser Verbindung in eine Datei – Ordner, Format, tägliche Rotation, Komprimierung und Aufbewahrung. Sehen [Terminalprotokollierung](terminal.md#terminalprotokollierung). |
 | Fenstergeometrie | Gespeicherte Größe/Position für diese Verbindung |
 
 ## Protokolle

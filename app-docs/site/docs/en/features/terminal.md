@@ -135,15 +135,41 @@ Prevent connections from dropping due to inactivity by configuring SSH keep-aliv
 
 ## Terminal logging
 
-Automatically log terminal session output for audit and debugging purposes:
+Writes a connection's terminal output to a file, for audit and debugging. This is independent of the [Session Journal](session-journal.md): it is a plain transcript with no summaries, markers or screenshots, and the two can run at the same time.
 
-1. Enable logging in the connection's **Terminal Logging** tab.
-2. Choose a log format:
-   - **Plain Text** - Raw terminal output.
+Configure it in either place:
+
+- **Connection Manager > Edit connection > Logging** for a saved connection.
+- **Quick Connect > Terminal log** for a one-off session, or to change the setting for the connection you are about to open.
+
+1. Enable logging.
+2. Choose a **log folder**. Left empty, KorTTY uses `~/.kortty/terminal-logs`. You pick the folder; the file names are KorTTY's.
+3. Choose a log format:
+   - **Plain Text** - One timestamped line per line of output.
    - **XML** - Structured XML with timestamps.
    - **JSON** - Structured JSON with timestamps.
-3. Set a **maximum file size** (default: 10 MB). When exceeded, the log file is rotated.
-4. Logs are stored in `~/.kortty/history/` as compressed files.
+4. Optionally adjust the **maximum file size** (default: 10 MB), the **retention period** (default: 30 days) and whether closed files are compressed.
+
+### File names
+
+Every file is named `<date>-<time>-<server>_<number>`, for example `2026-08-04-14-30-12-web01_1.log.gz`. The date leads so a folder listing sorts chronologically, and the trailing number distinguishes connections that are open at the same time — two tabs on the same server get `_1` and `_2` and never write into one another's file.
+
+### Rotation, compression and retention
+
+A new file is started **every day**, and again whenever the maximum size is reached (those parts are numbered `.p2`, `.p3`, …). Nothing is ever overwritten or deleted by rotation.
+
+The file currently being written stays uncompressed so that a crash cannot truncate it; the moment a file is closed it is gzipped to `.gz`. A connection that produces no output creates no file at all.
+
+Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to `0` to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.
+
+### What is removed before writing
+
+Captured lines go through the same redaction as the [Session Journal](session-journal.md), on the capture thread, before anything is buffered or written: the connection's own password and any replacement rules your organisation's policy defines. The secret never reaches the file, so there is nothing to clean up afterwards.
+
+Log files and a log folder KorTTY created itself are set to owner-only permissions where the filesystem supports it. A folder you chose yourself is left with the permissions you gave it.
+
+!!! warning "Redaction only covers what KorTTY knows"
+    A password KorTTY stores for the connection is redacted. A secret you type into a command yourself, or one a program prints, is not — KorTTY has no way to recognise it. Treat the log folder as sensitive, and use policy replacement rules for patterns that recur.
 
 ## Terminal recording
 
