@@ -535,8 +535,14 @@ public final class SessionJournalExportService {
             Files.createDirectories(targetShots);
             try (var shots = Files.list(screenshotsDir)) {
                 for (Path shot : shots.filter(Files::isRegularFile).toList()) {
-                    Files.copy(shot, targetShots.resolve(shot.getFileName().toString()),
-                        StandardCopyOption.REPLACE_EXISTING);
+                    String name = shot.getFileName().toString();
+                    // The untouched capture behind an annotated screenshot is korTTY's private undo
+                    // copy. Copying by directory listing would hand it out and defeat the marks the
+                    // user drew, so it is the one thing this verbatim path leaves behind.
+                    if (SessionJournalScreenshotAnnotator.isOriginalBackup(name)) {
+                        continue;
+                    }
+                    Files.copy(shot, targetShots.resolve(name), StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         }

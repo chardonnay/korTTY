@@ -27,9 +27,14 @@ import java.util.List;
  * consumer — the HTML page, the PDF and Markdown exports, the bundle — keeps using the same file
  * name it always did and needs no change at all.</p>
  *
- * <p>The {@code .orig.png} is referenced by nothing, so it never travels into an export. Marking
- * something out is therefore not silently undone by the export — but it is still <em>drawing on
- * top</em>, not redaction: the original stays on this machine inside the journal folder.</p>
+ * <p>The {@code .orig.png} exists only so korTTY can undo the marks locally, and must never leave
+ * the machine. Being referenced by nothing is not enough to guarantee that: the unfiltered bundle
+ * copies the whole {@code screenshots/} directory rather than the referenced files, and shipped the
+ * originals along with it until {@link #isOriginalBackup(String)} was there to exclude them. Every
+ * path that copies screenshots by directory listing has to ask.</p>
+ *
+ * <p>Marking something out therefore survives an export — but it is still <em>drawing on top</em>,
+ * not redaction: the original stays on this machine inside the journal folder.</p>
  */
 public final class SessionJournalScreenshotAnnotator {
 
@@ -39,6 +44,14 @@ public final class SessionJournalScreenshotAnnotator {
     public static final String ORIGINAL_SUFFIX = ".orig.png";
 
     private SessionJournalScreenshotAnnotator() {
+    }
+
+    /**
+     * Whether this file is an untouched-capture backup, and so must stay inside the journal folder.
+     * Takes a bare file name or a journal-relative path.
+     */
+    public static boolean isOriginalBackup(String fileName) {
+        return fileName != null && fileName.endsWith(ORIGINAL_SUFFIX);
     }
 
     /** The path holding the untouched capture for {@code screenshots/shot-000004.png}. */

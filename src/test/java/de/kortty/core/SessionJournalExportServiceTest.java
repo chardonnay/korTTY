@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalMarker;
@@ -290,6 +291,30 @@ class SessionJournalExportServiceTest {
         }
     }
 
+    /**
+     * The two-part journal with an annotated screenshot on the marked entry: the referenced PNG the
+     * journal shows, plus the untouched capture the annotator keeps beside it for re-editing.
+     */
+    private Path buildTwoPartJournalWithAnnotatedScreenshot() throws Exception {
+        Path dir = buildTwoPartJournal();
+        Path shots = Files.createDirectories(dir.resolve("screenshots"));
+        writePng(shots.resolve("shot-000001.png"));
+        writePng(shots.resolve("shot-000001.orig.png"));
+
+        SessionJournalDocument document = service.loadDocument(dir);
+        for (SessionJournalEntry entry : document.getEntries()) {
+            if ("Afternoon deployment".equals(entry.getTitle())) {
+                entry.setScreenshotFile("screenshots/shot-000001.png");
+                service.updateEntry(dir, entry);
+            }
+        }
+        return dir;
+    }
+
+    private static void writePng(Path target) throws IOException {
+        ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", target.toFile());
+    }
+
     private static List<String> zipEntryNames(Path archive, char[] password) throws Exception {
         List<String> names = new ArrayList<>();
         try (net.lingala.zip4j.ZipFile zip = password == null
@@ -445,6 +470,34 @@ class SessionJournalExportServiceTest {
             target, SessionJournalExportService.Options.defaults());
 
         assertThat(Files.exists(target)).isTrue();
+    }
+
+    @Test
+    void anUnfilteredBundleShipsTheAnnotatedScreenshotButNeverTheOriginalBehindIt() throws Exception {
+        Path dir = buildTwoPartJournalWithAnnotatedScreenshot();
+        Path target = tempDir.resolve("annotated.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            SessionJournalExportService.Options.defaults());
+
+        List<String> names = zipEntryNames(target, null);
+        assertThat(names).contains("screenshots/shot-000001.png");
+        // The untouched capture is korTTY's local undo copy. Shipping it would hand the recipient
+        // exactly what the user painted over, which is the whole point of the annotation.
+        assertThat(names.stream().noneMatch(
+            SessionJournalScreenshotAnnotator::isOriginalBackup)).isTrue();
+    }
+
+    @Test
+    void aFilteredBundleAlsoLeavesTheOriginalBehind() throws Exception {
+        Path dir = buildTwoPartJournalWithAnnotatedScreenshot();
+        Path target = tempDir.resolve("annotated-filtered.zip");
+
+        exportService.export(SessionJournalExportService.Format.HTML_BUNDLE, dir, target,
+            markerOptions("deploy"));
+
+        assertThat(zipEntryNames(target, null).stream().noneMatch(
+            SessionJournalScreenshotAnnotator::isOriginalBackup)).isTrue();
     }
 
     @Test
