@@ -6,7 +6,7 @@
 "w.download":"Downloaden",
 "w.viewgh":"Bekijk op GitHub",
 "w.bcast":"Broadcast aan",
-"hero.h1":"<span class='line'>SSH erin.</span> <span class='line'>Noem het probleem.</span> <span class='line dim'>Kijk toe.</span>",
+"hero.h1":"<span class=\"line\">SSH verbinden.</span> <span class=\"line\">Vragen.</span> <span class=\"line dim\">Chillen.</span>",
 "hero.sub":"korTTY zet AI-agenten binnen je SSH-sessie — ze inspecteren de machine, plannen veilige commando's, vragen toestemming voor alles wat eng is, en lossen het op. LLM's draaien in-process; er wordt niets extra's geïnstalleerd op je machine of je servers.",
 "hero.meta":"macOS · Windows · Linux — open source, MIT",
 "fc.demo":"Live mockup van een echte workflow: typ <span class='kbd'>agent &lt;taak&gt;</span> op elke shell-prompt — korTTY onderschept het voordat de shell het ooit ziet.",

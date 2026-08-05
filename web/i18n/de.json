@@ -6,7 +6,7 @@
 "w.download":"Download",
 "w.viewgh":"Auf GitHub ansehen",
 "w.bcast":"Broadcast an",
-"hero.h1":"<span class='line'>SSH rein.</span> <span class='line'>Problem nennen.</span> <span class='line dim'>Zusehen.</span>",
+"hero.h1":"<span class=\"line\">SSH Connect.</span> <span class=\"line\">Prompten.</span> <span class=\"line dim\">Chillen.</span>",
 "hero.sub":"korTTY bringt KI-Agenten direkt in deine SSH-Session — sie untersuchen die Maschine, planen sichere Befehle, fragen vor allem Gefährlichen nach und beheben das Problem. LLMs laufen im Prozess; weder auf deinem Rechner noch auf deinen Servern wird etwas zusätzlich installiert.",
 "hero.meta":"macOS · Windows · Linux — Open Source, MIT",
 "fc.demo":"Live-Mockup eines realen Ablaufs: tippe <span class='kbd'>agent &lt;task&gt;</span> an jedem Shell-Prompt — korTTY fängt es ab, bevor die Shell es je sieht.",

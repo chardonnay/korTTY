@@ -6,7 +6,7 @@
 "w.download":"Preuzmi",
 "w.viewgh":"Pogledaj na GitHubu",
 "w.bcast":"Broadcast uključen",
-"hero.h1":"<span class='line'>Uđi SSH-om.</span> <span class='line'>Reci problem.</span> <span class='line dim'>Gledaj.</span>",
+"hero.h1":"<span class=\"line\">SSH poveži.</span> <span class=\"line\">Pitaj.</span> <span class=\"line dim\">Odmori.</span>",
 "hero.sub":"korTTY stavlja AI agente unutar tvoje SSH sesije — pregledaju stroj, planiraju sigurne naredbe, pitaju prije svega opasnog i poprave problem. LLM-ovi rade unutar procesa; ništa se dodatno ne instalira ni na tvoje računalo ni na tvoje servere.",
 "hero.meta":"macOS · Windows · Linux — otvoreni kod, MIT",
 "fc.demo":"Mockup stvarnog tijeka rada uživo: upiši <span class='kbd'>agent &lt;zadatak&gt;</span> na bilo kojem promptu — korTTY ga presretne prije nego što ga shell uopće vidi.",
