@@ -10,13 +10,21 @@ Targets kept in sync:
   * src/main/java/de/kortty/KorTTYApplication.java  (APP_VERSION constant)
   * README.adoc                                     (leading ``*vX.Y.Z*`` badge on the intro line)
   * app-docs/site/docs/en/about/release-notes.md    (top ``# vX.Y.Z`` heading, if present)
-  * app-docs/RELEASE_NOTES.adoc                      (legacy top ``== vX.Y.Z`` heading, if present)
   * app-docs/USER_GUIDE.adoc                         (leading ``*vX.Y.Z*`` badge and trailing footer)
   * app-docs/doc-manifest.yaml                       (top-level ``version: "X.Y.Z"`` field)
 
 The MkDocs site does NOT hard-code the version: it is injected at build time via
 the ``KORTTY_VERSION`` env var (``extra.kortty_version: !ENV [KORTTY_VERSION, 'dev']``),
 so there is nothing to rewrite there — only build.gradle.kts feeds it.
+
+app-docs/RELEASE_NOTES.adoc is a frozen legacy archive (see the note at the top
+of app-docs/release-notes-archive.md — that file is the live one now) and is
+deliberately NOT a sync target: for two releases running (v2.8.0, v2.9.0) this
+script bumped only its top ``== vX.Y.Z`` heading while the body underneath —
+never touched by any release-cut commit — stayed on whatever version last had
+its content hand-edited. The heading tracked the current release; the content
+did not; nobody could tell from reading the file. Bump the number here and you
+reintroduce exactly that.
 
 Usage:
   scripts/sync-version.py            # rewrite all targets to match build.gradle.kts
@@ -72,12 +80,6 @@ TARGETS: list[Target] = [
         path=REPO_ROOT / "app-docs/site/docs/en/about/release-notes.md",
         pattern=re.compile(r'(?m)^(##\s+v)(' + SEMVER + r')(\b)'),
         label="release-notes.md top heading",
-        required=False,
-    ),
-    Target(
-        path=REPO_ROOT / "app-docs/RELEASE_NOTES.adoc",
-        pattern=re.compile(r'(?m)^(==\s+v)(' + SEMVER + r')(\b)'),
-        label="RELEASE_NOTES.adoc top heading",
         required=False,
     ),
     Target(
