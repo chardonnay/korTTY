@@ -64,48 +64,6 @@ every version is also listed on the [GitHub releases page](https://github.com/ch
 
 ## v2.7.0
 
-### Enterprise policy
-
-- **Administrators can now manage korTTY through a policy file** — a `kortty-policy.toml` in the installation directory (admin-writable only) can restrict servers users may connect to (allow/deny lists with host globs, ports, single IPs, CIDR networks and IP ranges, enforced for terminals, SFTP, QuickConnect, jump hosts and scheduled jobs), disable or restrict features (AI Agent/Chat/Swarm/Planning, Teamwork, plugins, update checks, telemetry, terminal recording), force the master password and host-key verification, confine korTTY to an internal clipboard so text copied in other applications cannot be pasted into korTTY (while copy &amp; paste within korTTY keeps working), control logging (directory, format as text or JSON lines, retention, gzip compression and rotation caps), and preconfigure read-only AI profiles (with encrypted API keys via `korTTY --encrypt-policy-value`), local AI models, script headers and teamwork sources. Rules target individual users, policy-defined groups or OS/AD groups with user &gt; group &gt; everyone precedence; locked settings appear grayed out with a "Managed by your organization" hint, and an invalid policy file puts korTTY into a fail-safe lockdown instead of silently enforcing nothing. See [Enterprise policy](../reference/enterprise-policy.md).
-
-### File browser
-
-- **The menu-bar File Browser was rebuilt as a proper file manager** — the docked sidebar (**View → File Browser**) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See [File browser](../features/file-browser.md).
-- **Faster and safer to use** — directories load in the background so a large or network-mounted folder no longer freezes the window, refreshing keeps expanded folders open, and you can sort by name, size or date. Inline rename (++f2++), *Copy Path*, keyboard navigation, and dragging files into the panel to copy or move them were added.
-- **Delete asks first — Trash or permanent** — deleting an entry now prompts to either move it to the system Trash (reversible) or delete it permanently, instead of silently removing it forever. Copy, move, archive and delete all run in the background so a large folder no longer freezes the window.
-- **The panel remembers itself** — its side, width, *show hidden files* state and last directory are restored on the next launch.
-- **The SFTP file manager matches the new look** — its toolbar and file-type icons now use the same icon set and styling as the file browser (no change to how it works).
-
-### Jump server (bastion host)
-
-- **Jump server hopping is now implemented** — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.
-- **The bastion is verified, and credentials are kept separate** — the jump host's key goes through the same trust-on-first-use prompt and pinning as any other host, the target is still verified under its own name through the tunnel, and neither host is ever offered the other's password or key. The write-only *Auto-Command* field was removed; a real tunnel supersedes the "type ssh on the bastion" pattern it stood for.
-- **SFTP now routes through the jump server too** — file transfer connections hop through the bastion the same way terminal sessions do.
-- **Mosh with a jump server is refused up front** — a Mosh session runs over UDP, which the bastion's SSH tunnel cannot forward; previously the SSH bootstrap succeeded and the session then stalled with no data. Connecting now fails immediately with a clear message, and the Jump Server tab warns as soon as the combination is configured. SFTP for such connections still routes through the bastion.
-
-### SSH host-key verification
-
-- **Opt out of host-key verification, per connection, per group, or globally** — for lab or throwaway hosts, korTTY can accept an unknown host key without the first-use prompt. It is an **accept-new** relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. The three scopes resolve in precedence order — a per-connection override (Connection Manager editor and Quick Connect: *Use default* / *Verify* / *Don't verify*) wins over a per-group toggle (right-click a group → *Disable host key verification*), which wins over the global **Settings → Terminal → Disable host key verification for all connections**. Off by default. A jump server's own host key is always verified strictly, regardless of the target's setting.
-
-### ASCII art
-
-- **AI-drawn ASCII pictures** — the ASCII art tool (**Tools > ASCII Art...**) gained an **AI Picture** tab: type a subject such as "house" and a model draws it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable. **New variation** redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry, and a transient profile picker lets a single run use a different AI profile without changing your default.
-- **Zoomable preview** — both tabs share one zoom level, adjustable with the **+** / **−** / **⟲** buttons, ++ctrl+plus++ / ++ctrl+minus++ / ++ctrl+0++, or ++ctrl++ and the scroll wheel over the preview. The level ranges from 50 % to 333 % and is remembered between sessions along with the window position and size.
-- **Two tabs instead of one form** — the FIGlet banner generator moved into its own **Text Banner** tab, so a banner and a picture keep their own result while you switch, and **Copy to Clipboard** copies whichever tab is open.
-- **Fixed: the Lean font was missing from packaged builds** — the style was declared in lowercase while the bundled file is `Lean.flf`, so JAR resource lookup dropped it from the style list on case-sensitive filesystems.
-
-### Dashboard
-
-- **Redesigned dashboard panel** — the side panel (++ctrl+shift+d++) got a full visual and interaction overhaul: a clear panel boundary with its own background, a header with the panel title plus collapse/expand-all and refresh icon buttons, node-type icons for main window, environment, group and connection rows, and bold section rows with dimmed active/total counts. Rows respond to hover and selection (accent stripe), tooltips show `user@host` and the connection state, and ++enter++ or double-click focuses the session.
-- **Three-state status dots and protocol badges** — each connection row shows a filled green dot while connected, a filled red dot when the connection dropped unexpectedly (including Mosh network interruptions), and a hollow outline after a session ended normally; the old text-glyph status is gone. A small `ssh` / `mosh` / `local` badge identifies the transport.
-- **Environment grouping** — ungrouped connections cluster under the environment of their stored credential (Production, Development, Test, Staging or custom), so multi-stage work stays visually separated.
-- **Content-sized, animated panel** — the dashboard sizes its width to the longest entry (bounded), animates open and closed instead of popping in, shows a placeholder when no session is open, and reports "connected of total" in a footer. Its colors follow the active App Design, including per-design status-dot palettes.
-- **Context menu and group fixes** — the connection context menu adds **Focus** and icons for every action. Tabs opened via "open whole group" now correctly appear under their group, and changing a connection's group in the Connection Manager updates open tabs immediately.
-
-### Power management
-
-- **Activity-based power management** — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate `caffeinate` helper so the korTTY process remains eligible for App Nap. On macOS and Windows, **Configuration > Prevent System Sleep** keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.
-
 ### Snippet editor
 
 - **Code language and Text language are now two labelled fields** — the snippet editor's **Language** field was renamed to **Code language**, and the AI text-language picker moved up from below the toolbar to sit directly beneath it as **Text language**. Both describe the snippet itself: one the programming language and syntax highlighting, the other the natural language korTTY writes into the code (comments, user-facing strings, spelling).
@@ -166,6 +124,52 @@ every version is also listed on the [GitHub releases page](https://github.com/ch
 - **Reliable Linux package validation** — package-size checks now understand the standard Linux jpackage `lib/app` and `lib/runtime` layout, so the application JAR and bundled JVM are validated instead of being reported as missing.
 - **Reliable Windows artifact preparation** — the release workflow resolves the jpackage directory explicitly and discovers the Windows launcher within the generated app image before creating the portable archive.
 - **Dependency and CI maintenance** — updated CodeQL Actions, Apache MINA SSHD and Bouncy Castle, Logback, and Apache PDFBox dependencies.
+
+## v2.6.0
+
+### Enterprise policy
+
+- **Administrators can now manage korTTY through a policy file** — a `kortty-policy.toml` in the installation directory (admin-writable only) can restrict servers users may connect to (allow/deny lists with host globs, ports, single IPs, CIDR networks and IP ranges, enforced for terminals, SFTP, QuickConnect, jump hosts and scheduled jobs), disable or restrict features (AI Agent/Chat/Swarm/Planning, Teamwork, plugins, update checks, telemetry, terminal recording), force the master password and host-key verification, confine korTTY to an internal clipboard so text copied in other applications cannot be pasted into korTTY (while copy &amp; paste within korTTY keeps working), control logging (directory, format as text or JSON lines, retention, gzip compression and rotation caps), and preconfigure read-only AI profiles (with encrypted API keys via `korTTY --encrypt-policy-value`), local AI models, script headers and teamwork sources. Rules target individual users, policy-defined groups or OS/AD groups with user &gt; group &gt; everyone precedence; locked settings appear grayed out with a "Managed by your organization" hint, and an invalid policy file puts korTTY into a fail-safe lockdown instead of silently enforcing nothing. See [Enterprise policy](../reference/enterprise-policy.md).
+
+### File browser
+
+- **The menu-bar File Browser was rebuilt as a proper file manager** — the docked sidebar (**View → File Browser**) gained a navigation toolbar (back / forward / up / home / refresh, new folder / file), an editable path bar that can root the tree at any directory including above your home folder, a filter field, type-aware icons with a symbolic-link badge, and a footer that counts the folders, files and selection in the current directory. See [File browser](../features/file-browser.md).
+- **Faster and safer to use** — directories load in the background so a large or network-mounted folder no longer freezes the window, refreshing keeps expanded folders open, and you can sort by name, size or date. Inline rename (++f2++), *Copy Path*, keyboard navigation, and dragging files into the panel to copy or move them were added.
+- **Delete asks first — Trash or permanent** — deleting an entry now prompts to either move it to the system Trash (reversible) or delete it permanently, instead of silently removing it forever. Copy, move, archive and delete all run in the background so a large folder no longer freezes the window.
+- **The panel remembers itself** — its side, width, *show hidden files* state and last directory are restored on the next launch.
+- **The SFTP file manager matches the new look** — its toolbar and file-type icons now use the same icon set and styling as the file browser (no change to how it works).
+
+### Jump server (bastion host)
+
+- **Jump server hopping is now implemented** — a connection with an enabled jump server is routed through the bastion: korTTY authenticates to the jump host with its own credentials, opens a tunnel, and opens the real SSH session to the target through it. Previously the Jump Server tab collected host, username and password but discarded them on save and connected straight to the target — a connection could look bastion-routed while going direct. The tab now persists every field (password encrypted with the master password) and adds an authentication selector for password or an unencrypted SSH key file.
+- **The bastion is verified, and credentials are kept separate** — the jump host's key goes through the same trust-on-first-use prompt and pinning as any other host, the target is still verified under its own name through the tunnel, and neither host is ever offered the other's password or key. The write-only *Auto-Command* field was removed; a real tunnel supersedes the "type ssh on the bastion" pattern it stood for.
+- **SFTP now routes through the jump server too** — file transfer connections hop through the bastion the same way terminal sessions do.
+- **Mosh with a jump server is refused up front** — a Mosh session runs over UDP, which the bastion's SSH tunnel cannot forward; previously the SSH bootstrap succeeded and the session then stalled with no data. Connecting now fails immediately with a clear message, and the Jump Server tab warns as soon as the combination is configured. SFTP for such connections still routes through the bastion.
+
+### SSH host-key verification
+
+- **Opt out of host-key verification, per connection, per group, or globally** — for lab or throwaway hosts, korTTY can accept an unknown host key without the first-use prompt. It is an **accept-new** relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. The three scopes resolve in precedence order — a per-connection override (Connection Manager editor and Quick Connect: *Use default* / *Verify* / *Don't verify*) wins over a per-group toggle (right-click a group → *Disable host key verification*), which wins over the global **Settings → Terminal → Disable host key verification for all connections**. Off by default. A jump server's own host key is always verified strictly, regardless of the target's setting.
+
+### ASCII art
+
+- **AI-drawn ASCII pictures** — the ASCII art tool (**Tools > ASCII Art...**) gained an **AI Picture** tab: type a subject such as "house" and a model draws it as an ASCII picture, constrained to printable ASCII within 60 columns and 30 lines so it stays readable. **New variation** redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry, and a transient profile picker lets a single run use a different AI profile without changing your default.
+- **Zoomable preview** — both tabs share one zoom level, adjustable with the **+** / **−** / **⟲** buttons, ++ctrl+plus++ / ++ctrl+minus++ / ++ctrl+0++, or ++ctrl++ and the scroll wheel over the preview. The level ranges from 50 % to 333 % and is remembered between sessions along with the window position and size.
+- **Two tabs instead of one form** — the FIGlet banner generator moved into its own **Text Banner** tab, so a banner and a picture keep their own result while you switch, and **Copy to Clipboard** copies whichever tab is open.
+- **Fixed: the Lean font was missing from packaged builds** — the style was declared in lowercase while the bundled file is `Lean.flf`, so JAR resource lookup dropped it from the style list on case-sensitive filesystems.
+
+### Dashboard
+
+- **Redesigned dashboard panel** — the side panel (++ctrl+shift+d++) got a full visual and interaction overhaul: a clear panel boundary with its own background, a header with the panel title plus collapse/expand-all and refresh icon buttons, node-type icons for main window, environment, group and connection rows, and bold section rows with dimmed active/total counts. Rows respond to hover and selection (accent stripe), tooltips show `user@host` and the connection state, and ++enter++ or double-click focuses the session.
+- **Three-state status dots and protocol badges** — each connection row shows a filled green dot while connected, a filled red dot when the connection dropped unexpectedly (including Mosh network interruptions), and a hollow outline after a session ended normally; the old text-glyph status is gone. A small `ssh` / `mosh` / `local` badge identifies the transport.
+- **Environment grouping** — ungrouped connections cluster under the environment of their stored credential (Production, Development, Test, Staging or custom), so multi-stage work stays visually separated.
+- **Content-sized, animated panel** — the dashboard sizes its width to the longest entry (bounded), animates open and closed instead of popping in, shows a placeholder when no session is open, and reports "connected of total" in a footer. Its colors follow the active App Design, including per-design status-dot palettes.
+- **Context menu and group fixes** — the connection context menu adds **Focus** and icons for every action. Tabs opened via "open whole group" now correctly appear under their group, and changing a connection's group in the Connection Manager updates open tabs immediately.
+
+## v2.5.2
+
+### Power management
+
+- **Activity-based power management** — macOS App Nap is suppressed while a Scheduler job, AI request, or terminal input/output is active (with a 60-second terminal-activity tail). Background windows park periodic status updates and design animations, and the Scheduler owns no polling timer when no enabled future run exists. On macOS, system-sleep prevention is delegated to a separate `caffeinate` helper so the korTTY process remains eligible for App Nap. On macOS and Windows, **Configuration > Prevent System Sleep** keeps the computer awake only while a terminal is connected, a future or running Scheduler job exists, or an AI request is active; with none of these activities, system sleep remains available even while the persistent setting is checked. Display sleep is unaffected, and Linux shows the option as not yet supported.
 
 ### Local terminal fixes
 
@@ -389,11 +393,6 @@ every version is also listed on the [GitHub releases page](https://github.com/ch
 - **No password prompt for local shells** — opening a local shell no longer shows an irrelevant password dialog (local shells use no authentication).
 - **"Load as text file" works in local shells** — right-clicking a selected file name in a local-shell tab and choosing **Load as text file** no longer fails with "No active SSH connection is available". The file is read from the local filesystem — resolved against the working directory shown in the shell prompt when available, otherwise the directory the shell was started in — and opens in the snippet editor with **Overwrite local file** and **Save as...** just like the SSH/SFTP variant. The not-connected error message is now transport-neutral.
 - **Local file overwrites are now atomic** — both "Overwrite local file" flows (local-shell **Load as text file** and the SFTP-manager local-file editor) used to truncate the target file in place, so a mid-write failure (disk full, process killed, power loss) could leave it truncated with no recovery. Overwrites now write to a sibling temp file and move it into place, preserve the original file's POSIX permissions, and write through symlinks to their real target instead of replacing the link itself.
-
-## v2.2.3
-
-### Critical fix: Monaco editors failed to load in the packaged app
-
 - **Fixed the Monaco-based editors (snippet, file, AI, diff) opening to an empty pane in the packaged/notarized macOS app** — no caret, no typing, no paste. In the packaged app the WebView loaded its page from a `jar:` URL, and the page's Content-Security-Policy (`script-src 'self'`) then blocked the editor's own `monaco-host.js`/`.css`, because a `jar:`-origin document does not authorize its `jar:` siblings. The Monaco resources are now extracted to a temp directory and loaded from a `file:` URL, which the CSP allows. A failed editor load now also surfaces an error instead of a silently empty pane, and the editor bundle is additionally minified with a more generous boot budget.
 
 ## v2.2.2

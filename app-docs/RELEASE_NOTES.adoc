@@ -1,430 +1,5 @@
 = Release Notes
 
-== v2.9.0
-
-=== Session journal
-
-* *Terminal sessions can document themselves*: a per-session journal captures server output and typed commands into a rotating, compressed log (XML, JSON or YAML), an AI condenses the activity into a readable timeline with a closing session summary, and screenshots and free-text notes can be added from the journal bar or the terminal context menu. Enable it per connection or retroactively for a running session (the scrollback is imported). Password prompts suppress the following input line and the connection's stored credentials are redacted.
-* *Self-contained HTML timeline* with connection header and statistics, color-coded input/output excerpts, marker badges, a screenshot lightbox, and a slide-in raw-log panel with search, match counter and prev/next navigation — usable in the built-in viewer, any browser, and the exported bundle.
-* *Journal manager* (Tools > Session Journals..., Ctrl/Cmd+Alt+J) with sortable table, optional full-text content search, per-journal descriptions, marker/note editing in the viewer, rename/delete with confirmation, and export as PDF (with downscaled embedded screenshots), Markdown or a complete HTML zip bundle.
-* *Configurable AI summarization*: interval, evaluation window (line limit or token-budget context fill), optional chunked processing of the whole backlog for power users, an optional AI-generated journal title on close, and a raw-activity fallback when no AI is available.
-* *Enterprise policy*: deny the feature, enforce journals for every connection, mandate log format, evaluation window, storage path and naming template, forbid rename/delete, and enforce the AI title via the new `[rule.session-journal]` table.
-
-=== Mermaid diagrams
-
-* *One local Mermaid renderer for every diagram*: Snippet diagrams, full code analysis, workflow generation, exports, and AI-chat Mermaid blocks share the SHA-256-pinned Mermaid 11.16.0 browser renderer. Snippet flows retain SVG/PNG, clipboard, zoom, theme/background, regeneration, and node-to-code hover references without a Java/Graphviz subprocess or first-use download. Legacy saved diagram payloads are discarded without removing snippets or chats, and the retired renderer cache is deleted safely on upgrade.
-
-=== Snippet AI code analysis
-
-* *Full code analysis*: The snippet editor's *AI Code → Full code analysis* opens a rich, non-modal window with a plain-language summary of what the script does, its external dependencies (each with a reduce/replace suggestion), improvement suggestions grouped into Security / Optimization / Design that you tick and apply, and an auto-generated flow diagram. The diagram carries the full toolbar (zoom, fit, save SVG/PNG, copy image/Mermaid, background colour, regenerate) and highlights the matching source lines when you hover a node.
-* *File names in title bars*: The snippet editor and the analysis window now show the script's file name in their title bars.
-* *Per-run AI profile & re-run*: The analysis and other AI-code windows let you pick a transient AI profile for the next run and re-run with it; font sizes are remembered per window.
-* *AI skills picker*: Relevant AI Skills are pre-selected automatically and can be pinned so they apply to every AI-code action.
-* *Hardening options*: _Improve robustness_, _Custom improvement_, _Full code analysis_, and both workflow-script generators can bake a chosen set of production-quality techniques (strict mode, error traps, meaningful exit codes, logging, idempotency, dry-run, `--help`, and more) into the result. See link:site/docs/en/reference/hardening-options.md[Hardening options] for what each option means and how it is applied.
-* *Diagram Dark mode*: Both diagram windows (Full code analysis and the standalone Diagram dialog) gained a *Dark mode* button with _Auto_ (follow the operating-system appearance), _Light_ and _Dark_. The choice is remembered and recolours the whole diagram — dark canvas, darkened node cards with light text, and light connectors — while the manual background-colour picker now colours the diagram page itself (not just its margin) and applies to exported SVG/PNG.
-* *Windows no longer lock the main window*: The snippet *Diff* and *Manage variables* windows opened from the Snippet Manager no longer freeze the main KorTTY window while they are open.
-* *Hardening options — All / Clear / Save*: Every hardening-options panel gained *All* (tick everything), *Clear* (untick everything) and *Save* buttons. Save remembers your selection permanently, so every hardening panel then opens with your preferred options instead of the all-on default.
-
-=== Snippet Security Check
-
-* *Explained security fixes*: The *Review security fixes* window now renders the original and corrected snippet in a side-by-side diff that highlights changed lines automatically. Hovering a changed block names the finding(s) it addresses (for example `S1`, or `S1 + S2` when a block covers two findings) and shows the reason(s), and every reason is also listed as a card below the diff so the rationale stays visible.
-* *Dedicated security-check AI profile*: You can pick a separate AI profile just for security checks and KorTTY remembers it permanently. Set it in the Security Check window or under *Configuration → Global Settings → AI*; both places share the same setting, and leaving it empty reuses the default profile.
-* *Security Check window improvements*: Adjustable (and remembered) font size, a copy-to-clipboard button for all findings, colour-coded severity badges with most-severe-first sorting, a select-all toggle, and a *Re-run check* button that repeats the review with the selected profile.
-* *Remembered diff zoom*: The font size in the AI diff / review windows is now stored globally instead of only for the current session.
-
-=== Terminal
-
-* *Adjustable terminal background transparency*: A new *View → Zoom → Background Transparency* slider (0–100 %) makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. The value is saved across restarts. Only the terminal area turns transparent — the title, menu and status bars stay solid. Because see-through mode uses a borderless window, turning it on or off takes effect after a restart; in that mode a lightweight custom title bar provides move, resize, minimise, maximise and close. Adjusting the level while already transparent applies live.
-* *Quieter tab close*: Closing a terminal tab now only asks for confirmation when there is something to lose: the tab has split panes, or a command is still running (detected from the local shell's process tree, or from the SSH shell prompt). An idle single terminal closes immediately. The per-connection _Close without confirmation_ option still suppresses the prompt entirely.
-* *Clearer context-menu label*: The terminal right-click action that loads a selected remote file into the snippet editor is now called *Open in Snippet Editor* (previously _Load as text file_).
-
-=== Fixes
-
-* *Selection translation and spelling correction no longer fail on small local reasoning models*: The snippet editor's _Translate selection…_ and _Correct spelling in selection_ actions were attaching your enabled AI skills to the request; on a compact local reasoning model the extra prompt bulk could make the model spend its whole reply on internal reasoning and return no answer. These mechanical text transforms no longer attach AI skills, keeping the prompt small.
-
-== v2.4.0
-
-=== Terminal Effects
-
-* *Ten new built-in terminal effects*: Alongside MU/TH/UR 6000, a bundled effect pack now ships ten themed effects spanning cyberpunk, retro, and creepy styles — _Amber CRT '90_ (90s amber-phosphor monitor with scanlines, glow, flicker, and a rolling refresh band), _Commodore Heritage_ (C64 blue with loader bars), _Neon City_ (glitch tears and RGB-split flickers), _Digital Rain_ (faint falling matrix glyphs), _Hologram HUD_ (interference bands and HUD corner brackets), _Poltergeist_ (breathing vignette, static bursts, and ghostly flashes), _VHS 1987_ (tracking noise, rolling distortion, and a PLAY overlay), _Synthwave Horizon_ (glowing perspective grid), _Deep Space Radar_ (slow radar sweep with blips), and _Typewriter Noir_ (sepia paper look with per-character output pacing). Every effect respects the animation-speed setting and its description is localized in all supported languages.
-* *Typewriter Noir paced output*: The _Typewriter Noir_ effect types terminal output character by character for a mechanical typewriter feel; bulk output such as printing a large file bypasses the pacing so it is never slowed down.
-* *Per-pane terminal effects*: Terminal effects are now scoped to each individual split pane instead of the whole tab. Within one tab you can run an effect in one pane while a sibling pane shows a different effect or none, and each effect's colors and font stay confined to its own pane. Global zoom and reset still apply to the whole tab.
-* *Per-pane effect menu and inheritance*: Each split pane's right-click menu gains a *Terminal Effect* submenu to pick *None* or any installed effect for just that pane, plus an animation-speed slider; the choice is runtime-only and is not saved to the connection. Splitting a pane starts the new pane with the same effect and animation speed as the pane it was split from.
-* *Animated effect previews in the plugin manager*: *Plugins → Terminal Effects* now shows a live animated preview of the selected effect next to the plugin list, so effects can be compared before activating them in a session. Plugins without a preview show a placeholder instead.
-
-=== AI Chat
-
-* *Chat color profiles*: The AI chat and AI Swarm chat now have selectable color themes. Eleven built-in profiles ship — _Automatic (theme)_, which follows your active terminal theme, plus _Original_, _Paper_, _Midnight_, _Cyberpunk_, _Retrowave_, _Forest_, _Ocean_, _Terminal_, _GPT_, and _Cute_. Pick one from the color-profile dropdown in the chat toolbar or under *Settings → Appearance → Chat color profile*; the choice is saved and applied live to every open chat.
-* *Full-text chat search (Ctrl+F, Cmd+F on macOS)*: Press Ctrl+F (Cmd+F on macOS), or click the *Search* button in the chat toolbar, to open a find bar over an AI or swarm conversation. It searches the entire chat including code blocks, shows a live match count, jumps between hits with the arrow keys or Enter, and outlines and scrolls each match into view. Esc closes the bar.
-* *Redesigned, fully themed chat*: The AI chat and swarm chat were redesigned so your messages sit in a right-indented rounded bubble and each AI reply is a full-width card, with code blocks, tables, the composer, and scrollbars all following the selected color profile instead of a fixed light style.
-
-=== Privacy & Analytics
-
-* *Anonymous usage analytics (opt-in, off by default)*: korTTY can optionally share anonymous, GDPR-compliant usage statistics via Aptabase (processed on EU servers) to help prioritize features and surface crashes and frequent errors. It is strictly opt-in and off by default. Only event names, aggregate counts and flags, the app version, OS name and version, app language, and an anonymous per-launch session id are sent — hostnames, usernames, connection data, file paths, snippet/terminal/chat content, keys, passwords, and error-message text are never collected.
-* *One-time consent prompt*: You are asked about sharing anonymous data exactly once — on new installs as a checkbox next to the master-password setup, and on existing installs as a one-time prompt after unlocking. Any dismissal counts as _no_ and you are not asked again. Each consent surface has a *More info* button that opens the new manual chapter _Anonymous data for application optimization_.
-* *Settings → Privacy tab*: A new *Privacy* tab under *Settings* lets you turn anonymous usage statistics on or off at any time and shows exactly what is and is not collected, plus the date your choice was recorded. Turning it off stops collection immediately and discards both the pending queue and any locally cached events.
-* *Offline event caching*: While you are offline, anonymous events are cached locally under `~/.kortty` and sent once a connection is available; they survive app restarts, are dropped after three days, and are discarded entirely if you opt out.
-
-=== Fixes
-
-* *Effects glow correctly when switched on for a live pane*: The MU/TH/UR effect's per-line glow now works when you enable an effect on an already-connected pane, not only when the effect was active before connecting, and it pulses steadily under fast-scrolling output instead of flickering.
-* *Ctrl+D in a split pane closes only that pane*: Exiting the shell (Ctrl+D or `exit`) in one pane of a split now closes just that pane and leaves the other panes open; the tab closes only when the last remaining pane's session ends.
-* *Terminal effects no longer crash rendering with many tabs open*: Opening several terminal tabs each with an active effect could exhaust the GPU texture pool and crash rendering. Effect overlays (including MU/TH/UR 6000) now release their full-window canvas texture while their tab is in the background and rebind automatically when the tab is shown again.
-* *AI Planning recovers from truncated or malformed JSON*: The *AI Planning* tab no longer fails outright with _"AI response did not contain the required JSON object"_ when a model returns an incomplete or unclosed plan — common with very small models that stop before finishing the schema. Planning now retries once with a repair prompt and usually succeeds on the second try; if it still fails, the error explains that the model returned invalid JSON twice and suggests a larger or more capable planning model.
-* *Guide window no longer crashes in the background*: Leaving the in-app guide (*Help → Manual*, F1) open while switching to another app could crash korTTY natively after a while, as the idle embedded browser churned in the background. korTTY now unloads the guide page after the window has been minimized or unfocused for 20 seconds and restores the same page and scroll position when you return, and the guide's intro video plays through once instead of looping endlessly.
-* *Terminal-only fullscreen now shows the whole korTTY window, not a stretched terminal*: *View > Terminal-only Fullscreen* (Ctrl+Shift+F / Cmd+Shift+F) keeps the whole korTTY window - menu bar, tabs, and status bar included - at the size it had before entering the mode (falling back to the configured window geometry when the window was already fullscreen) and centers it on an empty fullscreen background, so the desktop and other windows stop competing for attention. *View > Fullscreen* now uses F12 instead of F11, which macOS reserves system-wide for "Show Desktop".
-
-== v2.3.3
-
-=== Fixes
-
-* *macOS: "Quit korTTY" actually quits the app*: On the packaged macOS app, a native quit (Cmd+Q, the app menu's *Quit korTTY*, the Dock's *Quit*, or logout) left korTTY running in the background — the process had to be killed. The packaged app deliberately keeps running after the last window closes (so the JobScheduler can run background jobs), but JavaFX only translated a native quit into "close the windows", never an actual exit. korTTY now intercepts the native quit and runs its real quit sequence. A shutdown watchdog additionally guarantees the process always terminates, the "waiting for running jobs" dialog gained a *Force quit now* button, and the menu-bar-icon cleanup no longer risks stalling shutdown.
-
-== v2.3.2
-
-=== Fixes
-
-* *Snippet-editor diagrams render when Graphviz is installed outside the app's PATH*: Generating a *Diagram* in the snippet editor no longer fails with "Graphviz dot is required to render PlantUML diagrams" when `dot` is installed (e.g. via Homebrew) but not on the minimal PATH a desktop-launched app inherits. korTTY now locates `dot` and the Java runtime the same way it finds AI CLIs — searching the PATH plus common install directories (`/opt/homebrew/bin`, `/usr/local/bin`, …) — and passes the resolved `dot` path to the PlantUML renderer via `GRAPHVIZ_DOT` so it does not have to rediscover it.
-
-== v2.3.1
-
-=== Fixes
-
-* *"Load as text file" follows `cd` in local shells*: In a local-shell tab, loading a selected file with *Load as text file* after changing directory no longer fails to find the file. korTTY now reads the shell's live working directory straight from the operating system (the shell process's current directory) instead of relying only on the prompt text, which does not reveal the full path when the prompt shows just the folder name (the macOS zsh default). On macOS/Linux this resolves the selection against the directory the shell is actually in; on Windows it falls back to the previous prompt-based behavior.
-* *Snippet-editor AI functions work with reasoning models and chatty responses*: AI actions in the snippet editor (*Diagram*, *Review*, *Improve*, *Assistant*, *Security*, *Alternatives*, *Describe*, *Complete*, *One-liner*) no longer fail — e.g. _"PlantUML generation failed"_ — when the model wraps its JSON answer in prose or a code fence, or when a local reasoning model (LM Studio, Ollama, llama.cpp serving DeepSeek-R1/QwQ/gpt-oss) emits a `<think>…</think>` block. The response parser now strips leaked reasoning and extracts the real JSON payload robustly instead of a greedy match that broke on any stray brace.
-* *Snippet-editor AI errors are now visible*: When a snippet-editor AI action fails, the real cause is written to the log and its message is shown in the status bar. Previously the exception was discarded, so a misconfigured AI profile (e.g. a cloud profile with no model selected, which reports _"Select a model…"_) made every AI function fail silently with only a generic message and nothing in the log.
-
-== v2.3.0
-
-=== AI Swarm
-
-* *AI Swarm tab* (*AI → AI Swarm...*, Ctrl+Alt+S / Cmd on macOS): Broadcast one AI-agent task to many servers at once; each server runs its own agent and the answers are combined into a single comparison table with one row per server and a literal *"Fehler"* column for deviations and errors.
-* *Animated status strip*: One orb per agent above the conversation shows queued/running/awaiting-input/paused/done/failed/cancelled at a glance, flags _unusually long_ runs via an adaptive threshold (`max(60 s, 2 × median of finished agents)`), and clicking an orb jumps to the agent's row. The strip scales from 1 to 50+ servers.
-* *Per-agent and swarm-wide run control*: Pause, resume, restart, and stop either a single agent (right-click its row) or the whole swarm (toolbar). Pausing is cooperative and stops the elapsed timers; restarts replace only that agent's answer.
-* *Expandable live transcripts*: Left-click an agent row to watch its live command/output transcript inline while it runs.
-* *Conversation copy & export*: Copy the whole swarm conversation to the clipboard or export it as plain text, Markdown, or PDF; saved swarm chats get their own *Swarm Chats* section in the AI Manager.
-* *Readable result rows*: Clicking a row of the combined answer table opens it in a separate *Row details* window with A−/A+ font sizing and copy-to-clipboard.
-* *Targets without open terminals*: Swarm runs (AI and script) now work on saved servers with no open terminal via background SSH sessions; no terminal tab is opened. Requires an unlocked master-password vault.
-* *Run scripts without AI*: Execute a Snippet Manager script with parameters on all swarm targets in parallel (Base64-transferred, single confirmation), with live output per server and a per-server exit-code/output result table.
-* *Schedule swarm runs*: A new JobScheduler action type *AI_SWARM* with *Swarm parallelism* (1–16) and *Swarm read-only* fields; the swarm tab's *Schedule…* button prefills a job from the current targets and prompt. Results go to the journal _and_ a saved swarm chat.
-* *Visible composer and tab status dot*: The swarm input is a clearly framed three-line field, and the tab shows a colored activity dot (running / waiting for input / paused / finished — the green dot stays until the next run).
-* *Multi-server workflow dialog reworked*: Syntax-highlighted script view, a visible working animation with live elapsed time and total duration, an additional-instructions field with a de-duplicated 10-entry history, and *Save to Snippets* with a fitting pre-filled script name.
-
-=== Appearance
-
-* *Five new app designs*: _Amber CRT_ (warm amber-phosphor retro terminal), _Synthwave '84_ (80s Outrun neon), _Gruvbox Retro_ (cozy warm earthy), _Nord Arctic_ (calm, flat arctic blue-grey) and _Dracula_ (soft purple/pink) join the existing designs in _Settings → Appearance_, each with its own preview thumbnail. The existing designs are unchanged.
-* *Subtle design animations toggle*: A new Appearance setting (default on) lets the glow designs breathe a small status-bar accent dot; turning it off doubles as a reduce-motion option, and the animation stops while the window is hidden.
-* *More consistent design chrome*: A custom design's colors now apply deterministically across menus and dialogs, and the terminal theme's dynamic stylesheet no longer overrides the active design's chrome colors.
-* *App design `Normal` renamed to `Default`* in _Settings → Appearance_: The stored value is unchanged, so existing configurations keep their selected design.
-* *Previous/next buttons next to the App Design dropdown*: Step backward and forward through the designs (wrapping around at the ends) without opening the dropdown.
-* *Design preview moved below the controls*: The preview now lives in a fixed-size area, so switching designs (or back to `Default`, which has no preview) no longer draws the preview over the dropdown.
-
-=== Local Shell Connections
-
-* *Open the local machine's shell in a terminal tab (no network)*: A new *Local Shell* protocol spawns a local pseudo-terminal (PTY) via pty4j instead of connecting to a remote host. On Windows you can choose *PowerShell* (default) or *cmd.exe*; on macOS/Linux it defaults to your `$SHELL` (falling back to `/bin/zsh` or `/bin/bash`). A free-form *Custom command* field supports any executable with arguments (e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, Git Bash), and an optional start directory can be set. Local Shell is selectable in both Quick Connect and the Connection Manager; for these connections host/port/username/authentication are not required and are disabled in the dialogs.
-* *Shared connector hooks*: The terminal recording/logging and AI input-interceptor/data-listener hooks were lifted from the SSH connector onto a shared `ObservableTtyConnector` interface, so terminal logging and recording also work for local shells.
-* *Git Bash / Cygwin / WSL shell options*: On Windows, *Git Bash*, *Cygwin*, and *WSL* are offered as local-shell presets (in Quick Connect and the Connection Manager) — but each only when actually installed: Git Bash and Cygwin are detected via their usual install locations / `PATH`, and WSL is listed only when `wsl.exe` is present and at least one distribution is installed (checked once, with a short timeout). The local-shell command parser is now quote-aware, so shell paths containing spaces (like `"C:\Program Files\Git\bin\bash.exe"`) launch correctly.
-* *AI Agent & Planning in local shells*: The agent's command-execution engine was decoupled from SSH behind an `AgentCommandRunner` abstraction with two backends — SSH (exec channel) and local (a fresh local process). The *AI Agent* and *AI Planning* now run in local shells on Windows, macOS, and Linux: commands execute in the connection's shell (PowerShell via `-EncodedCommand`, `cmd.exe`, or `$SHELL`), the environment probe and system prompt are platform-aware so the model generates native commands, and the existing approval flow applies. Limitations on local shells: no `sudo`/administrator elevation on Windows, and no live working-directory tracking (the agent uses the connection's start directory). The JobScheduler's headless AI-agent action stays SSH-only.
-
-=== Terminal Usability
-
-* *Ctrl + mouse wheel zoom*: Holding *Ctrl* (or *Cmd* on macOS) and scrolling the mouse wheel over the terminal now changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the existing Alt+Plus / Alt+Minus / Alt+0 shortcuts.
-* *Ctrl+D closes a local cmd.exe/PowerShell tab*: Those Windows shells do not exit on EOF, so Ctrl+D had no effect there. Ctrl+D now closes the tab for local cmd.exe/PowerShell sessions. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, Ctrl+D keeps its normal EOF meaning (the shell exits on EOF and the local tab then auto-closes).
-
-=== AI Chat & Agent
-
-* *Images, diagrams, and math render in AI chats*: AI answers containing an SVG document, a base64 raster image (`data:image/png;base64,...` — PNG, JPEG, GIF, BMP), a `plantuml` code block, a `mermaid` code block, or LaTeX math (`latex`/`tex`/`math` code blocks and `$$...$$` in prose) are shown as images instead of raw markup, each with a *Show code / Show image* toggle and copy button. Mermaid and MathJax are bundled (no network); PlantUML uses the local toolchain (`java` + Graphviz `dot`); SVG output is sanitized and shown with JavaScript disabled.
-* *Full model reasoning in agent thinking rows*: Expanding a 💭 row in the agent activity panel now shows the model's actual reasoning when the provider exposes it (Anthropic extended thinking per the profile's Reasoning effort, OpenAI-compatible `reasoning_content`, LM Studio reasoning output, `<think>` blocks from local CLI models), falling back to the decision summary otherwise.
-* *Run log records the AI profile*: Every agent run starts with an `AI profile: <name> (<model>)` activity row.
-* *Reload uses the currently active profile*: The activity panel's reload button re-runs the command with the profile that is active now, not the one the original run was started with.
-* *Agent Ask includes the terminal selection*: Starting *AI → Ask AI Agent* from the right-click menu with text selected sends the selection as context, so the question is answered about the selected output or script.
-* *Concrete models for cloud profiles*: The model selector is pre-filled with common model names for known cloud providers (offline, no API key needed), the refresh button merges the endpoint's live model list, clicking a model in the dropdown now reliably applies it, and the unusable *Auto* option is no longer offered for cloud endpoints (with a clearer error when no model is selected).
-
-=== Guide AI Docs Search
-
-* *Ask the manual in natural language*: The built-in guide (*Help → Manual*, F1) gets an *AI search* side panel — type a question in your language and get an answer generated exclusively from the bundled documentation, with clickable citations that jump the guide directly to the referenced page.
-* *Uses your default AI profile; retrieval is fully offline*: No server, no extra API keys, no new dependencies. Retrieval runs locally over the bundled search index (with bilingual synonyms, German compound splitting and umlaut folding); off-topic questions are answered locally without contacting the AI endpoint at all.
-* *Grounded answers*: The model is restricted to the retrieved excerpts, invented links are repaired or removed, and a native *Sources* list always shows the cited pages regardless of the model's answer.
-
-=== Workflow Script Generator
-
-* *Two new target languages*: The agent run → *Workflow* script generator can now produce *Windows-CMD* (`.cmd` batch, `@echo off` lead line, `REM` header comments, `errorlevel` checks) and *AppleScript* (`.applescript`, `osascript` shebang, `--` comments, `try/on error` handling) in addition to Bash, Python, Perl, Ruby, PowerShell, and Ansible.
-* *Adjustable script font size*: Each generated-script editor now has *A-* / *A+* buttons and supports *Ctrl + mouse wheel* (Cmd on macOS) to change the font size; the chosen size is remembered across sessions.
-* *Visible progress while a diagram is generated*: Generating a PlantUML diagram from a script now shows the working spinner (in addition to the "diagram is being generated" status), so it is clear the AI connection is actively working.
-* *Clearer AI backend errors*: When the AI server runs out of memory / hits a resource limit (e.g. LM Studio/MLX "Resource limit exceeded", "metal::malloc"), the dialog shows a short, actionable hint instead of dumping the raw multi-line backend stack trace; all other AI errors are collapsed to a single line.
-
-=== Fixes
-
-* *Closing a local shell no longer freezes korTTY*: Closing a local-shell tab (or the window with a local shell open) could hang the whole app. `LocalShellTtyConnector.close()` now destroys the shell process before closing its streams, so a terminal reader thread blocked in a pty `read()` is released instead of deadlocking the close on the JavaFX thread.
-* *Correct wording for local shells when closing*: The close-confirmation no longer says "End SSH connection?" for a local shell — it uses local-shell wording — and the window-close prompt is now transport-neutral ("Active sessions") since a window can mix SSH, Mosh and local-shell tabs.
-* *No password prompt for local shells*: Opening a local shell no longer shows a password dialog. Local shells use no authentication, but the connection's default `PASSWORD` auth method previously triggered an irrelevant (and ignored) prompt in Quick Connect and the Connection Manager.
-* *"Load as text file" works in local shells*: Right-clicking a selected file name in a local-shell tab and choosing *Load as text file* no longer fails with "No active SSH connection is available". The file is read from the local filesystem — resolved against the working directory shown in the shell prompt when available, otherwise the directory the shell was started in — and opens in the snippet editor with *Overwrite local file* and *Save as...* just like the SSH/SFTP variant. The not-connected error message is now transport-neutral.
-* *Local file overwrites are now atomic*: Both "Overwrite local file" flows (local-shell *Load as text file* and the SFTP-manager local-file editor) used to truncate the target file in place, so a mid-write failure (disk full, process killed, power loss) could leave it truncated with no recovery. Overwrites now write to a sibling temp file and move it into place, preserve the original file's POSIX permissions, and write through symlinks to their real target instead of replacing the link itself.
-
-== v2.2.3
-
-=== Critical Fix: Monaco Editors Failed to Load in the Packaged App
-
-The Monaco-based editors (snippet, file, AI, diff) opened to an empty pane in the packaged/notarized macOS app — no caret, no typing, no paste. In the packaged app the WebView loaded its page from a `jar:` URL, and the page's Content-Security-Policy (`script-src 'self'`) then blocked the editor's own `monaco-host.js`/`.css` because a `jar:`-origin document does not authorize its `jar:` siblings. The Monaco resources are now extracted to a temp directory and loaded from a `file:` URL, which the CSP allows. A failed editor load now also surfaces an error instead of a silent empty pane, and the editor bundle is additionally minified (~27 MB → ~13 MB) with a more generous boot budget.
-
-== v2.2.2
-
-=== Critical Fix: Crash Opening Monaco Editors
-
-* *Fixed a hard crash (no on-screen error) when opening the Snippet Manager, the Snippet editor, or the Settings AI-skill editor in the packaged builds*: the bundled runtime was missing the `jdk.jsobject` module, so `netscape.javascript.JSObject` was unavailable at runtime. When the embedded Monaco editor's WebView marshalled a JavaScript object back to Java, JavaFX WebKit's native class lookup returned `NULL` and the JVM crashed in JNI `get_method_id` (`SIGSEGV`). `jdk.jsobject` is now bundled in the packaged runtime, so the Monaco-based editors open correctly. This release supersedes v2.2.0 and v2.2.1, whose binaries are affected by this crash.
-
-== v2.2.1
-
-=== Stability Fixes
-
-* *Settings / Snippet Manager crash fixed*: Opening *Global Settings* or the *Snippet Manager* could abort the app with no on-screen error. The embedded Monaco editor binds a JavaScript→Java bridge through `JSObject.setMember`, which JavaFX keeps only via a weak reference; under the bundled runtime's garbage collector the bridge could be collected while still in use, so the next JavaScript→Java callback dereferenced a freed object and the process crashed natively. The bridge is now held by a strong reference for the editor's lifetime (and made static with a weak back-reference so a closed dialog no longer pins the whole window graph).
-* *WebView lifecycle hardening*: Monaco editors are now disposed when their dialog closes (Settings, Snippet editor) — the boot-retry timer is cancelled, the JavaScript bridge is detached, and the page is dropped — instead of leaking a WebView on every open, and late timer/load callbacks after close are ignored. The Settings *AI Skills* editor now loads lazily on first use instead of on every Settings open.
-
-=== Master-Password Login Window
-
-* *Full-bleed animated logo*: In the standard app design, the master-password login window now shows the animated korTTY logo edge-to-edge as a full-window background, with the password form overlaid in a translucent card, instead of confining the logo to a side panel.
-* *Cleaner branding*: Removed a stray watermark from the animated login logo.
-
-== v2.2.0
-
-=== Terminal Engine and Hyperlinks
-
-* *SithTermFX 1.2.0*: Upgraded the embedded terminal engine to SithTermFX 1.2.0 (built from source, no GitHub token required).
-* *OSC 8 clickable hyperlinks*: The terminal now supports OSC 8 explicit hyperlinks — clickable links emitted by programs such as `ls --hyperlink` or `eza`. Links open on explicit user click and are restricted to a safe URI-scheme allowlist (`http`, `https`, `mailto`, `ftp`, `ftps`, `news`); `file://` links are limited to the local host.
-
-=== Mosh (mosh4j) 2.0.2 Upgrade and Security Hardening
-
-* *mosh4j 2.0.0 → 2.0.2*: The dynamically loaded Mosh backend was upgraded to mosh4j `2.0.2`. The release JARs are bundled in native builds (no first-run download) and otherwise fetched on demand via the GitHub CLI (`gh`) or `KORTTY_MOSH4J_RELEASE_DIR`. No reconnect or protocol migration is required — the Mosh wire protocol is unchanged (still version `2`), so existing Mosh connections behave exactly as before.
-* *Inherited security hardening*: mosh4j `2.0.2` adds per-direction replay/freshness protection, decompression-bomb limits on reassembled/zlib data, and a server-side protocol-version check. These harden the Mosh datagram path against malformed or replayed traffic.
-* *Bouncy Castle `1.78.1 → 1.84`*: The Bouncy Castle provider was upgraded to `1.84` (fixes CVE-2026-5598, HIGH, and CVE-2026-0636, MODERATE). The bump was applied both to the mosh4j runtime classpath and to korTTY's own SSH crypto dependencies (`bcprov-jdk18on`, `bcpkix-jdk18on`), so no known-vulnerable provider remains on either path. SSH key compatibility and connector behavior were re-verified after the upgrade.
-* *protobuf-java `4.28.2 → 4.35.1`*: mosh4j `2.0.2` compiles its generated Protobuf DTOs against protobuf-java `4.35.1` (they reference `com.google.protobuf.GeneratedFile`, which does not exist in `4.28.2`). The bundled/auto-downloaded protobuf dependency on the dynamically loaded Mosh classpath was bumped accordingly, fixing a `NoClassDefFoundError` that would otherwise occur on the first Mosh connect.
-* *Release tag vs. artifact version*: Since mosh4j `2.0.1` the GitHub release tag carries a leading `v` (`v2.0.2`) while the artifact file names stay versioned `2.0.2`. korTTY now tracks the tag and the artifact version separately so release downloads, cache directories, and bundled layouts all resolve correctly.
-* *Integration test*: A new self-skipping integration test verifies that the pinned mosh4j `2.0.2` artifacts still expose every constructor and method korTTY loads reflectively (`MoshKey.fromBase64`, `MoshClientSession`, `MoshTerminalFrontend`), guarding future mosh4j upgrades against silent API drift.
-
-=== AI Agent Panel Placement and Status Indicators
-
-* *Choose where the agent panel lives*: *View → AI Agent Panel* now offers *At Bottom* (default, unchanged), *Dock Left*, or *Dock Right*. Docked mode shows the activity panel as a resizable side panel attached to the main window, exactly like the local file browser. The chosen placement and side width are remembered across restarts.
-* *One tab per terminal, runs stacked*: In side mode the dock shows one outer tab per terminal widget of the active terminal tab (e.g. a base terminal plus two splits = three tabs); within each tab the individual agent runs are listed stacked vertically.
-* *Spotlight on the active tab*: Switching to another terminal tab swaps the dock to show only that tab's terminals; panels of other tabs are hidden until you switch back. Runs keep executing across the switch. Splitting/closing terminals updates the dock's tabs live.
-* *Dashboard status badge*: Each connection in the Dashboard shows an AI-agent status icon — ✋ awaiting input, ⚡ working, ⏸ paused, ✓ finished — aggregated across that terminal's runs and refreshed about once a second.
-* *Terminal tab status badge*: The same ✋/⚡/⏸/✓ indicator is prefixed to the terminal's tab title, so an agent's state is visible even without the Dashboard.
-
-=== Terminal AI Agent Activity Panel and Concurrency
-
-* *Multiple concurrent runs per split*: Terminal AI Agent activity panels now support multiple concurrent runs shown as closable tabs (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs remain as tabs until explicitly closed.
-* *Typing unlocked during runs*: Normal terminal input is no longer locked while a run is active. You can continue typing and launch new `agent` commands concurrently; only run-control keys (*Esc*, *Ctrl+C*) and the toggle-thinking shortcut (*Ctrl+R*) are intercepted by the active run's tab.
-* *Per-run pause and resume*: Each run tab can be paused (⏸) to park the agent at a safe point between steps, allowing already-running commands to finish first. Resume (▶) restarts the paused run. Paused time is excluded from the run's work-time accounting.
-* *Activity row emoji indicators*: Activity rows now show static colored emoji icons chosen by the command action, replacing the old `↑` / `↓` / `?` / `!` / `x` / `i` markers. Icon set includes 💾 write/create file, 📖 read, ▶️ run/execute, 📁 directory, 📦 package, ⚙️ service, 🌐 network, 🔍 inspect, 💭 thinking, 💬 message, ✋ awaiting user input (sudo/approval), ❌ error/failed, 🚫 cancelled.
-* *Collapsed status bar and input-required signaling*: When collapsed, the activity panel shows a compact status bar (run prompt + state + pause/cancel buttons + expand button). With multiple runs it surfaces the most relevant one (awaiting input first, otherwise an actively-working run) and shows a run breakdown such as "1 running · 2 done" instead of a bare total run count, plus a spinner while the agent is actively working. User-input requirements (sudo password or command approval) are clearly signaled with a bold ✋ "input required" indicator. The panel auto-expands and selects the requesting run when input is needed, and the tab displays a ✋ badge. The collapsed pause/cancel controls act on exactly the run shown in the bar.
-* *Keep-collapsed preference*: A panel-level preference controls whether new runs start minimized to the status bar. This setting is remembered across sessions.
-* *Run cancellation on tab/split close*: Closing a terminal tab or split discards and cancels all agent runs associated with that widget.
-* *Agent final message in terminal*: The agent's final user-facing message now contains the actual answer or result (not just a meta summary) and is displayed in the terminal transcript.
-
-=== Terminal Tab Completion and Agent Prompt History
-
-* *Tab completion for agent commands*: At the shell prompt, typing the agent command name then pressing TAB offers completions for configured agent command variants (`agent` / `agent-ask` / `agent-plan`).
-* *Recent prompt history on TAB*: After typing an agent command and a space, pressing TAB offers a history of recent agent prompts. Each row shows the prompt on the left and the date/time it was last run on the right, deduplicated by prompt text, newest first. The popup is user-resizable (drag the bottom-right grip), remembers its size across restarts, and scrolls when the history is long. Entries can be pruned in place — a per-row ✕ button (or *Del* on keyboards with a forward-delete key) removes one prompt, and *Clear all* (two-step confirm) wipes the whole history; deletions persist immediately.
-* *Cleaner history capture*: Recorded prompts now come exclusively from the exact characters typed, so the history is never reconstructed from the wrapped terminal screen. This fixes long prompts being stored with stray mid-word spaces at line-wrap points (e.g. "nur" → "nu r", "ansible" → "ansibl e") and keeps shell tab-completion listings and "command not found" output out of the history; any such pre-existing junk entries are also filtered from the popup and can be removed with the per-row ✕ or *Clear all*.
-* *Configurable history size*: *Settings → AI* now includes a setting for terminal-agent input-history size (default 20, range 5–100).
-
-=== Generate Workflow Script (NEW)
-
-* *Turn agent runs into reproducible scripts*: After a finished agent run, a "Workflow" button opens a dialog to generate a self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook).
-* *Robust error handling and documentation*: Generated scripts include robust error handling, detailed comments explaining each step, and a header containing script name, creator, date/time, and an optional PlantUML diagram.
-* *AI Skills and language variants*: The dialog auto-loads matching AI Skills (e.g., language-quality skills), can produce multiple language variants as inline tabs, and supports selectable suggestions.
-* *Script header templates*: Script headers can be customized using templates from a fixed "Script-Header" snippet category.
-* *Snippet Manager auto-save*: Generated scripts are automatically saved into the Snippet Manager with a short auto-generated name, correct file extension, the "workflow" tag, and the System (OS) column set from the agent's probed operating system (any Linux distro → Linux).
-* *Internet access control*: Internet access is forced OFF during script generation to ensure self-contained output.
-* *Resizable, remembered dialog*: The workflow dialog is resizable and remembers its size and position across sessions.
-
-=== AI Profile Setup Wizard
-
-* *Guided profile creation*: A new AI profile setup wizard guides users through creating new profiles with clear choices for connection type and configuration.
-* *Connection type selection*: Choose between local LM Studio or a cloud provider integration.
-* *Cloud provider support*: Cloud provider selection includes native Anthropic (Claude) API support alongside existing OpenAI-compatible endpoints, with separate fields for API key, model, and optional reasoning configuration.
-* *LM Studio model selection*: Local LM Studio profiles can pick a specific loaded model or use Auto-discovery, which resolves again before each use.
-
-=== Snippet Manager and Editor Enhancements
-
-* *System (OS) column*: The Snippet Manager now includes a new "System" column for tracking which operating system(s) a script targets or is optimized for.
-* *Sortable columns*: Snippet Manager columns are now sortable by clicking the column header.
-* *Script-Header snippet category*: A new fixed non-deletable "Script-Header" category is automatically created for storing reusable header templates used by generated workflow scripts.
-
-=== Connection and Quick Connect Improvements
-
-* *Quick Connect live search*: A new live-search field in Quick Connect (case-insensitive, supports `*` glob patterns) filters the saved connections list in real time.
-
-=== Bug Fixes and Refinements
-
-* *macOS shortcut double-fire fix*: Keyboard shortcuts no longer fire twice on macOS.
-* *macOS fullscreen F11 warning*: The F11 function-key warning no longer appears in the macOS system menu bar.
-* *Agent model tolerance*: The terminal agent now tolerates models that omit `summary` or `userMessage` fields in responses by deriving the missing field.
-* *Here-doc script migrations*: The agent prefers full-file here-doc rewrites over fragile in-place `sed` commands when performing script migrations and file updates.
-* *Workflow script header*: The "Generate Workflow Script" dialog no longer produces a duplicate metadata header block. The application injects one deterministic header; the model writes only a short functional description of the script.
-* *JobScheduler log verbosity*: Saves with zero active jobs are no longer logged at INFO level — those saves are demoted to DEBUG, keeping logs quiet when no jobs are scheduled.
-
-=== Automated Security Pipeline
-
-* *Dependabot*: Weekly automated pull requests for outdated Gradle graph dependencies and GitHub Actions; SSH/crypto dependencies are grouped for joint review.
-* *CodeQL static analysis*: Java source is scanned on every push to `main`, on every pull request, and weekly. Results appear under *Security → Code scanning* in the repository. Uses `build-mode: none` to avoid the heavy SithTermFX/mosh4j build during scans.
-* *CodeRabbit AI review*: Every pull request — including Dependabot security updates — is reviewed by CodeRabbit with Gitleaks (committed-secret detection), Semgrep (SAST), and OSV Scanner (dependency vulnerability scan). Security-specific review instructions are applied to SSH/crypto code paths, `build.gradle.kts`, and workflow files.
-* *Pinned-artifact freshness monitoring*: A weekly job compares URL-pinned artifacts that Dependabot cannot track (mosh4j, bundled BouncyCastle/protobuf, Node.js formatter runtime, Monaco Editor, SithTermFX) against their upstream latest versions and opens a tracking issue when any artifact is behind.
-* *Automated security patch releases*: When a pull request labeled `security` is merged to `main`, the release pipeline automatically computes the next patch version and creates a GitHub Release, which triggers the existing multi-platform build and signing workflow.
-
-=== Terminal Recording
-
-* *Lightweight replay recording*: Terminal recording can be enabled for the current app session in the Video Manager or permanently in *Settings > Video*. SSH terminal tabs can then start/stop recording from the terminal bar, *Tools > Start/Stop Terminal Recording*, or *Ctrl/Cmd+Shift+E*. Recording stores screen-state replay events instead of continuous pixel capture.
-* *One file per tab session*: Multiple start/stop segments in the same terminal tab append to one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` file until the tab closes; existing `.korttyrec.jsonl` replay files remain readable.
-* *Split-aware scope*: When a tab has split terminals, recording can target the active split or the whole tab.
-* *Auto-pause*: Recording automatically pauses after the configured idle threshold when neither visible terminal output nor user input activity changes the terminal, and resumes on the next activity.
-* *Video Manager*: *Tools > Video Manager...* enables terminal recording for the current app session, configures storage path, default format, default scope, optional color capture, auto-pause threshold, optional `ffmpeg` path, replay listing, in-app replay viewing, rename/delete actions, and video export.
-* *Replay viewer controls*: In-app replay viewing includes a timeline slider, a time-jump field accepting minute and `MM:SS` input up to the replay duration, and playback speed from 1x to 20x.
-* *Color and geometry metadata*: New replay screen events can store terminal geometry and optional per-cell color/style runs. Color capture is off by default to keep replay files small.
-* *Export options and progress*: Video export shows an options dialog for full/custom time ranges, color inclusion, and open export format selection. The progress dialog shows the current export phase and an estimated remaining time while frames are rendered and `ffmpeg` encodes the video.
-* *Optional WebM/MKV export*: Replay files can be exported to WebM/VP9 or MKV/FFV1 when `ffmpeg` is found on `PATH` or configured explicitly. The export uses replay timestamps instead of a fixed frame rate, uses recorded terminal geometry or a computed legacy fallback to avoid cropping, and renders frames with bounded CPU parallelism. If `ffmpeg` is missing, replay recording remains available and export is disabled.
-* *No streaming*: Live/network streaming is intentionally not implemented.
-
-=== SFTP, Local Files, and Terminal Emulation
-
-* *Temporary SSH keys for SFTP*: SFTP openings that use a valid temporary SSH key now create an authentication-only connection copy, preserving the exact temporary key content without mutating the saved connection's configured authentication.
-* *SFTP subsystem failure diagnostics*: SFTP startup now reports when the server or SSH proxy rejects/closes the SFTP subsystem after SSH authentication, including EOF, channel-closing, and `subsystem request failed` cases, and keeps generic SFTP startup causes visible.
-* *SFTP file editing through Snippet Editor*: Local and remote SFTP panels now provide an *Edit* pulldown and an *Edit with Snippet Editor* context-menu action for exactly one selected file. File mode can overwrite the source file, save under another name, or save the current content as a Snippet Manager snippet while keeping the Snippet Editor toolbar available.
-* *Dockable local file browser*: *View > File Browser* can show a local file browser on the left or right side of the main window with open, copy, cut, paste, delete, new file/folder, archive, details, hidden-file toggle, and owner/permission actions.
-* *Per-connection terminal emulation*: Quick Connect and Connection Edit can store the selected SithTermFX terminal emulation, and SSH/native Mosh sessions use the selected `TERM` value instead of a fixed default.
-* *Terminal drag-and-drop target handling*: Drag-and-drop uploads resolve `~` and `~/...` targets through the SFTP start directory, show the selected remote target, elapsed time, and current file during upload, and improve prompt-directory extraction for wrapped or decorated prompts.
-* *Terminal-only fullscreen*: *F12* and *View > Terminal-only Fullscreen* hide menu/status chrome, dashboard, and the local file browser while keeping only the terminal visible, then restore the previous fullscreen and UI state when toggled off. *View > Hide terminal scrollbars in fullscreen* can also hide terminal scrollbars only while fullscreen mode is active.
-* *Terminal color sequence control*: *Settings > Colors*, Quick Connect, and Connection Edit can disable ANSI/TrueColor terminal colors globally or per connection. When disabled, KorTTY ignores color SGR sequences from the remote process and uses the configured foreground/background colors.
-* *Tab bar cleanup*: The tab bar no longer shows the separate `+` affordance; new tabs continue through *File > New Tab* or the existing keyboard shortcut.
-* *AI profile model selection*: AI profile editors now use an editable model selector. Local LM Studio profiles can choose *Auto* or a loaded local LLM discovered through `GET /api/v1/models`; Auto resolves again immediately before connection tests, chat/follow-up requests, terminal AI actions, and agent runs. Manual model names remain supported for OpenAI-compatible endpoints, and `/v1` endpoints are normalized to `/v1/chat/completions`.
-
-=== UI Appearance, App Designs, and Branding
-
-* *App-wide design selector*: *Settings > Appearance* adds app-level JavaFX designs with previews: *Normal*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, and *Elegant Dark*.
-* *JavaFX chrome only*: App designs style windows, dialogs, menus, tabs, panels, tables, lists, buttons, and inputs, while terminal-session colors, terminal color profiles, Monaco editor content, and Snippet Editor content colors remain controlled by their existing settings.
-* *Dialog coverage*: Theme-aware dialogs and common alerts now receive the active app design consistently, including the close-connection confirmation dialog.
-* *Master-password login refresh*: The normal login dialog now uses a black background, a larger refreshed KorTTY logo, readable light text, and a blue password field with black input text. Custom app designs keep their own login styling.
-* *KorTTY logo refresh*: App icon resources for macOS, Windows, and Linux were refreshed, and the in-app logo is used in the login and About dialogs.
-
-=== Snippet Editor AI, Diagrams, and Profiles
-
-* *Monaco-based snippet editor*: The Snippet Editor now uses the bundled Monaco Editor surface with local WebView resources while preserving the existing Snippet Manager and SFTP file-editing workflows.
-* *Column ruler with live caret marker*: The ruler above the editor keeps the current caret column fixed at the left side, draws a live marker at the editor cursor position, and shows `Position N` when hovering over that marker.
-* *Line-length marker*: Clicking the ruler sets a maximum line-length marker between columns 20 and 240. The same marker is mirrored into the Monaco editor ruler, and the marker context menu can remove the limit again.
-* *Cursor-aware AI completion*: The snippet editor can request a completion at the current caret location. Suggestions are shown as ghost text and are inserted only when the user clicks them.
-* *Right-click AI Assistant*: The editor context menu now opens a cursor-aware AI instruction dialog. It sends the full snippet plus cursor offset, line, and column, lets the user choose whether enabled Chat/Functions AI Skills are considered for that request, and applies the returned full-snippet rewrite only after a before/after preview.
-* *Save edited snippet as new*: While editing an existing Snippet Manager entry, the Snippet Editor can save the current script as a new snippet without overwriting the original.
-* *Session-local auto completion*: Auto AI completion can be enabled per editor session. It is off by default and requests suggestions after the user pauses at a caret location.
-* *AI review and rewrite flows*: Error review, improvement themes, custom instructions, alternative solutions, and security fixes use structured AI responses and before/after previews before replacing code.
-* *Selected-code scope*: Alternative solutions and improvement actions operate on the selected code region. When no selection is available for alternative solutions, the request uses the whole snippet.
-* *Security check with selected fixes*: Security review produces selectable findings; only selected findings are sent back for fix generation and preview.
-* *Snippet AI privacy boundary*: Snippet AI uses the default AI profile, token accounting, cancellation, and enabled Chat/Functions/Both AI Skills, but does not expose internet tools.
-* *Technical description dialog*: Descriptions can use current-language comment syntax with configurable line width, preserve a space after the comment marker, and split sentences after a full stop onto the next line.
-* *Local PlantUML diagrams*: Snippet logical-structure diagrams are stored with the snippet, marked stale by content hash, regenerated with saved instructions, rendered locally only, and exportable/copyable as image output.
-* *Diagram code references*: Generated PlantUML diagrams can include code references, and the rendered SVG exposes matching hotspots/tooltips for referenced snippet lines.
-* *Diagram controls*: The diagram dialog can copy PlantUML source, save diagram background color, and apply readable activity colors before rendering/export.
-* *Editor profiles*: The snippet editor has ten built-in IntelliJ-inspired color/cursor profiles plus user-defined profiles saved in global settings.
-* *Review windows*: AI review/diff/alternative dialogs use larger readable code text, support zoom via buttons and Ctrl/Cmd +/- shortcuts, and expose copy-to-clipboard where applicable.
-* *Snippet AI prompt hardening*: Correction, translation, description, diagram, and one-liner prompts explicitly reject hidden reasoning, `<think>` tags, invented files, external URLs, and unsupported output formats where applicable.
-
-=== Snippet Export and Code Formatting
-
-* *Plain text script export*: Snippets can be exported as one script file per snippet, using the name and extension from the Snippet Manager *Name* column.
-* *ZIP script export*: Selected or all snippets can be exported as a ZIP archive with one script file per snippet. The script file extension can be kept from each snippet name or forced for every file in the ZIP.
-* *ZIP encryption options*: Script ZIP exports support no encryption, AES password-protected ZIP, or GPG encryption using a stored KorTTY GPG key.
-* *Compact one-liner improvements*: Bash compact one-liners keep `if/then/else` and loop syntax valid, while Python, Perl, and Ruby compact mode can wrap multi-line blocks with interpreter `exec`/`eval` instead of failing.
-* *Shared formatter service*: Snippet Editor and File Editor formatting now use the same `CodeFormatterService` with built-in, bundled, optional external fallback, and unavailable provider states.
-* *Format to ruler width*: The Snippet Editor ruler can run whole-content formatting to the selected line-length marker for formatter providers that support configurable width: Prettier-backed web formats, Python/Black, and Perl/Perl::Tidy. Local line-width formatting now opens a before/after preview before changing the editor. Unsupported languages can fall back to AI-assisted formatting when a matching provider is configured.
-* *AI fallback for unavailable local tools*: When local code formatting, ruler-width formatting, or syntax checking is unavailable for the selected language/provider state, the Snippet Editor asks whether to use AI assistance. AI formatting is still shown in a before/after preview before it changes the editor, and AI syntax checking returns an informational findings report.
-* *Bundled formatter manifest*: Formatter versions and sources are pinned in `src/main/resources/formatters/formatter-manifest.properties`; packaged builds can include shfmt, Prettier, sql-formatter, Perl::Tidy, and google-java-format support.
-
-=== JobScheduler Background Automation
-
-* *New Tools menu entry*: *Tools > JobScheduler...* opens the scheduler directly after Snippet Manager and before the AI tools.
-* *Background execution*: Jobs run while the KorTTY process is open and do not require a terminal tab to stay open.
-* *Saved SSH TCP targets*: Jobs can target saved servers, groups, or both through the Connection Manager selection flow. Mosh targets are blocked as unsupported and journaled.
-* *Schedule model*: Jobs support selected weekdays, validated fixed times, optional active date ranges, start/end time windows, and intervals inside the active window. Schedule times use the local system time zone.
-* *Persistent state*: Jobs, schedules, actions, pinned host keys, encrypted sudo secrets, journal entries, and the JobScheduler dialog geometry are persisted in `~/.kortty/job-scheduler.xml` and `global-settings.xml`.
-
-=== JobScheduler Actions and Security
-
-* *Command, snippet, and AI-agent jobs*: `COMMAND` jobs run non-interactive remote commands. `SNIPPET_SCRIPT` jobs run selected SnippetManager scripts with additional per-job parameters. `AI_AGENT` jobs use the shared AI-agent safety logic and require explicit job-level auto-approval before unattended command execution.
-* *SFTP jobs*: Scheduler actions cover upload, download, sync, delete, rename, mkdir, chmod, chown, remote copy, and remote archive creation.
-* *Archive jobs*: Scheduler archives support ZIP, password-protected ZIP, TAR, and TAR.BZ2, with optional download after successful creation.
-* *Sudo handling*: Server-specific sudo passwords are used before group sudo passwords. Stored sudo secrets are encrypted with the master password.
-* *SFTP sudo staging*: SFTP paths that need elevated rights can use temporary staging plus sudo-assisted `mv`, `cp`, `tar`, `chmod`, and `chown`, with cleanup failures journaled.
-* *Host-key safety*: Host-key pinning is required by default for unattended SSH/SFTP/Rsync execution. A job can explicitly disable host-key verification, and that unsafe mode remains scoped to that job.
-* *Journal modes*: `LIMITED_REDACTED` stores bounded stdout/stderr excerpts with redaction. `FULL` stores full output/transcripts while still redacting KorTTY-managed secrets before persistence.
-* *Locked master-password behavior*: Jobs that need encrypted SSH, sudo, API, or archive secrets are blocked and journaled when the master password is locked.
-* *Action-specific fields*: The *Action* tab now shows only fields used by the selected scheduler action, and `SNIPPET_SCRIPT` jobs include a search box for filtering large SnippetManager script lists.
-
-=== JobScheduler Rsync Integration
-
-* *New `RSYNC_SYNC` action*: Schedule upload or download directory synchronization between the local filesystem and saved SSH TCP connections.
-* *Multiple sources*: One job can synchronize multiple source directories under the configured target root.
-* *Safe defaults*: Rsync uses `-a --itemize-changes`; `--delete` is optional and disabled by default.
-* *Group downloads*: Downloads from multiple targets write into separate per-target subdirectories below the local target root to avoid overwrites.
-* *External tools*: KorTTY uses `rsync` from `PATH` or the optional *Settings > SFTP > JobScheduler Rsync* binary path. The local `ssh` command must be available in `PATH`.
-* *Pinned known_hosts*: Rsync jobs create a temporary owner-only `known_hosts` file from the pinned host key. Existing pins without OpenSSH public-key material must be confirmed again before Rsync can run.
-* *Askpass support*: Password and key-passphrase authentication use temporary owner-only `SSH_ASKPASS` helper files. Passwords, passphrases, helper paths, and secret-file paths are redacted before journaling.
-* *Rsync sudo scope*: `Use sudo` for Rsync maps to passwordless remote `sudo -n rsync`; stored sudo passwords are not used by the current Rsync integration.
-
-=== JobScheduler UI and Shutdown UX
-
-* *Job editor*: Working directory, local paths, remote paths, archive paths, Rsync sources, and Rsync target roots have browse helpers where applicable.
-* *Remote selectors*: Owner and group selectors can query the target and show available remote values.
-* *Validated time controls*: Window start, window end, and fixed times use validated time dropdowns instead of free-text entry.
-* *Weekday bulk toggle*: The weekdays row has a control to select or clear all weekdays.
-* *Menu-bar status*: When enabled and at least one scheduler entry exists, the menu bar shows running job state or the next run countdown after *Help*. Opening it lists up to five queued jobs with start time and live countdown.
-* *Cancellation*: Running jobs can be cancelled from the JobScheduler status menu or right-click status menu; cancellation requests are journaled.
-* *Journal controls*: Journal columns are sortable, selected journal entries can be deleted, and journal timestamps are displayed in the local KorTTY/system time zone. The Journal search can scan all persisted fields or selected columns, supports multiple required terms, and treats `*` as a wildcard inside search terms.
-* *Journal retention*: Entries older than 14 days are deleted automatically by default unless the user changes the retention value; `0` keeps entries indefinitely.
-* *Journal detail pane*: The protocol/detail output area can be resized vertically, KorTTY remembers the divider position, and selected detail text can be copied from the right-click menu.
-* *Quit drain*: When KorTTY is asked to quit while scheduler jobs are running, it warns the user. If confirmed, KorTTY blocks new starts, journals the shutdown wait, waits for running jobs to finish or cancel, and exits afterward.
-
-=== AI Internet Access
-
-* *Per-profile internet mode*: AI profiles can now keep internet access disabled or opt into one of the supported modes: `KorTTY Tavily Tool`, `LM Studio Tavily MCP`, `Bright Data Web MCP`, `Brave Search MCP`, `SearXNG MCP`, or `LM Studio Toolpack`.
-* *Direct Tavily tool support*: The KorTTY Tavily mode uses OpenAI-compatible chat-completions tool calls and executes `web_search` through Tavily with hard connect/request timeouts.
-* *LM Studio MCP modes*: LM Studio MCP integrations use the native `/api/v1/chat` payload with integrations instead of assuming MCP tools on `/v1/chat/completions`.
-* *Structured web failures*: Web timeouts, HTTP errors, authentication failures, empty results, and tool-round limits are returned as structured tool errors. Models are instructed to report those failures and not invent web facts.
-* *Agent web gating*: Terminal-agent JSON planning exposes web tools only for tasks that clearly need current or external information. Local file/script review tasks continue through SSH command inspection.
-
-=== AI Skills
-
-* *AI Skills settings tab*: *Global Settings > AI Skills* can create, edit, enable/disable, delete, import, export, and sort local skills.
-* *Skill targets*: Each skill can target AI Chat/functions, AI Agent, or both.
-* *Automatic skill matching*: Active skills can be filtered automatically by request, description, tags, and headings. Users can disable automatic matching to send all active target-compatible skills.
-* *Markdown import/export*: Skills export as Markdown with KorTTY frontmatter. Plain Markdown and Claude/Codex-style `SKILL.md` files can be imported disabled by default for review.
-* *Agent visibility*: Terminal-agent activity logs show which AI Skills were used for a run.
-
-=== Terminal AI Agent Fixes
-
-* *Current directory reliability*: Agent runs now carry the active terminal directory through prompt parsing, shell-hook `$PWD`, probe fallback, repair prompts, and command execution.
-* *Shortcut and paste handling*: Pasted or shortcut-inserted text in `agent ...` commands is read from the visible terminal line when it is more complete than the key-event buffer.
-* *Prompt wrapping*: Wrapped terminal prompt lines are searched from the visible screen so the agent can recover both the task text and current directory.
-* *Web/local separation*: Local file review prompts no longer get derailed into web-search tool rounds when an internet-enabled profile is active.
-
-=== Terminal Effect Plugins
-
-* *New plugin menu*: *Plugins > Terminal Effects* opens terminal-effect plugin management between *Tools* and *View* in the main menu bar.
-* *Plugin management dialog*: Loaded terminal-effect plugins are shown with active state, name, and description. Users can enable, disable, reload, import `.jar` plugins, and export plugins that have a source JAR.
-* *ServiceLoader SPI*: Terminal effects use `de.kortty.plugin.terminaleffects.TerminalEffectPlugin` and `TerminalEffectSession` for appearance changes, JavaFX overlays, and optional SithTermFX `TtyConnector` wrapping.
-* *Per-connection selection*: Quick Connect and Connection Manager can store the selected terminal-effect plugin and animation speed on a connection.
-* *Animation speed controls*: Terminal-effect speed supports a `1x` to `10x` slider plus a numeric field up to `99x`.
-* *Exportable MOTHER plugin*: MOTHER has been moved into a bundled plugin JAR (`kortty-terminal-effect-mother.jar`) and can be exported from the plugin manager.
-* *MOTHER output animation*: MOTHER paces visible terminal output, keeps terminal control sequences immediate, adds CRT overlay styling, and briefly flashes the current output line before fading it back to normal brightness.
-* *MU/TH/UR 6000 display name*: The bundled MOTHER terminal-effect plugin is shown as *MU/TH/UR 6000* in plugin management.
-
-=== Documentation
-
-* README, User Guide, and Release Notes now describe terminal recording, JobScheduler background automation, Rsync jobs, scheduler safety behavior, AI internet modes, LM Studio model auto-selection, AI Skills, Terminal AI Agent usage, terminal-only fullscreen and fullscreen scrollbar hiding, terminal color-sequence controls, app-wide designs, refreshed branding, SFTP-to-Snippet-Editor file editing, terminal-effect plugins, the Monaco-based Snippet Editor ruler, snippet-editor AI workflows, local formatter behavior, snippet export formats, failure handling, and manual validation paths in more detail.
-* Added `app-docs/TERMINAL_EFFECT_PLUGINS.adoc` with the terminal-effect plugin SPI, ServiceLoader packaging, MOTHER reference build, import/export behavior, lifecycle rules, connector-wrapper guidance, overlay guidance, security considerations, and validation checklist.
-* Added `.github/SECURITY-PIPELINE-SETUP.md` documenting the required repository settings (labels, Dependabot toggles, secrets, branch-protection rules) for the automated security pipeline.
-* Updated and re-rendered the architecture, module overview, AI API integration, snippet editor workflow, connection flow, session lifecycle, and terminal-effect plugin lifecycle diagrams.
-* README Security section updated to describe the automated dependency scanning, CodeQL, and CodeRabbit pipeline.
-
----
-
 == v2.1.0
 
 === Terminal AI Agent
@@ -537,6 +112,12 @@ The Monaco-based editors (snippet, file, AI, diff) opened to an empty pane in th
 
 ---
 
+== v1.9.1
+
+=== Fixes
+
+* *Packaged app SSH connections failed to start*: `java.rmi` was missing from the jpackage runtime image, so SSH connections in the packaged app/DMG failed with `ClassNotFoundException: java.rmi.ServerException`. All release artifacts (macOS, Windows, Linux, Java) are rebuilt with the fix.
+
 == v1.9.0
 
 *Release date:* March 2026
@@ -589,6 +170,81 @@ The Monaco-based editors (snippet, file, AI, diff) opened to an empty pane in th
 * *Linux artifact signing*: Linux `tar.gz`, `zip`, `deb`, `rpm`, and Arch `pkg.tar.zst` artifacts are GPG-signed in CI and published with detached `.sig` files plus the public key.
 * *Signed Java distributions*: Release builds also publish GPG-signed Java artifacts (`.jar`, `.zip`, `.tar`) for the generic JVM distribution.
 * *CI Java toolchain note*: The `windows-11-arm` release job uses Java 21 for compatibility; other release jobs continue with Java 25.
+
+== v1.8.0
+
+=== Highlights
+
+* *Mosh4J integration*.
+* *Cut added to the Edit menu* (`Ctrl+X` / `Cmd+X`): in terminal tabs, cut copies the current selection to the clipboard.
+* *Fixed terminal zoom reset*: it now restores the connection/tab baseline font size and family instead of falling back incorrectly.
+* *Connection font settings apply immediately*: settings saved in Connection Manager apply live to open tabs without a restart or reconnect.
+* *Fixed Quick Connect "Frequently Used Connections"*: it now correctly shows the 10 most recently used entries, ordered by recency.
+
+=== Technical fixes
+
+* Connection display settings (`ConnectionSettings`) and window geometry are correctly serialized/deserialized from `connections.xml`.
+* Zoom-reset behavior is unified between the keyboard shortcut and the terminal context-menu reset.
+* i18n resources updated for the new Edit-menu action (`menu.edit.cut`) across all supported languages.
+
+== v1.7.0
+
+*Release date:* February 2026
+
+=== Terminal and Multi-Window
+
+* *Tab drag between windows*: Drag tabs (including tabs with split terminals) from one KorTTY window to another to move the session; drop anywhere in the target window. Tabs can also be reordered within the same window by dragging in the tab bar.
+* *Split terminal drag-and-drop*: Reorder split panes by holding Shift+Alt (Shift+Option on macOS) and dragging a pane onto another; drop zones (above, below, left, right) show where the pane will land. Uses JediTermFX `TerminalSplitPane` with event filters and `TransferMode.ANY` for reliable drop on every platform.
+* *Reconnect via right-click*: Right-click a terminal tab, the terminal area, or a server entry in the Dashboard to trigger *Reconnect*; an active connection is closed and immediately re-established without closing the terminal window.
+
+=== Theme and UI
+
+* *Runtime theme management*: Apply themes at runtime from the terminal context menu (right-click), which also gained Reconnect and a timestamp toggle.
+* *Cursor visibility fix* in the terminal.
+
+=== SFTP Manager
+
+* *User and Group columns*: Local and remote file tables show User and Group columns and sort by owner or group; remote values use the SFTP owner/group or fall back to UID/GID.
+* *Type sort order*: Sorting by type orders `..`, then dot-prefix directories, then other directories, then dot-prefix files, then other files — each group alphabetically.
+* *Owner/Permissions dialog*: Separate fields for User, Group, and permissions (octal), pre-filled with current values; leaving a field empty keeps its current value. Dark theme applied; fixed a `ClassCastException` and other error handling.
+* *Fixed multi-file transfer*: resolved a `WritePendingException` when downloading or uploading multiple files.
+* Dark theme applied to every SFTP dialog, with an improved button layout.
+
+=== JediTermFX and Build
+
+* *TerminalSplitPane moved upstream*: the split-terminal UI (left panel factory, extra menu items, Shift+Alt drag-and-drop, drop zones) moved into JediTermFX so other projects can use it; KorTTY now uses the submodule and the local override was removed.
+* *Arch Linux packaging*: Pacman (`.pkg.tar.zst`) packaging via GitHub Actions.
+
+=== Internationalisation (i18n)
+
+* *Locale fixes*: remaining English strings in Spanish, French, Italian, Croatian, Dutch, and Portuguese replaced with correct translations, covering dialogs, the editor, Quick Connect, SFTP, errors, GPG, and status messages.
+
+== v1.6.0
+
+*Release date:* February 2026
+
+=== Teamwork
+
+* *Shallow-clone update fix*: Git teamwork sources no longer use `pull --rebase` on shallow clones; the updater now uses `fetch` + `reset --hard origin/<branch>` so rewritten or non-linear history updates reliably.
+* *Connection-edit validation*: teamwork connections now require the password-authentication radio to be selected when using stored credentials; validation no longer passes if the user switched to key auth but left a credential selected.
+* *Fixed teamwork recycle-bin startup crash*: the recycle-bin service uses `@XmlAccessorType(FIELD)` and the full model list so the JAXB context builds correctly; the app no longer exits on startup with an `IllegalAnnotationsException`.
+
+=== Terminal and UI
+
+* *Disconnect keeps the tab open*: when the server disconnects or the session ends, the terminal tab stays open and turns red with "(DISCONNECT)" instead of auto-closing; double-click to reconnect.
+* *Connection Manager folder export*: the Export button is enabled when a folder is selected, and exports every connection in that folder and its subfolders via the button or the right-click context menu.
+
+=== Build and tests
+
+* Explicit `junit-platform-launcher` version `1.10.1` so the test runtime resolves correctly.
+* Added `SharedFileTeamworkAdapterTest` for `toPath()` (UNC tests run only on Windows via `@EnabledOnOs(WINDOWS)`) and a recycle-bin JAXB load test.
+
+=== Startup and i18n
+
+* *Safer startup error handling*: application start now catches `Throwable` and shows an error dialog safely, so the real exception is logged and the app exits cleanly.
+* *Clearer teamwork auth scope*: English and localized strings for teamwork auth now use an explicit scope (e.g. "for all team connections") instead of the vague "for all teamwork".
+* *French*: restore label and confirm text now read "Restaurer les connexions supprimées".
+* *Croatian*: consistent Unicode escapes in `messages_hr.properties`, and corrected the feminine accusative adjective "pohranjenu" for "vjerodajnicu" in `connEdit.teamworkAuthRequired`.
 
 ---
 
