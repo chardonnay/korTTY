@@ -23,7 +23,7 @@ hide:
 
 <div class="grid cards" markdown>
 
--   :material-raketenstart: __Erste Schritte__
+-   :material-rocket-launch: __Erste Schritte__
 
     Installieren Sie korTTY, legen Sie Ihr Master-Passwort fest und lernen Sie das Hauptfenster kennen.
 

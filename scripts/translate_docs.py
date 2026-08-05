@@ -60,7 +60,7 @@ CACHE = SITE / ".docs-translate-cache"
 TARGET = "de"
 # Bump whenever masking/format-preservation rules change so cached pages are
 # regenerated with the new rules instead of silently keeping stale Markdown.
-TRANSLATION_FORMAT_VERSION = "11"
+TRANSLATION_FORMAT_VERSION = "12"
 
 # Asset subtrees that are generated/staged elsewhere — never copy or translate.
 SKIP_DIRS = {"diagrams", "screenshots"}
@@ -78,6 +78,11 @@ INLINE_PATTERNS = [
     re.compile(r"(?<!!)\[(?=[^\]\n]+\]\([^)]*\))"),  # opening [ of a normal Markdown link
     re.compile(r"\]\([^)]*\)"),            # the ](url) part of a link — keep the URL
     re.compile(r"`[^`]+`"),                # inline code
+    # :material-rocket-launch: / :octicons-arrow-right-24: PyMdown emoji/icon shortcodes. Left
+    # unmasked, the translator "helpfully" translated the identifier itself
+    # (":material-rocket-launch:" -> ":material-raketenstart:"), which the icon font does not
+    # recognize, so it fell back to rendering the raw colon-wrapped text instead of the icon.
+    re.compile(r":[a-z0-9_+-]+:"),
     # ++key++ and ++ctrl+shift+a++ keyboard keys. The inner alternation is required: a plain
     # [^+]+ cannot span the separating "+" of a chord, so every multi-key shortcut went to the
     # translator unmasked and came back localized ("++Strg+Umschalt+D++"), which the keys
