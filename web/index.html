@@ -296,6 +296,16 @@ body[data-baselines]::after {
 p a, .f-copy a, td a, .figcap a, .faq-item a { color: var(--color-accent-300); text-decoration: none; }
 p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { color: var(--color-accent); }
 .display .dim { color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+/* the headline types itself in like a terminal command: a hidden ghost holds the
+   full text so the block below never shifts while characters arrive */
+.h1-stack { display: grid; }
+.h1-ghost, .h1-live { grid-area: 1 / 1; }
+.h1-ghost { visibility: hidden; }
+.h1-cursor { display: inline-block; width: .5em; height: .74em; margin-left: .08em;
+  background: var(--color-accent); vertical-align: -.04em;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  animation: h1blink 1.05s steps(1, end) infinite; }
+@keyframes h1blink { 0%, 52% { opacity: 1; } 53%, 100% { opacity: 0; } }
 .hero { padding-bottom: calc(1.5 * var(--leading)); }
 .hero .row { align-items: center; }
 .meta { font-size: 13px; color: color-mix(in srgb, var(--color-text) 55%, transparent); letter-spacing: 0.04em; }
@@ -584,7 +594,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="hero" data-screen-label="Hero">
     <div class="hero-top">
       <div class="hero-copy">
-        <h1 class="display" data-i18n="hero.h1"><span class="line">SSH in.</span> <span class="line">Say the problem.</span> <span class="line dim">Watch.</span></h1>
+        <h1 class="display" data-i18n="hero.h1"><span class="line">SSH connect.</span> <span class="line">Prompt.</span> <span class="line dim">Chill.</span></h1>
         <p class="sub" data-i18n="hero.sub">korTTY puts AI agents inside your SSH session — they inspect the box, plan safe commands, ask before anything scary, and fix it. LLMs run in-process; nothing extra gets installed on your machine or your servers.</p>
         <div class="row">
           <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>

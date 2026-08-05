@@ -6,7 +6,7 @@
 "w.download":"Scarica",
 "w.viewgh":"Vedi su GitHub",
 "w.bcast":"Broadcast attivo",
-"hero.h1":"<span class='line'>Entra in SSH.</span> <span class='line'>Descrivi il problema.</span> <span class='line dim'>Guarda.</span>",
+"hero.h1":"<span class=\"line\">Connetti in SSH.</span> <span class=\"line\">Chiedi.</span> <span class=\"line dim\">Relax.</span>",
 "hero.sub":"korTTY mette agenti IA dentro la tua sessione SSH: ispezionano la macchina, pianificano comandi sicuri, chiedono prima di qualsiasi cosa rischiosa e risolvono. Gli LLM girano nel processo; nulla di extra viene installato sulla tua macchina o sui tuoi server.",
 "hero.meta":"macOS · Windows · Linux — open source, MIT",
 "fc.demo":"Mockup dal vivo di un flusso reale: digita <span class='kbd'>agent &lt;compito&gt;</span> a qualsiasi prompt — korTTY lo intercetta prima che la shell lo veda.",

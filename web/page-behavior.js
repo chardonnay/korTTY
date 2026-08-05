@@ -287,3 +287,55 @@
   lb.addEventListener('click', close);
   addEventListener('keydown', e => { if (open && e.key === 'Escape') close(); });
 })();
+
+// — hero headline types itself, terminal-style, and re-types on language change —
+(() => {
+  const h1 = document.querySelector('.hero .display');
+  if (!h1) return;
+  let run = 0;
+
+  const source = () => {
+    const ghost = h1.querySelector('.h1-ghost'); // already typed once: read the ghost, not the live text
+    return (ghost || h1).innerHTML;
+  };
+
+  const type = () => {
+    const token = ++run;
+    const src = source();
+    const tmp = document.createElement('div');
+    tmp.innerHTML = src;
+    const lines = [...tmp.querySelectorAll('.line')];
+    const segs = lines.length
+      ? lines.map(l => ({ cls: l.className, text: l.textContent }))
+      : [{ cls: 'line', text: tmp.textContent.trim() }];
+
+    h1.innerHTML = '<span class="h1-stack"><span class="h1-ghost" aria-hidden="true">' + src +
+      '</span><span class="h1-live"></span></span>';
+    const live = h1.querySelector('.h1-live');
+    const cursor = document.createElement('span');
+    cursor.className = 'h1-cursor';
+    cursor.setAttribute('aria-hidden', 'true');
+
+    let si = 0, ci = 0, span = null;
+    const step = () => {
+      if (token !== run) return; // superseded by a language change
+      if (si >= segs.length) { live.appendChild(cursor); return; }
+      if (!span) {
+        span = document.createElement('span');
+        span.className = segs[si].cls;
+        live.appendChild(span);
+      }
+      const text = segs[si].text;
+      span.textContent = text.slice(0, ++ci);
+      span.appendChild(cursor);
+      let wait = 34 + Math.random() * 26;
+      if (ci >= text.length) { si++; ci = 0; span = null; wait = 330; } // beat between sentences
+      else if (/[.,:!?]/.test(text[ci - 1])) wait = 240;
+      setTimeout(step, wait);
+    };
+    setTimeout(step, 260);
+  };
+
+  type();
+  document.addEventListener('kortty:lang', type);
+})();

@@ -46,6 +46,7 @@
     const sel = document.getElementById('lang-sel');
     if (sel) sel.value = lang;
     if (save) { try { localStorage.setItem(KEY, lang); } catch (_) {} }
+    document.dispatchEvent(new CustomEvent('kortty:lang', { detail: { lang } }));
   }
   let saved = null; try { saved = localStorage.getItem(KEY); } catch (_) {}
   const detected = (navigator.languages || [navigator.language || 'en'])
