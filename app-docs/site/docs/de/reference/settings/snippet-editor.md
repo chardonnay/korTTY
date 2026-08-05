@@ -6,6 +6,8 @@ title: Snippet-Editor
 
 Schriftart-, Farb- und Cursor-Überschreibungen für den Snippet-Manager und das Dialogfeld „Snippet bearbeiten“. Öffnen über **Konfiguration → Globale Einstellungen → Snippet-Editor**; in `~/.kortty/global-settings.xml` gespeichert.
 
+![Snippet Editor settings tab](../../assets/screenshots/settings/snippet-editor.png)
+
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Schriftartenfamilie | Dropdown-Liste | Leer (übernehmen) oder eine installierte Monospace-Familie | leer (übernehmen) | `snippetFontFamily` |

@@ -6,6 +6,8 @@ title: Snippet Editor
 
 Font, color and cursor overrides for the Snippet Manager and the Snippet Edit dialog. Open via **Configuration → Global Settings → Snippet Editor**; stored in `~/.kortty/global-settings.xml`.
 
+![Snippet Editor settings tab](../../assets/screenshots/settings/snippet-editor.png)
+
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Font Family | dropdown | Empty (inherit) or an installed monospace family | empty (inherit) | `snippetFontFamily` |

@@ -6,6 +6,8 @@ title: Editor
 
 Cursordarstellung für die Dateieditor-Registerkarten von korTTY. Öffnen über **Konfiguration → Globale Einstellungen → Editor**; in `~/.kortty/global-settings.xml` gespeichert.
 
+![Editor settings tab](../../assets/screenshots/settings/editor.png)
+
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Cursorstil | Dropdown-Liste | BLOCK, ZEILE, UNTERstrich | BLOCK | `editorCursorStyle` |

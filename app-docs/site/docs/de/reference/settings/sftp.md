@@ -6,6 +6,8 @@ title: SFTP-Manager
 
 Standardwerte für den Dual-Panel-Dateimanager [SFTP ](../../features/sftp.md) und für die Rsync-Jobs des JobScheduler. Öffnen über **Konfiguration → Globale Einstellungen → SFTP-Manager**; in `~/.kortty/global-settings.xml` gespeichert.
 
+![SFTP Manager settings tab](../../assets/screenshots/settings/sftp-manager.png)
+
 ## SFTP-Manager-Einstellungen
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |

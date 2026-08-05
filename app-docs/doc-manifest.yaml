@@ -202,14 +202,20 @@ pages:
   - path: app-docs/site/docs/en/reference/settings/sftp.md
     owns_i18n: [settings.sftp.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/sftp-manager.png
     last_synced_ref: "03ab38c"
   - path: app-docs/site/docs/en/reference/settings/editor.md
     owns_i18n: [settings.editor.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/editor.png
     last_synced_ref: "03ab38c"
   - path: app-docs/site/docs/en/reference/settings/snippet-editor.md
     owns_i18n: [settings.snippetEditor.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/snippet-editor.png
     last_synced_ref: "03ab38c"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md

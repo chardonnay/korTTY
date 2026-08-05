@@ -3014,13 +3014,13 @@
 <li><strong>Plain Text</strong> – Eine Zeile pro Ausgabezeile, mit Zeitstempel.</li>
 <li><strong>XML</strong> – Strukturiertes XML mit Zeitstempeln.</li>
 <li><strong>JSON</strong> – Strukturiertes JSON mit Zeitstempeln.</li>
-<li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB), den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) und die Komprimierung geschlossener Dateien an.</li>
+<li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB) und den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) an und deaktivieren Sie <strong>Jeden Tag eine neue Datei starten</strong> oder <strong>Geschlossene Dateien komprimieren (gzip)</strong> – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ von Quick Connect behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.</li>
 </ul>
 <h3 id="dateinamen">Dateinamen<a class="headerlink" href="#dateinamen" title="Permanent link">&para;</a></h3>
 <p>Jede Datei trägt den Namen <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, zum Beispiel <code>2026-08-04-14-30-12-web01_1.log.gz</code>. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten <code>_1</code> und <code>_2</code> und schreiben niemals in die Datei des anderen.</p>
 <h3 id="rotation-komprimierung-und-aufbewahrung">Rotation, Komprimierung und Aufbewahrung<a class="headerlink" href="#rotation-komprimierung-und-aufbewahrung" title="Permanent link">&para;</a></h3>
-<p>Eine neue Datei wird <strong>jeden Tag</strong> gestartet, und immer dann erneut, wenn die maximale Größe erreicht ist (diese Teile sind mit <code>.p2</code>, <code>.p3</code>, … nummeriert). Durch die Rotation wird nie etwas überschrieben oder gelöscht.</p>
-<p>Die aktuell geschriebene Datei bleibt unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann; sobald eine Datei geschlossen wird, wird sie nach <code>.gz</code> komprimiert. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.</p>
+<p>Standardmäßig wird <strong>jeden Tag</strong> eine neue Datei gestartet und immer wieder, wenn die maximale Größe erreicht ist (diese Teile sind mit <code>.p2</code>, <code>.p3</code>, … nummeriert); Die tägliche Rotation kann ausgeschaltet werden, um nur nach Größe zu rollen. Durch die Rotation wird nie etwas überschrieben oder gelöscht.</p>
+<p>Geschlossene Dateien werden standardmäßig komprimiert. Die aktuell geschriebene Datei bleibt immer unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann. Deaktivieren Sie <strong>Geschlossene Dateien komprimieren (gzip)</strong>, um fertige Dateien stattdessen als einfachen Text beizubehalten. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.</p>
 <p>Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf <code>0</code> ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.</p>
 <h3 id="was-vor-dem-schreiben-entfernt-wird">Was vor dem Schreiben entfernt wird<a class="headerlink" href="#was-vor-dem-schreiben-entfernt-wird" title="Permanent link">&para;</a></h3>
 <p>Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das <a href="session-journal.html">Sitzungsjournal</a> im Erfassungsthread, bevor irgendetwas gepuffert oder geschrieben wird: das eigene Passwort der Verbindung und alle Ersetzungsregeln, die in der Richtlinie Ihrer Organisation definiert sind. Das Geheimnis gelangt nie in die Datei, sodass hinterher nichts bereinigt werden muss.</p>
@@ -3115,7 +3115,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.8.0</strong>
+    korTTY <strong>v2.9.0</strong>
   </div>
 </div>
       

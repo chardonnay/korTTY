@@ -6,6 +6,8 @@ title: SFTP Manager
 
 Defaults for the dual-panel [SFTP file manager](../../features/sftp.md) and for the JobScheduler's Rsync jobs. Open via **Configuration → Global Settings → SFTP Manager**; stored in `~/.kortty/global-settings.xml`.
 
+![SFTP Manager settings tab](../../assets/screenshots/settings/sftp-manager.png)
+
 ## SFTP Manager Settings
 
 | Setting | Type | Values | Default | Stored as |

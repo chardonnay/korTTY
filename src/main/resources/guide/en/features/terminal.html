@@ -3014,13 +3014,13 @@
 <li><strong>Plain Text</strong> - One timestamped line per line of output.</li>
 <li><strong>XML</strong> - Structured XML with timestamps.</li>
 <li><strong>JSON</strong> - Structured JSON with timestamps.</li>
-<li>Optionally adjust the <strong>maximum file size</strong> (default: 10 MB), the <strong>retention period</strong> (default: 30 days) and whether closed files are compressed.</li>
+<li>Optionally adjust the <strong>maximum file size</strong> (default: 10 MB) and the <strong>retention period</strong> (default: 30 days), and turn off <strong>Start a new file every day</strong> or <strong>Compress closed files (gzip)</strong> — both are on by default. Quick Connect's Terminal log section covers enable, folder, format and compression; size limit, retention and daily rotation keep their configured or default values.</li>
 </ul>
 <h3 id="file-names">File names<a class="headerlink" href="#file-names" title="Permanent link">&para;</a></h3>
 <p>Every file is named <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, for example <code>2026-08-04-14-30-12-web01_1.log.gz</code>. The date leads so a folder listing sorts chronologically, and the trailing number distinguishes connections that are open at the same time — two tabs on the same server get <code>_1</code> and <code>_2</code> and never write into one another's file.</p>
 <h3 id="rotation-compression-and-retention">Rotation, compression and retention<a class="headerlink" href="#rotation-compression-and-retention" title="Permanent link">&para;</a></h3>
-<p>A new file is started <strong>every day</strong>, and again whenever the maximum size is reached (those parts are numbered <code>.p2</code>, <code>.p3</code>, …). Nothing is ever overwritten or deleted by rotation.</p>
-<p>The file currently being written stays uncompressed so that a crash cannot truncate it; the moment a file is closed it is gzipped to <code>.gz</code>. A connection that produces no output creates no file at all.</p>
+<p>By default a new file is started <strong>every day</strong>, and always again whenever the maximum size is reached (those parts are numbered <code>.p2</code>, <code>.p3</code>, …); daily rotation can be turned off to roll only by size. Nothing is ever overwritten or deleted by rotation.</p>
+<p>Closed files are gzipped by default; the file currently being written always stays uncompressed so that a crash cannot truncate it. Turn off <strong>Compress closed files (gzip)</strong> to keep finished files as plain text instead. A connection that produces no output creates no file at all.</p>
 <p>Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to <code>0</code> to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.</p>
 <h3 id="what-is-removed-before-writing">What is removed before writing<a class="headerlink" href="#what-is-removed-before-writing" title="Permanent link">&para;</a></h3>
 <p>Captured lines go through the same redaction as the <a href="session-journal.html">Session Journal</a>, on the capture thread, before anything is buffered or written: the connection's own password and any replacement rules your organisation's policy defines. The secret never reaches the file, so there is nothing to clean up afterwards.</p>
@@ -3115,7 +3115,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.8.0</strong>
+    korTTY <strong>v2.9.0</strong>
   </div>
 </div>
       

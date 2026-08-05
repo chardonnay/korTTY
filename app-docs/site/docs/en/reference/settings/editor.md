@@ -6,6 +6,8 @@ title: Editor
 
 Cursor appearance for korTTY's file editor tabs. Open via **Configuration → Global Settings → Editor**; stored in `~/.kortty/global-settings.xml`.
 
+![Editor settings tab](../../assets/screenshots/settings/editor.png)
+
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Cursor Style | dropdown | BLOCK, LINE, UNDERSCORE | BLOCK | `editorCursorStyle` |
