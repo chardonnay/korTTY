@@ -281,16 +281,22 @@ def reanchor_leading_marker(translated: str, masked_source: str) -> str:
     return f"{indent}{marker} {stripped}" if stripped else translated
 
 
-def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> tuple[str, int, int]:
+def translate_md(
+    md: str, translator, memory: dict[str, str] | None = None
+) -> tuple[str, int, int, list[str]]:
     """Translate a page, reusing memory (masked EN line -> masked DE line) for
-    unchanged lines. Returns (german_markdown, reused_lines, translated_lines)."""
+    unchanged lines. Returns (german_markdown, reused_lines, translated_lines,
+    still_english) — the last being the masked source text of every line that
+    kept its English wording after translation genuinely failed (as opposed to
+    a line that is legitimately identical, e.g. a bare product name)."""
     memory = dict(memory) if memory else {}
     lines, jobs = translatable_lines(md)
     if not jobs:
-        return apply_glossary(md), 0, 0
+        return apply_glossary(md), 0, 0, []
     misses = [j for j in jobs if j[1] not in memory]
     texts = [j[1] for j in misses]
     out: list[str] = []
+    failed: list[str] = []
     B = 20
     for k in range(0, len(texts), B):
         chunk = texts[k:k + B]
@@ -304,14 +310,26 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
         if res is None:
             # A single untranslatable string aborts the whole batch — fall back to
             # per-item translation, keeping the English original where Google fails
-            # (better an English phrase than a missing page).
+            # (better an English phrase than a missing page). One retry after a
+            # backoff before giving up: most single-item failures here are
+            # transient (rate limiting), not a string Google truly cannot handle.
             res = []
             for item in chunk:
-                try:
-                    r = translator.translate(item)
-                    res.append(r if r else item)
-                except Exception:  # noqa: BLE001
+                r = None
+                for attempt in range(2):
+                    try:
+                        r = translator.translate(item)
+                        if r:
+                            break
+                    except Exception:  # noqa: BLE001
+                        r = None
+                    if attempt == 0:
+                        time.sleep(1.0)
+                if r:
+                    res.append(r)
+                else:
                     res.append(item)
+                    failed.append(item)
                 time.sleep(0.2)
         out.extend(res)
         if k + B < len(texts):
@@ -336,7 +354,7 @@ def translate_md(md: str, translator, memory: dict[str, str] | None = None) -> t
             indent = source_line[:len(source_line) - len(source_line.lstrip(" "))]
             lines[idx] = indent + translated.lstrip(" ") if indent else translated
             lines[idx] = reanchor_leading_marker(lines[idx], source_line)
-    return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses)
+    return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses), failed
 
 
 def remask(text: str, store: list[str]) -> str | None:
@@ -613,6 +631,7 @@ def main() -> int:
     md_done = md_skip = copied = 0
     md_lines_fresh = md_lines_reused = 0
     md_pages: list[Path] = []
+    all_failed: list[tuple[str, str]] = []  # (page, masked source text) that stayed English
     for src in sorted(EN.rglob("*")):
         if src.is_dir():
             continue
@@ -642,13 +661,16 @@ def main() -> int:
             if old_en is None and cache.get(str(rel)) == digest:
                 old_en = md  # unchanged page (e.g. --force run): current EN matches DE
             memory = build_page_memory(old_en, dst.read_text(encoding="utf-8"))
-        translated, reused, fresh = translate_md(md, translator, memory)
+        translated, reused, fresh, failed = translate_md(md, translator, memory)
         dst.write_text(translated, encoding="utf-8")
         new_cache[str(rel)] = digest
         md_done += 1
         md_lines_fresh += fresh
         md_lines_reused += reused
-        print(f"  translated {rel} ({fresh} line(s) translated, {reused} reused)")
+        if failed:
+            all_failed.extend((str(rel), item) for item in failed)
+        note = f", {len(failed)} FAILED — kept English" if failed else ""
+        print(f"  translated {rel} ({fresh} line(s) translated, {reused} reused{note})")
 
     save_cache(new_cache)
     # After every page exists in its final German wording — a link can point into a
@@ -657,6 +679,21 @@ def main() -> int:
     print(f"\nDone. translated {md_done} page(s) ({md_lines_fresh} line(s) translated, "
           f"{md_lines_reused} reused), {md_skip} unchanged. "
           f"(assets are staged into docs/de by build-docs-site.py)")
+    if all_failed:
+        # These pages were cached as "translated" above, so a plain re-run will not
+        # retry them — the line-reuse memory in build_page_memory() would just read
+        # the English text straight back out of the committed German page and treat
+        # it as a valid prior translation. Re-running with --force does not help
+        # either for the same reason. Delete the destination page (or the specific
+        # line's German text) before re-running to force these back through the
+        # translator.
+        print(f"\n! {len(all_failed)} line(s) across {len({p for p, _ in all_failed})} "
+              f"page(s) kept their English text after the translator failed twice:")
+        for rel, item in all_failed:
+            preview = item if len(item) <= 80 else item[:77] + "..."
+            print(f"    {rel}: {preview!r}")
+        print("  Delete the affected docs/de page(s) and re-run to force a full retranslation —")
+        print("  a plain re-run will reuse this English text as if it were already translated.")
     return 0
 
 
