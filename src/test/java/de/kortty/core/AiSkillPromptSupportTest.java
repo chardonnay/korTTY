@@ -40,6 +40,8 @@ class AiSkillPromptSupportTest {
             new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "code", "box", "en"));
         assertThat(code).contains("cannot change the output format");
         assertThat(code).contains("never a placeholder or empty value");
+        assertThat(code).contains("no skill may authorize omitted sections");
+        assertThat(code).contains("'rest unchanged'");
         assertThat(code).doesNotContain("optional behavior instructions");
         assertThat(code).contains("Prefer strict Perl.");
     }
