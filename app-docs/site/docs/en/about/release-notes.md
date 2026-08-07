@@ -20,5 +20,9 @@ What changed in the current release. The version this guide was built for is sho
 - **Selecting a time range got easier** — inside korTTY the viewer's timeline can be switched into range-selection mode: click a first and a last entry to highlight the span between them and hand it straight to the export dialog, or collect several windows before exporting. The same selection is available from the edit-mode entry table via right-click.
 - **The journal's title is editable directly from the page**, and a header button jumps between marked entries when a journal has any.
 
+### Snippet editor
+
+- **Fixed incomplete Full code analysis replacements** — **Apply selected** now asks for the full rewritten script only once, explicitly requires every unchanged section to be copied, and refuses omission markers such as `rest unchanged` before the review window can replace any code.
+
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.

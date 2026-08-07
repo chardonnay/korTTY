@@ -84,6 +84,7 @@ class SnippetAiAnalysisContractTest {
 
     @Test
     void applySelectedKeepsBashCodeLanguageSeparateFromGuiLanguage() throws Exception {
+        String originalSnippet = "#!/usr/bin/env bash\nprintf '%s\\n' $value";
         CapturingAiService aiService = new CapturingAiService(GSON.toJson(Map.of(
             "replacement", "#!/usr/bin/env bash\n# Eingabe sicher prüfen\nprintf '%s\\n' \"$value\"",
             "summary", "Die Eingabe wird sicher verarbeitet.",
@@ -102,7 +103,7 @@ class SnippetAiAnalysisContractTest {
         SnippetAiResponseSupport.SnippetSecurityFix result = SnippetAiWorkflowSupport.applySnippetImprovements(
             aiService,
             null,
-            "#!/usr/bin/env bash\nprintf '%s\\n' $value",
+            originalSnippet,
             "bash",
             null,
             "de",
@@ -118,6 +119,11 @@ class SnippetAiAnalysisContractTest {
         assertThat(request.conversationContext()).contains("Natural language for the summary: de");
         assertThat(request.conversationContext()).contains("SEC-1 [security/high] Variable quoten");
         assertThat(request.conversationContext()).contains("D1 [dependency] printf");
+        assertThat(request.conversationContext()).doesNotContain(originalSnippet);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+        assertThat(userPrompt).contains("Full script content to update");
+        assertThat(userPrompt).doesNotContain("Selected terminal text");
+        assertThat(userPrompt.indexOf(originalSnippet)).isEqualTo(userPrompt.lastIndexOf(originalSnippet));
         assertThat(AiPromptBuilder.buildSystemPrompt(request))
             .contains("comments or user-facing strings in language code de");
     }

@@ -366,16 +366,38 @@ public final class SnippetAiResponseSupport {
         Pattern.compile("[$@%&]?\\{?[A-Za-z_][A-Za-z0-9_]*}?");
 
     /**
-     * True when a whole-snippet {@code replacement} is degenerate and must NOT be applied — applying it
-     * would silently wipe the user's code. Catches the reported failure where a model (often steered by a
-     * user AI skill) returns a bare token like {@code "$code"} instead of the full updated snippet, as well
-     * as a substantial multi-line body collapsing to a tiny single line. {@code original} is the current
-     * snippet content; short originals are never guarded (nothing substantial to lose).
+     * Phrases models commonly insert instead of reproducing unchanged source. Kept deliberately
+     * conservative: a match is rejected only when the replacement introduces a new matching line.
+     */
+    private static final Pattern OMITTED_CODE_MARKER_PATTERN = Pattern.compile(
+        "(?iu)(?:"
+            + "\\b(?:rest|remainder|remaining|existing|original|other|previous|following)\\b.{0,120}"
+            + "\\b(?:unchanged|omitted|elided|skipped|same\\s+as\\s+(?:above|before|original))\\b"
+            + "|\\b(?:code|functions?|methods?|implementation|content|lines?|script|snippet)\\b.{0,120}"
+            + "\\b(?:unchanged|omitted|elided|skipped|same\\s+as\\s+(?:above|before|original))\\b"
+            + "|\\b(?:omitted|elided|skipped)\\s+for\\s+brevity\\b"
+            + "|\\b(?:rest|restlicher|restliche|restliches|übriger|übrige|übriges|verbleibender|"
+            + "verbleibende|verbleibendes|bestehender|bestehende|bestehendes|ursprünglicher|"
+            + "ursprüngliche|ursprüngliches)\\b.{0,120}\\b(?:unverändert|ausgelassen|weggelassen)\\b"
+            + "|\\b(?:code|funktionen?|methoden?|implementierung|inhalt|zeilen?|skript)\\b.{0,120}"
+            + "\\b(?:unverändert|ausgelassen|weggelassen)\\b"
+            + ")");
+
+    /**
+     * True when a whole-snippet {@code replacement} is incomplete and must NOT be applied — applying it
+     * would silently wipe the user's code. Catches bare tokens such as {@code "$code"}, substantial
+     * multi-line bodies collapsing to a tiny single line, and newly introduced omission comments such as
+     * {@code # ... (rest of original functions unchanged) ...}. An omission marker already present in the
+     * original is allowed when it is preserved unchanged.
      */
     public static boolean isDegenerateFullReplacement(String original, String replacement) {
         String current = original != null ? original.strip() : "";
         String candidate = replacement != null ? replacement.strip() : "";
         if (candidate.isEmpty()) {
+            return true;
+        }
+        // An explicit omission marker is never a complete replacement, even for a short source.
+        if (introducesOmittedCodeMarker(current, candidate)) {
             return true;
         }
         if (current.length() < 40) {
@@ -389,6 +411,28 @@ public final class SnippetAiResponseSupport {
         boolean originalMultiLine = current.lines().filter(line -> !line.isBlank()).count() >= 3;
         boolean tinySingleLine = !candidate.contains("\n") && candidate.length() < Math.max(24, current.length() / 8);
         return originalMultiLine && tinySingleLine;
+    }
+
+    private static boolean introducesOmittedCodeMarker(String original, String replacement) {
+        List<String> originalMarkers = new ArrayList<>();
+        original.lines()
+            .map(SnippetAiResponseSupport::normalizedOmittedCodeMarker)
+            .filter(marker -> marker != null)
+            .forEach(originalMarkers::add);
+        for (String line : replacement.lines().toList()) {
+            String marker = normalizedOmittedCodeMarker(line);
+            if (marker != null && !originalMarkers.remove(marker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String normalizedOmittedCodeMarker(String line) {
+        if (line == null || !OMITTED_CODE_MARKER_PATTERN.matcher(line).find()) {
+            return null;
+        }
+        return line.strip().replaceAll("\\s+", " ").toLowerCase(java.util.Locale.ROOT);
     }
 
     private static List<SecurityChange> parseSecurityChanges(JsonObject object) {

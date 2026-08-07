@@ -20,5 +20,9 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Das Auswählen eines Zeitbereichs ist einfacher geworden** – in korTTY kann die Zeitleiste des Viewers in den Bereichsauswahlmodus umgeschaltet werden: Klicken Sie auf einen ersten und einen letzten Eintrag, um die Zeitspanne dazwischen hervorzuheben und ihn direkt an den Exportdialog zu übergeben, oder sammeln Sie vor dem Exportieren mehrere Fenster. Die gleiche Auswahl ist in der Eintragstabelle im Bearbeitungsmodus per Rechtsklick verfügbar.
 - **Der Titel des Journals kann direkt auf der Seite bearbeitet werden**, und eine Kopfzeilenschaltfläche springt zwischen markierten Einträgen, wenn das Journal welche hat.
 
+### Snippet-Editor
+
+- **Unvollständige vollständige Code-Analyse-Ersetzungen behoben** – **Ausgewählte anwenden** fragt jetzt nur einmal nach dem vollständig neu geschriebenen Skript, verlangt ausdrücklich, dass jeder unveränderte Abschnitt kopiert wird, und lehnt Auslassungsmarkierungen wie `rest unchanged` ab, bevor das Überprüfungsfenster Code ersetzen kann.
+
 !!! note "Frühere Versionen"
     Hier wird nur die aktuelle Version aufgeführt, daher bleibt der Anleitung in jeder Sprache, in die er übersetzt wurde, kurz. Jede Version ist auf der [GitHub-Release-Seite ](https://github.com/chardonnay/korTTY/releases); Die kuratierten Notizen für frühere Versionen werden im Repository in `app-docs/release-notes-archive.md` und `app-docs/RELEASE_NOTES.adoc` aufbewahrt.

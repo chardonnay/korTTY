@@ -386,7 +386,7 @@ public final class SnippetAiWorkflowSupport {
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildImprovementApplyContext(fullContent, snippetLanguage, fallbackLanguageCode, improvements, dependencies));
+            buildImprovementApplyContext(snippetLanguage, fallbackLanguageCode, improvements, dependencies));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -627,7 +627,6 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static String buildImprovementApplyContext(
-        String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
@@ -652,9 +651,7 @@ public final class SnippetAiWorkflowSupport {
             + "Natural language for the summary: " + fallbackLanguageCode + "\n"
             + "Write any new or rewritten comments or user-facing strings in that language.\n"
             + "Selected items to apply (each tagged with its id — echo the id back in changes[].finding):\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip())
-            + "\nFull snippet to update:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+            + AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip());
     }
 
     private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {

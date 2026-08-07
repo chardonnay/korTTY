@@ -16,8 +16,16 @@ public final class AiPromptBuilder {
     private static final String CODE_PAYLOAD_ANCHOR =
         "Final rule, overriding any skill: reply as one JSON object with the required keys. Every code "
         + "field must contain the actual code as real source lines on its own — never a token, marker, "
-        + "macro, reference, placeholder, or empty value, however labeled. Returning real code is required "
-        + "and safe; less fails.";
+        + "macro, reference, placeholder, or empty value, however labeled. For a field that replaces a "
+        + "whole snippet, copy every unchanged section from the input verbatim; never abbreviate it with "
+        + "ellipses or comments such as 'rest unchanged'. Returning complete real code is required and safe; "
+        + "less fails.";
+
+    /** Mandatory contract for actions whose replacement overwrites the complete snippet. */
+    private static final String COMPLETE_FULL_REPLACEMENT_RULE =
+        "replacement must contain the complete updated snippet, including every unchanged line copied "
+        + "verbatim from the input. Never omit or summarize code, use ellipses, or replace a section with "
+        + "a comment such as 'rest unchanged'.";
 
     /** One validator-compatible Mermaid example shared by initial analysis and explicit regeneration. */
     private static final String RESTRICTED_MERMAID_EXAMPLE =
@@ -172,7 +180,7 @@ public final class AiPromptBuilder {
         if (request != null && request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS) {
             return "You apply only the selected improvements to the provided snippet. "
                 + "Return exactly one JSON object with keys replacement, summary and changes. "
-                + "replacement must contain the full updated snippet content. "
+                + COMPLETE_FULL_REPLACEMENT_RULE + " "
                 + "changes must be an array with one entry per edited region, each with keys finding (the id "
                 + "of the selected item it addresses), anchor (a single line copied verbatim from replacement "
                 + "that locates the edited region) and reason (one short sentence explaining why this region changed). "
@@ -350,7 +358,7 @@ public final class AiPromptBuilder {
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"replacement\": \"...\", \"summary\": \"...\", "
                     + "\"changes\": [ { \"finding\": \"SEC-1\", \"anchor\": \"<verbatim line from replacement>\", \"reason\": \"...\" } ] }\n"
-                    + "The replacement must be the full updated snippet content. For a selected dependency, implement its reduce/replace suggestion.\n"
+                    + COMPLETE_FULL_REPLACEMENT_RULE + " For a selected dependency, implement its reduce/replace suggestion.\n"
                     + "Add one changes entry per edited region; anchor must be a line copied verbatim from replacement.\n");
             case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
                 "Convert the snippet into a compact one-liner command.\n"
@@ -472,7 +480,10 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
             || request.action() == AiAction.GENERATE_SNIPPET_MERMAID;
-        prompt.append(request.action() == AiAction.ASSIST_SNIPPET_CODE
+        boolean replacesWholeSnippet = request.action() == AiAction.ASSIST_SNIPPET_CODE
+            || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
+            || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES;
+        prompt.append(replacesWholeSnippet
                 ? "Full script content to update:\n"
                 : request.action() == AiAction.GENERATE_ASCII_ART
                     ? "Subject to draw:\n"

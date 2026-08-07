@@ -327,9 +327,16 @@ class AiPromptBuilderTest {
     @Test
     void codePayloadActionsAppendFullCodeAnchorAsLastLine() {
         AiRequest apply = new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print 1;\nprint 2;\n", "box", "en");
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(apply);
         String applyPrompt = AiPromptBuilder.buildUserPrompt(apply);
 
         assertThat(applyPrompt).contains("Every code field must contain the actual code");
+        assertThat(systemPrompt).contains("including every unchanged line copied verbatim");
+        assertThat(systemPrompt).contains("Never omit or summarize code");
+        assertThat(applyPrompt).contains("copy every unchanged section from the input verbatim");
+        assertThat(applyPrompt).contains("never abbreviate it with ellipses");
+        assertThat(applyPrompt).contains("Full script content to update");
+        assertThat(applyPrompt).doesNotContain("Selected terminal text");
         // The anchor is the very last content, after the (untrusted) code block.
         assertThat(applyPrompt.strip()).endsWith("less fails.");
     }

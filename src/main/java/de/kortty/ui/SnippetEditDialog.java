@@ -3723,7 +3723,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
                 return;
             }
-            // Guard against a degenerate reply (e.g. a bare "$code") wiping the whole snippet.
+            // Reject incomplete full replacements, including omission comments such as "rest unchanged".
             if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, fix.replacement())) {
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
@@ -4271,7 +4271,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.security.fix.empty"));
                 return;
             }
-            // Guard against a degenerate reply (e.g. a bare "$code") wiping the whole snippet.
+            // Reject incomplete full replacements, including omission comments such as "rest unchanged".
             if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, fix.replacement())) {
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;

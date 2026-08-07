@@ -537,7 +537,7 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void isDegenerateFullReplacementRejectsBareTokensAndTinyCollapses() {
+    void isDegenerateFullReplacementRejectsTokensCollapsesAndOmissionMarkers() {
         String realScript = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
             + "my $log = shift or die \"usage\";\nopen my $fh, '<', $log or die $!;\n"
             + "while (my $line = <$fh>) { print $line if $line =~ /error/i; }\nclose $fh;\n";
@@ -549,11 +549,24 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "  \n ")).isTrue();
         // A multi-line body collapsing to a tiny single line is also degenerate.
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "print 1;")).isTrue();
+        // The reported full-code-analysis failure: unchanged code must never be replaced by prose.
+        String omittedFunctions = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
+            + "my $log = shift or die \"usage\";\n# ... (rest of original functions unchanged) ...\n";
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, omittedFunctions)).isTrue();
+        String omittedGerman = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
+            + "my $log = shift or die \"usage\";\n# Rest der ursprünglichen Funktionen unverändert.\n";
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, omittedGerman)).isTrue();
 
         // A genuine improved snippet (comparable size, multi-line) must pass.
         String improved = realScript + "\n# hardened: added error handling and exit codes\nexit 0;\n";
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, improved)).isFalse();
-        // Short originals are never guarded (nothing substantial to lose).
+        // A suspicious-looking line that was already part of the source may be preserved verbatim.
+        String originalWithMarker = realScript + "# Remaining implementation unchanged.\n";
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(
+            originalWithMarker, originalWithMarker + "exit 0;\n")).isFalse();
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(
+            "echo hi\necho bye", "# Remaining code unchanged.")).isTrue();
+        // A short but genuine rewrite remains allowed.
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement("echo hi", "ls")).isFalse();
     }
 }
