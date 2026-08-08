@@ -26,6 +26,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.WritableImage;
@@ -491,9 +492,12 @@ public final class SnippetAiDialogsSmoke {
     private static Runnable exerciseFullAnalysisApplyPreview(AtomicReference<String> failure) throws Exception {
         String original = "#!/usr/bin/env bash\nprintf '%s\\n' $value\n";
         String replacement = "#!/usr/bin/env bash\nprintf '%s\\n' \"$value\"\n";
+        String longImprovementTitle = "Quote the untrusted variable expansion before invoking the command "
+            + "so spaces, wildcard characters and user-controlled shell fragments remain one literal argument "
+            + "without changing the command's existing output or error handling";
         SnippetAiResponseSupport.ScriptImprovement improvement =
             new SnippetAiResponseSupport.ScriptImprovement(
-                "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
+                "SEC-1", "security", "high", longImprovementTitle, "Expansion is unquoted.",
                 "Quote the expansion.", 2);
         SnippetAiResponseSupport.ScriptImprovement optimization =
             new SnippetAiResponseSupport.ScriptImprovement(
@@ -649,6 +653,21 @@ public final class SnippetAiDialogsSmoke {
                             || !"SEC-1".equals(identifier.getText())) {
                         throw new AssertionError(
                             "AI-processing category icon was not coloured and placed beside its identifier");
+                    }
+                    Label clampedDescription = findNodes(improvementRow, Label.class).stream()
+                        .map(Label.class::cast)
+                        .filter(label -> label.getStyleClass()
+                            .contains("snippet-analysis-progress-description"))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                            "AI-processing improvement row did not expose its bounded description"));
+                    if (!longImprovementTitle.equals(clampedDescription.getText())
+                            || !clampedDescription.isWrapText()
+                            || clampedDescription.getTextOverrun() != OverrunStyle.ELLIPSIS
+                            || clampedDescription.getHeight() > clampedDescription.getMaxHeight() + 0.5
+                            || clampedDescription.getHeight() < clampedDescription.getMaxHeight() - 0.5) {
+                        throw new AssertionError(
+                            "AI-processing description was not visually clamped to its three-line height");
                     }
                     SVGPath optimizationIcon = findNodes(progress.getScene().getRoot(), HBox.class).stream()
                         .map(HBox.class::cast)

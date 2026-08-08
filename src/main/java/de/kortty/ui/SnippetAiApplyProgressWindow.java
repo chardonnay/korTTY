@@ -6,12 +6,14 @@ import de.kortty.core.SnippetAiWorkflowSupport;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -43,6 +45,8 @@ final class SnippetAiApplyProgressWindow {
     private static final double DEFAULT_WIDTH = 360;
     private static final double MIN_HEIGHT = 420;
     private static final double DOCK_GAP = 8;
+    private static final int MAX_DESCRIPTION_LINES = 3;
+    private static final double DESCRIPTION_LINE_HEIGHT_FACTOR = 1.35;
 
     private final Window anchor;
     private final Stage stage = new Stage();
@@ -489,6 +493,13 @@ final class SnippetAiApplyProgressWindow {
             }
             Label text = new Label(item.label());
             text.setWrapText(true);
+            text.setTextOverrun(OverrunStyle.ELLIPSIS);
+            text.setEllipsisString("…");
+            text.getStyleClass().add("snippet-analysis-progress-description");
+            text.maxHeightProperty().bind(Bindings.createDoubleBinding(
+                () -> Math.ceil(text.getFont().getSize()
+                    * DESCRIPTION_LINE_HEIGHT_FACTOR * MAX_DESCRIPTION_LINES),
+                text.fontProperty()));
             VBox copy = new VBox(1, identifierLine, text);
             HBox.setHgrow(copy, Priority.ALWAYS);
             status.setMinWidth(24);
