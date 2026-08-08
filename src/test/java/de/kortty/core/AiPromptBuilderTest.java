@@ -271,7 +271,7 @@ class AiPromptBuilderTest {
             AiAction.GENERATE_SNIPPET_MERMAID,
             "if ok; then echo yes; fi",
             null,
-            "en",
+            "de",
             "Use activity view",
             "Snippet language: bash");
 
@@ -279,8 +279,9 @@ class AiPromptBuilderTest {
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
         assertThat(systemPrompt).contains("flowchart TD");
-        assertThat(systemPrompt).contains("start_1([\"Start\"])");
-        assertThat(systemPrompt).contains("stop_1([\"Stop\"])");
+        assertThat(systemPrompt).contains("every visible decision-edge label in language code de");
+        assertThat(systemPrompt).contains("stable terminal node ids start_1 and stop_1");
+        assertThat(systemPrompt).doesNotContain("start_1([\"Start\"])");
         assertThat(systemPrompt).contains("stable descriptive node ids");
         assertThat(systemPrompt).contains("setup, work, success, or failure");
         assertThat(systemPrompt).contains("frontmatter");
@@ -290,15 +291,22 @@ class AiPromptBuilderTest {
         assertThat(systemPrompt).contains("startLine");
         assertThat(systemPrompt).contains("endLine");
         assertThat(systemPrompt).contains("for every action and decision node");
-        assertThat(userPrompt).contains("\"mermaid\"");
-        assertThat(userPrompt).contains("\"codeReferences\"");
-        assertThat(userPrompt).contains("decision_1 -->|yes| success_1");
-        assertThat(userPrompt).contains("class failure_1 failure");
-        assertThat(userPrompt).contains("excluding start_1 and stop_1");
-        assertThat(userPrompt).contains("\"nodeId\": \"work_1\"");
-        assertThat(userPrompt).contains("every visible action and decision node");
-        assertThat(userPrompt).contains("1-based line numbers");
+        assertThat(systemPrompt).contains("every material condition, branch, error path, early exit, and loop outcome");
+        assertThat(systemPrompt).contains("smallest relevant source range");
+        assertThat(systemPrompt).contains("builtin.action.snippet-mermaid");
+        assertThat(systemPrompt).contains("runtime behavior, not its declaration order");
+        assertThat(systemPrompt).contains("Every declared node must be reachable from `start_1`");
+        assertThat(userPrompt).contains("Follow the complete syntax and safety contract from the system message");
+        assertThat(userPrompt).contains("Build every response value from the line-numbered snippet");
+        assertThat(userPrompt).doesNotContain("<restricted flowchart string>");
+        assertThat(userPrompt).doesNotContain("<declared node id>");
+        assertThat(userPrompt).doesNotContain("Replace all example values");
         assertThat(userPrompt).contains("Snippet context");
+        // Syntax/safety rules live in one canonical place instead of being repeated in every layer.
+        assertThat(userPrompt).doesNotContain("frontmatter");
+        assertThat(userPrompt).doesNotContain("every visible action and decision node");
+        assertThat(countOccurrences(systemPrompt + "\n" + userPrompt, "frontmatter")).isEqualTo(1);
+        assertThat(userPrompt).doesNotContain("start_1([\\\"Start\\\"])");
     }
 
     @Test
@@ -330,15 +338,39 @@ class AiPromptBuilderTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(apply);
         String applyPrompt = AiPromptBuilder.buildUserPrompt(apply);
 
-        assertThat(applyPrompt).contains("Every code field must contain the actual code");
-        assertThat(systemPrompt).contains("including every unchanged line copied verbatim");
+        assertThat(applyPrompt).contains("Every code field or code-line array must contain the actual code");
+        assertThat(systemPrompt).contains("replacementLines must be an array containing the complete updated snippet");
+        assertThat(systemPrompt).contains("exactly one source line per string entry");
+        assertThat(systemPrompt).contains("Include every code line that does not require an intentional change copied verbatim");
+        assertThat(systemPrompt).contains("Required natural-language normalization is an intentional change");
         assertThat(systemPrompt).contains("Never omit or summarize code");
-        assertThat(applyPrompt).contains("copy every unchanged section from the input verbatim");
-        assertThat(applyPrompt).contains("never abbreviate it with ellipses");
+        assertThat(applyPrompt).contains("copy every code section that does not require an intentional change from the input verbatim");
+        assertThat(applyPrompt).contains("required natural-language normalization is an intentional change");
+        assertThat(applyPrompt).contains("Never abbreviate code with ellipses");
         assertThat(applyPrompt).contains("Full script content to update");
         assertThat(applyPrompt).doesNotContain("Selected terminal text");
         // The anchor is the very last content, after the (untrusted) code block.
         assertThat(applyPrompt.strip()).endsWith("less fails.");
+    }
+
+    @Test
+    void wholeReplacementNormalizesAllExistingCodeTextWithoutTranslatingCodeTokens() {
+        AiRequest request = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+            "# Deutscher Kommentar\nprint(\"Deutsche Ausgabe\")",
+            null,
+            "en");
+
+        String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+
+        assertThat(systemPrompt).contains(
+            "Every existing, new, or rewritten natural-language comment and every user-facing, log, or help string");
+        assertThat(systemPrompt).contains("must be in language code en");
+        assertThat(systemPrompt).contains("Translate existing text within the returned replacement scope");
+        assertThat(systemPrompt).contains(
+            "Do not translate identifiers, file paths, commands or options, configuration keys, protocol tokens, or machine-readable literals");
+        assertThat(systemPrompt).contains("Do not add a changes entry solely for required natural-language normalization");
+        assertThat(systemPrompt).contains("Return the JSON immediately without analysis, hidden reasoning, or <think> tags");
     }
 
     @Test
@@ -386,5 +418,16 @@ class AiPromptBuilderTest {
         AiRequest first = new AiRequest(
             AiAction.GENERATE_ASCII_ART, "Haus", null, "de", AsciiArtSupport.variationInstructions(0));
         assertThat(AiPromptBuilder.buildUserPrompt(first)).doesNotContain("Variation request:");
+    }
+
+    private static int countOccurrences(String value, String needle) {
+        int count = 0;
+        int offset = 0;
+        while (value != null && needle != null && !needle.isEmpty()
+                && (offset = value.indexOf(needle, offset)) >= 0) {
+            count++;
+            offset += needle.length();
+        }
+        return count;
     }
 }

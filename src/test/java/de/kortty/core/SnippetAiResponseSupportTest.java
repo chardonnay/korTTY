@@ -280,6 +280,20 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseMermaidDiagramRejectsNodesOutsideTheStartToStopFlow() {
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
+            {
+              "title": "Disconnected",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    orphan_1[\\\"Orphan\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    orphan_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1,orphan_1 work",
+              "codeReferences": []
+            }
+            """);
+
+        assertThat(diagram.isUsable()).isFalse();
+    }
+
+    @Test
     void parseOneLinerSuggestionRequiresSingleLineCommand() {
         SnippetAiResponseSupport.OneLinerSuggestion suggestion =
             SnippetAiResponseSupport.parseOneLinerSuggestion("""
@@ -400,6 +414,28 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseSecurityFixReconstructsCompleteScriptFromSeparateJsonLines() {
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiResponseSupport.parseSecurityFix(
+            """
+            {
+              "replacementLines": [
+                "#!/usr/bin/perl",
+                "my @parts = split(/\\\\s+/, $line);",
+                "print \\\"done\\\\n\\\";",
+                ""
+              ],
+              "summary": "Kept source escapes intact.",
+              "changes": [],
+              "implementedRequirements": []
+            }
+            """);
+
+        assertThat(fix.isUsable()).isTrue();
+        assertThat(fix.replacement()).isEqualTo(
+            "#!/usr/bin/perl\nmy @parts = split(/\\s+/, $line);\nprint \"done\\n\";\n");
+    }
+
+    @Test
     void parseSecurityFixToleratesMissingChangesArray() {
         // A model that omits the explanations must still yield a usable fix (empty changes list).
         SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiResponseSupport.parseSecurityFix(
@@ -410,6 +446,24 @@ class SnippetAiResponseSupportTest {
         assertThat(fix.isUsable()).isTrue();
         assertThat(fix.replacement()).isEqualTo("echo safe");
         assertThat(fix.changes()).isEmpty();
+    }
+
+    @Test
+    void parseSecurityFixPreservesSourceBackslashesAndChecklistFromMalformedJson() {
+        // Some local models emit source regex escapes directly inside the JSON string. The overall
+        // object is then invalid JSON, but the complete replacement and compact checklist remain
+        // recoverable without deleting the source-code backslashes.
+        String response = "{\"replacement\":\"my @parts = split(/\\s+/, $line);\","
+            + "\"summary\":\"Updated.\",\"changes\":[],"
+            + "\"implementedRequirements\":[\"HARDENING-01\",\"HARDENING-02\"]}";
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiResponseSupport.parseSecurityFix(response);
+
+        assertThat(fix.isUsable()).isTrue();
+        assertThat(fix.replacement()).contains("/\\s+/");
+        assertThat(fix.implementedRequirements())
+            .containsExactly("HARDENING-01", "HARDENING-02").inOrder();
     }
 
     @Test
@@ -549,6 +603,10 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "  \n ")).isTrue();
         // A multi-line body collapsing to a tiny single line is also degenerate.
         assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(realScript, "print 1;")).isTrue();
+        String largeScript = ("print qq(line);\n").repeat(40);
+        String structuredButCollapsed = "#!/usr/bin/perl -T\nuse strict;\nuse warnings;\n# incomplete fragment\n";
+        assertThat(SnippetAiResponseSupport.isDegenerateFullReplacement(
+            largeScript, structuredButCollapsed)).isTrue();
         // The reported full-code-analysis failure: unchanged code must never be replaced by prose.
         String omittedFunctions = "#!/usr/bin/perl\nuse strict;\nuse warnings;\n"
             + "my $log = shift or die \"usage\";\n# ... (rest of original functions unchanged) ...\n";

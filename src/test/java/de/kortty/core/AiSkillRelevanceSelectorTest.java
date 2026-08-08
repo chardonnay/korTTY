@@ -5,6 +5,7 @@ import de.kortty.model.AiSkillTarget;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -58,6 +59,25 @@ class AiSkillRelevanceSelectorTest {
     }
 
     @Test
+    void singleLocalMatchStillUsesHybridClassifier() {
+        AiSkill local = skill("linux-sysadmin", "Linux guidance.", List.of("linux"), "Linux rules");
+        AiSkill classified = skill("fedora-admin", "Fedora guidance.", List.of("fedora"), "Fedora rules");
+        AiSkillRelevanceSelector selector = new AiSkillRelevanceSelector(
+            true, true, List.of(local, classified));
+        AtomicBoolean classifierCalled = new AtomicBoolean();
+
+        List<AiSkill> selected = selector.selectChatSkills(
+            new AiRequest(AiAction.ASK, "", "box", "en", "linux"),
+            (context, metadata) -> {
+                classifierCalled.set(true);
+                return List.of(classified.getId());
+        });
+
+        assertThat(classifierCalled.get()).isTrue();
+        assertThat(selected.stream().map(AiSkill::getName).toList()).containsExactly("fedora-admin");
+    }
+
+    @Test
     void hybridFailureFallsBackToLocalSelection() {
         AiSkill skill = skill("linux-sysadmin", "Linux guidance.", List.of("linux", "fedora"), "Use Linux rules.");
         AiSkill second = skill("fedora-admin", "Fedora guidance.", List.of("linux", "fedora"), "Use Fedora rules.");
@@ -68,7 +88,69 @@ class AiSkillRelevanceSelectorTest {
             throw new java.io.IOException("timeout");
         });
 
-        assertThat(selected.stream().map(AiSkill::getName).toList()).containsExactly("linux-sysadmin", "fedora-admin").inOrder();
+        assertThat(selected.stream().map(AiSkill::getName).toList())
+            .containsExactly("fedora-admin", "linux-sysadmin")
+            .inOrder();
+    }
+
+    @Test
+    void automaticSelectionKeepsTheTwoHighestScores() {
+        AiSkill low = skill("low-score", "", List.of("alpha"), "Low score rules.");
+        AiSkill highest = skill("highest-score", "", List.of("alpha", "beta", "gamma"), "Highest score rules.");
+        AiSkill middle = skill("middle-score", "", List.of("alpha", "beta"), "Middle score rules.");
+        AiSkillRelevanceSelector selector = new AiSkillRelevanceSelector(
+            true, true, List.of(low, highest, middle));
+        AiRequest request = new AiRequest(AiAction.ASK, "", "box", "en", "alpha beta gamma");
+        AtomicBoolean classifierCalled = new AtomicBoolean();
+
+        List<AiSkill> selected = selector.selectChatSkills(request, (context, metadata) -> {
+            classifierCalled.set(true);
+            return List.of();
+        });
+
+        assertThat(selected.stream().map(AiSkill::getName).toList())
+            .containsExactly("highest-score", "middle-score")
+            .inOrder();
+        assertThat(classifierCalled.get()).isFalse();
+    }
+
+    @Test
+    void pinnedSkillDoesNotConsumeTheAutomaticSelectionLimit() {
+        AiSkill pinned = skill(
+            "pinned", "", List.of("alpha", "beta", "gamma", "delta"), "Pinned rules.");
+        AiSkill low = skill("low-score", "", List.of("alpha"), "Low score rules.");
+        AiSkill middle = skill("middle-score", "", List.of("alpha", "beta"), "Middle score rules.");
+        AiSkill highest = skill(
+            "highest-score", "", List.of("alpha", "beta", "gamma"), "Highest score rules.");
+        AiSkillRelevanceSelector selector = new AiSkillRelevanceSelector(
+            true,
+            true,
+            List.of(pinned, low, middle, highest),
+            java.util.Set.of(pinned.getId()));
+        AiRequest request = new AiRequest(AiAction.ASK, "", "box", "en", "alpha beta gamma delta");
+
+        List<AiSkill> selected = selector.selectChatSkillsLocal(request);
+
+        assertThat(selected.stream().map(AiSkill::getName).toList())
+            .containsExactly("highest-score", "middle-score", "pinned")
+            .inOrder();
+    }
+
+    @Test
+    void hybridSelectionCannotExceedTheAutomaticSelectionLimit() {
+        AiSkill first = skill("first", "", List.of("alpha"), "First rules.");
+        AiSkill second = skill("second", "", List.of("beta"), "Second rules.");
+        AiSkill third = skill("third", "", List.of("gamma"), "Third rules.");
+        AiSkillRelevanceSelector selector = new AiSkillRelevanceSelector(
+            true, true, List.of(first, second, third));
+
+        List<AiSkill> selected = selector.selectChatSkills(
+            new AiRequest(AiAction.ASK, "", "box", "en", "unrelated request"),
+            (context, metadata) -> List.of(first.getId(), second.getId(), third.getId()));
+
+        assertThat(selected.stream().map(AiSkill::getName).toList())
+            .containsExactly("first", "second")
+            .inOrder();
     }
 
     @Test

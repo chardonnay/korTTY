@@ -8,14 +8,26 @@ package de.kortty.core;
  * (Anthropic {@code thinking} blocks, OpenAI-compatible {@code reasoning_content} /
  * {@code reasoning}, LM Studio {@code reasoning} output items, or {@code <think>} blocks from
  * a local CLI). It is display-only and never part of {@link #content()}. It is {@code null}
- * when the model produced no reasoning.
+ * when the model produced no reasoning. {@code outputTruncated} is true when the provider reports
+ * that generation stopped at the configured output-token limit.
  */
-public record AiExecutionResult(String content, AiTokenUsage usage, String reasoning) {
+public record AiExecutionResult(
+    String content,
+    AiTokenUsage usage,
+    String reasoning,
+    boolean outputTruncated) {
+
+    /**
+     * Convenience constructor for a complete result with optional reasoning text.
+     */
+    public AiExecutionResult(String content, AiTokenUsage usage, String reasoning) {
+        this(content, usage, reasoning, false);
+    }
 
     /**
      * Convenience constructor for the common case of a result without separate reasoning text.
      */
     public AiExecutionResult(String content, AiTokenUsage usage) {
-        this(content, usage, null);
+        this(content, usage, null, false);
     }
 }

@@ -702,7 +702,7 @@ public class GlobalSettings {
     @XmlElement
     private String snippetInputHardeningOptions;
 
-    /** Default for the generated KORTTY_MAX_FILE_SIZE variable, in MB. Null/absent = 10 (clamped 1..1024). */
+    /** Default for the generated MAX_FILE_SIZE variable, in MB. Null/absent = 10; 0 = unlimited (clamped 0..1024). */
     @XmlElement
     private Integer snippetInputHardeningMaxFileSizeMb;
 
@@ -2899,9 +2899,9 @@ public class GlobalSettings {
         this.snippetInputHardeningOptions = snippetInputHardeningOptions;
     }
 
-    /** Default for the generated KORTTY_MAX_FILE_SIZE variable, in MB (10 when unset; clamped 1..1024). */
+    /** Default for the generated MAX_FILE_SIZE variable, in MB (10 when unset; 0 = unlimited; clamped 0..1024). */
     public int getSnippetInputHardeningMaxFileSizeMb() {
-        if (snippetInputHardeningMaxFileSizeMb == null || snippetInputHardeningMaxFileSizeMb <= 0) {
+        if (snippetInputHardeningMaxFileSizeMb == null || snippetInputHardeningMaxFileSizeMb < 0) {
             return 10;
         }
         return Math.min(1024, snippetInputHardeningMaxFileSizeMb);
@@ -2912,7 +2912,7 @@ public class GlobalSettings {
             this.snippetInputHardeningMaxFileSizeMb = 10;
             return;
         }
-        this.snippetInputHardeningMaxFileSizeMb = Math.max(1, Math.min(1024, snippetInputHardeningMaxFileSizeMb));
+        this.snippetInputHardeningMaxFileSizeMb = Math.max(0, Math.min(1024, snippetInputHardeningMaxFileSizeMb));
     }
 
     public String getSelectedSnippetEditorProfileId() { return selectedSnippetEditorProfileId; }

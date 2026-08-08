@@ -5,8 +5,11 @@ import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Adds enabled user-defined AI skills to system prompts.
@@ -98,6 +101,53 @@ public final class AiSkillPromptSupport {
                 BuiltinAiSkillSupport.effectiveSkills(settings.getAiSkills()),
                 assignedConnectionSkillIds),
             pinnedSkillIds);
+    }
+
+    /**
+     * Creates support for the snippet editor's explicit skill picker. Only skills selected in the
+     * picker and skills assigned to the active connection are available; global auto-detection is
+     * deliberately disabled. An empty picker selection therefore contributes no normal skills.
+     */
+    public static AiSkillPromptSupport fromSettingsForSnippetSelection(
+        GlobalSettings settings,
+        Collection<String> selectedSnippetSkillIds,
+        Collection<String> assignedConnectionSkillIds) {
+
+        if (settings == null) {
+            return disabled();
+        }
+        Set<String> allowedSkillIds = normalizedIds(selectedSnippetSkillIds);
+        allowedSkillIds.addAll(normalizedIds(assignedConnectionSkillIds));
+        return new AiSkillPromptSupport(
+            settings.isAiSkillsEnabled(),
+            false,
+            filterSkillsById(
+                BuiltinAiSkillSupport.effectiveSkills(settings.getAiSkills()),
+                allowedSkillIds),
+            allowedSkillIds);
+    }
+
+    private static Set<String> normalizedIds(Collection<String> skillIds) {
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String skillId : skillIds != null ? skillIds : List.<String>of()) {
+            if (skillId != null && !skillId.isBlank()) {
+                normalized.add(skillId.trim());
+            }
+        }
+        return normalized;
+    }
+
+    private static List<AiSkill> filterSkillsById(List<AiSkill> skills, Set<String> allowedSkillIds) {
+        if (skills == null || skills.isEmpty() || allowedSkillIds.isEmpty()) {
+            return List.of();
+        }
+        List<AiSkill> filtered = new ArrayList<>();
+        for (AiSkill skill : skills) {
+            if (skill != null && skill.getId() != null && allowedSkillIds.contains(skill.getId())) {
+                filtered.add(skill);
+            }
+        }
+        return filtered;
     }
 
     private static List<AiSkill> filterConnectionSkills(

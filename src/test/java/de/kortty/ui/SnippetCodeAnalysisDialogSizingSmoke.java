@@ -167,7 +167,7 @@ public final class SnippetCodeAnalysisDialogSizingSmoke {
                 de.kortty.core.SnippetDiagramSupport.buildFallbackLogicalStructureMermaid("print 'x';\n", "perl"),
                 "print 'x';\n", List.of()));
         return new SnippetCodeAnalysisDialog(
-            null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { }, null);
+            null, "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, null);
     }
 
     private static Button applyButton(SnippetCodeAnalysisDialog dialog) {

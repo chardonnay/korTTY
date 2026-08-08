@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiModelSelectionMode;
+import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
@@ -29,6 +30,7 @@ class LocalLmModelResolverTest {
         assertThat(LocalLmModelResolver.canResolve("http://localhost:1234/api/v1/chat")).isTrue();
         assertThat(LocalLmModelResolver.canResolve("http://127.0.0.1:1234/v1/chat/completions")).isTrue();
         assertThat(LocalLmModelResolver.canResolve("http://127.0.0.1:1234")).isTrue();
+        assertThat(LocalLmModelResolver.canResolve("http://127.0.0.1:1234/v1")).isTrue();
         assertThat(LocalLmModelResolver.isLocalLmStudioBaseUrl("http://127.0.0.1:1234/")).isTrue();
         assertThat(AiServiceFactory.canAutoResolveLocalModel("http://127.0.0.1:1234/v1")).isTrue();
         assertThat(AiServiceFactory.canAutoResolveLocalModel("http://127.0.0.1:1234")).isTrue();
@@ -83,6 +85,126 @@ class LocalLmModelResolverTest {
             client);
 
         assertThat(models).containsExactly("qwen");
+    }
+
+    @Test
+    void loadsExactLmStudioReasoningCapabilitiesInsteadOfCoercedProbeValues() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
+            {
+              "models": [
+                {
+                  "type": "llm",
+                  "key": "qwen/qwen3.6-35b-a3b",
+                  "capabilities": {
+                    "reasoning": {"allowed_options": ["off", "on"], "default": "on"}
+                  },
+                  "loaded_instances": [{"id": "qwen/qwen3.6-35b-a3b"}]
+                },
+                {
+                  "type": "llm",
+                  "key": "openai/gpt-oss-20b",
+                  "capabilities": {
+                    "reasoning": {"allowed_options": ["low", "medium", "high"], "default": "low"}
+                  },
+                  "loaded_instances": []
+                }
+              ]
+            }
+            """);
+
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.loadLmStudioReasoningEfforts(
+                "http://10.211.55.2:1234/v1/chat/completions",
+                "qwen/qwen3.6-35b-a3b",
+                "secret-token",
+                client);
+
+        assertThat(efforts).hasValue(List.of(AiReasoningEffort.NONE));
+        assertThat(client.requests()).hasSize(1);
+        HttpRequest request = client.requests().get(0);
+        assertThat(request.uri().toString()).isEqualTo("http://10.211.55.2:1234/api/v1/models");
+        assertThat(request.headers().firstValue("Authorization").orElseThrow()).isEqualTo("Bearer secret-token");
+    }
+
+    @Test
+    void mapsGradedLmStudioReasoningCapabilitiesAndIgnoresNativeOnToken() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "openai/gpt-oss-20b",
+                    "capabilities": {
+                      "reasoning": {"allowed_options": ["low", "medium", "high", "on"]}
+                    },
+                    "loaded_instances": []
+                  }]
+                }
+                """, "openai/gpt-oss-20b");
+
+        assertThat(efforts).hasValue(List.of(
+            AiReasoningEffort.LOW,
+            AiReasoningEffort.MEDIUM,
+            AiReasoningEffort.HIGH));
+    }
+
+    @Test
+    void autoReasoningCapabilitiesFollowTheActuallyLoadedModel() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [
+                    {
+                      "type": "llm",
+                      "key": "old-preference",
+                      "capabilities": {"reasoning": {"allowed_options": ["low"]}},
+                      "loaded_instances": []
+                    },
+                    {
+                      "type": "llm",
+                      "key": "currently-loaded",
+                      "capabilities": {"reasoning": {"allowed_options": ["off", "on"]}},
+                      "loaded_instances": [{"id": "currently-loaded"}]
+                    }
+                  ]
+                }
+                """, "old-preference", AiModelSelectionMode.AUTO);
+
+        assertThat(efforts).hasValue(List.of(AiReasoningEffort.NONE));
+    }
+
+    @Test
+    void manualReasoningCapabilitiesAcceptALoadedInstanceAlias() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "qwen/base",
+                    "capabilities": {"reasoning": {"allowed_options": ["off", "on"]}},
+                    "loaded_instances": [{"id": "my-qwen"}]
+                  }]
+                }
+                """, "my-qwen", AiModelSelectionMode.MANUAL);
+
+        assertThat(efforts).hasValue(List.of(AiReasoningEffort.NONE));
+    }
+
+    @Test
+    void defaultModelSelectionDoesNotGuessWhichCapabilitiesApply() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "loaded",
+                    "capabilities": {"reasoning": {"allowed_options": ["off", "on"]}},
+                    "loaded_instances": [{"id": "loaded"}]
+                  }]
+                }
+                """, null, AiModelSelectionMode.DEFAULT);
+
+        assertThat(efforts).isEmpty();
     }
 
     @Test

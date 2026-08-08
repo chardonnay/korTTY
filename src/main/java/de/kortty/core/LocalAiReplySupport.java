@@ -26,6 +26,12 @@ public final class LocalAiReplySupport {
             return result;
         }
         if (split.reasoningOnly()) {
+            if (result.outputTruncated()) {
+                String reasoning = result.reasoning() != null && !result.reasoning().isBlank()
+                    ? result.reasoning() + "\n\n" + split.reasoning()
+                    : split.reasoning();
+                return new AiExecutionResult("", result.usage(), reasoning, true);
+            }
             throw new ReasoningOnlyReplyException(
                 "The local AI model spent its whole reply on reasoning and produced no answer. "
                     + "Retry, shorten the input, or raise the model's context size.");
@@ -33,7 +39,11 @@ public final class LocalAiReplySupport {
         String reasoning = result.reasoning() != null && !result.reasoning().isBlank()
             ? result.reasoning() + "\n\n" + split.reasoning()
             : split.reasoning();
-        return new AiExecutionResult(split.content(), result.usage(), reasoning.isBlank() ? null : reasoning);
+        return new AiExecutionResult(
+            split.content(),
+            result.usage(),
+            reasoning.isBlank() ? null : reasoning,
+            result.outputTruncated());
     }
 
     /** Thrown when a local reply contained only chain-of-thought and no answer text. */

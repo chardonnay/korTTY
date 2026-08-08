@@ -32,7 +32,9 @@ class GlobalSettingsInputHardeningTest {
     void maxFileSizeSetterClampsIntoTheAllowedRange() {
         GlobalSettings settings = new GlobalSettings();
         settings.setSnippetInputHardeningMaxFileSizeMb(0);
-        assertThat(settings.getSnippetInputHardeningMaxFileSizeMb()).isEqualTo(1);
+        assertThat(settings.getSnippetInputHardeningMaxFileSizeMb()).isEqualTo(0);
+        settings.setSnippetInputHardeningMaxFileSizeMb(-1);
+        assertThat(settings.getSnippetInputHardeningMaxFileSizeMb()).isEqualTo(0);
         settings.setSnippetInputHardeningMaxFileSizeMb(4096);
         assertThat(settings.getSnippetInputHardeningMaxFileSizeMb()).isEqualTo(1024);
         settings.setSnippetInputHardeningMaxFileSizeMb(25);

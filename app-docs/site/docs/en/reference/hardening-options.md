@@ -19,14 +19,16 @@ The **Hardening options** panel shows up in these places:
 |-------|--------------|--------------|
 | **Terminal → Generate Workflow Script** (the *Workflow* button after an agent run) | Collapsible *Hardening options* panel (collapsed by default) | You click *Generate* |
 | **AI Swarm → Generate multi-server workflow** | No panel — the default all-on selection is applied automatically | You generate the multi-server script |
-| **Snippet editor → AI Code → Improve robustness** | Options panel with all boxes ticked | You confirm the dialog |
-| **Snippet editor → AI Code → Custom improvement…** | Options panel plus a free-text instruction field | You confirm the dialog |
+| **Snippet editor → AI Code → Improve robustness** | Options panel with all boxes ticked | You confirm the dialog; KorTTY rewrites the complete snippet when any hardening rule is active |
+| **Snippet editor → AI Code → Custom improvement…** | Options panel plus a free-text instruction field | You confirm the dialog; KorTTY rewrites the complete snippet when any hardening rule is active |
 | **Snippet editor → AI Code → Full code analysis** | Collapsible *Hardening options* panel at the bottom of the window, with a live **(N)** count of ticked options in its title; korTTY remembers whether you left it open or closed | You click *Apply selected* |
 
 !!! note "Not shown for every action"
     *Improve readability* and *Improve performance* deliberately do **not** show hardening options — those actions are meant to stay close to the original code. Hardening options appear only where adding robustness is the point: *Improve robustness*, *Custom improvement*, *Full code analysis*, and the two workflow-script generators.
 
 Every option is **ticked by default**. Untick the ones you do not want. An unticked option contributes nothing to the prompt.
+
+In **Improve robustness** and **Custom improvement**, active hardening rules are applied to the **complete snippet**, even if you marked only one region. This is required because options such as strict mode, a configuration block, `--help`, and a final summary must change the prologue or epilogue rather than only the selected lines. If you use **Clear** and leave Input hardening off, the ordinary improvement remains limited to the selected region. The complete-snippet result is still shown in the before/after review and is rejected if the AI abbreviates unchanged code with an omission marker.
 
 Below the options, three buttons help you manage the selection:
 
@@ -36,7 +38,7 @@ Below the options, three buttons help you manage the selection:
 
 ## How they are applied
 
-Each ticked option becomes exactly one instruction line that KorTTY appends to the request sent to the AI (under *Apply these hardening techniques:* in the snippet editor, or *ADDITIONAL REQUIREMENTS:* in the workflow generator). The AI is then asked to honour those rules while producing the script.
+Each ticked option becomes one authoritative hardening rule that KorTTY appends to the request sent to the AI (under *Apply these hardening techniques:* in the snippet editor, or *ADDITIONAL REQUIREMENTS:* in the workflow generator). In the Full code analysis apply flow, every selected rule is additionally assigned its own mandatory identifier: the AI returns the identifiers it completed in one compact list, and korTTY rejects the whole response if any identifier is missing. Explicit CLI and guard literals such as `--dry-run`, `--yes`, `--help`, and `--verbose` must also be present when the corresponding options are selected. Workflow generation also adds the corresponding target-language idioms — for example the Bash spelling of strict mode — only while that option is selected. Unticking an option removes both its rule and its option-specific language idioms; **Clear** therefore sends no hardening behaviour, apart from neutral requirements needed to produce valid code in the chosen language.
 
 The wording of each rule **adapts to the target language**:
 

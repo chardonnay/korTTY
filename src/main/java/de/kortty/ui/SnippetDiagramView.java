@@ -104,6 +104,7 @@ final class SnippetDiagramView extends VBox {
     private double baseHeight = 600.0;
     private double zoomFactor = 1.0;
     private String backgroundColor;
+    private CompletableFuture<DiagramSource> sourceFuture;
     private CompletableFuture<MermaidRenderService.RenderResult> renderFuture;
     private boolean loadedOnce;
 
@@ -149,6 +150,7 @@ final class SnippetDiagramView extends VBox {
             return;
         }
         long generation = ++sourceGeneration;
+        cancelSource();
         loadedOnce = true;
         cancelRender();
         renderedSvg = null;
@@ -168,7 +170,11 @@ final class SnippetDiagramView extends VBox {
             showError(I18n.get("snippets.ai.analysis.diagram.unavailable"));
             return;
         }
+        sourceFuture = future;
         future.whenComplete((source, error) -> Platform.runLater(() -> {
+            if (sourceFuture == future) {
+                sourceFuture = null;
+            }
             if (!disposed && generation == sourceGeneration) {
                 onSourceReady(source, error);
             }
@@ -183,6 +189,7 @@ final class SnippetDiagramView extends VBox {
 
     void clear() {
         sourceGeneration++;
+        cancelSource();
         cancelRender();
         currentMermaid = null;
         currentContent = "";
@@ -247,6 +254,13 @@ final class SnippetDiagramView extends VBox {
                 onRendered(result, resetZoom);
             }
         }));
+    }
+
+    private void cancelSource() {
+        if (sourceFuture != null) {
+            sourceFuture.cancel(true);
+            sourceFuture = null;
+        }
     }
 
     private void onRendered(MermaidRenderService.RenderResult result, boolean resetZoom) {

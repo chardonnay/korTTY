@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.model.AiModelSelectionMode;
+import de.kortty.model.AiReasoningEffort;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Resolves loaded LM Studio LLMs for local endpoints.
@@ -93,6 +95,59 @@ public final class LocalLmModelResolver {
             return List.of();
         }
         return fetchLoadedLlmModelKeys(apiUrl, apiKey, httpClient);
+    }
+
+    /**
+     * Reads exact LM Studio reasoning capabilities when the configured endpoint exposes its native
+     * model metadata. An empty optional means the endpoint is not LM Studio-compatible or did not
+     * publish reasoning metadata; callers can then fall back to active compatibility probes.
+     */
+    static Optional<List<AiReasoningEffort>> loadLmStudioReasoningEfforts(
+        String apiUrl,
+        String configuredModel,
+        AiModelSelectionMode selectionMode,
+        String apiKey,
+        HttpClient httpClient) throws IOException, InterruptedException {
+
+        URI chatUri = parseUri(apiUrl);
+        if (chatUri == null || !isHttpUri(chatUri) || !isSupportedChatEndpoint(chatUri.getPath())) {
+            return Optional.empty();
+        }
+        HttpClient client = httpClient != null
+            ? httpClient
+            : HttpClient.newBuilder().connectTimeout(MODEL_LIST_TIMEOUT).build();
+        URI modelsUri = buildLmStudioModelsUri(chatUri);
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+            .uri(modelsUri)
+            .timeout(MODEL_LIST_TIMEOUT)
+            .GET();
+        String normalizedApiKey = trimToNull(apiKey);
+        if (normalizedApiKey != null) {
+            requestBuilder.header("Authorization", "Bearer " + normalizedApiKey);
+        }
+        HttpResponse<String> response;
+        try (AiPowerManagementScope ignored = AiPowerManagementScope.open()) {
+            response = client.send(
+                requestBuilder.build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        }
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            return Optional.empty();
+        }
+        return parseLmStudioReasoningEfforts(response.body(), configuredModel, selectionMode);
+    }
+
+    static Optional<List<AiReasoningEffort>> loadLmStudioReasoningEfforts(
+        String apiUrl,
+        String configuredModel,
+        String apiKey,
+        HttpClient httpClient) throws IOException, InterruptedException {
+
+        AiModelSelectionMode selectionMode = trimToNull(configuredModel) != null
+            ? AiModelSelectionMode.MANUAL
+            : AiModelSelectionMode.AUTO;
+        return loadLmStudioReasoningEfforts(
+            apiUrl, configuredModel, selectionMode, apiKey, httpClient);
     }
 
     static String resolve(
@@ -223,7 +278,7 @@ public final class LocalLmModelResolver {
         } catch (RuntimeException ex) {
             throw new IOException("Could not parse local LM Studio model list from " + sourceUri + ".", ex);
         }
-        JsonArray models = root.getAsJsonArray("models");
+        JsonArray models = arrayField(root, "models");
         if (models == null || models.isEmpty()) {
             throw new IllegalStateException(
                 "No local LM Studio models were reported by "
@@ -285,6 +340,138 @@ public final class LocalLmModelResolver {
         return modelIds;
     }
 
+    static Optional<List<AiReasoningEffort>> parseLmStudioReasoningEfforts(
+        String responseBody,
+        String configuredModel) {
+
+        AiModelSelectionMode selectionMode = trimToNull(configuredModel) != null
+            ? AiModelSelectionMode.MANUAL
+            : AiModelSelectionMode.AUTO;
+        return parseLmStudioReasoningEfforts(responseBody, configuredModel, selectionMode);
+    }
+
+    static Optional<List<AiReasoningEffort>> parseLmStudioReasoningEfforts(
+        String responseBody,
+        String configuredModel,
+        AiModelSelectionMode selectionMode) {
+
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(responseBody).getAsJsonObject();
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+        JsonArray models = arrayField(root, "models");
+        if (models == null || models.isEmpty()) {
+            return Optional.empty();
+        }
+        AiModelSelectionMode effectiveMode = selectionMode != null
+            ? selectionMode
+            : AiModelSelectionMode.AUTO;
+        if (effectiveMode == AiModelSelectionMode.DEFAULT) {
+            // Omitting the model lets the provider choose its default; the metadata response does
+            // not identify which model that request will use, so active probes remain the safe path.
+            return Optional.empty();
+        }
+        String requestedModel = trimToNull(configuredModel);
+        List<JsonObject> llms = new ArrayList<>();
+        List<JsonObject> loadedLlms = new ArrayList<>();
+        for (JsonElement element : models) {
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            JsonObject candidate = element.getAsJsonObject();
+            if (!"llm".equals(stringField(candidate, "type"))) {
+                continue;
+            }
+            llms.add(candidate);
+            JsonArray loadedInstances = arrayField(candidate, "loaded_instances");
+            if (loadedInstances != null && !loadedInstances.isEmpty()) {
+                loadedLlms.add(candidate);
+            }
+        }
+        JsonObject selected = null;
+        if (effectiveMode == AiModelSelectionMode.MANUAL) {
+            if (requestedModel == null) {
+                return Optional.empty();
+            }
+            for (JsonObject candidate : llms) {
+                if (matchesModelReference(candidate, requestedModel)) {
+                    selected = candidate;
+                    break;
+                }
+            }
+        } else if (loadedLlms.size() == 1) {
+            // AUTO uses the sole loaded LLM even when the persisted preference names an older,
+            // unloaded model. This mirrors selectAutoModel(), which resolves every real request.
+            selected = loadedLlms.get(0);
+        } else if (requestedModel != null) {
+            for (JsonObject candidate : loadedLlms) {
+                if (requestedModel.equals(stringField(candidate, "key"))) {
+                    selected = candidate;
+                    break;
+                }
+            }
+        }
+        if (selected == null) {
+            return Optional.empty();
+        }
+        JsonObject capabilities = objectField(selected, "capabilities");
+        JsonObject reasoning = objectField(capabilities, "reasoning");
+        JsonArray allowedOptions = arrayField(reasoning, "allowed_options");
+        if (allowedOptions == null) {
+            return Optional.empty();
+        }
+        List<AiReasoningEffort> efforts = new ArrayList<>();
+        for (JsonElement option : allowedOptions) {
+            if (option == null || !option.isJsonPrimitive()) {
+                continue;
+            }
+            AiReasoningEffort effort = mapLmStudioReasoningOption(option.getAsString());
+            if (effort != null && !efforts.contains(effort)) {
+                efforts.add(effort);
+            }
+        }
+        return Optional.of(List.copyOf(efforts));
+    }
+
+    private static boolean matchesModelReference(JsonObject model, String reference) {
+        if (reference == null || model == null) {
+            return false;
+        }
+        if (reference.equals(stringField(model, "key"))) {
+            return true;
+        }
+        JsonArray loadedInstances = arrayField(model, "loaded_instances");
+        if (loadedInstances == null) {
+            return false;
+        }
+        for (JsonElement instance : loadedInstances) {
+            if (instance != null
+                && instance.isJsonObject()
+                && reference.equals(stringField(instance.getAsJsonObject(), "id"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static AiReasoningEffort mapLmStudioReasoningOption(String option) {
+        String normalized = option != null ? option.trim().toLowerCase(Locale.ROOT) : "";
+        return switch (normalized) {
+            // LM Studio's OpenAI-compatible endpoint maps the standard explicit-off value `none`
+            // to a binary model's native `off` capability. Native `on` is represented by omitting
+            // reasoning_effort and using the model's advertised default, not by inventing an API value.
+            case "off", "none" -> AiReasoningEffort.NONE;
+            case "minimal" -> AiReasoningEffort.MINIMAL;
+            case "low" -> AiReasoningEffort.LOW;
+            case "medium" -> AiReasoningEffort.MEDIUM;
+            case "high" -> AiReasoningEffort.HIGH;
+            case "xhigh" -> AiReasoningEffort.XHIGH;
+            default -> null;
+        };
+    }
+
     private static URI buildLmStudioModelsUri(URI chatUri) {
         try {
             return new URI(
@@ -326,6 +513,7 @@ public final class LocalLmModelResolver {
         String normalizedPath = trimTrailingSlashes(path);
         return normalizedPath.isEmpty()
             || LM_STUDIO_CHAT_PATH.equals(normalizedPath)
+            || OPENAI_V1_PATH.equals(normalizedPath)
             || OPENAI_CHAT_COMPLETIONS_PATH.equals(normalizedPath);
     }
 
@@ -385,6 +573,16 @@ public final class LocalLmModelResolver {
     private static String stringField(JsonObject object, String name) {
         JsonElement value = object != null ? object.get(name) : null;
         return value != null && value.isJsonPrimitive() ? value.getAsString() : null;
+    }
+
+    private static JsonObject objectField(JsonObject object, String name) {
+        JsonElement value = object != null ? object.get(name) : null;
+        return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
+    }
+
+    private static JsonArray arrayField(JsonObject object, String name) {
+        JsonElement value = object != null ? object.get(name) : null;
+        return value != null && value.isJsonArray() ? value.getAsJsonArray() : null;
     }
 
     private static URI parseUri(String value) {

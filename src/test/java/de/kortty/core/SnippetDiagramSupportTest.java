@@ -268,6 +268,173 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void validationRequiresEveryNodeOnAStartToStopPath() {
+        String unreachable = """
+            flowchart TD
+                start_1(["Start"])
+                work_1["Run"]
+                orphan_1["Orphan"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                orphan_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1,orphan_1 work
+            """;
+        String deadCycle = """
+            flowchart TD
+                start_1(["Start"])
+                decision_1{"Continue?"}
+                dead_1["Enter dead path"]
+                dead_2["Stay in dead path"]
+                stop_1(["Stop"])
+                start_1 --> decision_1
+                decision_1 -->|yes| stop_1
+                decision_1 -->|no| dead_1
+                dead_1 --> dead_2
+                dead_2 --> dead_1
+                class start_1,stop_1 setup
+                class decision_1,dead_1,dead_2 work
+            """;
+
+        assertThat(SnippetDiagramSupport.validateMermaid(unreachable).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(unreachable).message())
+            .contains("reachable from start_1");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(deadCycle).message())
+            .contains("path to stop_1");
+    }
+
+    @Test
+    void validationRejectsBackwardTerminalsAndIncompleteDecisions() {
+        String backwardStop = VALID_FLOWCHART + "\n    stop_1 --> work_1";
+        String incomingStart = VALID_FLOWCHART + "\n    work_1 --> start_1";
+        String incompleteDecision = VALID_FLOWCHART.replace(
+            "    decision_1 -->|no| failure_1\n", "");
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(backwardStop).message())
+            .contains("stop_1 must not have an outgoing edge");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(incomingStart).message())
+            .contains("start_1 must not have an incoming edge");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(incompleteDecision).message())
+            .contains("two distinctly labeled outgoing paths");
+    }
+
+    @Test
+    void validationAcceptsConnectedLoopWithExplicitExit() {
+        String loop = """
+            flowchart TD
+                start_1(["Start"])
+                decision_1{"More items?"}
+                work_1["Process next item"]
+                stop_1(["Stop"])
+                start_1 --> decision_1
+                decision_1 -->|yes| work_1
+                decision_1 -->|no| stop_1
+                work_1 --> decision_1
+                class start_1,stop_1 setup
+                class decision_1,work_1 work
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(loop).valid()).isTrue();
+    }
+
+    @Test
+    void persistedRestrictedDecisionWithoutLabelsRemainsRenderable() {
+        String legacy = """
+            flowchart TD
+                start_1(["Start"])
+                decision_1{"Ready?"}
+                work_1["Run"]
+                failure_1["Skip"]
+                stop_1(["Stop"])
+                start_1 --> decision_1
+                decision_1 --> work_1
+                decision_1 --> failure_1
+                work_1 --> stop_1
+                failure_1 --> stop_1
+                class start_1,stop_1 setup
+                class decision_1,work_1 work
+                class failure_1 failure
+            """;
+
+        assertThat(SnippetDiagramSupport.validateMermaid(legacy).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.isRenderableMermaid(legacy)).isTrue();
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(legacy).message())
+            .contains("two distinctly labeled outgoing paths");
+    }
+
+    @Test
+    void generatedValidationAcceptsLocalizedDecisionEdgeLabels() {
+        String localized = VALID_FLOWCHART
+            .replace("|yes|", "|ja|")
+            .replace("|no|", "|nein|");
+        List<SnippetDiagramSupport.SourceCodeReference> references = List.of(
+            new SnippetDiagramSupport.SourceCodeReference("setup_1", "Read configured values", 1, 1),
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run main snippet logic", 2, 2),
+            new SnippetDiagramSupport.SourceCodeReference("decision_1", "Main command succeeds?", 3, 3),
+            new SnippetDiagramSupport.SourceCodeReference("success_1", "Send success notification", 4, 4),
+            new SnippetDiagramSupport.SourceCodeReference("failure_1", "Send failure notification", 5, 5));
+        String content = "setup\nrun\ndecide\nsuccess\nfailure";
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(localized).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            localized, content, references, "de").valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            VALID_FLOWCHART, content, references, "de").message())
+            .contains("localized yes/no labels for language de");
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            localized.replace("|ja|", "|links|").replace("|nein|", "|rechts|"),
+            content,
+            references,
+            "de").message()).contains("localized yes/no labels for language de");
+    }
+
+    @Test
+    void generatedValidationRejectsOverDetailedStatementChain() {
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < 13; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_13 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    class work_").append(index).append(" work\n");
+        }
+
+        assertThat(SnippetDiagramSupport.validateMermaid(mermaid.toString()).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(mermaid.toString()).message())
+            .contains("at most 12 non-terminal nodes");
+    }
+
+    @Test
+    void freshSnippetDiagramRequiresCompleteBoundedSourceMapping() {
+        String linear = """
+            flowchart TD
+                start_1(["Start"])
+                work_1["Run"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1 work
+            """;
+        List<SnippetDiagramSupport.SourceCodeReference> complete = List.of(
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run", 1, 1));
+        List<SnippetDiagramSupport.SourceCodeReference> outOfBounds = List.of(
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run", 3, 3));
+
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            linear, "run\n", complete, "en").valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            linear, "run\n", List.of(), "en").message()).contains("one valid source reference");
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            linear, "run\n", outOfBounds, "en").message()).contains("one valid source reference");
+    }
+
+    @Test
     void diagramColorModeAndHexColorRemainStableViewerHelpers() {
         assertThat(SnippetDiagramSupport.normalizeHexColor("#f4f8ff", "#FFFFFF"))
             .isEqualTo("#F4F8FF");

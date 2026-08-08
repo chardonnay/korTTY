@@ -8,6 +8,7 @@ import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.regex.Pattern;
 public final class AiSkillRelevanceSelector {
 
     private static final int LOCAL_MATCH_THRESHOLD = 4;
+    private static final int MAX_AUTOMATIC_SKILLS = 2;
     private static final Pattern WORD_SPLIT = Pattern.compile("[^\\p{L}\\p{N}#+._-]+");
     private static final Set<String> STOP_WORDS = Set.of(
         "about", "after", "also", "and", "are", "ask", "but", "can", "code", "das", "der", "die", "ein", "eine",
@@ -83,21 +85,39 @@ public final class AiSkillRelevanceSelector {
             return withPinnedSkills(candidates, pinned);
         }
 
-        LocalSelection localSelection = selectLocal(context, candidates);
+        List<AiSkill> automaticCandidates = withoutPinnedSkills(candidates);
+        if (automaticCandidates.isEmpty()) {
+            return pinned;
+        }
+        LocalSelection localSelection = selectLocal(context, automaticCandidates);
         if (!shouldUseHybrid(localSelection) || classifier == null) {
             return withPinnedSkills(localSelection.skills(), pinned);
         }
 
         try {
-            List<String> selectedIds = classifier.classify(context, metadataFor(candidates));
-            List<AiSkill> hybridSelection = byClassifierIds(candidates, selectedIds);
+            List<String> selectedIds = classifier.classify(context, metadataFor(automaticCandidates));
+            List<AiSkill> hybridSelection = byClassifierIds(automaticCandidates, selectedIds);
             if (!hybridSelection.isEmpty()) {
-                return withPinnedSkills(hybridSelection, pinned);
+                return withPinnedSkills(limitAutomaticSelection(context, hybridSelection), pinned);
             }
         } catch (Exception ignored) {
             // Hybrid classification must not block the main AI request.
         }
         return withPinnedSkills(localSelection.skills(), pinned);
+    }
+
+    /** Pinned skills are added after automatic selection and therefore never consume its budget. */
+    private List<AiSkill> withoutPinnedSkills(List<AiSkill> candidates) {
+        if (pinnedSkillIds.isEmpty()) {
+            return candidates;
+        }
+        List<AiSkill> automatic = new ArrayList<>();
+        for (AiSkill skill : candidates) {
+            if (skill.getId() == null || !pinnedSkillIds.contains(skill.getId())) {
+                automatic.add(skill);
+            }
+        }
+        return List.copyOf(automatic);
     }
 
     /**
@@ -212,25 +232,48 @@ public final class AiSkillRelevanceSelector {
     }
 
     private LocalSelection selectLocal(SelectionContext context, List<AiSkill> candidates) {
+        return highestScoring(context, candidates, true);
+    }
+
+    private List<AiSkill> limitAutomaticSelection(SelectionContext context, List<AiSkill> candidates) {
+        return highestScoring(context, candidates, false).skills();
+    }
+
+    private LocalSelection highestScoring(
+        SelectionContext context,
+        List<AiSkill> candidates,
+        boolean requireLocalMatch) {
+
         String relevanceText = normalize(context != null ? context.relevanceText() : "");
         Set<String> contextTerms = terms(relevanceText);
-        List<AiSkill> selected = new ArrayList<>();
-        Map<String, Integer> scores = new LinkedHashMap<>();
-        for (AiSkill skill : candidates) {
+        List<ScoredSkill> matches = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            AiSkill skill = candidates.get(index);
             int score = score(skill, relevanceText, contextTerms);
-            if (score >= LOCAL_MATCH_THRESHOLD) {
-                selected.add(skill);
-                scores.put(skill.getId(), score);
+            if (!requireLocalMatch || score >= LOCAL_MATCH_THRESHOLD) {
+                matches.add(new ScoredSkill(skill, score, index));
             }
         }
-        return new LocalSelection(List.copyOf(selected), scores);
+        matches.sort(Comparator.comparingInt(ScoredSkill::score)
+            .reversed()
+            .thenComparingInt(ScoredSkill::catalogIndex));
+
+        List<AiSkill> selected = new ArrayList<>();
+        Map<String, Integer> scores = new LinkedHashMap<>();
+        int selectionSize = Math.min(MAX_AUTOMATIC_SKILLS, matches.size());
+        for (int index = 0; index < selectionSize; index++) {
+            ScoredSkill match = matches.get(index);
+            selected.add(match.skill());
+            scores.put(match.skill().getId(), match.score());
+        }
+        return new LocalSelection(List.copyOf(selected), scores, matches.size());
     }
 
     private boolean shouldUseHybrid(LocalSelection selection) {
-        if (selection.skills().isEmpty()) {
+        if (selection.matchingSkillCount() < 2) {
             return true;
         }
-        if (selection.skills().size() < 2) {
+        if (selection.matchingSkillCount() > 2) {
             return false;
         }
         int high = 0;
@@ -427,6 +470,9 @@ public final class AiSkillRelevanceSelector {
     public record SkillMetadata(String id, String name, String description, List<String> tags, String target) {
     }
 
-    private record LocalSelection(List<AiSkill> skills, Map<String, Integer> scores) {
+    private record LocalSelection(List<AiSkill> skills, Map<String, Integer> scores, int matchingSkillCount) {
+    }
+
+    private record ScoredSkill(AiSkill skill, int score, int catalogIndex) {
     }
 }

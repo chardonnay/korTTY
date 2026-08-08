@@ -7,6 +7,7 @@ import ch.qos.logback.core.read.ListAppender;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import javafx.animation.KeyFrame;
@@ -20,12 +21,17 @@ import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
@@ -145,6 +151,7 @@ public final class SnippetAiDialogsSmoke {
             () -> CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
                 de.kortty.core.SnippetDiagramSupport.buildFallbackLogicalStructureMermaid("print 'x';\n", "perl"),
                 "print 'x';\n", java.util.List.of()));
+        verifyPendingDiagramSourcesAreCancelled();
         List<de.kortty.model.AiSkill> analysisSkills = List.of(
             smokeSkill("skill-bash", "Bash hardening", "Adds strict mode, traps and safe expansions"),
             smokeSkill("skill-posix", "POSIX portability", "Prefers POSIX-compliant constructs"));
@@ -154,13 +161,16 @@ public final class SnippetAiDialogsSmoke {
             true,
             ids -> { });
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
-            null, "server_monitor_stats.pl", analysis, diagramLoader, null, id -> { }, skillContext);
+            null, "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, skillContext);
         // The dialog's content is wrapped in a ScrollPane so a short window cannot push the button
         // bar off screen. A ScrollPane exposes its content through its skin, which only exists after
         // a layout pass — realize the pane before walking it for controls.
         realize(analysisDialog.getDialogPane());
         AtomicBoolean analysisSelectionVerified = new AtomicBoolean();
         CheckBox selectAllImprovements = selectAllImprovementsCheckBox(analysisDialog.getDialogPane());
+        Label profileUsing = nodeById(
+            analysisDialog.getDialogPane(), "snippet-analysis-profile-using", Label.class);
+        verifySelectAllImprovementPlacement(selectAllImprovements, profileUsing);
         WebEngine analysisEngine = findingsWebView(analysisDialog).getEngine();
         onLoadSuccess(analysisEngine, () -> {
             try {
@@ -188,16 +198,48 @@ public final class SnippetAiDialogsSmoke {
         if (!hasApply) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the Apply-selected button");
         }
+        HardeningOptionsSelector hardeningSelector = field(
+            analysisDialog, "hardeningSelector", HardeningOptionsSelector.class);
+        if (!hardeningSelector.selectedOptions().equals(
+                de.kortty.core.WorkflowScriptSupport.HardeningOption.defaults())) {
+            throw new AssertionError("Hardening selector did not expose the all-on default option set");
+        }
+        Button clearHardening = findNodes(hardeningSelector, Button.class).stream()
+            .map(Button.class::cast)
+            .filter(button -> I18n.get("ai.workflow.options.clear").equals(button.getText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Hardening selector is missing Clear"));
+        Button allHardening = findNodes(hardeningSelector, Button.class).stream()
+            .map(Button.class::cast)
+            .filter(button -> I18n.get("ai.workflow.options.all").equals(button.getText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Hardening selector is missing All"));
+        clearHardening.fire();
+        if (!hardeningSelector.selectedOptions().isEmpty() || hardeningSelector.selectedCount() != 0) {
+            throw new AssertionError("Hardening Clear did not remove the effective option set");
+        }
+        allHardening.fire();
+        if (!hardeningSelector.selectedOptions().equals(
+                de.kortty.core.WorkflowScriptSupport.HardeningOption.defaults())) {
+            throw new AssertionError("Hardening All did not restore every effective option");
+        }
 
         // Dependencies alone must not enable the JavaFX bulk selector: it controls improvements only.
         SnippetAiResponseSupport.ScriptAnalysis dependenciesOnly = new SnippetAiResponseSupport.ScriptAnalysis(
             "Calls curl.", analysis.dependencies(), List.of());
         SnippetCodeAnalysisDialog dependenciesOnlyDialog = new SnippetCodeAnalysisDialog(
-            null, "dependency_only.sh", dependenciesOnly, diagramLoader, null, null, null);
+            null, "dependency_only.yml", "yaml", dependenciesOnly, diagramLoader, null, null, null);
         realize(dependenciesOnlyDialog.getDialogPane());
         CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyDialog.getDialogPane());
         if (!dependenciesOnlyBulkCheck.isDisable()) {
             throw new AssertionError("Select-all-improvements must be disabled when only dependencies exist");
+        }
+
+        InputHardeningSelector declarativeSelector = field(
+            dependenciesOnlyDialog, "inputHardeningSelector", InputHardeningSelector.class);
+        if (declarativeSelector.isSupported() || !declarativeSelector.isDisable()
+                || declarativeSelector.currentConfig().isEnabled()) {
+            throw new AssertionError("YAML analysis must disable input hardening instead of silently ignoring it");
         }
 
         // 3c) The AI text-language selector is independent from the snippet's code language. Drive the
@@ -261,10 +303,38 @@ public final class SnippetAiDialogsSmoke {
             } finally {
                 diffLogger.detachAppender(diffLog);
                 diffLogger.setLevel(previousLevel);
-                done.countDown();
+                // Closing the modal diff unwinds a nested JavaFX event loop and then disposes the
+                // analysis WebViews. Give macOS WebKit one pulse to release its native scenes before
+                // the harness calls Platform.exit(); immediate shutdown can crash in objc_msgSend.
+                PauseTransition cleanupPause = new PauseTransition(Duration.seconds(1));
+                cleanupPause.setOnFinished(cleanup -> done.countDown());
+                cleanupPause.play();
             }
         });
         pause.play();
+    }
+
+    /** Test-double futures prove Regenerate and close cancel superseded diagram-source work. */
+    private static void verifyPendingDiagramSourcesAreCancelled() {
+        List<CompletableFuture<SnippetDiagramView.DiagramSource>> requests = new ArrayList<>();
+        SnippetDiagramView view = new SnippetDiagramView(() -> {
+            CompletableFuture<SnippetDiagramView.DiagramSource> request = new CompletableFuture<>();
+            requests.add(request);
+            return request;
+        }, true);
+
+        view.reload();
+        CompletableFuture<SnippetDiagramView.DiagramSource> first = requests.get(0);
+        view.reload();
+        CompletableFuture<SnippetDiagramView.DiagramSource> second = requests.get(1);
+        if (!first.isCancelled()) {
+            throw new AssertionError("Regenerate did not cancel the superseded diagram source");
+        }
+
+        view.dispose();
+        if (!second.isCancelled()) {
+            throw new AssertionError("Closing the diagram view did not cancel its pending source");
+        }
     }
 
     /**
@@ -425,13 +495,18 @@ public final class SnippetAiDialogsSmoke {
             new SnippetAiResponseSupport.ScriptImprovement(
                 "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
                 "Quote the expansion.", 2);
+        SnippetAiResponseSupport.ScriptImprovement optimization =
+            new SnippetAiResponseSupport.ScriptImprovement(
+                "OPT-1", "optimization", "medium", "Avoid repeated parsing", "The value is parsed twice.",
+                "Parse the value once and reuse it.", 2);
         SnippetAiResponseSupport.ScriptAnalysis fullAnalysis =
             new SnippetAiResponseSupport.ScriptAnalysis(
-                "Prints one value.", List.of(), List.of(improvement));
+                "Prints one value.", List.of(), List.of(improvement, optimization));
         AtomicBoolean diagramProviderCalled = new AtomicBoolean();
         AtomicBoolean applyProviderCalled = new AtomicBoolean();
         AtomicBoolean applyClicked = new AtomicBoolean();
         AtomicBoolean previewShown = new AtomicBoolean();
+        AtomicBoolean autoCompletionProviderCalled = new AtomicBoolean();
         AtomicReference<Timeline> poller = new AtomicReference<>();
 
         SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
@@ -441,7 +516,12 @@ public final class SnippetAiDialogsSmoke {
             null,
             null,
             null,
-            null,
+            request -> {
+                // Test double: any invocation proves the pending completion escaped into the analysis flow.
+                autoCompletionProviderCalled.set(true);
+                return new SnippetAiResponseSupport.CompletionSuggestion(
+                    "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis");
+            },
             null,
             null,
             null,
@@ -455,6 +535,26 @@ public final class SnippetAiDialogsSmoke {
             request -> fullAnalysis,
             request -> {
                 applyProviderCalled.set(true);
+                List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan =
+                    SnippetAiWorkflowSupport.planSnippetImprovements(
+                        request.improvements(),
+                        request.dependencies(),
+                        request.classicHardeningInstructions(),
+                        request.inputHardeningInstructions());
+                if (request.progressListener() != null && !plan.isEmpty()) {
+                    SnippetAiWorkflowSupport.ImprovementApplyProgress pending = plan.get(0);
+                    request.progressListener().onProgress(new SnippetAiWorkflowSupport.ImprovementApplyProgress(
+                        pending.phase(), pending.stage(), pending.totalStages(),
+                        pending.firstRequirement(), pending.lastRequirement(), pending.phaseRequirementCount(),
+                        pending.detail(), pending.workItems(),
+                        SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING, null));
+                    request.progressListener().onProgress(new SnippetAiWorkflowSupport.ImprovementApplyProgress(
+                        pending.phase(), pending.stage(), pending.totalStages(),
+                        pending.firstRequirement(), pending.lastRequirement(), pending.phaseRequirementCount(),
+                        pending.detail(), pending.workItems(),
+                        SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED,
+                        new de.kortty.core.AiTokenUsage(80, 40, 120)));
+                }
                 return new SnippetAiResponseSupport.SnippetSecurityFix(
                     replacement,
                     "Quotes the variable expansion.",
@@ -468,10 +568,116 @@ public final class SnippetAiDialogsSmoke {
         MonacoEditorPane editor = field(editorDialog, "contentArea", MonacoEditorPane.class);
         editorDialog.show();
 
+        // Reproduce the reported race: an edit has queued auto-completion, then Full code analysis starts
+        // before the 900 ms debounce expires. The analysis must own the AI flow and discard that queue.
+        field(editorDialog, "autoCompleteItem", CheckMenuItem.class).setSelected(true);
+        setField(editorDialog, "autoCompletionWarningAccepted", true);
+        invoke(editorDialog, "scheduleAutoCompletion", new Class<?>[0]);
+
         Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
             try {
                 Stage preview = findShowingStage(I18n.get("snippets.ai.analysis.diff.title"));
                 if (preview != null) {
+                    Stage analysis = findShowingStage(I18n.get("snippets.ai.analysis.title"));
+                    Stage progress = Window.getWindows().stream()
+                        .filter(Window::isShowing)
+                        .filter(Stage.class::isInstance)
+                        .map(Stage.class::cast)
+                        .filter(candidate -> candidate.getTitle() != null
+                            && candidate.getTitle().startsWith(I18n.get("snippets.ai.analysis.progress.title")))
+                        .filter(candidate -> candidate.getOwner() == analysis)
+                        .findFirst()
+                        .orElse(null);
+                    if (analysis == null || progress == null) {
+                        throw new AssertionError("Analysis and its docked AI-processing window must remain visible");
+                    }
+                    ProgressBar improvementsProgress = nodeById(
+                        progress.getScene().getRoot(),
+                        "snippet-analysis-progress-improvements",
+                        ProgressBar.class);
+                    ProgressBar hardeningProgress = nodeById(
+                        progress.getScene().getRoot(),
+                        "snippet-analysis-progress-hardening",
+                        ProgressBar.class);
+                    if (!improvementsProgress.isVisible() || !hardeningProgress.isVisible()
+                            || improvementsProgress.getProgress() != 1.0
+                            || hardeningProgress.getProgress() != 1.0) {
+                        throw new AssertionError(
+                            "AI-processing window did not keep separate completed progress bars");
+                    }
+                    boolean completedCheckVisible = findNodes(progress.getScene().getRoot(), Label.class).stream()
+                        .map(Label.class::cast)
+                        .anyMatch(label -> "✓".equals(label.getText()));
+                    if (!completedCheckVisible) {
+                        throw new AssertionError("AI-processing window did not mark the completed step");
+                    }
+                    boolean reportedTokensVisible = findNodes(progress.getScene().getRoot(), Label.class).stream()
+                        .map(Label.class::cast)
+                        .map(Label::getText)
+                        .anyMatch(text -> text != null && text.contains("120"));
+                    if (!reportedTokensVisible) {
+                        throw new AssertionError("AI-processing window did not show provider-reported token usage");
+                    }
+                    HBox improvementRow = findNodes(progress.getScene().getRoot(), HBox.class).stream()
+                        .map(HBox.class::cast)
+                        .filter(row -> "SEC-1".equals(row.getUserData()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                            "AI-processing window did not expose the SEC-1 work row"));
+                    List<String> progressTexts = findNodes(improvementRow, Label.class).stream()
+                        .map(Label.class::cast)
+                        .map(Label::getText)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+                    String improvementClassification =
+                        I18n.get("snippets.ai.analysis.section.security") + " · high";
+                    if (progressTexts.contains(improvementClassification)) {
+                        throw new AssertionError(
+                            "AI-processing window still showed category and severity as right-side text");
+                    }
+                    SVGPath categoryIcon = findNodes(improvementRow, SVGPath.class).stream()
+                        .map(SVGPath.class::cast)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                            "AI-processing improvement row did not show its category icon"));
+                    if (!SnippetAiDialogSupport.sectionIconPath("security").equals(categoryIcon.getContent())
+                            || !Color.web(SnippetAiDialogSupport.sectionColor("security"))
+                                .equals(categoryIcon.getFill())
+                            || !(categoryIcon.getParent() instanceof HBox identifierLine)
+                            || identifierLine.getChildren().indexOf(categoryIcon) != 1
+                            || !(identifierLine.getChildren().getFirst() instanceof Label identifier)
+                            || !"SEC-1".equals(identifier.getText())) {
+                        throw new AssertionError(
+                            "AI-processing category icon was not coloured and placed beside its identifier");
+                    }
+                    SVGPath optimizationIcon = findNodes(progress.getScene().getRoot(), HBox.class).stream()
+                        .map(HBox.class::cast)
+                        .filter(row -> "OPT-1".equals(row.getUserData()))
+                        .flatMap(row -> findNodes(row, SVGPath.class).stream())
+                        .map(SVGPath.class::cast)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                            "AI-processing optimization row did not show its lightning icon"));
+                    if (!SnippetAiDialogSupport.sectionIconPath("optimization")
+                            .equals(optimizationIcon.getContent())
+                            || !Color.web(SnippetAiDialogSupport.sectionColor("optimization"))
+                                .equals(optimizationIcon.getFill())) {
+                        throw new AssertionError(
+                            "AI-processing optimization row did not use the coloured lightning icon");
+                    }
+                    boolean hardeningRowHasClassification = findNodes(
+                            progress.getScene().getRoot(), HBox.class).stream()
+                        .map(HBox.class::cast)
+                        .filter(row -> row.getUserData() instanceof String id && id.startsWith("HARDENING-"))
+                        .findFirst()
+                        .map(row -> findNodes(row, Label.class).size() > 3
+                            || !findNodes(row, SVGPath.class).isEmpty())
+                        .orElseThrow(() -> new AssertionError(
+                            "AI-processing window did not expose a hardening work row"));
+                    if (hardeningRowHasClassification) {
+                        throw new AssertionError(
+                            "AI-processing hardening row still showed a redundant right-side classification");
+                    }
                     previewShown.set(true);
                     Timeline active = poller.get();
                     if (active != null) {
@@ -491,6 +697,7 @@ public final class SnippetAiDialogsSmoke {
                     return;
                 }
                 setChecked(findings, "imp", "SEC-1", true);
+                setChecked(findings, "imp", "OPT-1", true);
                 Button apply = findNodes(analysis.getScene().getRoot(), Button.class).stream()
                     .map(Button.class::cast)
                     .filter(button -> button.getText() != null
@@ -528,6 +735,10 @@ public final class SnippetAiDialogsSmoke {
                 if (!previewShown.get()) {
                     throw new AssertionError("Full-code-analysis did not show the review-diff window");
                 }
+                if (autoCompletionProviderCalled.get()) {
+                    throw new AssertionError(
+                        "Full-code-analysis allowed a pending auto-completion popup to run");
+                }
                 if (!original.equals(editor.getText())) {
                     throw new AssertionError("Editor content changed before the review-diff was confirmed");
                 }
@@ -537,6 +748,7 @@ public final class SnippetAiDialogsSmoke {
                     // Close only after Monaco has had the smoke's full wait interval to finish loading.
                     preview.close();
                 }
+                Platform.runLater(editorDialog::close);
             }
         };
     }
@@ -625,14 +837,24 @@ public final class SnippetAiDialogsSmoke {
         SnippetCodeAnalysisDialog.ApplySelection selection = new SnippetCodeAnalysisDialog.ApplySelection(
             List.of(improvement),
             List.of(),
-            EnumSet.noneOf(de.kortty.core.WorkflowScriptSupport.HardeningOption.class),
+            EnumSet.of(de.kortty.core.WorkflowScriptSupport.HardeningOption.SAFE_MODE),
             de.kortty.core.WorkflowScriptSupport.InputHardeningConfig.disabled(),
             null);
-        invoke(
-            dialog,
-            "runImprovementFixes",
-            new Class<?>[] {SnippetCodeAnalysisDialog.ApplySelection.class},
-            selection);
+        // runCodeReview completes on a background Task. Start the apply probe on a later pulse so the
+        // editor's single-AI-action guard does not correctly reject it as a concurrent second action.
+        PauseTransition applyDelay = new PauseTransition(Duration.millis(250));
+        applyDelay.setOnFinished(event -> {
+            try {
+                invoke(
+                    dialog,
+                    "runImprovementFixes",
+                    new Class<?>[] {SnippetCodeAnalysisDialog.ApplySelection.class},
+                    selection);
+            } catch (Exception e) {
+                throw new IllegalStateException("Could not start the apply-language smoke probe", e);
+            }
+        });
+        applyDelay.play();
 
         MonacoEditorPane editor = field(dialog, "contentArea", MonacoEditorPane.class);
         return () -> {
@@ -657,6 +879,10 @@ public final class SnippetAiDialogsSmoke {
                     "en");
                 if (apply.improvements().size() != 1 || !"SEC-1".equals(apply.improvements().getFirst().id())) {
                     throw new AssertionError("Apply-selected did not forward the selected improvement");
+                }
+                if (apply.mandatoryHardeningInstructions() == null
+                        || !apply.mandatoryHardeningInstructions().contains("--dry-run")) {
+                    throw new AssertionError("Apply-selected did not forward hardening as a mandatory contract");
                 }
             } finally {
                 editor.dispose();
@@ -733,6 +959,22 @@ public final class SnippetAiDialogsSmoke {
                     + expectedText + "')"));
     }
 
+    /** Keeps the bulk selector at the far-left edge of the Full-code-analysis toolbar. */
+    private static void verifySelectAllImprovementPlacement(CheckBox bulkCheck, Label profileUsing) {
+        if (!(bulkCheck.getParent() instanceof HBox toolbar)
+                || toolbar.getChildren().isEmpty()
+                || toolbar.getChildren().getFirst() != bulkCheck) {
+            throw new AssertionError("Select-all-improvements must be the leftmost toolbar control");
+        }
+        if (profileUsing.getParent() != toolbar
+                || toolbar.getChildren().indexOf(profileUsing) != 1
+                || HBox.getMargin(profileUsing) == null
+                || HBox.getMargin(profileUsing).getLeft() < 16) {
+            throw new AssertionError(
+                "The used-profile label must be visibly separated from select-all-improvements");
+        }
+    }
+
     private static <T extends Node> T nodeById(Node root, String id, Class<T> type) {
         return findNodes(root, type).stream()
             .map(type::cast)
@@ -746,6 +988,16 @@ public final class SnippetAiDialogsSmoke {
             Field field = target.getClass().getDeclaredField(name);
             field.setAccessible(true);
             return type.cast(field.get(target));
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(target.getClass().getSimpleName() + " is missing field " + name, e);
+        }
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(target.getClass().getSimpleName() + " is missing field " + name, e);
         }
@@ -849,4 +1101,5 @@ public final class SnippetAiDialogsSmoke {
         ImageIO.write(buffered, "png", out);
         System.out.println("Snapshot written: " + out.getAbsolutePath());
     }
+
 }

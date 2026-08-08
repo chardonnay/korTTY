@@ -5,6 +5,7 @@ import de.kortty.model.SnippetDiagram;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -29,9 +30,19 @@ import java.util.regex.Pattern;
 public final class SnippetDiagramSupport {
     public static final int MAX_MERMAID_SOURCE_BYTES = 32 * 1024;
     public static final int MAX_MERMAID_EDGES = 300;
+    public static final int MAX_GENERATED_NONTERMINAL_NODES = 12;
     public static final String DARK_BACKGROUND_COLOR = "#1E1E1E";
 
     private static final Set<String> SEMANTIC_CLASSES = Set.of("setup", "work", "success", "failure");
+    private static final Map<String, Set<String>> DECISION_OUTCOME_LABELS = Map.of(
+        "de", Set.of("ja", "nein"),
+        "en", Set.of("yes", "no"),
+        "es", Set.of("sí", "no"),
+        "fr", Set.of("oui", "non"),
+        "hr", Set.of("da", "ne"),
+        "it", Set.of("sì", "no"),
+        "nl", Set.of("ja", "nee"),
+        "pt", Set.of("sim", "não"));
     private static final Pattern HEADER_PATTERN = Pattern.compile("(?i)^flowchart\\s+TD\\s*;?$");
     private static final Pattern NODE_PATTERN = Pattern.compile(
         "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*(?:\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]|\\{\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*}|\\(\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]\\))\\s*;?$");
@@ -40,7 +51,7 @@ public final class SnippetDiagramSupport {
     private static final Pattern CLASS_PATTERN = Pattern.compile(
         "(?i)^class\\s+([A-Za-z][A-Za-z0-9_-]{0,63}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_-]{0,63})*)\\s+(setup|work|success|failure)\\s*;?$");
     private static final Pattern CONDITIONAL_FLOW_PATTERN = Pattern.compile(
-        "(?im)^\\s*(?:if|unless|elif|elsif|else\\s+if|case|switch|when)\\b|\\belse\\b");
+        "(?im)^\\s*(?:}\\s*)?(?:if|unless|elif|elsif|else(?:\\s+if)?|case|switch|when)\\b");
     private static final Pattern FORBIDDEN_DIRECTIVE_PATTERN = Pattern.compile(
         "(?im)^\\s*(?:---\\s*$|%%\\{|click\\b|href\\b|style\\b|classDef\\b|linkStyle\\b)");
     private static final Pattern FORBIDDEN_URL_PATTERN = Pattern.compile(
@@ -147,6 +158,91 @@ public final class SnippetDiagramSupport {
 
         ParsedDiagram parsed = parseRestrictedFlowchart(value);
         return parsed.validation();
+    }
+
+    /**
+     * Applies strict topology and compactness rules to a newly generated AI diagram. The general
+     * renderer deliberately uses {@link #validateMermaid(String)} so diagrams saved by older korTTY
+     * versions remain renderable when they are still safe restricted Mermaid.
+     */
+    public static MermaidValidation validateGeneratedMermaid(String source) {
+        MermaidValidation validation = validateMermaid(source);
+        if (!validation.valid()) {
+            return validation;
+        }
+        ParsedDiagram parsed = parseRestrictedFlowchart(normalizeMermaid(source));
+        String topologyError = validateFlowTopology(parsed.nodes(), parsed.edges());
+        if (topologyError != null) {
+            return MermaidValidation.failure(topologyError);
+        }
+        long nonterminalNodes = parsed.nodes().values().stream()
+            .filter(node -> node.type() != NodeType.TERMINAL)
+            .count();
+        if (nonterminalNodes > MAX_GENERATED_NONTERMINAL_NODES) {
+            return MermaidValidation.failure(
+                "Generated Mermaid flowcharts may use at most " + MAX_GENERATED_NONTERMINAL_NODES
+                    + " non-terminal nodes; related behavior must be grouped.");
+        }
+        return validation;
+    }
+
+    /**
+     * Validates a fresh AI diagram together with its exact, bounded source mapping. This intentionally
+     * avoids guessing source-language semantics; behavior grouping remains the mandatory action skill's
+     * responsibility, while topology, compactness and mapping completeness are enforced locally.
+     */
+    public static MermaidValidation validateMermaidForSnippet(
+        String source,
+        String snippetContent,
+        List<SourceCodeReference> sourceReferences,
+        String responseLanguageCode) {
+
+        MermaidValidation validation = validateGeneratedMermaid(source);
+        if (!validation.valid()) {
+            return validation;
+        }
+        ParsedDiagram parsed = parseRestrictedFlowchart(normalizeMermaid(source));
+        Set<String> expectedOutcomeLabels = decisionOutcomeLabels(responseLanguageCode);
+        if (!expectedOutcomeLabels.isEmpty()) {
+            for (NodeDefinition node : parsed.nodes().values()) {
+                if (node.type() != NodeType.DECISION) {
+                    continue;
+                }
+                Set<String> actualLabels = new LinkedHashSet<>();
+                parsed.edges().stream()
+                    .filter(edge -> node.id().equals(edge.from()))
+                    .map(edge -> normalizeDiagramLabel(edge.label()).toLowerCase(Locale.ROOT))
+                    .forEach(actualLabels::add);
+                if (!actualLabels.equals(expectedOutcomeLabels)) {
+                    return MermaidValidation.failure(
+                        "Generated Mermaid decision edges must use the localized yes/no labels for language "
+                            + normalizeLanguageCode(responseLanguageCode) + ".");
+                }
+            }
+        }
+        Set<String> expectedNodeIds = new LinkedHashSet<>();
+        parsed.nodes().values().stream()
+            .filter(node -> node.type() != NodeType.TERMINAL)
+            .forEach(node -> expectedNodeIds.add(node.id()));
+        List<CodeReference> validatedReferences = buildValidatedCodeReferences(
+            source, snippetContent, sourceReferences);
+        Set<String> mappedNodeIds = new LinkedHashSet<>();
+        validatedReferences.forEach(reference -> mappedNodeIds.add(reference.nodeId()));
+        if (!mappedNodeIds.equals(expectedNodeIds)) {
+            return MermaidValidation.failure(
+                "Every generated Mermaid action and decision node must have one valid source reference.");
+        }
+        return validation;
+    }
+
+    private static Set<String> decisionOutcomeLabels(String languageCode) {
+        return DECISION_OUTCOME_LABELS.getOrDefault(normalizeLanguageCode(languageCode), Set.of());
+    }
+
+    private static String normalizeLanguageCode(String languageCode) {
+        String value = languageCode != null ? languageCode.trim().replace('_', '-') : "";
+        String normalized = Locale.forLanguageTag(value).getLanguage();
+        return !normalized.isBlank() ? normalized : "en";
     }
 
     /**
@@ -429,7 +525,10 @@ public final class SnippetDiagramSupport {
             }
             Matcher edgeMatcher = EDGE_PATTERN.matcher(line);
             if (edgeMatcher.matches()) {
-                edges.add(new EdgeDefinition(edgeMatcher.group(1), edgeMatcher.group(3)));
+                edges.add(new EdgeDefinition(
+                    edgeMatcher.group(1),
+                    edgeMatcher.group(2) != null ? edgeMatcher.group(2).trim() : "",
+                    edgeMatcher.group(3)));
                 if (edges.size() > MAX_MERMAID_EDGES) {
                     return ParsedDiagram.failure("Mermaid diagram exceeds the 300-edge limit.");
                 }
@@ -479,7 +578,108 @@ public final class SnippetDiagramSupport {
             id, new NodeDefinition(id, node.label(), node.type(), classes.get(id))));
         return new ParsedDiagram(
             MermaidValidation.success(),
-            Collections.unmodifiableMap(new LinkedHashMap<>(classifiedNodes)));
+            Collections.unmodifiableMap(new LinkedHashMap<>(classifiedNodes)),
+            List.copyOf(edges));
+    }
+
+    private static String validateFlowTopology(
+        Map<String, NodeDefinition> nodes,
+        List<EdgeDefinition> edges) {
+
+        Map<String, List<EdgeDefinition>> outgoing = new LinkedHashMap<>();
+        Map<String, List<EdgeDefinition>> incoming = new LinkedHashMap<>();
+        Map<String, List<String>> forward = new LinkedHashMap<>();
+        Map<String, List<String>> reverse = new LinkedHashMap<>();
+        for (String nodeId : nodes.keySet()) {
+            outgoing.put(nodeId, new ArrayList<>());
+            incoming.put(nodeId, new ArrayList<>());
+            forward.put(nodeId, new ArrayList<>());
+            reverse.put(nodeId, new ArrayList<>());
+        }
+
+        Set<String> uniqueEdges = new LinkedHashSet<>();
+        for (EdgeDefinition edge : edges) {
+            if (edge.from().equals(edge.to())) {
+                return "Mermaid flowcharts must not contain self-edges.";
+            }
+            String edgeKey = edge.from() + "\u0000" + edge.label().toLowerCase(Locale.ROOT)
+                + "\u0000" + edge.to();
+            if (!uniqueEdges.add(edgeKey)) {
+                return "Mermaid flowcharts must not contain duplicate edges.";
+            }
+            outgoing.get(edge.from()).add(edge);
+            incoming.get(edge.to()).add(edge);
+            forward.get(edge.from()).add(edge.to());
+            reverse.get(edge.to()).add(edge.from());
+        }
+
+        if (!incoming.get("start_1").isEmpty()) {
+            return "Snippet flowchart start_1 must not have an incoming edge.";
+        }
+        if (outgoing.get("start_1").size() != 1) {
+            return "Snippet flowchart start_1 must have exactly one outgoing edge.";
+        }
+        if (!outgoing.get("stop_1").isEmpty()) {
+            return "Snippet flowchart stop_1 must not have an outgoing edge.";
+        }
+        if (incoming.get("stop_1").isEmpty()) {
+            return "Snippet flowchart stop_1 must have at least one incoming edge.";
+        }
+
+        for (NodeDefinition node : nodes.values()) {
+            if (node.type() == NodeType.TERMINAL
+                && !"start_1".equals(node.id()) && !"stop_1".equals(node.id())) {
+                return "Snippet flowcharts may only use start_1 and stop_1 as terminal nodes.";
+            }
+            if (node.type() == NodeType.DECISION) {
+                List<EdgeDefinition> decisionEdges = outgoing.get(node.id());
+                Set<String> labels = new LinkedHashSet<>();
+                Set<String> targets = new LinkedHashSet<>();
+                for (EdgeDefinition edge : decisionEdges) {
+                    labels.add(edge.label().toLowerCase(Locale.ROOT));
+                    targets.add(edge.to());
+                }
+                labels.remove("");
+                if (decisionEdges.size() != 2 || labels.size() != 2 || targets.size() != 2) {
+                    return "Every Mermaid decision must have two distinctly labeled outgoing paths.";
+                }
+            } else if (!"stop_1".equals(node.id())) {
+                if (outgoing.get(node.id()).size() != 1) {
+                    return "Every non-decision Mermaid node except stop_1 must have exactly one outgoing edge.";
+                }
+                if (!outgoing.get(node.id()).getFirst().label().isBlank()) {
+                    return "Only Mermaid decision edges may have labels.";
+                }
+            }
+        }
+
+        Set<String> reachableFromStart = reachableNodes("start_1", forward);
+        if (!reachableFromStart.containsAll(nodes.keySet())) {
+            return "Every Mermaid node must be reachable from start_1.";
+        }
+        Set<String> leadingToStop = reachableNodes("stop_1", reverse);
+        if (!leadingToStop.containsAll(nodes.keySet())) {
+            return "Every Mermaid node must have a path to stop_1.";
+        }
+        return null;
+    }
+
+    private static Set<String> reachableNodes(String startId, Map<String, List<String>> adjacency) {
+        Set<String> visited = new LinkedHashSet<>();
+        ArrayDeque<String> pending = new ArrayDeque<>();
+        pending.add(startId);
+        while (!pending.isEmpty()) {
+            String current = pending.removeFirst();
+            if (!visited.add(current)) {
+                continue;
+            }
+            for (String next : adjacency.getOrDefault(current, List.of())) {
+                if (!visited.contains(next)) {
+                    pending.addLast(next);
+                }
+            }
+        }
+        return visited;
     }
 
     private static boolean hasAssignments(String content) {
@@ -768,12 +968,16 @@ public final class SnippetDiagramSupport {
     private record NodeDefinition(String id, String label, NodeType type, String semanticClass) {
     }
 
-    private record EdgeDefinition(String from, String to) {
+    private record EdgeDefinition(String from, String label, String to) {
     }
 
-    private record ParsedDiagram(MermaidValidation validation, Map<String, NodeDefinition> nodes) {
+    private record ParsedDiagram(
+        MermaidValidation validation,
+        Map<String, NodeDefinition> nodes,
+        List<EdgeDefinition> edges) {
+
         private static ParsedDiagram failure(String message) {
-            return new ParsedDiagram(MermaidValidation.failure(message), Map.of());
+            return new ParsedDiagram(MermaidValidation.failure(message), Map.of(), List.of());
         }
     }
 

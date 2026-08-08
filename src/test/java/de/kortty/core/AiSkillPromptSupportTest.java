@@ -143,14 +143,16 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
-    void selectionTextTransformActionsNeverIncludeChatSkills() {
+    void mechanicalTextAndDiagramActionsNeverIncludeChatSkills() {
         AiSkill chatSkill = skill("Chat Skill", true, AiSkillTarget.BOTH, "Use strict Bash.");
         AiSkillPromptSupport support = new AiSkillPromptSupport(true, false, List.of(chatSkill));
 
-        // Both actions default includeAiSkills=true via the shared workflow constructor, yet the
-        // mechanical NL transforms must not carry skills — the extra bulk breaks small local models.
+        // These actions default includeAiSkills=true via shared workflow constructors, yet their
+        // fixed mechanical contracts must not carry unrelated skills — the extra bulk slows local models.
         for (AiAction action : List.of(
-            AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT, AiAction.CORRECT_SNIPPET_SELECTION_TEXT)) {
+            AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT,
+            AiAction.CORRECT_SNIPPET_SELECTION_TEXT,
+            AiAction.GENERATE_SNIPPET_MERMAID)) {
             AiRequest request = new AiRequest(
                 action, "# Kommentar", "box", "it", null, "Snippet language: bash");
             assertThat(request.includeAiSkills()).isTrue();
@@ -249,6 +251,62 @@ class AiSkillPromptSupportTest {
 
         assertThat(support.appendChatSkills("base")).contains("Connection rules.");
         assertThat(support.appendAgentSkills("base")).contains("Connection rules.");
+    }
+
+    @Test
+    void explicitSnippetSelectionIncludesOnlyPickerAndConnectionAssignments() {
+        AiSkill selected = skill("Selected", true, AiSkillTarget.BOTH, "Selected picker rules.");
+        selected.setId("skill-selected");
+        AiSkill unselected = skill("Unselected", true, AiSkillTarget.BOTH, "Unselected global rules.");
+        unselected.setId("skill-unselected");
+        unselected.setTags(List.of("hardening"));
+        AiSkill assigned = skill("Assigned", true, AiSkillTarget.CONNECTION, "Assigned connection rules.");
+        assigned.setId("skill-assigned");
+        AiSkill otherConnection = skill(
+            "Other connection", true, AiSkillTarget.CONNECTION, "Other connection rules.");
+        otherConnection.setId("skill-other-connection");
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(true);
+        settings.setAiSkills(new java.util.ArrayList<>(
+            List.of(selected, unselected, assigned, otherConnection)));
+
+        AiSkillPromptSupport support = AiSkillPromptSupport.fromSettingsForSnippetSelection(
+            settings,
+            List.of("skill-selected"),
+            List.of("skill-assigned"));
+        String prompt = support.appendChatSkills(
+            "base",
+            new AiRequest(AiAction.ASK, "", "box", "en", "apply hardening"));
+
+        assertThat(support.isAutoDetectionEnabled()).isFalse();
+        assertThat(prompt).contains("Selected picker rules.");
+        assertThat(prompt).contains("Assigned connection rules.");
+        assertThat(prompt).doesNotContain("Unselected global rules.");
+        assertThat(prompt).doesNotContain("Other connection rules.");
+    }
+
+    @Test
+    void emptySnippetSelectionAddsNoNormalSkillsButKeepsConnectionAssignments() {
+        AiSkill normal = skill("Normal", true, AiSkillTarget.BOTH, "Normal global rules.");
+        normal.setId("skill-normal");
+        normal.setTags(List.of("hardening"));
+        AiSkill assigned = skill("Assigned", true, AiSkillTarget.CONNECTION, "Assigned connection rules.");
+        assigned.setId("skill-assigned");
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setAiSkillsEnabled(true);
+        settings.setAiSkillAutoDetectionEnabled(true);
+        settings.setAiSkills(new java.util.ArrayList<>(List.of(normal, assigned)));
+        AiRequest request = new AiRequest(AiAction.ASK, "", "box", "en", "apply hardening");
+
+        String withoutConnection = AiSkillPromptSupport.fromSettingsForSnippetSelection(
+            settings, List.of(), List.of()).appendChatSkills("base", request);
+        String withConnection = AiSkillPromptSupport.fromSettingsForSnippetSelection(
+            settings, List.of(), List.of("skill-assigned")).appendChatSkills("base", request);
+
+        assertThat(withoutConnection).isEqualTo("base");
+        assertThat(withConnection).contains("Assigned connection rules.");
+        assertThat(withConnection).doesNotContain("Normal global rules.");
     }
 
     @Test

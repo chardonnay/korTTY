@@ -104,6 +104,26 @@ class AnthropicAiServiceTest {
     }
 
     @Test
+    void marksMaxTokensStopReasonAsTruncated() throws Exception {
+        StubStringHttpClient client = new StubStringHttpClient();
+        client.enqueue(200, """
+            {
+              "content": [{"type": "text", "text": "partial replacement"}],
+              "stop_reason": "max_tokens",
+              "usage": {"input_tokens": 3, "output_tokens": 4096}
+            }
+            """);
+        AnthropicAiService service = new AnthropicAiService(
+            "https://api.anthropic.com/v1/messages", "claude-test", "key",
+            AiReasoningEffort.DISABLED, null, client);
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).isEqualTo("partial replacement");
+        assertThat(result.outputTruncated()).isTrue();
+    }
+
+    @Test
     void ignoresRedactedThinkingBlocks() throws Exception {
         StubStringHttpClient client = new StubStringHttpClient();
         client.enqueue(200, """

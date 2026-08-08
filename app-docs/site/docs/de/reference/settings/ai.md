@@ -130,14 +130,14 @@ Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitier
 Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:
 
 - **Deaktiviert**: Kein Begründungsparameter gesendet; Das Modell verwendet sein Standardverhalten.
-- **Keine**: Reasoning explizit deaktivieren (`reasoning: "none"` senden).
+- **Keine**: Reasoning mit dem unterstützten Off-Wert des Transports explizit deaktivieren.
 - **Minimal**: Leichtes Reasoning; schnellste Ausführung.
 - **Niedrig**: Reasoning mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.
 - **Mittel**: Mittlerer Aufwand; angemessene Tiefe.
 - **Hoch**: Hoher Aufwand; gründlichere Begründung.
 - **Extra hoch**: Maximaler Reasoning-Aufwand; am langsamsten, aber am umfassendsten.
 
-Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche **Begründungsoptionen aktualisieren**, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln.
+Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche **Reasoning-Optionen aktualisieren**, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln. Wenn LM Studio `capabilities.reasoning.allowed_options` über seine nativen Modellmetadaten veröffentlicht, verwendet korTTY genau diese Liste, anstatt einen stillschweigend konvertierten Wert als unterstützt zu behandeln. Bei einem binären `off`/`on`-Modell schaltet eine explizite `none`-Anfrage diese Funktion aus, während das Weglassen des Reasoning-Parameters den veröffentlichten Standardwert des Modells verwendet; Die nicht unterstützten Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ und „Extra hoch“ werden nicht angeboten. Andere kompatible Endpunkte verwenden weiterhin aktive Verbindungsprüfungen, wenn keine derartigen Metadaten verfügbar sind.
 
 Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
 

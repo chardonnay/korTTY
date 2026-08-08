@@ -52,9 +52,25 @@ class RagAugmentedAiServiceTest {
         assertThat(delegate.systemPrompt).contains("Do not emit <think>");
     }
 
+    @Test
+    void mermaidSkipsRetrievalAndKeepsTheOriginalRequest() throws Exception {
+        RecordingPromptService delegate = new RecordingPromptService();
+        RecordingRetriever retriever = new RecordingRetriever();
+        RagAugmentedAiService service = new RagAugmentedAiService(
+            delegate, List.of("knowledge"), 8_000, retriever);
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "de");
+
+        service.execute(request);
+
+        assertThat(retriever.calls).isEqualTo(0);
+        assertThat(delegate.request).isSameInstanceAs(request);
+    }
+
     private static final class RecordingRetriever implements RagAugmentedAiService.ContextRetriever {
         private AiWorkload workload;
         private boolean autonomousOnly;
+        private int calls;
 
         @Override
         public RagContextBuilder.RagContext retrieve(
@@ -65,6 +81,7 @@ class RagAugmentedAiServiceTest {
             boolean autonomousOnly,
             de.kortty.rag.CancellationToken cancellation) {
 
+            calls++;
             this.workload = workload;
             this.autonomousOnly = autonomousOnly;
             return new RagContextBuilder.RagContext(
@@ -78,6 +95,7 @@ class RagAugmentedAiServiceTest {
     private static final class RecordingPromptService implements AiPromptService {
         private AiPromptExecutionScope scope;
         private String systemPrompt;
+        private AiRequest request;
 
         @Override
         public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
@@ -120,6 +138,7 @@ class RagAugmentedAiServiceTest {
 
         @Override
         public AiExecutionResult execute(AiRequest request) {
+            this.request = request;
             return new AiExecutionResult("ok", null);
         }
 

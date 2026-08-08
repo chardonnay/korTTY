@@ -5,6 +5,7 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiProfileSelectionSupport;
+import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiService;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
@@ -326,8 +327,10 @@ public final class WorkflowScriptGenerator {
         AiService service;
         try {
             apiKey = resolveApiKey(generationProfile);
+            AiProfile executionProfile = AiReasoningSupport.profileForAction(
+                generationProfile, de.kortty.core.AiAction.GENERATE_SNIPPET_MERMAID);
             service = AiServiceFactory.create(
-                generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
+                executionProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
         } catch (Exception e) {
             logger.warn("Workflow AI diagram provider could not be initialized; using the local Mermaid fallback", e);
             return buildFallbackDiagram(scriptContent, language, instructions, existing);

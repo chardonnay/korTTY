@@ -89,11 +89,27 @@ public final class SnippetAiResponseSupport {
      * Result of applying selected security findings: the full fixed snippet, an overall summary, and a
      * per-change list with anchors + reasons for the diff hover annotations.
      */
-    public record SnippetSecurityFix(String replacement, String summary, List<SecurityChange> changes) {
+    public record SnippetSecurityFix(
+            String replacement,
+            String summary,
+            List<SecurityChange> changes,
+            List<String> implementedRequirements) {
         public SnippetSecurityFix {
             replacement = replacement != null ? replacement : "";
             summary = summary != null ? summary.trim() : "";
             changes = changes != null ? List.copyOf(changes) : List.of();
+            implementedRequirements = implementedRequirements != null
+                ? implementedRequirements.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList()
+                : List.of();
+        }
+
+        public SnippetSecurityFix(String replacement, String summary, List<SecurityChange> changes) {
+            this(replacement, summary, changes, List.of());
         }
 
         public boolean isUsable() {
@@ -340,7 +356,10 @@ public final class SnippetAiResponseSupport {
             }
             return fallback.isUsable() ? fallback : new CodeImprovement("", "");
         }
-        String replacement = firstString(object, "replacement", "code", "content", "text");
+        String replacement = joinedStringArray(object, "replacementLines");
+        if (replacement == null) {
+            replacement = firstString(object, "replacement", "code", "content", "text");
+        }
         String summary = firstString(object, "summary", "description");
         CodeImprovement nested = parseNestedCodeImprovement(replacement, summary);
         if (nested != null && nested.isUsable()) {
@@ -352,14 +371,18 @@ public final class SnippetAiResponseSupport {
 
     /**
      * Parses the security-fix response. Reuses the robust replacement/summary extraction of
-     * {@link #parseCodeImprovement} and additionally reads the optional {@code changes} array so a fix
-     * is still applied even when the model omits (or malforms) the explanations.
+     * {@link #parseCodeImprovement} and additionally reads optional per-region {@code changes} plus the
+     * compact {@code implementedRequirements} checklist used by Full code analysis hardening.
      */
     public static SnippetSecurityFix parseSecurityFix(String responseText) {
         CodeImprovement improvement = parseCodeImprovement(responseText, true);
         JsonObject object = parseJsonObject(responseText);
         List<SecurityChange> changes = object != null ? parseSecurityChanges(object) : List.of();
-        return new SnippetSecurityFix(improvement.replacement(), improvement.summary(), changes);
+        List<String> implementedRequirements = object != null
+            ? parseStringArray(object, "implementedRequirements")
+            : parseLenientStringArrayField(responseText, "implementedRequirements");
+        return new SnippetSecurityFix(
+            improvement.replacement(), improvement.summary(), changes, implementedRequirements);
     }
 
     private static final Pattern BARE_TOKEN_PATTERN =
@@ -410,7 +433,18 @@ public final class SnippetAiResponseSupport {
         // A multi-line body collapsing to a tiny single line is degenerate too.
         boolean originalMultiLine = current.lines().filter(line -> !line.isBlank()).count() >= 3;
         boolean tinySingleLine = !candidate.contains("\n") && candidate.length() < Math.max(24, current.length() / 8);
-        return originalMultiLine && tinySingleLine;
+        if (originalMultiLine && tinySingleLine) {
+            return true;
+        }
+        // Structured-output grammars can still yield a syntactically valid JSON object whose
+        // replacement is only a short, multi-line fragment. Reject a simultaneous character and
+        // line-count collapse so such a fragment never advances to a later stage or the preview.
+        long originalLines = current.lines().filter(line -> !line.isBlank()).count();
+        long candidateLines = candidate.lines().filter(line -> !line.isBlank()).count();
+        boolean substantialOriginal = current.length() >= 400 && originalLines >= 12;
+        boolean collapsedCharacters = candidate.length() < current.length() / 5;
+        boolean collapsedLines = candidateLines < Math.max(3, originalLines / 4);
+        return substantialOriginal && collapsedCharacters && collapsedLines;
     }
 
     private static boolean introducesOmittedCodeMarker(String original, String replacement) {
@@ -462,6 +496,42 @@ public final class SnippetAiResponseSupport {
         return change.isUsable() ? change : null;
     }
 
+    private static List<String> parseStringArray(JsonObject object, String fieldName) {
+        JsonArray array = firstArray(object, fieldName);
+        return parseStringArray(array);
+    }
+
+    private static List<String> parseLenientStringArrayField(String text, String fieldName) {
+        if (text == null || text.isBlank() || fieldName == null || fieldName.isBlank()) {
+            return List.of();
+        }
+        Matcher matcher = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\\s*:\\s*\\[").matcher(text);
+        if (!matcher.find()) {
+            return List.of();
+        }
+        String arrayText = balancedSpan(text, matcher.end() - 1, '[', ']');
+        JsonElement parsed = parseJsonElement(arrayText);
+        return parsed != null && parsed.isJsonArray()
+            ? parseStringArray(parsed.getAsJsonArray())
+            : List.of();
+    }
+
+    private static List<String> parseStringArray(JsonArray array) {
+        if (array == null) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonElement element : array) {
+            if (element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                String value = element.getAsString().trim();
+                if (!value.isBlank() && !values.contains(value)) {
+                    values.add(value);
+                }
+            }
+        }
+        return List.copyOf(values);
+    }
+
     public static OneLinerSuggestion parseOneLinerSuggestion(String responseText) {
         JsonObject object = parseJsonObject(responseText);
         if (object == null) {
@@ -497,7 +567,10 @@ public final class SnippetAiResponseSupport {
             firstString(object, "title", "name"),
             firstString(object, "mermaid"),
             parseDiagramCodeReferences(object));
-        return diagram.isUsable() ? diagram : new MermaidDiagram("", "");
+        return diagram.isUsable()
+            && SnippetDiagramSupport.validateGeneratedMermaid(diagram.mermaid()).valid()
+                ? diagram
+                : new MermaidDiagram("", "");
     }
 
     private static List<SnippetDiagramSupport.SourceCodeReference> parseDiagramCodeReferences(JsonObject object) {
@@ -676,7 +749,10 @@ public final class SnippetAiResponseSupport {
         }
         JsonObject nestedObject = parseJsonObject(replacement);
         if (nestedObject != null) {
-            String nestedReplacement = firstString(nestedObject, "replacement", "code", "content", "text");
+            String nestedReplacement = joinedStringArray(nestedObject, "replacementLines");
+            if (nestedReplacement == null) {
+                nestedReplacement = firstString(nestedObject, "replacement", "code", "content", "text");
+            }
             String nestedSummary = firstString(nestedObject, "summary", "description");
             CodeImprovement nested = new CodeImprovement(
                 nestedReplacement,
@@ -688,6 +764,23 @@ public final class SnippetAiResponseSupport {
             return new CodeImprovement(lenient.replacement(), nonBlank(lenient.summary(), outerSummary));
         }
         return null;
+    }
+
+    private static String joinedStringArray(JsonObject object, String fieldName) {
+        if (object == null || fieldName == null || !object.has(fieldName)
+                || !object.get(fieldName).isJsonArray()) {
+            return null;
+        }
+        JsonArray lines = object.getAsJsonArray(fieldName);
+        List<String> values = new ArrayList<>(lines.size());
+        for (JsonElement line : lines) {
+            if (line == null || line.isJsonNull() || !line.isJsonPrimitive()
+                    || !line.getAsJsonPrimitive().isString()) {
+                return null;
+            }
+            values.add(line.getAsString());
+        }
+        return String.join("\n", values);
     }
 
     private static CodeImprovement parseLenientCodeImprovement(String responseText) {
@@ -739,7 +832,8 @@ public final class SnippetAiResponseSupport {
             case 'b' -> builder.append('\b');
             case 'f' -> builder.append('\f');
             case '"', '\\', '/' -> builder.append(escaped);
-            default -> builder.append(escaped);
+            // Preserve non-JSON source-code escapes such as Perl/Python regex tokens \s and \d.
+            default -> builder.append('\\').append(escaped);
         }
     }
 
