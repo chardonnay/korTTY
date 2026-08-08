@@ -2165,15 +2165,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v290" class="md-nav__link">
+  <a href="#v2100" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.9.0
+        v2.10.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.9.0">
+    <nav class="md-nav" aria-label="v2.10.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2313,15 +2313,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v290" class="md-nav__link">
+  <a href="#v2100" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.9.0
+        v2.10.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.9.0">
+    <nav class="md-nav" aria-label="v2.10.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2381,7 +2381,7 @@
 
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
-<h2 id="v290">v2.9.0<a class="headerlink" href="#v290" title="Permanent link">&para;</a></h2>
+<h2 id="v2100">v2.10.0<a class="headerlink" href="#v2100" title="Permanent link">&para;</a></h2>
 <h3 id="terminalprotokollierung">Terminalprotokollierung<a class="headerlink" href="#terminalprotokollierung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Verbindungsprotokollierung wurde neu erstellt, um tatsächlich zuverlässig zu sein</strong> – <a href="../features/terminal.html#terminalprotokollierung">Terminalprotokollierung</a> schrieb zuvor jede Verbindung auf einen festen Pfad (so dass zwei gleichzeitig geöffnete Verbindungen in dieselbe Datei verschachtelt waren), hatte keine Komprimierung und wurde durch <em>Löschen</em> der Datei bei der Größenbeschränkung rotiert. Dateien heißen jetzt <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, jeden Tag wird eine neue Datei gestartet (optional) und wann immer die Größenbeschränkung erreicht wird, wird nichts durch Rotation überschrieben oder gelöscht, und jede geschlossene Datei wird gzip-komprimiert. Sobald die Aufbewahrungsfrist (Standard 30 Tage, <code>0</code> behält alles) abläuft, werden alte Archive nach dem in ihrem Namen kodierten Datum bereinigt und nur die Protokolldateien von korTTY selbst werden jemals berührt, daher ist es sicher, die Einstellung auch auf einen Ordner zu verweisen, der für andere Zwecke verwendet wird.</li>
@@ -2460,7 +2460,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.9.0</strong>
+    korTTY <strong>v2.10.0</strong>
   </div>
 </div>
       

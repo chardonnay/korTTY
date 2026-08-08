@@ -2165,15 +2165,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v290" class="md-nav__link">
+  <a href="#v2100" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.9.0
+        v2.10.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.9.0">
+    <nav class="md-nav" aria-label="v2.10.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2313,15 +2313,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v290" class="md-nav__link">
+  <a href="#v2100" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.9.0
+        v2.10.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.9.0">
+    <nav class="md-nav" aria-label="v2.10.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2381,7 +2381,7 @@
 
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v290">v2.9.0<a class="headerlink" href="#v290" title="Permanent link">&para;</a></h2>
+<h2 id="v2100">v2.10.0<a class="headerlink" href="#v2100" title="Permanent link">&para;</a></h2>
 <h3 id="terminal-logging">Terminal logging<a class="headerlink" href="#terminal-logging" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Connection logging was rebuilt to actually be reliable</strong> — <a href="../features/terminal.html#terminal-logging">terminal logging</a> previously wrote every connection to one fixed path (so two connections open at once interleaved into the same file), had no compression, and rotated by <em>deleting</em> the file at the size limit. Files are now named <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, a fresh one starts every day (optional) and whenever the size limit is hit, nothing is ever overwritten or deleted by rotation, and each closed file is gzip-compressed. Old archives are swept by the date encoded in their name once the retention period (default 30 days, <code>0</code> keeps everything) expires, and only korTTY's own log files are ever touched, so it is safe to point the setting at a folder used for other things too.</li>
@@ -2460,7 +2460,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.9.0</strong>
+    korTTY <strong>v2.10.0</strong>
   </div>
 </div>
       
