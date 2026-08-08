@@ -255,19 +255,19 @@ public final class WorkflowScriptSupport {
 
     /**
      * Per-run input-hardening configuration: the chosen sub-options plus the value generated into
-     * the script's KORTTY_MAX_FILE_SIZE variable. An empty option set means the feature is off for
-     * this run.
+     * the script's MAX_FILE_SIZE variable. A value of zero means unlimited. An empty option set
+     * means the feature is off for this run.
      */
     public record InputHardeningConfig(EnumSet<InputHardeningOption> options, long maxFileSizeBytes) {
 
-        /** Default for the generated KORTTY_MAX_FILE_SIZE variable: 10 MB. */
+        /** Default for the generated MAX_FILE_SIZE variable: 10 MB; zero means unlimited. */
         public static final long DEFAULT_MAX_FILE_SIZE_BYTES = 10_485_760L;
 
         public InputHardeningConfig {
             options = options != null && !options.isEmpty()
                 ? EnumSet.copyOf(options)
                 : EnumSet.noneOf(InputHardeningOption.class);
-            if (maxFileSizeBytes <= 0) {
+            if (maxFileSizeBytes < 0) {
                 maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES;
             }
         }
@@ -350,10 +350,6 @@ public final class WorkflowScriptSupport {
         }
         sb.append("- The ").append(unit).append(" must run standalone with no external project files.\n");
         sb.append("- Comment richly: put a clear comment before each logical step explaining its intent.\n");
-        sb.append("- Robust error handling: never abort hard without a clear, actionable message")
-            .append(lang.isDeclarative()
-                ? " (failing tasks must carry descriptive messages).\n"
-                : " and a non-zero exit code.\n");
         // The metadata header (script name / author / date / source / originating request) is injected
         // deterministically by the app AFTER generation. The model must never emit it — doing so
         // previously produced a duplicate header. In every mode except NONE the model still writes a
@@ -368,7 +364,7 @@ public final class WorkflowScriptSupport {
         }
         sb.append("- Do NOT invent secrets, hostnames, or credentials; use clearly-commented variables/placeholders.\n");
         sb.append("\n").append(lang.displayName().toUpperCase(Locale.ROOT)).append(" IDIOMS:\n")
-            .append(languageIdioms(lang)).append("\n");
+            .append(languageIdioms(lang, options)).append("\n");
         String rules = optionRules(lang, options);
         if (!rules.isBlank()) {
             sb.append("\nADDITIONAL REQUIREMENTS:\n").append(rules).append("\n");
@@ -419,58 +415,136 @@ public final class WorkflowScriptSupport {
         return sb.toString().strip();
     }
 
-    /** Per-language strict-mode / error-handling idioms required by the generated artefact. */
+    /**
+     * Per-language idioms for the default all-on hardening selection. Kept as a convenience overload
+     * for callers that deliberately want the complete production-hardening profile.
+     */
     public static String languageIdioms(ScriptLanguage lang) {
-        return switch (lang) {
-            case BASH -> String.join("\n",
-                "- Start the body with: set -euo pipefail",
-                "- Set IFS=$'\\n\\t'.",
-                "- Install an ERR trap that reports the failing line number and command, plus an EXIT trap for cleanup.",
-                "- Quote ALL variable expansions (\"$var\").",
-                "- Verify every required external command exists with: command -v <cmd>.",
-                "- Use functions; send diagnostics to stderr; return meaningful non-zero exit codes.");
-            case PYTHON -> String.join("\n",
-                "- Put the logic in a main() function and guard with: if __name__ == \"__main__\": sys.exit(main()).",
-                "- Use the logging module (to stderr) for diagnostics instead of bare print.",
-                "- Wrap risky operations in try/except, catch specific exceptions, and exit via sys.exit(code).",
-                "- Never let an unhandled traceback be the only error message.",
-                "- When shelling out use subprocess with check=True and handle CalledProcessError.");
-            case PERL -> String.join("\n",
-                "- Begin with: use strict; use warnings;  (add use autodie; where it helps).",
-                "- Wrap risky calls in eval { ... }; and inspect $@ for errors.",
-                "- Use die/warn with descriptive context; set explicit exit() codes.",
-                "- Check the return value of system()/open() calls.");
-            case RUBY -> String.join("\n",
-                "- Wrap the main flow in begin/rescue => e/ensure; rescue specific error classes.",
-                "- Send diagnostics to STDERR; use abort(msg) or exit(code) with meaningful codes.",
-                "- Verify the success of system() calls and external commands.");
-            case POWERSHELL -> String.join("\n",
-                "- Start with: Set-StrictMode -Version Latest  and  $ErrorActionPreference = 'Stop'.",
-                "- Use [CmdletBinding()] and a param() block for inputs.",
-                "- Wrap risky work in try/catch/finally and use throw for fatal errors (optionally a trap block).",
-                "- After native commands, check $LASTEXITCODE; exit with meaningful codes.",
-                "- Write diagnostics with Write-Error/Write-Verbose, not only Write-Host.");
-            case WINDOWS_CMD -> String.join("\n",
-                "- Start with: @echo off  then  setlocal EnableExtensions EnableDelayedExpansion.",
-                "- After each critical command check errors: 'if errorlevel 1 ...' or 'if %ERRORLEVEL% neq 0 ...', then 'exit /b <code>' with a meaningful code.",
-                "- Quote paths/values that may contain spaces (\"%VAR%\"); use delayed expansion (!VAR!) inside blocks.",
-                "- Use 'call :label' for subroutines and 'goto :eof' / 'exit /b' to return; send diagnostics to stderr with '1>&2'.",
-                "- Use pure cmd.exe built-ins; do NOT rely on PowerShell-, bash- or Unix-only commands.");
-            case APPLESCRIPT -> String.join("\n",
-                "- Wrap risky logic in 'try ... on error errMsg number errNum ... end try' and report a clear message.",
-                "- Run shell commands with 'do shell script \"...\"'; build arguments safely with 'quoted form of'.",
-                "- Log progress with 'log'; signal fatal failures with 'error \"message\" number <code>'.",
-                "- Keep 'tell application \"...\"' blocks short and only where needed.",
-                "- The script is run via osascript; on failure raise an error (non-zero) rather than returning silently.");
-            case ANSIBLE -> String.join("\n",
-                "- A single self-contained playbook in valid YAML, runnable with: ansible-playbook <file>.",
-                "- Begin the file with '---'.",
-                "- Use block/rescue/always for error handling; use assert and failed_when to validate state.",
-                "- Prefer idempotent modules (apt, copy, template, service, ...) over command/shell; "
-                    + "when using command/shell add creates/removes.",
-                "- Set any_errors_fatal where appropriate; define a vars: section for all literals.",
-                "- Every task needs a descriptive 'name:'; the playbook must be re-runnable without side effects.");
-        };
+        return languageIdioms(lang, HardeningOption.defaults());
+    }
+
+    /**
+     * Per-language idioms for exactly the selected hardening options. Language-validity guidance is
+     * always present; an unticked option contributes no option-specific idiom through this section.
+     */
+    public static String languageIdioms(ScriptLanguage lang, EnumSet<HardeningOption> opts) {
+        EnumSet<HardeningOption> options = opts != null ? opts : HardeningOption.defaults();
+        List<String> rules = new ArrayList<>();
+        switch (lang) {
+            case BASH -> {
+                rules.add("- Use valid Bash syntax; do not switch to another shell language.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Start the body with: set -euo pipefail, then set IFS=$'\\n\\t'.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Install an ERR trap that reports the failing line and command, plus an EXIT trap for cleanup.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send diagnostics and verbose log output to stderr.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Quote all variable expansions (\"$var\") and organize repeated work in functions.");
+                addIdiom(rules, options, HardeningOption.PRECONDITION_CHECKS,
+                    "- Verify every required external command with: command -v <cmd>.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Return distinct, meaningful non-zero exit codes from functions and the script.");
+            }
+            case PYTHON -> {
+                rules.add("- Use valid Python 3 syntax.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Treat failed required operations as fatal and never suppress exceptions silently.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Put the logic in a main() function and call it under if __name__ == \"__main__\":.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Use the logging module (to stderr) for diagnostics instead of bare print.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky operations in try/except, catch specific exceptions, and handle subprocess failures.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Return documented status codes from main() and exit via sys.exit(main()).");
+            }
+            case PERL -> {
+                rules.add("- Use valid Perl syntax.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Begin with: use strict; use warnings;  (add use autodie; where it helps).");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky calls in eval { ... }, inspect $@, and check system()/open() results.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send contextual diagnostics and verbose log output through warn/stderr.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Use die/warn with descriptive context and explicit, documented exit() codes.");
+            }
+            case RUBY -> {
+                rules.add("- Use valid Ruby syntax.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Treat failed required operations as fatal; do not rescue and ignore exceptions.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky work in begin/rescue/ensure, rescue specific classes, and verify system() results.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send contextual diagnostics and verbose log output to STDERR.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Use abort(message) or exit(code) with distinct, documented codes.");
+            }
+            case POWERSHELL -> {
+                rules.add("- Use PowerShell/pwsh syntax and native cmdlets; do not emit another shell language.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Start with: Set-StrictMode -Version Latest  and  $ErrorActionPreference = 'Stop'.");
+                addIdiom(rules, options, HardeningOption.HELP_USAGE,
+                    "- Use [CmdletBinding()] and a param() block for documented inputs.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky work in try/catch/finally and check $LASTEXITCODE after native commands.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Throw contextual fatal errors and exit with distinct, documented codes.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Write diagnostics with Write-Error/Write-Verbose, not only Write-Host.");
+            }
+            case WINDOWS_CMD -> {
+                rules.add("- Start with @echo off and setlocal EnableExtensions EnableDelayedExpansion; use pure"
+                    + " cmd.exe built-ins, not PowerShell-, Bash- or Unix-only commands.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Stop the main flow immediately after a required command reports a non-zero errorlevel.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Check errorlevel after every critical command and route failures through one cleanup path.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Return distinct, documented codes with exit /b <code>.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Quote paths containing spaces and use call :label / goto :eof for subroutines.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send diagnostics and verbose log output to stderr with 1>&2.");
+            }
+            case APPLESCRIPT -> {
+                rules.add("- Emit valid AppleScript that runs via osascript.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Treat errors from required operations as fatal; do not continue silently.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky logic in try ... on error errMsg number errNum ... end try and clean up state.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Build do shell script arguments with quoted form of and keep tell application blocks narrow.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Report progress and verbose diagnostics with log.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Signal fatal failures with error \"message\" number <code> so osascript exits non-zero.");
+            }
+            case ANSIBLE -> {
+                rules.add("- Emit one self-contained playbook in valid YAML, runnable with ansible-playbook <file>.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Use assert and failed_when to reject invalid state immediately.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Use block/rescue/always for failure handling and cleanup.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Use any_errors_fatal where one host failure must stop the play.");
+                addIdiom(rules, options, HardeningOption.CONFIG_BLOCK,
+                    "- Define all configurable literals in a vars: section.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Give every task a descriptive name and use fully-qualified module names.");
+                addIdiom(rules, options, HardeningOption.IDEMPOTENCY,
+                    "- Prefer idempotent modules; add creates/removes when command or shell is unavoidable.");
+            }
+        }
+        return String.join("\n", rules);
+    }
+
+    private static void addIdiom(List<String> rules, EnumSet<HardeningOption> options,
+                                 HardeningOption option, String rule) {
+        if (options.contains(option)) {
+            rules.add(rule);
+        }
     }
 
     private static String optionRules(ScriptLanguage lang, EnumSet<HardeningOption> opts) {
@@ -560,22 +634,31 @@ public final class WorkflowScriptSupport {
         }
         EnumSet<InputHardeningOption> opts = config.options();
         List<String> rules = new ArrayList<>();
-        rules.add("- Add an INPUT HARDENING guard block at the top of the script, directly after the shebang,"
-            + " strict-mode and configuration lines and before any other logic. Mark it clearly with comments"
+        rules.add("- Add an INPUT HARDENING guard block at the top of the script, directly after any shebang"
+            + " and existing prologue/configuration lines and before any other logic. Mark it clearly with comments"
             + " (e.g. \"--- input hardening guard ---\") and run every check below before the script does any"
             + " real work. The guard runs entirely inside the script on the host executing it; assume no help"
             + " from any outside tool.");
-        rules.add("- Implement every check with the language's own built-ins / standard library only; never"
-            + " depend on commands that may be missing on the target host. When an optional helper (such as"
-            + " the 'file' command) is unavailable, degrade gracefully to the built-in check instead of failing.");
+        String helperRule = "- Implement every check with the language's own built-ins / standard library wherever"
+            + " possible, and probe every external command before using it";
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            helperRule += ". When an optional format helper (such as the 'file' command) is unavailable,"
+                + " degrade gracefully to the built-in check instead of failing";
+        }
+        rules.add(helperRule + ".");
         // The exit-code list names only the violation classes the selected sub-options create, so the
         // prompt never describes (and thereby invites) checks the user deselected.
         List<String> exitCodes = new ArrayList<>();
         if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
             exitCodes.add("64 for parameter violations");
         }
-        if (opts.contains(InputHardeningOption.FILE_CHECKS) || opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)
+                && opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
             exitCodes.add("65 for a file that fails the format or size checks");
+        } else if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            exitCodes.add("65 for a file that fails the format check");
+        } else if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+            exitCodes.add("65 for a file that exceeds the size limit or whose metadata-only size cannot be obtained");
         }
         if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
             exitCodes.add("66 for a missing or unreadable input file");
@@ -595,22 +678,36 @@ public final class WorkflowScriptSupport {
                 + " characters) so oversized input is rejected instead of processed.");
         }
         if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
-            rules.add("- For every parameter the script uses as an input file path: verify the file exists and"
-                + " is readable before first use (exit code 66), and verify its content format matches what the"
-                + " script can process. A text-processing script must reject binary files: scan the first 512"
-                + " bytes for NUL bytes, and additionally consult 'file --mime-type' (or the platform"
-                + " equivalent) only when that command exists, falling back to the NUL-byte check when it"
-                + " does not.");
+            rules.add("- For every parameter the script uses as an input file path, verify the file exists and"
+                + " is readable before any size or content check (exit code 66).");
         }
         if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
             long bytes = config.maxFileSizeBytes();
-            rules.add("- Define a variable KORTTY_MAX_FILE_SIZE=" + bytes + " (bytes; " + (bytes / 1_048_576L)
-                + " MB) in the guard's configuration section, with a comment stating that the script author may"
-                + " raise or lower it later by editing this variable. Reject every input file whose size exceeds"
-                + " this limit (exit code 65).");
+            String displayLimit = bytes == 0 ? "unlimited" : (bytes / 1_048_576L) + " MB";
+            rules.add("- Define a variable MAX_FILE_SIZE=" + bytes + " (bytes; " + displayLimit
+                + ") in the guard's configuration section, with a comment stating that the script author may"
+                + " raise or lower it later. If MAX_FILE_SIZE is 0, treat the size as unlimited and skip the size"
+                + " check entirely. When MAX_FILE_SIZE is greater than 0, obtain every input file's size from"
+                + " metadata without reading its contents, before any operation reads even one byte"
+                + (opts.contains(InputHardeningOption.FILE_CHECKS)
+                    ? " (including the enabled format check's initial content scan)"
+                    : "")
+                + ". If no metadata-only size query is available, fail closed without reading"
+                + " the file. If the file is larger than MAX_FILE_SIZE, reject it (exit code 65) and do not read"
+                + " its contents. Never calculate the size by reading or streaming the file (for example with"
+                + " wc -c).");
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            rules.add("- Only after every enabled metadata-only size check has passed, verify that each input"
+                + " file's content format matches what the script can process. A text-processing script must"
+                + " reject binary files: scan the first 512 bytes for NUL bytes, and additionally consult"
+                + " 'file --mime-type' (or the platform equivalent) only when that command exists, falling back"
+                + " to the NUL-byte check when it does not.");
         }
         if (opts.contains(InputHardeningOption.SECURITY_LOGGING)) {
-            rules.add("- Report every violation and every forced bypass as a security warning: a timestamped"
+            rules.add("- Report every violation"
+                + (opts.contains(InputHardeningOption.FORCE_OVERRIDE) ? " and every forced bypass" : "")
+                + " as a security warning: a timestamped"
                 + " line starting with \"SECURITY:\" written to stderr in every case. If the script writes its"
                 + " own logfile — detect an existing log-file variable or logging function in the script and"
                 + " reuse it — append the same warning line there as well.");
@@ -623,6 +720,15 @@ public final class WorkflowScriptSupport {
         }
         rules.add(inputHardeningLanguageRule(lang, opts));
         return String.join("\n", rules);
+    }
+
+    /** Whether an editor snippet can receive the imperative input-hardening guard contract. */
+    public static boolean supportsInputHardeningForSnippet(String snippetLanguage) {
+        if (snippetLanguage == null) {
+            return true;
+        }
+        String value = snippetLanguage.trim().toLowerCase(Locale.ROOT);
+        return !value.equals("yaml") && !value.equals("yml") && !value.contains("ansible");
     }
 
     /** Per-language implementation idiom fragments for the guard, one clause per sub-option. */
@@ -638,17 +744,34 @@ public final class WorkflowScriptSupport {
     private static String inputHardeningLanguageRule(ScriptLanguage lang, EnumSet<InputHardeningOption> opts) {
         InputHardeningIdioms idioms = inputHardeningIdioms(lang);
         if (idioms == null) {
-            return "- Implement the guard with the language's native argument, string and file facilities only.";
+            List<String> genericClauses = new ArrayList<>();
+            if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
+                genericClauses.add("argument-count and string-validation facilities");
+            }
+            if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
+                genericClauses.add("metadata-only file-size queries");
+            }
+            if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+                genericClauses.add("file tests and bounded content inspection");
+            }
+            if (opts.contains(InputHardeningOption.SECURITY_LOGGING)) {
+                genericClauses.add("timestamp and stderr/log output facilities");
+            }
+            if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
+                genericClauses.add("environment-variable access");
+            }
+            return "- Implement the guard with the language's native "
+                + String.join(", ", genericClauses) + " only.";
         }
         List<String> clauses = new ArrayList<>();
         if (opts.contains(InputHardeningOption.PARAM_VALIDATION)) {
             clauses.add(idioms.params());
         }
-        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
-            clauses.add(idioms.fileChecks());
-        }
         if (opts.contains(InputHardeningOption.FILE_SIZE_LIMIT)) {
             clauses.add(idioms.fileSize());
+        }
+        if (opts.contains(InputHardeningOption.FILE_CHECKS)) {
+            clauses.add(idioms.fileChecks());
         }
         if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
             clauses.add(idioms.force());
@@ -665,13 +788,15 @@ public final class WorkflowScriptSupport {
         }
         return switch (lang) {
             case BASH -> new InputHardeningIdioms(
-                "Implement the guard with bash built-ins and POSIX tools only",
+                "Implement the guard with bash built-ins and locally available standard tools",
                 "$# for the parameter count, case/[[ patterns for allowlists, ${#var} for lengths,"
-                    + " and set -u for unset parameters",
+                    + " and explicit checks before accessing positional parameters",
                 "[ -f ]/[ -r ] file tests and a NUL-byte scan of the first 512 bytes (compare the byte count of"
                     + " head -c 512 \"$file\" | LC_ALL=C tr -d '\\0' against the raw count) for the binary check,"
                     + " probing optional helpers with command -v",
-                "wc -c < \"$file\" for the size limit",
+                "when MAX_FILE_SIZE is greater than 0, file metadata via GNU stat -c %s or BSD/macOS stat -f %z"
+                    + " for the size limit, probing which form is supported and failing closed without reading"
+                    + " the file if neither is available",
                 "\"${KORTTY_FORCE:-}\" for the override");
             case PYTHON -> new InputHardeningIdioms(
                 "Implement the guard with the Python standard library only",

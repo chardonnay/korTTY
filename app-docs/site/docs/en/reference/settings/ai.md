@@ -130,14 +130,14 @@ Knowledge stores assigned to the Text/Coding roles add only bounded, cited excer
 Reasoning effort configures how deeply the AI thinks before responding. Available levels depend on the model and endpoint:
 
 - **Disabled**: No reasoning parameter sent; model uses its default behavior.
-- **None**: Explicitly disable reasoning (send `reasoning: "none"`).
+- **None**: Explicitly disable reasoning with the transport's supported off value.
 - **Minimal**: Light reasoning; fastest execution.
 - **Low**: Low effort reasoning; balance between speed and depth.
 - **Medium**: Medium effort; reasonable depth.
 - **High**: High effort; more thorough reasoning.
 - **Extra high**: Maximum reasoning effort; slowest but most comprehensive.
 
-Not all models support all levels. Use the **Refresh reasoning options** button to detect available levels for the current profile and model.
+Not all models support all levels. Use the **Refresh reasoning options** button to detect available levels for the current profile and model. When LM Studio publishes `capabilities.reasoning.allowed_options` through its native model metadata, korTTY uses that exact list instead of treating a silently converted value as supported. For a binary `off`/`on` model, an explicit `none` request switches this feature off, while omitting the reasoning parameter uses the model's published default; the unsupported Minimal, Low, Medium, High, and Extra high levels are not offered. Other compatible endpoints continue to use active connection probes when no such metadata is available.
 
 For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
 

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Snippet editor and Mermaid diagram workflow</title>
-  <desc id="desc">Flow from the Monaco snippet editor through a full-analysis request plus a separate dedicated diagram request (or the local Mermaid fallback), the secure centralized renderer, the shared viewer and exports, and snippet persistence; reports follow the interface language while generated code text uses the selected AI text language.</desc>
+  <desc id="desc">Flow from the Monaco snippet editor through a full-analysis request plus a separate dedicated diagram request (or the local Mermaid fallback), the secure centralized renderer, the shared viewer and exports, and snippet persistence; applying selected analysis results keeps the report open beside a docked progress checklist, uses one atomic stage per analysis item plus bounded hardening batches, permits one targeted repair attempt for an incomplete stage, and opens one final preview only after every stage passes validation.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#67e8f9"/>
@@ -116,5 +116,5 @@
   <path class="dash" d="M 1113 505 V 555"/>
   <path class="dash" d="M 170 505 V 540 H 318 V 580"/>
 
-  <text class="note" x="42" y="694">Analysis follows the UI language; applied code uses the selected AI text language. The diagram request starts when the window opens; Regenerate repeats it.</text>
+  <text class="note" x="42" y="694">Reports use UI language; returned code uses text language. Apply keeps a docked checklist with time/tokens/checkmarks, then opens one final preview.</text>
 </svg>

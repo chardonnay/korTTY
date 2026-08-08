@@ -23,9 +23,11 @@ The **Input hardening** panel shows up in the same places as the classic hardeni
 | **AI Swarm → Generate multi-server workflow** | You generate the multi-server script |
 | **Snippet editor → AI Code → Improve robustness** | You confirm the dialog |
 | **Snippet editor → AI Code → Custom improvement…** | You confirm the dialog |
-| **Snippet editor → AI Code → Full code analysis** | You click *Apply selected* |
+| **Snippet editor → AI Code → Full code analysis** | You click *Apply selected*; each enabled guard rule becomes a separately tracked mandatory requirement, and an incomplete replacement is rejected before review |
 
 Unlike the classic hardening options, input hardening is **strictly opt-in**: the master check box starts unticked and the panel starts collapsed, because the guard changes the script's runtime behaviour — a script that previously accepted any input will start rejecting input that violates the rules. Tick **Input hardening (validate script inputs)** to activate it for the current generation or rewrite.
+
+Declarative YAML/YML/Ansible targets cannot receive this imperative argument-and-file guard. KorTTY disables the panel for those targets in the workflow, swarm, **Improve robustness**, **Custom improvement**, and **Full code analysis** dialogs, and an already-saved enabled default yields no effective guard configuration there. For snippet improvements in a supported language, enabling Input hardening changes the target to the **complete snippet** so the guard can be placed before all real work; the complete result is reviewed before it is applied.
 
 ## The five guard behaviours
 
@@ -41,11 +43,11 @@ Every parameter the script uses as an input file path is checked before first us
 
 #### Max. input file size (script variable)
 
-The guard defines a `KORTTY_MAX_FILE_SIZE` variable (in bytes) in its configuration section and rejects every input file above that limit. The panel's **Max. file size** spinner sets the generated default — 10 MB unless you change it — and because the limit is an ordinary script variable, the script author can raise or lower it later by simply editing that line in the script.
+The guard defines a `MAX_FILE_SIZE` variable (in bytes) in its configuration section. When `MAX_FILE_SIZE` is greater than `0`, the guard obtains the file size from metadata before any operation reads file content — including the format check's initial content scan. A larger file is rejected with exit code `65` and its content is not read. If no metadata-only size query is available, the guard rejects the file without reading it. `0` means unlimited and skips the size check entirely. The size spinner in the panel accepts `0`–`1024` MB and sets the generated default to 10 MB unless you change it.
 
 #### Security warnings to stderr & script log
 
-Every violation, and every forced bypass, is reported as a timestamped security warning line starting with `SECURITY:` on stderr. If the script writes its own log file, the guard appends the same warning line there too, so the script's log carries a complete security trail.
+Every violation is reported as a timestamped security warning line starting with `SECURITY:` on stderr. If **KORTTY_FORCE=1 override** is also selected, every forced bypass is reported the same way. If the script writes its own log file, the guard appends the same warning line there too, so the script's log carries a complete security trail.
 
 #### KORTTY_FORCE=1 override
 
@@ -53,7 +55,7 @@ Blocking is the default, but a run can be forced: when the environment variable 
 
 ## Exit codes
 
-When the guard blocks a run (and `KORTTY_FORCE` is not set), it uses distinct, documented exit codes so callers can tell *why* the input was rejected:
+When the guard blocks a run (and `KORTTY_FORCE` is not set), it uses distinct, documented exit codes so callers can tell *why* the input was rejected. The prompt names only codes created by the selected checks: format-only and size-only selections each describe only their own `65` case, and `66` is included only with **Input file format checks**.
 
 | Exit code | Meaning |
 |-----------|---------|
@@ -63,7 +65,7 @@ When the guard blocks a run (and `KORTTY_FORCE` is not set), it uses distinct, d
 
 ## Language awareness
 
-The guard is implemented with each language's own built-ins and standard library only — it never depends on tools that may be missing on the target host, and optional helpers (like the `file` command) degrade gracefully to built-in checks. Bash guards use `$#`, pattern matching, `wc -c` and a NUL-byte scan; Python guards use `sys.argv`, `re`, `os.path.getsize` and a binary read; Perl guards use `@ARGV`, untainting regex allowlists and taint mode (`-T`) where the script allows it; Ruby guards use `ARGV`, `Regexp` and `File.binread`. Other script languages get a generic guard built from their native argument, string and file facilities. Declarative Ansible playbooks take no positional parameters this way, so input hardening does not apply to them.
+The guard uses each language's own built-ins and standard library wherever available, and it probes optional platform tools before using them. Bash guards use `$#`, pattern matching, GNU `stat -c %s` or BSD/macOS `stat -f %z` for a metadata-only size check, and a NUL-byte scan only after that size check passes; if neither `stat` form works, the guard rejects the file without reading it. Python guards use `sys.argv`, `re`, `os.path.getsize` and a binary read; Perl guards use `@ARGV`, untainting regex allowlists, taint mode (`-T`) where the script allows it and the metadata-only `-s` operator; Ruby guards use `ARGV`, `Regexp`, `File.size` and `File.binread`. Other script languages get generic guidance only for the native argument, file, logging or environment facilities required by the selected sub-options. Declarative YAML/YML/Ansible targets are disabled because they take no positional parameters this way.
 
 ## Managing the selection
 

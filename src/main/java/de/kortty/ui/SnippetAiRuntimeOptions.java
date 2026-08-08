@@ -4,16 +4,16 @@ import java.util.Set;
 
 /**
  * Mutable, editor-scoped runtime options shared between the snippet editor and its {@link
- * SnippetAiAssistFactory}-built providers. Currently carries the AI skills the user forced for AI-code
+ * SnippetAiAssistFactory}-built providers. Currently carries the AI skills selected for AI-code
  * runs: the editor updates {@link #setForcedSkillIds(Set)} from its skill picker, and the factory reads
- * {@link #forcedSkillIds()} at request time to pin those skills onto the freshly-built AI service — so a
- * single selection applies to every AI-code function without threading a field through each request.
+ * {@link #forcedSkillIds()} at request time as the freshly-built AI service's explicit skill allowlist —
+ * so one selection applies to every AI-code function without threading a field through each request.
  */
 final class SnippetAiRuntimeOptions {
 
     private volatile Set<String> forcedSkillIds = Set.of();
 
-    /** Skill ids forced into every AI-code prompt regardless of the skill's target; never {@code null}. */
+    /** Explicit skill ids for every AI-code prompt, regardless of target; never {@code null}. */
     Set<String> forcedSkillIds() {
         return forcedSkillIds;
     }

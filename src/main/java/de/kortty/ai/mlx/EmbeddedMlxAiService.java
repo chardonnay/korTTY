@@ -1,5 +1,6 @@
 package de.kortty.ai.mlx;
 
+import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiPromptExecutionScope;
 import de.kortty.core.AiPromptService;
@@ -94,7 +95,9 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
 
     @Override
     public AiExecutionResult execute(AiRequest request) throws Exception {
-        return withDelegate(delegate -> separateInlineReasoning(delegate.execute(request)));
+        return withDelegate(
+            delegate -> separateInlineReasoning(delegate.execute(request)),
+            request == null || request.action() != AiAction.GENERATE_SNIPPET_MERMAID);
     }
 
     @Override
@@ -176,6 +179,10 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
     }
 
     private <T> T withDelegate(DelegateCall<T> call) throws Exception {
+        return withDelegate(call, true);
+    }
+
+    private <T> T withDelegate(DelegateCall<T> call, boolean retryReplyShapeFailures) throws Exception {
         MlxRuntimeManager manager = runtimeManagerSupplier.get();
         if (manager == null) {
             throw new MlxRuntimeException("MLX runtime manager is not available.");
@@ -187,7 +194,8 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
             // at temperature > 0: a sidecar 5xx and a reasoning model spending its whole reply
             // inside <think>. Client errors (4xx) are deterministic and not retried; the retry
             // re-runs the whole call, including any web-search tool rounds.
-            if (!isRetryableLocalFailure(e)) {
+            if (!isRetryableLocalFailure(e)
+                || (!retryReplyShapeFailures && isReplyShapeFailure(e))) {
                 throw e;
             }
             logger.warn("Local mlx-lm request failed ({}); retrying once.", e.getMessage());
@@ -228,6 +236,11 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
         return e instanceof LocalAiReplySupport.ReasoningOnlyReplyException
             || e instanceof OpenAiCompatibleAiService.EmptyResponseException
             || e instanceof java.net.ConnectException;
+    }
+
+    private static boolean isReplyShapeFailure(Exception e) {
+        return e instanceof LocalAiReplySupport.ReasoningOnlyReplyException
+            || e instanceof OpenAiCompatibleAiService.EmptyResponseException;
     }
 
     /**

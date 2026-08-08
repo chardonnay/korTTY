@@ -23,9 +23,11 @@ Das **Input-Hardening**-Panel wird an den gleichen Stellen angezeigt wie das kla
 | **AI Swarm → Multi-Server-Workflow generieren** | Sie generieren das Multi-Server-Skript |
 | **Snippet-Editor → AI-Code → Robustheit verbessern** | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Sie bestätigen den Dialog |
-| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Sie klicken auf *Auswahl anwenden* |
+| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Sie klicken auf *Auswahl übernehmen*; Jede aktivierte Schutzregel wird zu einer separat verfolgten verbindlichen Anforderung, und ein unvollständiger Ersatz wird vor der Überprüfung abgelehnt |
 
 Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung **ausschließlich opt-in**: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird minimiert, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie **Eingabe-Härtung (Skript-Eingaben validieren)**, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.
+
+Deklarative YAML/YML/Ansible-Ziele können diesen zwingenden Argument- und Dateischutz nicht erhalten. KorTTY deaktiviert das Panel für diese Ziele in den Dialogen Workflow, Swarm, **Robustheit verbessern**, **Benutzerdefinierte Verbesserung** und **Vollständige Codeanalyse**, und eine bereits gespeicherte aktivierte Standardeinstellung führt dort zu keiner wirksamen Schutzkonfiguration. Für Snippet-Verbesserungen in einer unterstützten Sprache ändert die Aktivierung der Eingabe-Härtung das Ziel auf das **vollständige Snippet**, sodass der Schutz vor allen eigentlichen Arbeiten platziert werden kann; Das Gesamtergebnis wird vor der Anwendung überprüft.
 
 ## Die fünf Wachverhaltensweisen
 
@@ -41,11 +43,11 @@ Jeder Parameter, den das Skript als Eingabedateipfad verwendet, wird vor der ers
 
 #### Max. Größe der Eingabedatei (Skriptvariable)
 
-Der Wächter definiert in seinem Konfigurationsabschnitt eine `KORTTY_MAX_FILE_SIZE`-Variable (in Bytes) und lehnt jede Eingabedatei über diesem Grenzwert ab. Die **Max. Der Spinner „Dateigröße**“ legt den generierten Standard fest – 10 MB, sofern Sie ihn nicht ändern – und da es sich bei dem Grenzwert um eine gewöhnliche Skriptvariable handelt, kann der Skriptautor ihn später erhöhen oder verringern, indem er einfach diese Zeile im Skript bearbeitet.
+Der Wächter definiert in seinem Konfigurationsabschnitt eine `MAX_FILE_SIZE`-Variable (in Bytes). Wenn `MAX_FILE_SIZE` größer als `0` ist, ermittelt der Wächter die Dateigröße aus Metadaten, bevor ein Vorgang den Dateiinhalt liest – einschließlich des ersten Inhaltsscans der Formatprüfung. Eine größere Datei wird mit dem Exit-Code `65` abgelehnt und ihr Inhalt wird nicht gelesen. Wenn keine reine Metadaten-Größenabfrage verfügbar ist, lehnt der Wächter die Datei ab, ohne sie zu lesen. `0` bedeutet unbegrenzt und überspringt die Größenprüfung vollständig. Der Größenauswahlknopf im Bedienfeld akzeptiert `0`–`1024` MB und legt den generierten Standardwert auf 10 MB fest, sofern Sie ihn nicht ändern.
 
 #### Sicherheitswarnungen für stderr und Skriptprotokoll
 
-Jeder Verstoß und jede erzwungene Umgehung wird als zeitgestempelte Sicherheitswarnzeile, beginnend mit `SECURITY:`, auf stderr gemeldet. Wenn das Skript eine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile hinzu, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
+Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **KORTTY_FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript eine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile hinzu, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
 
 #### KORTTY_FORCE=1 Überschreibung
 
@@ -53,7 +55,7 @@ Blockieren ist die Standardeinstellung, aber eine Ausführung kann erzwungen wer
 
 ## Exit-Codes
 
-Wenn der Guard eine Ausführung blockiert (und `KORTTY_FORCE` nicht gesetzt ist), verwendet er eindeutige, dokumentierte Exit-Codes, damit Aufrufer erkennen können, *warum* die Eingabe abgelehnt wurde:
+Wenn der Guard eine Ausführung blockiert (und `KORTTY_FORCE` nicht gesetzt ist), verwendet er eindeutige, dokumentierte Exit-Codes, damit Aufrufer erkennen können, *warum* die Eingabe abgelehnt wurde. Die Eingabeaufforderung benennt nur Codes, die durch die ausgewählten Prüfungen erstellt wurden: Nur-Format- und Nur-Größen-Auswahlen beschreiben jeweils nur ihren eigenen `65`-Fall, und `66` ist nur bei **Eingabedateiformatprüfungen** enthalten.
 
 | Exit-Code | Bedeutung |
 |-----------|---------|
@@ -63,8 +65,8 @@ Wenn der Guard eine Ausführung blockiert (und `KORTTY_FORCE` nicht gesetzt ist)
 
 ## Sprachbewusstsein
 
-Der Wächter wird nur mit den eigenen integrierten Funktionen und der Standardbibliothek jeder Sprache implementiert – er hängt nie von Tools ab, die auf dem Zielhost fehlen könnten, und optionale Hilfsprogramme (wie der Befehl `file`) degradieren sanft zu integrierten Prüfungen. Bash Guards verwenden `$#`, Mustervergleich, `wc -c` und einen NUL-Byte-Scan; Python-Guards verwenden `sys.argv`, `re`, `os.path.getsize` und einen binären Lesevorgang; Perl-Wächter verwenden `@ARGV`, entfernen Regex-Zulassungslisten und den Taint-Modus (`-T`), wenn das Skript dies zulässt; Ruby Guards verwenden `ARGV`, `Regexp` und `File.binread`. Andere Skriptsprachen erhalten einen generischen Schutz, der aus ihren nativen Argument-, String- und Dateifunktionen aufgebaut ist. Deklarative Ansible-Playbooks akzeptieren auf diese Weise keine Positionsparameter, sodass die Eingabe-Härtung für sie nicht gilt.
+Der Wächter nutzt die eigenen integrierten Funktionen und Standardbibliotheken jeder Sprache, sofern verfügbar, und prüft optionale Plattformtools, bevor er sie verwendet. Bash Guards verwenden `$#`, Mustervergleich, GNU `stat -c %s` oder BSD/macOS `stat -f %z` für eine reine Metadaten-Größenprüfung und einen NUL-Byte-Scan erst, nachdem diese Größenprüfung bestanden wurde; Wenn keines der `stat`-Formulare funktioniert, lehnt der Wächter die Datei ab, ohne sie zu lesen. Python-Guards verwenden `sys.argv`, `re`, `os.path.getsize` und einen binären Lesevorgang; Perl-Wächter verwenden `@ARGV`, das Entfernen von Regex-Zulassungslisten, den Taint-Modus (`-T`), sofern das Skript dies zulässt, und den Nur-Metadaten-Operator `-s`; Ruby Guards verwenden `ARGV`, `Regexp`, `File.size` und `File.binread`. Andere Skriptsprachen erhalten allgemeine Anleitungen nur für die nativen Argument-, Datei-, Protokollierungs- oder Umgebungsfunktionen, die für die ausgewählten Unteroptionen erforderlich sind. Deklarative YAML/YML/Ansible-Ziele sind deaktiviert, da sie auf diese Weise keine Positionsparameter annehmen.
 
 ## Verwaltung der Auswahl
 
-Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine **Live-Zählung** der effektiv aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.
+Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine Live-Zählung** der effektiv aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.

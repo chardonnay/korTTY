@@ -3,6 +3,7 @@ package de.kortty.core;
 import com.google.gson.Gson;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -109,27 +110,34 @@ class SnippetAiAnalysisContractTest {
             "de",
             selectedImprovements,
             selectedDependencies,
+            null,
             null);
 
-        AiRequest request = aiService.lastRequest;
+        assertThat(aiService.requests).hasSize(2);
+        AiRequest improvementRequest = aiService.requests.get(0);
+        AiRequest dependencyRequest = aiService.requests.get(1);
         assertThat(result.isUsable()).isTrue();
-        assertThat(request.action()).isEqualTo(AiAction.APPLY_SNIPPET_IMPROVEMENTS);
-        assertThat(request.responseLanguageCode()).isEqualTo("de");
-        assertThat(request.conversationContext()).contains("Snippet language: bash");
-        assertThat(request.conversationContext()).contains("Natural language for the summary: de");
-        assertThat(request.conversationContext()).contains("SEC-1 [security/high] Variable quoten");
-        assertThat(request.conversationContext()).contains("D1 [dependency] printf");
-        assertThat(request.conversationContext()).doesNotContain(originalSnippet);
-        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+        assertThat(improvementRequest.action()).isEqualTo(AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+        assertThat(improvementRequest.responseLanguageCode()).isEqualTo("de");
+        assertThat(improvementRequest.conversationContext()).contains("Snippet language: bash");
+        assertThat(improvementRequest.conversationContext()).contains("Natural language for the summary: de");
+        assertThat(improvementRequest.conversationContext()).contains("SEC-1 [security/high] Variable quoten");
+        assertThat(improvementRequest.conversationContext()).doesNotContain("D1 [dependency] printf");
+        assertThat(dependencyRequest.conversationContext()).contains("D1 [dependency] printf");
+        assertThat(dependencyRequest.conversationContext()).doesNotContain("SEC-1 [security/high] Variable quoten");
+        assertThat(improvementRequest.conversationContext()).doesNotContain(originalSnippet);
+        String userPrompt = AiPromptBuilder.buildUserPrompt(improvementRequest);
         assertThat(userPrompt).contains("Full script content to update");
         assertThat(userPrompt).doesNotContain("Selected terminal text");
         assertThat(userPrompt.indexOf(originalSnippet)).isEqualTo(userPrompt.lastIndexOf(originalSnippet));
-        assertThat(AiPromptBuilder.buildSystemPrompt(request))
-            .contains("comments or user-facing strings in language code de");
+        assertThat(AiPromptBuilder.buildSystemPrompt(improvementRequest))
+            .contains("Every existing, new, or rewritten natural-language comment");
+        assertThat(AiPromptBuilder.buildSystemPrompt(improvementRequest)).contains("must be in language code de");
     }
 
     private static final class CapturingAiService implements AiService {
         private final String response;
+        private final List<AiRequest> requests = new ArrayList<>();
         private AiRequest lastRequest;
         private int executionCount;
 
@@ -139,6 +147,7 @@ class SnippetAiAnalysisContractTest {
 
         @Override
         public AiExecutionResult execute(AiRequest request) {
+            requests.add(request);
             lastRequest = request;
             executionCount++;
             return new AiExecutionResult(response, null);

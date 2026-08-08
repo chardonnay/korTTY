@@ -13,6 +13,7 @@
       {"pattern": "icon/.*"},
       {"pattern": "styles/.*"},
       {"pattern": "bundled-plugins/.*"},
+      {"pattern": "builtin-action-ai-skills/.*"},
       {"pattern": "META-INF/.*"}
     ]
   },

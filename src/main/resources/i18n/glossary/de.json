@@ -4,6 +4,289 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "**KI-Verarbeitungsfenster**",
+      "to": "Fenster **KI-Verarbeitung**",
+      "scope": "markdown",
+      "note": "Uses the visible title snippets.ai.analysis.progress.title."
+    },
+    {
+      "from": "Verarbeitungsbegleiter",
+      "to": "Begleitfenster für die KI-Verarbeitung",
+      "scope": "markdown",
+      "note": "Names the docked companion window clearly."
+    },
+    {
+      "from": "während **Auswahl anwenden**",
+      "to": "während **Auswahl übernehmen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.applySelected."
+    },
+    {
+      "from": "**Auswahl anwenden**",
+      "to": "**Auswahl übernehmen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.applySelected."
+    },
+    {
+      "from": "die Gesamtfortschritt",
+      "to": "der Gesamtfortschritt",
+      "scope": "markdown"
+    },
+    {
+      "from": "dann klassische und Anforderungen der Eingabe-Härtung",
+      "to": "dann Anforderungen der klassischen Code-Härtung und der Eingabe-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "Der aktive Stapel",
+      "to": "Der aktive KI-Batch",
+      "scope": "markdown"
+    },
+    {
+      "from": "der Begleiter geschlossen",
+      "to": "das Begleitfenster geschlossen",
+      "scope": "markdown"
+    },
+    {
+      "from": "; Die Analyse",
+      "to": "; die Analyse",
+      "scope": "markdown"
+    },
+    {
+      "from": "Jede ausgewählte klassische und Regel der Eingabe-Härtung",
+      "to": "Jede ausgewählte Regel der klassischen Code-Härtung und der Eingabe-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "eingabehärtende Regel",
+      "to": "Regel der Eingabe-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "Input-Hardening-Anforderungen",
+      "to": "Anforderungen der Eingabe-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "Eingabehärteanforderungen",
+      "to": "Anforderungen der Eingabe-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "Anbieterstapel",
+      "to": "KI-Batch",
+      "scope": "markdown"
+    },
+    {
+      "from": "Apply-Aufgabe",
+      "to": "KI-Aufgabe",
+      "scope": "markdown"
+    },
+    {
+      "from": "Code-Hardening",
+      "to": "Code-Härtung",
+      "scope": "markdown"
+    },
+    {
+      "from": "**Code hardening**",
+      "to": "**Code-Härtungen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.progress.hardening."
+    },
+    {
+      "from": "unter **Code-Härtung** gruppiert",
+      "to": "unter **Code-Härtungen** gruppiert",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.progress.hardening."
+    },
+    {
+      "from": "Die Härtungsanforderungen basieren auf der Abschnittsüberschrift **Code-Härtung**",
+      "to": "Härtungsanforderungen werden bereits durch die Abschnittsüberschrift **Code-Härtungen** gekennzeichnet",
+      "scope": "markdown",
+      "note": "Keeps the generated release-note wording aligned with the UI label."
+    },
+    {
+      "from": "; Der Schweregrad",
+      "to": "; der Schweregrad",
+      "scope": "markdown"
+    },
+    {
+      "from": "insgesamt abgeschlossenen Arbeiten",
+      "to": "Gesamtfortschritt",
+      "scope": "markdown"
+    },
+    {
+      "from": "verstrichene Arbeitszeit",
+      "to": "bisherige Verarbeitungsdauer",
+      "scope": "markdown"
+    },
+    {
+      "from": "als ausgeführt hervorgehoben",
+      "to": "als in Bearbeitung markiert",
+      "scope": "markdown"
+    },
+    {
+      "from": "fehlgeschlagener oder wiederholter Schritt",
+      "to": "fehlgeschlagener oder erneut versuchter Schritt",
+      "scope": "markdown"
+    },
+    {
+      "from": "Behoben: Leere vollständige Codeanalyse wendet Ergebnisse aus fehlerhaftem lokalem JSON-Modell an",
+      "to": "Leere Änderungsvorschauen durch fehlerhafte JSON-Antworten lokaler Modelle behoben",
+      "scope": "markdown",
+      "note": "Keeps the release-note heading grammatical and preserves the meaning of apply results."
+    },
+    {
+      "from": "; Es wiederholt die Anfrage ohne dieses Schema nur dann",
+      "to": "; die Anfrage wird nur dann ohne dieses Schema wiederholt",
+      "scope": "markdown",
+      "note": "Avoids a dangling pronoun after the JSON Schema sentence."
+    },
+    {
+      "from": "Quell-Escapes",
+      "to": "Escape-Sequenzen im Quellcode",
+      "scope": "markdown",
+      "note": "Uses the established German technical term for source-code escapes."
+    },
+    {
+      "from": "Checkliste für die kompakte Härtung",
+      "to": "kompakte Härtungs-Checkliste",
+      "scope": "markdown",
+      "note": "Keeps the checklist wording natural and unambiguous."
+    },
+    {
+      "from": "*****",
+      "to": "**+**",
+      "scope": "markdown",
+      "note": "Preserves the literal add-language button label in generated Markdown."
+    },
+    {
+      "from": "**Refresh-Reasoning-Optionen**",
+      "to": "**Reasoning-Optionen aktualisieren**",
+      "scope": "markdown",
+      "note": "UI label settings.ai.reasoning.refresh."
+    },
+    {
+      "from": "**Argumentationsoptionen aktualisieren**",
+      "to": "**Reasoning-Optionen aktualisieren**",
+      "scope": "markdown",
+      "note": "UI label settings.ai.reasoning.refresh."
+    },
+    {
+      "from": "**Begründungsoptionen aktualisieren**",
+      "to": "**Reasoning-Optionen aktualisieren**",
+      "scope": "markdown",
+      "note": "UI label settings.ai.reasoning.refresh."
+    },
+    {
+      "from": "*Verbesserungen anwenden – Änderungen überprüfen*",
+      "to": "*Verbesserungen übernehmen – Änderungen prüfen*",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.diff.title."
+    },
+    {
+      "from": "*Änderung der AI überprüfen*",
+      "to": "*KI-Änderung prüfen*",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diff.title."
+    },
+    {
+      "from": "*AI-Änderung überprüfen*",
+      "to": "*KI-Änderung prüfen*",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diff.title."
+    },
+    {
+      "from": "**Automatisch generieren**",
+      "to": "**Automatisch erzeugen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.diagram.autoGenerate."
+    },
+    {
+      "from": "**Ausgewählte anwenden**",
+      "to": "**Auswahl übernehmen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.applySelected."
+    },
+    {
+      "from": "**Ausgewählt anwenden:**",
+      "to": "**Auswahl übernehmen:**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.applySelected."
+    },
+    {
+      "from": "**Ausgewählt anwenden**",
+      "to": "**Auswahl übernehmen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.applySelected."
+    },
+    {
+      "from": "**Änderung übernehmen**",
+      "to": "**Änderung anwenden**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diff.apply."
+    },
+    {
+      "from": "**Neugenerieren**",
+      "to": "**Neu erzeugen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diagram.regenerate."
+    },
+    {
+      "from": "**Regenerieren**",
+      "to": "**Neu erzeugen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diagram.regenerate."
+    },
+    {
+      "from": "**Wiederholung**",
+      "to": "**Erneut ausführen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.rerun."
+    },
+    {
+      "from": "**KI-Fähigkeiten**",
+      "to": "**KI-Skills**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.skills.picker.label."
+    },
+    {
+      "from": "### AI-Fähigkeiten",
+      "to": "### KI-Skills",
+      "scope": "markdown",
+      "note": "Canonical product term used by snippets.ai.skills.picker.label."
+    },
+    {
+      "from": "**Textsprache**",
+      "to": "**Text-Sprache**",
+      "scope": "markdown",
+      "note": "UI label snippets.textLanguage."
+    },
+    {
+      "from": "**Begründung**",
+      "to": "**Argumentation**",
+      "scope": "markdown",
+      "note": "UI label settings.ai.reasoning."
+    },
+    {
+      "from": "konfigurierbaren integrierten Funktionen",
+      "to": "konfigurierbaren integrierten KI-Skills",
+      "scope": "markdown",
+      "note": "Prevents the product term AI Skills from being translated as generic functions."
+    },
+    {
+      "from": "nur die Begründung des Modells enthält",
+      "to": "nur den Gedankengang des Modells enthält",
+      "scope": "markdown",
+      "note": "Uses ai.result.reasoning.label and avoids reading reasoning-only as a justification."
+    },
+    {
+      "from": "die Reasoning",
+      "to": "Reasoning",
+      "scope": "markdown",
+      "note": "German technical usage treats Reasoning as an uninflected product term."
+    },
+    {
       "from": "Eingabehärtung (Skripteingaben validieren)",
       "to": "Eingabe-Härtung (Skript-Eingaben validieren)",
       "note": "UI label ai.inputHardening.enable; the guide must quote the checkbox verbatim."
@@ -692,6 +975,12 @@
       "from": "gkomprimiert",
       "to": "gzip-komprimiert",
       "note": "MT mangles 'gzipped' into a non-word. Safe as a substring rule because 'gkomprimiert' is not German; the ambiguous sibling ('escape' -> 'entkommen') is deliberately NOT listed, since 'entkommen' is a real word elsewhere."
+    },
+    {
+      "from": "Profile:",
+      "to": "Profil:",
+      "scope": "markdown",
+      "note": "Matches the German snippets.ai.analysis.profile.using UI label in generated guide prose."
     }
   ]
 }

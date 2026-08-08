@@ -5184,9 +5184,8 @@ public class MainWindow {
     }
 
     /**
-     * Creates an AI service and additionally pins {@code forcedSkillIds} (unioned with the connection's
-     * assigned skills) so those skills are injected regardless of their target — used by the snippet
-     * editor's AI-code skill picker.
+     * Creates an AI service. A non-null {@code forcedSkillIds} collection activates the snippet
+     * picker's explicit selection mode; an empty collection deliberately selects no normal skills.
      */
     private AiService createAiService(AiProfile profile, ServerConnection connection, java.util.Collection<String> forcedSkillIds) {
         if (profile == null) {
@@ -5197,21 +5196,25 @@ public class MainWindow {
             && (profile.getApiUrl() == null || profile.getApiUrl().isBlank())) {
             return null;
         }
-        java.util.Set<String> pinnedSkillIds = new java.util.LinkedHashSet<>();
-        if (connection != null && connection.getAiSkillIds() != null) {
-            pinnedSkillIds.addAll(connection.getAiSkillIds());
-        }
-        if (forcedSkillIds != null) {
-            pinnedSkillIds.addAll(forcedSkillIds);
-        }
+        java.util.Collection<String> assignedConnectionSkillIds = connection != null
+            && connection.getAiSkillIds() != null
+            ? connection.getAiSkillIds()
+            : java.util.List.of();
         try {
+            de.kortty.model.GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            AiSkillPromptSupport skillPromptSupport = forcedSkillIds == null
+                ? AiSkillPromptSupport.fromSettings(
+                    settings,
+                    assignedConnectionSkillIds.isEmpty() ? null : assignedConnectionSkillIds)
+                : AiSkillPromptSupport.fromSettingsForSnippetSelection(
+                    settings,
+                    forcedSkillIds,
+                    assignedConnectionSkillIds);
             return AiServiceFactory.create(
                 profile,
                 apiKey,
                 buildInternetAccessConfiguration(profile),
-                AiSkillPromptSupport.fromSettings(
-                    app.getGlobalSettingsManager().getSettings(),
-                    pinnedSkillIds.isEmpty() ? null : pinnedSkillIds));
+                skillPromptSupport);
         } catch (IllegalStateException e) {
             return new FailingAiService(e.getMessage());
         }
@@ -7206,7 +7209,7 @@ public class MainWindow {
         return createAiService(profile);
     }
 
-    /** Like {@link #createAiServiceForProfile(AiProfile)} but pins {@code forcedSkillIds} onto the service. */
+    /** Like {@link #createAiServiceForProfile(AiProfile)} in explicit snippet-picker mode. */
     AiService createAiServiceForProfile(AiProfile profile, java.util.Collection<String> forcedSkillIds) {
         return createAiService(profile, null, forcedSkillIds);
     }

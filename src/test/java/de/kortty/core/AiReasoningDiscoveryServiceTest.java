@@ -1,5 +1,8 @@
 package de.kortty.core;
 
+import de.kortty.model.AiConnectionMode;
+import de.kortty.model.AiModelSelectionMode;
+import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
 
@@ -35,5 +38,23 @@ class AiReasoningDiscoveryServiceTest {
             return;
         }
         throw new AssertionError("Expected reasoning discovery to require a successful base connection test.");
+    }
+
+    @Test
+    void exactLmStudioMetadataIsLimitedToHttpProfilesWithResolvableModelSelection() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setModelSelectionMode(AiModelSelectionMode.AUTO);
+        assertThat(AiReasoningDiscoveryService.usesExactLmStudioMetadata(profile)).isTrue();
+
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        assertThat(AiReasoningDiscoveryService.usesExactLmStudioMetadata(profile)).isFalse();
+
+        profile.setConnectionMode(AiConnectionMode.EMBEDDED_LLAMA_CPP);
+        assertThat(AiReasoningDiscoveryService.usesExactLmStudioMetadata(profile)).isFalse();
+
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+        assertThat(AiReasoningDiscoveryService.usesExactLmStudioMetadata(profile)).isFalse();
     }
 }

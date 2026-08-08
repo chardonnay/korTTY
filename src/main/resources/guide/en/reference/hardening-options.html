@@ -2476,12 +2476,12 @@
 <tr>
 <td><strong>Snippet editor → AI Code → Improve robustness</strong></td>
 <td>Options panel with all boxes ticked</td>
-<td>You confirm the dialog</td>
+<td>You confirm the dialog; KorTTY rewrites the complete snippet when any hardening rule is active</td>
 </tr>
 <tr>
 <td><strong>Snippet editor → AI Code → Custom improvement…</strong></td>
 <td>Options panel plus a free-text instruction field</td>
-<td>You confirm the dialog</td>
+<td>You confirm the dialog; KorTTY rewrites the complete snippet when any hardening rule is active</td>
 </tr>
 <tr>
 <td><strong>Snippet editor → AI Code → Full code analysis</strong></td>
@@ -2495,6 +2495,7 @@
 <p><em>Improve readability</em> and <em>Improve performance</em> deliberately do <strong>not</strong> show hardening options — those actions are meant to stay close to the original code. Hardening options appear only where adding robustness is the point: <em>Improve robustness</em>, <em>Custom improvement</em>, <em>Full code analysis</em>, and the two workflow-script generators.</p>
 </div>
 <p>Every option is <strong>ticked by default</strong>. Untick the ones you do not want. An unticked option contributes nothing to the prompt.</p>
+<p>In <strong>Improve robustness</strong> and <strong>Custom improvement</strong>, active hardening rules are applied to the <strong>complete snippet</strong>, even if you marked only one region. This is required because options such as strict mode, a configuration block, <code>--help</code>, and a final summary must change the prologue or epilogue rather than only the selected lines. If you use <strong>Clear</strong> and leave Input hardening off, the ordinary improvement remains limited to the selected region. The complete-snippet result is still shown in the before/after review and is rejected if the AI abbreviates unchanged code with an omission marker.</p>
 <p>Below the options, three buttons help you manage the selection:</p>
 <ul>
 <li><strong>All</strong> — tick every option.</li>
@@ -2502,7 +2503,7 @@
 <li><strong>Save</strong> — remember the current selection permanently. From then on, every hardening panel opens with your saved selection instead of the all-on default — so you can set your preferred hardening once and have it applied everywhere.</li>
 </ul>
 <h2 id="how-they-are-applied">How they are applied<a class="headerlink" href="#how-they-are-applied" title="Permanent link">&para;</a></h2>
-<p>Each ticked option becomes exactly one instruction line that KorTTY appends to the request sent to the AI (under <em>Apply these hardening techniques:</em> in the snippet editor, or <em>ADDITIONAL REQUIREMENTS:</em> in the workflow generator). The AI is then asked to honour those rules while producing the script.</p>
+<p>Each ticked option becomes one authoritative hardening rule that KorTTY appends to the request sent to the AI (under <em>Apply these hardening techniques:</em> in the snippet editor, or <em>ADDITIONAL REQUIREMENTS:</em> in the workflow generator). In the Full code analysis apply flow, every selected rule is additionally assigned its own mandatory identifier: the AI returns the identifiers it completed in one compact list, and korTTY rejects the whole response if any identifier is missing. Explicit CLI and guard literals such as <code>--dry-run</code>, <code>--yes</code>, <code>--help</code>, and <code>--verbose</code> must also be present when the corresponding options are selected. Workflow generation also adds the corresponding target-language idioms — for example the Bash spelling of strict mode — only while that option is selected. Unticking an option removes both its rule and its option-specific language idioms; <strong>Clear</strong> therefore sends no hardening behaviour, apart from neutral requirements needed to produce valid code in the chosen language.</p>
 <p>The wording of each rule <strong>adapts to the target language</strong>:</p>
 <ul>
 <li><strong>Imperative scripts</strong> — Bash, Python, Perl, Ruby, PowerShell, Windows-CMD and AppleScript get the imperative phrasing (flags, traps, exit codes, …).</li>

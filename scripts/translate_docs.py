@@ -516,6 +516,26 @@ def build_anchor_map(en_md: str, de_md: str, renderer, rel: str) -> dict[str, st
     return {en_id: de_id for en_id, de_id in zip(en_ids, de_ids) if en_id != de_id}
 
 
+def add_stale_generated_anchor_aliases(
+    anchor_map: dict[str, str], old_de_md: str | None, de_md: str, renderer
+) -> None:
+    """Also map anchors emitted by the previously generated German page.
+
+    A glossary correction can rename a translated heading while a cached German page still links
+    to that heading's former German slug. The ordinary EN -> current-DE map cannot recognize this
+    already-translated old slug, so retain it as an alias for this synchronization pass.
+    """
+    if not old_de_md:
+        return
+    old_ids = heading_ids(old_de_md, renderer)
+    current_ids = heading_ids(de_md, renderer)
+    if len(old_ids) != len(current_ids):
+        return
+    for old_id, current_id in zip(old_ids, current_ids):
+        if old_id != current_id:
+            anchor_map[old_id] = current_id
+
+
 def rewrite_link_anchors(de_md: str, rel: str, maps: dict[str, dict[str, str]]) -> tuple[str, int]:
     """Point every in-repo link anchor on a German page at its translated heading."""
     hits = 0
@@ -573,8 +593,10 @@ def sync_anchors(pages: list[Path]) -> None:
         dst = DE / src.relative_to(EN)
         if not dst.is_file():
             continue
+        current_de = dst.read_text(encoding="utf-8")
         page_map = build_anchor_map(
-            src.read_text(encoding="utf-8"), dst.read_text(encoding="utf-8"), renderer, rel)
+            src.read_text(encoding="utf-8"), current_de, renderer, rel)
+        add_stale_generated_anchor_aliases(page_map, git_head_version(dst), current_de, renderer)
         if page_map:
             maps[rel] = page_map
     if not maps:

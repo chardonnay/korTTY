@@ -47,6 +47,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static final String WEB_SEARCH_TOOL_NAME = "web_search";
     private static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
 
+    private enum CompletionTokenParameter {
+        MAX_TOKENS("max_tokens"),
+        MAX_COMPLETION_TOKENS("max_completion_tokens");
+
+        private final String jsonName;
+
+        CompletionTokenParameter(String jsonName) {
+            this.jsonName = jsonName;
+        }
+    }
+
     private final String apiUrl;
     private final String model;
     private final AiModelSelectionMode modelSelectionMode;
@@ -271,14 +282,101 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 effectiveModel);
         }
         try {
-            return executeRequestWithClient(buildHttpRequest(request, timeout, skillClassifier, effectiveModel), client);
+            return executeAiRequestWithStructuredOutputFallback(
+                request, client, timeout, skillClassifier, effectiveModel);
         } catch (ModelNotLoadedException e) {
             String retryModel = reresolveForRetry(client);
             if (retryModel == null || retryModel.equals(effectiveModel)) {
                 throw e;
             }
-            return executeRequestWithClient(buildHttpRequest(request, timeout, skillClassifier, retryModel), client);
+            return executeAiRequestWithStructuredOutputFallback(
+                request, client, timeout, skillClassifier, retryModel);
         }
+    }
+
+    private AiExecutionResult executeAiRequestWithStructuredOutputFallback(
+        AiRequest request,
+        HttpClient client,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel) throws Exception {
+
+        try {
+            return executeAiRequestWithTokenParameterFallback(
+                request, client, timeout, skillClassifier, effectiveModel, true);
+        } catch (AiApiException e) {
+            if (!usesStructuredJsonSchema(request) || !isUnsupportedStructuredOutputError(e)) {
+                throw e;
+            }
+            // Some OpenAI-compatible endpoints do not implement json_schema. Retry only when the
+            // endpoint explicitly rejects that capability; malformed model output is never retried.
+            return executeAiRequestWithTokenParameterFallback(
+                request, client, timeout, skillClassifier, effectiveModel, false);
+        }
+    }
+
+    private AiExecutionResult executeAiRequestWithTokenParameterFallback(
+        AiRequest request,
+        HttpClient client,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel,
+        boolean includeStructuredResponseFormat) throws Exception {
+
+        try {
+            return executeRequestWithClient(
+                buildHttpRequest(
+                    request,
+                    timeout,
+                    skillClassifier,
+                    effectiveModel,
+                    CompletionTokenParameter.MAX_TOKENS,
+                    includeStructuredResponseFormat),
+                client,
+                AiOutputTokenLimitSupport.actionLimit(request) != null);
+        } catch (AiApiException e) {
+            if (AiOutputTokenLimitSupport.resolve(request, defaultMaxCompletionTokens) == null
+                || !isUnsupportedMaxTokensError(e)) {
+                throw e;
+            }
+            return executeRequestWithClient(
+                buildHttpRequest(
+                    request,
+                    timeout,
+                    skillClassifier,
+                    effectiveModel,
+                    CompletionTokenParameter.MAX_COMPLETION_TOKENS,
+                    includeStructuredResponseFormat),
+                client,
+                AiOutputTokenLimitSupport.actionLimit(request) != null);
+        }
+    }
+
+    private static boolean isUnsupportedMaxTokensError(AiApiException error) {
+        if (error == null || error.statusCode() != 400 || error.getMessage() == null) {
+            return false;
+        }
+        String detail = error.getMessage().toLowerCase(java.util.Locale.ROOT);
+        if (!detail.contains("max_tokens")) {
+            return false;
+        }
+        return detail.contains("max_completion_tokens")
+            || detail.contains("unsupported parameter")
+            || detail.contains("unknown parameter");
+    }
+
+    private static boolean isUnsupportedStructuredOutputError(AiApiException error) {
+        if (error == null || error.statusCode() != 400 || error.getMessage() == null) {
+            return false;
+        }
+        String detail = error.getMessage().toLowerCase(java.util.Locale.ROOT);
+        if (!detail.contains("response_format") && !detail.contains("json_schema")) {
+            return false;
+        }
+        return detail.contains("unsupported parameter")
+            || detail.contains("unknown parameter")
+            || detail.contains("not supported")
+            || detail.contains("does not support");
     }
 
     AiExecutionResult executePromptWithClient(String systemPrompt, String userPrompt, HttpClient client, Duration timeout) throws Exception {
@@ -345,6 +443,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     private AiExecutionResult executeRequestWithClient(HttpRequest httpRequest, HttpClient client) throws Exception {
+        return executeRequestWithClient(httpRequest, client, false);
+    }
+
+    private AiExecutionResult executeRequestWithClient(
+        HttpRequest httpRequest,
+        HttpClient client,
+        boolean returnTruncatedResult) throws Exception {
+
         HttpResponse<InputStream> response = AiPowerManagementScope.call(
             () -> client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream()));
         String responseBody = readResponseBody(response.body());
@@ -354,12 +460,20 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
+            // Bounded snippet actions need the provider's truncation marker even when a reasoning
+            // model consumed the entire completion budget before emitting visible content. Their
+            // workflow records the usage and maps this fail-closed result to the localized output-
+            // limit status (or the deterministic Mermaid fallback) without retrying the model.
+            if (returnTruncatedResult && result != null && result.outputTruncated()) {
+                return result;
+            }
             throw new EmptyResponseException();
         }
         return new AiExecutionResult(
             content.trim(),
             result != null ? result.usage() : null,
-            result != null ? result.reasoning() : null);
+            result != null ? result.reasoning() : null,
+            result != null && result.outputTruncated());
     }
 
     private AiExecutionResult executeToolAwareMessages(
@@ -393,7 +507,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 return new AiExecutionResult(
                     content.trim(),
                     mergeUsage(usageEntries),
-                    mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
+                    mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null),
+                    parsed != null && parsed.outputTruncated());
             }
             AiTokenUsage usage = parseUsage(root);
             if (usage != null) {
@@ -434,7 +549,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return new AiExecutionResult(
                 content.trim(),
                 mergeUsage(usageEntries),
-                mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
+                mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null),
+                parsed != null && parsed.outputTruncated());
         }
         throw new IOException("Web search did not finish within " + MAX_WEB_TOOL_ROUNDS + " tool rounds.");
     }
@@ -477,7 +593,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return new AiExecutionResult(
             content.trim(),
             mergeUsage(usageEntries),
-            mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null));
+            mergeReasoning(reasoningEntries, parsed != null ? parsed.reasoning() : null),
+            parsed != null && parsed.outputTruncated());
     }
 
     /**
@@ -748,6 +865,36 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         Duration timeout,
         AiSkillRelevanceClassifier skillClassifier,
         String effectiveModel) {
+        return buildHttpRequest(
+            request,
+            timeout,
+            skillClassifier,
+            effectiveModel,
+            CompletionTokenParameter.MAX_TOKENS);
+    }
+
+    private HttpRequest buildHttpRequest(
+        AiRequest request,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel,
+        CompletionTokenParameter completionTokenParameter) {
+        return buildHttpRequest(
+            request,
+            timeout,
+            skillClassifier,
+            effectiveModel,
+            completionTokenParameter,
+            true);
+    }
+
+    private HttpRequest buildHttpRequest(
+        AiRequest request,
+        Duration timeout,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel,
+        CompletionTokenParameter completionTokenParameter,
+        boolean includeStructuredResponseFormat) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
@@ -757,7 +904,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             0.2,
             false,
             includeTools,
-            effectiveModel);
+            effectiveModel,
+            AiOutputTokenLimitSupport.resolve(request, defaultMaxCompletionTokens),
+            completionTokenParameter);
+        body = appendStructuredResponseFormat(body, request, includeStructuredResponseFormat);
         return buildJsonPostRequest(body, timeout);
     }
 
@@ -810,7 +960,188 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     String buildRequestBody(AiRequest request) {
         boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
-        return buildMessagesRequestBody(buildRequestMessages(request, includeTools), 0.2, false, includeTools, model);
+        String body = buildMessagesRequestBody(
+            buildRequestMessages(request, includeTools),
+            0.2,
+            false,
+            includeTools,
+            model,
+            AiOutputTokenLimitSupport.resolve(request, defaultMaxCompletionTokens));
+        return appendStructuredResponseFormat(body, request, true);
+    }
+
+    private static String appendStructuredResponseFormat(
+        String body,
+        AiRequest request,
+        boolean includeStructuredResponseFormat) {
+
+        if (!includeStructuredResponseFormat || !usesStructuredJsonSchema(request)) {
+            return body;
+        }
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        root.add("response_format", buildStructuredResponseFormat(request));
+        return GSON.toJson(root);
+    }
+
+    private static boolean usesStructuredJsonSchema(AiRequest request) {
+        return request != null
+            && (request.action() == AiAction.ANALYZE_SNIPPET_CODE
+                || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+    }
+
+    private static JsonObject buildStructuredResponseFormat(AiRequest request) {
+        if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
+            return buildSnippetAnalysisResponseFormat();
+        }
+        return buildSnippetReplacementResponseFormat(request);
+    }
+
+    /** Constrains Full-code-analysis to the exact object consumed by {@link SnippetAiResponseSupport}. */
+    private static JsonObject buildSnippetAnalysisResponseFormat() {
+        JsonObject stringType = new JsonObject();
+        stringType.addProperty("type", "string");
+
+        JsonObject nonBlankStringType = stringType.deepCopy();
+        nonBlankStringType.addProperty("minLength", 1);
+
+        JsonObject dependencyProperties = new JsonObject();
+        dependencyProperties.add("id", nonBlankStringType.deepCopy());
+        dependencyProperties.add("name", nonBlankStringType.deepCopy());
+        dependencyProperties.add("kind", enumStringSchema("script", "program", "service"));
+        dependencyProperties.add("purpose", stringType.deepCopy());
+        dependencyProperties.add("suggestion", stringType.deepCopy());
+
+        JsonObject dependencySchema = strictObjectSchema(
+            dependencyProperties,
+            "id", "name", "kind", "purpose", "suggestion");
+        JsonObject dependencies = arraySchema(dependencySchema);
+
+        JsonObject lineType = new JsonObject();
+        lineType.addProperty("type", "integer");
+        lineType.addProperty("minimum", 1);
+
+        JsonObject improvementProperties = new JsonObject();
+        improvementProperties.add("id", nonBlankStringType.deepCopy());
+        improvementProperties.add("category", enumStringSchema("security", "optimization", "design"));
+        improvementProperties.add("severity", stringType.deepCopy());
+        improvementProperties.add("title", nonBlankStringType.deepCopy());
+        improvementProperties.add("detail", stringType.deepCopy());
+        improvementProperties.add("recommendation", stringType.deepCopy());
+        improvementProperties.add("line", lineType);
+
+        JsonObject improvementSchema = strictObjectSchema(
+            improvementProperties,
+            "id", "category", "severity", "title", "detail", "recommendation", "line");
+        JsonObject improvements = arraySchema(improvementSchema);
+
+        JsonObject properties = new JsonObject();
+        properties.add("summary", nonBlankStringType);
+        properties.add("dependencies", dependencies);
+        properties.add("improvements", improvements);
+
+        JsonObject jsonSchema = new JsonObject();
+        jsonSchema.addProperty("name", "snippet_analysis_response");
+        jsonSchema.addProperty("strict", true);
+        jsonSchema.add("schema", strictObjectSchema(
+            properties,
+            "summary", "dependencies", "improvements"));
+
+        JsonObject responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_schema");
+        responseFormat.add("json_schema", jsonSchema);
+        return responseFormat;
+    }
+
+    private static JsonObject buildSnippetReplacementResponseFormat(AiRequest request) {
+        JsonObject stringType = new JsonObject();
+        stringType.addProperty("type", "string");
+
+        JsonObject replacementLines = new JsonObject();
+        replacementLines.addProperty("type", "array");
+        replacementLines.add("items", stringType.deepCopy());
+        replacementLines.addProperty("minItems", minimumReplacementLineCount(request));
+
+        JsonObject changeProperties = new JsonObject();
+        changeProperties.add("finding", stringType.deepCopy());
+        changeProperties.add("anchor", stringType.deepCopy());
+        changeProperties.add("reason", stringType.deepCopy());
+
+        JsonObject changeSchema = new JsonObject();
+        changeSchema.addProperty("type", "object");
+        changeSchema.addProperty("additionalProperties", false);
+        changeSchema.add("properties", changeProperties);
+        changeSchema.add("required", stringArray("finding", "anchor", "reason"));
+
+        JsonObject changes = new JsonObject();
+        changes.addProperty("type", "array");
+        changes.add("items", changeSchema);
+
+        JsonObject requirementItems = new JsonObject();
+        requirementItems.addProperty("type", "string");
+        JsonObject implementedRequirements = new JsonObject();
+        implementedRequirements.addProperty("type", "array");
+        implementedRequirements.add("items", requirementItems);
+
+        JsonObject properties = new JsonObject();
+        properties.add("replacementLines", replacementLines);
+        properties.add("summary", stringType.deepCopy());
+        properties.add("changes", changes);
+        properties.add("implementedRequirements", implementedRequirements);
+
+        JsonObject schema = new JsonObject();
+        schema.addProperty("type", "object");
+        schema.addProperty("additionalProperties", false);
+        schema.add("properties", properties);
+        schema.add("required", stringArray("replacementLines", "summary", "changes", "implementedRequirements"));
+
+        JsonObject jsonSchema = new JsonObject();
+        jsonSchema.addProperty("name", "snippet_improvement_response");
+        jsonSchema.addProperty("strict", true);
+        jsonSchema.add("schema", schema);
+
+        JsonObject responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_schema");
+        responseFormat.add("json_schema", jsonSchema);
+        return responseFormat;
+    }
+
+    private static int minimumReplacementLineCount(AiRequest request) {
+        String source = request != null && request.selectedText() != null ? request.selectedText() : "";
+        int sourceLineCount = source.split("\\R", -1).length;
+        return sourceLineCount >= 12 ? Math.max(3, sourceLineCount / 2) : 1;
+    }
+
+    private static JsonArray stringArray(String... values) {
+        JsonArray array = new JsonArray();
+        if (values != null) {
+            for (String value : values) {
+                array.add(value);
+            }
+        }
+        return array;
+    }
+
+    private static JsonObject strictObjectSchema(JsonObject properties, String... requiredNames) {
+        JsonObject schema = new JsonObject();
+        schema.addProperty("type", "object");
+        schema.addProperty("additionalProperties", false);
+        schema.add("properties", properties);
+        schema.add("required", stringArray(requiredNames));
+        return schema;
+    }
+
+    private static JsonObject arraySchema(JsonObject itemSchema) {
+        JsonObject schema = new JsonObject();
+        schema.addProperty("type", "array");
+        schema.add("items", itemSchema);
+        return schema;
+    }
+
+    private static JsonObject enumStringSchema(String... values) {
+        JsonObject schema = new JsonObject();
+        schema.addProperty("type", "string");
+        schema.add("enum", stringArray(values));
+        return schema;
     }
 
     private JsonArray buildRequestMessages(AiRequest request, boolean includeInternetRules) {
@@ -950,6 +1281,40 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         boolean jsonResponseFormat,
         boolean includeTools,
         String effectiveModel) {
+        return buildMessagesRequestBody(
+            messages,
+            temperature,
+            jsonResponseFormat,
+            includeTools,
+            effectiveModel,
+            defaultMaxCompletionTokens);
+    }
+
+    private String buildMessagesRequestBody(
+        JsonArray messages,
+        double temperature,
+        boolean jsonResponseFormat,
+        boolean includeTools,
+        String effectiveModel,
+        Integer maxCompletionTokens) {
+        return buildMessagesRequestBody(
+            messages,
+            temperature,
+            jsonResponseFormat,
+            includeTools,
+            effectiveModel,
+            maxCompletionTokens,
+            CompletionTokenParameter.MAX_TOKENS);
+    }
+
+    private String buildMessagesRequestBody(
+        JsonArray messages,
+        double temperature,
+        boolean jsonResponseFormat,
+        boolean includeTools,
+        String effectiveModel,
+        Integer maxCompletionTokens,
+        CompletionTokenParameter completionTokenParameter) {
         JsonObject root = new JsonObject();
         if (effectiveModel != null && !effectiveModel.isBlank()) {
             root.addProperty("model", effectiveModel);
@@ -957,8 +1322,11 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         root.add("messages", messages);
         root.addProperty("temperature", temperature);
-        if (defaultMaxCompletionTokens != null) {
-            root.addProperty("max_tokens", defaultMaxCompletionTokens);
+        if (maxCompletionTokens != null) {
+            CompletionTokenParameter parameter = completionTokenParameter != null
+                ? completionTokenParameter
+                : CompletionTokenParameter.MAX_TOKENS;
+            root.addProperty(parameter.jsonName, maxCompletionTokens);
         }
         appendReasoningEffort(root);
         if (jsonResponseFormat) {
@@ -1046,7 +1414,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return new AiExecutionResult(
             content.trim(),
             result != null ? result.usage() : null,
-            result != null ? result.reasoning() : null);
+            result != null ? result.reasoning() : null,
+            result != null && result.outputTruncated());
     }
 
     AiExecutionResult parseResponseBody(String responseBody) {
@@ -1093,12 +1462,19 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return null;
         }
         JsonElement content = message.get("content");
+        String reasoning = extractReasoning(message);
+        boolean outputTruncated = "length".equals(stringField(firstChoice, "finish_reason", ""));
         if (content == null || content.isJsonNull()) {
+            // Reasoning-only local replies commonly encode the absent final answer as JSON null.
+            // Preserve a provider-reported length stop so bounded snippet workflows can fail closed
+            // with their output-limit handling instead of misclassifying it as an ordinary empty reply.
+            if (outputTruncated) {
+                return new AiExecutionResult("", parseUsage(root), reasoning, true);
+            }
             return null;
         }
-        String reasoning = extractReasoning(message);
         if (content.isJsonPrimitive()) {
-            return new AiExecutionResult(content.getAsString(), parseUsage(root), reasoning);
+            return new AiExecutionResult(content.getAsString(), parseUsage(root), reasoning, outputTruncated);
         }
         if (content.isJsonArray()) {
             StringBuilder builder = new StringBuilder();
@@ -1114,7 +1490,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     builder.append(obj.get("text").getAsString());
                 }
             }
-            return new AiExecutionResult(builder.toString(), parseUsage(root), reasoning);
+            return new AiExecutionResult(builder.toString(), parseUsage(root), reasoning, outputTruncated);
         }
         return null;
     }
@@ -1170,7 +1546,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (reasoning == null || reasoning.isBlank()) {
             reasoning = extractJsonStringFieldLenient(responseBody, "reasoning");
         }
-        return new AiExecutionResult(content, usage, reasoning != null && !reasoning.isBlank() ? reasoning : null);
+        // This path is reached only when the provider envelope itself could not be parsed. The
+        // lenient decoder deliberately salvages text up to EOF, so it cannot prove that the
+        // content (or a nested replacement string) completed. Mark it fail-closed.
+        return new AiExecutionResult(
+            content,
+            usage,
+            reasoning != null && !reasoning.isBlank() ? reasoning : null,
+            true);
     }
 
     private String extractJsonStringFieldLenient(String source, String fieldName) {

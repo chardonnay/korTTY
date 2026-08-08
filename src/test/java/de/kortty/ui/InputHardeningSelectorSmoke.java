@@ -5,8 +5,10 @@ import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
 import de.kortty.core.WorkflowScriptSupport.InputHardeningOption;
 import de.kortty.model.GlobalSettings;
 import javafx.application.Platform;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Spinner;
+import javafx.scene.layout.HBox;
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -78,6 +80,12 @@ public final class InputHardeningSelectorSmoke {
                     throw new AssertionError("C: spinner MB value must convert to bytes");
                 }
 
+                // --- C2: zero is a valid unlimited value and must not be replaced by the default. ---
+                spinner.getValueFactory().setValue(0);
+                if (selector.currentConfig().maxFileSizeBytes() != 0L) {
+                    throw new AssertionError("C2: spinner value 0 must reach the config as unlimited");
+                }
+
                 // --- D: unticking FILE_SIZE_LIMIT drops it from the config and re-gates the row. ---
                 checks.get(InputHardeningOption.FILE_SIZE_LIMIT).setSelected(false);
                 config = selector.currentConfig();
@@ -86,10 +94,37 @@ public final class InputHardeningSelectorSmoke {
                     throw new AssertionError("D: FILE_SIZE_LIMIT off must gate the size row again");
                 }
 
+                // --- D2: Clear/All alter the effective config, not only the visible checkboxes. ---
+                HBox buttons = (HBox) selector.getChildren().get(3);
+                Button allButton = (Button) buttons.getChildren().get(0);
+                Button clearButton = (Button) buttons.getChildren().get(1);
+                clearButton.fire();
+                if (selector.currentConfig().isEnabled() || selector.selectedCount() != 0) {
+                    throw new AssertionError("D2: Clear must disable the effective guard while the master stays on");
+                }
+                allButton.fire();
+                if (!selector.currentConfig().isEnabled()
+                        || selector.selectedCount() != InputHardeningOption.values().length) {
+                    throw new AssertionError("D2: All must restore every input-hardening sub-option");
+                }
+
                 // --- E: unticking the master flips back to disabled regardless of sub-options. ---
                 enableCheck.setSelected(false);
                 if (selector.currentConfig().isEnabled() || selector.selectedCount() != 0) {
                     throw new AssertionError("E: master off must always mean a disabled config");
+                }
+
+                // --- F: unsupported declarative targets must be visibly and effectively disabled. ---
+                enableCheck.setSelected(true);
+                selector.setSupported(false);
+                if (!selector.isDisable() || selector.isSupported()
+                        || selector.currentConfig().isEnabled() || selector.selectedCount() != 0) {
+                    throw new AssertionError("F: unsupported target must disable the selector and effective config");
+                }
+                selector.setSupported(true);
+                if (selector.isDisable() || !selector.isSupported()
+                        || !selector.currentConfig().isEnabled() || selector.selectedCount() == 0) {
+                    throw new AssertionError("F: supported target must restore the saved per-run selection");
                 }
             } catch (Throwable t) {
                 failure.compareAndSet(null, String.valueOf(t));

@@ -1,12 +1,399 @@
 package de.kortty.core;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.testng.annotations.Test;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class SnippetAiWorkflowSupportTest {
+
+    @Test
+    void fullAnalysisApplySplitsAnalysisClassicAndInputHardeningIntoAtomicStages() throws Exception {
+        String original = "#!/bin/sh\nset -u\nprintf 'start\\n'\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'done\\n'\n";
+        String afterAnalysis = original + "# selected analysis item\n";
+        String afterClassicOne = afterAnalysis + "# classic requirements 1-6\n";
+        String afterClassicTwo = afterClassicOne + "# classic requirement 7\n";
+        String afterInputOne = afterClassicTwo + "# input requirements 1-6\n";
+        String afterInputTwo = afterInputOne + "# input requirement 7\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterAnalysis, "Applied analysis item.", List.of()),
+            applyResponse(afterClassicOne, "Applied first classic batch.", requirementIds(1, 6)),
+            applyResponse(afterClassicTwo, "Applied second classic batch.", requirementIds(7, 7)),
+            applyResponse(afterInputOne, "Applied first input batch.", requirementIds(8, 13)),
+            applyResponse(afterInputTwo, "Applied second input batch.", requirementIds(14, 14)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+        int[] recordedUsage = {0};
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                (request, result) -> recordedUsage[0]++,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "medium", "Quote value", "Unsafe expansion", "Quote it", 3)),
+                List.of(),
+                null,
+                numberedRules("Classic", 7),
+                numberedRules("Input", 7),
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(5);
+        assertThat(recordedUsage[0]).isEqualTo(5);
+        assertThat(aiService.requests.get(0).selectedText()).isEqualTo(original);
+        assertThat(aiService.requests.get(1).selectedText()).isEqualTo(afterAnalysis);
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(afterClassicOne);
+        assertThat(aiService.requests.get(3).selectedText()).isEqualTo(afterClassicTwo);
+        assertThat(aiService.requests.get(4).selectedText()).isEqualTo(afterInputOne);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("HARDENING-01 Classic rule 1");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("HARDENING-06 Classic rule 6");
+        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("HARDENING-07 Classic rule 7");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("HARDENING-07 Classic rule 7");
+        assertThat(aiService.requests.get(3).conversationContext()).contains("HARDENING-08 Input rule 1");
+        assertThat(aiService.requests.get(4).conversationContext()).contains("HARDENING-14 Input rule 7");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("later stage of one atomic rewrite");
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> runningStages = progress.stream()
+            .filter(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING)
+            .toList();
+        assertThat(runningStages.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::phase).toList())
+            .containsExactly(
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING).inOrder();
+        assertThat(runningStages.get(1).firstRequirement()).isEqualTo(1);
+        assertThat(runningStages.get(1).lastRequirement()).isEqualTo(6);
+        assertThat(runningStages.get(4).stage()).isEqualTo(5);
+        assertThat(runningStages.get(4).totalStages()).isEqualTo(5);
+        assertThat(progress.stream().filter(item ->
+            item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED).count())
+            .isEqualTo(5);
+        assertThat(fix.replacement()).isEqualTo(afterInputTwo);
+        assertThat(fix.implementedRequirements()).containsExactlyElementsIn(requirementIds(1, 14)).inOrder();
+        assertThat(fix.summary()).contains("Applied analysis item.");
+        assertThat(fix.summary()).contains("Applied second input batch.");
+    }
+
+    @Test
+    void improvementPlanListsAnalysisItemsBeforeEveryHardeningRequirement() {
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan =
+            SnippetAiWorkflowSupport.planSnippetImprovements(
+                List.of(
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2),
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-1", "optimization", "low", "Cache result", "Detail", "Cache it", 3)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "awk", "program", "Parsing", "Use built-in parsing")),
+                numberedRules("Classic", 2),
+                numberedRules("Input", 1));
+
+        assertThat(plan.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::phase).toList())
+            .containsExactly(
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING).inOrder();
+        assertThat(plan.stream().flatMap(item -> item.workItems().stream())
+            .map(SnippetAiWorkflowSupport.ImprovementApplyWorkItem::id).toList())
+            .containsExactly("SEC-1", "OPT-1", "D1", "HARDENING-01", "HARDENING-02", "HARDENING-03")
+            .inOrder();
+        assertThat(plan.stream().flatMap(item -> item.workItems().stream())
+            .map(SnippetAiWorkflowSupport.ImprovementApplyWorkItem::severity).toList())
+            .containsExactly("high", "low", "", "", "", "").inOrder();
+        assertThat(plan.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state).distinct().toList())
+            .containsExactly(SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING);
+    }
+
+    @Test
+    void completedProgressReportsOnlyProviderSuppliedCumulativeTokenUsage() throws Exception {
+        String original = "#!/bin/sh\nprintf 'ready\\n'\n";
+        String replacement = original + "# quoted\n";
+        AiService aiService = new AiService() {
+            @Override
+            public AiExecutionResult execute(AiRequest request) {
+                return new AiExecutionResult(
+                    applyResponse(replacement, "Applied.", List.of()),
+                    new AiTokenUsage(120, 80, 200));
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService,
+            null,
+            original,
+            "bash",
+            null,
+            "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+            List.of(),
+            null,
+            null,
+            null,
+            progress::add);
+
+        SnippetAiWorkflowSupport.ImprovementApplyProgress completed = progress.stream()
+            .filter(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED)
+            .findFirst()
+            .orElseThrow();
+        assertThat(completed.cumulativeUsage()).isEqualTo(new AiTokenUsage(120, 80, 200));
+        assertThat(progress.get(0).cumulativeUsage()).isNull();
+    }
+
+    @Test
+    void fullAnalysisApplyStopsAtFirstRejectedStageAndReturnsNoPartialResult() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 6)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(7, 7)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(7, 7)));
+
+        expectThrows(
+            SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                numberedRules("Classic", 7),
+                null,
+                progress -> { }));
+
+        assertThat(aiService.requests).hasSize(3);
+        assertThat(aiService.requests.get(1).selectedText()).isEqualTo(afterFirst);
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(afterFirst);
+        assertThat(aiService.requests.get(2).conversationContext())
+            .contains("single repair attempt");
+    }
+
+    @Test
+    void fullAnalysisApplyProcessesEverySelectedAnalysisItemAsItsOwnVisibleStage() throws Exception {
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String afterSecurity = original + "# security\n";
+        String afterOptimization = afterSecurity + "# optimization\n";
+        String afterDependency = afterOptimization + "# dependency\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterSecurity, "Security item.", List.of()),
+            applyResponse(afterOptimization, "Optimization item.", List.of()),
+            applyResponse(afterDependency, "Dependency item.", List.of()));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2),
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-1", "optimization", "low", "Avoid repeat", "Detail", "Cache it", 3)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "awk", "program", "Parsing", "Use built-in parsing")),
+                null,
+                null,
+                null,
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(3);
+        assertThat(aiService.requests.get(0).conversationContext()).contains("SEC-1");
+        assertThat(aiService.requests.get(0).conversationContext()).doesNotContain("OPT-1");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("OPT-1");
+        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("SEC-1");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("D1 [dependency] awk");
+        assertThat(aiService.requests.get(1).selectedText()).isEqualTo(afterSecurity);
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(afterOptimization);
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> pendingStages = progress.stream()
+            .filter(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING)
+            .toList();
+        assertThat(pendingStages).hasSize(3);
+        assertThat(pendingStages.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::detail).toList())
+            .containsExactly("SEC-1 — Quote input", "OPT-1 — Avoid repeat", "D1 — awk").inOrder();
+        assertThat(pendingStages.get(2).stage()).isEqualTo(3);
+        assertThat(pendingStages.get(2).totalStages()).isEqualTo(3);
+        assertThat(fix.replacement()).isEqualTo(afterDependency);
+    }
+
+    @Test
+    void shortCollapsedStageGetsOneVisibleRepairAttempt() throws Exception {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\n";
+        String repaired = original + "# quoted\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse("$code", "Collapsed.", List.of()),
+            applyLinesResponse(repaired, "Repaired.", List.of()));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+        int[] recordedUsage = {0};
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                (request, result) -> recordedUsage[0]++,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(),
+                null,
+                null,
+                null,
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(recordedUsage[0]).isEqualTo(2);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("single repair attempt");
+        assertThat(progress.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state).toList())
+            .containsExactly(
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED).inOrder();
+        assertThat(progress.stream().filter(SnippetAiWorkflowSupport.ImprovementApplyProgress::retry).count())
+            .isEqualTo(1);
+        assertThat(fix.replacement()).isEqualTo(repaired);
+    }
+
+    @Test
+    void stagedApplyRetriesAFragmentThatKeepsTooFewSourceLines() throws Exception {
+        String original = "#!/bin/sh\n" + java.util.stream.IntStream.rangeClosed(1, 20)
+            .mapToObj(index -> "printf 'source line " + index + "\\n'")
+            .collect(java.util.stream.Collectors.joining("\n", "", "\n"));
+        String fragment = "#!/bin/sh\n" + java.util.stream.IntStream.rangeClosed(1, 9)
+            .mapToObj(index -> "printf 'source line " + index + "\\n'")
+            .collect(java.util.stream.Collectors.joining("\n", "", "\n"));
+        String repaired = original + "# quoted\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyLinesResponse(fragment, "Returned a fragment.", List.of()),
+            applyLinesResponse(repaired, "Returned the complete script.", List.of()));
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(),
+                null,
+                null,
+                null,
+                progress -> { });
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(fix.replacement()).isEqualTo(repaired);
+    }
+
+    @Test
+    void largeRejectedStageDoesNotTriggerTheBoundedRepairAttempt() {
+        int[] calls = {0};
+        AiService aiService = new AiService() {
+            @Override
+            public AiExecutionResult execute(AiRequest request) {
+                calls[0]++;
+                return new AiExecutionResult(
+                    applyResponse("$code", "Rejected.", List.of()),
+                    new AiTokenUsage(1_000, 4_097, 5_097));
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+
+        expectThrows(
+            SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\n",
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(),
+                null,
+                null,
+                null,
+                progress -> { }));
+
+        assertThat(calls[0]).isEqualTo(1);
+    }
+
+    @Test
+    void cancellationAfterCompletedStageStillRecordsConsumedUsage() {
+        int[] recordedUsage = {0};
+        AiService interruptingService = new AiService() {
+            @Override
+            public AiExecutionResult execute(AiRequest request) {
+                Thread.currentThread().interrupt();
+                return new AiExecutionResult(
+                    applyResponse(request.selectedText(), "Completed before cancellation.", List.of()),
+                    null,
+                    null);
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+
+        try {
+            expectThrows(
+                InterruptedException.class,
+                () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                    interruptingService,
+                    (request, result) -> recordedUsage[0]++,
+                    "#!/bin/sh\nprintf 'ok\\n'\n",
+                    "bash",
+                    null,
+                    "en",
+                    List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-1", "optimization", "low", "Keep output", "Detail", "Recommendation", 2)),
+                    List.of(),
+                    null,
+                    null,
+                    null,
+                    progress -> { }));
+        } finally {
+            Thread.interrupted();
+        }
+
+        assertThat(recordedUsage[0]).isEqualTo(1);
+    }
 
     @Test
     void alternativeSolutionsRequestMarksSelectedCodeTargetScope() throws Exception {
@@ -195,7 +582,7 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void codeImprovementRequestsEnglishForRewrittenCommentsAndUserFacingStrings() throws Exception {
+    void wholeCodeImprovementRequestsEnglishForAllExistingAndNewCodeText() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "replacement": "# Validate input\nprint(\"Invalid input\")",
@@ -217,9 +604,42 @@ class SnippetAiWorkflowSupportTest {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(aiService.lastRequest);
         assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
         assertThat(systemPrompt)
-            .contains("any new or rewritten comments or user-facing strings in language code en");
+            .contains("Every existing, new, or rewritten natural-language comment");
+        assertThat(systemPrompt).contains("must be in language code en");
         assertThat(aiService.lastRequest.conversationContext())
-            .contains("Write any new or rewritten comments or user-facing strings in that language");
+            .contains("Every existing and new natural-language comment");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("full returned snippet must use language en");
+        assertThat(aiService.lastRequest.conversationContext()).contains("Scope: full snippet");
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Selected code region:");
+    }
+
+    @Test
+    void partialCodeImprovementLimitsLanguageNormalizationToReturnedSelectionScope() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "# Validate input\nprint(\"Invalid input\")",
+              "summary": "Updated validation"
+            }
+            """);
+        String selection = "# Eingabe pruefen\nprint(\"Ungueltige Eingabe\")";
+
+        SnippetAiWorkflowSupport.improveSnippetCode(
+            aiService,
+            null,
+            "setup()\n" + selection + "\nfinish()",
+            selection,
+            "python",
+            null,
+            "en",
+            "Improve validation",
+            null);
+
+        assertThat(aiService.lastRequest.conversationContext()).contains("Scope: selected code region");
+        assertThat(aiService.lastRequest.conversationContext())
+            .contains("returned selected-code replacement must use language en");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("within the returned replacement scope");
     }
 
     @Test
@@ -265,17 +685,206 @@ class SnippetAiWorkflowSupportTest {
         assertThat(diagram.codeReferences()).containsExactly(
             new SnippetDiagramSupport.SourceCodeReference("work_1", "Run snippet", 1, 1));
         assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("de");
-        assertThat(aiService.lastRequest.conversationContext()).contains("codeReferences");
-        assertThat(aiService.lastRequest.conversationContext()).contains("every visible action and decision node");
         assertThat(aiService.lastRequest.conversationContext()).contains("Diagram label language: de");
         assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet");
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo ok");
-        // The user prompt appends the raw snippet once as the generic script-context block; the
-        // context must not carry a second raw copy on top of the line-numbered one.
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("codeReferences");
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("frontmatter");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest)).contains("codeReferences");
+        // The line-numbered source is the only script copy in this request.
         assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
         String userPrompt = AiPromptBuilder.buildUserPrompt(aiService.lastRequest);
-        int rawSnippetOffset = userPrompt.indexOf("echo ok\n");
-        assertThat(rawSnippetOffset).isAtLeast(0);
+        assertThat(userPrompt).doesNotContain("Script content for context only:");
+        int snippetOffset = userPrompt.indexOf("echo ok");
+        assertThat(snippetOffset).isAtLeast(0);
+        assertThat(userPrompt.indexOf("echo ok", snippetOffset + 1)).isEqualTo(-1);
+    }
+
+    @Test
+    void mermaidRequestRejectsIncompleteCodeReferencesWithoutRetry() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Flat flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run snippet\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work",
+              "codeReferences": []
+            }
+            """);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "run",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void mermaidRequestRejectsLoggedStyleOverDetailedChainWithoutRetry() throws Exception {
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        JsonArray references = new JsonArray();
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
+            JsonObject reference = new JsonObject();
+            reference.addProperty("nodeId", "work_" + index);
+            reference.addProperty("label", "Step " + index);
+            reference.addProperty("startLine", index);
+            reference.addProperty("endLine", index);
+            references.add(reference);
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < 13; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_13 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    class work_").append(index).append(" work\n");
+        }
+        JsonObject response = new JsonObject();
+        response.addProperty("title", "Over-detailed flow");
+        response.addProperty("mermaid", mermaid.toString());
+        response.add("codeReferences", references);
+        CapturingAiService aiService = new CapturingAiService(response.toString());
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "line\n".repeat(13),
+                "plain",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void truncatedMermaidResponseIsNotParsedOrRetried() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Partial flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> stop_1"
+            }
+            """, true);
+        int[] recordedUsages = {0};
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                (request, result) -> recordedUsages[0]++,
+                "echo ok",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+    }
+
+    @Test
+    void reasoningOnlyTruncatedFullReplacementIsRejectedAfterUsageIsRecorded() {
+        CapturingAiService aiService = new CapturingAiService(
+            "",
+            true);
+        int[] recordedUsages = {0};
+
+        SnippetAiWorkflowSupport.OutputTokenLimitReachedException failure = expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                (request, result) -> recordedUsages[0]++,
+                "echo original",
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "I1", "optimization", "medium", "Improve", "Why", "Change", 1)),
+                List.of(),
+                null,
+                null));
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(recordedUsages[0]).isEqualTo(1);
+    }
+
+    @Test
+    void truncatedSecurityFixAndHardeningImprovementAreRejected() {
+        CapturingAiService securityService = new CapturingAiService(
+            "{\"replacement\":\"echo partial\",\"summary\":\"partial\"}",
+            true);
+        CapturingAiService improvementService = new CapturingAiService(
+            "{\"replacement\":\"echo partial\",\"summary\":\"partial\"}",
+            true);
+
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetSecurityFixes(
+                securityService,
+                null,
+                "echo original",
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.SecurityFinding(
+                    "S1", "high", "Unsafe", "Why", "Fix")),
+                null));
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.improveSnippetCode(
+                improvementService,
+                null,
+                "echo original",
+                "echo original",
+                "bash",
+                null,
+                "en",
+                "Apply hardening",
+                null));
+
+        assertThat(securityService.executionCount).isEqualTo(1);
+        assertThat(improvementService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void malformedOpenAiEnvelopeCannotApplyItsLenientPartialReplacement() {
+        OpenAiCompatibleAiService parser = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions", "model", "");
+        AiExecutionResult partial = parser.parseResponseBody(
+            "{\"choices\":[{\"message\":{\"content\":\"{\\\"replacement\\\":\\\"echo first\\\\necho partial");
+        AiService aiService = new AiService() {
+            @Override
+            public AiExecutionResult execute(AiRequest request) {
+                return partial;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+
+        assertThat(partial.outputTruncated()).isTrue();
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetSecurityFixes(
+                aiService,
+                null,
+                "echo original",
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.SecurityFinding(
+                    "S1", "high", "Unsafe", "Why", "Fix")),
+                null));
     }
 
     @Test
@@ -309,7 +918,7 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void applySelectedImprovementsUsesAlternativeEnglishForGeneratedCodeText() throws Exception {
+    void applySelectedImprovementsNormalizesAllExistingAndNewCodeTextToEnglish() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "replacement": "# Validate input\\necho \\\"Invalid input\\\"",
@@ -343,17 +952,226 @@ class SnippetAiWorkflowSupportTest {
                 "en",
                 improvements,
                 List.of(),
+                null,
                 null);
 
         assertThat(fix.replacement()).startsWith("# Validate input");
         assertThat(aiService.lastRequest.action()).isEqualTo(AiAction.APPLY_SNIPPET_IMPROVEMENTS);
         assertThat(aiService.lastRequest.responseLanguageCode()).isEqualTo("en");
         assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
-            .contains("new or rewritten comments or user-facing strings in language code en");
+            .contains("Every existing, new, or rewritten natural-language comment");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("must be in language code en");
         assertThat(aiService.lastRequest.conversationContext())
             .contains("Natural language for the summary: en");
         assertThat(aiService.lastRequest.conversationContext())
-            .contains("Write any new or rewritten comments or user-facing strings in that language");
+            .contains("full returned snippet must use language en");
+    }
+
+    @Test
+    void mandatoryHardeningRulesAreNumberedAndRequiredEvenWithoutSelectedAnalysisItems() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "#!/bin/sh\\n# Dry run\\nprintf '%s' --dry-run\\n# Help\\nprintf '%s' --help",
+              "summary": "Applied all selected hardening requirements.",
+              "changes": [],
+              "implementedRequirements": ["HARDENING-01", "HARDENING-02"]
+            }
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\necho run",
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                "Apply these hardening techniques:\n"
+                    + "- Support a --dry-run flag that prints intended actions without executing.\n"
+                    + "- Provide a --help/usage message and parse command-line arguments.");
+
+        assertThat(fix.isUsable()).isTrue();
+        String context = aiService.lastRequest.conversationContext();
+        assertThat(context).contains("Mandatory hardening requirements");
+        assertThat(context).contains("HARDENING-01 Support a --dry-run flag");
+        assertThat(context).contains("HARDENING-02 Provide a --help/usage message");
+        assertThat(context).doesNotContain("later stage of one atomic rewrite");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("Implement every mandatory hardening requirement supplied in this stage even when no analysis item is selected");
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("Do not refuse or abbreviate replacementLines merely because this stage contains multiple requirements");
+    }
+
+    @Test
+    void replacementMissingMandatoryHardeningEvidenceIsRejected() {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "#!/bin/sh\\n# Dry run\\nprintf '%s' --dry-run",
+              "summary": "Applied part of the hardening contract.",
+              "changes": [],
+              "implementedRequirements": ["HARDENING-01"]
+            }
+            """);
+
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException failure = expectThrows(
+            SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\necho run",
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                "- Support a --dry-run flag.\n- Provide a --help/usage message."));
+
+        assertThat(failure.missingRequirementIds()).containsExactly("HARDENING-02");
+    }
+
+    @Test
+    void completeStageMissingOnlyChecklistIdGetsOneTargetedRepairAttempt() throws Exception {
+        String completeScript = "#!/bin/sh\n# Dry run and help\nprintf '%s' --dry-run\nprintf '%s' --help\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyLinesResponse(completeScript, "Implemented both requirements but omitted one id.",
+                List.of("HARDENING-01")),
+            applyLinesResponse(completeScript, "Verified both requirements.",
+                List.of("HARDENING-01", "HARDENING-02")));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\necho run\n",
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                "- Support a --dry-run flag.\n- Provide a --help/usage message.",
+                null,
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).selectedText()).isEqualTo(completeScript);
+        assertThat(aiService.requests.get(1).conversationContext())
+            .contains("Requirements not verified in the preceding answer: HARDENING-02");
+        assertThat(aiService.requests.get(1).conversationContext())
+            .contains("Do not merely echo identifiers");
+        assertThat(progress.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state).toList())
+            .containsExactly(
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING,
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED).inOrder();
+        assertThat(fix.implementedRequirements())
+            .containsExactly("HARDENING-01", "HARDENING-02").inOrder();
+    }
+
+    @Test
+    void malformedUnusableReplacementRetriesOnceAndRejectsTheWholeStage() {
+        CapturingAiService aiService = new CapturingAiService(
+            "{\"summary\":\"No replacement was produced.\",\"implementedRequirements\":[]}");
+
+        expectThrows(
+            SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\necho run",
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                "- Support a --dry-run flag.\n- Provide a --help/usage message."));
+
+        assertThat(aiService.executionCount).isEqualTo(2);
+    }
+
+    @Test
+    void mandatoryFlagCannotBeClaimedWithoutExistingInReplacement() {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "replacement": "#!/bin/sh\\n# Pretends to support a safe mode\\necho run",
+              "summary": "Claims to apply dry-run support.",
+              "changes": [],
+              "implementedRequirements": ["HARDENING-01"]
+            }
+            """);
+
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException failure = expectThrows(
+            SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "#!/bin/sh\necho run",
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                "- Support a --dry-run flag that prints intended actions without executing."));
+
+        assertThat(failure.missingRequirementIds()).containsExactly("HARDENING-01");
+        assertThat(failure).hasMessageThat().contains("HARDENING-01");
+        assertThat(aiService.executionCount).isEqualTo(2);
+    }
+
+    @Test
+    void everySelectedHardeningAndInputRuleReachesMandatoryChecklist() throws Exception {
+        String hardeningRules = WorkflowScriptSupport.hardeningRulesText(
+            WorkflowScriptSupport.HardeningOption.defaults(), false);
+        String inputRules = WorkflowScriptSupport.inputHardeningRulesText(
+            new WorkflowScriptSupport.InputHardeningConfig(
+                WorkflowScriptSupport.InputHardeningOption.defaults(), 10_485_760L),
+            WorkflowScriptSupport.ScriptLanguage.PERL);
+        String mandatoryRules = hardeningRules + "\n" + inputRules;
+        long ruleCount = mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
+        String current = "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
+            + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE KORTTY_FORCE SECURITY:\n";
+        List<String> responses = new ArrayList<>();
+        for (int first = 1; first <= ruleCount; first += 6) {
+            int last = Math.min((int) ruleCount, first + 5);
+            current += "# completed batch " + first + "-" + last + "\n";
+            responses.add(applyResponse(current, "Completed batch.", requirementIds(first, last)));
+        }
+        SequencedCapturingAiService aiService =
+            new SequencedCapturingAiService(responses.toArray(String[]::new));
+
+        SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService,
+            null,
+            "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
+                + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE KORTTY_FORCE SECURITY:\n",
+            "perl",
+            null,
+            "en",
+            List.of(),
+            List.of(),
+            null,
+            mandatoryRules);
+
+        String context = aiService.requests.stream()
+            .map(AiRequest::conversationContext)
+            .collect(java.util.stream.Collectors.joining("\n"));
+        assertThat(context.lines().filter(line -> line.startsWith("HARDENING-")).count())
+            .isEqualTo(ruleCount);
+        assertThat(context).contains("--dry-run");
+        assertThat(context).contains("--help/usage");
+        assertThat(context).contains("--verbose/-v");
+        assertThat(context).contains("MAX_FILE_SIZE=10485760");
+        assertThat(context).contains("KORTTY_FORCE");
+        assertThat(context).contains("SECURITY:");
     }
 
     @Test
@@ -392,10 +1210,11 @@ class SnippetAiWorkflowSupportTest {
         assertThat(aiService.lastRequest.conversationContext()).contains("1 | echo one");
         assertThat(aiService.lastRequest.conversationContext()).contains("2 | echo two");
         assertThat(aiService.lastRequest.conversationContext()).doesNotContain("Full snippet:");
-        assertThat(userPrompt).contains("Script content for context only:");
-        int rawSnippetOffset = userPrompt.indexOf(snippet);
-        assertThat(rawSnippetOffset).isAtLeast(0);
-        assertThat(userPrompt.indexOf(snippet, rawSnippetOffset + snippet.length())).isEqualTo(-1);
+        assertThat(userPrompt).doesNotContain("Script content for context only:");
+        assertThat(userPrompt).doesNotContain(snippet);
+        int firstLineOffset = userPrompt.indexOf("echo one");
+        assertThat(firstLineOffset).isAtLeast(0);
+        assertThat(userPrompt.indexOf("echo one", firstLineOffset + 1)).isEqualTo(-1);
         assertThat(aiService.lastRequest.selectedText()).isEqualTo(snippet);
     }
 
@@ -492,20 +1311,89 @@ class SnippetAiWorkflowSupportTest {
         assertThat(suggestion.isUsable()).isFalse();
     }
 
+    private static String numberedRules(String prefix, int count) {
+        List<String> rules = new ArrayList<>();
+        for (int index = 1; index <= count; index++) {
+            rules.add("- " + prefix + " rule " + index);
+        }
+        return String.join("\n", rules);
+    }
+
+    private static List<String> requirementIds(int first, int last) {
+        List<String> ids = new ArrayList<>();
+        for (int index = first; index <= last; index++) {
+            ids.add(String.format("HARDENING-%02d", index));
+        }
+        return List.copyOf(ids);
+    }
+
+    private static String applyResponse(String replacement, String summary, List<String> requirementIds) {
+        JsonObject response = new JsonObject();
+        response.addProperty("replacement", replacement);
+        response.addProperty("summary", summary);
+        response.add("changes", new JsonArray());
+        JsonArray implemented = new JsonArray();
+        requirementIds.forEach(implemented::add);
+        response.add("implementedRequirements", implemented);
+        return response.toString();
+    }
+
+    private static String applyLinesResponse(String replacement, String summary, List<String> requirementIds) {
+        JsonObject response = new JsonObject();
+        JsonArray lines = new JsonArray();
+        for (String line : replacement.split("\\n", -1)) {
+            lines.add(line);
+        }
+        response.add("replacementLines", lines);
+        response.addProperty("summary", summary);
+        response.add("changes", new JsonArray());
+        JsonArray implemented = new JsonArray();
+        requirementIds.forEach(implemented::add);
+        response.add("implementedRequirements", implemented);
+        return response.toString();
+    }
+
+    /** Test double that returns one deterministic response per staged AI request. */
+    private static final class SequencedCapturingAiService implements AiService {
+        private final Queue<String> responses;
+        private final List<AiRequest> requests = new ArrayList<>();
+
+        private SequencedCapturingAiService(String... responses) {
+            this.responses = new ArrayDeque<>(List.of(responses));
+        }
+
+        @Override
+        public AiExecutionResult execute(AiRequest request) {
+            requests.add(request);
+            return new AiExecutionResult(responses.remove(), null, null);
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
+        }
+    }
+
     private static final class CapturingAiService implements AiService {
         private final String response;
+        private final boolean outputTruncated;
         private AiRequest lastRequest;
         private int executionCount;
 
         private CapturingAiService(String response) {
+            this(response, false);
+        }
+
+        private CapturingAiService(String response, boolean outputTruncated) {
             this.response = response;
+            this.outputTruncated = outputTruncated;
         }
 
         @Override
         public AiExecutionResult execute(AiRequest request) {
             this.lastRequest = request;
             this.executionCount++;
-            return new AiExecutionResult(response, null);
+            return new AiExecutionResult(response, null, null, outputTruncated);
         }
 
         @Override

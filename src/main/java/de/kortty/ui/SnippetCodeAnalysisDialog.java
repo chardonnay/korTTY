@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAnalysisExportService;
+import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
 import de.kortty.model.AiSkill;
@@ -111,6 +112,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private final String scriptName;
     private final String activeProfileId;
     private final List<String> includedSkillNames;
+    private final boolean inputHardeningSupported;
     private final Map<String, SnippetAiResponseSupport.ScriptImprovement> improvementsById = new LinkedHashMap<>();
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
     private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
@@ -121,12 +123,15 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private final Label fontSizeLabel = new Label();
     private boolean pageReady;
     private int fontSize;
+    private Button applyActionButton;
+    private Consumer<ApplySelection> applyHandler;
 
     private final SnippetDiagramView diagramView;
 
     public SnippetCodeAnalysisDialog(
             Window owner,
             String scriptName,
+            String snippetLanguage,
             SnippetAiResponseSupport.ScriptAnalysis analysis,
             Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramMermaidSupplier,
             String activeProfileId,
@@ -137,6 +142,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         this.scriptName = scriptName;
         this.activeProfileId = activeProfileId;
         this.includedSkillNames = skillContext != null ? includedSkillNames(skillContext) : List.of();
+        this.inputHardeningSupported = WorkflowScriptSupport.supportsInputHardeningForSnippet(snippetLanguage);
+        this.inputHardeningSelector.setSupported(inputHardeningSupported);
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
 
@@ -221,10 +228,22 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             ButtonBar.ButtonData.OK_DONE);
         getDialogPane().setContent(contentScroll);
         getDialogPane().getButtonTypes().addAll(applyButton, ButtonType.CLOSE);
-        Button apply = (Button) getDialogPane().lookupButton(applyButton);
-        apply.addEventFilter(ActionEvent.ACTION, event -> {
-            if (readSelection().isEmpty()) {
+        applyActionButton = (Button) getDialogPane().lookupButton(applyButton);
+        applyActionButton.addEventFilter(ActionEvent.ACTION, event -> {
+            ApplySelection selection = readSelection();
+            if (selection.isEmpty()) {
                 event.consume();
+                return;
+            }
+            if (applyHandler != null) {
+                event.consume();
+                setApplyProcessing(true);
+                try {
+                    applyHandler.accept(selection);
+                } catch (RuntimeException e) {
+                    setApplyProcessing(false);
+                    throw e;
+                }
             }
         });
         getDialogPane().setPrefWidth(1160);
@@ -241,6 +260,28 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             // Unload the findings page so its WebKit engine releases its native memory.
             findingsView.getEngine().loadContent("");
         });
+    }
+
+    /**
+     * Runs Apply selected without closing the analysis window. The host keeps this dialog open beside
+     * the docked progress window until the staged workflow reaches its preview or fails.
+     */
+    void setApplyHandler(Consumer<ApplySelection> applyHandler) {
+        this.applyHandler = applyHandler;
+    }
+
+    void setApplyProcessing(boolean processing) {
+        if (applyActionButton != null) {
+            applyActionButton.setDisable(processing);
+        }
+    }
+
+    Window displayWindow() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : getOwner();
+    }
+
+    void closeAfterApply() {
+        closeDialogOrHostTab();
     }
 
     private HBox buildToolbar(String activeProfileId, Consumer<String> onRerun) {
@@ -268,8 +309,10 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         // "Default profile" for the null selection, never the default's actual name — this label fills that gap.
         Label profileUsing = new Label(I18n.get("snippets.ai.analysis.profile.using",
             SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId)));
+        profileUsing.setId("snippet-analysis-profile-using");
         profileUsing.setStyle("-fx-opacity: 0.85;");
-        toolbar.getChildren().add(profileUsing);
+        HBox.setMargin(profileUsing, new Insets(0, 0, 0, 16));
+        toolbar.getChildren().addAll(selectAll, profileUsing);
 
         if (onRerun != null) {
             ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo =
@@ -278,7 +321,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, this::close);
             toolbar.getChildren().addAll(SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton);
         }
-        toolbar.getChildren().addAll(spacer, selectAll, zoomOutButton, fontSizeLabel, zoomInButton, copyButton,
+        toolbar.getChildren().addAll(spacer, zoomOutButton, fontSizeLabel, zoomInButton, copyButton,
             buildExportButton());
         HBox.setHgrow(spacer, Priority.ALWAYS);
         return toolbar;
@@ -454,6 +497,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         pane.setGraphic(header);
         pane.setContent(inputHardeningSelector);
         pane.setExpanded(false);
+        pane.setDisable(!inputHardeningSupported);
         return pane;
     }
 

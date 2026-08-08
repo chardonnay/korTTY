@@ -44,7 +44,10 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
 
     @Override
     public AiExecutionResult execute(AiRequest request) throws Exception {
-        if (request == null || storeIds.isEmpty()) {
+        // A diagram must describe only control flow visible in the supplied snippet. Retrieval adds
+        // latency and unrelated prose without improving that fixed, source-grounded contract.
+        if (request == null || storeIds.isEmpty()
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
             return delegate.execute(request);
         }
         String query = retrievalQuery(request);

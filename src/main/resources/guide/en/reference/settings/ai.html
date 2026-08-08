@@ -3083,14 +3083,14 @@
 <p>Reasoning effort configures how deeply the AI thinks before responding. Available levels depend on the model and endpoint:</p>
 <ul>
 <li><strong>Disabled</strong>: No reasoning parameter sent; model uses its default behavior.</li>
-<li><strong>None</strong>: Explicitly disable reasoning (send <code>reasoning: "none"</code>).</li>
+<li><strong>None</strong>: Explicitly disable reasoning with the transport's supported off value.</li>
 <li><strong>Minimal</strong>: Light reasoning; fastest execution.</li>
 <li><strong>Low</strong>: Low effort reasoning; balance between speed and depth.</li>
 <li><strong>Medium</strong>: Medium effort; reasonable depth.</li>
 <li><strong>High</strong>: High effort; more thorough reasoning.</li>
 <li><strong>Extra high</strong>: Maximum reasoning effort; slowest but most comprehensive.</li>
 </ul>
-<p>Not all models support all levels. Use the <strong>Refresh reasoning options</strong> button to detect available levels for the current profile and model.</p>
+<p>Not all models support all levels. Use the <strong>Refresh reasoning options</strong> button to detect available levels for the current profile and model. When LM Studio publishes <code>capabilities.reasoning.allowed_options</code> through its native model metadata, korTTY uses that exact list instead of treating a silently converted value as supported. For a binary <code>off</code>/<code>on</code> model, an explicit <code>none</code> request switches this feature off, while omitting the reasoning parameter uses the model's published default; the unsupported Minimal, Low, Medium, High, and Extra high levels are not offered. Other compatible endpoints continue to use active connection probes when no such metadata is available.</p>
 <p>For the native Anthropic (Claude) endpoint, an enabled reasoning level requests <strong>extended thinking</strong> with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.</p>
 <h3 id="token-quota-management">Token Quota Management<a class="headerlink" href="#token-quota-management" title="Permanent link">&para;</a></h3>
 <p>Each AI profile maintains a token usage quota with the following controls:</p>

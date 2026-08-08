@@ -214,6 +214,56 @@ class AiServiceFactoryTest {
     }
 
     @Test
+    void mermaidExecutionProfileSendsExplicitReasoningNone() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("qwen-reasoning");
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        AiProfile executionProfile = AiReasoningSupport.profileForAction(
+            profile, AiAction.GENERATE_SNIPPET_MERMAID);
+        AiService service = unwrap(AiServiceFactory.create(
+            executionProfile, null, AiInternetAccessConfiguration.disabled()));
+        AiService transport = service instanceof AiPromptPresetService preset
+            ? preset.delegate()
+            : service;
+        OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) transport;
+
+        assertThat(openAiService.buildRequestBody(new AiRequest(
+            AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "de")))
+            .contains("\"reasoning_effort\":\"none\"");
+        assertThat(profile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MINIMAL);
+    }
+
+    @Test
+    void improvementApplyExecutionProfileSendsExplicitReasoningNone() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("qwen-reasoning");
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        AiProfile executionProfile = AiReasoningSupport.profileForAction(
+            profile, AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+        AiService service = unwrap(AiServiceFactory.create(
+            executionProfile, null, AiInternetAccessConfiguration.disabled()));
+        AiService transport = service instanceof AiPromptPresetService preset
+            ? preset.delegate()
+            : service;
+        OpenAiCompatibleAiService openAiService = (OpenAiCompatibleAiService) transport;
+
+        assertThat(openAiService.buildRequestBody(new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en")))
+            .contains("\"reasoning_effort\":\"none\"");
+        assertThat(profile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MINIMAL);
+    }
+
+    @Test
     void createAllowsBlankModelForLocalOpenAiCompatibleLmStudioEndpoint() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234/v1");

@@ -4,6 +4,7 @@ import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiRequest;
+import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiService;
 import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.SnippetAiResponseSupport;
@@ -31,7 +32,7 @@ final class SnippetAiAssistFactory {
         String contextDisplayName = connectionDisplayName != null && !connectionDisplayName.isBlank()
             ? connectionDisplayName.trim()
             : null;
-        // Editor-scoped runtime options (currently the forced AI-code skills). Read per request inside the
+        // Editor-scoped runtime options (currently the explicit AI-code skill allowlist). Read per request inside the
         // lambdas so the picker's current selection always applies.
         SnippetAiRuntimeOptions runtimeOptions = new SnippetAiRuntimeOptions();
         return new SnippetEditDialog.AiAssist(
@@ -74,8 +75,9 @@ final class SnippetAiAssistFactory {
         if (profile == null) {
             throw new IllegalStateException("No AI profile is available for this snippet action.");
         }
+        AiProfile executionProfile = AiReasoningSupport.profileForAction(profile, action);
         AiService service = ownerWindow.createAiServiceForProfile(
-            profile, connection, forcedSkillIds != null && !forcedSkillIds.isEmpty() ? forcedSkillIds : null);
+            executionProfile, connection, forcedSkillIds);
         if (service == null) {
             throw new IllegalStateException("No AI service could be created for this snippet action.");
         }
@@ -313,7 +315,10 @@ final class SnippetAiAssistFactory {
             request.fallbackLanguageCode(),
             request.improvements(),
             request.dependencies(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.classicHardeningInstructions(),
+            request.inputHardeningInstructions(),
+            request.progressListener());
     }
 
     private static SnippetAiResponseSupport.CodeImprovement improveSnippetCode(

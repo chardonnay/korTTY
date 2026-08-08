@@ -39,6 +39,7 @@ public final class InputHardeningSelector extends VBox {
     private final Spinner<Integer> maxFileSizeSpinner;
     private final Button saveButton;
     private Runnable onSelectionChanged;
+    private boolean supported = true;
 
     public InputHardeningSelector() {
         setSpacing(8);
@@ -67,7 +68,7 @@ public final class InputHardeningSelector extends VBox {
         grid.disableProperty().bind(enableCheck.selectedProperty().not());
 
         int initialMb = settings != null ? settings.getSnippetInputHardeningMaxFileSizeMb() : 10;
-        maxFileSizeSpinner = new Spinner<>(1, 1024, initialMb);
+        maxFileSizeSpinner = new Spinner<>(0, 1024, initialMb);
         maxFileSizeSpinner.setEditable(true);
         maxFileSizeSpinner.setPrefWidth(90);
         maxFileSizeSpinner.setId("inputHardeningMaxSize");
@@ -122,10 +123,10 @@ public final class InputHardeningSelector extends VBox {
     /**
      * The per-run guard configuration: {@link InputHardeningConfig#disabled()} unless the master
      * toggle is ticked, otherwise the ticked sub-options plus the spinner value converted to bytes
-     * (so the generated KORTTY_MAX_FILE_SIZE default always matches the UI).
+     * (so the generated MAX_FILE_SIZE default always matches the UI, including zero = unlimited).
      */
     public InputHardeningConfig currentConfig() {
-        if (!enableCheck.isSelected()) {
+        if (!supported || !enableCheck.isSelected()) {
             return InputHardeningConfig.disabled();
         }
         return new InputHardeningConfig(selectedOptions(), maxFileSizeMb() * BYTES_PER_MB);
@@ -133,7 +134,7 @@ public final class InputHardeningSelector extends VBox {
 
     /** The number of effectively active sub-options: 0 while the master toggle is off. */
     public int selectedCount() {
-        if (!enableCheck.isSelected()) {
+        if (!supported || !enableCheck.isSelected()) {
             return 0;
         }
         int count = 0;
@@ -154,6 +155,24 @@ public final class InputHardeningSelector extends VBox {
         this.onSelectionChanged = callback;
     }
 
+    /**
+     * Marks whether the current target language can receive an imperative input guard. Unsupported
+     * targets are visibly disabled and always yield a disabled effective config, even if a saved
+     * default had the master toggle enabled.
+     */
+    public void setSupported(boolean supported) {
+        if (this.supported == supported) {
+            return;
+        }
+        this.supported = supported;
+        setDisable(!supported);
+        fireSelectionChanged();
+    }
+
+    public boolean isSupported() {
+        return supported;
+    }
+
     private EnumSet<InputHardeningOption> selectedOptions() {
         EnumSet<InputHardeningOption> selected = EnumSet.noneOf(InputHardeningOption.class);
         checks.forEach((option, check) -> {
@@ -170,14 +189,14 @@ public final class InputHardeningSelector extends VBox {
         return value != null ? value : 10;
     }
 
-    /** Commits typed-but-uncommitted editor text into the spinner value, clamped to 1..1024. */
+    /** Commits typed-but-uncommitted editor text into the spinner value, clamped to 0..1024. */
     private void commitSpinnerEditorText() {
         try {
             String text = maxFileSizeSpinner.getEditor().getText();
             Integer current = maxFileSizeSpinner.getValue();
             int fallback = current != null ? current : 10;
             int value = text == null || text.isBlank() ? fallback : Integer.parseInt(text.trim());
-            int clamped = Math.max(1, Math.min(1024, value));
+            int clamped = Math.max(0, Math.min(1024, value));
             maxFileSizeSpinner.getValueFactory().setValue(clamped);
             maxFileSizeSpinner.getEditor().setText(String.valueOf(clamped));
         } catch (NumberFormatException e) {

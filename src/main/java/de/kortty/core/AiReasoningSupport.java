@@ -83,6 +83,40 @@ public final class AiReasoningSupport {
         return normalize(profile.getReasoningEffort(), availableEfforts(profile));
     }
 
+    /**
+     * Returns the request-scoped profile used for an AI action. Mermaid generation and the two
+     * post-analysis full-script apply actions have strict, machine-parsed contracts and do not
+     * benefit from spending their bounded completion budget on a hidden chain-of-thought, so they
+     * explicitly request {@link AiReasoningEffort#NONE} when that value is available for the
+     * profile. Profiles without an explicit-off value keep the configured effort instead of
+     * receiving an unsupported override. The stored profile is never mutated.
+     */
+    public static AiProfile profileForAction(AiProfile profile, AiAction action) {
+        if (profile == null || !prefersExplicitReasoningOff(action)) {
+            return profile;
+        }
+        // AUTO can switch to another loaded LM Studio model without changing the persisted profile
+        // key. Do not force a capability discovered for an earlier model; an explicitly selected
+        // NONE value still passes through unchanged below because it is already the user setting.
+        if (profile.getModelSelectionMode() == AiModelSelectionMode.AUTO
+            && profile.getReasoningEffort() != AiReasoningEffort.NONE) {
+            return profile;
+        }
+        if (!availableEfforts(profile).contains(AiReasoningEffort.NONE)
+            || profile.getReasoningEffort() == AiReasoningEffort.NONE) {
+            return profile;
+        }
+        AiProfile copy = new AiProfile(profile);
+        copy.setReasoningEffort(AiReasoningEffort.NONE);
+        return copy;
+    }
+
+    private static boolean prefersExplicitReasoningOff(AiAction action) {
+        return action == AiAction.GENERATE_SNIPPET_MERMAID
+            || action == AiAction.APPLY_SNIPPET_IMPROVEMENTS
+            || action == AiAction.APPLY_SNIPPET_SECURITY_FIXES;
+    }
+
     public static List<AiReasoningEffort> availableEfforts(AiProfile profile) {
         if (profile == null) {
             return DISABLED_ONLY;

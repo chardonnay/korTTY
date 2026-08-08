@@ -62,6 +62,24 @@ class WorkflowScriptSupportTest {
         assertThat(defaults).hasSize(HardeningOption.values().length);
     }
 
+    @Test
+    void everyHardeningOptionContributesExactlyOneIndependentRule() {
+        for (boolean declarative : new boolean[] {false, true}) {
+            String allRules = WorkflowScriptSupport.hardeningRulesText(HardeningOption.defaults(), declarative);
+            for (HardeningOption option : HardeningOption.values()) {
+                String onlyThisRule = WorkflowScriptSupport.hardeningRulesText(EnumSet.of(option), declarative);
+                assertThat(onlyThisRule).isNotEmpty();
+                assertThat(onlyThisRule.lines().count()).isEqualTo(1L);
+                assertThat(allRules).contains(onlyThisRule);
+
+                EnumSet<HardeningOption> withoutOption = HardeningOption.defaults();
+                withoutOption.remove(option);
+                assertThat(WorkflowScriptSupport.hardeningRulesText(withoutOption, declarative))
+                    .doesNotContain(onlyThisRule);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- languageIdioms
 
     @Test
@@ -79,6 +97,29 @@ class WorkflowScriptSupportTest {
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.WINDOWS_CMD)).contains("errorlevel");
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.APPLESCRIPT)).contains("on error");
         assertThat(WorkflowScriptSupport.languageIdioms(ScriptLanguage.APPLESCRIPT)).contains("do shell script");
+    }
+
+    @Test
+    void clearedHardeningLeavesOnlyOneNeutralLanguageValidityIdiomPerLanguage() {
+        EnumSet<HardeningOption> none = EnumSet.noneOf(HardeningOption.class);
+        for (ScriptLanguage language : ScriptLanguage.values()) {
+            String neutral = WorkflowScriptSupport.languageIdioms(language, none);
+            assertThat(neutral).isNotEmpty();
+            assertThat(neutral.lines().count()).isEqualTo(1L);
+            assertThat(WorkflowScriptSupport.languageIdioms(language)).contains(neutral);
+        }
+    }
+
+    @Test
+    void strictModeHasALanguageSpecificAbortBehaviourInEveryTargetLanguage() {
+        EnumSet<HardeningOption> none = EnumSet.noneOf(HardeningOption.class);
+        for (ScriptLanguage language : ScriptLanguage.values()) {
+            String neutral = WorkflowScriptSupport.languageIdioms(language, none);
+            String strict = WorkflowScriptSupport.languageIdioms(
+                language, EnumSet.of(HardeningOption.STRICT_MODE));
+            assertThat(strict).isNotEqualTo(neutral);
+            assertThat(strict.lines().count()).isGreaterThan(neutral.lines().count());
+        }
     }
 
     // ---------------------------------------------------------------- Windows-CMD / AppleScript
@@ -159,6 +200,47 @@ class WorkflowScriptSupportTest {
         assertThat(sys).doesNotContain("#!/usr/bin/env");
         assertThat(sys).contains("--check");          // SAFE_MODE mapped to Ansible check mode
         assertThat(sys).contains("idempotent");       // IDEMPOTENCY mapped
+    }
+
+    @Test
+    void clearedHardeningDoesNotLeakLanguageSpecificHardeningIntoTheSystemPrompt() {
+        EnumSet<HardeningOption> none = EnumSet.noneOf(HardeningOption.class);
+
+        String bash = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, none);
+        assertThat(bash).doesNotContain("ADDITIONAL REQUIREMENTS:");
+        assertThat(bash).doesNotContain("Robust error handling");
+        assertThat(bash).doesNotContain("set -euo pipefail");
+        assertThat(bash).doesNotContain("ERR trap");
+        assertThat(bash).doesNotContain("command -v <cmd>");
+        assertThat(bash).doesNotContain("meaningful non-zero exit codes");
+
+        String ansible = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.ANSIBLE, none);
+        assertThat(ansible).doesNotContain("ADDITIONAL REQUIREMENTS:");
+        assertThat(ansible).doesNotContain("block/rescue/always");
+        assertThat(ansible).doesNotContain("assert and failed_when");
+        assertThat(ansible).doesNotContain("idempotent modules");
+        assertThat(ansible).doesNotContain("any_errors_fatal");
+        assertThat(ansible).doesNotContain("vars: section");
+
+        String swarm = WorkflowScriptSupport.buildSwarmSystemPrompt(
+            ScriptLanguage.BASH, none, null, WorkflowScriptSupport.HeaderMode.AUTO);
+        assertThat(swarm).contains("MULTI-HOST ORCHESTRATION:");
+        assertThat(swarm).doesNotContain("set -euo pipefail");
+    }
+
+    @Test
+    void partialHardeningPromptContainsOnlySelectedOptionRulesAndIdioms() {
+        String strictOnly = WorkflowScriptSupport.buildSystemPrompt(
+            ScriptLanguage.BASH, EnumSet.of(HardeningOption.STRICT_MODE));
+
+        assertThat(strictOnly).contains("Enable the language's strict / abort-on-error mode");
+        assertThat(strictOnly).contains("set -euo pipefail");
+        assertThat(strictOnly).doesNotContain("ERR trap");
+        assertThat(strictOnly).doesNotContain("--verbose/-v");
+        assertThat(strictOnly).doesNotContain("meaningful non-zero exit codes");
+        assertThat(strictOnly).doesNotContain("command -v <cmd>");
+        assertThat(strictOnly).doesNotContain("--dry-run");
+        assertThat(strictOnly).doesNotContain("--help/usage");
     }
 
     @Test
@@ -455,13 +537,15 @@ class WorkflowScriptSupportTest {
     }
 
     @Test
-    void inputHardeningConfigClampsAndCopiesDefensively() {
+    void inputHardeningConfigPreservesUnlimitedZeroAndCopiesDefensively() {
         EnumSet<InputHardeningOption> mutable = EnumSet.of(InputHardeningOption.PARAM_VALIDATION);
         InputHardeningConfig config = new InputHardeningConfig(mutable, -1);
+        InputHardeningConfig unlimited = new InputHardeningConfig(mutable, 0);
         mutable.add(InputHardeningOption.FORCE_OVERRIDE);
 
         assertThat(config.options()).containsExactly(InputHardeningOption.PARAM_VALIDATION);
         assertThat(config.maxFileSizeBytes()).isEqualTo(InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        assertThat(unlimited.maxFileSizeBytes()).isEqualTo(0);
         assertThat(config.isEnabled()).isTrue();
         assertThat(InputHardeningConfig.disabled().isEnabled()).isFalse();
     }
@@ -471,9 +555,12 @@ class WorkflowScriptSupportTest {
         String rules = WorkflowScriptSupport.inputHardeningRulesText(allInputHardening(), ScriptLanguage.BASH);
 
         assertThat(rules).contains("INPUT HARDENING guard block");
-        assertThat(rules).contains("built-ins / standard library only");
-        assertThat(rules).contains("KORTTY_MAX_FILE_SIZE=10485760");
+        assertThat(rules).contains("built-ins / standard library wherever possible");
+        assertThat(rules).contains("MAX_FILE_SIZE=10485760");
+        assertThat(rules).doesNotContain("KORTTY_MAX_FILE_SIZE");
         assertThat(rules).contains("(bytes; 10 MB)");
+        assertThat(rules).contains("before any operation reads even one byte");
+        assertThat(rules).contains("Never calculate the size by reading or streaming the file");
         assertThat(rules).contains("KORTTY_FORCE");
         assertThat(rules).contains("stderr");
         assertThat(rules).contains("64 for parameter violations");
@@ -483,6 +570,8 @@ class WorkflowScriptSupportTest {
         assertThat(rules).contains("exact expected parameter count");
         assertThat(rules).contains("never more than 4096");
         assertThat(rules).contains("file --mime-type");
+        assertThat(rules.indexOf("verify the file exists")).isLessThan(rules.indexOf("MAX_FILE_SIZE="));
+        assertThat(rules.indexOf("MAX_FILE_SIZE=")).isLessThan(rules.indexOf("scan the first 512"));
     }
 
     @Test
@@ -490,15 +579,30 @@ class WorkflowScriptSupportTest {
         InputHardeningConfig fiveMb = new InputHardeningConfig(InputHardeningOption.defaults(), 5_242_880L);
         String rules = WorkflowScriptSupport.inputHardeningRulesText(fiveMb, ScriptLanguage.BASH);
 
-        assertThat(rules).contains("KORTTY_MAX_FILE_SIZE=5242880");
+        assertThat(rules).contains("MAX_FILE_SIZE=5242880");
         assertThat(rules).doesNotContain("10485760");
+    }
+
+    @Test
+    void inputHardeningRulesTreatZeroFileSizeLimitAsUnlimited() {
+        InputHardeningConfig unlimited = new InputHardeningConfig(InputHardeningOption.defaults(), 0);
+        String rules = WorkflowScriptSupport.inputHardeningRulesText(unlimited, ScriptLanguage.BASH);
+
+        assertThat(rules).contains("MAX_FILE_SIZE=0");
+        assertThat(rules).contains("(bytes; unlimited)");
+        assertThat(rules).contains("treat the size as unlimited and skip the size check entirely");
+        assertThat(rules).contains("When MAX_FILE_SIZE is greater than 0");
     }
 
     @Test
     void inputHardeningRulesAreLanguageAware() {
         InputHardeningConfig config = allInputHardening();
 
-        assertThat(WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.BASH)).contains("wc -c");
+        String bash = WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.BASH);
+        assertThat(bash).contains("GNU stat -c %s");
+        assertThat(bash).contains("BSD/macOS stat -f %z");
+        assertThat(bash).contains("for example with wc -c");
+        assertThat(bash).doesNotContain("wc -c <");
         String python = WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.PYTHON);
         assertThat(python).contains("os.path.getsize");
         assertThat(python).contains("sys.argv");
@@ -509,8 +613,8 @@ class WorkflowScriptSupportTest {
             .contains("File.binread");
         // Unknown snippet languages get the generic implementation bullet, no bash idioms.
         String generic = WorkflowScriptSupport.inputHardeningRulesText(config, null);
-        assertThat(generic).contains("native argument, string and file facilities");
-        assertThat(generic).doesNotContain("wc -c");
+        assertThat(generic).contains("native argument-count and string-validation facilities");
+        assertThat(generic).doesNotContain("GNU stat");
     }
 
     @Test
@@ -520,16 +624,62 @@ class WorkflowScriptSupportTest {
         String rules = WorkflowScriptSupport.inputHardeningRulesText(paramOnly, ScriptLanguage.BASH);
 
         assertThat(rules).contains("character allowlist");
-        assertThat(rules).doesNotContain("KORTTY_MAX_FILE_SIZE");
+        assertThat(rules).doesNotContain("MAX_FILE_SIZE");
         assertThat(rules).doesNotContain("KORTTY_FORCE");
         assertThat(rules).doesNotContain("SECURITY:");
         assertThat(rules).doesNotContain("file --mime-type");
+        assertThat(rules).doesNotContain("set -u");
         // A param-only guard must not name file-related exit codes it will never use.
         assertThat(rules).doesNotContain("65 for a file");
         assertThat(rules).doesNotContain("66 for a missing");
         assertThat(WorkflowScriptSupport.inputHardeningRulesText(InputHardeningConfig.disabled(),
             ScriptLanguage.BASH)).isEmpty();
         assertThat(WorkflowScriptSupport.inputHardeningRulesText(null, ScriptLanguage.BASH)).isEmpty();
+
+        String genericRules = WorkflowScriptSupport.inputHardeningRulesText(paramOnly, null);
+        assertThat(genericRules).contains("argument-count and string-validation facilities");
+        assertThat(genericRules).doesNotContain("file tests");
+        assertThat(genericRules).doesNotContain("file-size queries");
+        assertThat(genericRules).doesNotContain("environment-variable access");
+    }
+
+    @Test
+    void inputHardeningFileExitCodesAndHelpersMatchOnlyTheSelectedChecks() {
+        InputHardeningConfig fileChecksOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.FILE_CHECKS), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String formatRules = WorkflowScriptSupport.inputHardeningRulesText(fileChecksOnly, ScriptLanguage.BASH);
+        assertThat(formatRules).contains("65 for a file that fails the format check");
+        assertThat(formatRules).contains("66 for a missing or unreadable input file");
+        assertThat(formatRules).contains("'file' command");
+        assertThat(formatRules).doesNotContain("MAX_FILE_SIZE");
+        assertThat(formatRules).doesNotContain("size checks");
+
+        InputHardeningConfig sizeOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.FILE_SIZE_LIMIT), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String sizeRules = WorkflowScriptSupport.inputHardeningRulesText(sizeOnly, ScriptLanguage.BASH);
+        assertThat(sizeRules).contains("65 for a file that exceeds the size limit");
+        assertThat(sizeRules).contains("MAX_FILE_SIZE=10485760");
+        assertThat(sizeRules).doesNotContain("format check");
+        assertThat(sizeRules).doesNotContain("'file' command");
+        assertThat(sizeRules).doesNotContain("66 for a missing or unreadable input file");
+    }
+
+    @Test
+    void inputHardeningSecurityLoggingNamesForcedBypassesOnlyWhenOverrideIsSelected() {
+        InputHardeningConfig loggingOnly = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.SECURITY_LOGGING), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String loggingRules = WorkflowScriptSupport.inputHardeningRulesText(loggingOnly, ScriptLanguage.PYTHON);
+        assertThat(loggingRules).contains("SECURITY:");
+        assertThat(loggingRules).doesNotContain("forced bypass");
+        assertThat(loggingRules).doesNotContain("KORTTY_FORCE");
+
+        InputHardeningConfig loggingAndOverride = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.SECURITY_LOGGING, InputHardeningOption.FORCE_OVERRIDE),
+            InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String combinedRules = WorkflowScriptSupport.inputHardeningRulesText(
+            loggingAndOverride, ScriptLanguage.PYTHON);
+        assertThat(combinedRules).contains("every forced bypass");
+        assertThat(combinedRules).contains("KORTTY_FORCE");
     }
 
     @Test
@@ -563,11 +713,22 @@ class WorkflowScriptSupportTest {
     }
 
     @Test
+    void snippetLanguageSupportRejectsOnlyDeclarativeYamlAndAnsible() {
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet("bash")).isTrue();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet("python")).isTrue();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet("javascript")).isTrue();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet(null)).isTrue();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet("yaml")).isFalse();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet(" YML ")).isFalse();
+        assertThat(WorkflowScriptSupport.supportsInputHardeningForSnippet("ansible-playbook")).isFalse();
+    }
+
+    @Test
     void systemPromptIncludesInputHardeningSectionOnlyWhenEnabled() {
         String withGuard = WorkflowScriptSupport.buildSystemPrompt(ScriptLanguage.BASH, HardeningOption.defaults(),
             WorkflowScriptSupport.HeaderMode.AUTO, allInputHardening());
         assertThat(withGuard).contains("INPUT HARDENING:");
-        assertThat(withGuard).contains("KORTTY_MAX_FILE_SIZE=10485760");
+        assertThat(withGuard).contains("MAX_FILE_SIZE=10485760");
 
         String without = WorkflowScriptSupport.buildSystemPrompt(
             ScriptLanguage.BASH, HardeningOption.defaults(), WorkflowScriptSupport.HeaderMode.AUTO);

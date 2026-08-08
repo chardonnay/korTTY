@@ -245,7 +245,10 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             usage = new AiTokenUsage(input, output, input + output);
         }
         String reasoningText = reasoning.length() > 0 ? reasoning.toString().trim() : null;
-        return new AiExecutionResult(text.toString().trim(), usage, reasoningText);
+        boolean outputTruncated = root.has("stop_reason")
+            && root.get("stop_reason").isJsonPrimitive()
+            && "max_tokens".equals(root.get("stop_reason").getAsString());
+        return new AiExecutionResult(text.toString().trim(), usage, reasoningText, outputTruncated);
     }
 
     private static String extractError(String responseBody) {

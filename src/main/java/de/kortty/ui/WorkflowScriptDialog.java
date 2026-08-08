@@ -204,9 +204,13 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         // the panel out instead of letting it look effective while being a silent no-op.
         TitledPane inputHardeningPane = new TitledPane(I18n.get("ai.inputHardening.title"), inputHardeningSelector);
         inputHardeningPane.setExpanded(false);
-        inputHardeningPane.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> languageCombo.getValue() != null && languageCombo.getValue().isDeclarative(),
-            languageCombo.valueProperty()));
+        Runnable updateInputHardeningSupport = () -> {
+            boolean supported = languageCombo.getValue() == null || !languageCombo.getValue().isDeclarative();
+            inputHardeningSelector.setSupported(supported);
+            inputHardeningPane.setDisable(!supported);
+        };
+        languageCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateInputHardeningSupport.run());
+        updateInputHardeningSupport.run();
 
         extraInstructionsArea.setPromptText(I18n.get("ai.workflow.extra.prompt"));
         extraInstructionsArea.setPrefRowCount(2);

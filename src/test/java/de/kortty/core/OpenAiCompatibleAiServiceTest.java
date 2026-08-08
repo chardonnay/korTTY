@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.model.AiModelSelectionMode;
@@ -37,6 +38,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 
 class OpenAiCompatibleAiServiceTest {
@@ -254,6 +256,392 @@ class OpenAiCompatibleAiServiceTest {
         service.setDefaultMaxCompletionTokens(8192);
         assertThat(service.buildPromptRequestBody("system", "user")).contains("\"max_tokens\":8192");
         assertThat(service.buildConnectionTestRequestBody()).contains("\"max_tokens\":128");
+    }
+
+    @Test
+    void strictSnippetFollowUpsSendFiniteActionSpecificMaxTokens() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        String ordinaryBody = service.buildRequestBody(
+            new AiRequest(AiAction.SUMMARIZE, "text", null, "en"));
+        String mermaidBody = service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "print('ok')", null, "en"));
+        String applyBody = service.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en"));
+
+        assertThat(ordinaryBody).doesNotContain("\"max_tokens\"");
+        assertThat(mermaidBody).contains("\"max_tokens\":8192");
+        assertThat(applyBody).contains("\"max_tokens\":32768");
+    }
+
+    @Test
+    void fullAnalysisApplyRequestsStrictSnippetReplacementJsonSchema() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        JsonObject applyBody = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en")))
+            .getAsJsonObject();
+        JsonObject responseFormat = applyBody.getAsJsonObject("response_format");
+        JsonObject jsonSchema = responseFormat.getAsJsonObject("json_schema");
+        JsonObject schema = jsonSchema.getAsJsonObject("schema");
+        JsonObject properties = schema.getAsJsonObject("properties");
+
+        assertThat(responseFormat.get("type").getAsString()).isEqualTo("json_schema");
+        assertThat(jsonSchema.get("name").getAsString()).isEqualTo("snippet_improvement_response");
+        assertThat(jsonSchema.get("strict").getAsBoolean()).isTrue();
+        assertThat(schema.get("additionalProperties").getAsBoolean()).isFalse();
+        assertThat(properties.has("replacement")).isFalse();
+        assertThat(properties.has("replacementLines")).isTrue();
+        assertThat(properties.getAsJsonObject("replacementLines").get("minItems").getAsInt())
+            .isEqualTo(1);
+        assertThat(properties.has("summary")).isTrue();
+        assertThat(properties.has("changes")).isTrue();
+        assertThat(properties.has("implementedRequirements")).isTrue();
+
+        JsonObject ordinaryBody = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.SUMMARIZE, "text", null, "en"))).getAsJsonObject();
+        assertThat(ordinaryBody.has("response_format")).isFalse();
+    }
+
+    @Test
+    void fullCodeAnalysisRequestsStrictAnalysisJsonSchema() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        JsonObject body = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "print('ok')", null, "de")))
+            .getAsJsonObject();
+        JsonObject responseFormat = body.getAsJsonObject("response_format");
+        JsonObject jsonSchema = responseFormat.getAsJsonObject("json_schema");
+        JsonObject schema = jsonSchema.getAsJsonObject("schema");
+        JsonObject properties = schema.getAsJsonObject("properties");
+
+        assertThat(responseFormat.get("type").getAsString()).isEqualTo("json_schema");
+        assertThat(jsonSchema.get("name").getAsString()).isEqualTo("snippet_analysis_response");
+        assertThat(jsonSchema.get("strict").getAsBoolean()).isTrue();
+        assertThat(schema.get("additionalProperties").getAsBoolean()).isFalse();
+        assertThat(properties.getAsJsonObject("summary").get("minLength").getAsInt()).isEqualTo(1);
+        assertThat(properties.getAsJsonObject("dependencies").get("type").getAsString())
+            .isEqualTo("array");
+        JsonObject improvement = properties.getAsJsonObject("improvements")
+            .getAsJsonObject("items");
+        assertThat(improvement.get("additionalProperties").getAsBoolean()).isFalse();
+        assertThat(improvement.getAsJsonObject("properties")
+            .getAsJsonObject("category").getAsJsonArray("enum").asList().stream()
+            .map(JsonElement::getAsString).toList())
+            .containsExactly("security", "optimization", "design").inOrder();
+        assertThat(improvement.getAsJsonObject("properties")
+            .getAsJsonObject("line").get("type").getAsString()).isEqualTo("integer");
+        assertThat(improvement.getAsJsonObject("properties")
+            .getAsJsonObject("line").get("minimum").getAsInt()).isEqualTo(1);
+    }
+
+    @Test
+    void fullAnalysisApplySchemaRequiresEnoughSeparateSourceLinesToRejectHeaderFragments() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+        String source = java.util.stream.IntStream.rangeClosed(1, 20)
+            .mapToObj(index -> "source line " + index)
+            .collect(java.util.stream.Collectors.joining("\n"));
+
+        JsonObject body = JsonParser.parseString(service.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, source, null, "en")))
+            .getAsJsonObject();
+        JsonObject replacementLines = body.getAsJsonObject("response_format")
+            .getAsJsonObject("json_schema")
+            .getAsJsonObject("schema")
+            .getAsJsonObject("properties")
+            .getAsJsonObject("replacementLines");
+
+        assertThat(replacementLines.get("type").getAsString()).isEqualTo("array");
+        assertThat(replacementLines.getAsJsonObject("items").get("type").getAsString())
+            .isEqualTo("string");
+        assertThat(replacementLines.get("minItems").getAsInt()).isEqualTo(10);
+    }
+
+    @Test
+    void mermaidRequestAlwaysCarriesRequiredActionSkill() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        String mermaidBody = service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"));
+        String analysisBody = service.buildRequestBody(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"));
+
+        assertThat(mermaidBody).contains("builtin.action.snippet-mermaid");
+        assertThat(mermaidBody).contains("kortty_required_action_skill");
+        assertThat(analysisBody).doesNotContain("builtin.action.snippet-mermaid");
+    }
+
+    @Test
+    void actionLimitsReplaceTheTransportDefaultForSnippetFollowUps() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+        service.setDefaultMaxCompletionTokens(2_048);
+
+        String mermaidBody = service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "print('ok')", null, "en"));
+        String applyBody = service.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_SECURITY_FIXES, "print('ok')", null, "en"));
+
+        assertThat(mermaidBody).contains("\"max_tokens\":8192");
+        assertThat(applyBody).contains("\"max_tokens\":32768");
+    }
+
+    @Test
+    void retriesUnsupportedMaxTokensOnceWithModernParameter() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, """
+                {"error":{"message":"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+                """),
+            new StubResponse(200, """
+                {"choices":[{"message":{"content":"{\\\"title\\\":\\\"Flow\\\",\\\"mermaid\\\":\\\"flowchart TD\\\"}"}}]}
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "o-series-test",
+            "",
+            AiReasoningEffort.DISABLED,
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(result.content()).contains("flowchart TD");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"max_tokens\":8192");
+        assertThat(client.requestBodies().get(0)).doesNotContain("\"max_completion_tokens\"");
+        assertThat(client.requestBodies().get(1)).contains("\"max_completion_tokens\":8192");
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"max_tokens\"");
+    }
+
+    @Test
+    void retriesFullAnalysisApplyWithoutSchemaOnlyWhenEndpointRejectsStructuredOutput() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, """
+                {"error":{"message":"Unsupported parameter: response_format type json_schema is not supported."}}
+                """),
+            new StubResponse(200, """
+                {
+                  "choices":[{"finish_reason":"stop","message":{"content":"{\\"replacement\\":\\"echo safe\\",\\"summary\\":\\"Done.\\",\\"changes\\":[],\\"implementedRequirements\\":[]}"}}]
+                }
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "legacy-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo old", null, "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(result.content()).contains("echo safe");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"type\":\"json_schema\"");
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"response_format\"");
+    }
+
+    @Test
+    void retriesFullCodeAnalysisWithoutSchemaOnlyWhenEndpointRejectsStructuredOutput() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, """
+                {"error":{"message":"Unsupported parameter: response_format type json_schema is not supported."}}
+                """),
+            new StubResponse(200, """
+                {
+                  "choices":[{"finish_reason":"stop","message":{"content":"{\\\"summary\\\":\\\"Prints a value.\\\",\\\"dependencies\\\":[],\\\"improvements\\\":[]}"}}]
+                }
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "legacy-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "print 1", null, "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(SnippetAiResponseSupport.parseScriptAnalysis(result.content()).summary())
+            .isEqualTo("Prints a value.");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"name\":\"snippet_analysis_response\"");
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"response_format\"");
+    }
+
+    @Test
+    void doesNotDropSchemaOrRetryWhenEndpointReportsInvalidSchema() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, """
+                {"error":{"message":"Invalid schema for response_format: required field is missing."}}
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "model",
+            "",
+            AiReasoningEffort.DISABLED,
+            client);
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> service.executeWithClient(
+                new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo old", null, "en"),
+                client,
+                Duration.ofSeconds(5)));
+
+        assertThat(failure.statusCode()).isEqualTo(400);
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("\"type\":\"json_schema\"");
+    }
+
+    @Test
+    void doesNotRetryOtherClientErrorsOrLengthLimitedResponses() throws Exception {
+        SequencedInputStreamHttpClient rejectedClient = new SequencedInputStreamHttpClient(
+            new StubResponse(400, "{\"error\":{\"message\":\"invalid temperature\"}}"));
+        OpenAiCompatibleAiService rejectedService = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "model",
+            "",
+            AiReasoningEffort.DISABLED,
+            rejectedClient);
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> rejectedService.executeWithClient(
+                new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"),
+                rejectedClient,
+                Duration.ofSeconds(5)));
+
+        assertThat(failure.statusCode()).isEqualTo(400);
+        assertThat(rejectedClient.requestBodies()).hasSize(1);
+
+        SequencedInputStreamHttpClient limitedClient = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {
+                  "choices":[{"finish_reason":"length","message":{"content":"partial"}}],
+                  "usage":{"prompt_tokens":1,"completion_tokens":8192,"total_tokens":8193}
+                }
+                """));
+        OpenAiCompatibleAiService limitedService = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "model",
+            "",
+            AiReasoningEffort.DISABLED,
+            limitedClient);
+
+        AiExecutionResult limited = limitedService.executeWithClient(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"),
+            limitedClient,
+            Duration.ofSeconds(5));
+
+        assertThat(limited.outputTruncated()).isTrue();
+        assertThat(limitedClient.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void boundedSnippetActionPreservesReasoningOnlyLengthResultWithoutRetry() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {
+                  "choices":[{
+                    "finish_reason":"length",
+                    "message":{"content":"","reasoning_content":"Planning until the limit."}
+                  }],
+                  "usage":{"prompt_tokens":4523,"completion_tokens":32767,"total_tokens":37290,
+                    "completion_tokens_details":{"reasoning_tokens":32767}}
+                }
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.MINIMAL,
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.reasoning()).contains("Planning until the limit");
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.usage().completionTokens()).isEqualTo(32_767);
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void boundedSnippetActionPreservesNullContentLengthResultWithoutRetry() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {
+                  "choices":[{
+                    "finish_reason":"length",
+                    "message":{"content":null,"reasoning_content":"Still reasoning at the limit."}
+                  }],
+                  "usage":{"prompt_tokens":10,"completion_tokens":32767,"total_tokens":32777}
+                }
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.MINIMAL,
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_SECURITY_FIXES, "print('ok')", null, "en"),
+            client,
+            Duration.ofSeconds(5));
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.reasoning()).contains("Still reasoning at the limit");
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.usage().completionTokens()).isEqualTo(32_767);
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void unboundedActionStillRejectsEmptyLengthResponse() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {"choices":[{"finish_reason":"length","message":{"content":""}}]}
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "qwen-test",
+            "",
+            AiReasoningEffort.MINIMAL,
+            client);
+
+        expectThrows(OpenAiCompatibleAiService.EmptyResponseException.class,
+            () -> service.executeWithClient(
+                new AiRequest(AiAction.SUMMARIZE, "text", null, "en"),
+                client,
+                Duration.ofSeconds(5)));
+        assertThat(client.requestBodies()).hasSize(1);
     }
 
     @Test
@@ -734,6 +1122,29 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void parseResponseBodyMarksLengthLimitedCompletionAsTruncated() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        AiExecutionResult parsed = service.parseResponseBody("""
+            {
+              "choices": [
+                {
+                  "finish_reason": "length",
+                  "message": {"content": "{\\\"replacement\\\":\\\"partial\\\"}"}
+                }
+              ],
+              "usage": {"prompt_tokens": 10, "completion_tokens": 8192, "total_tokens": 8202}
+            }
+            """);
+
+        assertThat(parsed.outputTruncated()).isTrue();
+        assertThat(parsed.usage().completionTokens()).isEqualTo(8_192);
+    }
+
+    @Test
     void parseResponseBodyExtractsArrayTextContent() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "https://example.test/v1/chat/completions",
@@ -946,6 +1357,7 @@ class OpenAiCompatibleAiServiceTest {
             "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Teil 1\\nTeil 2 ohne Abschluss");
 
         assertThat(parsed.content()).isEqualTo("Teil 1\nTeil 2 ohne Abschluss");
+        assertThat(parsed.outputTruncated()).isTrue();
     }
 
     private static String toolCallResponse(String id, String query) {
@@ -1051,27 +1463,35 @@ class OpenAiCompatibleAiServiceTest {
 
     /** Test double for deterministic OpenAI-compatible HTTP responses. */
     private static final class SequencedInputStreamHttpClient extends HttpClient {
-        private final Queue<String> responseBodies;
+        private final Queue<StubResponse> responses;
         private final List<String> requestBodies = new ArrayList<>();
         private final List<URI> requestUris = new ArrayList<>();
 
         private SequencedInputStreamHttpClient(String... responseBodies) {
-            this.responseBodies = new ArrayDeque<>(List.of(responseBodies));
+            this.responses = new ArrayDeque<>();
+            for (String responseBody : responseBodies) {
+                responses.add(new StubResponse(200, responseBody));
+            }
+        }
+
+        private SequencedInputStreamHttpClient(StubResponse... responses) {
+            this.responses = new ArrayDeque<>(List.of(responses));
         }
 
         @Override
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException {
             requestUris.add(request.uri());
-            String body = responseBodies.remove();
+            StubResponse response = responses.remove();
+            String body = response.body();
             if ("GET".equalsIgnoreCase(request.method()) && "/api/v1/models".equals(request.uri().getPath())) {
                 @SuppressWarnings("unchecked")
                 T typedBody = (T) body;
-                return new SimpleHttpResponse<>(request, typedBody);
+                return new SimpleHttpResponse<>(request, typedBody, response.status());
             }
             requestBodies.add(readBody(request));
             @SuppressWarnings("unchecked")
             T typedBody = (T) new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
-            return new SimpleHttpResponse<>(request, typedBody);
+            return new SimpleHttpResponse<>(request, typedBody, response.status());
         }
 
         @Override
@@ -1142,10 +1562,17 @@ class OpenAiCompatibleAiServiceTest {
         }
     }
 
-    private record SimpleHttpResponse<T>(HttpRequest request, T body) implements HttpResponse<T> {
+    private record StubResponse(int status, String body) {
+    }
+
+    private record SimpleHttpResponse<T>(HttpRequest request, T body, int responseStatus) implements HttpResponse<T> {
+        private SimpleHttpResponse(HttpRequest request, T body) {
+            this(request, body, 200);
+        }
+
         @Override
         public int statusCode() {
-            return 200;
+            return responseStatus;
         }
 
         @Override

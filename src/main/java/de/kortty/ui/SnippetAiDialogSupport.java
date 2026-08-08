@@ -222,14 +222,18 @@ final class SnippetAiDialogSupport {
      * the supplementary-plane emoji — they show up as replacement boxes.
      */
     static String sectionIconSvg(String category) {
-        String path = switch (category != null ? category : "") {
+        return "<svg class=\"sec-ic\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\""
+            + sectionIconPath(category) + "\"/></svg>";
+    }
+
+    /** SVG path shared by the HTML reports and native JavaFX progress rows. */
+    static String sectionIconPath(String category) {
+        return switch (category != null ? category : "") {
             case "security" -> "M8 1.3 13.5 3.3V7.6C13.5 10.8 11.2 13.4 8 14.4 4.8 13.4 2.5 10.8 2.5 7.6V3.3Z";
             case "optimization" -> "M9 1 4 8.5H7L6.5 15 12 6.5H8.5L9 1Z";
             case "dependencies" -> "M8 1.4 13.6 4.2V9.8L8 12.6 2.4 9.8V4.2Z";
             default -> "M8 1.5C11 5 13 7.5 13 10A5 5 0 0 1 3 10C3 7.5 5 5 8 1.5Z"; // design / catch-all
         };
-        return "<svg class=\"sec-ic\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\""
-            + path + "\"/></svg>";
     }
 
     /**

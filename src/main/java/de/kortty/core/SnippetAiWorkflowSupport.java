@@ -1,6 +1,9 @@
 package de.kortty.core;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -9,6 +12,8 @@ import java.util.stream.Collectors;
  * Shared request/response workflow helpers for snippet-editor AI actions.
  */
 public final class SnippetAiWorkflowSupport {
+    private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 6;
+    private static final long MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS = 4_096L;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOWNLOAD_COMMAND_PATTERN =
         Pattern.compile("(?i)(?:^|[\\s;&|()])(?:curl|wget)(?:\\s|$)");
@@ -18,6 +23,81 @@ public final class SnippetAiWorkflowSupport {
     @FunctionalInterface
     public interface UsageRecorder {
         void record(AiRequest request, AiExecutionResult result);
+    }
+
+    public enum ImprovementApplyPhase {
+        ANALYSIS_ITEMS,
+        HARDENING,
+        INPUT_HARDENING
+    }
+
+    public enum ImprovementApplyProgressState {
+        PENDING,
+        RUNNING,
+        RETRYING,
+        COMPLETED,
+        FAILED
+    }
+
+    /** One visible checklist entry handled by a staged Full-code-analysis apply request. */
+    public record ImprovementApplyWorkItem(String id, String label, String category, String severity) {
+        public ImprovementApplyWorkItem {
+            id = id != null ? id.strip() : "";
+            label = label != null ? label.strip() : "";
+            category = category != null ? category.strip() : "";
+            severity = severity != null ? severity.strip() : "";
+        }
+    }
+
+    public record ImprovementApplyProgress(
+        ImprovementApplyPhase phase,
+        int stage,
+        int totalStages,
+        int firstRequirement,
+        int lastRequirement,
+        int phaseRequirementCount,
+        String detail,
+        List<ImprovementApplyWorkItem> workItems,
+        ImprovementApplyProgressState state,
+        AiTokenUsage cumulativeUsage) {
+
+        public ImprovementApplyProgress {
+            detail = detail != null ? detail.strip() : "";
+            workItems = workItems != null ? List.copyOf(workItems) : List.of();
+            state = state != null ? state : ImprovementApplyProgressState.PENDING;
+        }
+
+        /** Compatibility constructor retained for existing callers and progress-text tests. */
+        public ImprovementApplyProgress(
+                ImprovementApplyPhase phase,
+                int stage,
+                int totalStages,
+                int firstRequirement,
+                int lastRequirement,
+                int phaseRequirementCount,
+                String detail,
+                boolean retry) {
+            this(
+                phase,
+                stage,
+                totalStages,
+                firstRequirement,
+                lastRequirement,
+                phaseRequirementCount,
+                detail,
+                List.of(),
+                retry ? ImprovementApplyProgressState.RETRYING : ImprovementApplyProgressState.RUNNING,
+                null);
+        }
+
+        public boolean retry() {
+            return state == ImprovementApplyProgressState.RETRYING;
+        }
+    }
+
+    @FunctionalInterface
+    public interface ImprovementApplyProgressListener {
+        void onProgress(ImprovementApplyProgress progress);
     }
 
     private SnippetAiWorkflowSupport() {
@@ -197,7 +277,8 @@ public final class SnippetAiWorkflowSupport {
             connectionDisplayName,
             fallbackLanguageCode,
             mergeAdditionalInstructions(reviewTheme, additionalInstructions),
-            buildSelectedCodeContext(fullContent, selectedText, wholeSnippet, snippetLanguage, fallbackLanguageCode));
+            buildSelectedCodeContext(
+                fullContent, selectedText, wholeSnippet, snippetLanguage, fallbackLanguageCode, false));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -241,17 +322,22 @@ public final class SnippetAiWorkflowSupport {
         String additionalInstructions,
         boolean allowPlainTextFallback) throws Exception {
 
+        String content = fullContent != null ? fullContent : "";
+        String selection = selectedText != null ? selectedText : "";
+        boolean wholeSnippet = content.equals(selection);
         AiRequest request = new AiRequest(
             AiAction.IMPROVE_SNIPPET_CODE,
             selectedText,
             connectionDisplayName,
             fallbackLanguageCode,
             mergeAdditionalInstructions(improvementTheme, additionalInstructions),
-            buildSelectedCodeContext(fullContent, selectedText, false, snippetLanguage, fallbackLanguageCode));
+            buildSelectedCodeContext(
+                fullContent, selectedText, wholeSnippet, snippetLanguage, fallbackLanguageCode, true));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
+        rejectTruncatedReplacement(result);
         return SnippetAiResponseSupport.parseCodeImprovement(
             result != null ? result.content() : null,
             allowPlainTextFallback);
@@ -284,6 +370,7 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
+        rejectTruncatedReplacement(result);
         return SnippetAiResponseSupport.parseCodeImprovement(result != null ? result.content() : null);
     }
 
@@ -331,6 +418,7 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
+        rejectTruncatedReplacement(result);
         return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
     }
 
@@ -378,20 +466,417 @@ public final class SnippetAiWorkflowSupport {
         String fallbackLanguageCode,
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
         List<SnippetAiResponseSupport.ScriptDependency> dependencies,
-        String additionalInstructions) throws Exception {
+        String additionalInstructions,
+        String mandatoryHardeningInstructions) throws Exception {
 
-        AiRequest request = new AiRequest(
-            AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+        return applySnippetImprovements(
+            aiService,
+            usageRecorder,
             fullContent,
+            snippetLanguage,
             connectionDisplayName,
             fallbackLanguageCode,
+            improvements,
+            dependencies,
             additionalInstructions,
-            buildImprovementApplyContext(snippetLanguage, fallbackLanguageCode, improvements, dependencies));
-        AiExecutionResult result = aiService.execute(request);
-        if (result != null && usageRecorder != null) {
-            usageRecorder.record(request, result);
+            mandatoryHardeningInstructions,
+            null,
+            null);
+    }
+
+    /**
+     * Applies a Full-code-analysis selection in bounded sequential stages. Each stage receives the
+     * complete result of the previous stage, while the editor remains untouched until every stage and
+     * the final cumulative hardening verification succeed.
+     */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        ImprovementApplyProgressListener progressListener) throws Exception {
+
+        List<MandatoryRequirement> classicRequirements =
+            extractMandatoryRequirements(classicHardeningInstructions, 0);
+        List<MandatoryRequirement> inputRequirements =
+            extractMandatoryRequirements(inputHardeningInstructions, classicRequirements.size());
+        List<MandatoryRequirement> allRequirements = new ArrayList<>(classicRequirements.size() + inputRequirements.size());
+        allRequirements.addAll(classicRequirements);
+        allRequirements.addAll(inputRequirements);
+
+        List<ImprovementApplyStagePlan> stagePlans = buildImprovementApplyStagePlans(
+            improvements, dependencies, classicRequirements, inputRequirements);
+        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
+            notifyImprovementProgress(progressListener, stagePlan.progress());
         }
-        return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+
+        String currentContent = fullContent != null ? fullContent : "";
+        Set<String> completedRequirementIds = new LinkedHashSet<>();
+        Set<String> summaries = new LinkedHashSet<>();
+        List<SnippetAiResponseSupport.SecurityChange> mergedChanges = new ArrayList<>();
+        UsageAccumulator usageAccumulator = new UsageAccumulator();
+
+        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
+            checkImprovementApplyInterrupted();
+            ImprovementApplyProgress running = progressWithState(
+                stagePlan.progress(), ImprovementApplyProgressState.RUNNING, usageAccumulator.total());
+            notifyImprovementProgress(progressListener, running);
+            try {
+                SnippetAiResponseSupport.SnippetSecurityFix fix = executeImprovementApplyStage(
+                    aiService, usageRecorder, currentContent, snippetLanguage, connectionDisplayName,
+                    fallbackLanguageCode,
+                    stagePlan.analysisStage().improvements(),
+                    stagePlan.analysisStage().dependencies(),
+                    additionalInstructions,
+                    stagePlan.requirements(),
+                    stagePlan.progress().stage() > 1,
+                    progressListener,
+                    running,
+                    usageAccumulator);
+                currentContent = fix.replacement();
+                completedRequirementIds.addAll(
+                    stagePlan.requirements().stream().map(MandatoryRequirement::id).toList());
+                addStageResult(fix, summaries, mergedChanges);
+                notifyImprovementProgress(
+                    progressListener,
+                    progressWithState(running, ImprovementApplyProgressState.COMPLETED, usageAccumulator.total()));
+            } catch (Exception e) {
+                notifyImprovementProgress(
+                    progressListener,
+                    progressWithState(running, ImprovementApplyProgressState.FAILED, usageAccumulator.total()));
+                throw e;
+            }
+        }
+
+        SnippetAiResponseSupport.SnippetSecurityFix combined = new SnippetAiResponseSupport.SnippetSecurityFix(
+            currentContent,
+            String.join("\n\n", summaries),
+            List.copyOf(mergedChanges),
+            List.copyOf(completedRequirementIds));
+        rejectIncompleteMandatoryRequirements(combined, allRequirements);
+        return combined;
+    }
+
+    private static SnippetAiResponseSupport.SnippetSecurityFix executeImprovementApplyStage(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions,
+        List<MandatoryRequirement> mandatoryRequirements,
+        boolean preservePriorStageWork,
+        ImprovementApplyProgressListener progressListener,
+        ImprovementApplyProgress progress,
+        UsageAccumulator usageAccumulator) throws Exception {
+
+        checkImprovementApplyInterrupted();
+
+        String attemptContent = fullContent;
+        StageRepairReason repairReason = StageRepairReason.NONE;
+        List<MandatoryRequirement> requirementsNeedingRepair = List.of();
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            checkImprovementApplyInterrupted();
+            boolean repairAttempt = repairReason != StageRepairReason.NONE;
+            if (repairAttempt) {
+                notifyImprovementProgress(
+                    progressListener,
+                    progressWithState(progress, ImprovementApplyProgressState.RETRYING, usageAccumulator.total()));
+            }
+            AiRequest request = new AiRequest(
+                AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+                attemptContent,
+                connectionDisplayName,
+                fallbackLanguageCode,
+                additionalInstructions,
+                buildImprovementApplyContext(
+                    snippetLanguage, fallbackLanguageCode, improvements, dependencies,
+                    mandatoryRequirements,
+                    preservePriorStageWork || repairReason == StageRepairReason.MISSING_REQUIREMENTS,
+                    repairReason,
+                    requirementsNeedingRepair));
+            AiExecutionResult result = aiService.execute(request);
+            if (result != null && usageRecorder != null) {
+                usageRecorder.record(request, result);
+            }
+            usageAccumulator.add(result != null ? result.usage() : null);
+            checkImprovementApplyInterrupted();
+            rejectTruncatedReplacement(result);
+            SnippetAiResponseSupport.SnippetSecurityFix fix =
+                SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+            boolean rejectedReplacement = fix == null || !fix.isUsable()
+                || isIncompleteStagedReplacement(attemptContent, fix.replacement());
+            if (rejectedReplacement) {
+                if (!repairAttempt && isShortCollapsedStageResult(result, attemptContent)) {
+                    repairReason = StageRepairReason.COLLAPSED_REPLACEMENT;
+                    continue;
+                }
+                throw new FullReplacementRejectedException();
+            }
+            List<MandatoryRequirement> missingRequirements =
+                missingMandatoryRequirements(fix, mandatoryRequirements);
+            if (!missingRequirements.isEmpty()) {
+                if (!repairAttempt) {
+                    attemptContent = fix.replacement();
+                    repairReason = StageRepairReason.MISSING_REQUIREMENTS;
+                    requirementsNeedingRepair = missingRequirements;
+                    continue;
+                }
+                throw new IncompleteMandatoryRequirementsException(
+                    missingRequirements.stream().map(MandatoryRequirement::id).toList());
+            }
+            return fix;
+        }
+        throw new FullReplacementRejectedException();
+    }
+
+    /**
+     * Staged Full-code-analysis rewrites have a stricter completeness contract than a free-form
+     * assistant rewrite: every stage must preserve unrelated source before the next stage receives
+     * it. Besides the generic collapse checks, require at least half of a substantial source's
+     * non-blank lines so transports without strict JSON-schema support cannot advance a fragment.
+     */
+    private static boolean isIncompleteStagedReplacement(String original, String replacement) {
+        if (SnippetAiResponseSupport.isDegenerateFullReplacement(original, replacement)) {
+            return true;
+        }
+        String source = original != null ? original : "";
+        String candidate = replacement != null ? replacement : "";
+        long sourceLines = source.lines().filter(line -> !line.isBlank()).count();
+        if (sourceLines < 12) {
+            return false;
+        }
+        long candidateLines = candidate.lines().filter(line -> !line.isBlank()).count();
+        return candidateLines < Math.max(3L, (sourceLines + 1L) / 2L);
+    }
+
+    private static boolean isShortCollapsedStageResult(AiExecutionResult result, String fullContent) {
+        if (result == null || result.outputTruncated()) {
+            return false;
+        }
+        AiTokenUsage usage = result.usage();
+        if (usage != null && usage.completionTokens() > 0) {
+            return usage.completionTokens() <= MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS;
+        }
+        String response = result.content() != null ? result.content() : "";
+        int sourceLength = fullContent != null ? fullContent.length() : 0;
+        int fallbackLimit = Math.max(2_048, Math.min(8_192, sourceLength / 2));
+        return response.length() <= fallbackLimit;
+    }
+
+    private static void addStageResult(
+        SnippetAiResponseSupport.SnippetSecurityFix fix,
+        Set<String> summaries,
+        List<SnippetAiResponseSupport.SecurityChange> mergedChanges) {
+
+        if (fix == null) {
+            return;
+        }
+        if (fix.summary() != null && !fix.summary().isBlank()) {
+            summaries.add(fix.summary().strip());
+        }
+        for (SnippetAiResponseSupport.SecurityChange change : fix.changes()) {
+            if (change != null && !mergedChanges.contains(change)) {
+                mergedChanges.add(change);
+            }
+        }
+    }
+
+    private static List<List<MandatoryRequirement>> partitionRequirements(List<MandatoryRequirement> requirements) {
+        if (requirements == null || requirements.isEmpty()) {
+            return List.of();
+        }
+        List<List<MandatoryRequirement>> batches = new ArrayList<>();
+        for (int start = 0; start < requirements.size(); start += MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE) {
+            int end = Math.min(requirements.size(), start + MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE);
+            batches.add(List.copyOf(requirements.subList(start, end)));
+        }
+        return List.copyOf(batches);
+    }
+
+    /**
+     * Builds the exact visible work plan used by the staged apply workflow. The UI can call this before
+     * starting the provider task so every pending improvement and hardening rule is visible immediately.
+     */
+    public static List<ImprovementApplyProgress> planSnippetImprovements(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions) {
+
+        List<MandatoryRequirement> classicRequirements =
+            extractMandatoryRequirements(classicHardeningInstructions, 0);
+        List<MandatoryRequirement> inputRequirements =
+            extractMandatoryRequirements(inputHardeningInstructions, classicRequirements.size());
+        return buildImprovementApplyStagePlans(
+            improvements, dependencies, classicRequirements, inputRequirements).stream()
+            .map(ImprovementApplyStagePlan::progress)
+            .toList();
+    }
+
+    private static List<ImprovementApplyStagePlan> buildImprovementApplyStagePlans(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        List<MandatoryRequirement> classicRequirements,
+        List<MandatoryRequirement> inputRequirements) {
+
+        List<AnalysisApplyStage> analysisStages = buildAnalysisApplyStages(improvements, dependencies);
+        List<List<MandatoryRequirement>> classicBatches = partitionRequirements(classicRequirements);
+        List<List<MandatoryRequirement>> inputBatches = partitionRequirements(inputRequirements);
+        // Preserve the former single-request behaviour for direct callers that provide no work lists.
+        if (analysisStages.isEmpty() && classicBatches.isEmpty() && inputBatches.isEmpty()) {
+            analysisStages = List.of(new AnalysisApplyStage(List.of(), List.of(), "", List.of()));
+        }
+        int totalStages = analysisStages.size() + classicBatches.size() + inputBatches.size();
+        List<ImprovementApplyStagePlan> plans = new ArrayList<>(totalStages);
+        int stage = 0;
+        int analysisOffset = 0;
+        for (AnalysisApplyStage analysisStage : analysisStages) {
+            analysisOffset++;
+            plans.add(new ImprovementApplyStagePlan(
+                new ImprovementApplyProgress(
+                    ImprovementApplyPhase.ANALYSIS_ITEMS,
+                    ++stage,
+                    totalStages,
+                    analysisOffset,
+                    analysisOffset,
+                    analysisStages.size(),
+                    analysisStage.detail(),
+                    analysisStage.workItems(),
+                    ImprovementApplyProgressState.PENDING,
+                    null),
+                analysisStage,
+                List.of()));
+        }
+        int classicOffset = 0;
+        for (List<MandatoryRequirement> batch : classicBatches) {
+            int first = classicOffset + 1;
+            classicOffset += batch.size();
+            plans.add(new ImprovementApplyStagePlan(
+                new ImprovementApplyProgress(
+                    ImprovementApplyPhase.HARDENING,
+                    ++stage,
+                    totalStages,
+                    first,
+                    classicOffset,
+                    classicRequirements.size(),
+                    "",
+                    workItemsForRequirements(batch, "hardening"),
+                    ImprovementApplyProgressState.PENDING,
+                    null),
+                new AnalysisApplyStage(List.of(), List.of(), "", List.of()),
+                batch));
+        }
+        int inputOffset = 0;
+        for (List<MandatoryRequirement> batch : inputBatches) {
+            int first = inputOffset + 1;
+            inputOffset += batch.size();
+            plans.add(new ImprovementApplyStagePlan(
+                new ImprovementApplyProgress(
+                    ImprovementApplyPhase.INPUT_HARDENING,
+                    ++stage,
+                    totalStages,
+                    first,
+                    inputOffset,
+                    inputRequirements.size(),
+                    "",
+                    workItemsForRequirements(batch, "inputHardening"),
+                    ImprovementApplyProgressState.PENDING,
+                    null),
+                new AnalysisApplyStage(List.of(), List.of(), "", List.of()),
+                batch));
+        }
+        return List.copyOf(plans);
+    }
+
+    private static List<ImprovementApplyWorkItem> workItemsForRequirements(
+        List<MandatoryRequirement> requirements,
+        String category) {
+
+        return requirements.stream()
+            .map(requirement -> new ImprovementApplyWorkItem(
+                requirement.id(), requirement.instruction(), category, ""))
+            .toList();
+    }
+
+    private static List<AnalysisApplyStage> buildAnalysisApplyStages(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+
+        List<AnalysisApplyStage> stages = new ArrayList<>();
+        if (improvements != null) {
+            for (SnippetAiResponseSupport.ScriptImprovement improvement : improvements) {
+                if (improvement == null) {
+                    continue;
+                }
+                stages.add(new AnalysisApplyStage(
+                    List.of(improvement),
+                    List.of(),
+                    improvement.id() + " — " + improvement.title(),
+                    List.of(new ImprovementApplyWorkItem(
+                        improvement.id(), improvement.title(), improvement.category(), improvement.severity()))));
+            }
+        }
+        if (dependencies != null) {
+            for (SnippetAiResponseSupport.ScriptDependency dependency : dependencies) {
+                if (dependency == null) {
+                    continue;
+                }
+                stages.add(new AnalysisApplyStage(
+                    List.of(),
+                    List.of(dependency),
+                    dependency.id() + " — " + dependency.name(),
+                    List.of(new ImprovementApplyWorkItem(
+                        dependency.id(), dependency.name(), "dependencies", ""))));
+            }
+        }
+        return List.copyOf(stages);
+    }
+
+    private static void notifyImprovementProgress(
+        ImprovementApplyProgressListener listener,
+        ImprovementApplyProgress progress) {
+
+        if (listener != null) {
+            listener.onProgress(progress);
+        }
+    }
+
+    private static ImprovementApplyProgress progressWithState(
+        ImprovementApplyProgress progress,
+        ImprovementApplyProgressState state,
+        AiTokenUsage cumulativeUsage) {
+
+        if (progress == null) {
+            return null;
+        }
+        return new ImprovementApplyProgress(
+            progress.phase(),
+            progress.stage(),
+            progress.totalStages(),
+            progress.firstRequirement(),
+            progress.lastRequirement(),
+            progress.phaseRequirementCount(),
+            progress.detail(),
+            progress.workItems(),
+            state,
+            cumulativeUsage);
+    }
+
+    private static void checkImprovementApplyInterrupted() throws InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Full-code-analysis apply was cancelled.");
+        }
     }
 
     public static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
@@ -414,7 +899,54 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiResponseSupport.parseMermaidDiagram(result != null ? result.content() : null);
+        if (result != null && result.outputTruncated()) {
+            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+        }
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram(result != null ? result.content() : null);
+        if (diagram.isUsable()
+            && !SnippetDiagramSupport.validateMermaidForSnippet(
+                diagram.mermaid(), fullContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
+            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+        }
+        return diagram;
+    }
+
+    private static void rejectTruncatedReplacement(AiExecutionResult result) {
+        if (result != null && result.outputTruncated()) {
+            throw new OutputTokenLimitReachedException();
+        }
+    }
+
+    /** Signals a fail-closed code-replacement response that ended at its output-token limit. */
+    public static final class OutputTokenLimitReachedException extends IllegalStateException {
+        public OutputTokenLimitReachedException() {
+            super("AI response reached its output-token safety limit.");
+        }
+    }
+
+    /** Signals an unusable or incomplete whole-snippet stage; no intermediate result may be applied. */
+    public static final class FullReplacementRejectedException extends IllegalStateException {
+        public FullReplacementRejectedException() {
+            super("AI response did not contain a complete full-snippet replacement.");
+        }
+    }
+
+    /** Signals that the response did not prove implementation of every selected hardening rule. */
+    public static final class IncompleteMandatoryRequirementsException extends IllegalStateException {
+        private final List<String> missingRequirementIds;
+
+        public IncompleteMandatoryRequirementsException(List<String> missingRequirementIds) {
+            super("AI response did not implement every selected hardening requirement. Missing requirement IDs: "
+                + String.join(", ", missingRequirementIds != null ? missingRequirementIds : List.of()));
+            this.missingRequirementIds = missingRequirementIds != null
+                ? List.copyOf(missingRequirementIds)
+                : List.of();
+        }
+
+        public List<String> missingRequirementIds() {
+            return missingRequirementIds;
+        }
     }
 
     public static SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(
@@ -432,7 +964,7 @@ public final class SnippetAiWorkflowSupport {
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildOneLinerContext(fullContent, snippetLanguage));
+            buildOneLinerContext(fullContent, snippetLanguage, fallbackLanguageCode));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -524,7 +1056,7 @@ public final class SnippetAiWorkflowSupport {
             + "Return at most " + maxSolutions + " solutions.\n"
             + "Keep the generated code in the same programming language as the snippet language.\n"
             + "Each solution code must replace exactly the target scope, not any surrounding context.\n"
-            + "Write titles, summaries, and any generated comments or user-facing strings in language " + fallbackLanguageCode + ".\n"
+            + codeTextLanguageInstruction(fallbackLanguageCode, "each returned solution code")
             + "Target scope to replace:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(targetText)
             + "\n"
@@ -550,16 +1082,25 @@ public final class SnippetAiWorkflowSupport {
         String selectedText,
         boolean wholeSnippet,
         String snippetLanguage,
-        String fallbackLanguageCode) {
+        String fallbackLanguageCode,
+        boolean returnsReplacement) {
 
-        return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for report text: " + fallbackLanguageCode + "\n"
-            + "Write any new or rewritten comments or user-facing strings in that language.\n"
-            + "Scope: " + (wholeSnippet ? "full snippet" : "selected code region") + "\n"
-            + "Full snippet for context:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(fullContent)
-            + "\nSelected code region:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(wholeSnippet ? fullContent : selectedText);
+        StringBuilder builder = new StringBuilder()
+            .append("Snippet language: ").append(snippetLanguage).append("\n")
+            .append("Natural language for report text: ").append(fallbackLanguageCode).append("\n");
+        if (returnsReplacement) {
+            builder.append(codeTextLanguageInstruction(
+                fallbackLanguageCode,
+                wholeSnippet ? "full returned snippet" : "returned selected-code replacement"));
+        }
+        builder.append("Scope: ").append(wholeSnippet ? "full snippet" : "selected code region").append("\n")
+            .append(wholeSnippet ? "Full snippet to replace:\n" : "Full snippet for context:\n")
+            .append(AiPromptBuilder.toSafeTextCodeBlock(fullContent));
+        if (!wholeSnippet) {
+            builder.append("\nSelected code region:\n")
+                .append(AiPromptBuilder.toSafeTextCodeBlock(selectedText));
+        }
+        return builder.toString();
     }
 
     private static String buildAssistantContext(
@@ -576,7 +1117,7 @@ public final class SnippetAiWorkflowSupport {
         int safeColumn = Math.max(1, cursorColumn);
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for summary: " + fallbackLanguageCode + "\n"
-            + "Write any new or rewritten comments or user-facing strings in that language.\n"
+            + codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet")
             + "Cursor offset: " + safeOffset + "\n"
             + "Cursor line: " + safeLine + "\n"
             + "Cursor column: " + safeColumn + "\n"
@@ -609,7 +1150,7 @@ public final class SnippetAiWorkflowSupport {
             : "";
         return "Snippet language: " + snippetLanguage + "\n"
             + "Natural language for the summary: " + fallbackLanguageCode + "\n"
-            + "Write any new or rewritten comments or user-facing strings in that language.\n"
+            + codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet")
             + "Selected security findings to fix:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(findingsText)
             + "\nFull snippet to update:\n"
@@ -630,7 +1171,11 @@ public final class SnippetAiWorkflowSupport {
         String snippetLanguage,
         String fallbackLanguageCode,
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
-        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        List<MandatoryRequirement> mandatoryRequirements,
+        boolean preservePriorStageWork,
+        StageRepairReason repairReason,
+        List<MandatoryRequirement> requirementsNeedingRepair) {
 
         StringBuilder items = new StringBuilder();
         if (improvements != null) {
@@ -647,41 +1192,172 @@ public final class SnippetAiWorkflowSupport {
                     .append(dependency.suggestion()).append("\n\n");
             }
         }
-        return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for the summary: " + fallbackLanguageCode + "\n"
-            + "Write any new or rewritten comments or user-facing strings in that language.\n"
-            + "Selected items to apply (each tagged with its id — echo the id back in changes[].finding):\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip());
+        StringBuilder context = new StringBuilder("Snippet language: ").append(snippetLanguage).append('\n')
+            .append("Natural language for the summary: ").append(fallbackLanguageCode).append('\n')
+            .append(codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet"))
+            .append(preservePriorStageWork
+                ? "This is a later stage of one atomic rewrite. The provided snippet already contains completed work from earlier stages. Preserve every existing behavior and hardening measure unless the current requirements strictly require an adjustment; never revert, remove, or abbreviate earlier work.\n"
+                : "")
+            .append(repairReason == StageRepairReason.COLLAPSED_REPLACEMENT
+                ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
+                : "")
+            .append(repairReason == StageRepairReason.MISSING_REQUIREMENTS
+                ? "The preceding attempt returned a complete script but did not verify every mandatory requirement. This is the single repair attempt. Re-check and implement every requirement listed below while preserving all other code. Do not merely echo identifiers: verify the actual behavior and required literals first, then include every requirement id from this stage exactly once in implementedRequirements. Requirements not verified in the preceding answer: "
+                    + requirementsNeedingRepair.stream().map(MandatoryRequirement::id)
+                        .collect(Collectors.joining(", ")) + ".\n"
+                : "")
+            .append("Selected analysis items to apply (echo each id in changes[].finding):\n")
+            .append(AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip()));
+        if (mandatoryRequirements != null && !mandatoryRequirements.isEmpty()) {
+            String requirementsText = mandatoryRequirements.stream()
+                .map(requirement -> requirement.id() + " " + requirement.instruction())
+                .collect(Collectors.joining("\n"));
+            context.append("\nMandatory hardening requirements (implement every entry even when the selected-analysis-items block is empty; "
+                    + "after implementation echo every requirement id once in implementedRequirements):\n")
+                .append(AiPromptBuilder.toSafeTextCodeBlock(requirementsText));
+        }
+        return context.toString();
+    }
+
+    private static List<MandatoryRequirement> extractMandatoryRequirements(String instructions, int idOffset) {
+        if (instructions == null || instructions.isBlank()) {
+            return List.of();
+        }
+        List<String> rules = instructions.lines()
+            .map(String::strip)
+            .filter(line -> line.startsWith("- ") && line.length() > 2)
+            .map(line -> line.substring(2).strip())
+            .filter(line -> !line.isBlank())
+            .toList();
+        java.util.ArrayList<MandatoryRequirement> requirements = new java.util.ArrayList<>(rules.size());
+        for (int index = 0; index < rules.size(); index++) {
+            requirements.add(new MandatoryRequirement(
+                String.format("HARDENING-%02d", idOffset + index + 1), rules.get(index)));
+        }
+        return List.copyOf(requirements);
+    }
+
+    private static void rejectIncompleteMandatoryRequirements(
+            SnippetAiResponseSupport.SnippetSecurityFix fix,
+            List<MandatoryRequirement> mandatoryRequirements) {
+        List<String> missing = missingMandatoryRequirements(fix, mandatoryRequirements).stream()
+            .map(MandatoryRequirement::id)
+            .toList();
+        if (!missing.isEmpty()) {
+            throw new IncompleteMandatoryRequirementsException(missing);
+        }
+    }
+
+    private static List<MandatoryRequirement> missingMandatoryRequirements(
+            SnippetAiResponseSupport.SnippetSecurityFix fix,
+            List<MandatoryRequirement> mandatoryRequirements) {
+        if (mandatoryRequirements == null || mandatoryRequirements.isEmpty()) {
+            return List.of();
+        }
+        if (fix == null || !fix.isUsable()) {
+            return List.copyOf(mandatoryRequirements);
+        }
+        return mandatoryRequirements.stream()
+            .filter(requirement -> !fix.implementedRequirements().contains(requirement.id())
+                || !containsRequiredHardeningLiterals(fix.replacement(), requirement.instruction()))
+            .toList();
+    }
+
+    private record MandatoryRequirement(String id, String instruction) {
+    }
+
+    private record AnalysisApplyStage(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String detail,
+        List<ImprovementApplyWorkItem> workItems) {
+    }
+
+    private record ImprovementApplyStagePlan(
+        ImprovementApplyProgress progress,
+        AnalysisApplyStage analysisStage,
+        List<MandatoryRequirement> requirements) {
+    }
+
+    private static final class UsageAccumulator {
+        private long promptTokens;
+        private long completionTokens;
+        private long totalTokens;
+        private boolean reported;
+
+        void add(AiTokenUsage usage) {
+            if (usage == null) {
+                return;
+            }
+            reported = true;
+            promptTokens = saturatedAdd(promptTokens, usage.promptTokens());
+            completionTokens = saturatedAdd(completionTokens, usage.completionTokens());
+            totalTokens = saturatedAdd(totalTokens, usage.totalTokens());
+        }
+
+        AiTokenUsage total() {
+            return reported ? new AiTokenUsage(promptTokens, completionTokens, totalTokens) : null;
+        }
+
+        private static long saturatedAdd(long left, long right) {
+            long safeRight = Math.max(0L, right);
+            return left > Long.MAX_VALUE - safeRight ? Long.MAX_VALUE : left + safeRight;
+        }
+    }
+
+    private enum StageRepairReason {
+        NONE,
+        COLLAPSED_REPLACEMENT,
+        MISSING_REQUIREMENTS
+    }
+
+    /** Verifies language-independent option/configuration literals explicitly promised by selected rules. */
+    private static boolean containsRequiredHardeningLiterals(String replacement, String instruction) {
+        if (replacement == null || instruction == null) {
+            return false;
+        }
+        List<String> required = new java.util.ArrayList<>();
+        if (instruction.contains("--dry-run")) {
+            required.add("--dry-run");
+        }
+        if (instruction.contains("--yes")) {
+            required.add("--yes");
+        }
+        if (instruction.contains("--help/usage")) {
+            required.add("--help");
+        }
+        if (instruction.contains("--verbose/-v")) {
+            required.add("--verbose");
+            required.add("-v");
+        }
+        if (instruction.contains("MAX_FILE_SIZE=")) {
+            required.add("MAX_FILE_SIZE");
+        }
+        if (instruction.contains("KORTTY_FORCE")) {
+            required.add("KORTTY_FORCE");
+        }
+        if (instruction.contains("\"SECURITY:\"")) {
+            required.add("SECURITY:");
+        }
+        return required.stream().allMatch(replacement::contains);
     }
 
     private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
-        // No extra raw copy here: the user prompt already carries the snippet once as the generic
-        // script-context block, and the line-numbered block below is what codeReferences need.
-        // A third copy only inflated the prompt and slowed local prefill without adding signal.
+        // The line-numbered block is the request's only source copy; AiPromptBuilder intentionally
+        // suppresses its generic raw-script block for this action.
         return "Snippet language: " + snippetLanguage + "\n"
-            + mermaidRequirements(fallbackLanguageCode)
+            + "Diagram label language: " + fallbackLanguageCode + "\n"
             + "Line-numbered snippet:\n"
             + lineNumberedTextBlock(fullContent);
     }
 
-    private static String mermaidRequirements(String fallbackLanguageCode) {
-        return "Diagram label language: " + fallbackLanguageCode + "\n"
-            + "Generate one compact logical-structure Mermaid flowchart for this snippet. "
-            + "Use only relationships visible in the code. "
-            + "Represent meaningful decisions, branches, and loop outcomes that are present; do not collapse conditional control flow into a generic main-action node. "
-            + "Use only flowchart TD, stable start_1([\"Start\"]) and stop_1([\"Stop\"]) terminal nodes, separately declared quoted action/decision nodes, "
-            + "--> edges, optional yes/no edge labels, and class statements. "
-            + "Assign every node exactly one of the semantic classes setup, work, success, and failure. "
-            + "Use stable descriptive node ids and do not copy raw source lines into labels; summarize them. "
-            + "Do not use frontmatter, directives, comments, custom styles/colors, callbacks, URLs, images, icons, HTML, or other Mermaid syntax.\n"
-            + "Also return codeReferences. Each entry must map a declared nodeId and its exact visible label to a small relevant source range. "
-            + "Create one codeReferences entry for every visible action and decision node, excluding start_1 and stop_1. "
-            + "Use only the 1-based line numbers shown in the line-numbered snippet. "
-            + "When one diagram element summarizes a block, use the smallest source range that covers that block.\n";
-    }
+    private static String buildOneLinerContext(
+        String fullContent,
+        String snippetLanguage,
+        String fallbackLanguageCode) {
 
-    private static String buildOneLinerContext(String fullContent, String snippetLanguage) {
         return "Snippet language: " + snippetLanguage + "\n"
+            + codeTextLanguageInstruction(fallbackLanguageCode, "returned command")
             + "Generate a compact one-liner, not an embedded/base64 wrapper. "
             + "Use only the provided snippet content. Do not download code, do not reference external URLs, and do not invent files or endpoints. "
             + "For shell snippets, use shell syntax on one line. "
@@ -689,6 +1365,12 @@ public final class SnippetAiWorkflowSupport {
             + "Preserve behavior and quote safely.\n"
             + "Full snippet:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    private static String codeTextLanguageInstruction(String languageCode, String returnedScope) {
+        return "Every existing and new natural-language comment and every user-facing, log, or help string in the "
+            + returnedScope + " must use language " + languageCode
+            + "; translate existing text as needed without translating code tokens.\n";
     }
 
     private static boolean isAllowedGeneratedOneLiner(

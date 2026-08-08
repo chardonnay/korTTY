@@ -7,10 +7,12 @@ import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
 
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class EmbeddedMlxAiServiceTest {
 
@@ -104,6 +107,129 @@ class EmbeddedMlxAiServiceTest {
 
             assertThat(result.content()).isEqualTo("retried response");
             assertThat(requests.get()).isEqualTo(2);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void mermaidDoesNotRepeatAReasoningOnlyReply() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger requests = new AtomicInteger();
+        server.createContext("/v1/chat/completions", exchange -> {
+            requests.incrementAndGet();
+            byte[] response = """
+                {"choices":[{"message":{"content":"<think>reasoning cut off by the token limit</think>"}}]}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        try (MlxRuntimeManager manager = newManagerFor(server)) {
+            EmbeddedMlxAiService service = new EmbeddedMlxAiService(
+                "test-model",
+                AiReasoningEffort.DISABLED,
+                null,
+                AiSkillPromptSupport.disabled(),
+                manager);
+
+            IOException failure = expectThrows(
+                IOException.class,
+                () -> service.execute(new AiRequest(
+                    AiAction.GENERATE_SNIPPET_MERMAID,
+                    "echo sample",
+                    "terminal",
+                    "en")));
+
+            assertThat(failure).hasMessageThat().contains("reasoning");
+            assertThat(requests.get()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void applyDoesNotRepeatATruncatedReasoningOnlyReply() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger requests = new AtomicInteger();
+        server.createContext("/v1/chat/completions", exchange -> {
+            requests.incrementAndGet();
+            byte[] response = """
+                {
+                  "choices":[{
+                    "finish_reason":"length",
+                    "message":{"content":"<think>reasoning cut off by the token limit</think>"}
+                  }],
+                  "usage":{"prompt_tokens":10,"completion_tokens":32767,"total_tokens":32777}
+                }
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        try (MlxRuntimeManager manager = newManagerFor(server)) {
+            EmbeddedMlxAiService service = new EmbeddedMlxAiService(
+                "test-model",
+                AiReasoningEffort.DISABLED,
+                null,
+                AiSkillPromptSupport.disabled(),
+                manager);
+
+            AiExecutionResult result = service.execute(new AiRequest(
+                AiAction.APPLY_SNIPPET_SECURITY_FIXES,
+                "echo sample",
+                "terminal",
+                "en"));
+
+            assertThat(result.content()).isEmpty();
+            assertThat(result.reasoning()).contains("reasoning cut off");
+            assertThat(result.outputTruncated()).isTrue();
+            assertThat(requests.get()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void mermaidDoesNotRepeatAnEmptyReply() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger requests = new AtomicInteger();
+        server.createContext("/v1/chat/completions", exchange -> {
+            requests.incrementAndGet();
+            byte[] response = """
+                {"choices":[{"message":{"content":""}}]}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        try (MlxRuntimeManager manager = newManagerFor(server)) {
+            EmbeddedMlxAiService service = new EmbeddedMlxAiService(
+                "test-model",
+                AiReasoningEffort.DISABLED,
+                null,
+                AiSkillPromptSupport.disabled(),
+                manager);
+
+            OpenAiCompatibleAiService.EmptyResponseException failure = expectThrows(
+                OpenAiCompatibleAiService.EmptyResponseException.class,
+                () -> service.execute(new AiRequest(
+                    AiAction.GENERATE_SNIPPET_MERMAID,
+                    "echo sample",
+                    "terminal",
+                    "en")));
+
+            assertThat(failure).hasMessageThat().contains("empty response");
+            assertThat(requests.get()).isEqualTo(1);
         } finally {
             server.stop(0);
         }

@@ -162,7 +162,12 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         if (includeInternet) {
             systemPrompt = AiInternetPromptSupport.appendRules(systemPrompt);
         }
-        return executePromptInternal(systemPrompt, AiPromptBuilder.buildUserPrompt(request), includeInternet, null);
+        return executePromptInternal(
+            systemPrompt,
+            AiPromptBuilder.buildUserPrompt(request),
+            includeInternet,
+            null,
+            AiOutputTokenLimitSupport.resolve(request, null));
     }
 
     @Override
@@ -176,6 +181,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             includeInternet ? AiInternetPromptSupport.appendRules(effectiveSystemPrompt) : effectiveSystemPrompt,
             userPrompt,
             includeInternet,
+            null,
             null);
     }
 
@@ -190,6 +196,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             includeInternet ? AiInternetPromptSupport.appendRules(effectiveSystemPrompt) : effectiveSystemPrompt,
             userPrompt,
             includeInternet,
+            null,
             null);
     }
 
@@ -215,7 +222,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
                 CONNECTION_TEST_SYSTEM_PROMPT,
                 CONNECTION_TEST_USER_PROMPT,
                 false,
-                TEST_REQUEST_TIMEOUT);
+                TEST_REQUEST_TIMEOUT,
+                null);
             return result != null && result.content() != null && !result.content().isBlank();
         } catch (Exception ignored) {
             return false;
@@ -223,14 +231,15 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
     }
 
     String buildRequestBody(String systemPrompt, String userPrompt, boolean includeInternet) {
-        return buildRequestBody(systemPrompt, userPrompt, includeInternet, model);
+        return buildRequestBody(systemPrompt, userPrompt, includeInternet, model, null);
     }
 
     private String buildRequestBody(
         String systemPrompt,
         String userPrompt,
         boolean includeInternet,
-        String effectiveModel) {
+        String effectiveModel,
+        Integer maxOutputTokens) {
 
         JsonObject root = new JsonObject();
         if (effectiveModel != null && !effectiveModel.isBlank()) {
@@ -240,6 +249,9 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         root.addProperty("input", userPrompt != null ? userPrompt : "");
         root.addProperty("temperature", 0.2);
         root.addProperty("store", false);
+        if (maxOutputTokens != null) {
+            root.addProperty("max_output_tokens", maxOutputTokens);
+        }
         appendReasoning(root);
         if (includeInternet) {
             root.add("integrations", buildIntegrations());
@@ -259,7 +271,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             AiSkillRelevanceSelector.classificationSystemPrompt(),
             AiSkillRelevanceSelector.buildClassificationUserPrompt(context, skills),
             false,
-            SKILL_CLASSIFICATION_TIMEOUT);
+            SKILL_CLASSIFICATION_TIMEOUT,
+            null);
         return AiSkillRelevanceSelector.parseClassifierResponse(result != null ? result.content() : null);
     }
 
@@ -267,7 +280,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         String systemPrompt,
         String userPrompt,
         boolean includeInternet,
-        Duration overrideTimeout) throws Exception {
+        Duration overrideTimeout,
+        Integer maxOutputTokens) throws Exception {
 
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("LM Studio API URL must be configured.");
@@ -278,15 +292,21 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         Duration timeout = overrideTimeout != null ? overrideTimeout : requestTimeout;
         String effectiveModel = LocalLmModelResolver.resolve(apiUrl, model, modelSelectionMode, apiKey, httpClient);
         HttpRequest request = buildJsonPostRequest(
-            buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel),
+            buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel, maxOutputTokens),
             timeout);
         HttpResponse<String> response = AiPowerManagementScope.call(
             () -> httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IOException("LM Studio API error " + response.statusCode() + ": " + extractErrorMessage(response.body()));
         }
-        AiExecutionResult result = parseResponseBody(response.body());
+        AiExecutionResult result = parseResponseBody(response.body(), maxOutputTokens);
         if (result == null || result.content() == null || result.content().isBlank()) {
+            // Preserve a capped reasoning-only result for bounded AiRequest actions. The snippet
+            // workflow records its usage and maps it to the localized output-limit status (or the
+            // Mermaid fallback) without retrying. Unbounded direct prompts remain strict below.
+            if (maxOutputTokens != null && result != null && result.outputTruncated()) {
+                return result;
+            }
             throw new IOException("LM Studio API returned an empty response.");
         }
         return result;
@@ -364,7 +384,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         }
     }
 
-    private AiExecutionResult parseResponseBody(String responseBody) {
+    private AiExecutionResult parseResponseBody(String responseBody, Integer maxOutputTokens) {
         JsonObject root = JsonParser.parseString(responseBody).getAsJsonObject();
         JsonArray output = root.getAsJsonArray("output");
         StringBuilder builder = new StringBuilder();
@@ -390,7 +410,14 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             }
         }
         String reasoningText = reasoning.length() > 0 ? reasoning.toString().trim() : null;
-        return new AiExecutionResult(builder.toString().trim(), parseStats(root), reasoningText);
+        AiTokenUsage usage = parseStats(root);
+        boolean outputTruncated = maxOutputTokens != null
+            && maxOutputTokens > 0
+            && usage != null
+            // LM Studio reports one fewer generated token than max_output_tokens when the native
+            // endpoint stops at its limit; its response currently carries no separate stop reason.
+            && usage.completionTokens() >= Math.max(1L, (long) maxOutputTokens - 1L);
+        return new AiExecutionResult(builder.toString().trim(), usage, reasoningText, outputTruncated);
     }
 
     private void appendReasoningItem(StringBuilder reasoning, JsonObject item) {

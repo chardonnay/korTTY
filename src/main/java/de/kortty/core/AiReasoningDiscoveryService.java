@@ -1,10 +1,13 @@
 package de.kortty.core;
 
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiConnectionMode;
+import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiReasoningEffort;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Verifies which reasoning efforts a profile accepts by issuing connection-test requests.
@@ -31,7 +34,32 @@ public final class AiReasoningDiscoveryService {
         if (profile == null) {
             throw new IllegalStateException("AI profile must be configured.");
         }
+        Optional<List<AiReasoningEffort>> lmStudioCapabilities = Optional.empty();
+        if (usesExactLmStudioMetadata(profile)) {
+            try {
+                lmStudioCapabilities = LocalLmModelResolver.loadLmStudioReasoningEfforts(
+                    profile.getApiUrl(),
+                    profile.getModel(),
+                    profile.getModelSelectionMode(),
+                    apiKey,
+                    null);
+            } catch (java.io.IOException ignored) {
+                lmStudioCapabilities = Optional.empty();
+            }
+        }
+        if (lmStudioCapabilities.isPresent()) {
+            if (!testEffort(profile, apiKey, internetConfig, skillPromptSupport, AiReasoningEffort.DISABLED)) {
+                throw new IllegalStateException("AI connection test failed.");
+            }
+            return AiReasoningSupport.normalizeOptions(lmStudioCapabilities.get());
+        }
         return discover(effort -> testEffort(profile, apiKey, internetConfig, skillPromptSupport, effort));
+    }
+
+    static boolean usesExactLmStudioMetadata(AiProfile profile) {
+        return profile != null
+            && profile.getConnectionMode() == AiConnectionMode.HTTP_API
+            && profile.getModelSelectionMode() != AiModelSelectionMode.DEFAULT;
     }
 
     static List<AiReasoningEffort> discover(ReasoningProbe probe) throws Exception {

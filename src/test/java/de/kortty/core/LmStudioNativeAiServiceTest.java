@@ -165,6 +165,26 @@ class LmStudioNativeAiServiceTest {
     }
 
     @Test
+    void executeBoundsStrictSnippetFollowUpsWithoutChangingOrdinaryRequests() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        service.execute(new AiRequest(AiAction.SUMMARIZE, "text", "qa-box", "en"));
+        service.execute(new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo hi", "qa-box", "en"));
+        service.execute(new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo hi", "qa-box", "en"));
+
+        assertThat(client.requestBodies().get(0)).doesNotContain("\"max_output_tokens\"");
+        assertThat(client.requestBodies().get(1)).contains("\"max_output_tokens\":8192");
+        assertThat(client.requestBodies().get(2)).contains("\"max_output_tokens\":32768");
+    }
+
+    @Test
     void executeResolvesBlankModelFromSingleLoadedLmStudioLlm() throws Exception {
         StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
             {
@@ -302,6 +322,86 @@ class LmStudioNativeAiServiceTest {
 
         assertThat(result.content()).isEqualTo("final answer");
         assertThat(result.reasoning()).isEqualTo("I weighed the options.");
+    }
+
+    @Test
+    void executeMarksNativeResponseAtItsActionLimitAsTruncated() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        client.chatResponse("""
+            {
+              "output": [
+                {"type": "message", "content": "{\\\"title\\\":\\\"Partial\\\",\\\"mermaid\\\":\\\"flowchart TD\\\"}"}
+              ],
+              "stats": {"input_tokens": 100, "total_output_tokens": 8191}
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        AiExecutionResult result = service.execute(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", "qa-box", "en"));
+
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.usage().completionTokens()).isEqualTo(8_191);
+    }
+
+    @Test
+    void executePreservesReasoningOnlyResponseAtApplyLimit() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        client.chatResponse("""
+            {
+              "output": [
+                {"type": "reasoning", "content": "Planning until the replacement limit."}
+              ],
+              "stats": {"input_tokens": 4523, "total_output_tokens": 32767}
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.MINIMAL,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        AiExecutionResult result = service.execute(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", "qa-box", "en"));
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.reasoning()).contains("Planning until the replacement limit");
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.usage().completionTokens()).isEqualTo(32_767);
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void executeKeepsNativeResponseBelowItsActionLimitComplete() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        client.chatResponse("""
+            {
+              "output": [
+                {"type": "message", "content": "complete"}
+              ],
+              "stats": {"input_tokens": 100, "total_output_tokens": 8190}
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        AiExecutionResult result = service.execute(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", "qa-box", "en"));
+
+        assertThat(result.outputTruncated()).isFalse();
     }
 
     private AiInternetAccessConfiguration config(AiInternetAccessMode mode) {
