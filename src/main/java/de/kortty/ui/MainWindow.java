@@ -2088,6 +2088,8 @@ public class MainWindow {
         if (shouldRestoreDashboardOnStartup()) {
             Platform.runLater(() -> toggleDashboard(true));
         }
+
+        scheduleOutdatedGuideTranslationCheck();
     }
     
     /**
@@ -3180,13 +3182,17 @@ public class MainWindow {
      * startup, and asked once per application run rather than once per window.
      */
     private void scheduleOutdatedGuideTranslationCheck() {
-        if (guideTranslationUpdatePrompted || !isForegroundWindow()) {
+        if (guideTranslationUpdatePrompted) {
             return;
         }
         javafx.animation.PauseTransition delay =
             new javafx.animation.PauseTransition(javafx.util.Duration.seconds(6));
         delay.setOnFinished(event -> {
-            if (guideTranslationUpdatePrompted || de.kortty.core.GuideTranslationJob.getInstance().isRunning()) {
+            // Foreground is checked at fire time, not schedule time: show() runs before the stage
+            // reliably reports focus, and after the delay the state is meaningful. With several
+            // windows only the focused one prompts, and the static flag keeps it to once per run.
+            if (!shouldPromptGuideTranslationUpdate(guideTranslationUpdatePrompted,
+                isForegroundWindow(), de.kortty.core.GuideTranslationJob.getInstance().isRunning())) {
                 return;
             }
             java.util.List<String> outdated = de.kortty.core.GuideTranslationJob.outdatedLanguages(
@@ -3198,6 +3204,12 @@ public class MainWindow {
             promptGuideTranslationUpdate(outdated.getFirst());
         });
         delay.play();
+    }
+
+    /** Fire-time guard for the outdated-guide prompt; static so the policy is unit-testable. */
+    static boolean shouldPromptGuideTranslationUpdate(
+            boolean alreadyPrompted, boolean foregroundWindow, boolean translationRunning) {
+        return !alreadyPrompted && foregroundWindow && !translationRunning;
     }
 
     private void promptGuideTranslationUpdate(String lang) {

@@ -242,6 +242,17 @@ public class GuideTranslationGenerator {
      */
     public Estimate estimate(String targetLangCode, int sampleSize, BooleanSupplier cancelled)
             throws IOException {
+        return estimate(targetLangCode, sampleSize, cancelled, null);
+    }
+
+    /**
+     * Like {@link #estimate(String, int, BooleanSupplier)}, additionally reporting the resolved
+     * sample size once the sample is drawn. With {@link #DEFAULT_ESTIMATE_SAMPLE} the size is
+     * only known here — the caller's UI cannot name it upfront without showing a placeholder 0.
+     * Called on the estimating thread, before the timed translation starts.
+     */
+    public Estimate estimate(String targetLangCode, int sampleSize, BooleanSupplier cancelled,
+            java.util.function.IntConsumer sampleSizeListener) throws IOException {
         if (targetLangCode == null || targetLangCode.isBlank()) {
             throw new IllegalArgumentException("targetLangCode is required");
         }
@@ -290,6 +301,9 @@ public class GuideTranslationGenerator {
         // Exactly one batch, filled to the real budget: the measurement has to look like the work
         // it predicts.
         List<String> sample = sampleOneBatch(pending, sampleSize);
+        if (sampleSizeListener != null) {
+            sampleSizeListener.accept(sample.size());
+        }
         long sampleChars = sample.stream().mapToLong(String::length).sum();
 
         long started = System.nanoTime();

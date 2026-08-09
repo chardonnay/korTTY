@@ -5568,7 +5568,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      */
     private void generateGuideTranslation(Button generateButton) {
         TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
+        // Mirrors createGuideTranslationService: a picked guide profile wins over the provider
+        // dropdown, so its key requirement must not block the start.
+        AiProfile guideProfile = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
+        boolean keyOptional = guideProfile != null
+            || provider == TranslationApiProvider.LIBRETRANSLATE
             || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
         String key = getTranslationApiKeyPlain();
         if (!keyOptional && (key == null || key.isEmpty())) {
@@ -5630,14 +5634,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         guideTranslationProgress.setProgress(-1);
         guideTranslationProgress.setVisible(true);
         guideTranslationCancelButton.setVisible(true);
-        guideTranslationStatusLabel.setText(
-            I18n.get("settings.translation.guide.estimateRunning", sampleSize));
+        // The sample size is resolved inside the generator (0 = one budget-filled batch), so the
+        // "sample of {0} segments" text waits for the callback instead of showing a literal 0.
+        guideTranslationStatusLabel.setText("");
 
         Task<GuideTranslationGenerator.Estimate> task = new Task<>() {
             @Override
             protected GuideTranslationGenerator.Estimate call() throws Exception {
                 return new GuideTranslationGenerator(service, KorTTYApplication.getConfigDirectory())
-                    .estimate(targetLang, sampleSize, this::isCancelled);
+                    .estimate(targetLang, sampleSize, this::isCancelled,
+                        resolved -> Platform.runLater(() -> guideTranslationStatusLabel.setText(
+                            I18n.get("settings.translation.guide.estimateRunning", resolved))));
             }
         };
         guideTranslationCancelButton.setOnAction(ev -> {
