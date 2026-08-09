@@ -188,7 +188,7 @@ Der Herausgeber selbst:
 | **Stift** | Ein dicker Freihandstrich zum Einkreisen oder Unterstreichen von etwas |
 | **Box** | Ein Rechteck, das Sie auf die gewünschte Größe ziehen. |
 | **Unlesbar** | Ein Rechteck, dessen Inhalt in Blöcke vergröbert wird, bis er nicht mehr gelesen werden kann – um einen Wert auszublenden, während der umgebende Kontext an Ort und Stelle bleibt. **Breite** legt fest, wie grob die Blöcke sind. |
-| **Text** | Ein Etikett mit einem dunklen Halo, damit es auf einem hellen Terminalhintergrund lesbar bleibt. |
+| **Text** | Eine Beschriftung mit einem dunklen Halo, damit sie auf einem hellen Terminalhintergrund lesbar bleibt. |
 
 **Farbe** gilt für die nächste Markierung (zu Beginn rot), **Breite** legt die Stiftstärke fest und skaliert die Textbeschriftungen damit. **Rückgängig** entfernt die letzte Markierung, **Alle entfernen** löscht sie. Unterhalb des Bildes befindet sich ein fünfzeiliges **Notiz**-Feld für die Bemerkung, die zum Screenshot gehört; Es handelt sich um die gleiche Anmerkung, die der Eintrag an anderer Stelle im Journal trägt.
 

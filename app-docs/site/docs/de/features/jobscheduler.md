@@ -107,7 +107,7 @@ Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Lauferge
 Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** auf der Registerkarte [AI Swarm](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
 
 !!! warning
-    Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
+    Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
 
 #### SFTP-Archivierungsjobs
 
