@@ -175,12 +175,15 @@ public class ServerConnection {
         c.privateKeyPassphrase = source.privateKeyPassphrase;
         c.authMethod = source.authMethod;
         c.protocol = source.protocol;
+        c.localShellCommand = source.localShellCommand;
+        c.localShellWorkingDirectory = source.localShellWorkingDirectory;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.group = source.group;
+        c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
         c.sshTunnels = source.sshTunnels;

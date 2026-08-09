@@ -1,6 +1,7 @@
 package de.kortty.persistence;
 
 import de.kortty.model.AuthMethod;
+import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 import de.kortty.core.TerminalEmulationSupport;
@@ -126,6 +127,59 @@ class XMLConnectionRepositoryTest {
             assertThat(reloaded).hasSize(1);
             assertThat(reloaded.get(0).getTerminalEmulationType()).isEqualTo("VT220");
             assertThat(TerminalEmulationSupport.fromConnection(reloaded.get(0))).isEqualTo(EmulationType.VT220);
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesLocalShellSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-local-shell");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Local shell connection");
+            connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+            connection.setLocalShellCommand("/bin/zsh -l");
+            connection.setLocalShellWorkingDirectory("/tmp/workdir");
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<localShellCommand>/bin/zsh -l</localShellCommand>");
+            assertThat(persistedXml).contains("<localShellWorkingDirectory>/tmp/workdir</localShellWorkingDirectory>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getProtocol()).isEqualTo(ConnectionProtocol.LOCAL_SHELL);
+            assertThat(reloaded.get(0).getLocalShellCommand()).isEqualTo("/bin/zsh -l");
+            assertThat(reloaded.get(0).getLocalShellWorkingDirectory()).isEqualTo("/tmp/workdir");
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesDisableHostKeyCheck() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-host-key-check");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Strict host key connection");
+            connection.setHost("example.com");
+            connection.setUsername("root");
+            connection.setDisableHostKeyCheck(false);
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<disableHostKeyCheck>false</disableHostKeyCheck>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getDisableHostKeyCheck()).isEqualTo(false);
         } finally {
             Files.deleteIfExists(dir.resolve("connections.xml"));
             Files.deleteIfExists(dir);
