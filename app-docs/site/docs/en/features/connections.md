@@ -23,6 +23,7 @@ The connection editor has these tabs:
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
+| Journal | Per-connection session journal — enable, capture typed input, AI summaries and summary interval. See [Session journal](session-journal.md). |
 | Window Geometry | Saved size/position for this connection |
 
 ## Protocols

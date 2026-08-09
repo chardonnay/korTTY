@@ -22,12 +22,15 @@ On first launch, you are prompted to create a master password (minimum 6 charact
 
 ### At-Rest Encryption
 
-The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master-password-hash`.
+The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master.key`.
 
-On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. You can disable this prompt in **Settings > Security**, but stored passwords will not be accessible until you enter the master password manually.
+On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt, but stored passwords will not be accessible until you enter the master password manually.
+
+!!! danger "Optional auto-login weakens at-rest protection"
+    The second Security option, **Disable master password prompt on startup (auto-login)**, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to `~/.kortty/master.autounlock` — **obfuscated only, not encrypted**, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read `~/.kortty` or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and an [enterprise policy](../reference/enterprise-policy.md) that requires a master password disables it. Details: [Security settings](../reference/settings/security.md).
 
 !!! note
-    If you lose the master password, encrypted data cannot be recovered. Delete `master-password-hash` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
+    If you lose the master password, encrypted data cannot be recovered. Delete `master.key` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
 
 ## Encryption Model
 
@@ -99,7 +102,7 @@ Centralized management of private SSH keys with encrypted passphrases.
 
 - **Centralized Management** — Manage all SSH keys in one place
 - **Encrypted Passphrases** — Key passphrases are stored encrypted with AES-256-GCM
-- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/` (included in backups for easy migration)
+- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/`; copied keys are included in encrypted backups and restored with owner-only permissions
 - **Wildcard Search** — Quick search for keys using `*` patterns
 - **Automatic Usage** — Select keys directly in connection settings
 
@@ -165,7 +168,8 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | `connections.xml` | Connection passwords (inline) and key passphrases (if not using SSH key management) | AES-256-GCM |
 | `ssh-host-keys.properties` | Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections | Public verification data; not encrypted |
 | `job-scheduler.xml` | Scheduler sudo passwords and archive passwords; journal entries redact KorTTY-managed secrets | AES-256-GCM |
-| `master-password-hash` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
+| `master.key` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
+| `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
 
 ## Security Best Practices
@@ -182,7 +186,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 ### SSH Keys
 
 - Keep private key files protected with a passphrase.
-- Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups.
+- Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
 - Limit key file permissions (e.g., `chmod 600`).
 - Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
 
@@ -212,6 +216,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 - Remote Qdrant knowledge stores require HTTPS; plain HTTP is accepted only for loopback, and the optional API key remains vault-protected.
 - Internet access is disabled by default for AI profiles; enable only when needed.
 - Snippet AI actions never use internet access, even if the profile has it enabled.
+- The fixed snippet/workflow **Diagram** request never receives knowledge-store excerpts, even when the profile has stores attached — the diagram prompt is built from the source alone.
 
 ## Security Overview
 
@@ -227,7 +232,8 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | Model/prompt catalog | Independent Ed25519 trust root, strict schema, monotonic anti-replay sequence, reverified atomic cache, protected human promotion, bootstrap fallback |
 | RAG source ingestion | Central allowlist, UTF-8/PDF content checks, no symlink traversal, reviewed preview |
 | RAG prompt context | Fixed retrieval limits, stable source markers, explicitly untrusted wrapper, explicit profile-based local/cloud disclosure |
-| Backup Encryption | Password-protected ZIP or GPG-encrypted |
+| Optional auto-login | Master password stored obfuscated in `master.autounlock` with owner-only permissions; off by default, confirmation required, blocked by a policy that requires a master password |
+| Backup Encryption | AES-256 password-protected ZIP or GPG-encrypted (legacy ZIP-encrypted backups remain importable) |
 | JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
 | JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
 | Credentials | Never stored in plain text |
@@ -240,7 +246,7 @@ To change your master password (which re-encrypts all stored secrets with a new 
 2. Click **Change Master Password**.
 3. Enter your current (old) master password.
 4. Enter the new master password twice.
-5. All stored passwords, passphrases, and credentials are automatically re-encrypted with the new key.
+5. Every master-password-protected secret is automatically re-encrypted with the new key: connection and jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the global AI/translation/Hugging Face keys, RAG store secrets, and JobScheduler sudo/archive passwords. The change is staged — the new password only takes over once every store has migrated, so an error part-way through leaves the old password in effect. Individual secrets that cannot be migrated are left untouched, counted in the result message, and noted in the log; re-enter those manually.
 
 ## Configuration Files Reference
 
@@ -248,7 +254,8 @@ All KorTTY data is stored under `~/.kortty/`. Key security-related files:
 
 ```text
 ~/.kortty/
-├── master-password-hash      # Master password hash and salt (PBKDF2)
+├── master.key               # Master password hash and salt (PBKDF2)
+├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
 ├── credentials.xml           # Encrypted credentials (AES-256-GCM)
 ├── ssh-keys.xml             # SSH key paths and encrypted passphrases
 ├── gpg-keys.xml             # GPG keys for backup/export encryption

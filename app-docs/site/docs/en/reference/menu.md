@@ -70,6 +70,8 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
 | ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
 
+The three session-journal items stay visible but are disabled when an [enterprise policy](../features/session-journal.md#enterprise-policy) denies the session-journal feature.
+
 ## AI
 
 ![AI menu](../assets/screenshots/main/menu-ai.png)

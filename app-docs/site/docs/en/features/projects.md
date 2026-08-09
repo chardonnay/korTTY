@@ -41,7 +41,7 @@ A project captures the complete state of your workspace:
 | **Terminal Sessions** | Session state including cursor position and scrollback (if supported by the session) |
 
 !!! note
-    AI result tabs are not saved with projects. They remain only in the current session and are lost when you close the tab or open a project.
+    AI result tabs and tool tabs (managers opened as tabs) are not saved with projects. They remain only in the current session and are lost when you close the tab or open a project.
 
 ## Auto-Reconnect
 

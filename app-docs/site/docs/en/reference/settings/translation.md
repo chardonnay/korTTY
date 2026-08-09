@@ -51,23 +51,26 @@ A second, independent job below translates the bundled offline guide — the sam
 | AI profile | dropdown | "Default (text profile)" plus every configured AI profile | Default (text profile) | — |
 | Estimate duration | button | — | — | — |
 | Start translation | button | — | — | — |
-| Cancel | button | (shown only while a translation is running) | — | — |
+| Cancel | button | (shown while a translation or a duration estimate is running) | — | — |
 | Translated guides | list | Guide languages translated so far | — | — |
 | Delete | button | (removes the selected translated guide, its assets and its search index) | — | — |
 
-Unlike the interface strings, the guide is translated by an **AI profile**, not by the translation-provider dropdown above — a cloud translation API is not built to carry hundreds of pages of formatted documentation. Picking a profile in the **AI profile** dropdown here always uses that profile, whatever its connection mode; leaving it on **Default (text profile)** uses the profile assigned to the Text/translation role in AI Manager, and only if that profile runs an embedded (local) model.
+Picking a profile in the **AI profile** dropdown here always uses that profile, whatever its connection mode. Leaving it on **Default (text profile)** follows the Translation API selection above: with the provider set to **Local AI text profile**, the guide uses the profile assigned to the Text/translation role in AI Manager — and only if that profile runs an embedded (local) model — while any other provider with a stored key translates the guide through that translation API instead.
+
+**Start translation** with no guide profile picked requires a workable Translation API above: with the provider on a keyed service (for example Google Translate) and no API key stored, starting is refused with *"Please enter an API key."* — a picked AI profile always suffices on its own. If the run cannot start for another reason, the message names the cause: a picked profile whose model is not downloaded or selected, no guide profile and no API key, or no local text profile configured.
 
 Deleting a translated guide removes its whole directory under `~/.kortty/guide/<language>/` — the translated pages, the staged theme assets, its search index and its resume checkpoint — after a confirmation prompt.
 
 ### Why this runs in the background
 
-Translating the guide is not a quick action: the bundled site holds roughly 5,300 distinct pieces of text once repeated navigation and headings are deduplicated, and depending on the model this can take anywhere from a few minutes to most of a day. Starting it does not block the Settings dialog or the rest of korTTY:
+Translating the guide is not a quick action: the bundled site holds roughly 5,500 distinct pieces of text once repeated navigation and headings are deduplicated, and depending on the model this can take anywhere from a few minutes to most of a day. Starting it does not block the Settings dialog or the rest of korTTY:
 
 - The translation keeps running after you close Settings, switch tabs, or continue working in terminals.
 - A small progress indicator — a bar, a percentage and an estimated time remaining — appears at the right end of korTTY's menu bar for as long as a guide translation is in progress, and disappears again once it finishes.
-- **Cancel** stops the job at the next safe point rather than losing what has already been translated: progress is checkpointed to disk as it goes, so starting the same language again continues from where it left off instead of starting over.
+- While the run is active, the dialog shows a progress bar and a status line ("Translating… 42%"). **Cancel** stops the job at the next safe point rather than losing what has already been translated: progress is checkpointed to disk as it goes, so starting the same language again continues from where it left off instead of starting over.
+- The in-dialog progress display and **Cancel** belong to the Settings dialog that started the run — reopening Settings later does not re-attach to a running job, and **Start translation** then only reports *"A guide translation is already running."* After closing Settings, the running job is paused via the quit dialog below (or simply left to finish).
 - If you try to quit korTTY while a guide translation is running, a dialog offers to pause it and quit, or to keep korTTY open; choosing to pause leaves the checkpoint in place for the next run.
-- After installing a korTTY update that changed the guide's content, and if you already have a translated guide for your language, korTTY offers once to bring it up to date. Because progress is checkpointed by the exact English text of each piece, updating only re-translates sentences that actually changed in the release — everything else is reused as-is.
+- After installing a korTTY update that changed the guide's content, and if you already have a translated guide for your language, korTTY offers once per run — a few seconds after the window opens, and never while a translation is already running — to bring it up to date; **Update now** opens this Settings tab, where you start the run yourself. Because progress is checkpointed by the exact English text of each piece, updating only re-translates sentences that actually changed in the release — everything else is reused as-is.
 
 ### Why a reasoning model is a poor fit
 
@@ -85,7 +88,7 @@ If the **AI profile** you pick for guide translation is a reasoning model, korTT
 2. It then translates one real, budget-sized batch of guide text and times it. This is a genuine translation, not a simulation: the sample is kept, so estimating first and then starting a full run does not repeat that work.
 3. From that single timed batch, it computes two projections for the remaining text — one assuming cost scales with the number of requests, one assuming it scales with the amount of text — and reports the resulting range together with how long the remaining pages and text would take. Reporting a range rather than one number reflects that a single sample cannot fully separate a model's fixed per-request overhead from its per-character cost; the estimate keeps that uncertainty visible rather than hiding it behind a single overly precise number.
 
-If the sample fails outright — the AI profile is unreachable, misconfigured, or produced nothing usable — the estimate reports that as a connection problem instead of a duration, so it is not mistaken for "translation will be instant."
+If the sample fails outright — the AI profile is unreachable, misconfigured, or produced nothing usable — the estimate reports that as a connection problem instead of a duration, so it is not mistaken for "translation will be instant." And if nothing is left to translate, the estimate simply reports that the guide is already fully translated for this language.
 
 !!! note
     The reasoning-model warning above appears for **Estimate duration** as well as **Start translation**, since running an estimate against a reasoning model already spends real time on it.

@@ -33,7 +33,7 @@ The backup includes:
 |------|---------|
 | Connections | All saved SSH connections and groups |
 | Credentials | Stored usernames and passwords (encrypted) |
-| SSH keys | Centrally managed SSH private keys with encrypted passphrases |
+| SSH keys | Key references with encrypted passphrases, plus the copied key files in `~/.kortty/ssh-keys/` |
 | Trusted interactive hosts | `ssh-host-keys.properties`, shared by Terminal, SFTP, and the Mosh SSH bootstrap; the transient `.lock` companion is not included |
 | GPG keys | GPG public keys for backup encryption |
 | Settings | Global application settings, terminal configurations, themes, and AI profiles |
@@ -55,7 +55,7 @@ The backup includes:
 4. Optionally set **Maximum Backups** (0 = unlimited)
 5. Save
 
-Password-protected backups use standard ZIP encryption (`EncryptionMethod.ZIP_STANDARD`) via the zip4j library. The credential's password is used to encrypt all files in the archive.
+Password-protected backups are encrypted with AES-256 (via the zip4j library); the credential's password encrypts all files in the archive. Backups created by older korTTY versions used legacy ZIP encryption and can still be imported — the decryption method is read from the archive itself. Note that AES-encrypted ZIPs need an AES-capable tool (7-Zip, WinZip, `unzip` 6+) if you ever extract one outside korTTY.
 
 ### GPG encryption
 
@@ -91,6 +91,7 @@ Both `.zip` and `.gpg` backups contain the same files:
 * `connections.xml` — All SSH connections and groups
 * `credentials.xml` — Stored credentials (still encrypted with your master password)
 * `ssh-keys.xml` — SSH key references and encrypted passphrases
+* `ssh-keys/` — Copied SSH key files (only keys you placed there via **Copy to User Directory**; keys referenced in their original locations are not collected). Restored key files get owner-only permissions, and an import merges — it never deletes or, without **Overwrite**, replaces keys already present
 * `ssh-host-keys.properties` — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (`ssh-host-keys.properties.lock` is intentionally excluded)
 * `gpg-keys.xml` — GPG public keys
 * `global-settings.xml` — Application settings, themes, AI profiles, terminal defaults
@@ -98,7 +99,7 @@ Both `.zip` and `.gpg` backups contain the same files:
 * `snippets.xml` — Code snippets and templates
 * `snippet-variables.xml` — Custom snippet variables
 * `ai-chats.xml` — Saved AI conversations
-* `master-password-hash` — Hash of your master password (for verification on import)
+* `master.key` — Hash of your master password (for verification on import)
 * `llm/models.xml` — Local GGUF registrations and runtime settings (model weights are not included)
 * `rag/stores.json` — Knowledge-store and source configuration (vector snapshots are not included)
 * `projects/` — All saved project workspace files (`.kortty`)
