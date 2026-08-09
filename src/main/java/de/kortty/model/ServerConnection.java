@@ -74,6 +74,10 @@ public class ServerConnection {
     @XmlElement
     private String group;
 
+    /** Optional free-text label, independent of the group hierarchy. Null = untagged. */
+    @XmlElement
+    private String tag;
+
     /**
      * Per-connection host-key verification override. {@code null} inherits from the group/global
      * setting; {@code true} relaxes to accept-new; {@code false} forces strict verification even if
@@ -183,6 +187,7 @@ public class ServerConnection {
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.group = source.group;
+        c.tag = source.tag;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
@@ -378,6 +383,14 @@ public class ServerConnection {
     
     public void setGroup(String group) {
         this.group = group;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     /** {@code null} = inherit, {@code true} = don't verify (accept-new), {@code false} = force strict. */
