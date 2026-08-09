@@ -3046,11 +3046,15 @@
 <li>Click <strong>Setup</strong>.</li>
 </ol>
 <h3 id="at-rest-encryption">At-Rest Encryption<a class="headerlink" href="#at-rest-encryption" title="Permanent link">&para;</a></h3>
-<p>The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in <code>~/.kortty/master-password-hash</code>.</p>
-<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. You can disable this prompt in <strong>Settings &gt; Security</strong>, but stored passwords will not be accessible until you enter the master password manually.</p>
+<p>The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in <code>~/.kortty/master.key</code>.</p>
+<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off <strong>Require master password on startup</strong> in <strong>Settings &gt; Security</strong> hides this prompt, but stored passwords will not be accessible until you enter the master password manually.</p>
+<div class="admonition danger">
+<p class="admonition-title">Optional auto-login weakens at-rest protection</p>
+<p>The second Security option, <strong>Disable master password prompt on startup (auto-login)</strong>, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to <code>~/.kortty/master.autounlock</code> — <strong>obfuscated only, not encrypted</strong>, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read <code>~/.kortty</code> or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and an <a href="../reference/enterprise-policy.html">enterprise policy</a> that requires a master password disables it. Details: <a href="../reference/settings/security.html">Security settings</a>.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>If you lose the master password, encrypted data cannot be recovered. Delete <code>master-password-hash</code> and <code>credentials.xml</code>, restart, set a new master password, and re-enter your passwords.</p>
+<p>If you lose the master password, encrypted data cannot be recovered. Delete <code>master.key</code> and <code>credentials.xml</code>, restart, set a new master password, and re-enter your passwords.</p>
 </div>
 <h2 id="encryption-model">Encryption Model<a class="headerlink" href="#encryption-model" title="Permanent link">&para;</a></h2>
 <p>All sensitive data at rest is encrypted using <strong>AES-256-GCM</strong>:</p>
@@ -3109,7 +3113,7 @@
 <ul>
 <li><strong>Centralized Management</strong> — Manage all SSH keys in one place</li>
 <li><strong>Encrypted Passphrases</strong> — Key passphrases are stored encrypted with AES-256-GCM</li>
-<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code> (included in backups for easy migration)</li>
+<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; copied keys are included in encrypted backups and restored with owner-only permissions</li>
 <li><strong>Wildcard Search</strong> — Quick search for keys using <code>*</code> patterns</li>
 <li><strong>Automatic Usage</strong> — Select keys directly in connection settings</li>
 </ul>
@@ -3190,9 +3194,14 @@
 <td>AES-256-GCM</td>
 </tr>
 <tr>
-<td><code>master-password-hash</code></td>
+<td><code>master.key</code></td>
 <td>Master password hash (PBKDF2, 310,000 iterations) and salt</td>
 <td>PBKDF2 hash only</td>
+</tr>
+<tr>
+<td><code>master.autounlock</code></td>
+<td>Remembered master password for the optional auto-login</td>
+<td>Obfuscated only — not encrypted; owner-only file permissions</td>
 </tr>
 <tr>
 <td><code>global-settings.xml</code></td>
@@ -3215,7 +3224,7 @@
 <h3 id="ssh-keys">SSH Keys<a class="headerlink" href="#ssh-keys" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Keep private key files protected with a passphrase.</li>
-<li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups.</li>
+<li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</li>
 <li>Limit key file permissions (e.g., <code>chmod 600</code>).</li>
 <li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.</li>
 </ul>
@@ -3245,6 +3254,7 @@
 <li>Remote Qdrant knowledge stores require HTTPS; plain HTTP is accepted only for loopback, and the optional API key remains vault-protected.</li>
 <li>Internet access is disabled by default for AI profiles; enable only when needed.</li>
 <li>Snippet AI actions never use internet access, even if the profile has it enabled.</li>
+<li>The fixed snippet/workflow <strong>Diagram</strong> request never receives knowledge-store excerpts, even when the profile has stores attached — the diagram prompt is built from the source alone.</li>
 </ul>
 <h2 id="security-overview">Security Overview<a class="headerlink" href="#security-overview" title="Permanent link">&para;</a></h2>
 <table>
@@ -3296,8 +3306,12 @@
 <td>Fixed retrieval limits, stable source markers, explicitly untrusted wrapper, explicit profile-based local/cloud disclosure</td>
 </tr>
 <tr>
+<td>Optional auto-login</td>
+<td>Master password stored obfuscated in <code>master.autounlock</code> with owner-only permissions; off by default, confirmation required, blocked by a policy that requires a master password</td>
+</tr>
+<tr>
 <td>Backup Encryption</td>
-<td>Password-protected ZIP or GPG-encrypted</td>
+<td>AES-256 password-protected ZIP or GPG-encrypted (legacy ZIP-encrypted backups remain importable)</td>
 </tr>
 <tr>
 <td>JobScheduler Secrets</td>
@@ -3320,27 +3334,28 @@
 <li>Click <strong>Change Master Password</strong>.</li>
 <li>Enter your current (old) master password.</li>
 <li>Enter the new master password twice.</li>
-<li>All stored passwords, passphrases, and credentials are automatically re-encrypted with the new key.</li>
+<li>Every master-password-protected secret is automatically re-encrypted with the new key: connection and jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the global AI/translation/Hugging Face keys, RAG store secrets, and JobScheduler sudo/archive passwords. The change is staged — the new password only takes over once every store has migrated, so an error part-way through leaves the old password in effect. Individual secrets that cannot be migrated are left untouched, counted in the result message, and noted in the log; re-enter those manually.</li>
 </ol>
 <h2 id="configuration-files-reference">Configuration Files Reference<a class="headerlink" href="#configuration-files-reference" title="Permanent link">&para;</a></h2>
 <p>All KorTTY data is stored under <code>~/.kortty/</code>. Key security-related files:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master-password-hash      # Master password hash and salt (PBKDF2)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── connections.xml          # Connection passwords and key passphrases
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── global-settings.xml      # AI API keys and other encrypted settings
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── rag/stores.json          # Knowledge-store/source configuration
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── kortty.log               # Application log
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>└── history/                 # Compressed terminal session history
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── connections.xml          # Connection passwords and key passphrases
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── kortty.log               # Application log
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── history/                 # Compressed terminal session history
 </span></code></pre></div>
 
 

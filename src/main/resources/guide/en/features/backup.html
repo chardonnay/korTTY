@@ -2551,7 +2551,7 @@
 </tr>
 <tr>
 <td>SSH keys</td>
-<td>Centrally managed SSH private keys with encrypted passphrases</td>
+<td>Key references with encrypted passphrases, plus the copied key files in <code>~/.kortty/ssh-keys/</code></td>
 </tr>
 <tr>
 <td>Trusted interactive hosts</td>
@@ -2604,7 +2604,7 @@
 <li>Optionally set <strong>Maximum Backups</strong> (0 = unlimited)</li>
 <li>Save</li>
 </ol>
-<p>Password-protected backups use standard ZIP encryption (<code>EncryptionMethod.ZIP_STANDARD</code>) via the zip4j library. The credential's password is used to encrypt all files in the archive.</p>
+<p>Password-protected backups are encrypted with AES-256 (via the zip4j library); the credential's password encrypts all files in the archive. Backups created by older korTTY versions used legacy ZIP encryption and can still be imported — the decryption method is read from the archive itself. Note that AES-encrypted ZIPs need an AES-capable tool (7-Zip, WinZip, <code>unzip</code> 6+) if you ever extract one outside korTTY.</p>
 <h3 id="gpg-encryption">GPG encryption<a class="headerlink" href="#gpg-encryption" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Open <strong>Settings → Backup</strong></li>
@@ -2639,6 +2639,7 @@
 <li><code>connections.xml</code> — All SSH connections and groups</li>
 <li><code>credentials.xml</code> — Stored credentials (still encrypted with your master password)</li>
 <li><code>ssh-keys.xml</code> — SSH key references and encrypted passphrases</li>
+<li><code>ssh-keys/</code> — Copied SSH key files (only keys you placed there via <strong>Copy to User Directory</strong>; keys referenced in their original locations are not collected). Restored key files get owner-only permissions, and an import merges — it never deletes or, without <strong>Overwrite</strong>, replaces keys already present</li>
 <li><code>ssh-host-keys.properties</code> — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (<code>ssh-host-keys.properties.lock</code> is intentionally excluded)</li>
 <li><code>gpg-keys.xml</code> — GPG public keys</li>
 <li><code>global-settings.xml</code> — Application settings, themes, AI profiles, terminal defaults</li>
@@ -2646,7 +2647,7 @@
 <li><code>snippets.xml</code> — Code snippets and templates</li>
 <li><code>snippet-variables.xml</code> — Custom snippet variables</li>
 <li><code>ai-chats.xml</code> — Saved AI conversations</li>
-<li><code>master-password-hash</code> — Hash of your master password (for verification on import)</li>
+<li><code>master.key</code> — Hash of your master password (for verification on import)</li>
 <li><code>llm/models.xml</code> — Local GGUF registrations and runtime settings (model weights are not included)</li>
 <li><code>rag/stores.json</code> — Knowledge-store and source configuration (vector snapshots are not included)</li>
 <li><code>projects/</code> — All saved project workspace files (<code>.kortty</code>)</li>
