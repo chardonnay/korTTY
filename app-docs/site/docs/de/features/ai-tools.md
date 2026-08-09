@@ -276,9 +276,9 @@ So starten Sie eine Agentenaufgabe:
 
 | Verknüpfung | Aktion |
 |----------|--------|
-| ++tab++ auf Befehl des Agenten | Zeigen `agent`, `agent-ask`, `agent-plan` variants |
+| ++tab++ auf Befehl des Agenten | Zeigen `agent`, `agent-ask`, `agent-plan` Varianten |
 | ++tab++ nach `agent ` | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen |
-| ++esc++ or ++ctrl+c++ während des Laufs | Brechen Sie die Registerkarte des ausgewählten Laufs ab |
+| ++esc++ oder ++ctrl+c++ während des Laufs | Brechen Sie die Registerkarte des ausgewählten Laufs ab |
 | ++ctrl+r++ während des Laufs | Schalten Sie die Denkdetails für den ausgewählten Lauf um |
 | Aktivitätsfeld ⏸ Schaltfläche | Pausieren Sie den ausgewählten Lauf an einem sicheren Kontrollpunkt |
 | Aktivitätsfeld ▶️ Schaltfläche | Fortsetzen eines angehaltenen Laufs |

@@ -6,7 +6,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| New Tab | ++ctrl+t++ | Öffnen Sie Quick Connect in einem neuen Terminal-Tab |
+| Neuer Tab | ++ctrl+t++ | Öffnen Sie die Schnellverbindung in einem neuen Terminal-Tab |
 | Tab schließen | ++ctrl+w++ | Schließen Sie die aktive Terminal-Registerkarte |
 | Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen |
 | Neues Fenster | ++ctrl+shift+n++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
@@ -17,7 +17,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 | Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
 
-Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#verbindungen).
+Verbindungseinträge (Schnellverbindung, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#verbindungen).
 
 ## Bearbeiten
 
@@ -26,7 +26,7 @@ Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportie
 | Schneiden | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
-| Finden… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor) |
+| Finden… | ++ctrl+f++ | Durchsuchen Sie die aktive Registerkarte (Terminal-Scrollback oder geöffneter Editor). |
 
 ## Verbindungen
 
@@ -64,10 +64,10 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Snippet Manager… | Erstellen, Bearbeiten, Organisieren, Senden und Exportieren von Befehlsausschnitten |
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
-| Start/Stop Terminal Recording | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
+| Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
 | Sitzungsjournale… | Verwalten [Sitzungsjournale](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
-| Start/Stop Session Journal | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
-| Journal-Screenshot hinzufügen | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
+| Sitzungsjournal starten/stoppen | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
+| Journal-Screenshot hinzufügen | Erstellen Sie einen Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |
 
 ## AI
@@ -105,7 +105,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |
 | Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
-| Fullscreen | ++f12++ | Fenster-Vollbild umschalten |
+| Vollbild | ++f12++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigen Sie das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |

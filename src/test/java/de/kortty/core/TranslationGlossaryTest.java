@@ -29,6 +29,22 @@ class TranslationGlossaryTest {
         assertThat(glossary.apply("Meerjungfrau-Diagramm")).isEqualTo("Mermaid-Diagramm");
         assertThat(glossary.apply("GitHub-Probleme")).isEqualTo("GitHub-Issues");
         assertThat(glossary.apply("ASCII-Kunst")).isEqualTo("ASCII-Art");
+
+        // The dialog the German menu calls "Schnellverbindung" (menu.connections.quickConnect)
+        // must not stay "Quick Connect" in translated prose; the contextual rows also carry the
+        // feminine article the substitution would otherwise leave ungrammatical.
+        assertThat(glossary.apply("Quick Connect")).isEqualTo("Schnellverbindung");
+        assertThat(glossary.apply("öffnet Quick Connect, um"))
+            .isEqualTo("öffnet die Schnellverbindung, um");
+        assertThat(glossary.apply("oder in Quick Connect wählbar"))
+            .isEqualTo("oder in der Schnellverbindung wählbar");
+    }
+
+    /** Google MT drops (usually doubled) U+200B zero-width spaces into German prose. */
+    @Test
+    void zeroWidthSpacesAreStripped() {
+        assertThat(german().apply("mit welchem \u200b\u200bServer"))
+            .isEqualTo("mit welchem Server");
     }
 
     /** A longer term must be replaced before a shorter one it contains. */

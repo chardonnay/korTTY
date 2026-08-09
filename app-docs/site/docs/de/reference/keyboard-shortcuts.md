@@ -6,7 +6,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 | Verknüpfung | Aktion |
 | --- | --- |
-| ++ctrl+t++ | New Tab (Quick Connect) |
+| ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
 | ++ctrl+w++ | Tab schließen |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
@@ -26,7 +26,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+p++ | Anmeldeinformationen verwalten |
 | ++ctrl+shift+g++ | GPG-Schlüssel verwalten |
 | ++ctrl+shift+i++ | SSH-Schlüssel verwalten |
-| ++ctrl+comma++ | Global Settings |
+| ++ctrl+comma++ | Globale Einstellungen |
 | ++ctrl+shift+s++ | Snippet-Manager |
 | ++ctrl+shift+j++ | JobScheduler |
 | ++ctrl+shift+v++ | Videomanager |

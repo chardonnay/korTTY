@@ -289,7 +289,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 ### SSH-Verbindungsablauf
 
 ```
-User Input (Quick Connect)
+User Input (Schnellverbindung)
     ↓
 Connection Manager (lookup saved or new connection)
     ↓

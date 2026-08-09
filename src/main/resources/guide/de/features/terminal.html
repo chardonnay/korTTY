@@ -2872,7 +2872,7 @@
 <tbody>
 <tr>
 <td><strong>Neuer Tab</strong></td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> (Befehl+T unter macOS) – öffnet die Schnellverbindung, um eine neue Sitzung zu starten</td>
 </tr>
 <tr>
 <td><strong>Tab schließen</strong></td>
@@ -2940,7 +2940,7 @@
 <p><strong>Zoom zurücksetzen</strong> stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → <strong>Schriftgröße</strong> → <strong>Zurücksetzen</strong>. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.</p>
 <h2 id="hintergrundtransparenz">Hintergrundtransparenz<a class="headerlink" href="#hintergrundtransparenz" title="Permanent link">&para;</a></h2>
 <p><strong>Ansicht → Zoom → Hintergrundtransparenz</strong> ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.</p>
-<p>Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
+<p>Nur der Terminalbereich wird transparent – die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.</p>
 <p>Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit <span class="keys"><kbd class="key-f12">F12</kbd></span> den Vollbildmodus oder mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.</p>
 <p>Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird <strong>das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam</strong>; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).</p>
 <p>Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native macOS-Menüleiste kann keinen Schieberegler hosten).</p>
@@ -2970,7 +2970,7 @@
 <h3 id="benutzerkontrollen">Benutzerkontrollen<a class="headerlink" href="#benutzerkontrollen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Aktuelles Terminal</strong>: Verwenden Sie <strong>Ansicht &gt; Terminaleffekt</strong> oder das Terminal-Kontextmenü, um einen Effekt für das aktive Terminal auszuwählen.</li>
-<li><strong>Quick Connect</strong>: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.</li>
+<li><strong>Schnellverbindung</strong>: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.</li>
 <li><strong>Verbindungsmanager</strong>: Speichern Sie den Effekt und die Geschwindigkeit einer gespeicherten Verbindung, damit neue Tabs sie automatisch verwenden.</li>
 <li><strong>Geschwindigkeit</strong>: Verwenden Sie den Schieberegler für <code>1x</code> bis <code>10x</code>; Wenn das immer noch zu langsam ist, geben Sie im numerischen Geschwindigkeitsfeld einen benutzerdefinierten Wert bis zu <code>99x</code> ein.</li>
 </ul>
@@ -3004,7 +3004,7 @@
 <ul>
 <li><strong>Verbindungsmanager &gt; Verbindung bearbeiten &gt; Terminal-Logging</strong> für eine gespeicherte Verbindung.</li>
 <li>
-<p><strong>Quick Connect &gt; Terminalprotokoll</strong> für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.</p>
+<p><strong>Schnellverbindung &gt; Terminalprotokoll</strong> für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.</p>
 </li>
 <li>
 <p>Protokollierung aktivieren.</p>
@@ -3014,7 +3014,7 @@
 <li><strong>Plain Text</strong> – Eine Zeile pro Ausgabezeile, mit Zeitstempel.</li>
 <li><strong>XML</strong> – Strukturiertes XML mit Zeitstempeln.</li>
 <li><strong>JSON</strong> – Strukturiertes JSON mit Zeitstempeln.</li>
-<li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB) und den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) an und deaktivieren Sie <strong>Jeden Tag eine neue Datei starten</strong> oder <strong>Geschlossene Dateien komprimieren (gzip)</strong> – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ von Quick Connect behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.</li>
+<li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB) und den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) an und deaktivieren Sie <strong>Jeden Tag eine neue Datei starten</strong> oder <strong>Geschlossene Dateien komprimieren (gzip)</strong> – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ der Schnellverbindung behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.</li>
 </ul>
 <h3 id="dateinamen">Dateinamen<a class="headerlink" href="#dateinamen" title="Permanent link">&para;</a></h3>
 <p>Jede Datei trägt den Namen <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, zum Beispiel <code>2026-08-04-14-30-12-web01_1.log.gz</code>. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten <code>_1</code> und <code>_2</code> und schreiben niemals in die Datei des anderen.</p>
