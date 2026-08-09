@@ -35,7 +35,7 @@ Wenn das Master-Kontrollkästchen aktiviert ist, steuern fünf Unteroptionen, wa
 
 #### Parameter-Zulassungslisten und Längenbeschränkungen
 
-Jeder Parameter, mit dem das Skript aufgerufen wird, wird validiert: die genaue erwartete Parameteranzahl, eine Zeichenzulassungsliste pro Parameter, die davon abgeleitet wird, wie das Skript den Wert tatsächlich verwendet (eine Zahl, ein Dateipfad, ein Hostname, ein Schlüsselwort, freier Text) und eine maximale Länge pro Parameter. Steuerzeichen, NUL-Bytes und Shell-Metazeichen (`;`, `|`, `&`, `` ` ``, `$`, `\`, `<KTPH007>`, eingebettete Zeilenumbrüche) werden für jeden Parameter abgelehnt, der sie nicht rechtmäßig benötigt, sodass überlange oder in böser Absicht erstellte Werte abgelehnt statt verarbeitet werden.
+Jeder Parameter, mit dem das Skript aufgerufen wird, wird validiert: die genaue erwartete Parameteranzahl, eine Zeichenzulassungsliste pro Parameter, die davon abgeleitet wird, wie das Skript den Wert tatsächlich verwendet (eine Zahl, ein Dateipfad, ein Hostname, ein Schlüsselwort, freier Text) und eine maximale Länge pro Parameter. Steuerzeichen, NUL-Bytes und Shell-Metazeichen (`;`, `|`, `&`, `` ` ``, `$`, `\`, `<`, `>`, eingebettete Zeilenumbrüche) werden für jeden Parameter abgelehnt, der sie nicht rechtmäßig benötigt, sodass überlange oder in böser Absicht erstellte Werte abgelehnt statt verarbeitet werden.
 
 #### Überprüfung des Eingabedateiformats
 
@@ -69,4 +69,4 @@ Der Wächter nutzt die eigenen integrierten Funktionen und Standardbibliotheken 
 
 ## Verwaltung der Auswahl
 
-Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine Live-Zählung** der effektiv aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.
+Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine **Live-Zählung** der effektiv aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.

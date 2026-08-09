@@ -988,6 +988,12 @@
       "note": "Matches the German snippets.ai.analysis.profile.using UI label in generated guide prose."
     },
     {
+      "from": "Live-Zählung**",
+      "to": "**Live-Zählung**",
+      "scope": "markdown",
+      "note": "MT merges 'live **count**' into the compound and keeps only the closing asterisks, leaving unbalanced emphasis on the input-hardening page. The trailing ** keeps the row from touching the plain 'Live-Zählung' elsewhere in the corpus."
+    },
+    {
       "from": "über Quick Connect und Connection Manager",
       "to": "über die Schnellverbindung und den Connection Manager",
       "note": "Feature name: the German UI calls Quick Connect 'Schnellverbindung' (menu.connections.quickConnect), but MT keeps the English name in prose. The contextual rows of this block repair the article and case around the feminine noun before the bare row unifies the remaining plain mentions; longest first, as the ordering invariant requires."

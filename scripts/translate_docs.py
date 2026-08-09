@@ -60,7 +60,7 @@ CACHE = SITE / ".docs-translate-cache"
 TARGET = "de"
 # Bump whenever masking/format-preservation rules change so cached pages are
 # regenerated with the new rules instead of silently keeping stale Markdown.
-TRANSLATION_FORMAT_VERSION = "12"
+TRANSLATION_FORMAT_VERSION = "13"
 
 # Asset subtrees that are generated/staged elsewhere — never copy or translate.
 SKIP_DIRS = {"diagrams", "screenshots"}
@@ -77,7 +77,13 @@ INLINE_PATTERNS = [
     re.compile(r"!\[[^\]]*\]\([^)]*\)"),   # ![alt](path) — whole image (alt rarely needs DE)
     re.compile(r"(?<!!)\[(?=[^\]\n]+\]\([^)]*\))"),  # opening [ of a normal Markdown link
     re.compile(r"\]\([^)]*\)"),            # the ](url) part of a link — keep the URL
-    re.compile(r"`[^`]+`"),                # inline code
+    # Inline code, including the CommonMark double-backtick form that shows a literal
+    # backtick (`` ` ``). The old `[^`]+` mis-paired those doubled delimiters: on the
+    # metacharacter list "(`$`, `\`, `<`, `>`)" it masked the ", " runs BETWEEN the code
+    # spans, left < and > bare for the HTML-tag rule below, and that rule then stored
+    # "<KTPH007>" as a fragment — a placeholder nested inside a store entry, which
+    # unmasking re-emitted as literal token text on the input-hardening page.
+    re.compile(r"(?<!`)(`+)(.+?)(?<!`)\1(?!`)"),
     # :material-rocket-launch: / :octicons-arrow-right-24: PyMdown emoji/icon shortcodes. Left
     # unmasked, the translator "helpfully" translated the identifier itself
     # (":material-rocket-launch:" -> ":material-raketenstart:"), which the icon font does not
@@ -109,8 +115,13 @@ def mask(text: str):
 
 
 def unmask(text: str, store: list[str]) -> str:
-    for i, frag in enumerate(store):
-        text = text.replace(f"KTPH{i:03d}", frag)
+    # Highest token first: a later pattern can match across an already-masked token (an
+    # HTML-tag match spanning a code span), so its fragment embeds that token. Ascending
+    # order restores the outer fragment after its embedded token's pass has already run,
+    # leaving the token literal in the page; descending order restores outer fragments
+    # first and their embedded tokens on a later step.
+    for i in range(len(store) - 1, -1, -1):
+        text = text.replace(f"KTPH{i:03d}", store[i])
     return text
 
 
