@@ -18,7 +18,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 | Aktion | Verknüpfung |
 |--------|----------|
-| **Neuer Tab** | ++ctrl+t++ (Befehl+T unter macOS) – öffnet Quick Connect, um eine neue Sitzung zu starten |
+| **Neuer Tab** | ++ctrl+t++ (Befehl+T unter macOS) – öffnet die Schnellverbindung, um eine neue Sitzung zu starten |
 | **Tab schließen** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
 | **Nächster Tab** | ++ctrl+Tab++ |
 | **Vorheriger Tab** | ++ctrl+shift+Tab++ |
@@ -62,7 +62,7 @@ Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausra
 
 **Ansicht → Zoom → Hintergrundtransparenz** ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.
 
-Nur der Terminalbereich wird transparent – ​​die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.
+Nur der Terminalbereich wird transparent – die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.
 
 Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit ++f12++ den Vollbildmodus oder mit ++ctrl+shift+f++ den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.
 
@@ -105,7 +105,7 @@ Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation än
 ### Benutzerkontrollen
 
 - **Aktuelles Terminal**: Verwenden Sie **Ansicht > Terminaleffekt** oder das Terminal-Kontextmenü, um einen Effekt für das aktive Terminal auszuwählen.
-- **Quick Connect**: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.
+- **Schnellverbindung**: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.
 - **Verbindungsmanager**: Speichern Sie den Effekt und die Geschwindigkeit einer gespeicherten Verbindung, damit neue Tabs sie automatisch verwenden.
 - **Geschwindigkeit**: Verwenden Sie den Schieberegler für `1x` bis `10x`; Wenn das immer noch zu langsam ist, geben Sie im numerischen Geschwindigkeitsfeld einen benutzerdefinierten Wert bis zu `99x` ein.
 
@@ -140,7 +140,7 @@ Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in e
 An einer der beiden Stellen einstellbar:
 
 - **Verbindungsmanager > Verbindung bearbeiten > Terminal-Logging** für eine gespeicherte Verbindung.
-- **Quick Connect > Terminalprotokoll** für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.
+- **Schnellverbindung > Terminalprotokoll** für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.
 
 1. Protokollierung aktivieren.
 2. Wählen Sie einen **Protokollordner**. Bleibt es leer, verwendet KorTTY `~/.kortty/terminal-logs`. Den Ordner wählst du, die Dateinamen vergibt korTTY.
@@ -148,7 +148,7 @@ An einer der beiden Stellen einstellbar:
    - **Plain Text** – Eine Zeile pro Ausgabezeile, mit Zeitstempel.
    - **XML** – Strukturiertes XML mit Zeitstempeln.
    - **JSON** – Strukturiertes JSON mit Zeitstempeln.
-4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB) und den **Aufbewahrungszeitraum** (Standard: 30 Tage) an und deaktivieren Sie **Jeden Tag eine neue Datei starten** oder **Geschlossene Dateien komprimieren (gzip)** – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ von Quick Connect behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.
+4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB) und den **Aufbewahrungszeitraum** (Standard: 30 Tage) an und deaktivieren Sie **Jeden Tag eine neue Datei starten** oder **Geschlossene Dateien komprimieren (gzip)** – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ der Schnellverbindung behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.
 
 ### Dateinamen
 

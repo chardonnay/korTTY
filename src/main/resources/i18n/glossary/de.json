@@ -4,6 +4,11 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "\u200b",
+      "to": "",
+      "note": "U+200B zero-width space. Google MT drops (usually doubled) zero-width spaces into German prose; strip them first so a hidden character can never sit inside a later row's match."
+    },
+    {
       "from": "**KI-Verarbeitungsfenster**",
       "to": "Fenster **KI-Verarbeitung**",
       "scope": "markdown",
@@ -981,6 +986,56 @@
       "to": "Profil:",
       "scope": "markdown",
       "note": "Matches the German snippets.ai.analysis.profile.using UI label in generated guide prose."
+    },
+    {
+      "from": "über Quick Connect und Connection Manager",
+      "to": "über die Schnellverbindung und den Connection Manager",
+      "note": "Feature name: the German UI calls Quick Connect 'Schnellverbindung' (menu.connections.quickConnect), but MT keeps the English name in prose. The contextual rows of this block repair the article and case around the feminine noun before the bare row unifies the remaining plain mentions; longest first, as the ordering invariant requires."
+    },
+    {
+      "from": "Öffnen Sie Quick Connect",
+      "to": "Öffnen Sie die Schnellverbindung"
+    },
+    {
+      "from": "öffnet Quick Connect",
+      "to": "öffnet die Schnellverbindung"
+    },
+    {
+      "from": "von Quick Connect",
+      "to": "der Schnellverbindung",
+      "note": "Genitive: 'Der Abschnitt „Terminalprotokoll“ von Quick Connect' must read 'der Abschnitt … der Schnellverbindung'."
+    },
+    {
+      "from": "über Quick Connect",
+      "to": "über die Schnellverbindung"
+    },
+    {
+      "from": "in Quick Connect",
+      "to": "in der Schnellverbindung"
+    },
+    {
+      "from": "im **Quick Connect**",
+      "to": "in der **Schnellverbindung**",
+      "scope": "markdown"
+    },
+    {
+      "from": "**Quick Connect**, den **Verbindungsmanager**",
+      "to": "die **Schnellverbindung**, den **Verbindungsmanager**",
+      "scope": "markdown",
+      "note": "Keeps the three entry points on the connections page parallel: die Schnellverbindung, den Verbindungsmanager, gespeicherte Projekte."
+    },
+    {
+      "from": "Quick Connect verfügt",
+      "to": "Die Schnellverbindung verfügt"
+    },
+    {
+      "from": "Quick Connect hat",
+      "to": "Die Schnellverbindung hat"
+    },
+    {
+      "from": "Quick Connect",
+      "to": "Schnellverbindung",
+      "note": "Bare form, last: every row above still contains this substring. What it reaches is the dialog name itself — menu paths, bold labels, the architecture diagram's entry-point label — where the bare name is correct as-is."
     }
   ]
 }

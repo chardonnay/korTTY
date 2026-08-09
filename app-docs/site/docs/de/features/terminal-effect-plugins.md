@@ -73,7 +73,7 @@ Benutzer können:
 - Importieren Sie eine externe `.jar` Plugin, in das KorTTY kopiert `~/.kortty/plugins`
 - Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)
 
-Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder **Ansicht > Terminaleffekt** aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über Quick Connect und Connection Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; Das numerische Feld akzeptiert Werte bis zu `99x`.
+Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder **Ansicht > Terminaleffekt** aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über die Schnellverbindung und den Connection Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; Das numerische Feld akzeptiert Werte bis zu `99x`.
 
 ## SPI-Klassen
 
@@ -407,7 +407,7 @@ Die Gradle-Aufgabe `terminalEffectPreviewSmoke` rendert alle integrierten Vorsch
 Sitzungsverhalten validieren:
 
 1. Aktivieren Sie den Effekt über das Terminal-Kontextmenü oder **Ansicht > Terminaleffekt**
-2. Wählen Sie es in Quick Connect und in einem gespeicherten Connection Manager-Eintrag aus
+2. Wählen Sie es in der Schnellverbindung und in einem gespeicherten Connection Manager-Eintrag aus
 3. Ändern Sie die Animationsgeschwindigkeit mit dem Schieberegler und dem numerischen Feld
 4. Führen Sie Befehle aus, die eine langsame, schnelle, farbige und große Ausgabe erzeugen
 5. Schließen Sie die Lasche wieder an und schließen Sie sie

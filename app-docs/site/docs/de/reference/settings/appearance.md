@@ -35,7 +35,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Schriftartenfamilie | Dropdown-Liste | Gängige Monospace-Schriftarten (Monaco, Courier New, Menlo, Fira Code usw.) und alle Systemschriftarten | Monospaced | `defaultTerminalSettings.fontFamily` |
+| Schriftartenfamilie | Dropdown-Liste | Gängige Festbreitenschriften (Monaco, Courier New, Menlo, Fira Code usw.) und alle Systemschriftarten | Monospaced | `defaultTerminalSettings.fontFamily` |
 | Schriftgröße | Nummer | 8–72 pt | 14 | `defaultTerminalSettings.fontSize` |
 
 !!! note
@@ -79,5 +79,5 @@ Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sech
 ## Cross-Tab-Integration
 
 - **Registerkarte „Farben“**: Wählen Sie über das Dropdown-Menü „Farbprofil“ ein Thema aus. Wenn die Schriftartoption der Registerkarte „Themen“ aktiviert ist, wird auch die Schriftart des ausgewählten Designs angewendet.
-- **Verbindungseinstellungen**: Jede einzelne SSH-Verbindung kann die globale Schriftart und das globale Design über ihre eigenen Einstellungen überschreiben (zugänglich im Verbindungsmanager oder in Quick Connect).
+- **Verbindungseinstellungen**: Jede einzelne SSH-Verbindung kann die globale Schriftart und das globale Design über ihre eigenen Einstellungen überschreiben (zugänglich im Verbindungsmanager oder in der Schnellverbindung).
 - **Terminal-Emulation**: Schrift- und Designfarben wirken sich nur auf den Terminalinhalt aus; Der Stil der Anwendungsoberfläche (Menüleiste, Dialoge, Registerkarten) wird durch die App-Designeinstellung der Registerkarte „Darstellung“ bestimmt.
