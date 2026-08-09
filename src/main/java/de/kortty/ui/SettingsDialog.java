@@ -565,8 +565,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 foregroundColorPicker.setValue(Color.web(selected.getForegroundColor()));
                 backgroundColorPicker.setValue(Color.web(selected.getBackgroundColor()));
                 cursorColorPicker.setValue(Color.web(selected.getCursorColor()));
-                cursorBlinkCheck.setSelected(isCursorBlink(selected.getCursorStyle()));
-                settings.setCursorStyle(selected.getCursorStyle());
+                // Take the profile's cursor SHAPE but keep the user's blink preference: "Cursor blinks"
+                // is an explicit setting of its own, and every built-in profile ships BLINK_*. Applying
+                // the profile's style verbatim silently re-enabled blinking (and re-ticked the box), so
+                // the "off" choice was lost on save and the cursor blinked again after a restart.
+                settings.setCursorStyle(deriveCursorStyle(selected.getCursorStyle(), cursorBlinkCheck.isSelected()));
             } catch (Exception ex) {
                 org.slf4j.LoggerFactory.getLogger(getClass())
                     .error("Error applying theme from combo selection", ex);
@@ -3586,15 +3589,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
+    /**
+     * Adopts the selected theme's cursor SHAPE while preserving the user's "Cursor blinks" preference
+     * (see the color-profile combo handler): selecting a theme must not reset that toggle.
+     */
     private void applyThemeCursorStyleToCurrentSettings(Theme theme) {
         if (theme == null) {
             return;
         }
-        String cursorStyle = theme.getCursorStyle();
-        settings.setCursorStyle(cursorStyle);
-        if (cursorBlinkCheck != null) {
-            cursorBlinkCheck.setSelected(isCursorBlink(cursorStyle));
-        }
+        boolean blink = cursorBlinkCheck != null
+                ? cursorBlinkCheck.isSelected()
+                : isCursorBlink(settings.getCursorStyle());
+        settings.setCursorStyle(deriveCursorStyle(theme.getCursorStyle(), blink));
     }
 
     private static Theme copyTheme(Theme source) {
@@ -3697,7 +3703,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private static String deriveCursorStyle(String currentStyle, boolean blink) {
-        return TerminalCursorStyleSupport.withBlinkingPreference(currentStyle, blink);
+        // Stored preference: the saved style must always reflect the checkbox, even when the current
+        // style carries a shape this build does not know (which would otherwise be returned unchanged).
+        return TerminalCursorStyleSupport.withStoredBlinkingPreference(currentStyle, blink);
     }
 
     

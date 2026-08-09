@@ -22,6 +22,19 @@ final class TerminalCursorStyleSupport {
         return (blinking ? BLINK_PREFIX : STEADY_PREFIX) + suffix;
     }
 
+    /**
+     * Same as {@link #withBlinkingPreference(String, boolean)} but for the preference that gets SAVED:
+     * the result always matches {@code blinking} and is always one of the six styles the terminal
+     * understands. An explicit "cursor blinks" choice must never be silently dropped (nor persisted as
+     * a style the terminal will refuse) just because the current style carries an unknown shape —
+     * hand-edited XML, a style written by another version, a plugin-supplied style. Unknown shapes keep
+     * their spelling in the per-pane effect path above; here they fall back to the default shape.
+     */
+    static String withStoredBlinkingPreference(String cursorStyle, boolean blinking) {
+        String shape = shapeSuffix(cursorStyle);
+        return (blinking ? BLINK_PREFIX : STEADY_PREFIX) + (shape != null ? shape : DEFAULT_SHAPE);
+    }
+
     static int caretBlinkingPeriodMs(String cursorStyle, int blinkingPeriodMs) {
         return isBlinkingStyle(cursorStyle) ? blinkingPeriodMs : 0;
     }

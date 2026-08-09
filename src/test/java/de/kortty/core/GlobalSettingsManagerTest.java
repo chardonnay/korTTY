@@ -1173,6 +1173,28 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void defaultTerminalSettingsPersistDisabledCursorBlink() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-cursor-blink");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            ConnectionSettings defaults = new ConnectionSettings();
+            defaults.setCursorStyle("STEADY_BLOCK");
+            defaults.setThemeId("dark"); // a selected color profile must not resurrect the blinking cursor
+            manager.getSettings().setDefaultTerminalSettings(defaults);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getDefaultTerminalSettings().getCursorStyle())
+                    .isEqualTo("STEADY_BLOCK");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void skipMasterPasswordPromptDefaultsToFalseAndPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-skip-master-password");
         try {
