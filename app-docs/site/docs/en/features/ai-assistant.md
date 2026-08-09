@@ -113,7 +113,7 @@ Open **AI > AI Manager > AI Skills**. The library moved here from the global set
 ### Controls
 
 * **Enable AI Skills** disables or enables all skills globally.
-* **Automatically send only matching skills** sends only active skills that match the current request. When disabled, all active skills with a matching target are sent.
+* **Automatically send only matching skills** sends only active skills that match the current request — at most the two highest-scoring matches; skills assigned to the active connection or explicitly selected in the snippet editor's **AI skills** picker are added on top of that limit. When disabled, all active skills with a matching target are sent.
 * **Add** creates a new active skill with target `Both`.
 * **Delete** removes the selected skill after confirmation.
 * **Import** accepts `.md` and `.markdown` files.

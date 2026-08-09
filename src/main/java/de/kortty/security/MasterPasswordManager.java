@@ -24,7 +24,12 @@ import java.util.Set;
 public class MasterPasswordManager {
     
     private static final Logger logger = LoggerFactory.getLogger(MasterPasswordManager.class);
-    private static final String MASTER_KEY_FILE = "master.key";
+    /**
+     * Salt + PBKDF2 verification hash. Public because BackupManager includes this file in
+     * backups by name — a literal there once drifted to a name that never existed on disk,
+     * silently dropping the file from every backup.
+     */
+    public static final String MASTER_KEY_FILE = "master.key";
     /** Obfuscated copy of the master password for the "skip master-password prompt" setting. */
     private static final String AUTO_UNLOCK_FILE = "master.autounlock";
     private static final Set<PosixFilePermission> OWNER_ONLY = Set.of(

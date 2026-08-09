@@ -830,10 +830,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#master-password-hash" class="md-nav__link">
+  <a href="#masterkey" class="md-nav__link">
     <span class="md-ellipsis">
       
-        master-password-hash
+        master.key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#masterautounlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        master.autounlock
       
     </span>
   </a>
@@ -884,6 +895,28 @@
     <span class="md-ellipsis">
       
         history/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        journals/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        terminal-logs/
       
     </span>
   </a>
@@ -2793,10 +2826,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#master-password-hash" class="md-nav__link">
+  <a href="#masterkey" class="md-nav__link">
     <span class="md-ellipsis">
       
-        master-password-hash
+        master.key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#masterautounlock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        master.autounlock
       
     </span>
   </a>
@@ -2847,6 +2891,28 @@
     <span class="md-ellipsis">
       
         history/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        journals/
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminal-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        terminal-logs/
       
     </span>
   </a>
@@ -3009,16 +3075,18 @@
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── master-password-hash               # Hashed master password (PBKDF2)
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── kortty.log                         # Application log file
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── journals/                          # Session journals (default location; configurable)
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── master.key                         # Hashed master password (PBKDF2)
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── kortty.log                         # Application log file
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-configuration-files">Core configuration files<a class="headerlink" href="#core-configuration-files" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -3031,6 +3099,7 @@
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
+- Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)</p>
@@ -3057,7 +3126,7 @@
 <p><strong>Security:</strong> Key passphrases are encrypted with AES-256-GCM using the master password.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>SSH keys referenced in this file can be kept in their original location or copied to <code>~/.kortty/ssh-keys/</code> for easy backup and migration via the <em>Copy to User Directory</em> action in SSH key management.</p>
+<p>SSH keys referenced in this file can be kept in their original location or copied to <code>~/.kortty/ssh-keys/</code> via the <em>Copy to User Directory</em> action in SSH key management. Copied keys are included in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</p>
 </div>
 <h3 id="ssh-host-keysproperties">ssh-host-keys.properties<a class="headerlink" href="#ssh-host-keysproperties" title="Permanent link">&para;</a></h3>
 <p>The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.</p>
@@ -3085,6 +3154,12 @@
 - Translation API settings
 - Video/recording preferences
 - Terminal logging defaults
+- Session journal defaults (storage folder, capture-log format, AI summaries with interval and profile, line window and token budget, journal page appearance, custom markers and marker rules) and the remembered journal window geometries
+- PDF export watermark (off by default; custom text and colour) and document export footer (on by default; custom text)
+- Master password auto-login flag (<code>skipMasterPasswordPrompt</code>)
+- AI request timeout in minutes (0 = no limit)
+- Snippet input-hardening defaults (enabled, options, max file size) and snippet translation target language
+- "Open tool windows as tabs" flag
 - SSH keep-alive settings
 - SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
 - JobScheduler status display preference
@@ -3173,14 +3248,16 @@
 - Variable name, value, type
 - Scope (local or shared)
 - Default values and validation rules</p>
-<h3 id="master-password-hash">master-password-hash<a class="headerlink" href="#master-password-hash" title="Permanent link">&para;</a></h3>
+<h3 id="masterkey">master.key<a class="headerlink" href="#masterkey" title="Permanent link">&para;</a></h3>
 <p>Binary file containing the hashed master password.</p>
 <p><strong>Format:</strong> PBKDF2 hash with 310,000 iterations</p>
 <p><strong>Security:</strong> This file does not contain the actual master password—only a cryptographic hash used to verify the password you enter on startup. If this file is lost or corrupted, you must restart KorTTY and set a new master password (though you will lose access to previously stored encrypted credentials and SSH key passphrases).</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If you forget your master password, delete <code>master-password-hash</code> and <code>credentials.xml</code>, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.</p>
+<p>If you forget your master password, delete <code>master.key</code> and <code>credentials.xml</code>, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.</p>
 </div>
+<h3 id="masterautounlock">master.autounlock<a class="headerlink" href="#masterautounlock" title="Permanent link">&para;</a></h3>
+<p>Written only while <a href="settings/security.html">auto-login</a> is enabled: a copy of the master password, <strong>obfuscated only — not encrypted</strong>, with owner-only file permissions. Deleting it (or disabling the option) restores the normal startup prompt.</p>
 <h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
 <p>Text file listing disabled terminal-effect plugin IDs (one per line).</p>
 <p><strong>Purpose:</strong> When you disable a terminal-effect plugin via <em>Plugins &gt; Terminal Effects</em>, its ID is written to this file so it remains disabled after restart.</p>
@@ -3203,12 +3280,16 @@
 <p>Compressed terminal session history.</p>
 <p><strong>Format:</strong> GZIP-compressed text files, one per terminal session</p>
 <p><strong>Naming:</strong> <code>{session-id}_{timestamp}.history.gz</code> (for session history from terminal logging)</p>
-<p><strong>Purpose:</strong> Stores terminal command history and output when terminal logging is enabled for a connection.</p>
+<p><strong>Purpose:</strong> Stores project/session scrollback history so reopened sessions can restore their terminal content.</p>
 <p><strong>Access:</strong> Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This directory only stores history if you explicitly enable <em>Terminal Logging</em> for a connection in the <em>Terminal Logging</em> tab when creating or editing a connection.</p>
+<p>Per-connection <em>Terminal Logging</em> does not write here: its generated log files go to the folder configured on the connection's Terminal Logging tab, or to <code>~/.kortty/terminal-logs/</code> when that folder is left empty.</p>
 </div>
+<h3 id="journals">journals/<a class="headerlink" href="#journals" title="Permanent link">&para;</a></h3>
+<p>Session journals — one self-contained directory per journal (location configurable in <strong>Settings &gt; Logging &gt; Session Journal</strong>). Each journal directory holds <code>journal.xml</code> (the curated document: metadata, AI summaries, markers, notes, screenshot references), the append-only capture log <code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code> (JSON Lines by default) with gzip-compressed rotated parts (default 25 MB per part), the generated <code>journal.html</code> timeline page, and <code>screenshots/*.png</code>. See <a href="../features/session-journal.html">Session journal</a>.</p>
+<h3 id="terminal-logs">terminal-logs/<a class="headerlink" href="#terminal-logs" title="Permanent link">&para;</a></h3>
+<p>Default target folder for <a href="../features/terminal.html#terminal-logging">per-connection terminal logs</a> when a connection's log folder field is left empty. File naming, daily rotation, compression and retention follow the connection's logging configuration.</p>
 <h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
 <p>User-imported terminal-effect plugin JARs.</p>
 <p><strong>Purpose:</strong> External terminal-effect plugins that you import via <em>Plugins &gt; Terminal Effects &gt; Import</em>.</p>
@@ -3246,16 +3327,16 @@
 </div>
 <h3 id="ssh-keys">ssh-keys/<a class="headerlink" href="#ssh-keys" title="Permanent link">&para;</a></h3>
 <p>Optional directory for copied SSH keys.</p>
-<p><strong>Purpose:</strong> Stores copies of SSH keys for easy backup and migration.</p>
+<p><strong>Purpose:</strong> Stores copies of SSH keys in one place for backup and migration.</p>
 <p><strong>How to use:</strong>
 1. Open <em>Management &gt; Manage SSH Keys...</em>
 2. Select an SSH key and click <em>Copy to User Directory</em>
 3. The key is copied to <code>~/.kortty/ssh-keys/</code></p>
-<p><strong>Backup:</strong> SSH keys in this directory are included when you create a backup via <em>Edit &gt; Create Backup</em>.</p>
+<p><strong>Backup:</strong> The key files in this directory are included when you create a backup via <em>Edit &gt; Create Backup</em> (the archive is AES-256- or GPG-encrypted). On import they are restored with owner-only file permissions, and the import merges: local keys are never deleted, and existing files are only replaced with <strong>Overwrite</strong> enabled.</p>
 <p><strong>Benefits:</strong>
 - Centralized location for all SSH keys
-- Easy migration to new machines
-- Included in encrypted backups</p>
+- Included in encrypted backups
+- Easy migration to new machines</p>
 <h2 id="security-summary">Security summary<a class="headerlink" href="#security-summary" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3317,18 +3398,15 @@
 <h2 id="backup-and-recovery">Backup and recovery<a class="headerlink" href="#backup-and-recovery" title="Permanent link">&para;</a></h2>
 <p>When you create a backup via <em>Edit &gt; Create Backup</em>, the following configuration is included:</p>
 <ul>
-<li>All <code>.xml</code> configuration files</li>
-<li><code>master-password-hash</code></li>
-<li><code>history/</code> directory</li>
+<li>All <code>.xml</code> configuration files (connections, credentials, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)</li>
+<li><code>master.key</code></li>
 <li><code>projects/</code> directory</li>
-<li><code>i18n/</code> directory (generated language files)</li>
-<li><code>ssh-keys/</code> directory (if present)</li>
+<li><code>ssh-keys/</code> directory — copied SSH key files (restored with owner-only permissions; imports merge and never delete local keys)</li>
 <li><code>ssh-host-keys.properties</code> interactive host-key trust store (not its transient <code>.lock</code> file)</li>
-<li><code>snippets.xml</code> and related snippet data</li>
 <li><code>llm/models.xml</code> local-model registrations</li>
 <li><code>rag/stores.json</code> knowledge-store/source metadata</li>
 </ul>
-<p>Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable.</p>
+<p>Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable. The <code>history/</code> and <code>i18n/</code> directories are also not part of a backup, and neither is the auto-login file <code>master.autounlock</code>.</p>
 <p>The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
@@ -3351,7 +3429,7 @@
 - KorTTY creates the <code>~/.kortty/</code> directory and all necessary subdirectories on first launch.
 - If a configuration file is missing, KorTTY uses sensible defaults and creates the file on next save.</p>
 <p><strong>Encryption errors:</strong>
-- If you forget your master password, you must delete <code>master-password-hash</code> and set a new password. Previously encrypted data will be inaccessible.</p>
+- If you forget your master password, you must delete <code>master.key</code> and set a new password. Previously encrypted data will be inaccessible.</p>
 <p><strong>Corrupted XML files:</strong>
 - If a <code>.xml</code> file becomes corrupted, restore from a backup or delete the file. KorTTY will recreate it with defaults on next save.</p>
 <p><strong>Knowledge-store registry or snapshot cannot be read:</strong>
@@ -3365,7 +3443,7 @@
 <p><strong>Log file size:</strong>
 - <code>kortty.log</code> grows during the application session. It is not automatically rotated. You can safely delete it while KorTTY is closed.</p>
 <p><strong>Master password recovery:</strong>
-- There is no recovery for a forgotten master password. If you lose it, delete <code>master-password-hash</code> and <code>credentials.xml</code>, restart KorTTY, and set a new password.</p>
+- There is no recovery for a forgotten master password. If you lose it, delete <code>master.key</code> and <code>credentials.xml</code>, restart KorTTY, and set a new password.</p>
 
 
 

@@ -102,7 +102,7 @@ For ordinary korTTY AI actions, retrieval uses the user's prompt, or the selecte
 
 The result is inserted after korTTY's action contract and AI Skills and before the model-family prompt preset. It is wrapped in `<retrieved_context>` and explicitly marked as untrusted data, not instructions. Source locations receive stable markers such as `[R1]`; whenever an answer relies on an excerpt, the model is required to cite that exact marker. Text inside a source cannot override system rules, request tools, reveal secrets, or close the retrieved-context wrapper.
 
-Terminal AI Agent, Planning, Swarm, and scheduled agent prompts do not receive RAG context merely because a normal profile has stores attached. These autonomous flows require their own explicit RAG opt-in so background automation never expands its local-data scope silently.
+Terminal AI Agent, Planning, Swarm, and scheduled agent prompts do not receive RAG context merely because a normal profile has stores attached. These autonomous flows require their own explicit RAG opt-in so background automation never expands its local-data scope silently. The dedicated snippet/workflow **Diagram** request is a second, always-on exception: it is built from the source alone and never receives knowledge-store excerpts, so diagrams show no `[R1]`-style source markers even when the profile has stores attached.
 
 ## Test retrieval
 

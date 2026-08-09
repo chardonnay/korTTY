@@ -30,11 +30,13 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-├── master-password-hash               # Hashed master password (PBKDF2)
+├── master.key                         # Hashed master password (PBKDF2)
+├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
-├── journals/                          # Session journals (default location; configurable)
+├── journals/                          # Session journals (one directory per journal)
+├── terminal-logs/                     # Default folder for per-connection terminal logs
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
@@ -55,6 +57,7 @@ Contains all saved SSH connections with their settings.
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
+- Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
@@ -87,7 +90,7 @@ Manages centralized SSH key storage.
 **Security:** Key passphrases are encrypted with AES-256-GCM using the master password.
 
 !!! tip
-    SSH keys referenced in this file can be kept in their original location or copied to `~/.kortty/ssh-keys/` for easy backup and migration via the *Copy to User Directory* action in SSH key management.
+    SSH keys referenced in this file can be kept in their original location or copied to `~/.kortty/ssh-keys/` via the *Copy to User Directory* action in SSH key management. Copied keys are included in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
 
 ### ssh-host-keys.properties
 
@@ -121,6 +124,12 @@ Global application preferences and defaults.
 - Translation API settings
 - Video/recording preferences
 - Terminal logging defaults
+- Session journal defaults (storage folder, capture-log format, AI summaries with interval and profile, line window and token budget, journal page appearance, custom markers and marker rules) and the remembered journal window geometries
+- PDF export watermark (off by default; custom text and colour) and document export footer (on by default; custom text)
+- Master password auto-login flag (`skipMasterPasswordPrompt`)
+- AI request timeout in minutes (0 = no limit)
+- Snippet input-hardening defaults (enabled, options, max file size) and snippet translation target language
+- "Open tool windows as tabs" flag
 - SSH keep-alive settings
 - SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
 - JobScheduler status display preference
@@ -230,7 +239,7 @@ Stores variable definitions for use within snippets.
 - Scope (local or shared)
 - Default values and validation rules
 
-### master-password-hash
+### master.key
 Binary file containing the hashed master password.
 
 **Format:** PBKDF2 hash with 310,000 iterations
@@ -238,7 +247,10 @@ Binary file containing the hashed master password.
 **Security:** This file does not contain the actual master password—only a cryptographic hash used to verify the password you enter on startup. If this file is lost or corrupted, you must restart KorTTY and set a new master password (though you will lose access to previously stored encrypted credentials and SSH key passphrases).
 
 !!! warning
-    If you forget your master password, delete `master-password-hash` and `credentials.xml`, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.
+    If you forget your master password, delete `master.key` and `credentials.xml`, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.
+
+### master.autounlock
+Written only while [auto-login](settings/security.md) is enabled: a copy of the master password, **obfuscated only — not encrypted**, with owner-only file permissions. Deleting it (or disabling the option) restores the normal startup prompt.
 
 ### terminal-effect-plugins.disabled
 Text file listing disabled terminal-effect plugin IDs (one per line).
@@ -270,12 +282,18 @@ Compressed terminal session history.
 
 **Naming:** `{session-id}_{timestamp}.history.gz` (for session history from terminal logging)
 
-**Purpose:** Stores terminal command history and output when terminal logging is enabled for a connection.
+**Purpose:** Stores project/session scrollback history so reopened sessions can restore their terminal content.
 
 **Access:** Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.
 
 !!! note
-    This directory only stores history if you explicitly enable *Terminal Logging* for a connection in the *Terminal Logging* tab when creating or editing a connection.
+    Per-connection *Terminal Logging* does not write here: its generated log files go to the folder configured on the connection's Terminal Logging tab, or to `~/.kortty/terminal-logs/` when that folder is left empty.
+
+### journals/
+Session journals — one self-contained directory per journal (location configurable in **Settings > Logging > Session Journal**). Each journal directory holds `journal.xml` (the curated document: metadata, AI summaries, markers, notes, screenshot references), the append-only capture log `session-log.json` / `.xml` / `.yaml` (JSON Lines by default) with gzip-compressed rotated parts (default 25 MB per part), the generated `journal.html` timeline page, and `screenshots/*.png`. See [Session journal](../features/session-journal.md).
+
+### terminal-logs/
+Default target folder for [per-connection terminal logs](../features/terminal.md#terminal-logging) when a connection's log folder field is left empty. File naming, daily rotation, compression and retention follow the connection's logging configuration.
 
 ### plugins/
 User-imported terminal-effect plugin JARs.
@@ -332,19 +350,19 @@ Dynamically generated language translation files.
 ### ssh-keys/
 Optional directory for copied SSH keys.
 
-**Purpose:** Stores copies of SSH keys for easy backup and migration.
+**Purpose:** Stores copies of SSH keys in one place for backup and migration.
 
 **How to use:**
 1. Open *Management > Manage SSH Keys...*
 2. Select an SSH key and click *Copy to User Directory*
 3. The key is copied to `~/.kortty/ssh-keys/`
 
-**Backup:** SSH keys in this directory are included when you create a backup via *Edit > Create Backup*.
+**Backup:** The key files in this directory are included when you create a backup via *Edit > Create Backup* (the archive is AES-256- or GPG-encrypted). On import they are restored with owner-only file permissions, and the import merges: local keys are never deleted, and existing files are only replaced with **Overwrite** enabled.
 
 **Benefits:**
 - Centralized location for all SSH keys
-- Easy migration to new machines
 - Included in encrypted backups
+- Easy migration to new machines
 
 ## Security summary
 
@@ -373,18 +391,15 @@ All files are stored in the same `~/.kortty/` directory across platforms:
 
 When you create a backup via *Edit > Create Backup*, the following configuration is included:
 
-- All `.xml` configuration files
-- `master-password-hash`
-- `history/` directory
+- All `.xml` configuration files (connections, credentials, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)
+- `master.key`
 - `projects/` directory
-- `i18n/` directory (generated language files)
-- `ssh-keys/` directory (if present)
+- `ssh-keys/` directory — copied SSH key files (restored with owner-only permissions; imports merge and never delete local keys)
 - `ssh-host-keys.properties` interactive host-key trust store (not its transient `.lock` file)
-- `snippets.xml` and related snippet data
 - `llm/models.xml` local-model registrations
 - `rag/stores.json` knowledge-store/source metadata
 
-Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable.
+Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable. The `history/` and `i18n/` directories are also not part of a backup, and neither is the auto-login file `master.autounlock`.
 
 The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.
 
@@ -410,7 +425,7 @@ You can edit KorTTY configuration directly by:
 - If a configuration file is missing, KorTTY uses sensible defaults and creates the file on next save.
 
 **Encryption errors:**
-- If you forget your master password, you must delete `master-password-hash` and set a new password. Previously encrypted data will be inaccessible.
+- If you forget your master password, you must delete `master.key` and set a new password. Previously encrypted data will be inaccessible.
 
 **Corrupted XML files:**
 - If a `.xml` file becomes corrupted, restore from a backup or delete the file. KorTTY will recreate it with defaults on next save.
@@ -430,4 +445,4 @@ You can edit KorTTY configuration directly by:
 - `kortty.log` grows during the application session. It is not automatically rotated. You can safely delete it while KorTTY is closed.
 
 **Master password recovery:**
-- There is no recovery for a forgotten master password. If you lose it, delete `master-password-hash` and `credentials.xml`, restart KorTTY, and set a new password.
+- There is no recovery for a forgotten master password. If you lose it, delete `master.key` and `credentials.xml`, restart KorTTY, and set a new password.

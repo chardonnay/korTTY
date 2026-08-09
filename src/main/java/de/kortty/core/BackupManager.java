@@ -3,11 +3,13 @@ package de.kortty.core;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
+import de.kortty.security.MasterPasswordManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.AesKeyStrength;
 import net.lingala.zip4j.model.enums.EncryptionMethod;
 
 import java.io.*;
@@ -33,15 +35,30 @@ public class BackupManager {
         "connections.xml",
         "credentials.xml",
         "gpg-keys.xml",
+        // Key references and master-password-encrypted passphrases; the copied key FILES in
+        // ~/.kortty/ssh-keys/ are added as a directory alongside projects/ below.
+        "ssh-keys.xml",
         "global-settings.xml",
         "job-scheduler.xml",
-        "master-password-hash",
+        // Without this file, a restore onto a fresh profile leaves every restored encrypted
+        // value undecryptable until the user recreates the identical master password by hand.
+        // master.autounlock is deliberately NOT backed up: it is an obfuscated copy of the
+        // master password whose obfuscation key ships in the binary, so copying it into
+        // backup archives (and their rotated old-backups/) would spread the weakest secret;
+        // after a restore, auto-login simply re-arms on the next enable.
+        MasterPasswordManager.MASTER_KEY_FILE,
         SshHostKeyTrustManager.STORE_FILE_NAME,
         "snippets.xml",
         "snippet-variables.xml",
         "ai-chats.xml",
         "llm/models.xml",
         "rag/stores.json");
+    /**
+     * Directories included alongside the managed files: project workspaces and the copied SSH
+     * key files. Raw private keys are why password ZIPs are written with AES-256 rather than
+     * legacy ZipCrypto — see {@link #createPasswordEncryptedBackup}.
+     */
+    private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of("projects", "ssh-keys");
     
     private final Path configDir;
     private final GlobalSettings settings;
@@ -134,19 +151,25 @@ public class BackupManager {
         
         ZipParameters zipParameters = new ZipParameters();
         zipParameters.setEncryptFiles(true);
-        zipParameters.setEncryptionMethod(EncryptionMethod.ZIP_STANDARD);
-        
+        // AES-256, not legacy ZipCrypto: the archive carries raw SSH private-key files, which
+        // (unlike the XML payloads) have no inner AES-256-GCM layer of their own. zip4j picks
+        // the decryption method per entry from the archive headers, so backups created with
+        // the former ZIP_STANDARD encryption keep importing unchanged.
+        zipParameters.setEncryptionMethod(EncryptionMethod.AES);
+        zipParameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
+
         // Add all config files
         for (String fileName : MANAGED_BACKUP_FILES) {
             addFileToPasswordZip(zipFile, configDir.resolve(fileName), fileName, zipParameters);
         }
-        
-        // Add projects directory if exists
-        Path projectsDir = configDir.resolve("projects");
-        if (Files.exists(projectsDir) && Files.isDirectory(projectsDir)) {
-            zipFile.addFolder(projectsDir.toFile(), zipParameters);
+
+        for (String dirName : MANAGED_BACKUP_DIRECTORIES) {
+            Path dir = configDir.resolve(dirName);
+            if (Files.exists(dir) && Files.isDirectory(dir)) {
+                zipFile.addFolder(dir.toFile(), zipParameters);
+            }
         }
-        
+
         logger.info("Created password-protected backup");
     }
     
@@ -181,10 +204,12 @@ public class BackupManager {
                 for (String fileName : MANAGED_BACKUP_FILES) {
                     addFileToZip(zos, configDir.resolve(fileName), fileName);
                 }
-                
-                Path projectsDir = configDir.resolve("projects");
-                if (Files.exists(projectsDir) && Files.isDirectory(projectsDir)) {
-                    addDirectoryToZip(zos, projectsDir, "projects");
+
+                for (String dirName : MANAGED_BACKUP_DIRECTORIES) {
+                    Path dir = configDir.resolve(dirName);
+                    if (Files.exists(dir) && Files.isDirectory(dir)) {
+                        addDirectoryToZip(zos, dir, dirName);
+                    }
                 }
             }
             
@@ -479,11 +504,14 @@ public class BackupManager {
                     }
                 }
                 
-                // Copy projects directory
+                // Copy projects directory. Relativize against the projects directory itself, not
+                // extractDir: the walk starts at extract/projects, so relativizing against
+                // extractDir kept the leading "projects/" and restored everything into the
+                // invisible ~/.kortty/projects/projects/.
                 try (var stream = Files.walk(sourceProjectsDir)) {
                     stream.forEach(source -> {
                         try {
-                            Path target = targetProjectsDir.resolve(extractDir.relativize(source));
+                            Path target = targetProjectsDir.resolve(sourceProjectsDir.relativize(source));
                             if (Files.isDirectory(source)) {
                                 Files.createDirectories(target);
                             } else {
@@ -499,11 +527,61 @@ public class BackupManager {
                 logger.debug("Imported projects directory");
             }
         }
-        
+
+        filesImported[0] += mergeSshKeysDirectory(extractDir, overwriteExisting);
+
         return filesImported[0];
+    }
+
+    /**
+     * Restores the copied SSH key files by merging, never deleting: unlike projects/, keys that
+     * exist locally but not in the backup must survive an import. Restored key files get
+     * owner-only permissions where the filesystem supports them — OpenSSH refuses keys that are
+     * readable by others.
+     */
+    private int mergeSshKeysDirectory(Path extractDir, boolean overwriteExisting) throws IOException {
+        Path sourceKeysDir = extractDir.resolve("ssh-keys");
+        if (!Files.exists(sourceKeysDir) || !Files.isDirectory(sourceKeysDir)) {
+            return 0;
+        }
+        Path targetKeysDir = configDir.resolve("ssh-keys");
+        final int[] imported = {0};
+        try (var stream = Files.walk(sourceKeysDir)) {
+            stream.forEach(source -> {
+                try {
+                    Path target = targetKeysDir.resolve(sourceKeysDir.relativize(source));
+                    if (Files.isDirectory(source)) {
+                        Files.createDirectories(target);
+                        return;
+                    }
+                    if (Files.exists(target) && !overwriteExisting) {
+                        logger.debug("Skipping existing SSH key file: {}", target.getFileName());
+                        return;
+                    }
+                    Files.createDirectories(target.getParent());
+                    Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                    try {
+                        Files.setPosixFilePermissions(target, java.util.Set.of(
+                            java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                            java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+                    } catch (UnsupportedOperationException e) {
+                        // Non-POSIX filesystem (Windows): nothing to tighten.
+                    }
+                    imported[0]++;
+                } catch (IOException e) {
+                    logger.warn("Failed to copy SSH key file: {}", source, e);
+                }
+            });
+        }
+        logger.debug("Imported ssh-keys directory");
+        return imported[0];
     }
 
     static List<String> managedBackupFiles() {
         return MANAGED_BACKUP_FILES;
+    }
+
+    static List<String> managedBackupDirectories() {
+        return MANAGED_BACKUP_DIRECTORIES;
     }
 }

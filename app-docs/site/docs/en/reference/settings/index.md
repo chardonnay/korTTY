@@ -21,7 +21,8 @@ Each per-tab page lists settings as a table:
 | [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, SSH host key verification, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
 | [Resources](resources.md) | Opt-in JVM heap/GC profile (Balanced / High / Maximum) for larger workloads |
-| [Logging](logging.md) | Terminal log directory, retention and format |
+| [Logging](logging.md) | Terminal log directory and retention; session journal storage, AI summaries, interval and profile |
+| [Export](export.md) | PDF watermark and document footer for exported session journals and AI chats |
 | [Backup](backup.md) | Encryption type (ZIP-password / GPG), max backup count |
 | [Updates](updates.md) | Automatic update checking and interval |
 | [Security](security.md) | Master-password prompt, change master password, temporary SSH keys |

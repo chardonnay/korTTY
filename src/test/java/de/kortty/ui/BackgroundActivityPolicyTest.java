@@ -15,6 +15,14 @@ class BackgroundActivityPolicyTest {
     }
 
     @Test
+    void outdatedGuidePromptFiresOnceInTheForegroundWhileNoTranslationRuns() {
+        assertThat(MainWindow.shouldPromptGuideTranslationUpdate(false, true, false)).isTrue();
+        assertThat(MainWindow.shouldPromptGuideTranslationUpdate(true, true, false)).isFalse();
+        assertThat(MainWindow.shouldPromptGuideTranslationUpdate(false, false, false)).isFalse();
+        assertThat(MainWindow.shouldPromptGuideTranslationUpdate(false, true, true)).isFalse();
+    }
+
+    @Test
     void designAnimationUsesSameForegroundPolicy() {
         assertThat(AppDesignAnimator.shouldAnimateWindow(true, true, false)).isTrue();
         assertThat(AppDesignAnimator.shouldAnimateWindow(true, false, false)).isFalse();

@@ -93,14 +93,14 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 ├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
-├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
+├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
 ├── history/                     # Compressed terminal session logs
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 ├── projects/                    # Project files (connection sets with saved layout)
 ├── i18n/                        # Dynamically generated language property files
-└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
+└── ssh-keys/                    # Optional: copied SSH keys (included in backups)
 ```
 
 ### Serialization and Encryption
@@ -114,7 +114,7 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 
 **AES-256-GCM encryption** protects sensitive fields:
 
-- Master password is hashed once on first login, stored as `master-password-hash`
+- Master password is hashed once on first login, stored as `master.key`
 - All encrypted fields use AES-256-GCM with random IVs derived from the master password
 - SSH key passphrases, connection passwords, and sudo secrets are encrypted before persistence
 - Backup archives can be encrypted with password-protected ZIP or GPG
@@ -174,7 +174,7 @@ The UI layer is built on JavaFX and organized into logical components:
 ### Master Password and Encryption
 
 1. **First Launch**: User creates a master password (minimum 6 characters, strength-checked via zxcvbn)
-2. **Storage**: Password is hashed using PBKDF2 with 310,000 iterations and stored in `~/.kortty/master-password-hash`
+2. **Storage**: Password is hashed using PBKDF2 with 310,000 iterations and stored in `~/.kortty/master.key`
 3. **Unlocking**: Master password unlocks all encrypted data (connection passwords, SSH key passphrases, credentials, backup archive passwords)
 4. **Encryption**: AES-256-GCM with random IVs; encryption/decryption happens on-demand when accessing sensitive fields
 
@@ -251,10 +251,10 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | Monaco Editor | 0.56.0 | Code editor component |
 | | Mermaid | 11.16.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |
-| | google-java-format | 1.35.0 | Java code formatting |
+| | google-java-format | 1.36.1 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Password strength (offline) |
-| **Logging** | SLF4J / Logback | 2.0.18 / 1.5.38 | Structured logging |
+| **Logging** | SLF4J / Logback | 2.0.18 / 1.6.1 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
 | **Local AI** | llama.cpp `llama-server` | Source-pinned runtime package | Local GGUF chat-completions and embeddings sidecar |
 
@@ -275,7 +275,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 3. **External formatter payload**: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.
 4. **Clean native staging**: `prepareJpackage` uses a final Gradle `Sync`, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.
 5. **Native packaging and gates**: The selected Gradle JDK 25 toolchain supplies `jpackage` for .app/.dmg, .exe/.msi, .deb and .rpm output. `scripts/package-size-report.py` emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.
-6. **llama.cpp runtime packaging**: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only `llama-server` plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The daily runtime workflow opens candidate PRs; every platform/backend runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected `llama-runtime-signing` environment with required reviewers gates manual stable promotion from `main`.
+6. **llama.cpp runtime packaging**: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only `llama-server` plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The weekly runtime workflow opens candidate PRs; a scope job runs the full platform/backend matrix only when the pin file, the workflow, or the llama Java sources changed (a `build.gradle.kts`-only change gets a single smoke leg); every built leg runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected `llama-runtime-signing` environment with required reviewers gates manual stable promotion from `main`.
 7. **Model/prompt catalog promotion**: A separate manual `main`-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected `ai-catalog-signing` environment without a preview channel.
 
 ### Classpath and Module Path
@@ -386,7 +386,7 @@ Menu-bar status displays next runs / live countdown
 ## Security Best Practices
 
 1. **Master password**: Set a strong, unique password; it is never transmitted or logged
-2. **SSH keys**: Store in `~/.kortty/ssh-keys/` for backup inclusion; passphrases are encrypted
+2. **SSH keys**: Store in `~/.kortty/ssh-keys/` for backup inclusion; passphrases are encrypted in `ssh-keys.xml`, and the AES-256/GPG-encrypted backup carries the key files
 3. **Host key verification**: Verify the OpenSSH SHA-256 fingerprint before accepting an interactive first-use prompt; keep host-key pinning enabled for unattended JobScheduler execution
 4. **Backup encryption**: Use password-protected ZIP or GPG encryption
 5. **AI profiles**: Prefer an integrated local GGUF model for sensitive data; verify the trust and data policy of every remote endpoint
