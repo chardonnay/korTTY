@@ -37,7 +37,10 @@ Configure terminal display colors including text, background, cursor, selection,
 ## Notes
 
 !!! note "Color Profiles"
-    **Color Profile** allows you to select a preset theme that applies foreground, background, cursor, and cursor style settings at once. Switching profiles will update the individual color controls. If **Apply Profile** is available, it will reset colors to the selected theme's defaults.
+    **Color Profile** allows you to select a preset theme that applies foreground, background, cursor, and cursor shape settings at once. Switching profiles will update the individual color controls. If **Apply Profile** is available, it will reset colors to the selected theme's defaults.
+
+!!! note "Cursor blinks"
+    **Cursor blinks** is your own preference and is kept when you switch color profiles: a profile contributes the cursor *shape* (block, underline, vertical bar), while the blinking on/off state stays as you set it. It is stored together with the shape in `cursorStyle` (for example `STEADY_BLOCK` when blinking is off) and is remembered across restarts.
 
 !!! note "ANSI Colors"
     The **Normal** and **Bright** color palettes define the 16 ANSI colors (0–7 normal, 8–15 bright) used when **Enable terminal colors** is on. Each set of 8 colors corresponds to black, red, green, yellow, blue, magenta, cyan, and white. When terminal colors are disabled, only the configured **Text Color** and **Background** are used, ignoring all ANSI and TrueColor sequences.

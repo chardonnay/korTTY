@@ -37,4 +37,34 @@ class TerminalCursorStyleSupportTest {
         assertThat(TerminalCursorStyleSupport.withBlinkingPreference("BLINK_DIAMOND", false))
                 .isEqualTo("BLINK_DIAMOND");
     }
+
+    @Test
+    void storedBlinkingPreferenceKeepsKnownShape() {
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("BLINK_UNDERLINE", false))
+                .isEqualTo("STEADY_UNDERLINE");
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("STEADY_BLOCK", true))
+                .isEqualTo("BLINK_BLOCK");
+    }
+
+    @Test
+    void storedBlinkingPreferenceIsNeverDroppedForUnknownShape() {
+        // The saved setting must reflect the user's choice even when the stored style carries a shape
+        // this build does not know — otherwise switching "Cursor blinks" off would not survive a restart.
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("BLINK_DIAMOND", false))
+                .isEqualTo("STEADY_BLOCK");
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("BLINK", false))
+                .isEqualTo("STEADY_BLOCK");
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("DIAMOND", true))
+                .isEqualTo("BLINK_BLOCK");
+    }
+
+    @Test
+    void themeCursorStyleAdoptsShapeButKeepsBlinkPreference() {
+        // What the settings dialog does when a color profile is selected: every built-in profile ships
+        // BLINK_*, and adopting that verbatim used to re-enable blinking behind the user's back.
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("BLINK_VERTICAL_BAR", false))
+                .isEqualTo("STEADY_VERTICAL_BAR");
+        assertThat(TerminalCursorStyleSupport.withStoredBlinkingPreference("BLINK_BLOCK", false))
+                .isEqualTo("STEADY_BLOCK");
+    }
 }
