@@ -1119,6 +1119,82 @@
       "from": "Quick Connect",
       "to": "Schnellverbindung",
       "note": "Bare form, last: every row above still contains this substring. What it reaches is the dialog name itself — menu paths, bold labels, the architecture diagram's entry-point label — where the bare name is correct as-is."
+    },
+    {
+      "from": ", das von llama.cpp und llama.cpp verwendet wird [Quantisierungsübersicht](",
+      "to": " von llama.cpp; dessen [Quantisierungsübersicht](",
+      "scope": "markdown",
+      "note": "MT garbles the possessive in 'used by llama.cpp, and llama.cpp's quantization overview' into a doubled 'von llama.cpp und llama.cpp' and orphans the link on the local-models reading list."
+    },
+    {
+      "from": ") Erläutern von Etiketten wie z `Q4_K_M`.",
+      "to": ") erläutert Bezeichnungen wie `Q4_K_M`.",
+      "scope": "markdown",
+      "note": "Second half of the same bullet: 'explaining labels such as' needs a finite verb, quantization labels are Bezeichnungen (not Etiketten), and MT truncates 'z. B.' to a bare 'z'."
+    },
+    {
+      "from": "Ein geplanter Schwarm mit deaktiviertem **Schwarm-Schreibschutz** und unbeaufsichtigter Änderung von KI-Befehlen automatisch genehmigen**.",
+      "to": "Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt.",
+      "scope": "markdown",
+      "note": "MT drops the main clause of the jobscheduler warning ('…on changes systems unattended') and leaves a stray closing **. Field names as rendered elsewhere on the jobscheduler and ai-swarm pages ('Schwarm schreibgeschützt', 'Automatisch genehmigende KI-Befehle')."
+    },
+    {
+      "from": "Ein Etikett mit einem dunklen Halo, damit es",
+      "to": "Eine Beschriftung mit einem dunklen Halo, damit sie",
+      "note": "The screenshot-annotation Text tool places a Beschriftung (journal.screenshot.text.prompt); 'Etikett' is wrong here and collides with the connection-tag term."
+    },
+    {
+      "from": "Begründungsmodelle",
+      "to": "Reasoning-Modelle",
+      "note": "Fresh MT renders 'reasoning models' as Begründungs- compounds — a third German variant next to the Argumentations- rows above; unify on the product term. Plural before singular, as the ordering invariant requires."
+    },
+    {
+      "from": "Begründungsmodell",
+      "to": "Reasoning-Modell"
+    },
+    {
+      "from": "die nur Begründungen enthält",
+      "to": "die nur Reasoning enthält"
+    },
+    {
+      "from": "reine Begründungsantwort",
+      "to": "reine Reasoning-Antwort"
+    },
+    {
+      "from": "Begründungsmarkierungen",
+      "to": "Reasoning-Markierungen"
+    },
+    {
+      "from": "Kanal-/Harmoniemodelle",
+      "to": "Kanal-/Harmony-Modelle",
+      "note": "Harmony is the response-format name (gpt-oss), not harmony."
+    },
+    {
+      "from": "Werkzeugfenster als Registerkarten öffnen",
+      "to": "Toolfenster als Registerkarten öffnen",
+      "note": "UI label as quoted on the main-window page: Toolfenster, not Werkzeugfenster."
+    },
+    {
+      "from": "Snippet-Eingabehärtende Standardeinstellungen",
+      "to": "Standardeinstellungen der Snippet-Eingabe-Härtung",
+      "note": "MT capitalizes the adjective into a pseudo-compound on the config-files backup list."
+    },
+    {
+      "from": "des [-Sitzungsjournals ](",
+      "to": "des [Sitzungsjournals](",
+      "scope": "markdown",
+      "note": "MT drags the genitive hyphen and a trailing space into the link text."
+    },
+    {
+      "from": "[-Terminalprotokolle pro Verbindung](",
+      "to": "[Terminalprotokolle pro Verbindung](",
+      "scope": "markdown"
+    },
+    {
+      "from": "Laufzeitkanal ](",
+      "to": "Laufzeitkanal](",
+      "scope": "markdown",
+      "note": "Trailing space inside the llama.cpp runtime-channel link text."
     }
   ]
 }
