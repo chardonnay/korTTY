@@ -179,6 +179,18 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                             }
                         }
                     }
+                    if (connection.getTag() != null) {
+                        String tag = connection.getTag();
+                        if (usePattern) {
+                            if (finalPattern.matcher(tag).matches()) {
+                                return true;
+                            }
+                        } else {
+                            if (tag.toLowerCase().contains(lowerSearchText)) {
+                                return true;
+                            }
+                        }
+                    }
                     return false;
                 });
             }
@@ -192,7 +204,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 String searchText = newVal.trim().toLowerCase();
                 teamworkTreeView.filterTree(conn ->
                     (conn.getName() != null && conn.getName().toLowerCase().contains(searchText)) ||
-                    (conn.getHost() != null && conn.getHost().toLowerCase().contains(searchText)));
+                    (conn.getHost() != null && conn.getHost().toLowerCase().contains(searchText)) ||
+                    (conn.getTag() != null && conn.getTag().toLowerCase().contains(searchText)));
             }
         });
         
@@ -212,6 +225,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnDeleteConnections(this::deleteConnections);
         treeView.setOnExportGroup(this::exportGroup);
         treeView.setOnAddConnection(this::addConnection);
+        treeView.setOnAssignTag(this::assignTagToConnections);
+        treeView.setOnRemoveTag(this::removeTagFromConnections);
+        treeView.setOnAssignTagToGroup(this::assignTagToGroup);
+        treeView.setOnRemoveTagFromGroup(this::removeTagFromGroup);
         treeView.setGroupHostKeyCheckDisabledProbe(this::isGroupHostKeyCheckDisabled);
         treeView.setOnToggleGroupHostKeyCheck(this::toggleGroupHostKeyCheck);
         
@@ -745,6 +762,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setTerminalEffectAnimationSpeed(selected.getTerminalEffectAnimationSpeed());
             copy.setTerminalEmulationType(selected.getTerminalEmulationType());
             copy.setGroup(selected.getGroup());
+            copy.setTag(selected.getTag());
             copy.setAiProfileId(selected.getAiProfileId());
             copy.setAiSkillIds(selected.getAiSkillIds());
             
@@ -758,7 +776,90 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             saveConnections();
         }
     }
-    
+
+    private void assignTagToConnections(List<ServerConnection> targets) {
+        List<ServerConnection> filtered = targets.stream()
+            .filter(conn -> !conn.isPlaceholder())
+            .collect(Collectors.toList());
+        if (filtered.isEmpty()) {
+            return;
+        }
+        String firstTag = filtered.get(0).getTag();
+        boolean allSameTag = filtered.stream()
+            .allMatch(conn -> java.util.Objects.equals(conn.getTag(), firstTag));
+        TextInputDialog dialog = new TextInputDialog(allSameTag && firstTag != null ? firstTag : "");
+        dialog.setTitle(I18n.get("connManager.assignTag.title"));
+        dialog.setHeaderText(I18n.get("connManager.assignTag.header", filtered.size()));
+        dialog.setContentText(I18n.get("connManager.assignTag.prompt"));
+        dialog.initOwner(owner);
+        dialog.initModality(Modality.WINDOW_MODAL);
+
+        dialog.showAndWait().ifPresent(tag -> {
+            String trimmed = tag != null ? tag.trim() : "";
+            if (!trimmed.isEmpty()) {
+                applyTag(filtered, trimmed);
+            } else if (allSameTag && firstTag != null) {
+                // The prompt was prefilled with the current tag; clearing it means "remove".
+                applyTag(filtered, null);
+            }
+        });
+    }
+
+    private void removeTagFromConnections(List<ServerConnection> targets) {
+        List<ServerConnection> filtered = targets.stream()
+            .filter(conn -> !conn.isPlaceholder() && conn.getTag() != null)
+            .collect(Collectors.toList());
+        if (!filtered.isEmpty()) {
+            applyTag(filtered, null);
+        }
+    }
+
+    private void assignTagToGroup(GroupPath groupPath) {
+        List<ServerConnection> targets = connectionsInGroup(groupPath);
+        if (targets.isEmpty()) {
+            showEmptyFolderAlert(groupPath);
+            return;
+        }
+        assignTagToConnections(targets);
+    }
+
+    private void removeTagFromGroup(GroupPath groupPath) {
+        List<ServerConnection> targets = connectionsInGroup(groupPath);
+        if (targets.isEmpty()) {
+            showEmptyFolderAlert(groupPath);
+            return;
+        }
+        removeTagFromConnections(targets);
+    }
+
+    private void showEmptyFolderAlert(GroupPath groupPath) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(I18n.get("connManager.noConnections"));
+        alert.setHeaderText(I18n.get("connManager.folderEmpty"));
+        alert.setContentText(I18n.get("connection.emptyFolder", groupPath.getName()));
+        alert.showAndWait();
+    }
+
+    private List<ServerConnection> connectionsInGroup(GroupPath groupPath) {
+        return connections.stream()
+            .filter(conn -> !conn.isPlaceholder())
+            .filter(conn -> {
+                if (conn.getGroup() == null) return false;
+                GroupPath connPath = new GroupPath(conn.getGroup());
+                return connPath.equals(groupPath) || connPath.isChildOf(groupPath);
+            })
+            .collect(Collectors.toList());
+    }
+
+    private void applyTag(List<ServerConnection> targets, String tag) {
+        for (ServerConnection conn : targets) {
+            conn.setTag(tag);
+            configManager.updateConnection(conn);
+        }
+        treeView.refreshPreservingFilter();
+        saveConnections();
+    }
+
     private void createNewGroup(GroupPath parentPath) {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle(I18n.get("connManager.newFolder"));
@@ -939,14 +1040,15 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             return;
         }
         
-        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, finalConnectionsToExport);
+        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, finalConnectionsToExport,
+            isLocalTabActive() ? connections : teamworkConnections);
         dialog.showAndWait().ifPresent(result -> {
             try {
                 exportConnectionsToFile(result);
-                
+
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
                 success.setTitle(I18n.get("connManager.exportSuccess"));
-                success.setHeaderText(I18n.get("connManager.exportedCount", finalConnectionsToExport.size()));
+                success.setHeaderText(I18n.get("connManager.exportedCount", result.connections.size()));
                 success.setContentText(I18n.get("connManager.file") + ": " + result.exportFile.getAbsolutePath());
                 success.showAndWait();
             } catch (Exception e) {
@@ -972,11 +1074,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         if (!connectionsInGroup.isEmpty()) {
             exportConnections(connectionsInGroup);
         } else {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(I18n.get("connManager.noConnections"));
-            alert.setHeaderText(I18n.get("connManager.folderEmpty"));
-            alert.setContentText(I18n.get("connection.emptyFolder", groupPath.getName()));
-            alert.showAndWait();
+            showEmptyFolderAlert(groupPath);
         }
     }
     
@@ -990,6 +1088,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             copy.setHost(conn.getHost());
             copy.setPort(conn.getPort());
             copy.setGroup(conn.getGroup());
+            copy.setTag(conn.getTag());
             copy.setProtocol(conn.getProtocol());
             copy.setAuthMethod(conn.getAuthMethod());
             copy.setPrivateKeyPath(conn.getPrivateKeyPath());
@@ -1334,6 +1433,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 } else {
                     imported.setGroup(conn.getGroup());
                 }
+                imported.setTag(conn.getTag());
                 
                 // Username (conditional)
                 if (result.importUsername) {

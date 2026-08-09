@@ -988,10 +988,87 @@
       "note": "Matches the German snippets.ai.analysis.profile.using UI label in generated guide prose."
     },
     {
-      "from": "Live-Zählung**",
-      "to": "**Live-Zählung**",
+      "from": "das Name, Host oder entspricht [Etikett](#tags)",
+      "to": "das nach Name, Host oder [Tag](#tags) filtert",
       "scope": "markdown",
-      "note": "MT merges 'live **count**' into the compound and keeps only the closing asterisks, leaving unbalanced emphasis on the input-hardening page. The trailing ** keeps the row from touching the plain 'Live-Zählung' elsewhere in the corpus."
+      "note": "MT garbles the Quick Connect saved-search sentence and renders the connection tag as 'Etikett'; the UI term is 'Tag' (connEdit.tag)."
+    },
+    {
+      "from": "optionaler Freitext [Etikett](#tags)",
+      "to": "optionales Freitext-[Tag](#tags)",
+      "scope": "markdown",
+      "note": "Connection-editor table row; UI term 'Tag' (connEdit.tag)."
+    },
+    {
+      "from": "[Etikett](#tags)",
+      "to": "[Tag](#tags)",
+      "scope": "markdown",
+      "note": "Generic fallback after the longer rows above; the connection tag is never 'Etikett'."
+    },
+    {
+      "from": "benötigt einen optionalen Freitext [tag](",
+      "to": "erhält optional ein Freitext-[Tag](",
+      "scope": "markdown",
+      "note": "Release-notes bullet: MT turns \"takes one optional free-text tag\" into a requirement ('benötigt')."
+    },
+    {
+      "from": "[tag](",
+      "to": "[Tag](",
+      "scope": "markdown",
+      "note": "MT leaves the link text of [tag](...) untranslated in lowercase; German capitalizes the noun. Must come after the longer [tag]( rows."
+    },
+    {
+      "from": "Tag zuweisen",
+      "to": "Tag zuordnen",
+      "note": "UI label connManager.assignTag=Tag zuordnen."
+    },
+    {
+      "from": "oder in großen Mengen",
+      "to": "oder gesammelt",
+      "scope": "markdown",
+      "note": "'in bulk' for the tag context menu means acting on many connections at once, not literal quantities."
+    },
+    {
+      "from": "stimmen mit Tags sowie Namen und Hosts überein",
+      "to": "berücksichtigen Tags ebenso wie Namen und Hosts",
+      "scope": "markdown",
+      "note": "Searches 'match' tags — the German 'übereinstimmen' reads as the searches themselves being equal."
+    },
+    {
+      "from": "stimmen ebenfalls mit Tags überein",
+      "to": "berücksichtigen ebenfalls Tags",
+      "scope": "markdown",
+      "note": "Same 'match' mistranslation in the release-notes bullet."
+    },
+    {
+      "from": "Das Suchfeld entspricht Name, Host",
+      "to": "Das Suchfeld durchsucht Name, Host",
+      "scope": "markdown",
+      "note": "The search field matches fields — 'entspricht' claims equality."
+    },
+    {
+      "from": "`<KTPH007>`, eingebettete Zeilenumbrüche",
+      "to": "`<`, `>`, eingebettete Zeilenumbrüche",
+      "scope": "markdown",
+      "note": "Deterministic mask leak: MT merges the adjacent `<` and `>` code spans in the input-hardening metacharacter list and swallows the token boundaries, so restore fails on every run."
+    },
+    {
+      "from": "Connection Manager-Suche",
+      "to": "Verbindungsmanager-Suche",
+      "scope": "markdown",
+      "note": "Keeps the feature name German — the same section already says Verbindungsmanager-Baum."
+    },
+    {
+      "from": "ein Kundenname…), der auf der Registerkarte",
+      "to": "ein Kundenname…), das auf der Registerkarte",
+      "scope": "markdown",
+      "note": "Das Tag ist Neutrum; MT setzt das Relativpronomen maskulin."
+    },
+    {
+      "from": "eine Live-Zählung**",
+      "to": "eine **Live-Zählung**",
+      "scope": "markdown",
+      "note": "MT merges 'live **count**' into the compound and keeps only the closing asterisks, leaving unbalanced emphasis on the input-hardening page. The article prefix makes the row idempotent — without it the replacement matches the tail of its own output and stacks asterisks on every regeneration — and the trailing ** keeps it off the plain 'Live-Zählung' elsewhere in the corpus."
     },
     {
       "from": "über Quick Connect und Connection Manager",

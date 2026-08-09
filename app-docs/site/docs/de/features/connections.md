@@ -6,11 +6,11 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 ## Schnellverbindung
 
-Öffnen Sie mit ++ctrl+k++ (oder **Verbindungen → Schnellverbindung…**). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie.
+Öffnen mit ++ctrl+k++ (oder **Verbindungen → Schnellverbindung…**). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie. Gespeicherte Verbindungen können aus einem Dropdown-Menü mit einem eigenen Suchfeld ausgewählt werden, das nach Name, Host oder [Tag](#tags) filtert (`*` funktioniert als Platzhalter); Das Tag einer gespeicherten Verbindung wird neben ihrem Namen (🏷) im Dropdown-Menü und in den QuickInfos der Schnellschaltflächen angezeigt.
 
 ## Verbindungsmanager
 
-**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert). Von hier aus erstellen, bearbeiten, duplizieren, löschen, importieren und exportieren Sie Verbindungen.
+**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); Das Suchfeld durchsucht Name, Host, IP-Adresse oder [Tag](#tags), mit `*` als Platzhalter. Von hier aus können Sie Verbindungen erstellen, bearbeiten, duplizieren, löschen, markieren, importieren und exportieren.
 
 ## Verbindung erstellen/bearbeiten
 
@@ -18,12 +18,23 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv), **Host-Schlüsselüberprüfung** (Standard verwenden / überprüfen / nicht überprüfen). Für **Local Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv), **Host-Schlüsselüberprüfung** (Standard verwenden / überprüfen / nicht überprüfen), Gruppen-/Ordnerzuweisung und optionales Freitext-[Tag](#tags). Für **Local Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. |
 | Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
 | Terminalprotokollierung | Schreibt die Terminalausgabe dieser Verbindung in eine Datei – Ordner, Format, tägliche Rotation, Komprimierung und Aufbewahrung. Sehen [Terminalprotokollierung](terminal.md#terminalprotokollierung). |
+| Journal | Pro Verbindung [Sitzungsjournal](session-journal.md): Aktivieren Sie das Journaling für diese Verbindung und konfigurieren Sie das Capture-Log und die KI-Zusammenfassung |
 | Fenstergeometrie | Gespeicherte Größe/Position für diese Verbindung |
+| KI | KI-Standardeinstellungen pro Verbindung: die [KI-Profil](ai-assistant.md) und KI-Fähigkeiten, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden |
+
+## Tags
+
+Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – eine Bezeichnung wie `prod`, `staging` oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte *Verbindung* des Verbindungseditors (neben der Gruppe) oder gesammelt im Verbindungsmanager fest. Tags werden mit der Verbindung in `connections.xml` gespeichert und überstehen das Duplizieren, Exportieren und Importieren.
+
+- **Sichtbar** – markierte Verbindungen zeigen ein 🏷-Symbol nach ihrem Namen im Verbindungsmanager-Baum und im Dropdown-Menü „Gespeicherte Verbindungen“ der Schnellverbindung; Das Tag erscheint auch im Tooltip der häufig verwendeten Schnellschaltflächen.
+- **Durchsuchbar** – die Verbindungsmanager-Suche (Registerkarten „Lokal“ und „Teamwork“) und die Suche nach gespeicherten Verbindungen der Schnellverbindung berücksichtigen Tags ebenso wie Namen und Hosts.
+- **Massenzuweisung/-entfernung** – Wählen Sie einen oder mehrere Server aus und wählen Sie **Tag zuordnen** aus dem Kontextmenü, um sie in einem Schritt zu taggen. Die Eingabeaufforderung ist vorab ausgefüllt, wenn alle ausgewählten Verbindungen bereits dasselbe Tag haben. Durch das Löschen dieses vorab ausgefüllten Werts wird das Tag entfernt. **Tag entfernen** löscht das Tag und ist nur aktiviert, solange die Auswahl mindestens eine getaggte Verbindung enthält. Die gleichen zwei Einträge im Kontextmenü eines Ordners gelten für jede Verbindung in diesem Ordner, einschließlich Unterordnern.
+- **Nach Tag exportieren** – Sobald mindestens ein Tag vorhanden ist, bietet das Exportdialogfeld des Verbindungsmanagers die Option **Zu exportierende Verbindungen**: Behalten Sie die vorab ausgewählten Verbindungen bei oder exportieren Sie **alle Verbindungen mit diesen Tags** – wählen Sie ein oder mehrere Tags aus der Liste aus, die Verbindungsanzahl des Headers folgt der Auswahl live und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.
 
 ## Protokolle
 

@@ -38,5 +38,10 @@ What changed in the current release. The version this guide was built for is sho
 - **Hardened the initial Full code analysis response** — OpenAI-compatible HTTP now constrains the report to a strict JSON schema with the fields `summary`, `dependencies` and `improvements`. korTTY retries once without the schema only when the endpoint explicitly rejects structured output. Malformed model output is rejected without a retry loop.
 - **Moved the Full code analysis selection checkbox** — **Select all improvements** is now the first control at the far left of the analysis toolbar instead of being pushed to its right-hand control group, with extra spacing before the following **Profile:** indicator so the two groups remain visually distinct.
 
+### Connections
+
+- **Connections can now be tagged** — every saved connection takes one optional free-text [tag](../features/connections.md#tags) (`prod`, `staging`, a customer name…), set on the connection editor's *Connection* tab or in bulk via the Connection Manager's new **Assign Tag** / **Remove Tag** context-menu entries, which work on a multi-selection and on whole folders including their subfolders. Tagged servers show a 🏷 badge in the manager tree and in Quick Connect's saved-connections list, and the connection searches — Connection Manager (local and Teamwork tabs) and Quick Connect — all match tags too.
+- **Export by tag** — the connection export dialog can now export **all connections carrying chosen tags** instead of the pre-selected list: pick one or more tags, the dialog's connection count follows the actual selection, and the export button stays disabled while nothing matches.
+
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.

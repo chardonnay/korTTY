@@ -47,7 +47,7 @@ Der Wächter definiert in seinem Konfigurationsabschnitt eine `MAX_FILE_SIZE`-Va
 
 #### Sicherheitswarnungen für stderr und Skriptprotokoll
 
-Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **KORTTY_FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript eine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile hinzu, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
+Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **KORTTY_FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript seine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile an, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
 
 #### KORTTY_FORCE=1 Überschreibung
 

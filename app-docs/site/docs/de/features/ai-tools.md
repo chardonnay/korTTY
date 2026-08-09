@@ -318,7 +318,7 @@ AI Skills sind wiederverwendbare lokale Anweisungsblöcke, die der Agent verwend
 - Sprachspezifische Codierungsrichtlinien
 - Systemverwaltungskonventionen
 
-Einzelheiten zur Einrichtung und Verwaltung finden Sie im Abschnitt **KI-Fähigkeiten** in der Hauptdokumentation zu KI.
+Einzelheiten zur Einrichtung und Verwaltung finden Sie im Abschnitt **KI-Skills** in der Hauptdokumentation zu KI.
 
 ## Internetzugang
 

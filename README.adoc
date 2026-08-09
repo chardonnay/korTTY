@@ -25,6 +25,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Terminal Effect Plugins*: Load, enable, disable, import, and export Java terminal-effect plugins from *Plugins → Terminal Effects*; effects can adjust terminal appearance, overlays, and output animation speed per session or saved connection
 * *Project Management*: Save and load connection sets with history
 * *Import/Export*: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
+* *Server Tags*: Optional free-text tag per connection — shown as a badge in the Connection Manager tree and Quick Connect, matched by every connection search, assigned or removed in bulk via the context menu (multi-selection and whole folders), with tag-based selection in the connection export dialog
 * *JMX Monitoring*: Monitor active connections, memory usage, etc.
 * *Dashboard*: Overview of all open connections in the project
 * *SFTP Manager*: File transfer between local system and remote servers (User/Group columns, sortable by type with dot-prefix order), including local/remote file editing through the Snippet Editor

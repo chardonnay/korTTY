@@ -219,10 +219,10 @@ pages:
     last_synced_ref: "03ab38c"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
-    owns_i18n: [menu.connections.]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java]
+    owns_i18n: [menu.connections., connEdit.tag, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/ConnectionExportDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "381dad52"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: [connEdit.log., connEdit.loggingInfo, quickConnect.log., quickConnect.section.terminalLog, terminal.log.]
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/core/TerminalLogger.java, src/main/java/de/kortty/core/TerminalLogNaming.java, src/main/java/de/kortty/core/TerminalLogRetention.java, src/main/java/de/kortty/model/TerminalLogConfig.java, src/main/java/de/kortty/core/SessionJournalRedactor.java]
@@ -231,12 +231,12 @@ pages:
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
     owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SSHSession.java]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "381dad52"
   - path: app-docs/site/docs/en/features/jump-server.md
     owns_i18n: [connEdit.jump, connEdit.enableJump, connEdit.tab.jumpServer]
     owns_code: [src/main/java/de/kortty/model/JumpServer.java, src/main/java/de/kortty/core/JumpHostSupport.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java]
     diagrams: [jump-server-flow.svg]
-    last_synced_ref: "03ab38c"
+    last_synced_ref: "381dad52"
   - path: app-docs/site/docs/en/features/sftp.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/sftp]
@@ -405,8 +405,8 @@ pages:
     last_synced_ref: "03ab38c"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
-    last_synced_ref: "03ab38c"
+    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
+    last_synced_ref: "381dad52"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
     owns_code: [src/main/java/de/kortty/policy, package/policy]
