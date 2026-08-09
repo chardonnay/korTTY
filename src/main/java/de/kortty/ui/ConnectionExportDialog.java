@@ -13,6 +13,8 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Dialog for exporting selected connections with options and format selection.
@@ -21,13 +23,19 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
     
     private final Stage owner;
     private final List<ServerConnection> connections;
-    
+    /** Full pool of exportable connections, used for the "export by tag" selection; may be null. */
+    private final List<ServerConnection> allConnections;
+
     private final ComboBox<ExportFormat> formatComboBox;
     private final CheckBox includeUsernameCheck;
     private final CheckBox includePasswordCheck;
     private final CheckBox includeTunnelsCheck;
     private final CheckBox includeJumpServerCheck;
     private final TextField exportPathField;
+    private RadioButton selectedConnectionsRadio;
+    private RadioButton byTagRadio;
+    private ListView<String> tagListView;
+    private Button exportButton;
     private File selectedFile;
     
     /**
@@ -74,9 +82,15 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
     }
     
     public ConnectionExportDialog(Stage owner, List<ServerConnection> connections) {
+        this(owner, connections, null);
+    }
+
+    public ConnectionExportDialog(Stage owner, List<ServerConnection> connections,
+                                  List<ServerConnection> allConnections) {
         this.owner = owner;
         this.connections = connections;
-        
+        this.allConnections = allConnections;
+
         setTitle(I18n.get("connExport.title"));
         setHeaderText(I18n.get("connExport.header", connections.size()));
         initOwner(owner);
@@ -129,7 +143,46 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
         // Add separator
         Separator separator1 = new Separator();
         grid.add(separator1, 0, row++, 3, 1);
-        
+
+        // Section: which connections to export (the pre-selected ones or all matching chosen tags)
+        List<String> availableTags = allConnections == null ? List.of() : allConnections.stream()
+            .filter(conn -> !conn.isPlaceholder())
+            .map(ServerConnection::getTag)
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted(String.CASE_INSENSITIVE_ORDER)
+            .collect(Collectors.toList());
+
+        if (!availableTags.isEmpty()) {
+            Label selectionHeader = new Label(I18n.get("connExport.selection"));
+            selectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+            grid.add(selectionHeader, 0, row++, 3, 1);
+
+            ToggleGroup selectionToggle = new ToggleGroup();
+            selectedConnectionsRadio = new RadioButton(I18n.get("connExport.selectionSelected", connections.size()));
+            selectedConnectionsRadio.setToggleGroup(selectionToggle);
+            selectedConnectionsRadio.setSelected(true);
+            grid.add(selectedConnectionsRadio, 0, row++, 3, 1);
+
+            byTagRadio = new RadioButton(I18n.get("connExport.selectionByTag"));
+            byTagRadio.setToggleGroup(selectionToggle);
+            grid.add(byTagRadio, 0, row++, 3, 1);
+
+            tagListView = new ListView<>();
+            tagListView.getItems().addAll(availableTags);
+            tagListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+            tagListView.setPrefHeight(100);
+            tagListView.setDisable(true);
+            grid.add(tagListView, 0, row++, 3, 1);
+
+            byTagRadio.selectedProperty().addListener((obs, old, selected) -> tagListView.setDisable(!selected));
+            selectionToggle.selectedToggleProperty().addListener((obs, old, toggle) -> exportSelectionChanged());
+            tagListView.getSelectionModel().getSelectedItems().addListener(
+                (javafx.collections.ListChangeListener<String>) change -> exportSelectionChanged());
+
+            grid.add(new Separator(), 0, row++, 3, 1);
+        }
+
         // Section: Authentication data
         Label authHeader = new Label(I18n.get("connExport.authData"));
         authHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
@@ -172,20 +225,18 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
         ButtonType exportButtonType = new ButtonType(I18n.get("connExport.export"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(exportButtonType, ButtonType.CANCEL);
         
-        Button exportButton = (Button) getDialogPane().lookupButton(exportButtonType);
+        exportButton = (Button) getDialogPane().lookupButton(exportButtonType);
         exportButton.setDisable(true);
-        
-        // Enable export button only when file is selected
-        exportPathField.textProperty().addListener((obs, old, newVal) -> {
-            exportButton.setDisable(newVal == null || newVal.trim().isEmpty());
-        });
-        
+
+        // Enable export button only when a file is selected and the selection is non-empty
+        exportPathField.textProperty().addListener((obs, old, newVal) -> updateExportButtonState());
+
         // Result converter
         setResultConverter(dialogButton -> {
             if (dialogButton == exportButtonType && selectedFile != null) {
                 ExportFormat selectedFormat = formatComboBox.getSelectionModel().getSelectedItem();
                 return new ExportResult(
-                    connections,
+                    resolveExportConnections(),
                     selectedFile,
                     includeUsernameCheck.isSelected(),
                     includePasswordCheck.isSelected(),
@@ -198,6 +249,35 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
         });
     }
     
+    /**
+     * The connections the export will actually contain: either the pre-selected list or,
+     * in "by tag" mode, all pool connections carrying one of the chosen tags.
+     */
+    private List<ServerConnection> resolveExportConnections() {
+        if (byTagRadio != null && byTagRadio.isSelected() && tagListView != null && allConnections != null) {
+            List<String> chosenTags = tagListView.getSelectionModel().getSelectedItems();
+            return allConnections.stream()
+                .filter(conn -> !conn.isPlaceholder())
+                .filter(conn -> conn.getTag() != null && chosenTags.contains(conn.getTag()))
+                .collect(Collectors.toList());
+        }
+        return connections;
+    }
+
+    private void exportSelectionChanged() {
+        setHeaderText(I18n.get("connExport.header", resolveExportConnections().size()));
+        updateExportButtonState();
+    }
+
+    private void updateExportButtonState() {
+        if (exportButton == null) {
+            return;
+        }
+        String path = exportPathField.getText();
+        boolean hasFile = path != null && !path.trim().isEmpty();
+        exportButton.setDisable(!hasFile || resolveExportConnections().isEmpty());
+    }
+
     private void selectExportFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("connExport.selectExportFile"));

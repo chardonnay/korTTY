@@ -35,7 +35,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Schriftartenfamilie | Dropdown-Liste | Gängige Monospace-Schriftarten (Monaco, Courier New, Menlo, Fira Code usw.) und alle Systemschriftarten | Monospaced | `defaultTerminalSettings.fontFamily` |
+| Schriftartenfamilie | Dropdown-Liste | Gängige Festbreitenschriften (Monaco, Courier New, Menlo, Fira Code usw.) und alle Systemschriftarten | Monospaced | `defaultTerminalSettings.fontFamily` |
 | Schriftgröße | Nummer | 8–72 pt | 14 | `defaultTerminalSettings.fontSize` |
 
 !!! note

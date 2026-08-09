@@ -34,6 +34,10 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private Consumer<List<ServerConnection>> onExportConnections;
     private Consumer<List<ServerConnection>> onDeleteConnections;
     private Consumer<GroupPath> onExportGroup;
+    private Consumer<List<ServerConnection>> onAssignTag;
+    private Consumer<List<ServerConnection>> onRemoveTag;
+    private Consumer<GroupPath> onAssignTagToGroup;
+    private Consumer<GroupPath> onRemoveTagFromGroup;
     /** Toggles host-key verification for a group; the boolean is the new "disabled" state. */
     private java.util.function.BiConsumer<GroupPath, Boolean> onToggleGroupHostKeyCheck;
     /** Reports whether a group currently has host-key verification disabled, to render the check mark. */
@@ -254,7 +258,8 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             || de.kortty.policy.ServerAccessPolicy.isAllowed(connection)) {
             return;
         }
-        cell.setText("🚫 " + item.getDisplayName());
+        cell.setText("🚫 " + item.getDisplayName()
+            + (connection.getTag() != null ? "  🏷 " + connection.getTag() : ""));
         cell.setTextFill(Color.GRAY);
         cell.setTooltip(new Tooltip(I18n.get("policy.server.blocked.title") + " — "
             + de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
@@ -384,7 +389,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             setTextFill(Color.GRAY);
                             setFont(Font.font(getFont().getFamily(), 10));
                         } else {
-                            setText("🔌 " + item.getDisplayName());
+                            String tag = item.getConnection().getTag();
+                            setText("🔌 " + item.getDisplayName()
+                                + (tag != null ? "  🏷 " + tag : ""));
                             if (!selectionOnly) {
                                 setContextMenu(createConnectionContextMenu());
                             }
@@ -527,9 +534,26 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
 
+        MenuItem assignTagItem = new MenuItem(I18n.get("connManager.assignTag"));
+        assignTagItem.setOnAction(e -> {
+            if (onAssignTagToGroup != null) {
+                onAssignTagToGroup.accept(groupPath);
+            }
+        });
+
+        MenuItem removeTagItem = new MenuItem(I18n.get("connManager.removeTag"));
+        removeTagItem.setOnAction(e -> {
+            if (onRemoveTagFromGroup != null) {
+                onRemoveTagFromGroup.accept(groupPath);
+            }
+        });
+
         menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(),
-                               disableHostKeyItem, new SeparatorMenuItem(),
-                               exportGroupItem, deleteGroupItem);
+                               disableHostKeyItem, new SeparatorMenuItem());
+        if (onAssignTagToGroup != null || onRemoveTagFromGroup != null) {
+            menu.getItems().addAll(assignTagItem, removeTagItem, new SeparatorMenuItem());
+        }
+        menu.getItems().addAll(exportGroupItem, deleteGroupItem);
         return menu;
     }
 
@@ -570,16 +594,38 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 onDeleteConnections.accept(selected);
             }
         });
-        
+
+        MenuItem assignTagItem = new MenuItem(I18n.get("connManager.assignTag"));
+        assignTagItem.setOnAction(e -> {
+            List<ServerConnection> selected = getSelectedConnections();
+            if (!selected.isEmpty() && onAssignTag != null) {
+                onAssignTag.accept(selected);
+            }
+        });
+
+        MenuItem removeTagItem = new MenuItem(I18n.get("connManager.removeTag"));
+        removeTagItem.setOnAction(e -> {
+            List<ServerConnection> selected = getSelectedConnections();
+            if (!selected.isEmpty() && onRemoveTag != null) {
+                onRemoveTag.accept(selected);
+            }
+        });
+
         // Enable/disable edit based on selection
         menu.setOnShowing(e -> {
             List<ServerConnection> selected = getSelectedConnections();
             editItem.setDisable(selected.size() != 1);
             exportItem.setDisable(selected.isEmpty());
             deleteItem.setDisable(selected.isEmpty());
+            assignTagItem.setDisable(selected.isEmpty());
+            removeTagItem.setDisable(selected.stream().allMatch(conn -> conn.getTag() == null));
         });
-        
-        menu.getItems().addAll(editItem, exportItem, deleteItem);
+
+        menu.getItems().addAll(editItem, exportItem);
+        if (onAssignTag != null || onRemoveTag != null) {
+            menu.getItems().addAll(new SeparatorMenuItem(), assignTagItem, removeTagItem, new SeparatorMenuItem());
+        }
+        menu.getItems().add(deleteItem);
         return menu;
     }
     
@@ -676,6 +722,33 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     
     public void setOnAddConnection(Runnable callback) {
         this.onAddConnection = callback;
+    }
+
+    public void setOnAssignTag(Consumer<List<ServerConnection>> callback) {
+        this.onAssignTag = callback;
+    }
+
+    public void setOnRemoveTag(Consumer<List<ServerConnection>> callback) {
+        this.onRemoveTag = callback;
+    }
+
+    public void setOnAssignTagToGroup(Consumer<GroupPath> callback) {
+        this.onAssignTagToGroup = callback;
+    }
+
+    public void setOnRemoveTagFromGroup(Consumer<GroupPath> callback) {
+        this.onRemoveTagFromGroup = callback;
+    }
+
+    /**
+     * Rebuilds the tree, keeping the currently active search filter applied (if any).
+     */
+    public void refreshPreservingFilter() {
+        if (currentSearchPredicate != null) {
+            filterTree(currentSearchPredicate);
+        } else {
+            refreshTree();
+        }
     }
     
     /**

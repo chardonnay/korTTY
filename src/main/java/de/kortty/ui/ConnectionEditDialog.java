@@ -61,6 +61,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final TextField groupField;
+    private final TextField tagField;
     private final ToggleGroup authMethodGroup;
     private final RadioButton passwordAuthRadio;
     private final RadioButton keyAuthRadio;
@@ -274,7 +275,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         groupField = new TextField(connection.getGroup());
         groupField.setPromptText(I18n.get("connEdit.groupPrompt"));
-        
+
+        tagField = new TextField(connection.getTag());
+        tagField.setPromptText(I18n.get("connEdit.tagPrompt"));
+
         // Connection timeout and retry
         timeoutSpinner = new Spinner<>(1, 300, connection.getConnectionTimeoutSeconds());
         timeoutSpinner.setEditable(true);
@@ -412,7 +416,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
-        
+
+        connectionGrid.add(new Label(I18n.get("connEdit.tag")), 0, row);
+        connectionGrid.add(tagField, 1, row++);
+
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
         connectionGrid.add(new Label(I18n.get("connEdit.timeout")), 0, row);
@@ -553,6 +560,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 String getHostText = hostField != null && hostField.getText() != null ? hostField.getText().trim() : "";
                 String getUsernameText = usernameField != null && usernameField.getText() != null ? usernameField.getText().trim() : "";
                 String getGroupText = groupField != null && groupField.getText() != null ? groupField.getText().trim() : "";
+                String getTagText = tagField != null && tagField.getText() != null ? tagField.getText().trim() : "";
                 
                 connection.setName(getNameText);
                 connection.setHost(getHostText);
@@ -567,6 +575,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
+                connection.setTag(getTagText.isEmpty() ? null : getTagText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());
                 connection.setDisableHostKeyCheck(

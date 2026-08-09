@@ -30,7 +30,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |
 | [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Quote, Internet-Tools |
-| [SFTP-Manager](sftp.md) | Automatisches Schließen der SFTP-Registerkarte, Remote-ZIP-Standardeinstellungen, JobScheduler rsync-Binärdatei |
+| [SFTP Manager](sftp.md) | Automatisches Schließen der SFTP-Registerkarte, Remote-ZIP-Standardeinstellungen, JobScheduler rsync-Binärdatei |
 | [Editor](editor.md) | Cursorstil und -farbe für Editor-Registerkarten |
 | [Snippet-Editor](snippet-editor.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
 

@@ -300,7 +300,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             Button btn = new Button(conn.getName());
             btn.setPrefWidth(140);
             btn.setMaxWidth(Double.MAX_VALUE);
-            btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() + 
+            btn.setTooltip(new Tooltip(conn.getUsername() + "@" + conn.getHost() + ":" + conn.getPort() +
+                    (conn.getTag() != null ? "\n" + I18n.get("quickConnect.tag") + ": " + conn.getTag() : "") +
                     "\n" + I18n.get("quickConnect.usageCount") + ": " + conn.getUsageCount() + "x" +
                     "\n" + I18n.get("quickConnect.lastUsed") + ": " + new java.util.Date(conn.getLastUsed())));
             btn.setOnAction(e -> {
@@ -561,7 +562,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ":" + item.getPort() + ")");
+                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ":" + item.getPort() + ")"
+                        + (item.getTag() != null ? "  🏷 " + item.getTag() : ""));
                 }
             }
         });
@@ -572,7 +574,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 if (empty || item == null) {
                     setText(I18n.get("quickConnect.selectSaved"));
                 } else {
-                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ")");
+                    setText(item.getName() + " (" + item.getUsername() + "@" + item.getHost() + ")"
+                        + (item.getTag() != null ? "  🏷 " + item.getTag() : ""));
                 }
             }
         });
@@ -967,6 +970,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         modified.setPort(selected.getPort());
         modified.setUsername(selected.getUsername());
         modified.setGroup(selected.getGroup());
+        modified.setTag(selected.getTag());
         modified.setSettings(copyTerminalSettings(selected));
         modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         modified.setRetryCount(retrySpinner.getValue());
@@ -1282,6 +1286,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 .filter(connection -> matcher.test(connection.getName())
                     || matcher.test(connection.getHost())
                     || matcher.test(connection.getUsername())
+                    || matcher.test(connection.getTag())
                     || matcher.test(savedConnectionLabel(connection)))
                 .collect(java.util.stream.Collectors.toList());
         }

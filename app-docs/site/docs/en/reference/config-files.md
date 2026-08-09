@@ -60,6 +60,7 @@ Contains all saved SSH connections with their settings.
 - Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
 - Window geometry preferences
 - Group/folder organization
+- Optional free-text tag (used for search, bulk tagging and tag-based export)
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
 
