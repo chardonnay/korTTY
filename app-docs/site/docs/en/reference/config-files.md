@@ -34,6 +34,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
+├── journals/                          # Session journals (default location; configurable)
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
@@ -56,6 +57,7 @@ Contains all saved SSH connections with their settings.
 - Connection-specific terminal logging settings
 - Window geometry preferences
 - Group/folder organization
+- Optional free-text tag (used for search, bulk tagging and tag-based export)
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
 

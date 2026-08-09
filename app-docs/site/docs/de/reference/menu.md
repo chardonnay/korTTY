@@ -6,7 +6,7 @@ Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern defi
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Neuer Tab | ++ctrl+t++ | Öffnen Sie Quick Connect in einem neuen Terminal-Tab |
+| New Tab | ++ctrl+t++ | Öffnen Sie Quick Connect in einem neuen Terminal-Tab |
 | Tab schließen | ++ctrl+w++ | Schließen Sie die aktive Terminal-Registerkarte |
 | Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen |
 | Neues Fenster | ++ctrl+shift+n++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
@@ -26,7 +26,7 @@ Verbindungseinträge (Quick Connect, Verbindungen verwalten/importieren/exportie
 | Schneiden | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
-| Finden… | ++ctrl+f++ | Durchsuchen Sie die aktive Registerkarte (Terminal-Scrollback oder geöffneter Editor). |
+| Finden… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor) |
 
 ## Verbindungen
 
@@ -64,10 +64,10 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Snippet Manager… | Erstellen, Bearbeiten, Organisieren, Senden und Exportieren von Befehlsausschnitten |
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
-| Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
+| Start/Stop Terminal Recording | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
 | Sitzungsjournale… | Verwalten [Sitzungsjournale](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
-| Sitzungsjournal starten/stoppen | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
-| Journal-Screenshot hinzufügen | Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
+| Start/Stop Session Journal | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
+| Journal-Screenshot hinzufügen | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |
 
 ## AI
@@ -82,7 +82,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
 
-**AI Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Fähigkeiten** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
+**AI Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Skills** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
 
 ![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
@@ -105,7 +105,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |
 | Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
-| Vollbild | ++f12++ | Fenster-Vollbild umschalten |
+| Fullscreen | ++f12++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigen Sie das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |

@@ -6,11 +6,11 @@ korTTY manages SSH, Mosh and **local-shell** connections through three entry poi
 
 ## Quick Connect
 
-Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them.
+Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or [tag](#tags) (`*` works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.
 
 ## Connection Manager
 
-**Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped). From here you create, edit, duplicate, delete, import and export connections.
+**Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.
 
 ## Creating / editing a connection
 
@@ -18,12 +18,23 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify). For **Local Shell** connections host, port, username and authentication are not required and are disabled. |
+| Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. |
 | Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
+| Journal | Per-connection [session journal](session-journal.md): enable journaling for this connection and configure its capture log and AI summarization |
 | Window Geometry | Saved size/position for this connection |
+| AI | Per-connection AI defaults: the [AI profile](ai-assistant.md) and AI Skills used by terminal AI features on this connection |
+
+## Tags
+
+Every saved connection can carry one optional free-text **tag** — a label such as `prod`, `staging` or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's *Connection* tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in `connections.xml` and survive duplicating, exporting and importing.
+
+- **Visible** — tagged connections show a 🏷 badge after their name in the Connection Manager tree and in Quick Connect's saved-connections dropdown; the tag also appears in the tooltip of the frequently-used quick buttons.
+- **Searchable** — the Connection Manager search (local and Teamwork tabs) and Quick Connect's saved-connections search match tags as well as names and hosts.
+- **Bulk assign / remove** — select one or more servers and choose **Assign Tag** from the context menu to tag them in one step. The prompt is pre-filled when all selected connections already share the same tag, and clearing that pre-filled value removes the tag. **Remove Tag** clears the tag and is enabled only while the selection contains at least one tagged connection. The same two entries on a folder's context menu apply to every connection in that folder, subfolders included.
+- **Export by tag** — once at least one tag exists, the Connection Manager's export dialog offers a **Connections to export** choice: keep the pre-selected connections, or export **all connections with these tags** — pick one or more tags from the list, the header's connection count follows the selection live, and the export button stays disabled while nothing matches.
 
 ## Protocols
 
