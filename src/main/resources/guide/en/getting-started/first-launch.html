@@ -2312,7 +2312,7 @@
 <p>On subsequent launches you are prompted to enter the master password to unlock your encrypted data.</p>
 <div class="admonition warning">
 <p class="admonition-title">Disabling the prompt</p>
-<p>You can disable the unlock prompt in <strong>Settings → Security</strong>, but stored passwords remain inaccessible until you enter the master password manually.</p>
+<p><strong>Settings → Security</strong> offers two ways to skip the prompt. Turning off <strong>Require master password on startup</strong> hides the prompt, but stored passwords remain inaccessible until you enter the master password manually. <strong>Disable master password prompt on startup (auto-login)</strong> instead unlocks the vault automatically from a copy of your master password kept on disk — only obfuscated, not encrypted, so reserve it for throwaway or test environments. See the <a href="../reference/settings/security.html">Security settings</a> for details, including unattended first launches that skip the setup dialog entirely.</p>
 </div>
 <h2 id="what-is-encrypted">What is encrypted<a class="headerlink" href="#what-is-encrypted" title="Permanent link">&para;</a></h2>
 <table>
@@ -2341,8 +2341,13 @@
 </tr>
 <tr>
 <td>Master password</td>
-<td><code>~/.kortty/master-password-hash</code></td>
+<td><code>~/.kortty/master.key</code></td>
 <td>salted hash (verification only)</td>
+</tr>
+<tr>
+<td>Remembered master password (auto-login only)</td>
+<td><code>~/.kortty/master.autounlock</code></td>
+<td>obfuscated only — not encrypted; owner-only file permissions</td>
 </tr>
 </tbody>
 </table>
