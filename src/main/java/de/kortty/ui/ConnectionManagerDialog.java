@@ -750,26 +750,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     private void duplicateConnection() {
         ServerConnection selected = getSelectedConnection();
         if (selected != null && !selected.isPlaceholder()) {
-            ServerConnection copy = new ServerConnection();
+            ServerConnection copy = ServerConnection.copyForDuplicate(selected);
             copy.setName(selected.getName() + I18n.get("connManager.copy"));
-            copy.setHost(selected.getHost());
-            copy.setPort(selected.getPort());
-            copy.setUsername(selected.getUsername());
-            copy.setProtocol(selected.getProtocol());
-            copy.setAuthMethod(selected.getAuthMethod());
-            copy.setPrivateKeyPath(selected.getPrivateKeyPath());
-            copy.setTerminalEffectPluginId(selected.getTerminalEffectPluginId());
-            copy.setTerminalEffectAnimationSpeed(selected.getTerminalEffectAnimationSpeed());
-            copy.setTerminalEmulationType(selected.getTerminalEmulationType());
-            copy.setGroup(selected.getGroup());
-            copy.setTag(selected.getTag());
-            copy.setAiProfileId(selected.getAiProfileId());
-            copy.setAiSkillIds(selected.getAiSkillIds());
-            
-            if (selected.getSettings() != null) {
-                copy.setSettings(new de.kortty.model.ConnectionSettings(selected.getSettings()));
-            }
-            
+
             connections.add(copy);
             configManager.addConnection(copy);
             treeView.refreshTree();
@@ -1081,54 +1064,11 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     private void exportConnectionsToFile(ConnectionExportDialog.ExportResult result) throws Exception {
         // Create copies of connections and filter based on options
         List<ServerConnection> exportList = new ArrayList<>();
-        
+
         for (ServerConnection conn : result.connections) {
-            ServerConnection copy = new ServerConnection();
-            copy.setName(conn.getName());
-            copy.setHost(conn.getHost());
-            copy.setPort(conn.getPort());
-            copy.setGroup(conn.getGroup());
-            copy.setTag(conn.getTag());
-            copy.setProtocol(conn.getProtocol());
-            copy.setAuthMethod(conn.getAuthMethod());
-            copy.setPrivateKeyPath(conn.getPrivateKeyPath());
-            copy.setSshKeyId(conn.getSshKeyId());
-            copy.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
-            copy.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
-            
-            // Username (optional)
-            if (result.includeUsername) {
-                copy.setUsername(conn.getUsername());
-            } else {
-                copy.setUsername("");
-            }
-            
-            // Password/CredentialId (optional)
-            if (result.includePassword) {
-                copy.setEncryptedPassword(conn.getEncryptedPassword());
-                copy.setCredentialId(conn.getCredentialId());
-            } else {
-                copy.setEncryptedPassword(null);
-                copy.setCredentialId(null);
-            }
-            
-            // SSH Tunnels (optional)
-            if (result.includeTunnels && conn.getSshTunnels() != null) {
-                copy.setSshTunnels(new ArrayList<>(conn.getSshTunnels()));
-            }
-            
-            // Jump Server (optional)
-            if (result.includeJumpServer && conn.getJumpServer() != null) {
-                copy.setJumpServer(conn.getJumpServer());
-            }
-            
-            // Copy settings
-            if (conn.getSettings() != null) {
-                copy.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
-            }
-            copy.setTerminalEmulationType(conn.getTerminalEmulationType());
-            
-            exportList.add(copy);
+            exportList.add(ServerConnection.copyForExport(conn,
+                result.includeUsername, result.includePassword,
+                result.includeTunnels, result.includeJumpServer));
         }
         
         // Use the selected exporter

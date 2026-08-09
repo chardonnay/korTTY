@@ -213,6 +213,78 @@ public class ServerConnection {
         return c;
     }
 
+    /**
+     * Copy behind the connection manager's Duplicate action: configuration is carried over,
+     * while identity (fresh id, name set by the caller), credentials, usage statistics, capture
+     * configs, tunnels and teamwork provenance stay behind. Every persisted field must be
+     * classified as carried or excluded in ServerConnectionCopyPolicyTest.
+     */
+    public static ServerConnection copyForDuplicate(ServerConnection source) {
+        ServerConnection c = new ServerConnection();
+        c.host = source.host;
+        c.port = source.port;
+        c.username = source.username;
+        c.protocol = source.protocol;
+        c.localShellCommand = source.localShellCommand;
+        c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.authMethod = source.authMethod;
+        c.privateKeyPath = source.privateKeyPath;
+        c.terminalEffectPluginId = source.terminalEffectPluginId;
+        c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.terminalEmulationType = source.getTerminalEmulationType();
+        c.group = source.group;
+        c.tag = source.tag;
+        c.disableHostKeyCheck = source.disableHostKeyCheck;
+        c.aiProfileId = source.aiProfileId;
+        c.setAiSkillIds(source.getAiSkillIds());
+        if (source.settings != null) {
+            c.settings = new ConnectionSettings(source.settings);
+        }
+        return c;
+    }
+
+    /**
+     * Copy written to a connection export: configuration is exported unconditionally, while
+     * username, password/credential reference, tunnels and jump server follow the export dialog's
+     * checkboxes. Usage statistics, capture configs, temporary keys, AI assignments and teamwork
+     * provenance never leave the machine. Every persisted field must be classified as carried,
+     * conditional or excluded in ServerConnectionCopyPolicyTest.
+     */
+    public static ServerConnection copyForExport(ServerConnection source, boolean includeUsername,
+            boolean includePassword, boolean includeTunnels, boolean includeJumpServer) {
+        ServerConnection c = new ServerConnection();
+        c.name = source.name;
+        c.host = source.host;
+        c.port = source.port;
+        c.group = source.group;
+        c.tag = source.tag;
+        c.protocol = source.protocol;
+        c.localShellCommand = source.localShellCommand;
+        c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.authMethod = source.authMethod;
+        c.privateKeyPath = source.privateKeyPath;
+        c.sshKeyId = source.sshKeyId;
+        c.disableHostKeyCheck = source.disableHostKeyCheck;
+        c.terminalEffectPluginId = source.terminalEffectPluginId;
+        c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.terminalEmulationType = source.getTerminalEmulationType();
+        c.username = includeUsername ? source.username : "";
+        if (includePassword) {
+            c.encryptedPassword = source.encryptedPassword;
+            c.credentialId = source.credentialId;
+        }
+        if (includeTunnels && source.sshTunnels != null) {
+            c.sshTunnels = new java.util.ArrayList<>(source.sshTunnels);
+        }
+        if (includeJumpServer && source.jumpServer != null) {
+            c.jumpServer = source.jumpServer;
+        }
+        if (source.settings != null) {
+            c.settings = new ConnectionSettings(source.settings);
+        }
+        return c;
+    }
+
     // Getters and Setters
 
     public String getId() {
