@@ -1515,6 +1515,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#protocols" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2412,6 +2423,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#protocols" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2515,9 +2537,9 @@
 <p>korTTY manages SSH, Mosh and <strong>local-shell</strong> connections through three entry points: <strong>Quick Connect</strong>, the <strong>Connection Manager</strong>, and saved <strong>Projects</strong>.</p>
 <p><img alt="Connection flow" src="../assets/diagrams/connection-flow.svg" /></p>
 <h2 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h2>
-<p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them.</p>
+<p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or <a href="#tags">tag</a> (<code>*</code> works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.</p>
 <h2 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
-<p><strong>Connections → Manage Connections…</strong> opens a searchable tree of saved connections (optionally grouped). From here you create, edit, duplicate, delete, import and export connections.</p>
+<p><strong>Connections → Manage Connections…</strong> opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or <a href="#tags">tag</a>, with <code>*</code> as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.</p>
 <h2 id="creating-editing-a-connection">Creating / editing a connection<a class="headerlink" href="#creating-editing-a-connection" title="Permanent link">&para;</a></h2>
 <p>The connection editor has these tabs:</p>
 <table>
@@ -2530,7 +2552,7 @@
 <tbody>
 <tr>
 <td>Connection</td>
-<td>Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify). For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled.</td>
+<td>Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify), group/folder assignment and an optional free-text <a href="#tags">tag</a>. For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled.</td>
 </tr>
 <tr>
 <td>Terminal Settings</td>
@@ -2549,11 +2571,27 @@
 <td>Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See <a href="terminal.html#terminal-logging">Terminal logging</a>.</td>
 </tr>
 <tr>
+<td>Journal</td>
+<td>Per-connection <a href="session-journal.html">session journal</a>: enable journaling for this connection and configure its capture log and AI summarization</td>
+</tr>
+<tr>
 <td>Window Geometry</td>
 <td>Saved size/position for this connection</td>
 </tr>
+<tr>
+<td>AI</td>
+<td>Per-connection AI defaults: the <a href="ai-assistant.html">AI profile</a> and AI Skills used by terminal AI features on this connection</td>
+</tr>
 </tbody>
 </table>
+<h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
+<p>Every saved connection can carry one optional free-text <strong>tag</strong> — a label such as <code>prod</code>, <code>staging</code> or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's <em>Connection</em> tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in <code>connections.xml</code> and survive duplicating, exporting and importing.</p>
+<ul>
+<li><strong>Visible</strong> — tagged connections show a 🏷 badge after their name in the Connection Manager tree and in Quick Connect's saved-connections dropdown; the tag also appears in the tooltip of the frequently-used quick buttons.</li>
+<li><strong>Searchable</strong> — the Connection Manager search (local and Teamwork tabs) and Quick Connect's saved-connections search match tags as well as names and hosts.</li>
+<li><strong>Bulk assign / remove</strong> — select one or more servers and choose <strong>Assign Tag</strong> from the context menu to tag them in one step. The prompt is pre-filled when all selected connections already share the same tag, and clearing that pre-filled value removes the tag. <strong>Remove Tag</strong> clears the tag and is enabled only while the selection contains at least one tagged connection. The same two entries on a folder's context menu apply to every connection in that folder, subfolders included.</li>
+<li><strong>Export by tag</strong> — once at least one tag exists, the Connection Manager's export dialog offers a <strong>Connections to export</strong> choice: keep the pre-selected connections, or export <strong>all connections with these tags</strong> — pick one or more tags from the list, the header's connection count follows the selection live, and the export button stays disabled while nothing matches.</li>
+</ul>
 <h2 id="protocols">Protocols<a class="headerlink" href="#protocols" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Local Shell</label></div>
 <div class="tabbed-content">

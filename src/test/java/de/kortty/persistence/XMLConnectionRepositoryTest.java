@@ -187,6 +187,58 @@ class XMLConnectionRepositoryTest {
     }
 
     @Test
+    void saveAndLoadPreservesTag() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-tag");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Tagged connection");
+            connection.setHost("example.com");
+            connection.setUsername("root");
+            connection.setTag("production");
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<tag>production</tag>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTag()).isEqualTo("production");
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadOldConnectionWithoutTagDefaultsToNull() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-tag-default");
+        try {
+            Files.writeString(dir.resolve("connections.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <connections>
+                    <connection>
+                        <name>Old connection</name>
+                        <host>example.com</host>
+                        <port>22</port>
+                        <username>root</username>
+                    </connection>
+                </connections>
+                """);
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTag()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void loadOldConnectionWithoutTerminalEmulationDefaultsToXterm() throws Exception {
         Path dir = Files.createTempDirectory("kortty-xml-repo-terminal-emulation-default");
         try {

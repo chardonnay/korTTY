@@ -2209,6 +2209,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#verbindungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2357,6 +2368,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#verbindungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungen
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2415,6 +2437,11 @@
 <li><strong>Ein Popup-Fenster „Auto AI Complete“ während der vollständigen Codeanalyse wurde behoben</strong> – Beim Starten der Analyse wird jetzt ein Timer für den ausstehenden Abschluss verworfen und alle sichtbaren Ghost-Vorschläge geschlossen, anstatt zuzulassen, dass ein veraltetes Abschluss-Popup über dem Analysefluss erscheint.</li>
 <li><strong>Die ursprüngliche Antwort auf die vollständige Codeanalyse wurde verschärft</strong> – OpenAI-kompatibles HTTP beschränkt den Bericht jetzt auf ein striktes JSON-Schema mit den Feldern <code>summary</code>, <code>dependencies</code> und <code>improvements</code>. korTTY versucht es einmal ohne das Schema nur dann erneut, wenn der Endpunkt die strukturierte Ausgabe explizit ablehnt. Eine fehlerhafte Modellausgabe wird ohne Wiederholungsschleife abgelehnt.</li>
 <li><strong>Das Kontrollkästchen „Vollständige Codeanalyse-Auswahl“ wurde verschoben</strong> – <strong>Alle Verbesserungen auswählen</strong> ist jetzt das erste Steuerelement ganz links in der Analysesymbolleiste, anstatt in die rechte Steuerelementgruppe verschoben zu werden, mit zusätzlichem Abstand vor dem folgenden <strong>Profil:</strong>-Indikator, damit die beiden Gruppen optisch unterschiedlich bleiben.</li>
+</ul>
+<h3 id="verbindungen">Verbindungen<a class="headerlink" href="#verbindungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Verbindungen können jetzt mit Tags versehen werden</strong> – jede gespeicherte Verbindung erhält optional ein Freitext-<a href="../features/connections.html#tags">Tag</a> (<code>prod</code>, <code>staging</code>, ein Kundenname…), das auf der Registerkarte <em>Verbindung</em> des Verbindungseditors oder gesammelt über die neuen Kontextmenüeinträge <strong>Tag zuordnen</strong> / <strong>Tag entfernen</strong> des Verbindungsmanagers festgelegt wird, die bei einer Mehrfachauswahl und bei ganzen Ordnern einschließlich ihrer Unterordner funktionieren. Mit Tags versehene Server zeigen in der Managerstruktur und in der Liste der gespeicherten Verbindungen von Quick Connect ein 🏷-Symbol an, und die Verbindungssuchen – Verbindungsmanager (lokale und Teamwork-Registerkarten) und Quick Connect – berücksichtigen ebenfalls Tags.</li>
+<li><strong>Nach Tag exportieren</strong> – Das Dialogfeld „Verbindungsexport“ kann jetzt <strong>alle Verbindungen mit ausgewählten Tags</strong> anstelle der vorab ausgewählten Liste exportieren: Wählen Sie ein oder mehrere Tags aus, die Verbindungsanzahl des Dialogs folgt der tatsächlichen Auswahl und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Frühere Versionen</p>

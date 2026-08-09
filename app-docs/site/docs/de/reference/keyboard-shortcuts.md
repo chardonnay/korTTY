@@ -6,7 +6,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 | Verknüpfung | Aktion |
 | --- | --- |
-| ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
+| ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Tab schließen |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
@@ -26,7 +26,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+p++ | Anmeldeinformationen verwalten |
 | ++ctrl+shift+g++ | GPG-Schlüssel verwalten |
 | ++ctrl+shift+i++ | SSH-Schlüssel verwalten |
-| ++ctrl+comma++ | Globale Einstellungen |
+| ++ctrl+comma++ | Global Settings |
 | ++ctrl+shift+s++ | Snippet-Manager |
 | ++ctrl+shift+j++ | JobScheduler |
 | ++ctrl+shift+v++ | Videomanager |
@@ -47,7 +47,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++alt+plus++ | Vergrößern |
 | ++alt+minus++ | Herauszoomen |
 | ++alt+0++ | Zoom zurücksetzen |
-| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminal-Schriftart (Befehlstaste + Rad unter macOS). |
+| ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie die Terminalschriftart (Befehlstaste + Rad unter macOS). |
 | ++ctrl+d++ | Schließen Sie eine lokale Registerkarte „cmd.exe/PowerShell“ (EOF für Shells der Bash-Familie und SSH). |
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |

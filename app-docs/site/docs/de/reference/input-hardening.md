@@ -35,7 +35,7 @@ Wenn das Master-Kontrollkästchen aktiviert ist, steuern fünf Unteroptionen, wa
 
 #### Parameter-Zulassungslisten und Längenbeschränkungen
 
-Jeder Parameter, mit dem das Skript aufgerufen wird, wird validiert: die genaue erwartete Parameteranzahl, eine Zeichenzulassungsliste pro Parameter, die davon abgeleitet wird, wie das Skript den Wert tatsächlich verwendet (eine Zahl, ein Dateipfad, ein Hostname, ein Schlüsselwort, freier Text) und eine maximale Länge pro Parameter. Steuerzeichen, NUL-Bytes und Shell-Metazeichen (`;`, `|`, `&`, `` ` ``, `$`, `\`, `<KTPH007>`, eingebettete Zeilenumbrüche) werden für jeden Parameter abgelehnt, der sie nicht rechtmäßig benötigt, sodass überlange oder in böser Absicht erstellte Werte abgelehnt statt verarbeitet werden.
+Jeder Parameter, mit dem das Skript aufgerufen wird, wird validiert: die genaue erwartete Parameteranzahl, eine Zeichenzulassungsliste pro Parameter, die davon abgeleitet wird, wie das Skript den Wert tatsächlich verwendet (eine Zahl, ein Dateipfad, ein Hostname, ein Schlüsselwort, freier Text) und eine maximale Länge pro Parameter. Steuerzeichen, NUL-Bytes und Shell-Metazeichen (`;`, `|`, `&`, `` ` ``, `$`, `\`, `<`, `>`, eingebettete Zeilenumbrüche) werden für jeden Parameter abgelehnt, der sie nicht rechtmäßig benötigt, sodass überlange oder in böser Absicht erstellte Werte abgelehnt statt verarbeitet werden.
 
 #### Überprüfung des Eingabedateiformats
 
@@ -47,7 +47,7 @@ Der Wächter definiert in seinem Konfigurationsabschnitt eine `MAX_FILE_SIZE`-Va
 
 #### Sicherheitswarnungen für stderr und Skriptprotokoll
 
-Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **KORTTY_FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript eine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile hinzu, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
+Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **KORTTY_FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript seine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile an, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
 
 #### KORTTY_FORCE=1 Überschreibung
 
