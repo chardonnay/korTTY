@@ -577,6 +577,76 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void disabledReasoningReachesMiniMaxThroughItsOwnThinkingParameter() {
+        // MiniMax ignores reasoning_effort, so a disabled profile used to arrive as no parameter at
+        // all and the model applied its default: whole completion budgets spent on hidden thinking.
+        OpenAiCompatibleAiService miniMax = new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+        OpenAiCompatibleAiService viaAggregator = new OpenAiCompatibleAiService(
+            "https://openrouter.ai/api/v1/chat/completions",
+            "minimax/minimax-m3",
+            "secret-token");
+
+        JsonObject direct = JsonParser.parseString(miniMax.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en"))).getAsJsonObject();
+        JsonObject proxied = JsonParser.parseString(viaAggregator.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en"))).getAsJsonObject();
+
+        assertThat(direct.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("adaptive");
+        assertThat(proxied.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("adaptive");
+        assertThat(direct.has("reasoning_effort")).isFalse();
+    }
+
+    @Test
+    void thinkingParameterIsWithheldFromOtherEndpointsAndFromExplicitEffortLevels() {
+        OpenAiCompatibleAiService openAi = new OpenAiCompatibleAiService(
+            "https://api.openai.com/v1/chat/completions",
+            "gpt-4o",
+            "secret-token");
+        // An explicit effort level is the user asking for reasoning; overriding it with a weaker
+        // mode would ignore them just as silently as sending nothing did.
+        OpenAiCompatibleAiService miniMaxWithEffort = new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            AiReasoningEffort.HIGH);
+
+        JsonObject other = JsonParser.parseString(openAi.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en"))).getAsJsonObject();
+        JsonObject explicit = JsonParser.parseString(miniMaxWithEffort.buildRequestBody(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en"))).getAsJsonObject();
+
+        assertThat(other.has("thinking")).isFalse();
+        assertThat(explicit.has("thinking")).isFalse();
+        assertThat(explicit.get("reasoning_effort").getAsString()).isEqualTo("high");
+    }
+
+    @Test
+    void retriesWithoutTheThinkingParameterWhenTheEndpointRejectsIt() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, "{\"error\":{\"message\":\"Unsupported parameter: thinking\"}}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        assertThat(result.content()).isEqualTo("ok");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"thinking\"");
+        // Without dropping it, such an endpoint would reject every single request.
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"thinking\"");
+    }
+
+    @Test
     void buildConnectionTestRequestBodyUsesMinimalHealthCheckPrompt() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",

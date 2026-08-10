@@ -47,6 +47,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static final int MAX_TOOL_CALLS_PER_REQUEST = 3;
     private static final String WEB_SEARCH_TOOL_NAME = "web_search";
     private static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
+    /** MiniMax accepts only {@code adaptive} and {@code disabled}; {@code enabled} is a 400. */
+    private static final String MINIMAX_THINKING_MODE = "adaptive";
     /** Cap for the debug-only echo of a response that carried no usable JSON. */
     private static final int UNUSABLE_RESPONSE_LOG_CHARS = 600;
     /**
@@ -576,11 +578,19 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 client,
                 returnTruncatedResult);
         } catch (AiApiException e) {
-            if (!isUnsupportedStreamingError(e)) {
-                throw e;
+            if (isUnsupportedStreamingError(e)) {
+                logger.info("AI endpoint rejected streaming ({}); retrying without streaming.", e.getMessage());
+                return executeBufferedRequest(buildJsonPostRequest(requestBody, timeout), client, returnTruncatedResult);
             }
-            logger.info("AI endpoint rejected streaming ({}); retrying without streaming.", e.getMessage());
-            return executeBufferedRequest(buildJsonPostRequest(requestBody, timeout), client, returnTruncatedResult);
+            // The thinking object is only sent to endpoints that look like MiniMax, so this is a
+            // safety net for a proxy or an older deployment that does not know it — without it,
+            // such an endpoint would reject every single request.
+            if (isUnsupportedThinkingError(e) && carriesThinkingMode(requestBody)) {
+                logger.info("AI endpoint rejected the thinking parameter ({}); retrying without it.", e.getMessage());
+                return executeRequestWithClient(
+                    withoutThinkingMode(requestBody), timeout, client, returnTruncatedResult);
+            }
+            throw e;
         }
     }
 
@@ -1647,6 +1657,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             root.addProperty(parameter.jsonName, maxCompletionTokens);
         }
         appendReasoningEffort(root);
+        appendThinkingMode(root, effectiveModel);
         if (jsonResponseFormat) {
             JsonObject responseFormat = new JsonObject();
             responseFormat.addProperty("type", "json_object");
@@ -1688,6 +1699,57 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (reasoningEffort.isApiEnabled()) {
             root.addProperty("reasoning_effort", reasoningEffort.apiValue());
         }
+    }
+
+    /**
+     * Carries a "no reasoning" profile to endpoints that do not read {@code reasoning_effort}.
+     *
+     * <p>MiniMax steers reasoning with its own {@code thinking} object and ignores
+     * {@code reasoning_effort} entirely, so a profile set to disabled reached it as no parameter at
+     * all and the model applied its default: it then spent whole completion budgets on thinking
+     * that the response never exposes — 54 881 of 54 881 tokens on a 5.7 KB script, and 8 190 of
+     * 8 192 on a diagram — and was cut off before finishing the answer.
+     *
+     * <p>{@code adaptive} rather than {@code disabled} lets the model still reason where a script
+     * genuinely needs it. Only a disabled profile is mapped: an explicit effort level is the user
+     * asking for reasoning, and overriding that with a weaker mode would silently ignore them too.
+     */
+    private void appendThinkingMode(JsonObject root, String effectiveModel) {
+        if (reasoningEffort.isApiEnabled() || !usesMiniMaxThinkingParameter(effectiveModel)) {
+            return;
+        }
+        JsonObject thinking = new JsonObject();
+        thinking.addProperty("type", MINIMAX_THINKING_MODE);
+        root.add("thinking", thinking);
+    }
+
+    /** Matches MiniMax both on its own host and behind an aggregator that prefixes the model name. */
+    private boolean usesMiniMaxThinkingParameter(String effectiveModel) {
+        String model = effectiveModel != null ? effectiveModel.toLowerCase(java.util.Locale.ROOT) : "";
+        String url = apiUrl.toLowerCase(java.util.Locale.ROOT);
+        return model.contains("minimax") || url.contains("minimax");
+    }
+
+    private static boolean isUnsupportedThinkingError(AiApiException error) {
+        return error != null
+            && error.statusCode() == 400
+            && error.getMessage() != null
+            && error.getMessage().toLowerCase(java.util.Locale.ROOT).contains("thinking");
+    }
+
+    /** @return whether {@code requestBody} still carries the thinking object, guarding the retry. */
+    private static boolean carriesThinkingMode(String requestBody) {
+        try {
+            return JsonParser.parseString(requestBody).getAsJsonObject().has("thinking");
+        } catch (Exception notJson) {
+            return false;
+        }
+    }
+
+    private static String withoutThinkingMode(String requestBody) {
+        JsonObject root = JsonParser.parseString(requestBody).getAsJsonObject();
+        root.remove("thinking");
+        return GSON.toJson(root);
     }
 
     /**
