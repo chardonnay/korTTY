@@ -600,6 +600,18 @@ public final class SnippetAiResponseSupport {
         return List.copyOf(parsedReferences);
     }
 
+    /**
+     * @return whether {@code responseText} carries a JSON payload the snippet parsers could use.
+     *
+     * <p>Lets the transport tell "the model answered in the requested JSON shape" apart from "the
+     * model answered in prose", which is the only way to notice that an endpoint accepted a
+     * {@code response_format} request and then ignored it — MiniMax drops the parameter silently
+     * rather than rejecting it, so no HTTP status ever reveals the miss.
+     */
+    public static boolean containsUsableJsonPayload(String responseText) {
+        return extractJsonPayload(responseText) != null;
+    }
+
     private static String extractJsonPayload(String responseText) {
         if (responseText == null || responseText.isBlank()) {
             return null;
