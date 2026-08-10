@@ -1435,12 +1435,12 @@ class SnippetAiWorkflowSupportTest {
                 WorkflowScriptSupport.InputHardeningOption.defaults(), 10_485_760L),
             WorkflowScriptSupport.ScriptLanguage.PERL);
         String mandatoryRules = hardeningRules + "\n" + inputRules;
-        long ruleCount = mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
+        int ruleCount = (int) mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
         String current = "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
             + "# --dry-run --yes --force --help --verbose -v MAX_FILE_SIZE FORCE SECURITY:\n";
         List<String> responses = new ArrayList<>();
         for (int first = 1; first <= ruleCount; first += 3) {
-            int last = Math.min((int) ruleCount, first + 2);
+            int last = Math.min(ruleCount, first + 2);
             current += "# completed batch " + first + "-" + last + "\n";
             responses.add(applyResponse(current, "Completed batch.", requirementIds(first, last)));
         }
