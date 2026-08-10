@@ -32,6 +32,22 @@ except ImportError:
     sys.modules["deep_translator"] = stub
     sys.modules["deep_translator.exceptions"] = exceptions
 
+# markdown/yaml are only used by the anchor-sync pass, never by masking; stub them too
+# so this test runs with a plain system python3 (e.g. from the Gradle check task).
+try:
+    import yaml  # noqa: F401
+    import markdown  # noqa: F401
+except ImportError:
+    class _SafeLoaderStub:
+        @classmethod
+        def add_multi_constructor(cls, *_args, **_kwargs):
+            pass
+
+    yaml_stub = types.ModuleType("yaml")
+    yaml_stub.SafeLoader = _SafeLoaderStub
+    sys.modules.setdefault("yaml", yaml_stub)
+    sys.modules.setdefault("markdown", types.ModuleType("markdown"))
+
 _SCRIPT = pathlib.Path(__file__).resolve().parent / "translate_docs.py"
 _spec = importlib.util.spec_from_file_location("translate_docs", _SCRIPT)
 td = importlib.util.module_from_spec(_spec)
@@ -80,6 +96,79 @@ class MaskRoundTrip(unittest.TestCase):
         # Defensive property: should a fragment ever nest a token again, descending
         # restore order re-expands it instead of leaking the token literally.
         self.assertEqual(td.unmask("aKTPH001b", ["X", "<KTPH000>"]), "a<X>b")
+
+
+class TokenDamageDetection(unittest.TestCase):
+    """MT can merge, deform or invent placeholder tokens; none of that may leak."""
+
+    def test_merged_adjacent_tokens_still_restore_without_a_leak(self):
+        # The documented failure shape on the metacharacter list: the translator
+        # swallows the ", " between two adjacent tokens.
+        masked, store = td.mask(METACHARACTER_LIST)
+        merged = masked.replace("KTPH006, KTPH007", "KTPH006KTPH007")
+        restored = td.unmask(merged, store)
+        self.assertNotIn("KTPH", restored)
+        self.assertIn("`<``>`", restored)
+
+    def test_deformed_token_fails_the_intact_check(self):
+        masked, store = td.mask(METACHARACTER_LIST)
+        deformed = masked.replace("KTPH007", "KTPH 007")
+        self.assertFalse(td.placeholders_intact(deformed, store, masked))
+
+    def test_invented_token_fails_the_intact_check(self):
+        masked, store = td.mask(METACHARACTER_LIST)
+        self.assertFalse(td.placeholders_intact(masked + " KTPH999", store, masked))
+
+
+class _FakeTranslator:
+    """Deterministic stand-in: full-line translation is scripted per masked input,
+    fragment-level translate() prefixes 'DE ' so its use is observable."""
+
+    def __init__(self, line_results=None, fragment_suffix=""):
+        self.line_results = dict(line_results or {})
+        self.fragment_suffix = fragment_suffix
+        self.fragment_calls: list[str] = []
+
+    def translate_batch(self, chunk):
+        return [self.line_results.get(item, item) for item in chunk]
+
+    def translate(self, text):
+        self.fragment_calls.append(text)
+        return f"DE {text}{self.fragment_suffix}"
+
+
+class TranslateMdLeakGuard(unittest.TestCase):
+    """End-to-end: no generated page may ever carry a KTPH remnant."""
+
+    def test_deformed_full_line_translation_falls_back_to_fragments(self):
+        masked, _store = td.mask(METACHARACTER_LIST)
+        translator = _FakeTranslator({masked: masked.replace("KTPH007", "KTPH07")})
+        out, _reused, _fresh, failed = td.translate_md(METACHARACTER_LIST, translator)
+        self.assertNotIn("KTPH", out)
+        self.assertIn("`<`", out)
+        self.assertIn("`>`", out)
+        self.assertTrue(translator.fragment_calls)
+        self.assertEqual(failed, [])
+
+    def test_poisoned_memory_line_is_repaired_before_it_ships(self):
+        # Memory hits bypass placeholders_intact; the final guard must still catch
+        # a stale line that kept a deformed token from an earlier defective run.
+        masked, _store = td.mask(METACHARACTER_LIST)
+        translator = _FakeTranslator()
+        memory = {masked: masked.replace("KTPH007", "KTPH07")}
+        out, _reused, _fresh, failed = td.translate_md(METACHARACTER_LIST, translator, memory)
+        self.assertNotIn("KTPH", out)
+        self.assertTrue(translator.fragment_calls)
+        self.assertEqual(failed, [])
+
+    def test_translator_that_keeps_inventing_tokens_ships_english_and_reports(self):
+        masked, _store = td.mask(METACHARACTER_LIST)
+        translator = _FakeTranslator(
+            {masked: masked + " KTPH999"}, fragment_suffix=" KTPH998")
+        out, _reused, _fresh, failed = td.translate_md(METACHARACTER_LIST, translator)
+        self.assertNotIn("KTPH", out)
+        self.assertEqual(out, td.apply_glossary(METACHARACTER_LIST))
+        self.assertEqual(failed, [masked])
 
 
 if __name__ == "__main__":
