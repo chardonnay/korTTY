@@ -335,13 +335,35 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         // Dropping the schema alone would change nothing on such an endpoint, so the retry also
         // spells out the JSON-only rule that the schema was meant to enforce.
         logUnusableStructuredResponse(request, result);
-        return executeAiRequestWithTokenParameterFallback(
-            request, client, timeout, skillClassifier, effectiveModel, false, true);
+        return withCarriedOverUsage(
+            result,
+            executeAiRequestWithTokenParameterFallback(
+                request, client, timeout, skillClassifier, effectiveModel, false, true));
     }
 
     /**
-     * @return whether a structured-output action came back without any JSON the snippet parsers
-     *     could use, which is worth one retry because the caller would otherwise fail outright.
+     * Carries the discarded first attempt's tokens into the returned result. Unlike the 400 branch,
+     * that attempt completed a full generation and was billed, and callers record usage from the
+     * returned result alone — dropping it would under-report every retried request.
+     */
+    private AiExecutionResult withCarriedOverUsage(AiExecutionResult discarded, AiExecutionResult retried) {
+        if (retried == null) {
+            return null;
+        }
+        AiTokenUsage discardedUsage = discarded != null ? discarded.usage() : null;
+        if (discardedUsage == null) {
+            return retried;
+        }
+        return new AiExecutionResult(
+            retried.content(),
+            mergeUsage(java.util.Arrays.asList(discardedUsage, retried.usage())),
+            retried.reasoning(),
+            retried.outputTruncated());
+    }
+
+    /**
+     * @return whether a structured-output action came back in a shape its own consumer cannot use,
+     *     which is worth one retry because that consumer would otherwise fail outright.
      *     A truncated reply is excluded: it stopped at a token limit rather than ignoring the
      *     schema, and its own fail-closed handling must win.
      */
@@ -349,7 +371,22 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return usesStructuredJsonSchema(request)
             && result != null
             && !result.outputTruncated()
-            && !SnippetAiResponseSupport.containsUsableJsonPayload(result.content());
+            && !consumerCanUseResponse(request, result.content());
+    }
+
+    /**
+     * Asks the very parser that will consume this reply whether it can use it, rather than testing
+     * for JSON in general. The two differ in both directions and each disagreement is a bug: a
+     * shell snippet's {@code find … -exec rm {} +} or a quoted {@code curl -d '{…}'} puts balanced
+     * JSON into a prose answer that the analysis parser still rejects, while an apply reply may be
+     * a bare fenced script that carries no JSON at all and is nevertheless exactly what
+     * {@link SnippetAiResponseSupport#parseSecurityFix} is built to accept.
+     */
+    private static boolean consumerCanUseResponse(AiRequest request, String content) {
+        if (request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
+            return SnippetAiResponseSupport.parseScriptAnalysis(content).isUsable();
+        }
+        return SnippetAiResponseSupport.parseSecurityFix(content).isUsable();
     }
 
     /**

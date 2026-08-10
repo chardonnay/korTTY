@@ -346,6 +346,82 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void retriesProseThatMerelyQuotesJsonFromTheAnalysedScript() throws Exception {
+        // A shell snippet's `find … -exec rm {} +` or a quoted `curl -d '{…}'` puts balanced JSON
+        // into a prose answer. Testing for "contains JSON" would call that usable and skip the
+        // retry, leaving the exact failure this fallback exists to recover from.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"The script cleans temp files with find /tmp -type f -exec rm {} + which is "
+                + "risky, and it downloads a payload with curl before piping it to sh.\"}}]}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Cleans temp files.\\\",\\\"improvements\\\":[]}\"}}]}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "find /tmp -exec rm {} +", null, "en"),
+            client,
+            null);
+
+        assertThat(SnippetAiResponseSupport.parseScriptAnalysis(result.content()).summary())
+            .isEqualTo("Cleans temp files.");
+        assertThat(client.requestBodies()).hasSize(2);
+    }
+
+    @Test
+    void keepsAFencedReplacementForApplyBecauseItsParserAcceptsPlainCode() throws Exception {
+        // parseSecurityFix falls back to plain code on purpose, so a bare fenced script is already
+        // usable. Retrying it would discard a valid answer and re-run the most expensive action.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "{\"choices\":[{\"message\":{\"content\":"
+                + "\"```bash\\n#!/usr/bin/env bash\\nset -euo pipefail\\necho hardened\\n```\"}}]}");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo old", null, "en"),
+            client,
+            null);
+
+        assertThat(SnippetAiResponseSupport.parseSecurityFix(result.content()).replacement())
+            .contains("echo hardened");
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void retryKeepsTheTokensOfTheDiscardedFirstAttempt() throws Exception {
+        // The first attempt completed a full generation and was billed; callers record usage from
+        // the returned result alone, so dropping it would under-report every retried request.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"Prose, no JSON here.\"}}],"
+                + "\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":400,\"total_tokens\":500}}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Fine.\\\",\\\"improvements\\\":[]}\"}}],"
+                + "\"usage\":{\"prompt_tokens\":110,\"completion_tokens\":90,\"total_tokens\":200}}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"),
+            client,
+            null);
+
+        assertThat(result.usage().promptTokens()).isEqualTo(210);
+        assertThat(result.usage().completionTokens()).isEqualTo(490);
+        assertThat(result.usage().totalTokens()).isEqualTo(700);
+    }
+
+    @Test
     void doesNotRetryWhenTheStructuredResponseAlreadyCarriesJson() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             "{\"choices\":[{\"message\":{\"content\":"
