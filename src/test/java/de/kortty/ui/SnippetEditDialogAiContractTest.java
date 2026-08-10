@@ -45,6 +45,21 @@ class SnippetEditDialogAiContractTest {
     }
 
     @Test
+    void interruptedStreamFailureIsRecognizedAndKeptApartFromTheOutputLimit() {
+        RuntimeException wrapped = new RuntimeException(
+            "task failed",
+            new SnippetAiWorkflowSupport.ResponseStreamInterruptedException());
+
+        assertThat(SnippetEditDialog.isResponseStreamInterruptedFailure(wrapped)).isTrue();
+        // The two must not collapse into one status, or a dropped connection keeps reading as a
+        // budget problem the user cannot act on.
+        assertThat(SnippetEditDialog.isOutputTokenLimitFailure(wrapped)).isFalse();
+        assertThat(SnippetEditDialog.isResponseStreamInterruptedFailure(
+            new RuntimeException("task failed", new SnippetAiWorkflowSupport.OutputTokenLimitReachedException())))
+            .isFalse();
+    }
+
+    @Test
     void incompleteHardeningFailureIsRecognizedThroughTaskWrapperCauses() {
         RuntimeException wrapped = new RuntimeException(
             "task failed",

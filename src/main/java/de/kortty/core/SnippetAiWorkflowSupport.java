@@ -958,16 +958,32 @@ public final class SnippetAiWorkflowSupport {
         return diagram;
     }
 
+    /**
+     * Refuses any incomplete replacement, and names the reason. Both cases are fail-closed, but
+     * reporting a dropped connection as an output-token limit sends the next reader after the
+     * wrong fix — raising a budget that was never the constraint.
+     */
     private static void rejectTruncatedReplacement(AiExecutionResult result) {
-        if (result != null && result.outputTruncated()) {
-            throw new OutputTokenLimitReachedException();
+        if (result == null || !result.outputTruncated()) {
+            return;
         }
+        if (result.streamInterrupted()) {
+            throw new ResponseStreamInterruptedException();
+        }
+        throw new OutputTokenLimitReachedException();
     }
 
     /** Signals a fail-closed code-replacement response that ended at its output-token limit. */
     public static final class OutputTokenLimitReachedException extends IllegalStateException {
         public OutputTokenLimitReachedException() {
             super("AI response reached its output-token safety limit.");
+        }
+    }
+
+    /** Signals a fail-closed code-replacement response whose connection was cut mid-answer. */
+    public static final class ResponseStreamInterruptedException extends IllegalStateException {
+        public ResponseStreamInterruptedException() {
+            super("The connection to the AI provider was lost before the response was complete.");
         }
     }
 

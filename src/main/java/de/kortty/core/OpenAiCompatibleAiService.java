@@ -557,6 +557,19 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             throw new IllegalStateException("AI API URL must be configured.");
         }
         try {
+            AiExecutionResult result = executeStreamingRequest(
+                buildJsonPostRequest(enableStreaming(requestBody), timeout),
+                timeout,
+                client,
+                returnTruncatedResult);
+            if (!result.streamInterrupted()) {
+                return result;
+            }
+            // Losing the connection mid-answer is transient, unlike a model that stopped at its
+            // output-token limit: that would recur on every attempt and only burn the budget
+            // again. One more attempt is worth it because the alternative is discarding a
+            // multi-minute generation — and, for a staged workflow, every stage before it.
+            logger.warn("AI response stream was cut short; retrying the request once.");
             return executeStreamingRequest(
                 buildJsonPostRequest(enableStreaming(requestBody), timeout),
                 timeout,
@@ -598,7 +611,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             // reason; without this, rejectTruncatedReplacement would let a half-written
             // replacement through as if the model had finished it.
             if (body.salvaged()) {
-                result = markTruncated(result);
+                result = markStreamInterrupted(result);
             }
             return finishExecutionResult(result, returnTruncatedResult);
         });
@@ -618,12 +631,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return finishExecutionResult(parseResponseBody(responseBody), returnTruncatedResult);
     }
 
-    /** @return {@code result} with the fail-closed truncation marker set. */
-    private static AiExecutionResult markTruncated(AiExecutionResult result) {
+    /**
+     * @return {@code result} marked as cut short by a dropped connection. {@code outputTruncated}
+     *     is set too, so every fail-closed caller keeps working unchanged, while the extra flag
+     *     lets the reason be reported — and retried — as the transient failure it is.
+     */
+    private static AiExecutionResult markStreamInterrupted(AiExecutionResult result) {
         if (result == null) {
             return null;
         }
-        return new AiExecutionResult(result.content(), result.usage(), result.reasoning(), true);
+        return new AiExecutionResult(result.content(), result.usage(), result.reasoning(), true, true);
     }
 
     private AiExecutionResult finishExecutionResult(
@@ -645,7 +662,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             content.trim(),
             result != null ? result.usage() : null,
             result != null ? result.reasoning() : null,
-            result != null && result.outputTruncated());
+            result != null && result.outputTruncated(),
+            // Trimming the content must not launder away how the answer ended: dropping this
+            // would silence both the retry and the interrupted-connection message.
+            result != null && result.streamInterrupted());
     }
 
     /** @return {@code requestBody} with SSE streaming and streamed token usage requested. */
