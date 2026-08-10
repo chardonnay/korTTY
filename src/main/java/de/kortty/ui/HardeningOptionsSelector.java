@@ -47,6 +47,7 @@ public final class HardeningOptionsSelector extends VBox {
             CheckBox check = new CheckBox(I18n.get("ai.workflow.option." + option.name()));
             check.setSelected(initial.contains(option));
             check.selectedProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
+            check.setTooltip(optionTooltip("ai.workflow.option." + option.name() + ".tooltip"));
             checks.put(option, check);
             grid.add(check, i % 2, i / 2);
         }
@@ -117,6 +118,14 @@ public final class HardeningOptionsSelector extends VBox {
         } catch (Exception ignored) {
             // Persistence is best-effort; the selection still applies to the current run.
         }
+    }
+
+    /** Wrapped hover explanation of what an option asks the AI to change in the script. */
+    static Tooltip optionTooltip(String key) {
+        Tooltip tooltip = new Tooltip(I18n.get(key));
+        tooltip.setWrapText(true);
+        tooltip.setMaxWidth(420);
+        return tooltip;
     }
 
     private static EnumSet<HardeningOption> loadPersistedSelection() {

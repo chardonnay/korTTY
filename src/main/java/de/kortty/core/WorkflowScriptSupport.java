@@ -713,9 +713,9 @@ public final class WorkflowScriptSupport {
                 + " reuse it — append the same warning line there as well.");
         }
         if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
-            rules.add("- Force override: when the environment variable KORTTY_FORCE is set to 1, do not block —"
+            rules.add("- Force override: when the environment variable FORCE is set to 1, do not block —"
                 + " downgrade every violation to a warning and continue. Still print each individual violation,"
-                + " plus one additional warning that enforcement was bypassed via KORTTY_FORCE, so every forced"
+                + " plus one additional warning that enforcement was bypassed via FORCE, so every forced"
                 + " run leaves a complete trace.");
         }
         rules.add(inputHardeningLanguageRule(lang, opts));
@@ -739,7 +739,7 @@ public final class WorkflowScriptSupport {
     /**
      * Language-specific implementation guidance for the guard block (generic for unknown languages).
      * Only the clauses for the selected sub-options are emitted, so the bullet never teaches the
-     * mechanics of a check the user deselected (most importantly the KORTTY_FORCE bypass).
+     * mechanics of a check the user deselected (most importantly the FORCE bypass).
      */
     private static String inputHardeningLanguageRule(ScriptLanguage lang, EnumSet<InputHardeningOption> opts) {
         InputHardeningIdioms idioms = inputHardeningIdioms(lang);
@@ -797,14 +797,14 @@ public final class WorkflowScriptSupport {
                 "when MAX_FILE_SIZE is greater than 0, file metadata via GNU stat -c %s or BSD/macOS stat -f %z"
                     + " for the size limit, probing which form is supported and failing closed without reading"
                     + " the file if neither is available",
-                "\"${KORTTY_FORCE:-}\" for the override");
+                "\"${FORCE:-}\" for the override");
             case PYTHON -> new InputHardeningIdioms(
                 "Implement the guard with the Python standard library only",
                 "len(sys.argv) for the count and the re module for allowlists",
                 "os.path.isfile/os.access(..., os.R_OK) for file tests and open(path, 'rb').read(512)"
                     + " containing b'\\x00' for the binary check",
                 "os.path.getsize for the size limit",
-                "os.environ.get(\"KORTTY_FORCE\") for the override");
+                "os.environ.get(\"FORCE\") for the override");
             case PERL -> new InputHardeningIdioms(
                 "Implement the guard with core Perl only",
                 "@ARGV checks and regex allowlists that also untaint values, enabling taint mode (-T on the"
@@ -812,14 +812,14 @@ public final class WorkflowScriptSupport {
                     + " untainting every parameter explicitly otherwise",
                 "-e/-r file tests and a NUL-byte scan of the first 512 bytes for the binary check",
                 "-s for the size limit",
-                "$ENV{KORTTY_FORCE} for the override");
+                "$ENV{FORCE} for the override");
             case RUBY -> new InputHardeningIdioms(
                 "Implement the guard with core Ruby only",
                 "ARGV.length for the count and Regexp allowlists",
                 "File.exist?/File.readable? file tests and File.binread(path, 512).include?(\"\\0\")"
                     + " for the binary check",
                 "File.size for the size limit",
-                "ENV[\"KORTTY_FORCE\"] for the override");
+                "ENV[\"FORCE\"] for the override");
             default -> null;
         };
     }

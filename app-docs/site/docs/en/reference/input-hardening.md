@@ -47,15 +47,15 @@ The guard defines a `MAX_FILE_SIZE` variable (in bytes) in its configuration sec
 
 #### Security warnings to stderr & script log
 
-Every violation is reported as a timestamped security warning line starting with `SECURITY:` on stderr. If **KORTTY_FORCE=1 override** is also selected, every forced bypass is reported the same way. If the script writes its own log file, the guard appends the same warning line there too, so the script's log carries a complete security trail.
+Every violation is reported as a timestamped security warning line starting with `SECURITY:` on stderr. If **FORCE=1 override** is also selected, every forced bypass is reported the same way. If the script writes its own log file, the guard appends the same warning line there too, so the script's log carries a complete security trail.
 
-#### KORTTY_FORCE=1 override
+#### FORCE=1 override
 
-Blocking is the default, but a run can be forced: when the environment variable `KORTTY_FORCE` is set to `1`, the guard downgrades every violation to a warning and continues. Each individual violation is still reported, plus one extra warning that enforcement was bypassed — a forced run always leaves a complete trace.
+Blocking is the default, but a run can be forced: when the environment variable `FORCE` is set to `1`, the guard downgrades every violation to a warning and continues. Each individual violation is still reported, plus one extra warning that enforcement was bypassed — a forced run always leaves a complete trace.
 
 ## Exit codes
 
-When the guard blocks a run (and `KORTTY_FORCE` is not set), it uses distinct, documented exit codes so callers can tell *why* the input was rejected. The prompt names only codes created by the selected checks: format-only and size-only selections each describe only their own `65` case, and `66` is included only with **Input file format checks**.
+When the guard blocks a run (and `FORCE` is not set), it uses distinct, documented exit codes so callers can tell *why* the input was rejected. The prompt names only codes created by the selected checks: format-only and size-only selections each describe only their own `65` case, and `66` is included only with **Input file format checks**.
 
 | Exit code | Meaning |
 |-----------|---------|

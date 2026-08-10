@@ -1399,7 +1399,7 @@ class SnippetAiWorkflowSupportTest {
         String mandatoryRules = hardeningRules + "\n" + inputRules;
         long ruleCount = mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
         String current = "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
-            + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE KORTTY_FORCE SECURITY:\n";
+            + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE FORCE SECURITY:\n";
         List<String> responses = new ArrayList<>();
         for (int first = 1; first <= ruleCount; first += 6) {
             int last = Math.min((int) ruleCount, first + 5);
@@ -1413,7 +1413,7 @@ class SnippetAiWorkflowSupportTest {
             aiService,
             null,
             "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
-                + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE KORTTY_FORCE SECURITY:\n",
+                + "# --dry-run --yes --help --verbose -v MAX_FILE_SIZE FORCE SECURITY:\n",
             "perl",
             null,
             "en",
@@ -1431,7 +1431,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(context).contains("--help/usage");
         assertThat(context).contains("--verbose/-v");
         assertThat(context).contains("MAX_FILE_SIZE=10485760");
-        assertThat(context).contains("KORTTY_FORCE");
+        assertThat(context).contains("FORCE");
         assertThat(context).contains("SECURITY:");
     }
 

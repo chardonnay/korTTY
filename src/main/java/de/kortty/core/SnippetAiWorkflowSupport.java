@@ -1500,8 +1500,8 @@ public final class SnippetAiWorkflowSupport {
         if (instruction.contains("MAX_FILE_SIZE=")) {
             required.add("MAX_FILE_SIZE");
         }
-        if (instruction.contains("KORTTY_FORCE")) {
-            required.add("KORTTY_FORCE");
+        if (instruction.contains("FORCE")) {
+            required.add("FORCE");
         }
         if (instruction.contains("\"SECURITY:\"")) {
             required.add("SECURITY:");
