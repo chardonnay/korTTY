@@ -24,6 +24,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -187,6 +188,130 @@ class OpenAiCompatibleAiServiceTest {
         assertThat(client.requestBodies()).hasSize(2);
         assertThat(client.requestBodies().get(0)).contains("\"model\":\"qwen\"");
         assertThat(client.requestBodies().get(1)).contains("\"model\":\"mistral\"");
+    }
+
+    @Test
+    void executeStreamsChatCompletionAndAggregatesSseDeltas() throws Exception {
+        String sse = """
+            data: {"choices":[{"delta":{"role":"assistant","content":"Hel"}}]}
+
+            data: {"choices":[{"delta":{"content":"lo"},"finish_reason":null}]}
+
+            data: {"choices":[{"delta":{"reasoning_content":"thinking"},"finish_reason":"stop"}]}
+
+            data: {"choices":[],"usage":{"prompt_tokens":11,"completion_tokens":7,"total_tokens":18}}
+
+            data: [DONE]
+            """;
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(sse);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        assertThat(result.content()).isEqualTo("Hello");
+        assertThat(result.reasoning()).isEqualTo("thinking");
+        assertThat(result.usage().totalTokens()).isEqualTo(18);
+        assertThat(result.outputTruncated()).isFalse();
+        JsonObject requestBody = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        assertThat(requestBody.get("stream").getAsBoolean()).isTrue();
+        assertThat(requestBody.getAsJsonObject("stream_options").get("include_usage").getAsBoolean()).isTrue();
+    }
+
+    @Test
+    void executeFallsBackToBufferedRequestWhenEndpointRejectsStreaming() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(400, "{\"error\":{\"message\":\"stream is not supported on this endpoint\"}}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        assertThat(result.content()).isEqualTo("ok");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(0)).contains("\"stream\":true");
+        assertThat(client.requestBodies().get(1)).doesNotContain("\"stream\"");
+    }
+
+    @Test
+    void reasoningOnlyTruncatedStreamFailsClosedForBoundedSnippetActions() throws Exception {
+        String sse = """
+            data: {"choices":[{"delta":{"reasoning_content":"analysis"},"finish_reason":"length"}],"usage":{"prompt_tokens":5,"completion_tokens":9,"total_tokens":14}}
+
+            data: [DONE]
+            """;
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(sse);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en"),
+            client,
+            null);
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.reasoning()).isEqualTo("analysis");
+        assertThat(result.usage().completionTokens()).isEqualTo(9);
+    }
+
+    @Test
+    void aggregateStreamedResponseSalvagesChunksBeforeAnEarlyEof() throws Exception {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+
+        JsonObject root = service.aggregateStreamedResponse(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"cont");
+
+        assertThat(root.getAsJsonArray("choices").get(0).getAsJsonObject()
+            .getAsJsonObject("message").get("content").getAsString()).isEqualTo("partial");
+    }
+
+    @Test
+    void aggregateStreamedResponseFailsOnAnErrorChunk() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+
+        IOException error = expectThrows(IOException.class, () -> service.aggregateStreamedResponse(
+            "data: {\"error\":{\"message\":\"insufficient balance\"}}"));
+
+        assertThat(error.getMessage()).contains("insufficient balance");
+    }
+
+    @Test
+    void readResponseBodyEnforcesTheConfiguredTimeoutWhileStreaming() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+        InputStream endless = new InputStream() {
+            @Override
+            public int read() {
+                return 'a';
+            }
+        };
+
+        expectThrows(HttpTimeoutException.class, () -> service.readResponseBody(endless, Duration.ZERO));
     }
 
     @Test

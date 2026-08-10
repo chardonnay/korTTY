@@ -17,6 +17,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -325,13 +326,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         try {
             return executeRequestWithClient(
-                buildHttpRequest(
+                buildAiRequestBody(
                     request,
-                    timeout,
                     skillClassifier,
                     effectiveModel,
                     CompletionTokenParameter.MAX_TOKENS,
                     includeStructuredResponseFormat),
+                timeout,
                 client,
                 AiOutputTokenLimitSupport.actionLimit(request) != null);
         } catch (AiApiException e) {
@@ -340,13 +341,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 throw e;
             }
             return executeRequestWithClient(
-                buildHttpRequest(
+                buildAiRequestBody(
                     request,
-                    timeout,
                     skillClassifier,
                     effectiveModel,
                     CompletionTokenParameter.MAX_COMPLETION_TOKENS,
                     includeStructuredResponseFormat),
+                timeout,
                 client,
                 AiOutputTokenLimitSupport.actionLimit(request) != null);
         }
@@ -419,22 +420,24 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 jsonResponseFormat,
                 effectiveModel);
         }
-        HttpRequest httpRequest = buildPromptHttpRequest(
+        String requestBody = buildPromptRequestBody(
             effectiveSystemPrompt,
             userPrompt,
-            timeout,
+            0.2,
             jsonResponseFormat,
             effectiveModel);
         try {
-            return executeRequestWithClient(httpRequest, client);
+            return executeRequestWithClient(requestBody, timeout, client, false);
         } catch (ModelNotLoadedException e) {
             String retryModel = reresolveForRetry(client);
             if (retryModel == null || retryModel.equals(effectiveModel)) {
                 throw e;
             }
             return executeRequestWithClient(
-                buildPromptHttpRequest(effectiveSystemPrompt, userPrompt, timeout, jsonResponseFormat, retryModel),
-                client);
+                buildPromptRequestBody(effectiveSystemPrompt, userPrompt, 0.2, jsonResponseFormat, retryModel),
+                timeout,
+                client,
+                false);
         }
     }
 
@@ -442,11 +445,63 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return prompt != null ? prompt.trim() : "";
     }
 
-    private AiExecutionResult executeRequestWithClient(HttpRequest httpRequest, HttpClient client) throws Exception {
-        return executeRequestWithClient(httpRequest, client, false);
+    /**
+     * Sends a chat completion as an SSE stream and falls back to a buffered request when the
+     * endpoint rejects streaming. Streaming keeps response bytes flowing while the model
+     * generates; a buffered request stays byte-silent for the whole generation, which lets
+     * API gateways cut the idle connection during multi-minute runs (observed with MiniMax
+     * as "EOF reached while reading" after ~4.5 minutes of full code analysis).
+     */
+    private AiExecutionResult executeRequestWithClient(
+        String requestBody,
+        Duration timeout,
+        HttpClient client,
+        boolean returnTruncatedResult) throws Exception {
+
+        if (apiUrl.isBlank()) {
+            throw new IllegalStateException("AI API URL must be configured.");
+        }
+        try {
+            return executeStreamingRequest(
+                buildJsonPostRequest(enableStreaming(requestBody), timeout),
+                timeout,
+                client,
+                returnTruncatedResult);
+        } catch (AiApiException e) {
+            if (!isUnsupportedStreamingError(e)) {
+                throw e;
+            }
+            logger.info("AI endpoint rejected streaming ({}); retrying without streaming.", e.getMessage());
+            return executeBufferedRequest(buildJsonPostRequest(requestBody, timeout), client, returnTruncatedResult);
+        }
     }
 
-    private AiExecutionResult executeRequestWithClient(
+    private AiExecutionResult executeStreamingRequest(
+        HttpRequest httpRequest,
+        Duration timeout,
+        HttpClient client,
+        boolean returnTruncatedResult) throws Exception {
+
+        // The model generates while the body streams, so the power-management scope must cover
+        // the body read as well — the send only delivers the response headers here.
+        return AiPowerManagementScope.call(() -> {
+            HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+            String responseBody = readResponseBody(response.body(), timeout);
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw apiError(response.statusCode(), responseBody);
+            }
+            AiExecutionResult result;
+            if (isEventStreamResponse(response, responseBody)) {
+                JsonObject aggregated = aggregateStreamedResponse(responseBody);
+                result = aggregated != null ? parseJsonResponseBody(aggregated) : null;
+            } else {
+                result = parseResponseBody(responseBody);
+            }
+            return finishExecutionResult(result, returnTruncatedResult);
+        });
+    }
+
+    private AiExecutionResult executeBufferedRequest(
         HttpRequest httpRequest,
         HttpClient client,
         boolean returnTruncatedResult) throws Exception {
@@ -457,7 +512,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
         }
-        AiExecutionResult result = parseResponseBody(responseBody);
+        return finishExecutionResult(parseResponseBody(responseBody), returnTruncatedResult);
+    }
+
+    private AiExecutionResult finishExecutionResult(
+        AiExecutionResult result,
+        boolean returnTruncatedResult) throws IOException {
+
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
             // Bounded snippet actions need the provider's truncation marker even when a reasoning
@@ -474,6 +535,130 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             result != null ? result.usage() : null,
             result != null ? result.reasoning() : null,
             result != null && result.outputTruncated());
+    }
+
+    /** @return {@code requestBody} with SSE streaming and streamed token usage requested. */
+    static String enableStreaming(String requestBody) {
+        JsonObject root = JsonParser.parseString(requestBody).getAsJsonObject();
+        root.addProperty("stream", true);
+        // Without this, most endpoints omit the usage payload from the stream entirely.
+        JsonObject streamOptions = new JsonObject();
+        streamOptions.addProperty("include_usage", true);
+        root.add("stream_options", streamOptions);
+        return GSON.toJson(root);
+    }
+
+    private static boolean isEventStreamResponse(HttpResponse<?> response, String responseBody) {
+        String contentType = response.headers().firstValue("Content-Type").orElse("");
+        if (contentType.toLowerCase(java.util.Locale.ROOT).contains("text/event-stream")) {
+            return true;
+        }
+        // Test doubles and misconfigured proxies may drop the header; the SSE framing is
+        // unambiguous enough to detect from the payload itself.
+        return responseBody != null && responseBody.stripLeading().startsWith("data:");
+    }
+
+    private static boolean isUnsupportedStreamingError(AiApiException error) {
+        if (error == null || error.statusCode() != 400 || error.getMessage() == null) {
+            return false;
+        }
+        return error.getMessage().toLowerCase(java.util.Locale.ROOT).contains("stream");
+    }
+
+    /**
+     * Folds an OpenAI-compatible SSE chat stream back into the non-streaming response shape so
+     * the regular parsing (content, reasoning, usage, finish_reason) applies unchanged. Returns
+     * {@code null} when no chunk could be parsed. Chunks after a salvaged early EOF are simply
+     * missing, which yields the partial content — matching the buffered path's salvage behavior.
+     */
+    JsonObject aggregateStreamedResponse(String sseBody) throws IOException {
+        StringBuilder content = new StringBuilder();
+        StringBuilder reasoning = new StringBuilder();
+        String finishReason = null;
+        JsonObject usage = null;
+        boolean sawChunk = false;
+        boolean sawContent = false;
+        for (String rawLine : sseBody.split("\n")) {
+            String line = rawLine.trim();
+            if (!line.startsWith("data:")) {
+                continue;
+            }
+            String payload = line.substring("data:".length()).trim();
+            if (payload.isEmpty() || "[DONE]".equals(payload)) {
+                continue;
+            }
+            JsonObject chunk;
+            try {
+                chunk = JsonParser.parseString(payload).getAsJsonObject();
+            } catch (Exception truncatedChunk) {
+                // A salvaged early EOF can leave a half-written final line; keep what parsed.
+                continue;
+            }
+            if (chunk.has("error") && !chunk.get("error").isJsonNull()) {
+                throw new IOException("AI API streaming error: " + extractErrorMessage(payload));
+            }
+            sawChunk = true;
+            JsonObject chunkUsage = chunk.has("usage") && chunk.get("usage").isJsonObject()
+                ? chunk.getAsJsonObject("usage")
+                : null;
+            if (chunkUsage != null) {
+                usage = chunkUsage;
+            }
+            JsonArray choices = chunk.getAsJsonArray("choices");
+            if (choices == null || choices.isEmpty() || !choices.get(0).isJsonObject()) {
+                continue;
+            }
+            JsonObject choice = choices.get(0).getAsJsonObject();
+            String chunkFinishReason = stringField(choice, "finish_reason", null);
+            if (chunkFinishReason != null && !chunkFinishReason.isBlank()) {
+                finishReason = chunkFinishReason;
+            }
+            JsonObject delta = choice.has("delta") && choice.get("delta").isJsonObject()
+                ? choice.getAsJsonObject("delta")
+                : choice.getAsJsonObject("message");
+            if (delta == null) {
+                continue;
+            }
+            JsonElement deltaContent = delta.get("content");
+            if (deltaContent != null && deltaContent.isJsonPrimitive()) {
+                content.append(deltaContent.getAsString());
+                sawContent = true;
+            }
+            for (String field : new String[] {"reasoning_content", "reasoning"}) {
+                JsonElement deltaReasoning = delta.get(field);
+                if (deltaReasoning != null && deltaReasoning.isJsonPrimitive()) {
+                    reasoning.append(deltaReasoning.getAsString());
+                }
+            }
+        }
+        if (!sawChunk) {
+            return null;
+        }
+        JsonObject message = new JsonObject();
+        message.addProperty("role", "assistant");
+        if (sawContent) {
+            message.addProperty("content", content.toString());
+        } else {
+            // Reasoning-only streams never emit a content delta; JSON null keeps the buffered
+            // path's fail-closed handling for a consumed completion budget.
+            message.add("content", com.google.gson.JsonNull.INSTANCE);
+        }
+        if (reasoning.length() > 0) {
+            message.addProperty("reasoning_content", reasoning.toString());
+        }
+        JsonObject choice = new JsonObject();
+        choice.add("message", message);
+        if (finishReason != null) {
+            choice.addProperty("finish_reason", finishReason);
+        }
+        JsonArray choices = new JsonArray();
+        choices.add(choice);
+        JsonObject root = new JsonObject();
+        root.add("choices", choices);
+        if (usage != null) {
+            root.add("usage", usage);
+        }
+        return root;
     }
 
     private AiExecutionResult executeToolAwareMessages(
@@ -895,6 +1080,18 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String effectiveModel,
         CompletionTokenParameter completionTokenParameter,
         boolean includeStructuredResponseFormat) {
+        return buildJsonPostRequest(
+            buildAiRequestBody(
+                request, skillClassifier, effectiveModel, completionTokenParameter, includeStructuredResponseFormat),
+            timeout);
+    }
+
+    private String buildAiRequestBody(
+        AiRequest request,
+        AiSkillRelevanceClassifier skillClassifier,
+        String effectiveModel,
+        CompletionTokenParameter completionTokenParameter,
+        boolean includeStructuredResponseFormat) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
@@ -907,8 +1104,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             effectiveModel,
             AiOutputTokenLimitSupport.resolve(request, defaultMaxCompletionTokens),
             completionTokenParameter);
-        body = appendStructuredResponseFormat(body, request, includeStructuredResponseFormat);
-        return buildJsonPostRequest(body, timeout);
+        return appendStructuredResponseFormat(body, request, includeStructuredResponseFormat);
     }
 
     HttpRequest buildConnectionTestHttpRequest(Duration timeout) {
@@ -920,28 +1116,6 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             throw new IllegalStateException("AI API URL must be configured.");
         }
         return buildJsonPostRequest(buildConnectionTestRequestBody(effectiveModel), timeout);
-    }
-
-    HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout) {
-        return buildPromptHttpRequest(systemPrompt, userPrompt, timeout, false);
-    }
-
-    HttpRequest buildPromptHttpRequest(String systemPrompt, String userPrompt, Duration timeout, boolean jsonResponseFormat) {
-        return buildPromptHttpRequest(systemPrompt, userPrompt, timeout, jsonResponseFormat, model);
-    }
-
-    private HttpRequest buildPromptHttpRequest(
-        String systemPrompt,
-        String userPrompt,
-        Duration timeout,
-        boolean jsonResponseFormat,
-        String effectiveModel) {
-        if (apiUrl.isBlank()) {
-            throw new IllegalStateException("AI API URL must be configured.");
-        }
-        return buildJsonPostRequest(
-            buildPromptRequestBody(systemPrompt, userPrompt, 0.2, jsonResponseFormat, effectiveModel),
-            timeout);
     }
 
     private HttpRequest buildJsonPostRequest(String body, Duration timeout) {
@@ -1373,12 +1547,29 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     String readResponseBody(InputStream responseStream) throws IOException {
+        return readResponseBody(responseStream, null);
+    }
+
+    /**
+     * Reads the response body, optionally bounded by {@code timeout}. The HTTP request timeout
+     * only covers the wait for the response headers; on a streamed reply the model generates
+     * during this body read, so the user-configured limit must be enforced here as well. The
+     * check runs between reads — a stream that ticks (as token streams do) is cut close to the
+     * deadline, and a timeout is a hard failure rather than a salvaged partial body.
+     */
+    String readResponseBody(InputStream responseStream, Duration timeout) throws IOException {
         if (responseStream == null) {
             return "";
         }
+        long deadlineNanos = timeout != null ? System.nanoTime() + timeout.toNanos() : 0L;
         try (InputStream input = responseStream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             while (true) {
+                if (timeout != null && System.nanoTime() - deadlineNanos >= 0) {
+                    throw new HttpTimeoutException(
+                        "AI request exceeded the configured timeout of " + timeout.toSeconds()
+                            + " s while streaming the response.");
+                }
                 try {
                     int read = input.read(buffer);
                     if (read < 0) {
