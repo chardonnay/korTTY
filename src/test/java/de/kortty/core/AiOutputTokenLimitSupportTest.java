@@ -31,10 +31,25 @@ class AiOutputTokenLimitSupportTest {
             "en");
 
         assertThat(AiOutputTokenLimitSupport.resolve(ordinary, null)).isNull();
-        assertThat(AiOutputTokenLimitSupport.resolve(shortApply, null)).isEqualTo(32_768);
-        assertThat(AiOutputTokenLimitSupport.resolve(mediumApply, null)).isEqualTo(44_576);
+        // The reserve is the floor: even a five-character snippet keeps its full head-room.
+        assertThat(AiOutputTokenLimitSupport.resolve(shortApply, null)).isEqualTo(49_157);
+        assertThat(AiOutputTokenLimitSupport.resolve(mediumApply, null)).isEqualTo(65_536);
         assertThat(AiOutputTokenLimitSupport.resolve(longApply, null)).isEqualTo(65_536);
         assertThat(AiOutputTokenLimitSupport.resolve(longApply, 8_192)).isEqualTo(65_536);
+    }
+
+    @Test
+    void leavesHeadRoomForModelsThatBillHiddenThinkingAsCompletionTokens() {
+        // Regression for the observed MiniMax-M3 failure: on this snippet size the old 24 576-token
+        // reserve yielded ~36 500 tokens, the model spent 36 449 of them before emitting the whole
+        // replacement, and the fail-closed guard rejected the truncated result.
+        AiRequest observedFailure = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+            "x".repeat(13_232),
+            null,
+            "en");
+
+        assertThat(AiOutputTokenLimitSupport.resolve(observedFailure, null)).isEqualTo(62_384);
     }
 
     @Test
@@ -42,7 +57,7 @@ class AiOutputTokenLimitSupportTest {
         AiRequest improve = new AiRequest(AiAction.IMPROVE_SNIPPET_CODE, "echo ok", null, "en");
         AiRequest assist = new AiRequest(AiAction.ASSIST_SNIPPET_CODE, "echo ok", null, "en");
 
-        assertThat(AiOutputTokenLimitSupport.resolve(improve, null)).isEqualTo(32_768);
-        assertThat(AiOutputTokenLimitSupport.resolve(assist, null)).isEqualTo(32_768);
+        assertThat(AiOutputTokenLimitSupport.resolve(improve, null)).isEqualTo(49_159);
+        assertThat(AiOutputTokenLimitSupport.resolve(assist, null)).isEqualTo(49_159);
     }
 }

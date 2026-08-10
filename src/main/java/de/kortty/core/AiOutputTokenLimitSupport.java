@@ -10,9 +10,15 @@ package de.kortty.core;
 public final class AiOutputTokenLimitSupport {
 
     static final int MERMAID_MAX_COMPLETION_TOKENS = 8_192;
-    static final int FULL_REPLACEMENT_MIN_COMPLETION_TOKENS = 32_768;
     static final int FULL_REPLACEMENT_MAX_COMPLETION_TOKENS = 65_536;
-    private static final int FULL_REPLACEMENT_REASONING_RESERVE_TOKENS = 24_576;
+    /**
+     * Head-room for everything a model emits before the replacement itself, and therefore also the
+     * floor of the full-replacement budget. Sized for models that bill hidden thinking as
+     * completion tokens: MiniMax-M3 spent 36 449 of a ~36 500-token budget on a 13 KB script and
+     * was cut off mid-replacement, which the fail-closed guard then had to reject. Raising this
+     * only permits a longer answer — it never obliges a model to produce one.
+     */
+    private static final int FULL_REPLACEMENT_REASONING_RESERVE_TOKENS = 49_152;
 
     private AiOutputTokenLimitSupport() {
     }
@@ -39,11 +45,14 @@ public final class AiOutputTokenLimitSupport {
         };
     }
 
+    /**
+     * Budget for one full-replacement answer: the reasoning reserve plus room for the rewritten
+     * source, capped. A separate lower bound would be unreachable — a source is never shorter than
+     * nothing, so the reserve is already the floor.
+     */
     private static int fullReplacementLimit(String source) {
         long sourceCharacters = source != null ? source.length() : 0L;
         long requested = FULL_REPLACEMENT_REASONING_RESERVE_TOKENS + sourceCharacters;
-        return (int) Math.max(
-            FULL_REPLACEMENT_MIN_COMPLETION_TOKENS,
-            Math.min(FULL_REPLACEMENT_MAX_COMPLETION_TOKENS, requested));
+        return (int) Math.min(FULL_REPLACEMENT_MAX_COMPLETION_TOKENS, requested);
     }
 }

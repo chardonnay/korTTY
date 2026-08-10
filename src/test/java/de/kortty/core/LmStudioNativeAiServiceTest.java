@@ -181,7 +181,7 @@ class LmStudioNativeAiServiceTest {
 
         assertThat(client.requestBodies().get(0)).doesNotContain("\"max_output_tokens\"");
         assertThat(client.requestBodies().get(1)).contains("\"max_output_tokens\":8192");
-        assertThat(client.requestBodies().get(2)).contains("\"max_output_tokens\":32768");
+        assertThat(client.requestBodies().get(2)).contains("\"max_output_tokens\":49159");
     }
 
     @Test
@@ -358,7 +358,7 @@ class LmStudioNativeAiServiceTest {
               "output": [
                 {"type": "reasoning", "content": "Planning until the replacement limit."}
               ],
-              "stats": {"input_tokens": 4523, "total_output_tokens": 32767}
+              "stats": {"input_tokens": 4523, "total_output_tokens": 49158}
             }
             """);
         LmStudioNativeAiService service = new LmStudioNativeAiService(
@@ -375,7 +375,7 @@ class LmStudioNativeAiServiceTest {
         assertThat(result.content()).isEmpty();
         assertThat(result.reasoning()).contains("Planning until the replacement limit");
         assertThat(result.outputTruncated()).isTrue();
-        assertThat(result.usage().completionTokens()).isEqualTo(32_767);
+        assertThat(result.usage().completionTokens()).isEqualTo(49_158);
         assertThat(client.requestBodies()).hasSize(1);
     }
 
