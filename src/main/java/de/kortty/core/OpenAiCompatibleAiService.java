@@ -47,6 +47,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static final int MAX_TOOL_CALLS_PER_REQUEST = 3;
     private static final String WEB_SEARCH_TOOL_NAME = "web_search";
     private static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
+    /** Cap for the debug-only echo of a response that carried no usable JSON. */
+    private static final int UNUSABLE_RESPONSE_LOG_CHARS = 600;
+    /**
+     * Appended when retrying a structured-output action on an endpoint that ignored
+     * {@code response_format}: it restates, in the prompt, the constraint the schema could not.
+     */
+    private static final String JSON_ONLY_RETRY_INSTRUCTION =
+        "Your previous answer was not valid JSON. Reply with the single JSON object described above "
+            + "and nothing else: no prose, no explanation, no markdown code fences, no leading or "
+            + "trailing text. The first character of your reply must be { and the last must be }.";
 
     private enum CompletionTokenParameter {
         MAX_TOKENS("max_tokens"),
@@ -302,17 +312,99 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiSkillRelevanceClassifier skillClassifier,
         String effectiveModel) throws Exception {
 
+        AiExecutionResult result;
         try {
-            return executeAiRequestWithTokenParameterFallback(
-                request, client, timeout, skillClassifier, effectiveModel, true);
+            result = executeAiRequestWithTokenParameterFallback(
+                request, client, timeout, skillClassifier, effectiveModel, true, false);
         } catch (AiApiException e) {
             if (!usesStructuredJsonSchema(request) || !isUnsupportedStructuredOutputError(e)) {
                 throw e;
             }
-            // Some OpenAI-compatible endpoints do not implement json_schema. Retry only when the
-            // endpoint explicitly rejects that capability; malformed model output is never retried.
+            // Some OpenAI-compatible endpoints do not implement json_schema. Drop it only when the
+            // endpoint explicitly rejects that capability — an invalid-schema complaint is our own
+            // bug and must stay visible. Endpoints that accept and then ignore the parameter are
+            // caught after the fact by the unusable-content check below.
             return executeAiRequestWithTokenParameterFallback(
-                request, client, timeout, skillClassifier, effectiveModel, false);
+                request, client, timeout, skillClassifier, effectiveModel, false, true);
+        }
+        if (!needsPlainJsonRetry(request, result)) {
+            return result;
+        }
+        // The endpoint accepted response_format and answered in prose anyway — MiniMax drops the
+        // parameter silently, so no status code reveals it and the 400 branch above never fires.
+        // Dropping the schema alone would change nothing on such an endpoint, so the retry also
+        // spells out the JSON-only rule that the schema was meant to enforce.
+        logUnusableStructuredResponse(request, result);
+        return withCarriedOverUsage(
+            result,
+            executeAiRequestWithTokenParameterFallback(
+                request, client, timeout, skillClassifier, effectiveModel, false, true));
+    }
+
+    /**
+     * Carries the discarded first attempt's tokens into the returned result. Unlike the 400 branch,
+     * that attempt completed a full generation and was billed, and callers record usage from the
+     * returned result alone — dropping it would under-report every retried request.
+     */
+    private AiExecutionResult withCarriedOverUsage(AiExecutionResult discarded, AiExecutionResult retried) {
+        if (retried == null) {
+            return null;
+        }
+        AiTokenUsage discardedUsage = discarded != null ? discarded.usage() : null;
+        if (discardedUsage == null) {
+            return retried;
+        }
+        return new AiExecutionResult(
+            retried.content(),
+            mergeUsage(java.util.Arrays.asList(discardedUsage, retried.usage())),
+            retried.reasoning(),
+            retried.outputTruncated());
+    }
+
+    /**
+     * @return whether a structured-output action came back in a shape its own consumer cannot use,
+     *     which is worth one retry because that consumer would otherwise fail outright.
+     *     A truncated reply is excluded: it stopped at a token limit rather than ignoring the
+     *     schema, and its own fail-closed handling must win.
+     */
+    private static boolean needsPlainJsonRetry(AiRequest request, AiExecutionResult result) {
+        return usesStructuredJsonSchema(request)
+            && result != null
+            && !result.outputTruncated()
+            && !consumerCanUseResponse(request, result.content());
+    }
+
+    /**
+     * Asks the very parser that will consume this reply whether it can use it, rather than testing
+     * for JSON in general. The two differ in both directions and each disagreement is a bug: a
+     * shell snippet's {@code find … -exec rm {} +} or a quoted {@code curl -d '{…}'} puts balanced
+     * JSON into a prose answer that the analysis parser still rejects, while an apply reply may be
+     * a bare fenced script that carries no JSON at all and is nevertheless exactly what
+     * {@link SnippetAiResponseSupport#parseSecurityFix} is built to accept.
+     */
+    private static boolean consumerCanUseResponse(AiRequest request, String content) {
+        if (request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
+            return SnippetAiResponseSupport.parseScriptAnalysis(content).isUsable();
+        }
+        return SnippetAiResponseSupport.parseSecurityFix(content).isUsable();
+    }
+
+    /**
+     * Records why a structured-output request is being retried. The content itself goes to DEBUG
+     * only and capped: it embeds the user's snippet, which must not land in the default log.
+     */
+    private void logUnusableStructuredResponse(AiRequest request, AiExecutionResult result) {
+        String content = result.content() != null ? result.content() : "";
+        logger.warn(
+            "AI endpoint accepted response_format for action={} but answered without usable JSON "
+                + "({} chars); retrying once without the schema. Enable debug logging for the response prefix.",
+            request.action(),
+            content.length());
+        if (logger.isDebugEnabled()) {
+            logger.debug(
+                "Unusable structured response for action={}: {}",
+                request.action(),
+                content.substring(0, Math.min(content.length(), UNUSABLE_RESPONSE_LOG_CHARS)));
         }
     }
 
@@ -322,7 +414,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         Duration timeout,
         AiSkillRelevanceClassifier skillClassifier,
         String effectiveModel,
-        boolean includeStructuredResponseFormat) throws Exception {
+        boolean includeStructuredResponseFormat,
+        boolean enforceJsonOnlyInstruction) throws Exception {
 
         try {
             return executeRequestWithClient(
@@ -331,7 +424,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     skillClassifier,
                     effectiveModel,
                     CompletionTokenParameter.MAX_TOKENS,
-                    includeStructuredResponseFormat),
+                    includeStructuredResponseFormat,
+                    enforceJsonOnlyInstruction),
                 timeout,
                 client,
                 AiOutputTokenLimitSupport.actionLimit(request) != null);
@@ -346,7 +440,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     skillClassifier,
                     effectiveModel,
                     CompletionTokenParameter.MAX_COMPLETION_TOKENS,
-                    includeStructuredResponseFormat),
+                    includeStructuredResponseFormat,
+                    enforceJsonOnlyInstruction),
                 timeout,
                 client,
                 AiOutputTokenLimitSupport.actionLimit(request) != null);
@@ -486,7 +581,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         // the body read as well — the send only delivers the response headers here.
         return AiPowerManagementScope.call(() -> {
             HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-            String responseBody = readResponseBody(response.body(), timeout);
+            ResponseBody body = readResponseBodyDetailed(response.body(), timeout);
+            String responseBody = body.text();
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw apiError(response.statusCode(), responseBody);
             }
@@ -496,6 +592,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 result = aggregated != null ? parseJsonResponseBody(aggregated) : null;
             } else {
                 result = parseResponseBody(responseBody);
+            }
+            // A stream cut short never delivers a finish_reason, so the aggregated result would
+            // look complete. The buffered path marks a salvaged body fail-closed for the same
+            // reason; without this, rejectTruncatedReplacement would let a half-written
+            // replacement through as if the model had finished it.
+            if (body.salvaged()) {
+                result = markTruncated(result);
             }
             return finishExecutionResult(result, returnTruncatedResult);
         });
@@ -513,6 +616,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             throw apiError(response.statusCode(), responseBody);
         }
         return finishExecutionResult(parseResponseBody(responseBody), returnTruncatedResult);
+    }
+
+    /** @return {@code result} with the fail-closed truncation marker set. */
+    private static AiExecutionResult markTruncated(AiExecutionResult result) {
+        if (result == null) {
+            return null;
+        }
+        return new AiExecutionResult(result.content(), result.usage(), result.reasoning(), true);
     }
 
     private AiExecutionResult finishExecutionResult(
@@ -1082,7 +1193,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         boolean includeStructuredResponseFormat) {
         return buildJsonPostRequest(
             buildAiRequestBody(
-                request, skillClassifier, effectiveModel, completionTokenParameter, includeStructuredResponseFormat),
+                request,
+                skillClassifier,
+                effectiveModel,
+                completionTokenParameter,
+                includeStructuredResponseFormat,
+                false),
             timeout);
     }
 
@@ -1091,13 +1207,21 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiSkillRelevanceClassifier skillClassifier,
         String effectiveModel,
         CompletionTokenParameter completionTokenParameter,
-        boolean includeStructuredResponseFormat) {
+        boolean includeStructuredResponseFormat,
+        boolean enforceJsonOnlyInstruction) {
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
         }
         boolean includeTools = webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request);
+        JsonArray messages = buildRequestMessages(request, includeTools, skillClassifier);
+        if (enforceJsonOnlyInstruction && usesStructuredJsonSchema(request)) {
+            JsonObject instruction = new JsonObject();
+            instruction.addProperty("role", "user");
+            instruction.addProperty("content", JSON_ONLY_RETRY_INSTRUCTION);
+            messages.add(instruction);
+        }
         String body = buildMessagesRequestBody(
-            buildRequestMessages(request, includeTools, skillClassifier),
+            messages,
             0.2,
             false,
             includeTools,
@@ -1546,6 +1670,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         }
     }
 
+    /**
+     * A response body plus whether it had to be salvaged from a stream that ended early. A salvaged
+     * body is by definition incomplete, which callers must treat as fail-closed.
+     */
+    record ResponseBody(String text, boolean salvaged) {
+    }
+
     String readResponseBody(InputStream responseStream) throws IOException {
         return readResponseBody(responseStream, null);
     }
@@ -1558,8 +1689,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * deadline, and a timeout is a hard failure rather than a salvaged partial body.
      */
     String readResponseBody(InputStream responseStream, Duration timeout) throws IOException {
+        return readResponseBodyDetailed(responseStream, timeout).text();
+    }
+
+    ResponseBody readResponseBodyDetailed(InputStream responseStream, Duration timeout) throws IOException {
         if (responseStream == null) {
-            return "";
+            return new ResponseBody("", false);
         }
         long deadlineNanos = timeout != null ? System.nanoTime() + timeout.toNanos() : 0L;
         try (InputStream input = responseStream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -1581,10 +1716,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                         throw ex;
                     }
                     logger.warn("AI API response stream ended early: {}. Attempting to use partial response body.", ex.getMessage());
-                    break;
+                    return new ResponseBody(output.toString(StandardCharsets.UTF_8), true);
                 }
             }
-            return output.toString(StandardCharsets.UTF_8);
+            return new ResponseBody(output.toString(StandardCharsets.UTF_8), false);
         }
     }
 

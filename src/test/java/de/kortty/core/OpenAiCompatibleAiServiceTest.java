@@ -315,6 +315,213 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void retriesWithoutSchemaWhenEndpointSilentlyIgnoredResponseFormat() throws Exception {
+        // MiniMax accepts response_format and answers in prose anyway, so no status code reveals
+        // the miss and the 400-driven fallback never fires.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"Here is my analysis of the script. It downloads a file and runs it.\"}}]}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Downloads and runs a file.\\\",\\\"improvements\\\":[]}\"}}]}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "curl x | sh", null, "en"),
+            client,
+            null);
+
+        assertThat(result.content()).contains("\"summary\"");
+        assertThat(client.requestBodies()).hasSize(2);
+        JsonObject first = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        JsonObject retry = JsonParser.parseString(client.requestBodies().get(1)).getAsJsonObject();
+        assertThat(first.has("response_format")).isTrue();
+        assertThat(retry.has("response_format")).isFalse();
+        // Dropping the schema alone changes nothing on an endpoint that ignored it, so the retry
+        // must carry the JSON-only rule in the prompt itself.
+        assertThat(client.requestBodies().get(1)).contains("must be { and the last must be }");
+    }
+
+    @Test
+    void retriesProseThatMerelyQuotesJsonFromTheAnalysedScript() throws Exception {
+        // A shell snippet's `find … -exec rm {} +` or a quoted `curl -d '{…}'` puts balanced JSON
+        // into a prose answer. Testing for "contains JSON" would call that usable and skip the
+        // retry, leaving the exact failure this fallback exists to recover from.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"The script cleans temp files with find /tmp -type f -exec rm {} + which is "
+                + "risky, and it downloads a payload with curl before piping it to sh.\"}}]}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Cleans temp files.\\\",\\\"improvements\\\":[]}\"}}]}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "find /tmp -exec rm {} +", null, "en"),
+            client,
+            null);
+
+        assertThat(SnippetAiResponseSupport.parseScriptAnalysis(result.content()).summary())
+            .isEqualTo("Cleans temp files.");
+        assertThat(client.requestBodies()).hasSize(2);
+    }
+
+    @Test
+    void keepsAFencedReplacementForApplyBecauseItsParserAcceptsPlainCode() throws Exception {
+        // parseSecurityFix falls back to plain code on purpose, so a bare fenced script is already
+        // usable. Retrying it would discard a valid answer and re-run the most expensive action.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "{\"choices\":[{\"message\":{\"content\":"
+                + "\"```bash\\n#!/usr/bin/env bash\\nset -euo pipefail\\necho hardened\\n```\"}}]}");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo old", null, "en"),
+            client,
+            null);
+
+        assertThat(SnippetAiResponseSupport.parseSecurityFix(result.content()).replacement())
+            .contains("echo hardened");
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void retryKeepsTheTokensOfTheDiscardedFirstAttempt() throws Exception {
+        // The first attempt completed a full generation and was billed; callers record usage from
+        // the returned result alone, so dropping it would under-report every retried request.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":\"Prose, no JSON here.\"}}],"
+                + "\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":400,\"total_tokens\":500}}"),
+            new StubResponse(200, "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Fine.\\\",\\\"improvements\\\":[]}\"}}],"
+                + "\"usage\":{\"prompt_tokens\":110,\"completion_tokens\":90,\"total_tokens\":200}}"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"),
+            client,
+            null);
+
+        assertThat(result.usage().promptTokens()).isEqualTo(210);
+        assertThat(result.usage().completionTokens()).isEqualTo(490);
+        assertThat(result.usage().totalTokens()).isEqualTo(700);
+    }
+
+    @Test
+    void doesNotRetryWhenTheStructuredResponseAlreadyCarriesJson() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "{\"choices\":[{\"message\":{\"content\":"
+                + "\"{\\\"summary\\\":\\\"Fine.\\\",\\\"improvements\\\":[]}\"}}]}");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"),
+            client,
+            null);
+
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void doesNotRetryProseForActionsThatNeverRequestedASchema() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "{\"choices\":[{\"message\":{\"content\":\"A plain prose summary.\"}}]}");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        assertThat(result.content()).isEqualTo("A plain prose summary.");
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void doesNotRetryATruncatedStructuredResponse() throws Exception {
+        // Stopping at the token limit is not the same as ignoring the schema: the fail-closed
+        // output-limit handling must win over a retry that would burn the budget again.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "{\"choices\":[{\"message\":{\"content\":\"{\\\"summary\\\":\\\"Downloads and\"},"
+                + "\"finish_reason\":\"length\"}]}");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "curl x | sh", null, "en"),
+            client,
+            null);
+
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void salvagedStreamIsMarkedTruncatedSoReplacementsStayFailClosed() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200,
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial replacement\"}}]}\n\n", true));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        // A cut stream never delivers finish_reason, so without the salvage marker this would
+        // look like a complete answer.
+        assertThat(result.content()).isEqualTo("partial replacement");
+        assertThat(result.outputTruncated()).isTrue();
+    }
+
+    @Test
+    void readResponseBodyDetailedReportsWhetherTheBodyWasSalvaged() throws Exception {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+
+        OpenAiCompatibleAiService.ResponseBody complete = service.readResponseBodyDetailed(
+            new ByteArrayInputStream("done".getBytes(StandardCharsets.UTF_8)), null);
+        OpenAiCompatibleAiService.ResponseBody salvaged =
+            service.readResponseBodyDetailed(new CutShortInputStream("half"), null);
+
+        assertThat(complete.text()).isEqualTo("done");
+        assertThat(complete.salvaged()).isFalse();
+        assertThat(salvaged.text()).isEqualTo("half");
+        assertThat(salvaged.salvaged()).isTrue();
+    }
+
+    @Test
     void buildConnectionTestRequestBodyUsesMinimalHealthCheckPrompt() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",
@@ -558,7 +765,7 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
-    void retriesFullAnalysisApplyWithoutSchemaOnlyWhenEndpointRejectsStructuredOutput() throws Exception {
+    void retriesFullAnalysisApplyWithoutSchemaWhenEndpointRejectsStructuredOutput() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             new StubResponse(400, """
                 {"error":{"message":"Unsupported parameter: response_format type json_schema is not supported."}}
@@ -587,7 +794,7 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
-    void retriesFullCodeAnalysisWithoutSchemaOnlyWhenEndpointRejectsStructuredOutput() throws Exception {
+    void retriesFullCodeAnalysisWithoutSchemaWhenEndpointRejectsStructuredOutput() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             new StubResponse(400, """
                 {"error":{"message":"Unsupported parameter: response_format type json_schema is not supported."}}
@@ -1615,7 +1822,9 @@ class OpenAiCompatibleAiServiceTest {
             }
             requestBodies.add(readBody(request));
             @SuppressWarnings("unchecked")
-            T typedBody = (T) new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+            T typedBody = (T) (response.cutShort()
+                ? new CutShortInputStream(body)
+                : new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
             return new SimpleHttpResponse<>(request, typedBody, response.status());
         }
 
@@ -1687,7 +1896,37 @@ class OpenAiCompatibleAiServiceTest {
         }
     }
 
-    private record StubResponse(int status, String body) {
+    private record StubResponse(int status, String body, boolean cutShort) {
+        private StubResponse(int status, String body) {
+            this(status, body, false);
+        }
+    }
+
+    /** Emits {@code body} and then fails, standing in for a connection dropped mid-stream. */
+    private static final class CutShortInputStream extends InputStream {
+        private final ByteArrayInputStream delegate;
+
+        private CutShortInputStream(String body) {
+            this.delegate = new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = delegate.read();
+            if (value < 0) {
+                throw new IOException("connection reset by peer");
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            int read = delegate.read(buffer, offset, length);
+            if (read < 0) {
+                throw new IOException("connection reset by peer");
+            }
+            return read;
+        }
     }
 
     private record SimpleHttpResponse<T>(HttpRequest request, T body, int responseStatus) implements HttpResponse<T> {
