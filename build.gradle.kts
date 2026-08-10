@@ -338,7 +338,8 @@ dependencies {
     implementation("org.apache.sshd:sshd-common:2.19.0")
     implementation("org.apache.sshd:sshd-sftp:2.19.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.85.2")
+    // bcpkix has no 1.85.2 release; stay on 1.85 (it resolves bcprov up to 1.85.2 transitively).
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
     
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
