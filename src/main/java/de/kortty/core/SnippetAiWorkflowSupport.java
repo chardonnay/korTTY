@@ -1503,6 +1503,9 @@ public final class SnippetAiWorkflowSupport {
         if (instruction.contains("FORCE")) {
             required.add("FORCE");
         }
+        if (instruction.contains("--force")) {
+            required.add("--force");
+        }
         if (instruction.contains("\"SECURITY:\"")) {
             required.add("SECURITY:");
         }

@@ -47,15 +47,15 @@ Der Wächter definiert in seinem Konfigurationsabschnitt eine `MAX_FILE_SIZE`-Va
 
 #### Sicherheitswarnungen für stderr und Skriptprotokoll
 
-Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **FORCE=1 Override** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript seine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile an, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
+Jeder Verstoß wird als zeitgestempelte Sicherheitswarnzeile gemeldet, beginnend mit `SECURITY:` auf stderr. Wenn auch **Übersteuerung per FORCE=1 / --force** ausgewählt ist, wird jede erzwungene Umgehung auf die gleiche Weise gemeldet. Wenn das Skript seine eigene Protokolldatei schreibt, fügt der Wächter auch dort dieselbe Warnzeile an, sodass das Protokoll des Skripts eine vollständige Sicherheitsspur enthält.
 
-#### FORCE=1-Überschreibung
+#### Übersteuerung per FORCE=1 / --force
 
-Blockieren ist die Standardeinstellung, aber eine Ausführung kann erzwungen werden: Wenn die Umgebungsvariable `FORCE` auf `1` gesetzt ist, stuft der Wächter jeden Verstoß auf eine Warnung herab und fährt fort. Jeder einzelne Verstoß wird weiterhin gemeldet, plus eine zusätzliche Warnung, dass die Durchsetzung umgangen wurde – eine erzwungene Flucht hinterlässt immer eine vollständige Spur.
+Das Blockieren ist die Standardeinstellung, aber eine Ausführung kann erzwungen werden: Wenn die Umgebungsvariable `FORCE` auf `1` gesetzt ist oder das Skript mit dem Parameter `--force` aufgerufen wird, stuft der Wächter jeden Verstoß auf eine Warnung herab und fährt fort. Der Wächter akzeptiert `--force` an einer beliebigen Stelle in der Befehlszeile und schließt es von der Parametervalidierung aus. Jeder einzelne Verstoß wird weiterhin gemeldet, plus eine zusätzliche Warnung, dass die Durchsetzung umgangen wurde – eine erzwungene Flucht hinterlässt immer eine vollständige Spur.
 
 ## Exit-Codes
 
-Wenn der Guard eine Ausführung blockiert (und `FORCE` nicht gesetzt ist), verwendet er eindeutige, dokumentierte Exit-Codes, damit Aufrufer erkennen können, *warum* die Eingabe abgelehnt wurde. Die Eingabeaufforderung benennt nur Codes, die durch die ausgewählten Prüfungen erstellt wurden: Nur-Format- und Nur-Größen-Auswahlen beschreiben jeweils nur ihren eigenen `65`-Fall, und `66` ist nur bei **Eingabedateiformatprüfungen** enthalten.
+Wenn der Wächter eine Ausführung blockiert (und keine erzwungene Überschreibung aktiv ist), verwendet er eindeutige, dokumentierte Exit-Codes, damit Aufrufer erkennen können, *warum* die Eingabe abgelehnt wurde. Die Eingabeaufforderung benennt nur Codes, die durch die ausgewählten Prüfungen erstellt wurden: Nur-Format- und Nur-Größen-Auswahlen beschreiben jeweils nur ihren eigenen `65`-Fall, und `66` ist nur bei **Prüfungen des Eingabedateiformats** enthalten.
 
 | Exit-Code | Bedeutung |
 |-----------|---------|

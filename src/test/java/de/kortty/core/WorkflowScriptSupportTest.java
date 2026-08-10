@@ -562,6 +562,7 @@ class WorkflowScriptSupportTest {
         assertThat(rules).contains("before any operation reads even one byte");
         assertThat(rules).contains("Never calculate the size by reading or streaming the file");
         assertThat(rules).contains("FORCE");
+        assertThat(rules).contains("--force");
         assertThat(rules).contains("stderr");
         assertThat(rules).contains("64 for parameter violations");
         assertThat(rules).contains("65 for a file that fails the format or size checks");
@@ -626,6 +627,7 @@ class WorkflowScriptSupportTest {
         assertThat(rules).contains("character allowlist");
         assertThat(rules).doesNotContain("MAX_FILE_SIZE");
         assertThat(rules).doesNotContain("FORCE");
+        assertThat(rules).doesNotContain("--force");
         assertThat(rules).doesNotContain("SECURITY:");
         assertThat(rules).doesNotContain("file --mime-type");
         assertThat(rules).doesNotContain("set -u");
@@ -672,6 +674,7 @@ class WorkflowScriptSupportTest {
         assertThat(loggingRules).contains("SECURITY:");
         assertThat(loggingRules).doesNotContain("forced bypass");
         assertThat(loggingRules).doesNotContain("FORCE");
+        assertThat(loggingRules).doesNotContain("--force");
 
         InputHardeningConfig loggingAndOverride = new InputHardeningConfig(
             EnumSet.of(InputHardeningOption.SECURITY_LOGGING, InputHardeningOption.FORCE_OVERRIDE),
@@ -680,6 +683,7 @@ class WorkflowScriptSupportTest {
             loggingAndOverride, ScriptLanguage.PYTHON);
         assertThat(combinedRules).contains("every forced bypass");
         assertThat(combinedRules).contains("FORCE");
+        assertThat(combinedRules).contains("--force");
     }
 
     @Test
@@ -692,6 +696,7 @@ class WorkflowScriptSupportTest {
             ScriptLanguage.BASH, ScriptLanguage.PYTHON, ScriptLanguage.PERL, ScriptLanguage.RUBY}) {
             String rules = WorkflowScriptSupport.inputHardeningRulesText(paramOnly, lang);
             assertThat(rules).doesNotContain("FORCE");
+            assertThat(rules).doesNotContain("--force");
             assertThat(rules).doesNotContain("binread");
             assertThat(rules).doesNotContain("getsize");
             assertThat(rules).doesNotContain("wc -c");
@@ -703,6 +708,7 @@ class WorkflowScriptSupportTest {
         String logging = WorkflowScriptSupport.inputHardeningRulesText(loggingOnly, ScriptLanguage.PYTHON);
         assertThat(logging).contains("Python standard library only.");
         assertThat(logging).doesNotContain("FORCE");
+        assertThat(logging).doesNotContain("--force");
         assertThat(logging).doesNotContain("64 for parameter violations");
     }
 

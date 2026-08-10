@@ -1047,6 +1047,18 @@
       "note": "The search field matches fields — 'entspricht' claims equality."
     },
     {
+      "from": "FORCE=1 / --force override",
+      "to": "Übersteuerung per FORCE=1 / --force",
+      "scope": "markdown",
+      "note": "MT leaves the English 'override' in the heading and the bold option label; this matches the German UI label (ai.inputHardening.option.FORCE_OVERRIDE)."
+    },
+    {
+      "from": "stuft der Guard jeden Verstoß",
+      "to": "stuft der Wächter jeden Verstoß",
+      "scope": "markdown",
+      "note": "The input-hardening page calls the guard block 'Wächter' throughout; MT keeps the English term in this one sentence."
+    },
+    {
       "from": "Connection Manager-Suche",
       "to": "Verbindungsmanager-Suche",
       "scope": "markdown",

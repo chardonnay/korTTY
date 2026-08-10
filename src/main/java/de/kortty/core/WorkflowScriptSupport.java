@@ -713,10 +713,12 @@ public final class WorkflowScriptSupport {
                 + " reuse it — append the same warning line there as well.");
         }
         if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
-            rules.add("- Force override: when the environment variable FORCE is set to 1, do not block —"
-                + " downgrade every violation to a warning and continue. Still print each individual violation,"
-                + " plus one additional warning that enforcement was bypassed via FORCE, so every forced"
-                + " run leaves a complete trace.");
+            rules.add("- Force override: when the environment variable FORCE is set to 1 or the script was"
+                + " invoked with a --force parameter, do not block — downgrade every violation to a warning"
+                + " and continue. Recognize --force anywhere on the command line and exclude it from the"
+                + " expected parameter count and every other parameter check. Still print each individual"
+                + " violation, plus one additional warning that enforcement was bypassed via FORCE/--force,"
+                + " so every forced run leaves a complete trace.");
         }
         rules.add(inputHardeningLanguageRule(lang, opts));
         return String.join("\n", rules);
@@ -758,7 +760,7 @@ public final class WorkflowScriptSupport {
                 genericClauses.add("timestamp and stderr/log output facilities");
             }
             if (opts.contains(InputHardeningOption.FORCE_OVERRIDE)) {
-                genericClauses.add("environment-variable access");
+                genericClauses.add("environment-variable and argument-list access");
             }
             return "- Implement the guard with the language's native "
                 + String.join(", ", genericClauses) + " only.";
@@ -797,14 +799,14 @@ public final class WorkflowScriptSupport {
                 "when MAX_FILE_SIZE is greater than 0, file metadata via GNU stat -c %s or BSD/macOS stat -f %z"
                     + " for the size limit, probing which form is supported and failing closed without reading"
                     + " the file if neither is available",
-                "\"${FORCE:-}\" for the override");
+                "\"${FORCE:-}\" and a --force argument scan for the override");
             case PYTHON -> new InputHardeningIdioms(
                 "Implement the guard with the Python standard library only",
                 "len(sys.argv) for the count and the re module for allowlists",
                 "os.path.isfile/os.access(..., os.R_OK) for file tests and open(path, 'rb').read(512)"
                     + " containing b'\\x00' for the binary check",
                 "os.path.getsize for the size limit",
-                "os.environ.get(\"FORCE\") for the override");
+                "os.environ.get(\"FORCE\") or \"--force\" in sys.argv for the override");
             case PERL -> new InputHardeningIdioms(
                 "Implement the guard with core Perl only",
                 "@ARGV checks and regex allowlists that also untaint values, enabling taint mode (-T on the"
@@ -812,14 +814,14 @@ public final class WorkflowScriptSupport {
                     + " untainting every parameter explicitly otherwise",
                 "-e/-r file tests and a NUL-byte scan of the first 512 bytes for the binary check",
                 "-s for the size limit",
-                "$ENV{FORCE} for the override");
+                "$ENV{FORCE} or a --force entry in @ARGV for the override");
             case RUBY -> new InputHardeningIdioms(
                 "Implement the guard with core Ruby only",
                 "ARGV.length for the count and Regexp allowlists",
                 "File.exist?/File.readable? file tests and File.binread(path, 512).include?(\"\\0\")"
                     + " for the binary check",
                 "File.size for the size limit",
-                "ENV[\"FORCE\"] for the override");
+                "ENV[\"FORCE\"] or ARGV.include?(\"--force\") for the override");
             default -> null;
         };
     }
