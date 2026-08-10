@@ -163,8 +163,9 @@ final class SnippetAiApplyProgressWindow {
             return;
         }
         registerRows(progress);
-        for (SnippetAiWorkflowSupport.ImprovementApplyWorkItem item : progress.workItems()) {
-            WorkRow row = rows.get(new WorkKey(progress.stage(), item.id()));
+        List<SnippetAiWorkflowSupport.ImprovementApplyWorkItem> items = progress.workItems();
+        for (int index = 0; index < items.size(); index++) {
+            WorkRow row = rows.get(new WorkKey(progress.stage(), rowKeyId(index, items.get(index))));
             if (row != null) {
                 row.setState(progress.state());
             }
@@ -230,8 +231,10 @@ final class SnippetAiApplyProgressWindow {
         VBox target = progress.phase() == SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS
             ? improvementRows
             : hardeningRows;
-        for (SnippetAiWorkflowSupport.ImprovementApplyWorkItem item : progress.workItems()) {
-            WorkKey key = new WorkKey(progress.stage(), item.id());
+        List<SnippetAiWorkflowSupport.ImprovementApplyWorkItem> items = progress.workItems();
+        for (int index = 0; index < items.size(); index++) {
+            SnippetAiWorkflowSupport.ImprovementApplyWorkItem item = items.get(index);
+            WorkKey key = new WorkKey(progress.stage(), rowKeyId(index, item));
             if (rows.containsKey(key)) {
                 continue;
             }
@@ -467,6 +470,12 @@ final class SnippetAiApplyProgressWindow {
         } else {
             Platform.runLater(action);
         }
+    }
+
+    /** Item ids are model-supplied and not guaranteed unique within a batched stage; key rows by
+     *  list position + id so duplicate ids cannot swallow each other's checklist rows. */
+    private static String rowKeyId(int index, SnippetAiWorkflowSupport.ImprovementApplyWorkItem item) {
+        return index + ":" + item.id();
     }
 
     private record WorkKey(int stage, String id) {

@@ -3951,11 +3951,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return I18n.get("snippets.ai.analysis.fix.running");
         }
         String phase = switch (progress.phase()) {
-            case ANALYSIS_ITEMS -> progress.phaseRequirementCount() > 0
-                ? I18n.get(
+            case ANALYSIS_ITEMS -> {
+                if (progress.phaseRequirementCount() <= 0) {
+                    yield I18n.get("snippets.ai.analysis.fix.running");
+                }
+                if (progress.lastRequirement() > progress.firstRequirement()) {
+                    yield I18n.get(
+                        "snippets.ai.analysis.fix.progress.analysisRange",
+                        progress.firstRequirement(), progress.lastRequirement(),
+                        progress.phaseRequirementCount(), progress.detail());
+                }
+                yield I18n.get(
                     "snippets.ai.analysis.fix.progress.analysis",
-                    progress.firstRequirement(), progress.phaseRequirementCount(), progress.detail())
-                : I18n.get("snippets.ai.analysis.fix.running");
+                    progress.firstRequirement(), progress.phaseRequirementCount(), progress.detail());
+            }
             case HARDENING -> I18n.get(
                 "snippets.ai.analysis.fix.progress.hardening",
                 progress.firstRequirement(), progress.lastRequirement(), progress.phaseRequirementCount());

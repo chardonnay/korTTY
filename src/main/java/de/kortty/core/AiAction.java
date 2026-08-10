@@ -95,4 +95,18 @@ public enum AiAction {
             default -> true;
         };
     }
+
+    /**
+     * Whether the hybrid (remote LLM) skill-relevance classifier may run before this action's main
+     * request. The staged full-code-analysis apply actions send one mechanical full-file rewrite per
+     * stage over near-identical context, so a per-stage classification round-trip adds latency
+     * without changing the outcome; they always use the local relevance selection instead.
+     * Explicitly pinned skills are unaffected — pinning bypasses auto-detection entirely.
+     */
+    public boolean allowsHybridSkillClassification() {
+        return switch (this) {
+            case APPLY_SNIPPET_IMPROVEMENTS, APPLY_SNIPPET_SECURITY_FIXES -> false;
+            default -> true;
+        };
+    }
 }

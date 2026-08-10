@@ -89,10 +89,15 @@ class SnippetAiAnalysisContractTest {
         CapturingAiService aiService = new CapturingAiService(GSON.toJson(Map.of(
             "replacement", "#!/usr/bin/env bash\n# Eingabe sicher prüfen\nprintf '%s\\n' \"$value\"",
             "summary", "Die Eingabe wird sicher verarbeitet.",
-            "changes", List.of(Map.of(
-                "finding", "SEC-1",
-                "anchor", "printf '%s\\n' \"$value\"",
-                "reason", "Verhindert Wortaufteilung.")))));
+            "changes", List.of(
+                Map.of(
+                    "finding", "SEC-1",
+                    "anchor", "printf '%s\\n' \"$value\"",
+                    "reason", "Verhindert Wortaufteilung."),
+                Map.of(
+                    "finding", "D1",
+                    "anchor", "printf '%s\\n' \"$value\"",
+                    "reason", "Shell-Builtin wird beibehalten.")))));
         List<SnippetAiResponseSupport.ScriptImprovement> selectedImprovements = List.of(
             new SnippetAiResponseSupport.ScriptImprovement(
                 "SEC-1", "security", "high", "Variable quoten", "Die Variable ist ungequotet.",
@@ -113,18 +118,15 @@ class SnippetAiAnalysisContractTest {
             null,
             null);
 
-        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests).hasSize(1);
         AiRequest improvementRequest = aiService.requests.get(0);
-        AiRequest dependencyRequest = aiService.requests.get(1);
         assertThat(result.isUsable()).isTrue();
         assertThat(improvementRequest.action()).isEqualTo(AiAction.APPLY_SNIPPET_IMPROVEMENTS);
         assertThat(improvementRequest.responseLanguageCode()).isEqualTo("de");
         assertThat(improvementRequest.conversationContext()).contains("Snippet language: bash");
         assertThat(improvementRequest.conversationContext()).contains("Natural language for the summary: de");
         assertThat(improvementRequest.conversationContext()).contains("SEC-1 [security/high] Variable quoten");
-        assertThat(improvementRequest.conversationContext()).doesNotContain("D1 [dependency] printf");
-        assertThat(dependencyRequest.conversationContext()).contains("D1 [dependency] printf");
-        assertThat(dependencyRequest.conversationContext()).doesNotContain("SEC-1 [security/high] Variable quoten");
+        assertThat(improvementRequest.conversationContext()).contains("D1 [dependency] printf");
         assertThat(improvementRequest.conversationContext()).doesNotContain(originalSnippet);
         String userPrompt = AiPromptBuilder.buildUserPrompt(improvementRequest);
         assertThat(userPrompt).contains("Full script content to update");

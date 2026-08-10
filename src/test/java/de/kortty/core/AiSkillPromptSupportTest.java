@@ -47,6 +47,33 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void applyImprovementsActionSkipsHybridClassifierAndKeepsLocalSelection() {
+        AiSkill linux = skill("linux-sysadmin", true, AiSkillTarget.BOTH, "Use dnf and systemctl carefully.");
+        linux.setDescription("Linux system administration guidance.");
+        linux.setTags(List.of("linux", "fedora", "dnf", "systemctl"));
+        AiSkillPromptSupport support = new AiSkillPromptSupport(true, true, List.of(linux));
+        boolean[] classifierCalled = {false};
+        AiSkillRelevanceClassifier classifier = (context, skills) -> {
+            classifierCalled[0] = true;
+            return List.of("linux-sysadmin");
+        };
+
+        // Staged apply action: the extra classification round-trip is skipped, local selection stays.
+        String applyPrompt = support.appendChatSkills("base",
+            new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS,
+                "Fedora dnf systemctl helper script", "fedora", "en"),
+            classifier);
+        assertThat(classifierCalled[0]).isFalse();
+        assertThat(applyPrompt).contains("Use dnf and systemctl carefully.");
+
+        // A chat action without a confident local match still consults the classifier.
+        support.appendChatSkills("base",
+            new AiRequest(AiAction.ASK, "generic question", "box", "en", "which repository should I use?"),
+            classifier);
+        assertThat(classifierCalled[0]).isTrue();
+    }
+
+    @Test
     void filtersDisabledGlobalDisabledAndWrongTargetSkills() {
         AiSkill chatSkill = skill("Chat", true, AiSkillTarget.CHAT, "chat");
         AiSkill disabledSkill = skill("Disabled", false, AiSkillTarget.BOTH, "disabled");

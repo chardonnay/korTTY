@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
  */
 public final class SnippetAiWorkflowSupport {
     private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 6;
+    private static final int MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE = 6;
     private static final long MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS = 4_096L;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOWNLOAD_COMMAND_PATTERN =
@@ -585,6 +586,11 @@ public final class SnippetAiWorkflowSupport {
         String attemptContent = fullContent;
         StageRepairReason repairReason = StageRepairReason.NONE;
         List<MandatoryRequirement> requirementsNeedingRepair = List.of();
+        List<String> analysisIdsNeedingRepair = List.of();
+        // Set when the single repair attempt was triggered ONLY by unechoed analysis ids: the
+        // first attempt's replacement already met the stage's acceptance contract, so a failed
+        // repair round-trip must fall back to it instead of aborting the whole apply.
+        SnippetAiResponseSupport.SnippetSecurityFix echoOnlyRepairFallback = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
             checkImprovementApplyInterrupted();
             boolean repairAttempt = repairReason != StageRepairReason.NONE;
@@ -604,13 +610,17 @@ public final class SnippetAiWorkflowSupport {
                     mandatoryRequirements,
                     preservePriorStageWork || repairReason == StageRepairReason.MISSING_REQUIREMENTS,
                     repairReason,
-                    requirementsNeedingRepair));
+                    requirementsNeedingRepair,
+                    analysisIdsNeedingRepair));
             AiExecutionResult result = aiService.execute(request);
             if (result != null && usageRecorder != null) {
                 usageRecorder.record(request, result);
             }
             usageAccumulator.add(result != null ? result.usage() : null);
             checkImprovementApplyInterrupted();
+            if (echoOnlyRepairFallback != null && result != null && result.outputTruncated()) {
+                return echoOnlyRepairFallback;
+            }
             rejectTruncatedReplacement(result);
             SnippetAiResponseSupport.SnippetSecurityFix fix =
                 SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
@@ -621,21 +631,32 @@ public final class SnippetAiWorkflowSupport {
                     repairReason = StageRepairReason.COLLAPSED_REPLACEMENT;
                     continue;
                 }
+                if (echoOnlyRepairFallback != null) {
+                    return echoOnlyRepairFallback;
+                }
                 throw new FullReplacementRejectedException();
             }
             List<MandatoryRequirement> missingRequirements =
                 missingMandatoryRequirements(fix, mandatoryRequirements);
-            if (!missingRequirements.isEmpty()) {
+            List<String> unechoedAnalysisIds = unechoedAnalysisItemIds(fix, improvements, dependencies);
+            if (!missingRequirements.isEmpty() || !unechoedAnalysisIds.isEmpty()) {
                 if (!repairAttempt) {
                     attemptContent = fix.replacement();
                     repairReason = StageRepairReason.MISSING_REQUIREMENTS;
                     requirementsNeedingRepair = missingRequirements;
+                    analysisIdsNeedingRepair = unechoedAnalysisIds;
+                    echoOnlyRepairFallback = missingRequirements.isEmpty() ? fix : null;
                     continue;
                 }
-                throw new IncompleteMandatoryRequirementsException(
-                    missingRequirements.stream().map(MandatoryRequirement::id).toList());
+                if (!missingRequirements.isEmpty()) {
+                    throw new IncompleteMandatoryRequirementsException(
+                        missingRequirements.stream().map(MandatoryRequirement::id).toList());
+                }
+                // An analysis item still unechoed after the targeted repair attempt is accepted:
+                // the item may legitimately require no code change, and the pre-batching per-item
+                // stages carried no echo contract either.
             }
-            return fix;
+            return echoOnlyRepairFallback != null ? mergeRepairedStageFix(echoOnlyRepairFallback, fix) : fix;
         }
         throw new FullReplacementRejectedException();
     }
@@ -740,17 +761,21 @@ public final class SnippetAiWorkflowSupport {
         int totalStages = analysisStages.size() + classicBatches.size() + inputBatches.size();
         List<ImprovementApplyStagePlan> plans = new ArrayList<>(totalStages);
         int stage = 0;
+        int analysisItemCount = analysisStages.stream()
+            .mapToInt(analysisStage -> analysisStage.workItems().size())
+            .sum();
         int analysisOffset = 0;
         for (AnalysisApplyStage analysisStage : analysisStages) {
-            analysisOffset++;
+            int firstItem = analysisOffset + 1;
+            analysisOffset += Math.max(1, analysisStage.workItems().size());
             plans.add(new ImprovementApplyStagePlan(
                 new ImprovementApplyProgress(
                     ImprovementApplyPhase.ANALYSIS_ITEMS,
                     ++stage,
                     totalStages,
+                    firstItem,
                     analysisOffset,
-                    analysisOffset,
-                    analysisStages.size(),
+                    analysisItemCount,
                     analysisStage.detail(),
                     analysisStage.workItems(),
                     ImprovementApplyProgressState.PENDING,
@@ -809,38 +834,59 @@ public final class SnippetAiWorkflowSupport {
             .toList();
     }
 
+    /**
+     * Groups the selected analysis items (improvements first, then dependencies) into bounded
+     * batches so a single apply request can address several findings at once. Every stage is a
+     * full-file round-trip that re-sends and regenerates the entire snippet, so fewer, larger
+     * stages directly cut apply latency; {@link #MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE} bounds the
+     * instruction load one stage may carry.
+     */
     private static List<AnalysisApplyStage> buildAnalysisApplyStages(
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
         List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
 
+        List<SnippetAiResponseSupport.ScriptImprovement> safeImprovements = improvements != null
+            ? improvements.stream().filter(java.util.Objects::nonNull).toList()
+            : List.of();
+        List<SnippetAiResponseSupport.ScriptDependency> safeDependencies = dependencies != null
+            ? dependencies.stream().filter(java.util.Objects::nonNull).toList()
+            : List.of();
+        int totalItems = safeImprovements.size() + safeDependencies.size();
         List<AnalysisApplyStage> stages = new ArrayList<>();
-        if (improvements != null) {
-            for (SnippetAiResponseSupport.ScriptImprovement improvement : improvements) {
-                if (improvement == null) {
-                    continue;
+        for (int start = 0; start < totalItems; start += MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE) {
+            int end = Math.min(totalItems, start + MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE);
+            List<SnippetAiResponseSupport.ScriptImprovement> stageImprovements = new ArrayList<>();
+            List<SnippetAiResponseSupport.ScriptDependency> stageDependencies = new ArrayList<>();
+            List<ImprovementApplyWorkItem> workItems = new ArrayList<>();
+            for (int index = start; index < end; index++) {
+                if (index < safeImprovements.size()) {
+                    SnippetAiResponseSupport.ScriptImprovement improvement = safeImprovements.get(index);
+                    stageImprovements.add(improvement);
+                    workItems.add(new ImprovementApplyWorkItem(
+                        improvement.id(), improvement.title(), improvement.category(), improvement.severity()));
+                } else {
+                    SnippetAiResponseSupport.ScriptDependency dependency =
+                        safeDependencies.get(index - safeImprovements.size());
+                    stageDependencies.add(dependency);
+                    workItems.add(new ImprovementApplyWorkItem(
+                        dependency.id(), dependency.name(), "dependencies", ""));
                 }
-                stages.add(new AnalysisApplyStage(
-                    List.of(improvement),
-                    List.of(),
-                    improvement.id() + " — " + improvement.title(),
-                    List.of(new ImprovementApplyWorkItem(
-                        improvement.id(), improvement.title(), improvement.category(), improvement.severity()))));
             }
-        }
-        if (dependencies != null) {
-            for (SnippetAiResponseSupport.ScriptDependency dependency : dependencies) {
-                if (dependency == null) {
-                    continue;
-                }
-                stages.add(new AnalysisApplyStage(
-                    List.of(),
-                    List.of(dependency),
-                    dependency.id() + " — " + dependency.name(),
-                    List.of(new ImprovementApplyWorkItem(
-                        dependency.id(), dependency.name(), "dependencies", ""))));
-            }
+            stages.add(new AnalysisApplyStage(
+                List.copyOf(stageImprovements),
+                List.copyOf(stageDependencies),
+                analysisStageDetail(workItems),
+                List.copyOf(workItems)));
         }
         return List.copyOf(stages);
+    }
+
+    private static String analysisStageDetail(List<ImprovementApplyWorkItem> workItems) {
+        if (workItems.size() == 1) {
+            ImprovementApplyWorkItem item = workItems.get(0);
+            return item.id() + " — " + item.label();
+        }
+        return workItems.stream().map(ImprovementApplyWorkItem::id).collect(Collectors.joining(", "));
     }
 
     private static void notifyImprovementProgress(
@@ -1175,7 +1221,8 @@ public final class SnippetAiWorkflowSupport {
         List<MandatoryRequirement> mandatoryRequirements,
         boolean preservePriorStageWork,
         StageRepairReason repairReason,
-        List<MandatoryRequirement> requirementsNeedingRepair) {
+        List<MandatoryRequirement> requirementsNeedingRepair,
+        List<String> analysisIdsNeedingRepair) {
 
         StringBuilder items = new StringBuilder();
         if (improvements != null) {
@@ -1201,11 +1248,7 @@ public final class SnippetAiWorkflowSupport {
             .append(repairReason == StageRepairReason.COLLAPSED_REPLACEMENT
                 ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
                 : "")
-            .append(repairReason == StageRepairReason.MISSING_REQUIREMENTS
-                ? "The preceding attempt returned a complete script but did not verify every mandatory requirement. This is the single repair attempt. Re-check and implement every requirement listed below while preserving all other code. Do not merely echo identifiers: verify the actual behavior and required literals first, then include every requirement id from this stage exactly once in implementedRequirements. Requirements not verified in the preceding answer: "
-                    + requirementsNeedingRepair.stream().map(MandatoryRequirement::id)
-                        .collect(Collectors.joining(", ")) + ".\n"
-                : "")
+            .append(missingWorkRepairParagraph(repairReason, requirementsNeedingRepair, analysisIdsNeedingRepair))
             .append("Selected analysis items to apply (echo each id in changes[].finding):\n")
             .append(AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip()));
         if (mandatoryRequirements != null && !mandatoryRequirements.isEmpty()) {
@@ -1217,6 +1260,130 @@ public final class SnippetAiWorkflowSupport {
                 .append(AiPromptBuilder.toSafeTextCodeBlock(requirementsText));
         }
         return context.toString();
+    }
+
+    /**
+     * A repair attempt triggered only by unechoed analysis ids replaces an already acceptable
+     * stage result. Keep the first attempt's user-visible metadata: its summary and change
+     * annotations describe work that is still present in the repaired replacement.
+     */
+    private static SnippetAiResponseSupport.SnippetSecurityFix mergeRepairedStageFix(
+        SnippetAiResponseSupport.SnippetSecurityFix first,
+        SnippetAiResponseSupport.SnippetSecurityFix repaired) {
+
+        Set<String> summaries = new LinkedHashSet<>();
+        if (!first.summary().isBlank()) {
+            summaries.add(first.summary());
+        }
+        if (!repaired.summary().isBlank()) {
+            summaries.add(repaired.summary());
+        }
+        List<SnippetAiResponseSupport.SecurityChange> changes = new ArrayList<>(first.changes());
+        for (SnippetAiResponseSupport.SecurityChange change : repaired.changes()) {
+            if (change != null && !changes.contains(change)) {
+                changes.add(change);
+            }
+        }
+        Set<String> implemented = new LinkedHashSet<>(first.implementedRequirements());
+        implemented.addAll(repaired.implementedRequirements());
+        return new SnippetAiResponseSupport.SnippetSecurityFix(
+            repaired.replacement(),
+            String.join("\n\n", summaries),
+            List.copyOf(changes),
+            List.copyOf(implemented));
+    }
+
+    private static String missingWorkRepairParagraph(
+        StageRepairReason repairReason,
+        List<MandatoryRequirement> requirementsNeedingRepair,
+        List<String> analysisIdsNeedingRepair) {
+
+        if (repairReason != StageRepairReason.MISSING_REQUIREMENTS) {
+            return "";
+        }
+        StringBuilder paragraph = new StringBuilder(
+            "The preceding attempt returned a complete script but did not verify every requested work item. "
+                + "This is the single repair attempt. Re-check and implement every item listed below while preserving all other code.");
+        if (!requirementsNeedingRepair.isEmpty()) {
+            paragraph.append(" Do not merely echo identifiers: verify the actual behavior and required literals first, "
+                    + "then include every requirement id from this stage exactly once in implementedRequirements. "
+                    + "Requirements not verified in the preceding answer: ")
+                .append(requirementsNeedingRepair.stream().map(MandatoryRequirement::id)
+                    .collect(Collectors.joining(", ")))
+                .append('.');
+        }
+        String sanitizedIds = analysisIdsNeedingRepair.stream()
+            .map(SnippetAiWorkflowSupport::sanitizedPromptId)
+            .filter(id -> !id.isBlank())
+            .collect(Collectors.joining(", "));
+        if (!sanitizedIds.isEmpty()) {
+            paragraph.append(" Selected analysis items whose ids were missing from changes[].finding: ")
+                .append(sanitizedIds)
+                .append(". Apply each of these items and echo its id in changes[].finding.");
+        }
+        paragraph.append('\n');
+        return paragraph.toString();
+    }
+
+    /**
+     * Batched analysis stages ask the model to echo every applied item id in changes[].finding. Ids
+     * missing from that echo trigger the stage's single targeted repair attempt. Single-item stages
+     * keep the pre-batching contract (no echo verification), and a batch item that stays unechoed
+     * after the repair attempt is accepted rather than failed — see the caller.
+     */
+    private static List<String> unechoedAnalysisItemIds(
+        SnippetAiResponseSupport.SnippetSecurityFix fix,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+
+        List<String> expectedIds = new ArrayList<>();
+        if (improvements != null) {
+            improvements.forEach(improvement -> expectedIds.add(improvement.id()));
+        }
+        if (dependencies != null) {
+            dependencies.forEach(dependency -> expectedIds.add(dependency.id()));
+        }
+        if (expectedIds.size() < 2 || fix == null) {
+            return List.of();
+        }
+        List<String> missing = new ArrayList<>();
+        for (String id : expectedIds) {
+            if (id == null || id.isBlank()) {
+                continue;
+            }
+            boolean covered = fix.changes().stream()
+                .anyMatch(change -> changeCoversAnalysisId(change.finding(), id));
+            if (!covered) {
+                missing.add(id);
+            }
+        }
+        return List.copyOf(missing);
+    }
+
+    private static boolean changeCoversAnalysisId(String finding, String id) {
+        if (finding == null || finding.isBlank()) {
+            return false;
+        }
+        if (finding.equalsIgnoreCase(id)) {
+            return true;
+        }
+        Pattern idPattern = Pattern.compile(
+            "(?<![\\p{L}\\p{N}_-])" + Pattern.quote(id) + "(?![\\p{L}\\p{N}_-])",
+            Pattern.CASE_INSENSITIVE);
+        return idPattern.matcher(finding).find();
+    }
+
+    /**
+     * Analysis-item ids originate from a model response. Inside the fenced selected-items block
+     * they may stay verbatim, but before interpolating one into the unfenced repair instruction
+     * paragraph it is reduced to a compact identifier-safe form.
+     */
+    private static String sanitizedPromptId(String id) {
+        if (id == null) {
+            return "";
+        }
+        String sanitized = id.replaceAll("[^\\p{L}\\p{N}_.:-]", "");
+        return sanitized.length() > 64 ? sanitized.substring(0, 64) : sanitized;
     }
 
     private static List<MandatoryRequirement> extractMandatoryRequirements(String instructions, int idOffset) {

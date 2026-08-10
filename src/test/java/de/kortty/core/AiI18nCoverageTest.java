@@ -641,6 +641,7 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.diagram.unavailable",
         "snippets.ai.analysis.fix.running",
         "snippets.ai.analysis.fix.progress.analysis",
+        "snippets.ai.analysis.fix.progress.analysisRange",
         "snippets.ai.analysis.fix.progress.hardening",
         "snippets.ai.analysis.fix.progress.inputHardening",
         "snippets.ai.analysis.fix.progress.retry",
