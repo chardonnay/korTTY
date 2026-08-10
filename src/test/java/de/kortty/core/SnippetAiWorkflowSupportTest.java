@@ -18,16 +18,20 @@ class SnippetAiWorkflowSupportTest {
     void fullAnalysisApplySplitsAnalysisClassicAndInputHardeningIntoAtomicStages() throws Exception {
         String original = "#!/bin/sh\nset -u\nprintf 'start\\n'\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'done\\n'\n";
         String afterAnalysis = original + "# selected analysis item\n";
-        String afterClassicOne = afterAnalysis + "# classic requirements 1-6\n";
-        String afterClassicTwo = afterClassicOne + "# classic requirement 7\n";
-        String afterInputOne = afterClassicTwo + "# input requirements 1-6\n";
-        String afterInputTwo = afterInputOne + "# input requirement 7\n";
+        String afterClassicOne = afterAnalysis + "# classic requirements 1-3\n";
+        String afterClassicTwo = afterClassicOne + "# classic requirements 4-6\n";
+        String afterClassicThree = afterClassicTwo + "# classic requirement 7\n";
+        String afterInputOne = afterClassicThree + "# input requirements 1-3\n";
+        String afterInputTwo = afterInputOne + "# input requirements 4-6\n";
+        String afterInputThree = afterInputTwo + "# input requirement 7\n";
         SequencedCapturingAiService aiService = new SequencedCapturingAiService(
             applyResponse(afterAnalysis, "Applied analysis item.", List.of()),
-            applyResponse(afterClassicOne, "Applied first classic batch.", requirementIds(1, 6)),
-            applyResponse(afterClassicTwo, "Applied second classic batch.", requirementIds(7, 7)),
-            applyResponse(afterInputOne, "Applied first input batch.", requirementIds(8, 13)),
-            applyResponse(afterInputTwo, "Applied second input batch.", requirementIds(14, 14)));
+            applyResponse(afterClassicOne, "Applied first classic batch.", requirementIds(1, 3)),
+            applyResponse(afterClassicTwo, "Applied second classic batch.", requirementIds(4, 6)),
+            applyResponse(afterClassicThree, "Applied third classic batch.", requirementIds(7, 7)),
+            applyResponse(afterInputOne, "Applied first input batch.", requirementIds(8, 10)),
+            applyResponse(afterInputTwo, "Applied second input batch.", requirementIds(11, 13)),
+            applyResponse(afterInputThree, "Applied third input batch.", requirementIds(14, 14)));
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
         int[] recordedUsage = {0};
 
@@ -47,19 +51,22 @@ class SnippetAiWorkflowSupportTest {
                 numberedRules("Input", 7),
                 progress::add);
 
-        assertThat(aiService.requests).hasSize(5);
-        assertThat(recordedUsage[0]).isEqualTo(5);
+        assertThat(aiService.requests).hasSize(7);
+        assertThat(recordedUsage[0]).isEqualTo(7);
         assertThat(aiService.requests.get(0).selectedText()).isEqualTo(original);
         assertThat(aiService.requests.get(1).selectedText()).isEqualTo(afterAnalysis);
         assertThat(aiService.requests.get(2).selectedText()).isEqualTo(afterClassicOne);
         assertThat(aiService.requests.get(3).selectedText()).isEqualTo(afterClassicTwo);
-        assertThat(aiService.requests.get(4).selectedText()).isEqualTo(afterInputOne);
+        assertThat(aiService.requests.get(4).selectedText()).isEqualTo(afterClassicThree);
+        assertThat(aiService.requests.get(5).selectedText()).isEqualTo(afterInputOne);
+        assertThat(aiService.requests.get(6).selectedText()).isEqualTo(afterInputTwo);
         assertThat(aiService.requests.get(1).conversationContext()).contains("HARDENING-01 Classic rule 1");
-        assertThat(aiService.requests.get(1).conversationContext()).contains("HARDENING-06 Classic rule 6");
-        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("HARDENING-07 Classic rule 7");
-        assertThat(aiService.requests.get(2).conversationContext()).contains("HARDENING-07 Classic rule 7");
-        assertThat(aiService.requests.get(3).conversationContext()).contains("HARDENING-08 Input rule 1");
-        assertThat(aiService.requests.get(4).conversationContext()).contains("HARDENING-14 Input rule 7");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("HARDENING-03 Classic rule 3");
+        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("HARDENING-04 Classic rule 4");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("HARDENING-04 Classic rule 4");
+        assertThat(aiService.requests.get(3).conversationContext()).contains("HARDENING-07 Classic rule 7");
+        assertThat(aiService.requests.get(4).conversationContext()).contains("HARDENING-08 Input rule 1");
+        assertThat(aiService.requests.get(6).conversationContext()).contains("HARDENING-14 Input rule 7");
         assertThat(aiService.requests.get(1).conversationContext()).contains("later stage of one atomic rewrite");
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> runningStages = progress.stream()
             .filter(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING)
@@ -69,19 +76,21 @@ class SnippetAiWorkflowSupportTest {
                 SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS,
                 SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
                 SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING,
+                SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING,
                 SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING,
                 SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING).inOrder();
         assertThat(runningStages.get(1).firstRequirement()).isEqualTo(1);
-        assertThat(runningStages.get(1).lastRequirement()).isEqualTo(6);
-        assertThat(runningStages.get(4).stage()).isEqualTo(5);
-        assertThat(runningStages.get(4).totalStages()).isEqualTo(5);
+        assertThat(runningStages.get(1).lastRequirement()).isEqualTo(3);
+        assertThat(runningStages.get(6).stage()).isEqualTo(7);
+        assertThat(runningStages.get(6).totalStages()).isEqualTo(7);
         assertThat(progress.stream().filter(item ->
             item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED).count())
-            .isEqualTo(5);
-        assertThat(fix.replacement()).isEqualTo(afterInputTwo);
+            .isEqualTo(7);
+        assertThat(fix.replacement()).isEqualTo(afterInputThree);
         assertThat(fix.implementedRequirements()).containsExactlyElementsIn(requirementIds(1, 14)).inOrder();
         assertThat(fix.summary()).contains("Applied analysis item.");
-        assertThat(fix.summary()).contains("Applied second input batch.");
+        assertThat(fix.summary()).contains("Applied third input batch.");
     }
 
     @Test
@@ -166,9 +175,9 @@ class SnippetAiWorkflowSupportTest {
         String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
         String afterFirst = original + "# classic batch one\n";
         SequencedCapturingAiService aiService = new SequencedCapturingAiService(
-            applyResponse(afterFirst, "First batch.", requirementIds(1, 6)),
-            applyResponse("$code", "Invalid second batch.", requirementIds(7, 7)),
-            applyResponse("$code", "Invalid second batch.", requirementIds(7, 7)));
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(4, 6)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(4, 6)));
 
         expectThrows(
             SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
@@ -243,6 +252,7 @@ class SnippetAiWorkflowSupportTest {
         String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
         String afterFirstBatch = original + "# first batch\n";
         String afterSecondBatch = afterFirstBatch + "# second batch\n";
+        String afterThirdBatch = afterSecondBatch + "# third batch\n";
         List<SnippetAiResponseSupport.ScriptImprovement> improvements = new ArrayList<>();
         for (int index = 1; index <= 7; index++) {
             improvements.add(new SnippetAiResponseSupport.ScriptImprovement(
@@ -250,8 +260,10 @@ class SnippetAiWorkflowSupportTest {
         }
         SequencedCapturingAiService aiService = new SequencedCapturingAiService(
             applyResponseWithChanges(afterFirstBatch, "First batch.",
-                List.of("SEC-1", "SEC-2", "SEC-3", "SEC-4", "SEC-5", "SEC-6")),
-            applyResponseWithChanges(afterSecondBatch, "Second batch.", List.of("SEC-7", "D1")));
+                List.of("SEC-1", "SEC-2", "SEC-3")),
+            applyResponseWithChanges(afterSecondBatch, "Second batch.",
+                List.of("SEC-4", "SEC-5", "SEC-6")),
+            applyResponseWithChanges(afterThirdBatch, "Third batch.", List.of("SEC-7", "D1")));
 
         SnippetAiResponseSupport.SnippetSecurityFix fix =
             SnippetAiWorkflowSupport.applySnippetImprovements(
@@ -269,15 +281,16 @@ class SnippetAiWorkflowSupportTest {
                 null,
                 progress -> { });
 
-        assertThat(aiService.requests).hasSize(2);
-        assertThat(aiService.requests.get(0).conversationContext()).contains("SEC-6 [security/low] Item 6");
-        assertThat(aiService.requests.get(0).conversationContext()).doesNotContain("SEC-7");
+        assertThat(aiService.requests).hasSize(3);
+        assertThat(aiService.requests.get(0).conversationContext()).contains("SEC-3 [security/low] Item 3");
+        assertThat(aiService.requests.get(0).conversationContext()).doesNotContain("SEC-4");
         assertThat(aiService.requests.get(0).conversationContext()).doesNotContain("D1 [dependency]");
-        assertThat(aiService.requests.get(1).conversationContext()).contains("SEC-7 [security/low] Item 7");
-        assertThat(aiService.requests.get(1).conversationContext()).contains("D1 [dependency] awk");
-        assertThat(aiService.requests.get(1).conversationContext()).contains("later stage of one atomic rewrite");
-        assertThat(aiService.requests.get(1).selectedText()).isEqualTo(afterFirstBatch);
-        assertThat(fix.replacement()).isEqualTo(afterSecondBatch);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("SEC-4 [security/low] Item 4");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("SEC-7 [security/low] Item 7");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("D1 [dependency] awk");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("later stage of one atomic rewrite");
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(afterSecondBatch);
+        assertThat(fix.replacement()).isEqualTo(afterThirdBatch);
     }
 
     @Test
@@ -1422,12 +1435,12 @@ class SnippetAiWorkflowSupportTest {
                 WorkflowScriptSupport.InputHardeningOption.defaults(), 10_485_760L),
             WorkflowScriptSupport.ScriptLanguage.PERL);
         String mandatoryRules = hardeningRules + "\n" + inputRules;
-        long ruleCount = mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
+        int ruleCount = (int) mandatoryRules.lines().filter(line -> line.startsWith("- ")).count();
         String current = "#!/usr/bin/env perl\nprint qq(ok\\n);\n"
             + "# --dry-run --yes --force --help --verbose -v MAX_FILE_SIZE FORCE SECURITY:\n";
         List<String> responses = new ArrayList<>();
-        for (int first = 1; first <= ruleCount; first += 6) {
-            int last = Math.min((int) ruleCount, first + 5);
+        for (int first = 1; first <= ruleCount; first += 3) {
+            int last = Math.min(ruleCount, first + 2);
             current += "# completed batch " + first + "-" + last + "\n";
             responses.add(applyResponse(current, "Completed batch.", requirementIds(first, last)));
         }

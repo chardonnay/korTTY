@@ -12,8 +12,16 @@ import java.util.stream.Collectors;
  * Shared request/response workflow helpers for snippet-editor AI actions.
  */
 public final class SnippetAiWorkflowSupport {
-    private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 6;
-    private static final int MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE = 6;
+    /**
+     * Work items per apply request. Smaller batches mean more round trips, but they bound how much
+     * a model has to think about in one answer: reasoning models that bill hidden thinking as
+     * completion tokens (MiniMax-M3) burned entire budgets on six-item stages — 54 881 tokens
+     * without finishing a 5.7 KB script — while individual items are cheap. Three keeps every
+     * stage's reasoning well inside the per-request budget without doubling the stage count for
+     * typical selections.
+     */
+    private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 3;
+    private static final int MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE = 3;
     private static final long MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS = 4_096L;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOWNLOAD_COMMAND_PATTERN =
@@ -838,8 +846,10 @@ public final class SnippetAiWorkflowSupport {
      * Groups the selected analysis items (improvements first, then dependencies) into bounded
      * batches so a single apply request can address several findings at once. Every stage is a
      * full-file round-trip that re-sends and regenerates the entire snippet, so fewer, larger
-     * stages directly cut apply latency; {@link #MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE} bounds the
-     * instruction load one stage may carry.
+     * stages cut apply latency — but a larger stage also multiplies how much a reasoning model
+     * thinks before answering, and a stage whose thinking exhausts the completion budget delivers
+     * nothing at all. {@link #MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE} balances the two; see its
+     * documentation before raising it again.
      */
     private static List<AnalysisApplyStage> buildAnalysisApplyStages(
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
