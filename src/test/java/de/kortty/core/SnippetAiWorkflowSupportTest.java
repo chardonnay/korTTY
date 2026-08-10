@@ -1078,6 +1078,31 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void interruptedFullReplacementIsRejectedAsAnInterruptionNotAnOutputLimit() {
+        // Reporting a dropped connection as an output-token limit sends the next reader after the
+        // wrong fix — raising a budget that was never the constraint.
+        CapturingAiService aiService = new CapturingAiService(
+            "{\"replacement\":\"echo partial\",\"summary\":\"partial\"}",
+            true,
+            true);
+
+        expectThrows(
+            SnippetAiWorkflowSupport.ResponseStreamInterruptedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                "echo original",
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "I1", "optimization", "medium", "Improve", "Why", "Change", 1)),
+                List.of(),
+                null,
+                null));
+    }
+
+    @Test
     void truncatedSecurityFixAndHardeningImprovementAreRejected() {
         CapturingAiService securityService = new CapturingAiService(
             "{\"replacement\":\"echo partial\",\"summary\":\"partial\"}",
@@ -1656,6 +1681,7 @@ class SnippetAiWorkflowSupportTest {
     private static final class CapturingAiService implements AiService {
         private final String response;
         private final boolean outputTruncated;
+        private final boolean streamInterrupted;
         private AiRequest lastRequest;
         private int executionCount;
 
@@ -1664,15 +1690,20 @@ class SnippetAiWorkflowSupportTest {
         }
 
         private CapturingAiService(String response, boolean outputTruncated) {
+            this(response, outputTruncated, false);
+        }
+
+        private CapturingAiService(String response, boolean outputTruncated, boolean streamInterrupted) {
             this.response = response;
             this.outputTruncated = outputTruncated;
+            this.streamInterrupted = streamInterrupted;
         }
 
         @Override
         public AiExecutionResult execute(AiRequest request) {
             this.lastRequest = request;
             this.executionCount++;
-            return new AiExecutionResult(response, null, null, outputTruncated);
+            return new AiExecutionResult(response, null, null, outputTruncated, streamInterrupted);
         }
 
         @Override

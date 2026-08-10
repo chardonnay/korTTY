@@ -482,10 +482,39 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
-    void salvagedStreamIsMarkedTruncatedSoReplacementsStayFailClosed() throws Exception {
+    void retriesOnceWhenTheResponseStreamIsCutMidAnswer() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             new StubResponse(200,
-                "data: {\"choices\":[{\"delta\":{\"content\":\"partial replacement\"}}]}\n\n", true));
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial replacement\"}}]}\n\n", true),
+            new StubResponse(200,
+                "data: {\"choices\":[{\"delta\":{\"content\":\"complete replacement\"},"
+                    + "\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n"));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        // A dropped connection is transient; discarding a multi-minute generation over it costs
+        // far more than one more attempt.
+        assertThat(result.content()).isEqualTo("complete replacement");
+        assertThat(result.outputTruncated()).isFalse();
+        assertThat(result.streamInterrupted()).isFalse();
+        assertThat(client.requestBodies()).hasSize(2);
+    }
+
+    @Test
+    void salvagedStreamStaysFailClosedAndNamesTheInterruptionWhenTheRetryIsAlsoCut() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200,
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial replacement\"}}]}\n\n", true),
+            new StubResponse(200,
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial again\"}}]}\n\n", true));
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "https://api.example.test/v1/chat/completions",
             "MiniMax-M3",
@@ -498,9 +527,35 @@ class OpenAiCompatibleAiServiceTest {
             null);
 
         // A cut stream never delivers finish_reason, so without the salvage marker this would
-        // look like a complete answer.
-        assertThat(result.content()).isEqualTo("partial replacement");
+        // look like a complete answer. The narrower flag must survive the content trim too,
+        // or neither the retry above nor the interrupted-connection message would ever fire.
+        assertThat(result.content()).isEqualTo("partial again");
         assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.streamInterrupted()).isTrue();
+        assertThat(client.requestBodies()).hasSize(2);
+    }
+
+    @Test
+    void doesNotRetryAnAnswerThatStoppedAtItsOutputTokenLimit() throws Exception {
+        // Deterministic, unlike a dropped connection: a second attempt would only burn the
+        // budget again and still come back truncated.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"cut at the limit\"},"
+                + "\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n");
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "fatal", "qa-box", "en"),
+            client,
+            null);
+
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.streamInterrupted()).isFalse();
+        assertThat(client.requestBodies()).hasSize(1);
     }
 
     @Test

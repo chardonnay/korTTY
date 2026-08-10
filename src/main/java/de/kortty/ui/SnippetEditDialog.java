@@ -5323,6 +5323,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (failure != null) {
             logger.warn("Snippet AI action failed ({})", genericFailedStatus, failure);
         }
+        if (isResponseStreamInterruptedFailure(failure)) {
+            setStatus(I18n.get("snippets.ai.streamInterrupted"));
+            finishSnippetAiAction(task);
+            return;
+        }
         if (isOutputTokenLimitFailure(failure)) {
             setStatus(I18n.get("snippets.ai.outputLimitReached"));
             finishSnippetAiAction(task);
@@ -5347,6 +5352,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
             : genericFailedStatus);
         finishSnippetAiAction(task);
+    }
+
+    static boolean isResponseStreamInterruptedFailure(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof de.kortty.core.SnippetAiWorkflowSupport.ResponseStreamInterruptedException) {
+                return true;
+            }
+            Throwable cause = current.getCause();
+            if (cause == current) {
+                break;
+            }
+            current = cause;
+        }
+        return false;
     }
 
     static boolean isOutputTokenLimitFailure(Throwable failure) {
