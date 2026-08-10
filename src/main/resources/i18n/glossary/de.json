@@ -1047,12 +1047,6 @@
       "note": "The search field matches fields — 'entspricht' claims equality."
     },
     {
-      "from": "`<KTPH007>`, eingebettete Zeilenumbrüche",
-      "to": "`<`, `>`, eingebettete Zeilenumbrüche",
-      "scope": "markdown",
-      "note": "Deterministic mask leak: MT merges the adjacent `<` and `>` code spans in the input-hardening metacharacter list and swallows the token boundaries, so restore fails on every run."
-    },
-    {
       "from": "Connection Manager-Suche",
       "to": "Verbindungsmanager-Suche",
       "scope": "markdown",
