@@ -606,7 +606,7 @@ class OpenAiCompatibleAiServiceTest {
 
         assertThat(ordinaryBody).doesNotContain("\"max_tokens\"");
         assertThat(mermaidBody).contains("\"max_tokens\":8192");
-        assertThat(applyBody).contains("\"max_tokens\":32768");
+        assertThat(applyBody).contains("\"max_tokens\":49163");
     }
 
     @Test
@@ -732,7 +732,7 @@ class OpenAiCompatibleAiServiceTest {
             new AiRequest(AiAction.APPLY_SNIPPET_SECURITY_FIXES, "print('ok')", null, "en"));
 
         assertThat(mermaidBody).contains("\"max_tokens\":8192");
-        assertThat(applyBody).contains("\"max_tokens\":32768");
+        assertThat(applyBody).contains("\"max_tokens\":49163");
     }
 
     @Test
