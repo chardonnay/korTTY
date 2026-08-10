@@ -62,6 +62,8 @@ public final class InputHardeningSelector extends VBox {
             CheckBox check = new CheckBox(I18n.get("ai.inputHardening.option." + option.name()));
             check.setSelected(initial.contains(option));
             check.selectedProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
+            check.setTooltip(HardeningOptionsSelector.optionTooltip(
+                "ai.inputHardening.option." + option.name() + ".tooltip"));
             checks.put(option, check);
             grid.add(check, i % 2, i / 2);
         }

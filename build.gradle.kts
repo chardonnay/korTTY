@@ -2453,9 +2453,21 @@ val guideSegmentExtractorTest = tasks.register<Exec>("guideSegmentExtractorTest"
     }
 }
 
+val translateDocsMaskingTest = tasks.register<Exec>("translateDocsMaskingTest") {
+    group = "verification"
+    description = "Runs the docs translator's masking and token-leak-guard regression tests."
+    inputs.files("scripts/translate_docs.py", "scripts/test_translate_docs_masking.py")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_translate_docs_masking.py")
+    } else {
+        commandLine("python3", "scripts/test_translate_docs_masking.py")
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest)
+        guideSegmentExtractorTest, translateDocsMaskingTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {

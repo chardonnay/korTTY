@@ -131,6 +131,11 @@ TOKEN_RE = re.compile(r"(KTPH\d{3})")
 def placeholders_intact(text: str, store: list[str], masked: str | None = None) -> bool:
     """Return whether protected tokens survived and Markdown grammar stayed ordered."""
     tokens = [f"KTPH{i:03d}" for i in range(len(store))]
+    # Count ALL token-shaped strings, not just the expected ones: a translator that
+    # invents or duplicates a KTPH token would pass the per-token check below, and the
+    # invented token would survive unmask into the generated page.
+    if len(TOKEN_RE.findall(text)) != len(tokens):
+        return False
     if any(text.count(token) != 1 for token in tokens):
         return False
     structural_indices = [
@@ -357,6 +362,16 @@ def translate_md(
         memory[masked] = translated
     for idx, masked, store in jobs:
         translated = unmask(memory.get(masked, ""), store)
+        if "KTPH" in translated:
+            # Belt and braces: a mask token (or a deformed remnant of one) must never
+            # ship in a generated page, no matter which upstream path produced it —
+            # a translator deformation, a stale memory line, or a future masking bug.
+            # The fragment-wise fallback cannot move or invent tokens; if a remnant
+            # survives even that, keep the English line and report the failure.
+            translated = unmask(translate_preserving_token_order(masked, translator), store)
+            if "KTPH" in translated:
+                translated = unmask(masked, store)
+                failed.append(masked)
         if lines[idx] == "title: \x03":
             lines[idx] = f'title: {translated}'
         else:

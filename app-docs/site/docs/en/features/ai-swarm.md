@@ -101,7 +101,7 @@ The dialog includes:
 - **Additional instructions** — a three-line field for extra guidance the AI must follow, with a **History** menu of your last 10 distinct entries.
 - **Save to Snippets** — saves the script to the Snippet Manager with a fitting, pre-filled script name and the correct file extension.
 - **Hardening options** — the same per-script [Hardening options](../reference/hardening-options.md) as the single-host workflow generator (strict mode, error traps, idempotency, dry-run, `--help`, and more) are applied to the generated script automatically with their all-on defaults; this dialog shows no panel for them. They are separate from the multi-server options above.
-- **Input hardening** — a collapsible [Input hardening](../reference/input-hardening.md) panel asks the AI to build an input-validation guard block into the generated script (parameter allowlists and length limits, file format checks, an adjustable `MAX_FILE_SIZE` limit, security warnings in the script's log, and a `KORTTY_FORCE=1` override). The size check uses metadata before file content is read, and `0` means unlimited. Strictly opt-in — the master check box starts unticked.
+- **Input hardening** — a collapsible [Input hardening](../reference/input-hardening.md) panel asks the AI to build an input-validation guard block into the generated script (parameter allowlists and length limits, file format checks, an adjustable `MAX_FILE_SIZE` limit, security warnings in the script's log, and a `FORCE=1` / `--force` override). The size check uses metadata before file content is read, and `0` means unlimited. Strictly opt-in — the master check box starts unticked.
 
 ## Tab activity indicator
 

@@ -190,7 +190,11 @@ public final class AiSkillPromptSupport {
         if (!includeChatSkills(request)) {
             return normalizedPrompt(systemPrompt);
         }
-        return appendSkills(systemPrompt, selector.selectChatSkills(request, classifier), actionOf(request));
+        AiAction action = actionOf(request);
+        if (action != null && !action.allowsHybridSkillClassification()) {
+            return appendSkills(systemPrompt, selector.selectChatSkillsLocal(request), action);
+        }
+        return appendSkills(systemPrompt, selector.selectChatSkills(request, classifier), action);
     }
 
     public String appendAgentSkills(String systemPrompt) {
