@@ -337,8 +337,8 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.19.0")
     implementation("org.apache.sshd:sshd-common:2.19.0")
     implementation("org.apache.sshd:sshd-sftp:2.19.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85.2")
     
     // ED25519 (EdDSA) key support for SSH
     implementation("net.i2p.crypto:eddsa:0.3.0")
@@ -1581,7 +1581,7 @@ tasks.register<Sync>("prepareJpackage") {
             libsDir.resolve("formatters/node"),
             libsDir.resolve("formatters/prettier"),
             libsDir.resolve("formatters/sql-formatter"),
-            libsDir.resolve("mosh4j/deps/bcprov-jdk18on-1.85.jar")
+            libsDir.resolve("mosh4j/deps/bcprov-jdk18on-1.85.2.jar")
         ).filter { it.exists() }
         if (forbidden.isNotEmpty()) {
             throw GradleException("Oversized or duplicate package inputs remain: ${forbidden.joinToString()}")
