@@ -594,8 +594,8 @@ class OpenAiCompatibleAiServiceTest {
         JsonObject proxied = JsonParser.parseString(viaAggregator.buildRequestBody(
             new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en"))).getAsJsonObject();
 
-        assertThat(direct.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("adaptive");
-        assertThat(proxied.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("adaptive");
+        assertThat(direct.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("disabled");
+        assertThat(proxied.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("disabled");
         assertThat(direct.has("reasoning_effort")).isFalse();
     }
 
