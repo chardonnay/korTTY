@@ -674,6 +674,7 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.progress.currentRetry",
         "snippets.ai.analysis.progress.complete",
         "snippets.ai.analysis.progress.failed",
+        "snippets.ai.analysis.progress.failedFinalVerification",
         "snippets.ai.analysis.progress.cancelled",
         "snippets.ai.analysis.progress.category.hardening",
         "snippets.ai.analysis.progress.category.inputHardening",

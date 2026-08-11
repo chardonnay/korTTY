@@ -201,8 +201,26 @@ final class SnippetAiApplyProgressWindow {
         runOnFx(() -> {
             elapsedTimeline.stop();
             refreshElapsed();
-            currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.failed"));
+            currentStepLabel.setText(I18n.get(failedStatusKey(
+                rows.values().stream().map(WorkRow::state).toList())));
         });
+    }
+
+    /**
+     * The generic failure text points at "the marked work item", but a run can also fail after
+     * every stage completed — the final cumulative verification or the degenerate-replacement
+     * guard rejected the combined result. An all-green checklist with that text reads like a
+     * contradiction, so the header names the final verification instead.
+     */
+    static String failedStatusKey(
+            java.util.Collection<SnippetAiWorkflowSupport.ImprovementApplyProgressState> rowStates) {
+        boolean anyFailed = rowStates.stream()
+            .anyMatch(state -> state == SnippetAiWorkflowSupport.ImprovementApplyProgressState.FAILED);
+        boolean allCompleted = !rowStates.isEmpty() && rowStates.stream()
+            .allMatch(state -> state == SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED);
+        return !anyFailed && allCompleted
+            ? "snippets.ai.analysis.progress.failedFinalVerification"
+            : "snippets.ai.analysis.progress.failed";
     }
 
     void markCancelled() {
@@ -523,6 +541,10 @@ final class SnippetAiApplyProgressWindow {
 
         HBox root() {
             return root;
+        }
+
+        SnippetAiWorkflowSupport.ImprovementApplyProgressState state() {
+            return state;
         }
 
         boolean isCompleted() {
