@@ -318,7 +318,9 @@ final class SnippetAiAssistFactory {
             request.additionalInstructions(),
             request.classicHardeningInstructions(),
             request.inputHardeningInstructions(),
-            request.progressListener());
+            request.progressListener(),
+            request.checkpointListener(),
+            request.resumeFrom());
     }
 
     private static SnippetAiResponseSupport.CodeImprovement improveSnippetCode(
