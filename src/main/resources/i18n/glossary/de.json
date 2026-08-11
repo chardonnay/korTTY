@@ -33,6 +33,30 @@
       "note": "UI label snippets.ai.analysis.applySelected."
     },
     {
+      "from": "**Unterbrochene anwenden**",
+      "to": "**Übernahme unterbrochen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.title."
+    },
+    {
+      "from": "**Verbleibende Stufen fortsetzen**",
+      "to": "**Verbleibende Schritte fortsetzen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.resume."
+    },
+    {
+      "from": "**Vorschau des Teilergebnisses**",
+      "to": "**Teilergebnis prüfen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.partial."
+    },
+    {
+      "from": "**Discard**",
+      "to": "**Verwerfen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.discard; MT tends to leave the English button name untranslated."
+    },
+    {
       "from": "die Gesamtfortschritt",
       "to": "der Gesamtfortschritt",
       "scope": "markdown"
@@ -182,6 +206,12 @@
       "to": "**Reasoning-Optionen aktualisieren**",
       "scope": "markdown",
       "note": "UI label settings.ai.reasoning.refresh."
+    },
+    {
+      "from": "Verbesserungen anwenden – Teiländerungen überprüfen",
+      "to": "Verbesserungen teilweise übernehmen – Änderungen prüfen",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.diff.partialTitle. Matched without markup because MT wraps the title in varying quote/emphasis characters; must precede the diff.title row so the longer Teiländerungen match wins."
     },
     {
       "from": "*Verbesserungen anwenden – Änderungen überprüfen*",
