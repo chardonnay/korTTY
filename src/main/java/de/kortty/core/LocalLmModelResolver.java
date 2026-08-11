@@ -99,8 +99,10 @@ public final class LocalLmModelResolver {
 
     /**
      * Reads exact LM Studio reasoning capabilities when the configured endpoint exposes its native
-     * model metadata. An empty optional means the endpoint is not LM Studio-compatible or did not
-     * publish reasoning metadata; callers can then fall back to active compatibility probes.
+     * model metadata. An empty optional means the endpoint is not LM Studio-compatible (or the
+     * selected model could not be identified); callers can then fall back to active compatibility
+     * probes. A present but empty list is authoritative: the model publishes no reasoning
+     * capability, so no reasoning parameter must ever be offered or sent.
      */
     static Optional<List<AiReasoningEffort>> loadLmStudioReasoningEfforts(
         String apiUrl,
@@ -416,11 +418,18 @@ public final class LocalLmModelResolver {
         if (selected == null) {
             return Optional.empty();
         }
+        // The selected model came out of a genuine LM Studio /api/v1/models answer, so its
+        // capability metadata is authoritative: a missing reasoning entry — including a virtual
+        // model that overrides "reasoning" to false — means the model supports no reasoning at
+        // all. Returning empty() here would fall back to active probing, which fabricates
+        // options on LM Studio: an unsupported request-time reasoning value is never rejected,
+        // the server only logs "Skipping request-time reasoning setting" and answers normally,
+        // so every probed level would look accepted.
         JsonObject capabilities = objectField(selected, "capabilities");
         JsonObject reasoning = objectField(capabilities, "reasoning");
         JsonArray allowedOptions = arrayField(reasoning, "allowed_options");
         if (allowedOptions == null) {
-            return Optional.empty();
+            return Optional.of(List.of());
         }
         List<AiReasoningEffort> efforts = new ArrayList<>();
         for (JsonElement option : allowedOptions) {
