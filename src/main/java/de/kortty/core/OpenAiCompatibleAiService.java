@@ -48,7 +48,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static final String WEB_SEARCH_TOOL_NAME = "web_search";
     private static final Duration SKILL_CLASSIFICATION_TIMEOUT = Duration.ofSeconds(8);
     /** MiniMax accepts only {@code adaptive} and {@code disabled}; {@code enabled} is a 400. */
-    private static final String MINIMAX_THINKING_MODE = "adaptive";
+    private static final String MINIMAX_THINKING_MODE = "disabled";
     /** Cap for the debug-only echo of a response that carried no usable JSON. */
     private static final int UNUSABLE_RESPONSE_LOG_CHARS = 600;
     /**
@@ -1710,9 +1710,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * that the response never exposes — 54 881 of 54 881 tokens on a 5.7 KB script, and 8 190 of
      * 8 192 on a diagram — and was cut off before finishing the answer.
      *
-     * <p>{@code adaptive} rather than {@code disabled} lets the model still reason where a script
-     * genuinely needs it. Only a disabled profile is mapped: an explicit effort level is the user
-     * asking for reasoning, and overriding that with a weaker mode would silently ignore them too.
+     * <p>{@code disabled} rather than {@code adaptive}: adaptive was tried first and still
+     * thought up to the ceiling on hard work items — 65 536 of 65 536 tokens on a taint-mode
+     * rewrite, after 24 lighter items had passed — because M3 scales its thinking to whatever
+     * budget it is handed. Only a disabled profile is mapped: an explicit effort level is the
+     * user asking for reasoning, and overriding that with a weaker mode would silently ignore
+     * them too.
      */
     private void appendThinkingMode(JsonObject root, String effectiveModel) {
         if (reasoningEffort.isApiEnabled() || !usesMiniMaxThinkingParameter(effectiveModel)) {
