@@ -339,3 +339,13 @@
   type();
   document.addEventListener('kortty:lang', type);
 })();
+
+// — emulation picker: swap the explanation below the dropdown —
+(() => {
+  const sel = document.getElementById('emu-sel');
+  if (!sel) return;
+  const bodies = document.querySelectorAll('.emu-body');
+  sel.addEventListener('change', () => {
+    bodies.forEach(b => b.classList.toggle('on', b.dataset.emu === sel.value));
+  });
+})();

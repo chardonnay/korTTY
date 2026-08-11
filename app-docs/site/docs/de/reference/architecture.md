@@ -93,14 +93,14 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 ├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
-├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
+├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
 ├── history/                     # Compressed terminal session logs
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 ├── projects/                    # Project files (connection sets with saved layout)
 ├── i18n/                        # Dynamically generated language property files
-└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
+└── ssh-keys/                    # Optional: copied SSH keys (included in backups)
 ```
 
 ### Serialisierung und Verschlüsselung
@@ -114,7 +114,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 
 **AES-256-GCM-Verschlüsselung** schützt vertrauliche Felder:
 
-- Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als `master-password-hash`
+- Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als `master.key`
 - Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden
 - SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
 - Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden
@@ -174,7 +174,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 ### Master-Passwort und Verschlüsselung
 
 1. **Erster Start**: Der Benutzer erstellt ein Master-Passwort (mindestens 6 Zeichen, Stärke überprüft über zxcvbn)
-2. **Speicherung**: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert `~/.kortty/master-password-hash`
+2. **Speicherung**: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert `~/.kortty/master.key`
 3. **Entsperren**: Das Master-Passwort entsperrt alle verschlüsselten Daten (Verbindungspasswörter, SSH-Schlüsselpassphrasen, Anmeldeinformationen, Backup-Archiv-Passwörter)
 4. **Verschlüsselung**: AES-256-GCM mit zufälligen IVs; Die Verschlüsselung/Entschlüsselung erfolgt bei Bedarf beim Zugriff auf vertrauliche Felder
 
@@ -275,7 +275,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 3. **Nutzlast des externen Formatierers**: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.
 4. **Sauberes natives Staging**: `prepareJpackage` verwendet einen endgültigen Gradle `Sync`, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.
 5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
-6. **llama.cpp-Laufzeitpaketierung**: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur `llama-server` plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der tägliche Laufzeitworkflow öffnet Kandidaten-PRs; Jede Plattform/jedes Backend führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte `llama-runtime-signing`-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von `main` aus.
+6. **llama.cpp-Laufzeitpaketierung**: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur `llama-server` plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine `build.gradle.kts`-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte `llama-runtime-signing`-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von `main` aus.
 7. **Modell-/Prompt-Katalog-Werbung**: Ein separater manueller Workflow nur für `main` validiert den kanonischen JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte `ai-catalog-signing`-Umgebung ohne Vorschaukanal.
 
 ### Classpath und Modulpfad
@@ -386,7 +386,7 @@ Menu-bar status displays next runs / live countdown
 ## Best Practices für die Sicherheit
 
 1. **Master-Passwort**: Legen Sie ein sicheres, eindeutiges Passwort fest; es wird niemals übertragen oder protokolliert
-2. **SSH-Schlüssel**: Zur Einbindung von Backups in `~/.kortty/ssh-keys/` speichern; Passphrasen werden verschlüsselt
+2. **SSH-Schlüssel**: Zur Einbindung von Backups in `~/.kortty/ssh-keys/` speichern; Passphrasen werden in `ssh-keys.xml` verschlüsselt und das AES-256/GPG-verschlüsselte Backup enthält die Schlüsseldateien
 3. **Hostschlüsselüberprüfung**: Überprüfen Sie den OpenSSH SHA-256-Fingerabdruck, bevor Sie eine interaktive Aufforderung zur ersten Verwendung akzeptieren. Halten Sie die Hostschlüssel-Anheftung für die unbeaufsichtigte JobScheduler-Ausführung aktiviert
 4. **Backup-Verschlüsselung**: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung
 5. **AI-Profile**: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts

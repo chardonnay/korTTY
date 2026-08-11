@@ -3373,14 +3373,14 @@
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml            # JobScheduler jobs, host-key pins, sudo secrets, journal
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master-password-hash         # PBKDF2-hashed master password (310,000 iterations)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Compressed terminal session logs
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── projects/                    # Project files (connection sets with saved layout)
 </span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── i18n/                        # Dynamically generated language property files
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>└── ssh-keys/                    # Optional: copied SSH keys for backup inclusion
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>└── ssh-keys/                    # Optional: copied SSH keys (included in backups)
 </span></code></pre></div>
 <h3 id="serialisierung-und-verschlusselung">Serialisierung und Verschlüsselung<a class="headerlink" href="#serialisierung-und-verschlusselung" title="Permanent link">&para;</a></h3>
 <p><strong>JAXB Marshaling</strong> konvertiert Domänenobjekte in/aus XML mit automatischer Schemavalidierung. Zu den wichtigsten Repositories gehören:</p>
@@ -3392,7 +3392,7 @@
 </ul>
 <p><strong>AES-256-GCM-Verschlüsselung</strong> schützt vertrauliche Felder:</p>
 <ul>
-<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als <code>master-password-hash</code></li>
+<li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als <code>master.key</code></li>
 <li>Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden</li>
 <li>SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
 <li>Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</li>
@@ -3551,7 +3551,7 @@
 <h3 id="master-passwort-und-verschlusselung">Master-Passwort und Verschlüsselung<a class="headerlink" href="#master-passwort-und-verschlusselung" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Erster Start</strong>: Der Benutzer erstellt ein Master-Passwort (mindestens 6 Zeichen, Stärke überprüft über zxcvbn)</li>
-<li><strong>Speicherung</strong>: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert <code>~/.kortty/master-password-hash</code></li>
+<li><strong>Speicherung</strong>: Das Passwort wird mit PBKDF2 mit 310.000 Iterationen gehasht und gespeichert <code>~/.kortty/master.key</code></li>
 <li><strong>Entsperren</strong>: Das Master-Passwort entsperrt alle verschlüsselten Daten (Verbindungspasswörter, SSH-Schlüsselpassphrasen, Anmeldeinformationen, Backup-Archiv-Passwörter)</li>
 <li><strong>Verschlüsselung</strong>: AES-256-GCM mit zufälligen IVs; Die Verschlüsselung/Entschlüsselung erfolgt bei Bedarf beim Zugriff auf vertrauliche Felder</li>
 </ol>
@@ -3795,7 +3795,7 @@
 <li><strong>Nutzlast des externen Formatierers</strong>: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.</li>
 <li><strong>Sauberes natives Staging</strong>: <code>prepareJpackage</code> verwendet einen endgültigen Gradle <code>Sync</code>, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.</li>
 <li><strong>Native Verpackung und Gates</strong>: Die ausgewählte Gradle JDK 25-Toolchain stellt <code>jpackage</code> für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. <code>scripts/package-size-report.py</code> gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.</li>
-<li><strong>llama.cpp-Laufzeitpaketierung</strong>: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur <code>llama-server</code> plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der tägliche Laufzeitworkflow öffnet Kandidaten-PRs; Jede Plattform/jedes Backend führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte <code>llama-runtime-signing</code>-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von <code>main</code> aus.</li>
+<li><strong>llama.cpp-Laufzeitpaketierung</strong>: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur <code>llama-server</code> plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine <code>build.gradle.kts</code>-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte <code>llama-runtime-signing</code>-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von <code>main</code> aus.</li>
 <li><strong>Modell-/Prompt-Katalog-Werbung</strong>: Ein separater manueller Workflow nur für <code>main</code> validiert den kanonischen JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte <code>ai-catalog-signing</code>-Umgebung ohne Vorschaukanal.</li>
 </ol>
 <h3 id="classpath-und-modulpfad">Classpath und Modulpfad<a class="headerlink" href="#classpath-und-modulpfad" title="Permanent link">&para;</a></h3>
@@ -3895,7 +3895,7 @@
 <h2 id="best-practices-fur-die-sicherheit">Best Practices für die Sicherheit<a class="headerlink" href="#best-practices-fur-die-sicherheit" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Master-Passwort</strong>: Legen Sie ein sicheres, eindeutiges Passwort fest; es wird niemals übertragen oder protokolliert</li>
-<li><strong>SSH-Schlüssel</strong>: Zur Einbindung von Backups in <code>~/.kortty/ssh-keys/</code> speichern; Passphrasen werden verschlüsselt</li>
+<li><strong>SSH-Schlüssel</strong>: Zur Einbindung von Backups in <code>~/.kortty/ssh-keys/</code> speichern; Passphrasen werden in <code>ssh-keys.xml</code> verschlüsselt und das AES-256/GPG-verschlüsselte Backup enthält die Schlüsseldateien</li>
 <li><strong>Hostschlüsselüberprüfung</strong>: Überprüfen Sie den OpenSSH SHA-256-Fingerabdruck, bevor Sie eine interaktive Aufforderung zur ersten Verwendung akzeptieren. Halten Sie die Hostschlüssel-Anheftung für die unbeaufsichtigte JobScheduler-Ausführung aktiviert</li>
 <li><strong>Backup-Verschlüsselung</strong>: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung</li>
 <li><strong>AI-Profile</strong>: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts</li>
