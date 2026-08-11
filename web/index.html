@@ -418,6 +418,22 @@ p a:hover, .f-copy a:hover, td a:hover, .figcap a:hover, .faq-item a:hover { col
 .policy-code .ts { color: #7ee2a8; }
 .policy-code .tn { color: #e8b465; }
 .policy-code .tm { color: var(--color-neutral-500); }
+/* — emulation picker: one searchable dropdown, one explanation at a time — */
+.emu-picker { display: flex; flex-direction: column; gap: var(--space-2); max-width: 480px;
+  margin-top: calc(1.25 * var(--leading)); }
+.emu-picker label { font-size: 13px; color: var(--color-neutral-300); }
+#emu-sel { appearance: none; -webkit-appearance: none; padding: 10px 42px 10px 14px; font: inherit;
+  color: var(--color-text); cursor: pointer; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-neutral-600);
+  background: color-mix(in srgb, var(--color-neutral-900) 60%, transparent)
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239184d9' stroke-width='2'/%3E%3C/svg%3E")
+    no-repeat right 14px center; }
+#emu-sel:hover { border-color: var(--color-accent-700); }
+#emu-sel:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+#emu-sel optgroup, #emu-sel option { background: var(--color-bg); color: var(--color-text); }
+.emu-body { display: none; margin-top: var(--space-6); max-width: 760px; }
+.emu-body.on { display: block; }
+.emu-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
 .aigrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-top: calc(1.25 * var(--leading)); }
 @media (max-width: 1000px) { .aigrid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 620px) { .aigrid { grid-template-columns: 1fr; } }
@@ -769,9 +785,116 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
   </section>
 
+  <section class="sec" id="emulations" data-screen-label="Terminal emulations">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="te.k">08 — Terminal emulations</span>
+      <h2 class="sec-title" data-i18n="te.t">One terminal that speaks 21 dialects</h2>
+      <p class="lead" data-i18n="te.l">Under the hood, the SithTermFX engine emulates 21 terminals — from today's <span class="kbd">xterm-256color</span> across five decades of DEC, IBM, Wyse, TeleVideo and HP hardware down to PETSCII. Set it per connection or in QuickConnect: korTTY requests the matching PTY type over SSH and exports <span class="kbd">TERM</span>, so the host sends exactly the sequences the emulator renders. In the app the picker is searchable; try it here:</p>
+    </div>
+    <div class="emu-picker">
+      <label for="emu-sel" data-i18n="te.pick">Choose a terminal emulation</label>
+      <select id="emu-sel" aria-controls="emu-info">
+      <optgroup label="Modern"><option value="XTERM" selected>XTerm (256 color) — xterm-256color</option></optgroup>
+      <optgroup label="DEC"><option value="VT100">DEC VT100 — vt100</option><option value="VT102">DEC VT102 — vt102</option><option value="VT220">DEC VT220 — vt220</option><option value="VT320">DEC VT320 — vt320</option><option value="VT420">DEC VT420 — vt420</option><option value="VT520">DEC VT520 — vt520</option><option value="CTERM">DEC CTERM — cterm</option></optgroup>
+      <optgroup label="IBM"><option value="TN3270">IBM TN3270 — IBM-3279-2-E</option><option value="TN5250">IBM TN5250 — IBM-3179-2</option></optgroup>
+      <optgroup label="Wyse"><option value="WY50">Wyse 50 — wy50</option><option value="WY60">Wyse 60 — wy60</option><option value="WY160">Wyse 160 — wy160</option></optgroup>
+      <optgroup label="TeleVideo"><option value="TVI910">TeleVideo 910 — tvi910</option><option value="TVI920">TeleVideo 920 — tvi920</option><option value="TVI925">TeleVideo 925 — tvi925</option></optgroup>
+      <optgroup label="Hewlett-Packard"><option value="HP2392">HP 2392 — hp2392</option><option value="HP700_92">HP 700/92 — hp700-92</option></optgroup>
+      <optgroup label="Unix"><option value="SCOANSI">SCO ANSI — scoansi</option><option value="SUN_CDE">Sun CDE (dtterm) — dtterm</option></optgroup>
+      <optgroup label="Retro"><option value="PETSCII">Commodore PETSCII — petscii</option></optgroup>
+      </select>
+    </div>
+    <div id="emu-info" aria-live="polite">
+    <div class="emu-body on" data-emu="XTERM">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: xterm-256color</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.tc">256 colors / TrueColor</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.xterm">The default and the right choice for anything current: the full xterm control set, 256 colors and TrueColor, mouse reporting, modern keys. Every Linux, BSD and macOS host understands it — if you don't know what to pick, pick this.</p>
+    </div>
+    <div class="emu-body" data-emu="VT100">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt100</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt100">DEC's 1978 classic — the terminal that made ANSI escape sequences a de-facto standard. Minimal and monochrome, it is the lowest common denominator: serial consoles, switches, UPSes and embedded appliances all fall back to it.</p>
+    </div>
+    <div class="emu-body" data-emu="VT102">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt102</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt102">The 1981 refinement of the VT100 with insert/delete editing built in. Many old full-screen Unix programs were written against exactly this feature set.</p>
+    </div>
+    <div class="emu-body" data-emu="VT220">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt220</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt220">The 1983 generation: extended keyboard (F-keys, Find/Insert/Remove) and international character sets. A safe pick for older Unix hosts, industrial controllers and lab instruments.</p>
+    </div>
+    <div class="emu-body" data-emu="VT320">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt320</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt320">The refined VT220 successor of 1987, ubiquitous on DEC VMS sites. Choose it when a VMS or legacy DEC host announces it.</p>
+    </div>
+    <div class="emu-body" data-emu="VT420">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt420</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt420">1990: dual sessions on one screen and rectangular editing operations. Late OpenVMS installations and terminal servers expect it.</p>
+    </div>
+    <div class="emu-body" data-emu="VT520">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: vt520</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.vt520">DEC's last terminal generation (1993), multi-session capable — for the OpenVMS shops that never stopped.</p>
+    </div>
+    <div class="emu-body" data-emu="TN3270">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: IBM-3279-2-E</span><span class="tag tag-neutral" data-i18n="te.m.block">Block mode (page-oriented)</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.tn3270">Not a VT at all: the block-mode data stream of IBM mainframes. The screen is filled locally and transmitted as a whole page — for z/OS, TSO, CICS and IMS sessions.</p>
+    </div>
+    <div class="emu-body" data-emu="TN5250">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: IBM-3179-2</span><span class="tag tag-neutral" data-i18n="te.m.block">Block mode (page-oriented)</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.tn5250">IBM's block-mode protocol for midrange systems: AS/400, iSeries and today's IBM i. Field-based forms, function keys, page-at-a-time transmission.</p>
+    </div>
+    <div class="emu-body" data-emu="SUN_CDE">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: dtterm</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.dtterm">The terminal of the CDE desktop, at home on classic Solaris, AIX and HP-UX workstations. Pick it when profile scripts on old commercial Unix expect TERM=dtterm.</p>
+    </div>
+    <div class="emu-body" data-emu="WY50">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: wy50</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.wy50">The 1983 budget terminal that sold in the millions. Point-of-sale, warehousing and character-based ERP systems ran on it — and their successors still emulate it.</p>
+    </div>
+    <div class="emu-body" data-emu="WY60">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: wy60</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.wy60">The best-selling Wyse of all time and standard equipment for SCO Unix and multiuser business systems; countless vertical applications are keyed to its escape codes.</p>
+    </div>
+    <div class="emu-body" data-emu="WY160">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: wy160</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.wy160">The color-capable Wyse, for character applications that got a coat of paint without being rewritten.</p>
+    </div>
+    <div class="emu-body" data-emu="TVI910">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: tvi910</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.tvi910">TeleVideo's CP/M-era workhorse (1981). Industrial controllers and BBS packages still reference its simple escape set.</p>
+    </div>
+    <div class="emu-body" data-emu="TVI920">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: tvi920</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.tvi920">The 910's bigger sibling with a full keyboard — a fixture of early multiuser systems.</p>
+    </div>
+    <div class="emu-body" data-emu="TVI925">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: tvi925</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.tvi925">TeleVideo's best seller, its escape set copied by a generation of clones. Still met in legacy manufacturing gear.</p>
+    </div>
+    <div class="emu-body" data-emu="HP2392">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: hp2392</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.hp2392">HP's terminal for HP 3000 (MPE) and HP 9000 (HP-UX) systems. Classic HP applications address its softkey function keys directly.</p>
+    </div>
+    <div class="emu-body" data-emu="HP700_92">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: hp700-92</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.hp70092">The later HP generation for MPE/iX shops — same softkey model, now with 16 colors.</p>
+    </div>
+    <div class="emu-body" data-emu="SCOANSI">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: scoansi</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">80×25</span></div>
+      <p class="f-copy" data-i18n="te.b.scoansi">The PC console dialect of SCO Unix and OpenServer: 80×25, 16 colors, PC line graphics. Legacy branch-office servers and POS backends still speak it.</p>
+    </div>
+    <div class="emu-body" data-emu="CTERM">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: cterm</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.mono">Monochrome</span><span class="tag tag-neutral">80×24</span></div>
+      <p class="f-copy" data-i18n="te.b.cterm">DEC's CTERM — the remote-terminal dialect of the DECnet world, for VMS hosts reached through DECnet-style gateways.</p>
+    </div>
+    <div class="emu-body" data-emu="PETSCII">
+      <div class="emu-meta"><span class="tag tag-outline">TERM: petscii</span><span class="tag tag-neutral" data-i18n="te.m.stream">Stream mode</span><span class="tag tag-neutral" data-i18n="te.c.16">16 colors</span><span class="tag tag-neutral">40×25</span></div>
+      <p class="f-copy" data-i18n="te.b.petscii">Commodore's character set with its block-graphics symbols, 40×25 — for retro BBSs reachable over telnet/SSH bridges. Yes, somebody needed it. korTTY has it.</p>
+    </div>
+    </div>
+  </section>
+
   <section class="sec" id="journal" data-screen-label="Session journal">
     <div class="sec-head">
-      <span class="kicker" data-i18n="sj.k">08 — Session journal</span>
+      <span class="kicker" data-i18n="sj.k">09 — Session journal</span>
       <h2 class="sec-title" data-i18n="sj.t">The session writes its own report</h2>
       <p class="lead" data-i18n="sj.l">Every terminal tab can keep a journal: server output and typed commands go into an append-only capture log, an AI condenses the activity into a readable timeline, and screenshots and notes drop in from the journal bar. Enable it per connection, or mid-session with <span class="kbd">Ctrl/Cmd+Alt+T</span> — the existing scrollback is imported first, so the timeline covers what already happened.</p>
     </div>
@@ -814,7 +937,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="broadcast" data-screen-label="Split-screen broadcast">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k8">09 — Split-screen broadcast</span>
+      <span class="kicker" data-i18n="k8">10 — Split-screen broadcast</span>
       <h2 class="sec-title" data-i18n="t8">Type once, land everywhere</h2>
       <p class="lead" data-i18n="l8">Split a tab horizontally or vertically, put a different connection in every pane, and flip on broadcast: keystrokes go to all visible panes simultaneously. The fastest way to run one command on three boxes — and the second-fastest way to run it on the wrong three.</p>
     </div>
@@ -835,7 +958,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="themes" data-screen-label="Themes and designs">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k9">10 — Themes &amp; designs</span>
+        <span class="kicker" data-i18n="k9">11 — Themes &amp; designs</span>
         <h2 class="split-title" data-i18n="t9">Dress the whole app, not just the text</h2>
         <p class="note" data-i18n="n9a">Terminal theme profiles — IntelliJ-inspired presets, live preview, fully editable — stay separate from app designs, which restyle every window and dialog: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula.</p>
         <p class="note" data-i18n="n9b">On top: terminal-effect plugins per pane — Digital Rain, VHS 1987, Deep Space Radar, or the MU/TH/UR 6000 reference effect — with animated previews and a plugin SPI for writing your own.</p>
@@ -856,7 +979,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="files" data-screen-label="SFTP and Snippets">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k10">11 — Files &amp; snippets</span>
+      <span class="kicker" data-i18n="k10">12 — Files &amp; snippets</span>
       <h2 class="sec-title" data-i18n="t10">The toolbox around the terminal</h2>
       <p class="lead" data-i18n="l10">An SFTP manager with user/group columns, remote editing through the Snippet Editor, and archive jobs with exclude patterns — next to a Snippet Manager with Monaco highlighting, categories, script arguments, and ZIP/GPG-encrypted exports.</p>
     </div>
@@ -933,7 +1056,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="automation" data-screen-label="JobScheduler">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k11">12 — JobScheduler</span>
+        <span class="kicker" data-i18n="k11">13 — JobScheduler</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
         <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
         <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
@@ -956,7 +1079,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="security" data-screen-label="Security">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k12">13 — Security</span>
+      <span class="kicker" data-i18n="k12">14 — Security</span>
       <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
       <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
     </div>
@@ -1042,7 +1165,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="languages" data-screen-label="Languages">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k13">14 — Languages</span>
+        <span class="kicker" data-i18n="k13">15 — Languages</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
         <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
       </div>
@@ -1065,7 +1188,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="compare" data-screen-label="Comparison">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k14">15 — The obligatory table</span>
+      <span class="kicker" data-i18n="k14">16 — The obligatory table</span>
       <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
       <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
     </div>
@@ -1090,7 +1213,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="download" data-screen-label="Download">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k15">16 — Download</span>
+      <span class="kicker" data-i18n="k15">17 — Download</span>
       <h2 class="sec-title" data-i18n="t15">Pick your poison</h2>
       <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
     </div>
@@ -1119,7 +1242,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="release" data-screen-label="Release 2.7">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">17 — What's new in v2.7.0</span>
+      <span class="kicker" data-i18n="k16">18 — What's new in v2.7.0</span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
     <div class="feature">
@@ -1147,7 +1270,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="faq" data-screen-label="FAQ">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k17">18 — FAQ</span>
+      <span class="kicker" data-i18n="k17">19 — FAQ</span>
       <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
     </div>
     <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
@@ -1178,7 +1301,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
 
   <section class="close" id="opensource" data-screen-label="Open source close">
-    <span class="kicker" data-i18n="k18">19 — Open source</span>
+    <span class="kicker" data-i18n="k18">20 — Open source</span>
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
