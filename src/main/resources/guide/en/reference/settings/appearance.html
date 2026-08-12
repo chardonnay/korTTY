@@ -889,6 +889,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#manual-text-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual text size
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2398,6 +2409,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#manual-text-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual text size
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2587,6 +2609,10 @@
 <td>Their own <code>A-</code> / <code>A+</code> buttons</td>
 </tr>
 <tr>
+<td>The manual (<strong>Help → Manual</strong>)</td>
+<td>The <code>A-</code> / <code>A+</code> buttons in its own window — see <a href="#manual-text-size">below</a></td>
+</tr>
+<tr>
 <td>Session journal page</td>
 <td>The journal viewer's appearance popover</td>
 </tr>
@@ -2626,6 +2652,13 @@
 <p>Automatic is a suggestion, not a measurement. JavaFX cannot report a display's physical size, so korTTY cannot tell a 27-inch 4K panel from a 32-inch one at the same resolution, even though they need different sizes. If the result does not suit you, turn the option off and set the percentage yourself — your manual value is remembered while automatic is on.</p>
 </div>
 <p>Automatic tops out at 140 % and the manual setting at 160 %. The ceiling is deliberate: a handful of dialogs size themselves from fixed pixel widths, and beyond that point their text starts to crowd. korTTY re-reads the display when you save the settings, so after changing your monitor setup, open Settings and save again (or restart) to pick up the new resolution.</p>
+<h3 id="manual-text-size">Manual text size<a class="headerlink" href="#manual-text-size" title="Permanent link">&para;</a></h3>
+<p>The manual (<strong>Help → Manual</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) has its own text size. Three buttons at the top left of its window control it: <code>A-</code>, the current percentage, and <code>A+</code>. The percentage is also the reset control. Click it to return to 100 %. There are keyboard shortcuts for all three: <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-plus">+</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-minus">-</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-0">0</kbd></span>. On Windows and Linux they are <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-0">0</kbd></span>. They are registered on the manual's own window, so they never collide with the terminal zoom in the main window.</p>
+<p>The range is 70–250 % in steps of 10, wider than the interface setting because the manual is a reflowing document rather than a layout built from fixed widths. The size is remembered across restarts, applies to the AI search answers next to the manual as well, and stays put as you navigate between pages. It scales the page as a whole — text, images and diagrams together — the way a browser's zoom does.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This is separate from <strong>UI font size</strong> above, which governs the buttons and window chrome <em>around</em> the manual. If the manual's own toolbar looks too small, that is the setting to change.</p>
+</div>
 <h2 id="font-tab">Font tab<a class="headerlink" href="#font-tab" title="Permanent link">&para;</a></h2>
 <p><img alt="Font settings tab" src="../../assets/screenshots/settings/font.png" /></p>
 <p>Set the terminal and editor typeface and size.</p>

@@ -30,7 +30,10 @@ class UiFontScaleI18nCoverageTest {
         "settings.appearance.uiFontScale.tooltip",
         "settings.appearance.uiFontScale.auto",
         "settings.appearance.uiFontScale.auto.tooltip",
-        "settings.appearance.uiFontScale.info");
+        "settings.appearance.uiFontScale.info",
+        "guide.fontSize.decrease",
+        "guide.fontSize.increase",
+        "guide.fontSize.reset");
 
     @Test
     void allUiFontScaleKeysExistInEveryBundledLocale() throws Exception {

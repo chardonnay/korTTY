@@ -1218,6 +1218,47 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void guideFontScalePercentDefaultsToOneHundredAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-guide-font-scale");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getGuideFontScalePercent()).isEqualTo(100);
+
+            manager.getSettings().setGuideFontScalePercent(160);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getGuideFontScalePercent()).isEqualTo(160);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    /** The guide range is wider than the UI one: it is a reflowing document, not a fixed layout. */
+    @Test
+    void guideFontScalePercentIsClampedToItsOwnWiderRange() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-guide-font-scale-clamp");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+
+            manager.getSettings().setGuideFontScalePercent(5000);
+            assertThat(manager.getSettings().getGuideFontScalePercent()).isEqualTo(250);
+
+            manager.getSettings().setGuideFontScalePercent(5);
+            assertThat(manager.getSettings().getGuideFontScalePercent()).isEqualTo(70);
+
+            manager.getSettings().setGuideFontScalePercent(null);
+            assertThat(manager.getSettings().getGuideFontScalePercent()).isEqualTo(100);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void defaultTerminalSettingsPersistTerminalColorsEnabled() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-terminal-colors");
         try {

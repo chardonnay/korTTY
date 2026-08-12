@@ -40,6 +40,7 @@ It deliberately does **not** touch surfaces that already have their own size con
 | Terminal sessions | The **Font** tab, plus the View menu's zoom shortcuts |
 | File editor | The **Editor** tab |
 | AI chat, agent plan and activity panels | Their own `A-` / `A+` buttons |
+| The manual (**Help → Manual**) | The `A-` / `A+` buttons in its own window — see [below](#manual-text-size) |
 | Session journal page | The journal viewer's appearance popover |
 
 Two further parts of the interface keep their size at every setting: the macOS application menu (the one in the system menu bar), because macOS draws it rather than korTTY, and the AI swarm status strip, whose labels are painted onto a canvas together with hand-computed positions.
@@ -59,6 +60,15 @@ This is why a Retina MacBook stays at 100 %: macOS already scales it, so it repo
     Automatic is a suggestion, not a measurement. JavaFX cannot report a display's physical size, so korTTY cannot tell a 27-inch 4K panel from a 32-inch one at the same resolution, even though they need different sizes. If the result does not suit you, turn the option off and set the percentage yourself — your manual value is remembered while automatic is on.
 
 Automatic tops out at 140 % and the manual setting at 160 %. The ceiling is deliberate: a handful of dialogs size themselves from fixed pixel widths, and beyond that point their text starts to crowd. korTTY re-reads the display when you save the settings, so after changing your monitor setup, open Settings and save again (or restart) to pick up the new resolution.
+
+### Manual text size
+
+The manual (**Help → Manual**, ++f1++) has its own text size. Three buttons at the top left of its window control it: `A-`, the current percentage, and `A+`. The percentage is also the reset control. Click it to return to 100 %. There are keyboard shortcuts for all three: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. On Windows and Linux they are ++ctrl+plus++, ++ctrl+minus++, ++ctrl+0++. They are registered on the manual's own window, so they never collide with the terminal zoom in the main window.
+
+The range is 70–250 % in steps of 10, wider than the interface setting because the manual is a reflowing document rather than a layout built from fixed widths. The size is remembered across restarts, applies to the AI search answers next to the manual as well, and stays put as you navigate between pages. It scales the page as a whole — text, images and diagrams together — the way a browser's zoom does.
+
+!!! note
+    This is separate from **UI font size** above, which governs the buttons and window chrome *around* the manual. If the manual's own toolbar looks too small, that is the setting to change.
 
 ## Font tab
 

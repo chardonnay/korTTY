@@ -1351,6 +1351,78 @@
       "to": "Wo ihre Größe stattdessen eingestellt wird",
       "scope": "markdown",
       "note": "MT strands 'stattdessen' after the verb in the UI font size table header."
+    },
+    {
+      "from": "### Manuelle Textgröße",
+      "to": "### Textgröße der Anleitung",
+      "scope": "markdown",
+      "note": "MT reads the noun 'Manual' as the adjective 'manuell'. The heading names the guide, not a manual mode."
+    },
+    {
+      "from": "[Manuelle Textgröße](",
+      "to": "[Textgröße der Anleitung](",
+      "scope": "markdown",
+      "note": "Link text for the heading renamed above."
+    },
+    {
+      "from": "Manuelle Textgröße",
+      "to": "Textgröße der Anleitung",
+      "scope": "markdown",
+      "note": "Any remaining mention of the same heading."
+    },
+    {
+      "from": "Fenster der Anleitungs",
+      "to": "Fenster der Anleitung",
+      "scope": "markdown",
+      "note": "MT drags an English possessive -s into the German genitive."
+    },
+    {
+      "from": "bleibt im Gedächtnis",
+      "to": "wird gespeichert",
+      "scope": "markdown",
+      "note": "Literal rendering of 'is remembered'; German software says 'wird gespeichert'."
+    },
+    {
+      "from": "Sehen [",
+      "to": "Siehe [",
+      "scope": "markdown",
+      "note": "MT renders the cross-reference 'See' as the imperative 'Sehen'."
+    },
+    {
+      "from": "sehen [",
+      "to": "siehe [",
+      "scope": "markdown",
+      "note": "Lower-case variant of the same cross-reference."
+    },
+    {
+      "from": "zum manuellen Fenster",
+      "to": "zum Fenster der Anleitung",
+      "scope": "markdown",
+      "note": "'manual window' is the guide's window, not a window operated by hand."
+    },
+    {
+      "from": "Das manuelle Fenster",
+      "to": "Das Fenster der Anleitung",
+      "scope": "markdown",
+      "note": "Same adjective/noun confusion at the start of a sentence."
+    },
+    {
+      "from": "das manuelle Fenster",
+      "to": "das Fenster der Anleitung",
+      "scope": "markdown",
+      "note": "Lower-case variant."
+    },
+    {
+      "from": "dem manuellen Fenster",
+      "to": "dem Fenster der Anleitung",
+      "scope": "markdown",
+      "note": "Dative variant."
+    },
+    {
+      "from": "des manuellen Fensters",
+      "to": "des Fensters der Anleitung",
+      "scope": "markdown",
+      "note": "Genitive variant of the manual-window misread; completes that rule family."
     }
   ]
 }

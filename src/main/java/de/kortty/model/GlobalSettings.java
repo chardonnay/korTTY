@@ -25,6 +25,13 @@ public class GlobalSettings {
     public static final int UI_FONT_SCALE_DEFAULT_PERCENT = 100;
     public static final int MIN_UI_FONT_SCALE_PERCENT = 80;
     public static final int MAX_UI_FONT_SCALE_PERCENT = 160;
+    /**
+     * Guide (manual) text size bounds. Wider than the UI scale because the guide is a reflowing
+     * document in a WebView, not a layout built from fixed pixel widths.
+     */
+    public static final int GUIDE_FONT_SCALE_DEFAULT_PERCENT = 100;
+    public static final int MIN_GUIDE_FONT_SCALE_PERCENT = 70;
+    public static final int MAX_GUIDE_FONT_SCALE_PERCENT = 250;
 
     @XmlElement
     private String logDirectoryPath; // Blank/null = ~/.kortty/logs
@@ -264,6 +271,13 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean uiFontScaleAuto = false; // Derive the UI font size from the display resolution
+
+    /**
+     * Text size of the manual, in percent. Separate from the UI font scale: the guide is a
+     * document people read at length, and its window is resizable, so it earns its own control.
+     */
+    @XmlElement
+    private Integer guideFontScalePercent = GUIDE_FONT_SCALE_DEFAULT_PERCENT;
 
     /**
      * The UI font scale that was in effect when dialog geometry was last stored. Remembered sizes
@@ -1582,6 +1596,24 @@ public class GlobalSettings {
 
     public void setUiFontScaleAuto(boolean uiFontScaleAuto) {
         this.uiFontScaleAuto = uiFontScaleAuto;
+    }
+
+    /** @return the manual's text size in percent, clamped to the supported range. */
+    public int getGuideFontScalePercent() {
+        return guideFontScalePercent != null
+            ? clampGuideFontScalePercent(guideFontScalePercent)
+            : GUIDE_FONT_SCALE_DEFAULT_PERCENT;
+    }
+
+    public void setGuideFontScalePercent(Integer guideFontScalePercent) {
+        this.guideFontScalePercent = guideFontScalePercent != null
+            ? clampGuideFontScalePercent(guideFontScalePercent)
+            : GUIDE_FONT_SCALE_DEFAULT_PERCENT;
+    }
+
+    /** Clamps a guide text size to the supported range. */
+    public static int clampGuideFontScalePercent(int percent) {
+        return Math.max(MIN_GUIDE_FONT_SCALE_PERCENT, Math.min(MAX_GUIDE_FONT_SCALE_PERCENT, percent));
     }
 
     /** @return the UI font scale stored dialog sizes were measured at, or null if never recorded. */

@@ -51,7 +51,8 @@
 
 .guide-ask-panel .button,
 .guide-ask-panel .menu-button,
-.guide-toolbar .toggle-button {
+.guide-toolbar .toggle-button,
+.guide-toolbar .guide-font-button {
     -fx-background-color: #102132;
     -fx-background-insets: 0;
     -fx-background-radius: 4;
@@ -62,9 +63,22 @@
 
 .guide-ask-panel .button:hover,
 .guide-ask-panel .menu-button:hover,
-.guide-toolbar .toggle-button:hover {
+.guide-toolbar .toggle-button:hover,
+.guide-toolbar .guide-font-button:hover {
     -fx-border-color: #38bdf8;
     -fx-text-fill: #67e8f9;
+}
+
+/* The text-size group. The middle button shows the current value and resets on click, so it gets
+   a floor wide enough for "250 %" — otherwise the whole group shifts every time the number gains
+   or loses a digit. In em, so the floor grows with the UI font size along with the label. */
+.guide-toolbar .guide-font-button {
+    -fx-padding: 3 10 3 10;
+    -fx-min-width: 3.6em;
+}
+
+.guide-toolbar .guide-font-button:disabled {
+    -fx-opacity: 0.45;
 }
 
 .guide-ask-panel .menu-button > .arrow-button > .arrow {

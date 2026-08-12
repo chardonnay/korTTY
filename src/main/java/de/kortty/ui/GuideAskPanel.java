@@ -159,6 +159,14 @@ final class GuideAskPanel extends VBox {
     }
 
     /** Invalidates any in-flight request and drops the answer page. Called from the viewer. */
+    /**
+     * Scales the answer page with the guide's text size, so the two halves of the help window are
+     * never left reading at different sizes.
+     */
+    void setContentZoom(double zoom) {
+        answerView.setZoom(zoom);
+    }
+
     void dispose() {
         disposed = true;
         requestSequence++;

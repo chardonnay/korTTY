@@ -12,11 +12,18 @@ import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -48,6 +55,8 @@ public final class GuideViewer {
     private static final String ONLINE_FALLBACK_URL = "https://chardonnay.github.io/korTTY/";
     private static final double DEFAULT_WIDTH = 1120;
     private static final double DEFAULT_HEIGHT = 820;
+    /** Percentage points per A- / A+ press. Ten steps cover the whole 70-250% range. */
+    private static final int FONT_SCALE_STEP = 10;
 
     // Single open instance: re-focus instead of opening a second window.
     private static WeakReference<GuideViewer> openInstance = new WeakReference<>(null);
@@ -59,9 +68,14 @@ public final class GuideViewer {
     private final GuideAskPanel askPanel;
     private final PauseTransition geometrySaveDelay = new PauseTransition(Duration.millis(500));
 
+    private final Button fontSmallerButton = new Button("A-");
+    private final Button fontResetButton = new Button();
+    private final Button fontLargerButton = new Button("A+");
+
     private boolean disposed;
     private boolean geometryListenersInstalled;
     private String lastInternalLocation;
+    private int fontScalePercent = GlobalSettings.GUIDE_FONT_SCALE_DEFAULT_PERCENT;
 
     /**
      * Builds the guide window — offline {@link WebView}, external-link handler,
@@ -69,6 +83,10 @@ public final class GuideViewer {
      */
     private GuideViewer(KorTTYApplication app, Window owner) {
         this.app = app;
+        GlobalSettings settings = settings();
+        if (settings != null) {
+            fontScalePercent = settings.getGuideFontScalePercent();
+        }
 
         WebEngine engine = webView.getEngine();
         installExternalLinkHandler(engine);
@@ -77,24 +95,31 @@ public final class GuideViewer {
         splitPane.getStyleClass().add("guide-split");
 
         BorderPane root = new BorderPane(splitPane);
-        // The AI docs search only exists while AI features are enabled in the global settings;
-        // without them the guide window stays a plain viewer (no toolbar, no ask WebView).
+        // The toolbar is always present now that it carries the text-size buttons. The AI docs
+        // search only joins it while AI features are enabled in the global settings.
+        HBox toolbar = new HBox(buildFontScaleControls());
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        toolbar.getChildren().add(spacer);
         if (isAiSearchAvailable()) {
             askPanel = new GuideAskPanel(app, resolveGuideLanguage(), this::navigateToLocation);
             ToggleButton askToggle = new ToggleButton(I18n.get("guide.ask.toggle"));
             askToggle.setOnAction(event -> toggleAskPanel(askToggle.isSelected()));
-            HBox toolbar = new HBox(askToggle);
-            toolbar.setAlignment(Pos.CENTER_RIGHT);
-            toolbar.setPadding(new Insets(6));
-            toolbar.getStyleClass().add("guide-toolbar");
-            root.setTop(toolbar);
+            toolbar.getChildren().add(askToggle);
         } else {
             askPanel = null;
         }
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setPadding(new Insets(6));
+        toolbar.getStyleClass().add("guide-toolbar");
+        root.setTop(toolbar);
+
         root.getStyleClass().add("guide-root");
         Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
         scene.setFill(Color.web("#07111d"));
         applyGuideStylesheet(scene);
+        installFontScaleShortcuts(scene);
+        applyFontScale();
 
         stage.setScene(scene);
         stage.setTitle(I18n.get("menu.help.guide") + " — " + KorTTYApplication.getAppName());
@@ -177,6 +202,90 @@ public final class GuideViewer {
             return KorTTYApplication.getConfigDirectory();
         } catch (RuntimeException e) {
             return null;
+        }
+    }
+
+    /** Builds the A- / percentage / A+ group that sets the manual's text size. */
+    private HBox buildFontScaleControls() {
+        fontSmallerButton.setTooltip(new Tooltip(I18n.get("guide.fontSize.decrease")));
+        fontSmallerButton.setOnAction(event -> adjustFontScale(-FONT_SCALE_STEP));
+        fontLargerButton.setTooltip(new Tooltip(I18n.get("guide.fontSize.increase")));
+        fontLargerButton.setOnAction(event -> adjustFontScale(FONT_SCALE_STEP));
+        // The current value doubles as the reset control — it has to be shown anyway, and a
+        // fourth button for something people press rarely would only crowd the bar.
+        fontResetButton.setTooltip(new Tooltip(I18n.get("guide.fontSize.reset")));
+        fontResetButton.setOnAction(event -> setFontScale(GlobalSettings.GUIDE_FONT_SCALE_DEFAULT_PERCENT));
+        for (Button button : new Button[] {fontSmallerButton, fontResetButton, fontLargerButton}) {
+            button.getStyleClass().add("guide-font-button");
+            button.setFocusTraversable(false);
+        }
+        HBox controls = new HBox(4, fontSmallerButton, fontResetButton, fontLargerButton);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        return controls;
+    }
+
+    /**
+     * The zoom shortcuts a document window is expected to answer to. Registered on the guide's own
+     * scene, so they cannot collide with the main window's terminal zoom.
+     */
+    private void installFontScaleShortcuts(Scene scene) {
+        var accelerators = scene.getAccelerators();
+        Runnable larger = () -> adjustFontScale(FONT_SCALE_STEP);
+        // PLUS and EQUALS both: the unshifted key is EQUALS on a US layout and PLUS on a German one.
+        accelerators.put(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.SHORTCUT_DOWN), larger);
+        accelerators.put(new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.SHORTCUT_DOWN), larger);
+        accelerators.put(new KeyCodeCombination(KeyCode.ADD, KeyCombination.SHORTCUT_DOWN), larger);
+        Runnable smaller = () -> adjustFontScale(-FONT_SCALE_STEP);
+        accelerators.put(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.SHORTCUT_DOWN), smaller);
+        accelerators.put(new KeyCodeCombination(KeyCode.SUBTRACT, KeyCombination.SHORTCUT_DOWN), smaller);
+        Runnable reset = () -> setFontScale(GlobalSettings.GUIDE_FONT_SCALE_DEFAULT_PERCENT);
+        accelerators.put(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN), reset);
+        accelerators.put(new KeyCodeCombination(KeyCode.NUMPAD0, KeyCombination.SHORTCUT_DOWN), reset);
+    }
+
+    private void adjustFontScale(int delta) {
+        setFontScale(fontScalePercent + delta);
+    }
+
+    /** Applies a new text size and remembers it. A no-op once the clamp is already reached. */
+    private void setFontScale(int percent) {
+        int clamped = GlobalSettings.clampGuideFontScalePercent(percent);
+        if (clamped == fontScalePercent) {
+            return;
+        }
+        fontScalePercent = clamped;
+        applyFontScale();
+        saveFontScale();
+    }
+
+    /**
+     * Zooms the WebViews rather than injecting CSS: zoom lives on the node, so it survives every
+     * navigation inside the guide, whereas injected styles would have to be re-applied on each
+     * page load — and the guide is generated MkDocs output, not a template korTTY controls.
+     */
+    private void applyFontScale() {
+        webView.setZoom(fontScalePercent / 100.0);
+        if (askPanel != null) {
+            askPanel.setContentZoom(fontScalePercent / 100.0);
+        }
+        fontResetButton.setText(fontScalePercent + " %");
+        fontSmallerButton.setDisable(fontScalePercent <= GlobalSettings.MIN_GUIDE_FONT_SCALE_PERCENT);
+        fontLargerButton.setDisable(fontScalePercent >= GlobalSettings.MAX_GUIDE_FONT_SCALE_PERCENT);
+    }
+
+    /**
+     * Written straight through rather than debounced like the geometry: a button press is one
+     * discrete event, not the stream a window drag produces.
+     */
+    private void saveFontScale() {
+        try {
+            if (settings() == null) {
+                return;
+            }
+            settings().setGuideFontScalePercent(fontScalePercent);
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not save the guide text size", e);
         }
     }
 
