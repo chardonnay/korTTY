@@ -33,6 +33,18 @@
       "note": "UI label snippets.ai.analysis.applySelected."
     },
     {
+      "from": "Eine **Hervorhebung**-Auswahl",
+      "to": "Die Auswahl **Hervorheben**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diff.focus is the imperative Hervorheben, not the noun."
+    },
+    {
+      "from": "eine **Hervorhebung**-Auswahl",
+      "to": "die Auswahl **Hervorheben**",
+      "scope": "markdown",
+      "note": "Sentence-internal variant of the row above."
+    },
+    {
       "from": "die Gesamtfortschritt",
       "to": "der Gesamtfortschritt",
       "scope": "markdown"

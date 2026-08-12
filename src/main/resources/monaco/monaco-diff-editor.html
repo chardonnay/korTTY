@@ -19,6 +19,16 @@
       width: 3px !important;
       margin-left: 3px;
     }
+    /* Both applied only while the reviewer filtered the diff down to one finding: the picked change
+       needs to stand out from the diff's own colouring of every other changed block. Semi-transparent
+       so it reads on light and dark editor themes alike. */
+    .kortty-change-reason-bar-focus {
+      background: #3b82f6;
+      width: 5px !important;
+    }
+    .kortty-change-reason-focus {
+      background: rgba(59, 130, 246, 0.20);
+    }
   </style>
 </head>
 <body>

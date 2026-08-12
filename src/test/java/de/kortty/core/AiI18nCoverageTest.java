@@ -686,6 +686,8 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.fix.incompleteHardening",
         "snippets.ai.analysis.fix.applied",
         "snippets.ai.analysis.fix.failed",
+        "snippets.ai.diff.focus",
+        "snippets.ai.diff.focus.all",
         "snippets.ai.analysis.diff.title",
         "snippets.ai.code.improve.comments",
         "snippets.ai.code.improve.comments.theme",

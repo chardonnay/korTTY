@@ -258,9 +258,16 @@ public final class SnippetAiDialogsSmoke {
         diffLogger.setLevel(Level.DEBUG);
         diffLogger.addAppender(diffLog);
 
+        // A staged Full-code-analysis apply concatenates one paragraph per stage, so the summary is the
+        // long case the review window has to survive: it scrolls inside its own pane and the split
+        // divider below it keeps the diff readable.
         SnippetAiDiffDialog diff = new SnippetAiDiffDialog(
             null, I18n.get("snippets.ai.diff.title"),
-            "Quote the path expansion.",
+            "Quote the path expansion.\n\nApplied SEC-1 by replacing the shell-interpolated invocation "
+                + "with a list-form pipe and adding input validation.\n\nApplied mandatory hardening: "
+                + "configuration block for literals, distinct non-zero exit codes per failure class, "
+                + "and an error trap with cleanup logic.\n\nAdded the --help usage message and argument "
+                + "parsing to satisfy HARDENING-05.",
             "cat $path\n", "cat \"$path\"\n", "bash",
             EditorSettingsHelper.loadSnippetSettings(), null);
         diff.setRerunHandler(null, id -> { });
@@ -271,7 +278,11 @@ public final class SnippetAiDialogsSmoke {
                 "SEC-1", "cat \"$path\"", "Quoted the path expansion to prevent word splitting."),
             new SnippetAiResponseSupport.SecurityChange(
                 "D1", "cat \"$path\"", "Replaced the external helper with a shell built-in.")));
+        // The toolbar now sits inside the summary/review split, so its skin has to exist before the
+        // walker can reach the profile picker and the re-run button.
+        realize(diff.getDialogPane());
         assertControls("SnippetAiDiffDialog", diff.getDialogPane(), rerunText);
+        assertFindingFilter(diff.getDialogPane());
         snapshotPane(diff.getDialogPane(), "snippet-ai-diff.png", 1040);
 
         // Let the FX event loop pump so the diff editor loads and installBridge() runs, then verify.
@@ -910,6 +921,31 @@ public final class SnippetAiDialogsSmoke {
     }
 
     /** Asserts the dialog exposes both a profile combo and a re-run button. */
+    /**
+     * The review preview offers a per-finding focus picker once at least two findings carry a reason:
+     * it must list "all changes" plus every finding id, and selecting one must reach the diff host.
+     */
+    private static void assertFindingFilter(DialogPane pane) {
+        String allLabel = I18n.get("snippets.ai.diff.focus.all");
+        ComboBox<?> focusCombo = findNodes(pane, ComboBox.class).stream()
+            .map(node -> (ComboBox<?>) node)
+            .filter(combo -> combo.getItems().contains(allLabel))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("SnippetAiDiffDialog is missing the finding focus picker"));
+        if (!focusCombo.getItems().containsAll(List.of(allLabel, "SEC-1", "D1"))) {
+            throw new AssertionError("Finding focus picker is missing an annotated finding: "
+                + focusCombo.getItems());
+        }
+        if (!allLabel.equals(focusCombo.getValue())) {
+            throw new AssertionError("Finding focus picker must start on every change, was "
+                + focusCombo.getValue());
+        }
+        // Selecting a finding must not throw while the diff host is still booting: the pane queues
+        // the call until Monaco is ready.
+        ((ComboBox<Object>) focusCombo).setValue("SEC-1");
+        ((ComboBox<Object>) focusCombo).setValue(allLabel);
+    }
+
     private static void assertControls(String name, DialogPane pane, String rerunText) {
         if (findNodes(pane, ComboBox.class).isEmpty()) {
             throw new AssertionError(name + " is missing the AI-profile picker");
