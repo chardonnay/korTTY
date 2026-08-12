@@ -72,6 +72,12 @@
       "scope": "markdown"
     },
     {
+      "from": "Jede Stufe wird jetzt auch mit den Literalen der Regeln früherer Stufen verglichen, sodass die fehlerhafte Stufe sofort fehlschlägt, einen einzigen Reparaturversuch erhält, in dem genau angegeben ist, was wiederhergestellt werden soll, und der Lauf fortsetzbar bleibt, wenn dieser Versuch das Problem nicht behebt.",
+      "to": "Jede Phase wird jetzt zusätzlich gegen die Literale der Regeln geprüft, die frühere Phasen bereits geliefert haben: Die verursachende Phase schlägt sofort fehl und erhält ihren einen Reparaturversuch, der genau benennt, was wiederherzustellen ist; schlägt auch der fehl, bleibt der Lauf fortsetzbar.",
+      "scope": "markdown",
+      "note": "MT switched from Phase to Stufe mid-bullet; the release note keeps one term for a stage."
+    },
+    {
       "from": "der Begleiter geschlossen",
       "to": "das Begleitfenster geschlossen",
       "scope": "markdown"

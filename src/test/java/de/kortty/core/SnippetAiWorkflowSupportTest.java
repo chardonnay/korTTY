@@ -670,6 +670,72 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void laterStageDroppingEarlierHardeningWorkGetsOneTargetedRepairAttempt() throws Exception {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# usage: --help shows this message\n";
+        String secondWithoutHelp = original + "# stage two work\n";
+        String secondRestored = original + "# usage: --help shows this message\n# stage two work\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse(secondWithoutHelp, "Second batch.", requirementIds(4, 4)),
+            applyResponse(secondRestored, "Second batch, help restored.", requirementIds(4, 4)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                helpRuleWithFillers(3),
+                null,
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(3);
+        // The repair runs on the broken stage output and names the earlier requirement to restore.
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(secondWithoutHelp);
+        assertThat(aiService.requests.get(2).conversationContext())
+            .contains("removed hardening work an earlier stage had already completed");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("HARDENING-01");
+        assertThat(fix.replacement()).isEqualTo(secondRestored);
+        assertThat(progress.stream()
+            .anyMatch(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING))
+            .isTrue();
+    }
+
+    @Test
+    void laterStageThatKeepsDroppingEarlierHardeningWorkFailsThatStageWhileEarlierStagesStayResumable() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# usage: --help shows this message\n";
+        String secondWithoutHelp = original + "# stage two work\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse(secondWithoutHelp, "Second batch.", requirementIds(4, 4)),
+            applyResponse(secondWithoutHelp, "Second batch again.", requirementIds(4, 4)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpoints = new ArrayList<>();
+
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException rejection = expectThrows(
+            SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, helpRuleWithFillers(3), null,
+                progress -> { }, checkpoints::add, null));
+
+        assertThat(rejection.missingRequirementIds()).containsExactly("HARDENING-01");
+        // The offending stage fails instead of the final cumulative verification, so the completed
+        // stages survive as a checkpoint and the run stays resumable from the stage that broke them.
+        assertThat(checkpoints).hasSize(1);
+        assertThat(checkpoints.get(0).completedStages()).isEqualTo(1);
+        assertThat(checkpoints.get(0).totalStages()).isEqualTo(2);
+        assertThat(checkpoints.get(0).content()).isEqualTo(afterFirst);
+    }
+
+    @Test
     void fullAnalysisApplyReportsCheckpointAfterEachCompletedStage() throws Exception {
         String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
         String afterFirst = original + "# classic batch one\n";
@@ -1868,6 +1934,16 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(suggestion.isUsable()).isFalse();
+    }
+
+    /** Rule 1 carries the {@code --help} literal the hardening verification checks for. */
+    private static String helpRuleWithFillers(int fillerCount) {
+        List<String> rules = new ArrayList<>();
+        rules.add("- Provide a --help/usage message and parse command-line arguments for the configurable values.");
+        for (int index = 1; index <= fillerCount; index++) {
+            rules.add("- Classic rule " + index);
+        }
+        return String.join("\n", rules);
     }
 
     private static String numberedRules(String prefix, int count) {
