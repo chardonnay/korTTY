@@ -191,6 +191,56 @@ class LocalLmModelResolverTest {
     }
 
     @Test
+    void virtualModelOverridingReasoningToFalseYieldsNoReasoningOptions() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "qwen/qwen3-coder-30b",
+                    "capabilities": {"tool_use": true, "reasoning": false},
+                    "loaded_instances": [{"id": "qwen/qwen3-coder-30b"}]
+                  }]
+                }
+                """, "qwen/qwen3-coder-30b", AiModelSelectionMode.MANUAL);
+
+        assertThat(efforts).hasValue(List.of());
+    }
+
+    @Test
+    void modelWithoutReasoningCapabilityYieldsNoReasoningOptions() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "qwen/qwen3-coder-30b",
+                    "capabilities": {"tool_use": true},
+                    "loaded_instances": [{"id": "qwen/qwen3-coder-30b"}]
+                  }]
+                }
+                """, "qwen/qwen3-coder-30b", AiModelSelectionMode.AUTO);
+
+        assertThat(efforts).hasValue(List.of());
+    }
+
+    @Test
+    void modelWithoutCapabilitiesMetadataYieldsNoReasoningOptions() {
+        Optional<List<AiReasoningEffort>> efforts =
+            LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+                {
+                  "models": [{
+                    "type": "llm",
+                    "key": "qwen/qwen3-coder-30b",
+                    "loaded_instances": [{"id": "qwen/qwen3-coder-30b"}]
+                  }]
+                }
+                """, "qwen/qwen3-coder-30b", AiModelSelectionMode.MANUAL);
+
+        assertThat(efforts).hasValue(List.of());
+    }
+
+    @Test
     void defaultModelSelectionDoesNotGuessWhichCapabilitiesApply() {
         Optional<List<AiReasoningEffort>> efforts =
             LocalLmModelResolver.parseLmStudioReasoningEfforts("""
