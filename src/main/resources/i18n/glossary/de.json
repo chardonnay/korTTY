@@ -172,24 +172,6 @@
       "note": "UI label settings.ai.reasoning.refresh."
     },
     {
-      "from": "Reasoningsfähigkeit",
-      "to": "Reasoning-Fähigkeit",
-      "scope": "markdown",
-      "note": "MT builds a Fugen-s compound; the guide hyphenates Reasoning terms."
-    },
-    {
-      "from": "Reasoningsmetadaten",
-      "to": "Reasoning-Metadaten",
-      "scope": "markdown",
-      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
-    },
-    {
-      "from": "Reasoningswert",
-      "to": "Reasoning-Wert",
-      "scope": "markdown",
-      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
-    },
-    {
       "from": "**Argumentationsoptionen aktualisieren**",
       "to": "**Reasoning-Optionen aktualisieren**",
       "scope": "markdown",
@@ -664,6 +646,24 @@
       "from": "Argumentation",
       "to": "Reasoning",
       "note": "Bare form, last: every compound above still contains this substring, so it must run after all of them or it would truncate 'Argumentationsmodell' into 'Reasoningsmodell' etc."
+    },
+    {
+      "from": "Reasoningsfähigkeit",
+      "to": "Reasoning-Fähigkeit",
+      "scope": "markdown",
+      "note": "MT builds a Fugen-s compound; the guide hyphenates Reasoning terms."
+    },
+    {
+      "from": "Reasoningsmetadaten",
+      "to": "Reasoning-Metadaten",
+      "scope": "markdown",
+      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
+    },
+    {
+      "from": "Reasoningswert",
+      "to": "Reasoning-Wert",
+      "scope": "markdown",
+      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
     },
     {
       "from": "Anleitung-Übersetzung",

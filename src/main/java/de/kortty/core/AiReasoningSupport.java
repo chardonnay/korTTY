@@ -44,6 +44,20 @@ public final class AiReasoningSupport {
         AiReasoningEffort.MEDIUM,
         AiReasoningEffort.HIGH);
 
+    /**
+     * Bumped whenever discovery results recorded by an older korTTY can no longer be trusted. It is
+     * part of the discovery key, so every key stored before the bump mismatches exactly once and its
+     * efforts are ignored until the profile is discovered again — no separate migration flag, nothing
+     * is deleted from the settings file, and a downgrade keeps working.
+     *
+     * <p>v2: results recorded before LM Studio's model metadata became authoritative came from an
+     * active probe, and LM Studio never rejects an unsupported request-time reasoning value — it only
+     * logs that it skipped it. A model without any reasoning capability therefore ended up with the
+     * complete level list, and picking one of those levels made korTTY send a parameter the model
+     * ignores. Until the profile is re-discovered, the conservative model-name defaults apply.
+     */
+    private static final String DISCOVERY_SCHEMA = "v2";
+
     private AiReasoningSupport() {
     }
 
@@ -138,6 +152,7 @@ public final class AiReasoningSupport {
         AiConnectionMode connectionMode = profile.getConnectionMode();
         AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
         return String.join("|",
+            DISCOVERY_SCHEMA,
             normalize(connectionMode != null ? connectionMode.name() : ""),
             normalize(profile.getApiUrl()),
             normalize(modelSelectionMode != null ? modelSelectionMode.name() : ""),
