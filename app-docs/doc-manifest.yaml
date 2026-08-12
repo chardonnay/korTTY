@@ -247,11 +247,11 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/LocalFileBrowser.java, src/main/java/de/kortty/ui/LocalFileBrowserManager.java, src/main/java/de/kortty/ui/FileBrowserPaths.java, src/main/java/de/kortty/ui/FileBrowserIcons.java, src/main/java/de/kortty/ui/FileBrowserHistory.java, src/main/java/de/kortty/ui/FileBrowserSort.java]
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/features/snippets.md
-    owns_i18n: [snippets.ai.analysis.progress.]
+    owns_i18n: [snippets.ai.analysis.]
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/SnippetAiResponseSupport.java, src/main/java/de/kortty/core/SnippetAiWorkflowSupport.java, src/main/java/de/kortty/core/AiAction.java, src/main/java/de/kortty/core/AiExecutionResult.java, src/main/java/de/kortty/core/AiPromptBuilder.java, src/main/java/de/kortty/core/AiActionSkillPromptSupport.java, src/main/java/de/kortty/core/AiReasoningSupport.java, src/main/java/de/kortty/core/AiOutputTokenLimitSupport.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/LocalAiReplySupport.java, src/main/java/de/kortty/core/OpenAiCompatibleAiService.java, src/main/java/de/kortty/core/LmStudioNativeAiService.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/ai/llama/EmbeddedLlamaAiService.java, src/main/java/de/kortty/ai/mlx/EmbeddedMlxAiService.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java, src/main/java/de/kortty/ui/SnippetAiApplyProgressWindow.java, src/main/java/de/kortty/ui/SnippetAiDiffDialog.java, src/main/java/de/kortty/ui/SnippetAiAssistFactory.java, src/main/java/de/kortty/ui/SnippetAiRuntimeOptions.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/META-INF/native-image/resource-config.json]
     diagrams: [snippet-editor-workflow.svg]
     screenshots: [tools/full-code-analysis.png]
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "5af3483d"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/jobscheduler]
@@ -418,13 +418,13 @@ pages:
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "5af3483d"
   - path: app-docs/site/docs/en/reference/input-hardening.md
     owns_i18n: [ai.inputHardening.]
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/InputHardeningSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "5af3483d"
 
   # ---- About: anonymous usage statistics --------------------------------------
   - path: app-docs/site/docs/en/about/anonymous-data.md

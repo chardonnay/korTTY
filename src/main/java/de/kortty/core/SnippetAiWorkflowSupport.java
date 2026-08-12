@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Shared request/response workflow helpers for snippet-editor AI actions.
@@ -107,6 +108,47 @@ public final class SnippetAiWorkflowSupport {
     @FunctionalInterface
     public interface ImprovementApplyProgressListener {
         void onProgress(ImprovementApplyProgress progress);
+    }
+
+    /**
+     * Immutable snapshot of everything a staged Full-code-analysis apply completed so far. Emitted
+     * after each finished stage so an aborted run can either resume from the next stage or surface
+     * the partial rewrite for review; checkpoints never describe half-finished stages.
+     */
+    public record ImprovementApplyCheckpoint(
+        int completedStages,
+        int totalStages,
+        String content,
+        List<String> summaries,
+        List<SnippetAiResponseSupport.SecurityChange> changes,
+        List<String> completedRequirementIds,
+        AiTokenUsage cumulativeUsage) {
+
+        public ImprovementApplyCheckpoint {
+            content = content != null ? content : "";
+            summaries = summaries != null ? List.copyOf(summaries) : List.of();
+            changes = changes != null ? List.copyOf(changes) : List.of();
+            completedRequirementIds =
+                completedRequirementIds != null ? List.copyOf(completedRequirementIds) : List.of();
+        }
+
+        /**
+         * The accumulated partial result in the same shape a fully completed run returns. Callers
+         * must not run it through the cumulative hardening verification — requirements of stages
+         * that never ran are missing by definition.
+         */
+        public SnippetAiResponseSupport.SnippetSecurityFix toPartialFix() {
+            return new SnippetAiResponseSupport.SnippetSecurityFix(
+                content,
+                String.join("\n\n", summaries),
+                changes,
+                completedRequirementIds);
+        }
+    }
+
+    @FunctionalInterface
+    public interface ImprovementApplyCheckpointListener {
+        void onCheckpoint(ImprovementApplyCheckpoint checkpoint);
     }
 
     private SnippetAiWorkflowSupport() {
@@ -512,6 +554,46 @@ public final class SnippetAiWorkflowSupport {
         String inputHardeningInstructions,
         ImprovementApplyProgressListener progressListener) throws Exception {
 
+        return applySnippetImprovements(
+            aiService,
+            usageRecorder,
+            fullContent,
+            snippetLanguage,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            improvements,
+            dependencies,
+            additionalInstructions,
+            classicHardeningInstructions,
+            inputHardeningInstructions,
+            progressListener,
+            null,
+            null);
+    }
+
+    /**
+     * Staged apply with abort recovery: after every completed stage the optional
+     * {@code checkpointListener} receives the accumulated partial result, and a checkpoint from an
+     * aborted run can be passed as {@code resumeFrom} to skip its completed stages and continue with
+     * the first unfinished one. The stage plan must be rebuilt from the same selection the
+     * checkpoint was recorded against; a mismatching checkpoint is rejected.
+     */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        ImprovementApplyProgressListener progressListener,
+        ImprovementApplyCheckpointListener checkpointListener,
+        ImprovementApplyCheckpoint resumeFrom) throws Exception {
+
         List<MandatoryRequirement> classicRequirements =
             extractMandatoryRequirements(classicHardeningInstructions, 0);
         List<MandatoryRequirement> inputRequirements =
@@ -522,21 +604,47 @@ public final class SnippetAiWorkflowSupport {
 
         List<ImprovementApplyStagePlan> stagePlans = buildImprovementApplyStagePlans(
             improvements, dependencies, classicRequirements, inputRequirements);
-        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
-            notifyImprovementProgress(progressListener, stagePlan.progress());
+        int completedStageCount = resumeFrom != null ? resumeFrom.completedStages() : 0;
+        if (resumeFrom != null
+            && (resumeFrom.totalStages() != stagePlans.size()
+                || completedStageCount < 1
+                || completedStageCount >= stagePlans.size())) {
+            throw new IllegalArgumentException("Resume checkpoint does not match the requested apply plan.");
         }
 
-        String currentContent = fullContent != null ? fullContent : "";
-        Set<String> completedRequirementIds = new LinkedHashSet<>();
-        Set<String> summaries = new LinkedHashSet<>();
-        List<SnippetAiResponseSupport.SecurityChange> mergedChanges = new ArrayList<>();
+        String currentContent = resumeFrom != null
+            ? resumeFrom.content()
+            : fullContent != null ? fullContent : "";
+        Set<String> completedRequirementIds = new LinkedHashSet<>(
+            resumeFrom != null ? resumeFrom.completedRequirementIds() : List.of());
+        Set<String> summaries = new LinkedHashSet<>(
+            resumeFrom != null ? resumeFrom.summaries() : List.of());
+        List<SnippetAiResponseSupport.SecurityChange> mergedChanges = new ArrayList<>(
+            resumeFrom != null ? resumeFrom.changes() : List.of());
         UsageAccumulator usageAccumulator = new UsageAccumulator();
+        if (resumeFrom != null) {
+            usageAccumulator.add(resumeFrom.cumulativeUsage());
+        }
 
-        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
+        for (int index = 0; index < stagePlans.size(); index++) {
+            ImprovementApplyStagePlan stagePlan = stagePlans.get(index);
+            notifyImprovementProgress(progressListener, index < completedStageCount
+                ? progressWithState(
+                    stagePlan.progress(), ImprovementApplyProgressState.COMPLETED, usageAccumulator.total())
+                : stagePlan.progress());
+        }
+
+        for (int index = completedStageCount; index < stagePlans.size(); index++) {
+            ImprovementApplyStagePlan stagePlan = stagePlans.get(index);
             checkImprovementApplyInterrupted();
             ImprovementApplyProgress running = progressWithState(
                 stagePlan.progress(), ImprovementApplyProgressState.RUNNING, usageAccumulator.total());
             notifyImprovementProgress(progressListener, running);
+            // Requirements earlier stages already delivered — including those carried in by a resume
+            // checkpoint. This stage must not silently drop their literals while implementing its own.
+            List<MandatoryRequirement> earlierRequirements = allRequirements.stream()
+                .filter(requirement -> completedRequirementIds.contains(requirement.id()))
+                .toList();
             try {
                 SnippetAiResponseSupport.SnippetSecurityFix fix = executeImprovementApplyStage(
                     aiService, usageRecorder, currentContent, snippetLanguage, connectionDisplayName,
@@ -545,6 +653,7 @@ public final class SnippetAiWorkflowSupport {
                     stagePlan.analysisStage().dependencies(),
                     additionalInstructions,
                     stagePlan.requirements(),
+                    earlierRequirements,
                     stagePlan.progress().stage() > 1,
                     progressListener,
                     running,
@@ -556,6 +665,14 @@ public final class SnippetAiWorkflowSupport {
                 notifyImprovementProgress(
                     progressListener,
                     progressWithState(running, ImprovementApplyProgressState.COMPLETED, usageAccumulator.total()));
+                notifyImprovementCheckpoint(checkpointListener, new ImprovementApplyCheckpoint(
+                    index + 1,
+                    stagePlans.size(),
+                    currentContent,
+                    List.copyOf(summaries),
+                    List.copyOf(mergedChanges),
+                    List.copyOf(completedRequirementIds),
+                    usageAccumulator.total()));
             } catch (Exception e) {
                 notifyImprovementProgress(
                     progressListener,
@@ -584,6 +701,7 @@ public final class SnippetAiWorkflowSupport {
         List<SnippetAiResponseSupport.ScriptDependency> dependencies,
         String additionalInstructions,
         List<MandatoryRequirement> mandatoryRequirements,
+        List<MandatoryRequirement> earlierRequirements,
         boolean preservePriorStageWork,
         ImprovementApplyProgressListener progressListener,
         ImprovementApplyProgress progress,
@@ -594,6 +712,7 @@ public final class SnippetAiWorkflowSupport {
         String attemptContent = fullContent;
         StageRepairReason repairReason = StageRepairReason.NONE;
         List<MandatoryRequirement> requirementsNeedingRepair = List.of();
+        List<MandatoryRequirement> requirementsNeedingRestore = List.of();
         List<String> analysisIdsNeedingRepair = List.of();
         // Set when the single repair attempt was triggered ONLY by unechoed analysis ids: the
         // first attempt's replacement already met the stage's acceptance contract, so a failed
@@ -619,6 +738,7 @@ public final class SnippetAiWorkflowSupport {
                     preservePriorStageWork || repairReason == StageRepairReason.MISSING_REQUIREMENTS,
                     repairReason,
                     requirementsNeedingRepair,
+                    requirementsNeedingRestore,
                     analysisIdsNeedingRepair));
             AiExecutionResult result = aiService.execute(request);
             if (result != null && usageRecorder != null) {
@@ -646,19 +766,26 @@ public final class SnippetAiWorkflowSupport {
             }
             List<MandatoryRequirement> missingRequirements =
                 missingMandatoryRequirements(fix, mandatoryRequirements);
+            List<MandatoryRequirement> droppedRequirements =
+                droppedEarlierRequirements(fix, earlierRequirements);
             List<String> unechoedAnalysisIds = unechoedAnalysisItemIds(fix, improvements, dependencies);
-            if (!missingRequirements.isEmpty() || !unechoedAnalysisIds.isEmpty()) {
+            if (!missingRequirements.isEmpty() || !droppedRequirements.isEmpty() || !unechoedAnalysisIds.isEmpty()) {
                 if (!repairAttempt) {
                     attemptContent = fix.replacement();
                     repairReason = StageRepairReason.MISSING_REQUIREMENTS;
                     requirementsNeedingRepair = missingRequirements;
+                    requirementsNeedingRestore = droppedRequirements;
                     analysisIdsNeedingRepair = unechoedAnalysisIds;
-                    echoOnlyRepairFallback = missingRequirements.isEmpty() ? fix : null;
+                    echoOnlyRepairFallback =
+                        missingRequirements.isEmpty() && droppedRequirements.isEmpty() ? fix : null;
                     continue;
                 }
-                if (!missingRequirements.isEmpty()) {
+                if (!missingRequirements.isEmpty() || !droppedRequirements.isEmpty()) {
                     throw new IncompleteMandatoryRequirementsException(
-                        missingRequirements.stream().map(MandatoryRequirement::id).toList());
+                        Stream.concat(missingRequirements.stream(), droppedRequirements.stream())
+                            .map(MandatoryRequirement::id)
+                            .distinct()
+                            .toList());
                 }
                 // An analysis item still unechoed after the targeted repair attempt is accepted:
                 // the item may legitimately require no code change, and the pre-batching per-item
@@ -905,6 +1032,15 @@ public final class SnippetAiWorkflowSupport {
 
         if (listener != null) {
             listener.onProgress(progress);
+        }
+    }
+
+    private static void notifyImprovementCheckpoint(
+        ImprovementApplyCheckpointListener listener,
+        ImprovementApplyCheckpoint checkpoint) {
+
+        if (listener != null) {
+            listener.onCheckpoint(checkpoint);
         }
     }
 
@@ -1248,6 +1384,7 @@ public final class SnippetAiWorkflowSupport {
         boolean preservePriorStageWork,
         StageRepairReason repairReason,
         List<MandatoryRequirement> requirementsNeedingRepair,
+        List<MandatoryRequirement> requirementsNeedingRestore,
         List<String> analysisIdsNeedingRepair) {
 
         StringBuilder items = new StringBuilder();
@@ -1274,7 +1411,8 @@ public final class SnippetAiWorkflowSupport {
             .append(repairReason == StageRepairReason.COLLAPSED_REPLACEMENT
                 ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
                 : "")
-            .append(missingWorkRepairParagraph(repairReason, requirementsNeedingRepair, analysisIdsNeedingRepair))
+            .append(missingWorkRepairParagraph(
+                repairReason, requirementsNeedingRepair, requirementsNeedingRestore, analysisIdsNeedingRepair))
             .append("Selected analysis items to apply (echo each id in changes[].finding):\n")
             .append(AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip()));
         if (mandatoryRequirements != null && !mandatoryRequirements.isEmpty()) {
@@ -1322,6 +1460,7 @@ public final class SnippetAiWorkflowSupport {
     private static String missingWorkRepairParagraph(
         StageRepairReason repairReason,
         List<MandatoryRequirement> requirementsNeedingRepair,
+        List<MandatoryRequirement> requirementsNeedingRestore,
         List<String> analysisIdsNeedingRepair) {
 
         if (repairReason != StageRepairReason.MISSING_REQUIREMENTS) {
@@ -1335,6 +1474,14 @@ public final class SnippetAiWorkflowSupport {
                     + "then include every requirement id from this stage exactly once in implementedRequirements. "
                     + "Requirements not verified in the preceding answer: ")
                 .append(requirementsNeedingRepair.stream().map(MandatoryRequirement::id)
+                    .collect(Collectors.joining(", ")))
+                .append('.');
+        }
+        if (!requirementsNeedingRestore.isEmpty()) {
+            paragraph.append(" The preceding attempt also removed hardening work an earlier stage had already"
+                    + " completed. Restore it exactly as it was, in addition to this stage's own requirements,"
+                    + " and keep every literal those rules require present in the script. Requirements to restore: ")
+                .append(requirementsNeedingRestore.stream().map(MandatoryRequirement::id)
                     .collect(Collectors.joining(", ")))
                 .append('.');
         }
@@ -1439,6 +1586,26 @@ public final class SnippetAiWorkflowSupport {
         if (!missing.isEmpty()) {
             throw new IncompleteMandatoryRequirementsException(missing);
         }
+    }
+
+    /**
+     * Requirements an earlier stage already delivered whose required literals are gone from this
+     * stage's answer. Every stage rewrites the complete script, so a later stage can drop an
+     * earlier stage's work while implementing its own — without the ids: they stay echoed in the
+     * accumulated set, so only the literals expose the regression. Checking here rather than in the
+     * final cumulative verification alone makes the offending stage fail immediately, which earns
+     * it the stage's repair attempt and keeps the remaining stages resumable.
+     */
+    private static List<MandatoryRequirement> droppedEarlierRequirements(
+            SnippetAiResponseSupport.SnippetSecurityFix fix,
+            List<MandatoryRequirement> earlierRequirements) {
+        if (earlierRequirements == null || earlierRequirements.isEmpty() || fix == null || !fix.isUsable()) {
+            return List.of();
+        }
+        return earlierRequirements.stream()
+            .filter(requirement ->
+                !containsRequiredHardeningLiterals(fix.replacement(), requirement.instruction()))
+            .toList();
     }
 
     private static List<MandatoryRequirement> missingMandatoryRequirements(

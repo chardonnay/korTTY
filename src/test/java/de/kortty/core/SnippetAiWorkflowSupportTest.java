@@ -670,6 +670,331 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void laterStageDroppingEarlierHardeningWorkGetsOneTargetedRepairAttempt() throws Exception {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# usage: --help shows this message\n";
+        String secondWithoutHelp = original + "# stage two work\n";
+        String secondRestored = original + "# usage: --help shows this message\n# stage two work\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse(secondWithoutHelp, "Second batch.", requirementIds(4, 4)),
+            applyResponse(secondRestored, "Second batch, help restored.", requirementIds(4, 4)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                helpRuleWithFillers(3),
+                null,
+                progress::add);
+
+        assertThat(aiService.requests).hasSize(3);
+        // The repair runs on the broken stage output and names the earlier requirement to restore.
+        assertThat(aiService.requests.get(2).selectedText()).isEqualTo(secondWithoutHelp);
+        assertThat(aiService.requests.get(2).conversationContext())
+            .contains("removed hardening work an earlier stage had already completed");
+        assertThat(aiService.requests.get(2).conversationContext()).contains("HARDENING-01");
+        assertThat(fix.replacement()).isEqualTo(secondRestored);
+        assertThat(progress.stream()
+            .anyMatch(item -> item.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING))
+            .isTrue();
+    }
+
+    @Test
+    void laterStageThatKeepsDroppingEarlierHardeningWorkFailsThatStageWhileEarlierStagesStayResumable() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# usage: --help shows this message\n";
+        String secondWithoutHelp = original + "# stage two work\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse(secondWithoutHelp, "Second batch.", requirementIds(4, 4)),
+            applyResponse(secondWithoutHelp, "Second batch again.", requirementIds(4, 4)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpoints = new ArrayList<>();
+
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException rejection = expectThrows(
+            SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, helpRuleWithFillers(3), null,
+                progress -> { }, checkpoints::add, null));
+
+        assertThat(rejection.missingRequirementIds()).containsExactly("HARDENING-01");
+        // The offending stage fails instead of the final cumulative verification, so the completed
+        // stages survive as a checkpoint and the run stays resumable from the stage that broke them.
+        assertThat(checkpoints).hasSize(1);
+        assertThat(checkpoints.get(0).completedStages()).isEqualTo(1);
+        assertThat(checkpoints.get(0).totalStages()).isEqualTo(2);
+        assertThat(checkpoints.get(0).content()).isEqualTo(afterFirst);
+    }
+
+    @Test
+    void fullAnalysisApplyReportsCheckpointAfterEachCompletedStage() throws Exception {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        String afterSecond = afterFirst + "# classic batch two\n";
+        String afterThird = afterSecond + "# classic batch three\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse(afterSecond, "Second batch.", requirementIds(4, 6)),
+            applyResponse(afterThird, "Third batch.", requirementIds(7, 7)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpoints = new ArrayList<>();
+
+        SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService,
+            null,
+            original,
+            "bash",
+            null,
+            "en",
+            List.of(),
+            List.of(),
+            null,
+            numberedRules("Classic", 7),
+            null,
+            progress -> { },
+            checkpoints::add,
+            null);
+
+        assertThat(checkpoints).hasSize(3);
+        assertThat(checkpoints.get(0).completedStages()).isEqualTo(1);
+        assertThat(checkpoints.get(0).totalStages()).isEqualTo(3);
+        assertThat(checkpoints.get(0).content()).isEqualTo(afterFirst);
+        assertThat(checkpoints.get(1).completedStages()).isEqualTo(2);
+        assertThat(checkpoints.get(1).content()).isEqualTo(afterSecond);
+        assertThat(checkpoints.get(2).completedStages()).isEqualTo(3);
+        assertThat(checkpoints.get(2).content()).isEqualTo(afterThird);
+        assertThat(checkpoints.get(2).completedRequirementIds())
+            .containsExactlyElementsIn(requirementIds(1, 7)).inOrder();
+
+        SnippetAiResponseSupport.SnippetSecurityFix partial = checkpoints.get(1).toPartialFix();
+        assertThat(partial.replacement()).isEqualTo(afterSecond);
+        assertThat(partial.summary()).isEqualTo("First batch.\n\nSecond batch.");
+        assertThat(partial.implementedRequirements())
+            .containsExactlyElementsIn(requirementIds(1, 6)).inOrder();
+    }
+
+    @Test
+    void fullAnalysisApplyFailureLeavesOnlyCompletedStageCheckpoints() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterFirst, "First batch.", requirementIds(1, 3)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(4, 6)),
+            applyResponse("$code", "Invalid second batch.", requirementIds(4, 6)));
+        List<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpoints = new ArrayList<>();
+
+        expectThrows(
+            SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                numberedRules("Classic", 7),
+                null,
+                progress -> { },
+                checkpoints::add,
+                null));
+
+        assertThat(checkpoints).hasSize(1);
+        assertThat(checkpoints.get(0).completedStages()).isEqualTo(1);
+        assertThat(checkpoints.get(0).totalStages()).isEqualTo(3);
+        assertThat(checkpoints.get(0).content()).isEqualTo(afterFirst);
+        assertThat(checkpoints.get(0).completedRequirementIds())
+            .containsExactlyElementsIn(requirementIds(1, 3)).inOrder();
+    }
+
+    @Test
+    void fullAnalysisApplyResumeSkipsCompletedStagesAndSeedsAccumulators() throws Exception {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        String afterSecond = afterFirst + "# classic batch two\n";
+        String afterThird = afterSecond + "# classic batch three\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterSecond, "Second batch.", requirementIds(4, 6)),
+            applyResponse(afterThird, "Third batch.", requirementIds(7, 7)));
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                1, 3, afterFirst, List.of("First batch."), List.of(), requirementIds(1, 3), null);
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(),
+                null,
+                numberedRules("Classic", 7),
+                null,
+                progress::add,
+                null,
+                resumeFrom);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(0).selectedText()).isEqualTo(afterFirst);
+        assertThat(aiService.requests.get(0).conversationContext())
+            .contains("later stage of one atomic rewrite");
+        assertThat(fix.replacement()).isEqualTo(afterThird);
+        assertThat(fix.summary()).isEqualTo("First batch.\n\nSecond batch.\n\nThird batch.");
+        assertThat(fix.implementedRequirements())
+            .containsExactlyElementsIn(requirementIds(1, 7)).inOrder();
+        assertThat(progress.get(0).stage()).isEqualTo(1);
+        assertThat(progress.get(0).state())
+            .isEqualTo(SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED);
+        assertThat(progress.get(1).state())
+            .isEqualTo(SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING);
+        assertThat(progress.get(2).state())
+            .isEqualTo(SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING);
+        assertThat(progress.stream()
+            .filter(item -> item.stage() == 1)
+            .map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state)
+            .distinct()
+            .toList())
+            .containsExactly(SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED);
+    }
+
+    @Test
+    void fullAnalysisApplyResumeRejectsCheckpointFromDifferentPlan() {
+        String original = "#!/bin/sh\nprintf 'ok\\n'\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService();
+
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint differentPlan =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                1, 4, original, List.of(), List.of(), List.of(), null);
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, numberedRules("Classic", 7), null,
+                progress -> { }, null, differentPlan));
+
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint alreadyComplete =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                3, 3, original, List.of(), List.of(), List.of(), null);
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, numberedRules("Classic", 7), null,
+                progress -> { }, null, alreadyComplete));
+
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint nothingCompleted =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                0, 3, original, List.of(), List.of(), List.of(), null);
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, numberedRules("Classic", 7), null,
+                progress -> { }, null, nothingCompleted));
+
+        assertThat(aiService.requests).isEmpty();
+    }
+
+    @Test
+    void fullAnalysisApplyResumeStillVerifiesCumulativeHardeningContract() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        String afterSecond = afterFirst + "# classic batch two\n";
+        String afterThird = afterSecond + "# classic batch three\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponse(afterSecond, "Second batch.", requirementIds(4, 6)),
+            applyResponse(afterThird, "Third batch.", requirementIds(7, 7)));
+        // A checkpoint that (wrongly) claims stage 1 finished without its requirement ids: the final
+        // cumulative verification must still reject the combined result.
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint incompleteCheckpoint =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                1, 3, afterFirst, List.of("First batch."), List.of(), List.of(), null);
+
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException rejection = expectThrows(
+            SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, original, "bash", null, "en",
+                List.of(), List.of(), null, numberedRules("Classic", 7), null,
+                progress -> { }, null, incompleteCheckpoint));
+
+        assertThat(rejection.missingRequirementIds())
+            .containsExactlyElementsIn(requirementIds(1, 3)).inOrder();
+        assertThat(aiService.requests).hasSize(2);
+    }
+
+    @Test
+    void cancellationAfterCompletedStageLeavesCheckpointForRecovery() {
+        String original = "#!/bin/sh\nprintf 'one\\n'\nprintf 'two\\n'\nprintf 'three\\n'\nprintf 'four\\n'\n";
+        String afterFirst = original + "# classic batch one\n";
+        int[] recordedUsage = {0};
+        int[] calls = {0};
+        AiService interruptingService = new AiService() {
+            @Override
+            public AiExecutionResult execute(AiRequest request) {
+                calls[0]++;
+                if (calls[0] == 1) {
+                    return new AiExecutionResult(
+                        applyResponse(afterFirst, "First batch.", requirementIds(1, 3)), null, null);
+                }
+                Thread.currentThread().interrupt();
+                return new AiExecutionResult(
+                    applyResponse(request.selectedText(), "Completed before cancellation.",
+                        requirementIds(4, 6)),
+                    null,
+                    null);
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        List<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpoints = new ArrayList<>();
+
+        try {
+            expectThrows(
+                InterruptedException.class,
+                () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                    interruptingService,
+                    (request, result) -> recordedUsage[0]++,
+                    original,
+                    "bash",
+                    null,
+                    "en",
+                    List.of(),
+                    List.of(),
+                    null,
+                    numberedRules("Classic", 6),
+                    null,
+                    progress -> { },
+                    checkpoints::add,
+                    null));
+        } finally {
+            Thread.interrupted();
+        }
+
+        assertThat(checkpoints).hasSize(1);
+        assertThat(checkpoints.get(0).completedStages()).isEqualTo(1);
+        assertThat(checkpoints.get(0).totalStages()).isEqualTo(2);
+        assertThat(checkpoints.get(0).content()).isEqualTo(afterFirst);
+        assertThat(recordedUsage[0]).isEqualTo(2);
+    }
+
+    @Test
     void alternativeSolutionsRequestMarksSelectedCodeTargetScope() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             { "solutions": [ { "title": "Alt", "code": "echo selected", "summary": "Selected only" } ] }
@@ -1609,6 +1934,16 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(suggestion.isUsable()).isFalse();
+    }
+
+    /** Rule 1 carries the {@code --help} literal the hardening verification checks for. */
+    private static String helpRuleWithFillers(int fillerCount) {
+        List<String> rules = new ArrayList<>();
+        rules.add("- Provide a --help/usage message and parse command-line arguments for the configurable values.");
+        for (int index = 1; index <= fillerCount; index++) {
+            rules.add("- Classic rule " + index);
+        }
+        return String.join("\n", rules);
     }
 
     private static String numberedRules(String prefix, int count) {
