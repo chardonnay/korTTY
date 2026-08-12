@@ -744,6 +744,24 @@
       "note": "Bare form, last: every compound above still contains this substring, so it must run after all of them or it would truncate 'Argumentationsmodell' into 'Reasoningsmodell' etc."
     },
     {
+      "from": "Reasoningsfähigkeit",
+      "to": "Reasoning-Fähigkeit",
+      "scope": "markdown",
+      "note": "MT builds a Fugen-s compound; the guide hyphenates Reasoning terms."
+    },
+    {
+      "from": "Reasoningsmetadaten",
+      "to": "Reasoning-Metadaten",
+      "scope": "markdown",
+      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
+    },
+    {
+      "from": "Reasoningswert",
+      "to": "Reasoning-Wert",
+      "scope": "markdown",
+      "note": "Same hyphenation rule as Reasoning-Fähigkeit."
+    },
+    {
       "from": "Anleitung-Übersetzung",
       "to": "Anleitungsübersetzung",
       "note": "MT hyphenates the compound; the app's own term (and the rest of the corpus) is one word."

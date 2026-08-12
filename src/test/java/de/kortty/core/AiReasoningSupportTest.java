@@ -90,6 +90,37 @@ class AiReasoningSupportTest {
     }
 
     @Test
+    void reasoningLevelsDiscoveredBeforeTheLmStudioMetadataFixAreIgnoredUntilRediscovered() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setApiUrl("http://localhost:1234/v1/chat/completions");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel("qwen/qwen3-coder-next");
+        // What an active probe against LM Studio recorded for a model without any reasoning
+        // capability: it never rejects an unsupported value, so every level looked supported.
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL, AiReasoningEffort.LOW,
+            AiReasoningEffort.MEDIUM, AiReasoningEffort.HIGH, AiReasoningEffort.XHIGH));
+        profile.setReasoningEffort(AiReasoningEffort.NONE);
+        // A key in the pre-migration format, exactly as older korTTY versions stored it.
+        profile.setReasoningDiscoveryKey(
+            "HTTP_API|http://localhost:1234/v1/chat/completions|MANUAL|qwen/qwen3-coder-next|||");
+
+        // Ignored, so the conservative model-name default applies and no reasoning parameter is sent.
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .isEqualTo(List.of(AiReasoningEffort.DISABLED));
+        assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.DISABLED);
+        assertThat(AiReasoningSupport.profileForAction(profile, AiAction.APPLY_SNIPPET_IMPROVEMENTS)
+            .getReasoningEffort()).isEqualTo(AiReasoningEffort.NONE);
+
+        // Discovering again stores the current key and the fresh result counts immediately.
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.DISABLED));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .isEqualTo(List.of(AiReasoningEffort.DISABLED));
+    }
+
+    @Test
     void discoveryKeyHandlesProfileWithoutStoredModelSelectionMode() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("https://api.example.test/v1/chat/completions");
