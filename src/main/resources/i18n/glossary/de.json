@@ -57,6 +57,66 @@
       "note": "UI label snippets.ai.analysis.fix.recovery.discard; MT tends to leave the English button name untranslated."
     },
     {
+      "from": "Eine **Hervorhebung**-Auswahl",
+      "to": "Die Auswahl **Hervorheben**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.diff.focus is the imperative Hervorheben, not the noun."
+    },
+    {
+      "from": "eine **Hervorhebung**-Auswahl",
+      "to": "die Auswahl **Hervorheben**",
+      "scope": "markdown",
+      "note": "Sentence-internal variant of the row above."
+    },
+    {
+      "from": "einen Fund nach dem anderen",
+      "to": "Ergebnis für Ergebnis",
+      "scope": "markdown",
+      "note": "MT reads \"finding\" as a treasure find; the guide calls it Ergebnis."
+    },
+    {
+      "from": "und wickeln Sie ihn an den Enden ein",
+      "to": "und springen an den Enden wieder zum Anfang",
+      "scope": "markdown",
+      "note": "MT turns \"wrapping at the ends\" into an imperative about wrapping something up."
+    },
+    {
+      "from": "Der Picker erscheint",
+      "to": "Die Auswahl erscheint",
+      "scope": "markdown",
+      "note": "\"picker\" stays English in MT output; the UI label is an Auswahl."
+    },
+    {
+      "from": "neben dem Picker",
+      "to": "neben der Auswahl",
+      "scope": "markdown",
+      "note": "Sentence-internal variant of the row above."
+    },
+    {
+      "from": "jeder zweite geänderte Block",
+      "to": "jeder andere geänderte Block",
+      "scope": "markdown",
+      "note": "MT reads English \"every other\" as \"every second\", which inverts the meaning."
+    },
+    {
+      "from": "stummgeschaltet",
+      "to": "gedämpft",
+      "scope": "markdown",
+      "note": "\"muted\" is about colour here, not audio."
+    },
+    {
+      "from": "Stummgeschaltete",
+      "to": "Gedämpfte",
+      "scope": "markdown",
+      "note": "Sentence-initial variant of the row above."
+    },
+    {
+      "from": "und wickeln sich an den Enden um",
+      "to": "und beginnen am Ende wieder von vorn",
+      "scope": "markdown",
+      "note": "Literal rendering of \"wrapping around\"."
+    },
+    {
       "from": "die Gesamtfortschritt",
       "to": "der Gesamtfortschritt",
       "scope": "markdown"

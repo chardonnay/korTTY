@@ -12,6 +12,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetEditorProfile;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
@@ -19,6 +20,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogEvent;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -48,6 +51,12 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private static final int MIN_PREVIEW_FONT_SIZE = 8;
     private static final int MAX_PREVIEW_FONT_SIZE = 72;
     private static final int PREVIEW_FONT_STEP = 1;
+    private static final double SUMMARY_MIN_HEIGHT = 52;
+    private static final double SUMMARY_PREF_HEIGHT = 116;
+    /** A staged apply's summary can run to a dozen paragraphs; never let it take the diff's room. */
+    private static final double SUMMARY_MAX_SHARE = 0.34;
+    /** Governs until the window is shown and {@link #fitSummaryHeight()} measures the real content. */
+    private static final double SUMMARY_INITIAL_SPLIT = 0.16;
     private static final String ACCENT = "#3b82f6";
     private static final String FALLBACK_BG = "#1e1e1e";
     private static final String FALLBACK_FG = "#d6d6d6";
@@ -61,6 +70,14 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private final Label fontSizeLabel;
     private final WebView explanationsView;
     private final HBox toolbar;
+    private final HBox findingFilterBar;
+    private final SplitPane summarySplit;
+    private final Region summaryContent;
+    private ComboBox<String> findingFilterCombo;
+    private Button previousFindingButton;
+    private Button nextFindingButton;
+    private String activeFindingFilter;
+    private Double appliedSummaryDivider;
     private final String originalText;
     private final String replacementText;
     private final EditorSettingsHelper.Settings previewSettings;
@@ -94,7 +111,9 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
             initOwner(owner);
         }
 
-        HBox summaryBanner = buildSummaryBanner(summary);
+        ScrollPane summaryBanner = buildSummaryBanner(summary);
+        summaryContent = (Region) summaryBanner.getContent();
+        findingFilterBar = buildFindingFilterBar();
 
         String detectedLanguage = SnippetLanguageSupport.detectSnippetLanguage(
             snippetLanguage,
@@ -144,22 +163,121 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         explanationsView.setMinHeight(60);
         explanationsView.setMaxHeight(210);
 
-        VBox root = new VBox(10, summaryBanner, toolbar, diffPane, explanationsView);
-        root.setPadding(new Insets(14));
+        VBox reviewArea = new VBox(10, toolbar, diffPane, findingFilterBar, explanationsView);
         VBox.setVgrow(diffPane, Priority.ALWAYS);
+        // Split so the summary's share of the window is the reviewer's choice: a staged apply writes
+        // one paragraph per stage, a single-stage fix one line.
+        summarySplit = new SplitPane(summaryBanner, reviewArea);
+        summarySplit.setOrientation(Orientation.VERTICAL);
+        summarySplit.setDividerPositions(SUMMARY_INITIAL_SPLIT);
+        SplitPane.setResizableWithParent(summaryBanner, Boolean.FALSE);
+        summarySplit.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
+
+        VBox root = new VBox(10, summarySplit);
+        root.setPadding(new Insets(14));
+        VBox.setVgrow(summarySplit, Priority.ALWAYS);
 
         ButtonType applyButton = new ButtonType(I18n.get("snippets.ai.diff.apply"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().setContent(root);
         getDialogPane().getButtonTypes().addAll(applyButton, ButtonType.CANCEL);
         getDialogPane().setPrefWidth(1040);
         getDialogPane().setPrefHeight(700);
+        // After the designed size, so a stored geometry wins over it rather than the other way round.
+        restoreGeometry();
         getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            persistGeometry();
             diffPane.dispose();
             explanationsView.getEngine().loadContent("");
         });
-        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(this::bringToFront));
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
+            bringToFront();
+            fitSummaryHeight();
+        }));
         setResultConverter(buttonType -> buttonType == applyButton);
+    }
+
+    /**
+     * Starts the divider where the reviewer last put it. Without a stored position it follows the
+     * summary's own height instead of a fixed share: a one-line security-fix summary gets a strip, a
+     * staged apply's multi-paragraph summary gets up to a third of the window and scrolls beyond
+     * that. Dragging it afterwards is what makes the position stored.
+     */
+    private void fitSummaryHeight() {
+        double available = summarySplit.getHeight();
+        if (available <= 0) {
+            return;
+        }
+        Double stored = storedSummaryDividerPosition();
+        double position;
+        if (stored != null) {
+            position = Math.min(Math.max(stored, 0.02), 0.9);
+        } else {
+            double width = summaryContent.getWidth() > 0 ? summaryContent.getWidth() : getDialogPane().getWidth();
+            double needed = summaryContent.prefHeight(width) + 4;
+            position = Math.min(Math.max(needed, SUMMARY_MIN_HEIGHT), available * SUMMARY_MAX_SHARE) / available;
+        }
+        summarySplit.setDividerPositions(position);
+        appliedSummaryDivider = position;
+    }
+
+    private static Double storedSummaryDividerPosition() {
+        try {
+            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            return settings != null ? settings.getAiDiffDialogSummaryDividerPosition() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void restoreGeometry() {
+        GlobalSettings settings = currentSettings();
+        DialogGeometrySupport.restore(this, settings != null ? settings.getAiDiffDialogGeometry() : null);
+    }
+
+    /**
+     * Stores where the reviewer left the window, plus the summary divider — but the divider only once
+     * they moved it themselves, so a window that was merely resized keeps following the summary's
+     * height on the next review.
+     */
+    private void persistGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
+        Double moved = movedSummaryDividerPosition();
+        DialogGeometrySupport.persist(this, (settings, geometry) -> {
+            settings.setAiDiffDialogGeometry(geometry);
+            if (moved != null) {
+                settings.setAiDiffDialogSummaryDividerPosition(moved);
+            }
+        });
+    }
+
+    private Double movedSummaryDividerPosition() {
+        double[] positions = summarySplit.getDividerPositions();
+        return positions.length == 0
+            ? null
+            : movedDividerPosition(positions[0], appliedSummaryDivider);
+    }
+
+    /**
+     * The divider position to store: the current one when the reviewer moved it away from what this
+     * window applied on opening, otherwise {@code null} so the content fit keeps applying. The
+     * tolerance absorbs the rounding a layout pass introduces without any user interaction.
+     */
+    static Double movedDividerPosition(double current, Double applied) {
+        if (applied == null) {
+            return null;
+        }
+        return Math.abs(current - applied) > 0.01 ? current : null;
+    }
+
+    private static GlobalSettings currentSettings() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /** Keeps a newly opened review window above its non-modal editor/analysis window on macOS. */
@@ -187,11 +305,25 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         }
         lastChanges = changes;
         lastReasonsJson = toReasonsJson(changes);
+        populateFindingFilter(changes);
         // The diff host reports each reason's resolved line range (modified side) once Monaco has
         // computed the diff; re-render the cards so they carry a "Lines 23-40" chip.
         diffPane.setChangeReasonRangesHandler(this::applyReasonRanges);
         diffPane.setChangeReasons(lastReasonsJson);
         renderExplanations();
+    }
+
+    private void populateFindingFilter(List<SnippetAiResponseSupport.SecurityChange> changes) {
+        List<String> choices = findingFilterChoices(changes);
+        if (choices.size() < 2) {
+            return;
+        }
+        String allLabel = I18n.get("snippets.ai.diff.focus.all");
+        findingFilterCombo.getItems().setAll(allLabel);
+        findingFilterCombo.getItems().addAll(choices);
+        findingFilterCombo.setValue(allLabel);
+        findingFilterBar.setManaged(true);
+        findingFilterBar.setVisible(true);
     }
 
     private void renderExplanations() {
@@ -260,7 +392,12 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
             SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton));
     }
 
-    private HBox buildSummaryBanner(String summary) {
+    /**
+     * The summary of a staged apply concatenates one paragraph per stage and can outgrow the window,
+     * so it scrolls inside its own pane and the split divider below it lets the reviewer trade its
+     * height against the diff.
+     */
+    private ScrollPane buildSummaryBanner(String summary) {
         Region accentBar = new Region();
         accentBar.setMinWidth(3);
         accentBar.setStyle("-fx-background-color: " + ACCENT + "; -fx-background-radius: 3;");
@@ -273,9 +410,108 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         HBox.setHgrow(summaryLabel, Priority.ALWAYS);
 
         HBox banner = new HBox(10, accentBar, summaryLabel);
-        banner.setAlignment(Pos.CENTER_LEFT);
+        banner.setAlignment(Pos.TOP_LEFT);
         banner.setStyle("-fx-background-color: rgba(127,127,127,0.09); -fx-background-radius: 8; -fx-padding: 10 12 10 12;");
-        return banner;
+
+        ScrollPane scroll = new ScrollPane(banner);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setMinHeight(SUMMARY_MIN_HEIGHT);
+        scroll.setPrefHeight(SUMMARY_PREF_HEIGHT);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        return scroll;
+    }
+
+    /**
+     * Lets the reviewer narrow the diff annotations to one finding. Hidden while fewer than two
+     * findings carry a reason, where filtering could only ever hide work.
+     */
+    private HBox buildFindingFilterBar() {
+        findingFilterCombo = new ComboBox<>();
+        findingFilterCombo.setVisibleRowCount(12);
+        findingFilterCombo.valueProperty().addListener((obs, oldValue, newValue) -> applyFindingFilter(newValue));
+
+        previousFindingButton = new Button("◀");
+        previousFindingButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.previous")));
+        previousFindingButton.setOnAction(event -> stepFinding(-1));
+        nextFindingButton = new Button("▶");
+        nextFindingButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.next")));
+        nextFindingButton.setOnAction(event -> stepFinding(1));
+
+        HBox bar = new HBox(8,
+            new Label(I18n.get("snippets.ai.diff.focus")),
+            findingFilterCombo,
+            previousFindingButton,
+            nextFindingButton);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.setManaged(false);
+        bar.setVisible(false);
+        return bar;
+    }
+
+    /**
+     * Walks the picker one finding at a time, which re-filters the diff and scrolls to that
+     * finding's first place. Also the way out of "all changes": from there the arrows step to the
+     * first or last finding.
+     */
+    private void stepFinding(int step) {
+        int next = steppedFindingIndex(
+            findingFilterCombo.getSelectionModel().getSelectedIndex(),
+            findingFilterCombo.getItems().size(),
+            step);
+        if (next >= 0 && next < findingFilterCombo.getItems().size()) {
+            findingFilterCombo.getSelectionModel().select(next);
+        }
+    }
+
+    /**
+     * The picker index the arrows move to. Item 0 is "all changes" and is skipped: stepping forward
+     * from it selects the first finding, backward the last, and the ends wrap into each other.
+     * Returns {@code currentIndex} when there is no finding to move to.
+     */
+    static int steppedFindingIndex(int currentIndex, int itemCount, int step) {
+        int findings = itemCount - 1;
+        if (findings <= 0) {
+            return currentIndex;
+        }
+        int position = currentIndex <= 0 ? (step > 0 ? -1 : 0) : currentIndex - 1;
+        return Math.floorMod(position + (step > 0 ? 1 : -1), findings) + 1;
+    }
+
+    /** Distinct finding ids that actually carry a reason, in the order the model reported them. */
+    static List<String> findingFilterChoices(List<SnippetAiResponseSupport.SecurityChange> changes) {
+        if (changes == null) {
+            return List.of();
+        }
+        List<String> ids = new java.util.ArrayList<>();
+        for (SnippetAiResponseSupport.SecurityChange change : changes) {
+            if (change == null || change.reason().isBlank()) {
+                continue;
+            }
+            String finding = change.finding().trim();
+            if (!finding.isEmpty() && !ids.contains(finding)) {
+                ids.add(finding);
+            }
+        }
+        return List.copyOf(ids);
+    }
+
+    /** A blank or absent filter keeps every change; otherwise the finding id must match exactly. */
+    static boolean matchesFindingFilter(SnippetAiResponseSupport.SecurityChange change, String filter) {
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        return change != null && change.finding().trim().equals(filter.trim());
+    }
+
+    private void applyFindingFilter(String selected) {
+        // Index 0 is the "all changes" entry; every later item is a finding id. Going by position
+        // rather than by label keeps a finding that happens to read like the label out of the way.
+        boolean showAll = selected == null || findingFilterCombo.getSelectionModel().getSelectedIndex() <= 0;
+        activeFindingFilter = showAll ? null : selected;
+        diffPane.setReasonFilter(activeFindingFilter);
+        renderExplanations();
     }
 
     private void applyComparison() {
@@ -337,7 +573,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         int count = 0;
         for (int index = 0; index < changes.size(); index++) {
             SnippetAiResponseSupport.SecurityChange change = changes.get(index);
-            if (change == null || change.reason().isBlank()) {
+            if (change == null || change.reason().isBlank()
+                || !matchesFindingFilter(change, activeFindingFilter)) {
                 continue;
             }
             count++;

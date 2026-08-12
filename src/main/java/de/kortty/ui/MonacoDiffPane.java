@@ -112,6 +112,16 @@ public class MonacoDiffPane extends StackPane {
                 + jsString(reasonsJson != null ? reasonsJson : "[]") + ");");
     }
 
+    /**
+     * Restricts the reason decorations to a single finding id, mutes the diff's own colouring of the
+     * other changed blocks and scrolls to the finding's first place, so a staged rewrite can be
+     * reviewed one finding at a time. A blank id restores every annotation and the full colouring.
+     */
+    public void setReasonFilter(String finding) {
+        runWhenReady("window.korttyMonacoDiff.setReasonFilter("
+                + jsString(finding != null ? finding : "") + ");");
+    }
+
     public void setWorkerReadyHandler(Consumer<String> workerReadyHandler) {
         this.workerReadyHandler = workerReadyHandler;
     }

@@ -13,6 +13,11 @@ let modifiedModel;
 let changeDecorations = [];
 let changeReasons = [];
 let changeReasonListenerAttached = false;
+// Finding id the reviewer picked below the diff, or "" for "every change". While one is set, only its
+// blocks stay decorated and the diff's own colouring is muted, so a long staged rewrite can be read
+// one finding at a time.
+let reasonFilter = "";
+let pendingFilterReveal = false;
 let booted = false;
 let currentThemeName = "kortty-monaco-diff-theme";
 let currentTheme = {};
@@ -131,6 +136,26 @@ function setChangeReasons(reasonsJson) {
   applyReasonDecorations();
 }
 
+// Restricts the reason decorations to one finding id. An unknown or empty id means "no filter", so a
+// stale selection can never blank the whole diff annotation.
+function setReasonFilter(finding) {
+  const next = String(finding || "").trim();
+  if (next === reasonFilter) return;
+  reasonFilter = next;
+  pendingFilterReveal = next !== "";
+  // Mutes the diff's own colouring of every changed block while one finding is picked, so its places
+  // are the only ones that read as changed. Nothing is hidden: the muted blocks keep a neutral tint.
+  if (diffEditor && typeof diffEditor.getDomNode === "function") {
+    const dom = diffEditor.getDomNode();
+    if (dom && dom.classList) dom.classList.toggle("kortty-reason-focus-mode", reasonFilter !== "");
+  }
+  applyReasonDecorations();
+}
+
+function matchesReasonFilter(item) {
+  return reasonFilter === "" || (item && String(item.finding || "").trim() === reasonFilter);
+}
+
 function firstAnchorLine(text) {
   const raw = String(text || "");
   const line = raw.split(/\r?\n/).find((l) => l.trim().length > 0) || raw;
@@ -225,14 +250,21 @@ function applyReasonDecorations() {
     }
   }
 
+  // Resolve every reason's block first and filter only when building decorations: the range report
+  // below keeps its line numbers for ALL cards, so filtering never blanks their "Lines 23-40" chips.
   const decorations = [];
+  const focused = reasonFilter !== "";
+  const places = [];
   for (const block of blocks) {
     if (block.groups.length === 0) continue;
     for (const item of block.groups) {
       item.start = block.start;
       item.end = block.end;
     }
-    decorations.push(reasonDecoration(block.start, block.end, block.groups));
+    const shown = block.groups.filter(matchesReasonFilter);
+    if (shown.length === 0) continue;
+    places.push(block.start);
+    decorations.push(reasonDecoration(block.start, block.end, shown, focused));
   }
   // Located anchors that sit outside every detected block (context lines): single-line marker.
   for (let i = 0; i < located.length; i++) {
@@ -240,9 +272,22 @@ function applyReasonDecorations() {
     if (item.start != null || item.line == null) continue;
     item.start = item.line;
     item.end = item.line;
-    decorations.push(reasonDecoration(item.line, item.line, [item]));
+    if (!matchesReasonFilter(item)) continue;
+    places.push(item.line);
+    decorations.push(reasonDecoration(item.line, item.line, [item], focused));
   }
   changeDecorations = modifiedEditor.deltaDecorations([], decorations);
+  places.sort((left, right) => left - right);
+  const firstFilteredLine = places.length > 0 ? places[0] : null;
+
+  // Scroll to the selection once, right after it was picked. Monaco re-runs this on every diff
+  // update, and yanking the viewport back on each of those would fight the reviewer's own scrolling.
+  if (pendingFilterReveal) {
+    pendingFilterReveal = false;
+    if (firstFilteredLine != null && typeof modifiedEditor.revealLineInCenter === "function") {
+      modifiedEditor.revealLineInCenter(firstFilteredLine);
+    }
+  }
 
   // Report each reason's resolved line range (modified side) so the host can show "Lines 23-40"
   // next to the explanation cards below the diff.
@@ -256,7 +301,7 @@ function applyReasonDecorations() {
   }
 }
 
-function reasonDecoration(startLine, endLine, group) {
+function reasonDecoration(startLine, endLine, group, focused) {
   const ids = [];
   for (const item of group) {
     if (item.finding && ids.indexOf(item.finding) < 0) ids.push(item.finding);
@@ -278,7 +323,12 @@ function reasonDecoration(startLine, endLine, group) {
     range: new monaco.Range(startLine, 1, endLine, endColumn),
     options: {
       isWholeLine: true,
-      linesDecorationsClassName: "kortty-change-reason-bar",
+      linesDecorationsClassName: focused
+        ? "kortty-change-reason-bar kortty-change-reason-bar-focus"
+        : "kortty-change-reason-bar",
+      // Only the picked finding gets a line background, so its places stand out from the diff's own
+      // colouring of every other changed block.
+      className: focused ? "kortty-change-reason-focus" : undefined,
       hoverMessage: { value: message }
     }
   };
@@ -308,6 +358,8 @@ function dispose() {
   changeDecorations = [];
   changeReasons = [];
   changeReasonListenerAttached = false;
+  reasonFilter = "";
+  pendingFilterReveal = false;
 }
 
 export function installDiffHost() {
@@ -317,6 +369,7 @@ export function installDiffHost() {
     setFont,
     setTheme,
     setChangeReasons,
+    setReasonFilter,
     dispose
   };
 }
