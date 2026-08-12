@@ -688,6 +688,8 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.fix.failed",
         "snippets.ai.diff.focus",
         "snippets.ai.diff.focus.all",
+        "snippets.ai.diff.focus.previous",
+        "snippets.ai.diff.focus.next",
         "snippets.ai.analysis.diff.title",
         "snippets.ai.code.improve.comments",
         "snippets.ai.code.improve.comments.theme",

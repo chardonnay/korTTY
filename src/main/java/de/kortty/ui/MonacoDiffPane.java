@@ -122,6 +122,14 @@ public class MonacoDiffPane extends StackPane {
                 + jsString(finding != null ? finding : "") + ");");
     }
 
+    /**
+     * Scrolls to the next ({@code step > 0}) or previous ({@code step < 0}) place of the finding the
+     * reason filter is set to, wrapping around at the ends. A no-op without an active filter.
+     */
+    public void revealReasonPlace(int step) {
+        runWhenReady("window.korttyMonacoDiff.revealReasonPlace(" + step + ");");
+    }
+
     public void setWorkerReadyHandler(Consumer<String> workerReadyHandler) {
         this.workerReadyHandler = workerReadyHandler;
     }

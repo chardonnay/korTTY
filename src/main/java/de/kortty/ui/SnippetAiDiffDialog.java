@@ -74,6 +74,8 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private final SplitPane summarySplit;
     private final Region summaryContent;
     private ComboBox<String> findingFilterCombo;
+    private Button previousPlaceButton;
+    private Button nextPlaceButton;
     private String activeFindingFilter;
     private final String originalText;
     private final String replacementText;
@@ -358,11 +360,31 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         findingFilterCombo = new ComboBox<>();
         findingFilterCombo.setVisibleRowCount(12);
         findingFilterCombo.valueProperty().addListener((obs, oldValue, newValue) -> applyFindingFilter(newValue));
-        HBox bar = new HBox(8, new Label(I18n.get("snippets.ai.diff.focus")), findingFilterCombo);
+
+        previousPlaceButton = new Button("◀");
+        previousPlaceButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.previous")));
+        previousPlaceButton.setOnAction(event -> diffPane.revealReasonPlace(-1));
+        nextPlaceButton = new Button("▶");
+        nextPlaceButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.next")));
+        nextPlaceButton.setOnAction(event -> diffPane.revealReasonPlace(1));
+        updatePlaceNavigation();
+
+        HBox bar = new HBox(8,
+            new Label(I18n.get("snippets.ai.diff.focus")),
+            findingFilterCombo,
+            previousPlaceButton,
+            nextPlaceButton);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setManaged(false);
         bar.setVisible(false);
         return bar;
+    }
+
+    /** Stepping through places only means something once the diff is narrowed to one finding. */
+    private void updatePlaceNavigation() {
+        boolean enabled = activeFindingFilter != null;
+        previousPlaceButton.setDisable(!enabled);
+        nextPlaceButton.setDisable(!enabled);
     }
 
     /** Distinct finding ids that actually carry a reason, in the order the model reported them. */
@@ -397,6 +419,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         boolean showAll = selected == null || findingFilterCombo.getSelectionModel().getSelectedIndex() <= 0;
         activeFindingFilter = showAll ? null : selected;
         diffPane.setReasonFilter(activeFindingFilter);
+        updatePlaceNavigation();
         renderExplanations();
     }
 

@@ -940,10 +940,28 @@ public final class SnippetAiDialogsSmoke {
             throw new AssertionError("Finding focus picker must start on every change, was "
                 + focusCombo.getValue());
         }
+        List<Button> navigation = findNodes(pane, Button.class).stream()
+            .map(node -> (Button) node)
+            .filter(button -> "◀".equals(button.getText()) || "▶".equals(button.getText()))
+            .toList();
+        if (navigation.size() != 2) {
+            throw new AssertionError("Expected previous/next place buttons, found " + navigation.size());
+        }
+        if (navigation.stream().anyMatch(button -> !button.isDisable())) {
+            throw new AssertionError("Place navigation must stay disabled while every change is shown");
+        }
+
         // Selecting a finding must not throw while the diff host is still booting: the pane queues
         // the call until Monaco is ready.
         ((ComboBox<Object>) focusCombo).setValue("SEC-1");
+        if (navigation.stream().anyMatch(Button::isDisable)) {
+            throw new AssertionError("Place navigation must be usable once a finding is picked");
+        }
+        navigation.forEach(Button::fire);
         ((ComboBox<Object>) focusCombo).setValue(allLabel);
+        if (navigation.stream().anyMatch(button -> !button.isDisable())) {
+            throw new AssertionError("Place navigation must switch off again with every change shown");
+        }
     }
 
     private static void assertControls(String name, DialogPane pane, String rerunText) {

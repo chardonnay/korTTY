@@ -17,6 +17,10 @@ let changeReasonListenerAttached = false;
 // blocks stay decorated, so a long staged rewrite can be read one finding at a time.
 let reasonFilter = "";
 let pendingFilterReveal = false;
+// Start lines of the picked finding's blocks, in code order, plus the cursor the navigation buttons
+// move through them.
+let filteredPlaces = [];
+let filteredPlaceCursor = -1;
 let booted = false;
 let currentThemeName = "kortty-monaco-diff-theme";
 let currentTheme = {};
@@ -142,7 +146,31 @@ function setReasonFilter(finding) {
   if (next === reasonFilter) return;
   reasonFilter = next;
   pendingFilterReveal = next !== "";
+  filteredPlaceCursor = -1;
+  // Mutes the diff's own colouring of every changed block while one finding is picked, so its places
+  // are the only ones that read as changed. Nothing is hidden: the muted blocks keep a neutral tint.
+  if (diffEditor && typeof diffEditor.getDomNode === "function") {
+    const dom = diffEditor.getDomNode();
+    if (dom && dom.classList) dom.classList.toggle("kortty-reason-focus-mode", reasonFilter !== "");
+  }
   applyReasonDecorations();
+}
+
+/**
+ * Moves to the next (step > 0) or previous (step < 0) place of the picked finding, wrapping around.
+ * Without a filter, or before any place was located, this is a no-op.
+ */
+function revealReasonPlace(step) {
+  if (filteredPlaces.length === 0) return;
+  const delta = Number(step) < 0 ? -1 : 1;
+  filteredPlaceCursor = filteredPlaceCursor < 0
+    ? (delta > 0 ? 0 : filteredPlaces.length - 1)
+    : (filteredPlaceCursor + delta + filteredPlaces.length) % filteredPlaces.length;
+  const line = filteredPlaces[filteredPlaceCursor];
+  const modifiedEditor = diffEditor ? diffEditor.getModifiedEditor() : null;
+  if (modifiedEditor && typeof modifiedEditor.revealLineInCenter === "function") {
+    modifiedEditor.revealLineInCenter(line);
+  }
 }
 
 function matchesReasonFilter(item) {
@@ -247,7 +275,7 @@ function applyReasonDecorations() {
   // below keeps its line numbers for ALL cards, so filtering never blanks their "Lines 23-40" chips.
   const decorations = [];
   const focused = reasonFilter !== "";
-  let firstFilteredLine = null;
+  const places = [];
   for (const block of blocks) {
     if (block.groups.length === 0) continue;
     for (const item of block.groups) {
@@ -256,7 +284,7 @@ function applyReasonDecorations() {
     }
     const shown = block.groups.filter(matchesReasonFilter);
     if (shown.length === 0) continue;
-    if (firstFilteredLine == null) firstFilteredLine = block.start;
+    places.push(block.start);
     decorations.push(reasonDecoration(block.start, block.end, shown, focused));
   }
   // Located anchors that sit outside every detected block (context lines): single-line marker.
@@ -266,16 +294,19 @@ function applyReasonDecorations() {
     item.start = item.line;
     item.end = item.line;
     if (!matchesReasonFilter(item)) continue;
-    if (firstFilteredLine == null) firstFilteredLine = item.line;
+    places.push(item.line);
     decorations.push(reasonDecoration(item.line, item.line, [item], focused));
   }
   changeDecorations = modifiedEditor.deltaDecorations([], decorations);
+  filteredPlaces = places.sort((left, right) => left - right);
+  const firstFilteredLine = filteredPlaces.length > 0 ? filteredPlaces[0] : null;
 
   // Scroll to the selection once, right after it was picked. Monaco re-runs this on every diff
   // update, and yanking the viewport back on each of those would fight the reviewer's own scrolling.
   if (pendingFilterReveal) {
     pendingFilterReveal = false;
     if (firstFilteredLine != null && typeof modifiedEditor.revealLineInCenter === "function") {
+      filteredPlaceCursor = 0;
       modifiedEditor.revealLineInCenter(firstFilteredLine);
     }
   }
@@ -351,6 +382,8 @@ function dispose() {
   changeReasonListenerAttached = false;
   reasonFilter = "";
   pendingFilterReveal = false;
+  filteredPlaces = [];
+  filteredPlaceCursor = -1;
 }
 
 export function installDiffHost() {
@@ -361,6 +394,7 @@ export function installDiffHost() {
     setTheme,
     setChangeReasons,
     setReasonFilter,
+    revealReasonPlace,
     dispose
   };
 }

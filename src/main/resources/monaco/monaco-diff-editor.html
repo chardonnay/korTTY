@@ -29,6 +29,22 @@
     .kortty-change-reason-focus {
       background: rgba(59, 130, 246, 0.20);
     }
+    /* Focus mode: while one finding is picked, the diff's own insert/delete colouring is muted to a
+       neutral tint so the picked finding is the only thing that reads as changed. The blocks stay
+       visible and keep their +/- markers — a review window must never make a real change invisible.
+       Grey with alpha rather than a fixed colour, so it works on light and dark editor themes. */
+    .kortty-reason-focus-mode .line-insert,
+    .kortty-reason-focus-mode .line-delete,
+    .kortty-reason-focus-mode .char-insert,
+    .kortty-reason-focus-mode .char-delete,
+    .kortty-reason-focus-mode .inline-added-margin-view-zone,
+    .kortty-reason-focus-mode .inline-deleted-margin-view-zone {
+      background: rgba(127, 127, 127, 0.11) !important;
+    }
+    .kortty-reason-focus-mode .cldr.insert-sign,
+    .kortty-reason-focus-mode .cldr.delete-sign {
+      opacity: 0.45;
+    }
   </style>
 </head>
 <body>
