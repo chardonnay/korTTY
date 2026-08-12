@@ -102,13 +102,16 @@ public final class SessionJournalAppearancePopover {
         Label hint = new Label(I18n.get("journal.viewer.appearance.hint"));
         hint.setWrapText(true);
         hint.setMaxWidth(320);
-        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         VBox container = new VBox(10, grid, reset, hint);
         container.setPadding(new Insets(10));
         container.setStyle("-fx-background-color: -fx-control-inner-background;"
             + " -fx-border-color: rgba(128,128,128,0.4); -fx-border-radius: 6; -fx-background-radius: 6;"
             + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 12, 0, 0, 4);");
+        // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
+        // be applied to its content root directly.
+        UiFontScaleSupport.applyToParent(container);
         popup.getContent().add(container);
 
         var bounds = anchor.localToScreen(anchor.getBoundsInLocal());

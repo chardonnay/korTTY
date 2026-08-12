@@ -91,6 +91,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.TransferMode;
 import javafx.geometry.Point2D;
+import javafx.geometry.Rectangle2D;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -101,6 +102,7 @@ import javafx.scene.layout.VBox;
 import javafx.event.Event;
 import javafx.geometry.Side;
 import javafx.stage.FileChooser;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
@@ -614,7 +616,7 @@ public class MainWindow {
         // its previous window size and let the StackPane center it on an empty backdrop; in the
         // normal case the wrapper is fully transparent and root fills it edge to edge as before.
         sceneRoot = new StackPane(root);
-        Scene scene = new Scene(sceneRoot, 1000, 700);
+        Scene scene = new Scene(sceneRoot, scaledDefaultSceneWidth(), scaledDefaultSceneHeight());
         if (unifiedTitleBarEnabled || transparentWindowMode) {
             // Unified title bar: let the themed root background flow into the macOS title bar area.
             // Transparent mode: the scene fill must be clear so the desktop shows through the terminal.
@@ -835,6 +837,22 @@ public class MainWindow {
         });
     }
     
+    /**
+     * The unscaled default window size, used on first launch when no geometry has been remembered.
+     * It grows with the UI font scale so a scaled-up chrome does not arrive in a window sized for
+     * the unscaled one.
+     */
+    private static final double DEFAULT_SCENE_WIDTH = 1000;
+    private static final double DEFAULT_SCENE_HEIGHT = 700;
+
+    private static double scaledDefaultSceneWidth() {
+        return UiFontScaleSupport.scaleDimension(DEFAULT_SCENE_WIDTH, true);
+    }
+
+    private static double scaledDefaultSceneHeight() {
+        return UiFontScaleSupport.scaleDimension(DEFAULT_SCENE_HEIGHT, false);
+    }
+
     private void setupMenuBar() {
         menuBar = createApplicationMenuBar(MenuBarTarget.WINDOW);
         // The menu bar goes into a row so a right-aligned indicator can sit on it. It must be
@@ -2637,6 +2655,9 @@ public class MainWindow {
         dialog.addChangeListener(() -> {
             logger.info("Settings changed, updating all terminal views");
             Platform.runLater(() -> {
+                // Must precede the refresh: it re-reads the screen so an auto-mode change takes
+                // effect in the same pass that re-applies the stylesheets.
+                UiFontScaleSupport.invalidateAutoCache();
                 refreshAppDesignForOpenWindows();
                 syncHideFullscreenScrollbarsMenuItems();
                 applyTerminalScrollbarVisibilityForOpenTabs();
@@ -4741,7 +4762,7 @@ public class MainWindow {
         updateProgress.setManaged(false);
         Label updateStatusLabel = new Label();
         updateStatusLabel.setWrapText(true);
-        updateStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        updateStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         manualUpdateCheckButton.setOnAction(event ->
             runManualUpdateCheck(manualUpdateCheckButton, updateProgress, updateStatusLabel));
         de.kortty.policy.EffectivePolicy updatePolicy = de.kortty.policy.PolicyManager.effective();
@@ -5430,7 +5451,7 @@ public class MainWindow {
         preview.setPrefRowCount(18);
 
         Label statusLabel = new Label();
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         updateAiConfirmQuotaBar(quotaBar, profile, buildAiConfirmTokenEstimate(action, profile, selectedText, connectionName, languageCode, promptArea.getText()));
 
         if (action == AiAction.ASK) {

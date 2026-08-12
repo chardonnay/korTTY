@@ -99,13 +99,13 @@ public class CredentialEditDialog extends ThemeAwareDialog<CredentialResult> {
         testResultLabel = new Label();
         testResultLabel.setWrapText(true);
         testResultLabel.setMaxWidth(Double.MAX_VALUE);
-        testResultLabel.setStyle("-fx-font-size: 11px;");
+        testResultLabel.setStyle("-fx-font-size: 0.8462em;");
         
         // External command hint
         Label commandHint = new Label(I18n.get("credential.externalCommand.hint"));
         commandHint.setWrapText(true);
         commandHint.setMaxWidth(Double.MAX_VALUE);
-        commandHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #888888;");
+        commandHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #888888;");
         
         VBox externalCommandBox = new VBox(5, commandBox, commandHint, testResultLabel);
         
@@ -271,13 +271,13 @@ public class CredentialEditDialog extends ThemeAwareDialog<CredentialResult> {
         String command = externalCommandField.getText();
         if (command == null || command.trim().isEmpty()) {
             testResultLabel.setText(I18n.get("credential.externalCommand.testEmpty"));
-            testResultLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #cc6600;");
+            testResultLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #cc6600;");
             return;
         }
         
         testCommandButton.setDisable(true);
         testResultLabel.setText(I18n.get("credential.externalCommand.testing"));
-        testResultLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
+        testResultLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         
         // Run in background thread to not block UI
         Thread testThread = new Thread(() -> {
@@ -288,13 +288,13 @@ public class CredentialEditDialog extends ThemeAwareDialog<CredentialResult> {
                 javafx.application.Platform.runLater(() -> {
                     testResultLabel.setText(I18n.get("credential.externalCommand.testSuccess", 
                         result.length(), maskedResult));
-                    testResultLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #00cc00;");
+                    testResultLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #00cc00;");
                     testCommandButton.setDisable(false);
                 });
             } catch (Exception e) {
                 javafx.application.Platform.runLater(() -> {
                     testResultLabel.setText(I18n.get("credential.externalCommand.testFailed", e.getMessage()));
-                    testResultLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #cc0000;");
+                    testResultLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #cc0000;");
                     testCommandButton.setDisable(false);
                 });
             }

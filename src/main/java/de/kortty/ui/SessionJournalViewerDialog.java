@@ -984,7 +984,7 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         deleteButton.setOnAction(event -> deleteSelectedEntry());
         Button replaceButton = new Button(I18n.get("journal.viewer.replace"));
         replaceButton.setOnAction(event -> replaceInJournal(null));
-        editStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        editStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         HBox buttons = new HBox(8, saveButton, revertButton, deleteButton, replaceButton, editStatus);
         VBox form = new VBox(6,
@@ -1125,13 +1125,13 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         includeLogCheck.setSelected(true);
 
         Label countLabel = new Label();
-        countLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        countLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         Button countButton = new Button(I18n.get("journal.viewer.replace.count"));
         countButton.disableProperty().bind(searchField.textProperty().isEmpty());
 
         Label warning = new Label(I18n.get("journal.viewer.replace.warning"));
         warning.setWrapText(true);
-        warning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 11px;");
+        warning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 0.8462em;");
 
         java.util.function.Supplier<ReplaceRequest> collect = () -> new ReplaceRequest(
             new SessionJournalReplacement(searchField.getText(), replacementField.getText(),
@@ -1187,7 +1187,7 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         }
         Label hint = new Label(I18n.get("journal.viewer.replace.policyHint", mandated.size()));
         hint.setWrapText(true);
-        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         content.getChildren().add(hint);
     }
 

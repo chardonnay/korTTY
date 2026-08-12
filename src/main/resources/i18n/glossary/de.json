@@ -4,7 +4,7 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
-      "from": "\u200b",
+      "from": "​",
       "to": "",
       "note": "U+200B zero-width space. Google MT drops (usually doubled) zero-width spaces into German prose; strip them first so a hidden character can never sit inside a later row's match."
     },
@@ -1315,6 +1315,42 @@
       "to": "Laufzeitkanal](",
       "scope": "markdown",
       "note": "Trailing space inside the llama.cpp runtime-channel link text."
+    },
+    {
+      "from": "auf eine Leinwand gemalt",
+      "to": "auf einen Canvas gezeichnet",
+      "scope": "markdown",
+      "note": "MT renders the JavaFX Canvas as a painter's canvas; korTTY keeps the technical term."
+    },
+    {
+      "from": "Die Registerkarte **Schriftart**",
+      "to": "Der Tab **Schrift**",
+      "scope": "markdown",
+      "note": "UI label settings.tab.font is 'Schrift', and the app calls its settings sections tabs."
+    },
+    {
+      "from": "Die Registerkarte **Editor**",
+      "to": "Der Tab **Editor**",
+      "scope": "markdown",
+      "note": "Matches the 'Tab' wording used for the other settings sections."
+    },
+    {
+      "from": "**An Displayauflösung anpassen**",
+      "to": "**An Bildschirmauflösung anpassen**",
+      "scope": "markdown",
+      "note": "UI label settings.appearance.uiFontScale.auto; MT varies the wording between mentions."
+    },
+    {
+      "from": "An die Bildschirmauflösung anpassen",
+      "to": "An Bildschirmauflösung anpassen",
+      "scope": "markdown",
+      "note": "UI label settings.appearance.uiFontScale.auto has no article."
+    },
+    {
+      "from": "Wo ihre Größe eingestellt wird, stattdessen",
+      "to": "Wo ihre Größe stattdessen eingestellt wird",
+      "scope": "markdown",
+      "note": "MT strands 'stattdessen' after the verb in the UI font size table header."
     }
   ]
 }

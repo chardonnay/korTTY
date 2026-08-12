@@ -2179,13 +2179,13 @@ public class TerminalView extends BorderPane {
         progressBar.setPrefWidth(300);
         progressBar.setProgress(0);
         javafx.scene.control.Label targetLabel = new javafx.scene.control.Label("");
-        targetLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
+        targetLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         javafx.scene.control.Label timeLabel = new javafx.scene.control.Label("0s");
-        timeLabel.setStyle("-fx-font-size: 11px;");
+        timeLabel.setStyle("-fx-font-size: 0.8462em;");
         javafx.scene.control.Label statusLabel = new javafx.scene.control.Label(
             I18n.get("terminal.dragDrop.count", 0, total));
         javafx.scene.control.Label currentFileLabel = new javafx.scene.control.Label("");
-        currentFileLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #aaaaaa;");
+        currentFileLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #aaaaaa;");
         javafx.scene.control.Button abortButton = new javafx.scene.control.Button(I18n.get("terminal.dragDrop.abort"));
         javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(8,
             targetLabel, timeLabel, statusLabel, currentFileLabel, progressBar, abortButton);

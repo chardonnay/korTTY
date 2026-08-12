@@ -332,7 +332,7 @@ public class AiResultTab extends Tab {
         statusLabel.setStyle("-fx-padding: 6px;");
         quotaLabel = new Label();
         quotaLabel.setWrapText(true);
-        quotaLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        quotaLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         waitingTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshWaitingStatus()));
         waitingTimeline.setCycleCount(Timeline.INDEFINITE);
 

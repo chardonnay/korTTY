@@ -387,7 +387,7 @@ final class SnippetAiApplyProgressWindow {
 
     private static Label sectionHeading(String key) {
         Label label = new Label(I18n.get(key));
-        label.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 5 0 1 0;");
+        label.setStyle("-fx-font-size: 1.0769em; -fx-font-weight: bold; -fx-padding: 5 0 1 0;");
         return label;
     }
 
@@ -400,7 +400,7 @@ final class SnippetAiApplyProgressWindow {
 
         Label heading = new Label(I18n.get(headingKey));
         heading.setStyle("-fx-font-weight: bold;");
-        valueLabel.setStyle("-fx-font-size: 10px; -fx-opacity: 0.78;");
+        valueLabel.setStyle("-fx-font-size: 0.7692em; -fx-opacity: 0.78;");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox header = new HBox(8, heading, spacer, valueLabel);
@@ -511,7 +511,7 @@ final class SnippetAiApplyProgressWindow {
                 SnippetAiWorkflowSupport.ImprovementApplyPhase phase) {
             this.phase = phase;
             Label identifier = new Label(item.id());
-            identifier.setStyle("-fx-font-size: 10px; -fx-opacity: 0.72;");
+            identifier.setStyle("-fx-font-size: 0.7692em; -fx-opacity: 0.72;");
             HBox identifierLine = new HBox(5, identifier);
             identifierLine.setAlignment(Pos.CENTER_LEFT);
             SVGPath categoryIcon = categoryIcon(item, phase);
@@ -588,7 +588,7 @@ final class SnippetAiApplyProgressWindow {
                 }
             }
             status.setText(symbol);
-            status.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
+            status.setStyle("-fx-font-size: 1.3077em; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
             status.setTooltip(new Tooltip(I18n.get(tooltipKey)));
         }
     }

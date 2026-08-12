@@ -89,17 +89,17 @@ final class TerminalAgentCompletionPopup {
         listView.setCellFactory(list -> new CompletionCell());
 
         footerHint.getStyleClass().add("ai-agent-completion-hint");
-        footerHint.setStyle("-fx-opacity: 0.65; -fx-font-size: 11px;");
+        footerHint.setStyle("-fx-opacity: 0.65; -fx-font-size: 0.8462em;");
         clearAllButton.getStyleClass().add("ai-agent-completion-clear-all");
         clearAllButton.setFocusTraversable(false);
-        clearAllButton.setStyle("-fx-font-size: 11px; -fx-padding: 1 8 1 8;");
+        clearAllButton.setStyle("-fx-font-size: 0.8462em; -fx-padding: 1 8 1 8;");
         clearAllButton.setOnAction(event -> {
             event.consume();
             onClearAllClicked();
         });
         resizeGrip.getStyleClass().add("ai-agent-completion-resize");
         resizeGrip.setCursor(Cursor.SE_RESIZE);
-        resizeGrip.setStyle("-fx-opacity: 0.5; -fx-font-size: 11px; -fx-padding: 0 0 0 2;");
+        resizeGrip.setStyle("-fx-opacity: 0.5; -fx-font-size: 0.8462em; -fx-padding: 0 0 0 2;");
         resizeGrip.setTooltip(new Tooltip(I18n.get("ai.agent.completion.resize")));
         resizeGrip.setOnMousePressed(this::beginResize);
         resizeGrip.setOnMouseDragged(this::dragResize);
@@ -146,6 +146,9 @@ final class TerminalAgentCompletionPopup {
             if (dynamic != null && !container.getStylesheets().contains(dynamic)) {
                 container.getStylesheets().add(dynamic);
             }
+            // A raw Popup does not inherit the owner scene's stylesheets the way ContextMenu and
+            // Tooltip do, so the UI font scale has to be applied to the content container itself.
+            UiFontScaleSupport.applyToParent(container);
         } catch (Exception ignored) {
             // best-effort theming
         }
@@ -313,7 +316,7 @@ final class TerminalAgentCompletionPopup {
         if (!clearAllArmed) {
             clearAllArmed = true;
             clearAllButton.setText(I18n.get("ai.agent.completion.clearAll.confirm"));
-            clearAllButton.setStyle("-fx-font-size: 11px; -fx-padding: 1 8 1 8; "
+            clearAllButton.setStyle("-fx-font-size: 0.8462em; -fx-padding: 1 8 1 8; "
                 + "-fx-text-fill: #f87171; -fx-font-weight: bold;");
             return;
         }
@@ -333,7 +336,7 @@ final class TerminalAgentCompletionPopup {
             clearAllArmed = false;
         }
         clearAllButton.setText(I18n.get("ai.agent.completion.clearAll"));
-        clearAllButton.setStyle("-fx-font-size: 11px; -fx-padding: 1 8 1 8;");
+        clearAllButton.setStyle("-fx-font-size: 0.8462em; -fx-padding: 1 8 1 8;");
     }
 
     private void runClose() {
@@ -371,7 +374,7 @@ final class TerminalAgentCompletionPopup {
             deleteButton.getStyleClass().add("ai-agent-completion-delete");
             deleteButton.setFocusTraversable(false);
             deleteButton.setMinWidth(Region.USE_PREF_SIZE);
-            deleteButton.setStyle("-fx-font-size: 10px; -fx-padding: 0 5 0 5; -fx-opacity: 0.7; "
+            deleteButton.setStyle("-fx-font-size: 0.7692em; -fx-padding: 0 5 0 5; -fx-opacity: 0.7; "
                 + "-fx-background-radius: 4;");
             deleteButton.setTooltip(new Tooltip(I18n.get("ai.agent.completion.delete")));
             deleteButton.setOnAction(event -> {

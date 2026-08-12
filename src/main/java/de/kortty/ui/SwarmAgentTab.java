@@ -967,7 +967,7 @@ public class SwarmAgentTab extends Tab {
     // ---- Chat / messages ----------------------------------------------------
 
     private HBox buildChatHeader() {
-        chatStatusLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        chatStatusLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         copyChatButton.setOnAction(e -> copyConversation());
         MenuItem plainItem = new MenuItem(I18n.get("ai.result.export.text"));
         plainItem.setOnAction(e -> exportConversation(AiChatExportService.Format.TEXT));
@@ -1689,7 +1689,7 @@ public class SwarmAgentTab extends Tab {
             setStyle(BASE_STYLE);
             chevron.setStyle("-fx-text-fill: gray;");
             activityLabel.setStyle("-fx-text-fill: gray;");
-            metaLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+            metaLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
             HBox.setHgrow(activityLabel, Priority.ALWAYS);
             activityLabel.setMaxWidth(Double.MAX_VALUE);
             Region spacer = new Region();
@@ -1740,7 +1740,7 @@ public class SwarmAgentTab extends Tab {
                     detailArea.setPrefRowCount(10);
                     detailArea.setMaxHeight(220);
                     detailArea.setPromptText(I18n.get("ai.swarm.detail.empty"));
-                    detailArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 11px;");
+                    detailArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 0.8462em;");
                 }
                 SwarmTranscriptBuffer buffer = transcriptBuffers.get(agentId);
                 setDetail(buffer != null ? buffer.snapshot() : "");
@@ -1827,7 +1827,7 @@ public class SwarmAgentTab extends Tab {
                 default -> "#1565c0";
             };
             badge.setStyle("-fx-text-fill: white; -fx-background-radius: 4; -fx-padding: 1 6 1 6;"
-                + " -fx-font-size: 11px; -fx-background-color: " + color + ";"
+                + " -fx-font-size: 0.8462em; -fx-background-color: " + color + ";"
                 + (showPending ? " -fx-opacity: 0.75;" : ""));
         }
 

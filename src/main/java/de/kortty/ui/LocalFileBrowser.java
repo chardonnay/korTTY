@@ -1623,7 +1623,7 @@ public class LocalFileBrowser extends VBox {
         grid.add(permissionsField, 1, row++);
 
         Label infoLabel = new Label(I18n.get("sftp.setOwner.infoSeparate"));
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         grid.add(infoLabel, 0, row, 2, 1);
 
         dialog.getDialogPane().setContent(grid);

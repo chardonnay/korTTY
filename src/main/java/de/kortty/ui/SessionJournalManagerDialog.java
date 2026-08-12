@@ -165,7 +165,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         Button saveDescriptionButton = new Button(I18n.get("journal.manager.description.save"));
         saveDescriptionButton.disableProperty().bind(selection.isNull());
         saveDescriptionButton.setOnAction(event -> saveDescription());
-        descriptionStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        descriptionStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         selection.addListener((obs, old, meta) -> {
             descriptionArea.setDisable(meta == null);
             descriptionArea.setText(meta != null && meta.getDescription() != null ? meta.getDescription() : "");
@@ -585,7 +585,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         Label chunkingWarning = new Label(I18n.get("journal.options.chunking.warning"));
         chunkingWarning.setWrapText(true);
         chunkingWarning.setMaxWidth(420);
-        chunkingWarning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 11px;");
+        chunkingWarning.setStyle("-fx-text-fill: #d29922; -fx-font-size: 0.8462em;");
 
         CheckBox aiTitleCheck = new CheckBox(I18n.get("journal.options.aiTitle"));
         aiTitleCheck.setSelected(settings.isSessionJournalAiTitleEnabled());
@@ -620,7 +620,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         }
 
         Label managedHint = new Label(I18n.get("journal.options.managed"));
-        managedHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        managedHint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         managedHint.setWrapText(true);
         boolean anyManaged = false;
         if (journalPolicy.logFormat() != null) {

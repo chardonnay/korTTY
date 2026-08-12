@@ -67,7 +67,7 @@ public class AiAgentRunTab extends Tab {
         transcriptArea = new TextArea();
         transcriptArea.setEditable(false);
         transcriptArea.setWrapText(true);
-        transcriptArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 12px;");
+        transcriptArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 0.9231em;");
 
         Button copyButton = new Button(I18n.get("ai.agent.run.copy"));
         copyButton.setOnAction(event -> {

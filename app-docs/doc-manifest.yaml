@@ -107,12 +107,12 @@ pages:
     last_synced_ref: "093cbbf4"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/ui/UiFontScaleSupport.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:
       - settings/appearance.png
       - settings/themes.png
       - settings/font.png
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "c05be115"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]

@@ -112,7 +112,10 @@ final class ThemeCssSupport {
             ".label { -fx-text-fill: " + fg + "; }",
             ".menu-bar { -fx-background-color: " + bgAlt + "; -fx-padding: 2 8 2 8; }",
             ".menu-bar .menu { -fx-padding: 5 9 5 9; }",
-            ".menu-bar .menu .label { -fx-text-fill: " + fg + "; -fx-font-size: 13px; }",
+            // Colour only. A font size here would be specific enough to beat the UI font scale's
+            // base rule and pin the menu bar — the one piece of chrome users most often call too
+            // small. The size lives in terminal.css (.menu-bar .menu .label) as a relative value.
+            ".menu-bar .menu .label { -fx-text-fill: " + fg + "; }",
             ".menu-bar .menu:hover, .menu-bar .menu:showing { -fx-background-color: " + bgHover + "; }",
             ".context-menu { -fx-background-color: " + bgAlt + "; -fx-padding: 5; }",
             ".menu-item { -fx-background-color: transparent; }",

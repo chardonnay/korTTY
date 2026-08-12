@@ -161,7 +161,7 @@ public class SSHKeyManagementDialog extends ThemeAwareDialog<Boolean> {
         
         Label infoLabel = new Label(I18n.get("ssh.info"));
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         content.getChildren().addAll(searchBox, listLabel, keyListView, buttonBox, infoLabel);
         VBox.setVgrow(keyListView, Priority.ALWAYS);

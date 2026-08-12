@@ -188,7 +188,7 @@ public final class SessionJournalMarkerDialog {
 
         Label hint = new Label(I18n.get("journal.marker.snapshotHint"));
         hint.setWrapText(true);
-        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         VBox box = new VBox(8, new Label(I18n.get("journal.marker.definitions")), table,
             new HBox(8, add, duplicate, remove), hint);
@@ -346,7 +346,7 @@ public final class SessionJournalMarkerDialog {
 
         HBox buttons = new HBox(8, add, remove, up, down);
         rulesEnabled.setSelected(settings.isSessionJournalMarkerRulesEnabled());
-        applyStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        applyStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         VBox box = new VBox(8, new Label(I18n.get("journal.marker.rules")), rulesEnabled, table, buttons);
         if (applyNow != null) {
@@ -363,7 +363,7 @@ public final class SessionJournalMarkerDialog {
         }
         Label priorityHint = new Label(I18n.get("journal.marker.rules.priorityHint"));
         priorityHint.setWrapText(true);
-        priorityHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        priorityHint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         box.getChildren().add(priorityHint);
         box.setPadding(new Insets(8));
         VBox.setVgrow(table, Priority.ALWAYS);

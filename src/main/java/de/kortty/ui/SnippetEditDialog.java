@@ -229,10 +229,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         + " -fx-border-color: transparent;"
         + " -fx-border-radius: 8;";
     private static final String SNIPPET_AI_HINT_TEXT_STYLE =
-        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f4f8ff;";
+        "-fx-font-size: 1.0769em; -fx-font-weight: bold; -fx-text-fill: #f4f8ff;";
     private static final String METADATA_HINT_TEXT_STYLE =
-        "-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #d7dde8;";
-    private static final String STATUS_LABEL_STYLE = "-fx-font-size: 13px;"
+        "-fx-font-size: 0.9231em; -fx-font-weight: bold; -fx-text-fill: #d7dde8;";
+    private static final String STATUS_LABEL_STYLE = "-fx-font-size: 1em;"
         + " -fx-font-weight: bold;"
         + " -fx-text-fill: #d7dde8;"
         + " -fx-background-color: rgba(255,255,255,0.06);"
@@ -914,7 +914,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         // Placeholder info label
         Label placeholderInfo = new Label(I18n.get("snippets.placeholderInfo"));
-        placeholderInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
+        placeholderInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         placeholderInfo.setWrapText(true);
         
         // Layout
@@ -980,7 +980,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         // History slider UI
         historyLabel = new Label(I18n.get("snippets.history.label"));
-        historyLabel.setStyle("-fx-font-size: 11px; -fx-padding: 2 4 2 4;");
+        historyLabel.setStyle("-fx-font-size: 0.8462em; -fx-padding: 2 4 2 4;");
         historySlider = new Slider(0, 1, 0);
         historySlider.setDisable(true);
         historySlider.setPrefWidth(180);
@@ -3569,6 +3569,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         popupContent.setStyle("-fx-background-color: rgba(30,30,30,0.95); -fx-border-color: rgba(128,128,128,0.55); -fx-border-radius: 6; -fx-background-radius: 6;");
         popupContent.setOnMouseClicked(event -> insertPendingCompletion());
         completionPopup = new Popup();
+        // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
+        // be applied to its content root directly.
+        UiFontScaleSupport.applyToParent(popupContent);
         completionPopup.getContent().add(popupContent);
         completionPopup.setAutoHide(true);
         Bounds caretBounds = contentArea.getCaretBounds()
@@ -5208,7 +5211,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Label customLanguageHint = new Label(I18n.get("snippets.ai.translate.dialog.customHint"));
         customLanguageHint.setWrapText(true);
         customLanguageHint.setMaxWidth(320);
-        customLanguageHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888888;");
+        customLanguageHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         VBox content = new VBox(10,
             new Label(I18n.get("snippets.ai.translate.dialog.prompt")),
             comboBox,

@@ -188,6 +188,10 @@ public final class GuideViewer {
         } else {
             logger.warn("Guide stylesheet /styles/guide-ask.css not found on classpath");
         }
+        // This window builds its own Scene and never goes through AppDesignStyleSupport, so the UI
+        // font scale has to be applied here. Only the surrounding chrome is affected — the guide
+        // itself renders in a WebView, which JavaFX CSS does not reach.
+        UiFontScaleSupport.applyToScene(scene);
     }
 
     /** True when the AI docs search may be offered: AI features are enabled in the settings. */

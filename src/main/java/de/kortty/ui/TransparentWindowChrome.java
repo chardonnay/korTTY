@@ -53,7 +53,7 @@ final class TransparentWindowChrome {
         titleLabel.getStyleClass().add("transparent-window-title");
         titleLabel.setMaxWidth(Double.MAX_VALUE);
         // Explicit light text so the title stays readable on the dark opaque strip regardless of theme.
-        titleLabel.setStyle("-fx-text-fill: #dddddd; -fx-font-size: 12;");
+        titleLabel.setStyle("-fx-text-fill: #dddddd; -fx-font-size: 0.9231em;");
 
         HBox buttons = buildWindowButtons(stage, onCloseRequest, toggleMax);
 
@@ -112,7 +112,7 @@ final class TransparentWindowChrome {
     private static Label glyphButton(String glyph, Runnable action) {
         Label label = new Label(glyph);
         label.getStyleClass().add("transparent-window-button");
-        label.setStyle("-fx-text-fill: #dddddd; -fx-padding: 2 8 2 8; -fx-font-size: 13;");
+        label.setStyle("-fx-text-fill: #dddddd; -fx-padding: 2 8 2 8; -fx-font-size: 1em;");
         label.setCursor(Cursor.HAND);
         label.setOnMouseClicked(e -> {
             e.consume();

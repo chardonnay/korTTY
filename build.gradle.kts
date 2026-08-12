@@ -2524,6 +2524,15 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("uiFontScaleSmoke") {
+    group = "verification"
+    description = "Measures the computed font of a menu title, a label and a context-menu item " +
+        "at 100% and 160% to prove the UI font scale reaches rendered text."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.UiFontScaleSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("settingsTabScreenshotStage") {
     group = "documentation"
     description = "Shows a chosen Settings tab on screen for the docs screenshot capture " +

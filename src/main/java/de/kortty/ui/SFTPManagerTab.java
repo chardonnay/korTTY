@@ -232,7 +232,7 @@ public class SFTPManagerTab extends Tab {
         statusBox.setAlignment(Pos.CENTER_LEFT);
         
         statusLabel = new Label(I18n.get("sftp.connecting"));
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         // Progress bar for archive/copy operations (initially hidden)
         statusProgressBar = new ProgressBar(0);
@@ -244,7 +244,7 @@ public class SFTPManagerTab extends Tab {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
         timeoutLabel = new Label("");
-        timeoutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        timeoutLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         statusBox.getChildren().addAll(statusLabel, statusProgressBar, spacer, timeoutLabel);
         
@@ -1583,7 +1583,7 @@ public class SFTPManagerTab extends Tab {
         
         // Info
         Label info = new Label(I18n.get("sftp.setOwner.infoSeparate"));
-        info.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        info.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         info.setWrapText(true);
         info.setMaxWidth(300);
         grid.add(info, 0, row++, 2, 1);
@@ -1995,12 +1995,12 @@ public class SFTPManagerTab extends Tab {
         grid.add(progressBar, 0, row++, 2, 1);
         
         Label timeLabel = new Label();
-        timeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        timeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         timeLabel.setVisible(false);
         grid.add(timeLabel, 0, row++, 2, 1);
         
         Label sizeLabel = new Label(I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize)));
-        sizeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        sizeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         grid.add(sizeLabel, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
@@ -2507,7 +2507,7 @@ public class SFTPManagerTab extends Tab {
         
         // Info label
         Label infoLabel = new Label(I18n.get("sftp.setOwner.infoSeparate"));
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         grid.add(infoLabel, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
@@ -2887,12 +2887,12 @@ public class SFTPManagerTab extends Tab {
         grid.add(progressBar, 0, row++, 2, 1);
         
         Label timeLabel = new Label();
-        timeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        timeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         timeLabel.setVisible(false);
         grid.add(timeLabel, 0, row++, 2, 1);
         
         Label sizeLabel = new Label(I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize)));
-        sizeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        sizeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         grid.add(sizeLabel, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);

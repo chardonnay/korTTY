@@ -42,7 +42,7 @@ public class ProjectPreviewDialog extends ThemeAwareDialog<ProjectPreviewDialog.
         
         // Project details
         Label nameLabel = new Label(I18n.get("project.name") + ": " + project.getName());
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         
         String description = project.getDescription() != null ? project.getDescription() : I18n.get("project.noDescription");
         Label descLabel = new Label(I18n.get("common.description") + ": " + description);
@@ -115,7 +115,7 @@ public class ProjectPreviewDialog extends ThemeAwareDialog<ProjectPreviewDialog.
         autoReconnectCheck.setSelected(project.isAutoReconnect());
         
         Label infoLabel = new Label(I18n.get("project.autoReconnectInfo"));
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
         content.getChildren().addAll(

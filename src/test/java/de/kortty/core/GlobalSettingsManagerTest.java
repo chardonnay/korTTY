@@ -1153,6 +1153,71 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void uiFontScalePercentDefaultsToOneHundredAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ui-font-scale");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getUiFontScalePercent()).isEqualTo(100);
+
+            manager.getSettings().setUiFontScalePercent(130);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getUiFontScalePercent()).isEqualTo(130);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    /**
+     * The spinner bounds the value in the UI, but a hand-edited settings file does not go through
+     * it — and an unusably small or huge UI would leave the user no way back into Settings.
+     */
+    @Test
+    void uiFontScalePercentIsClampedToTheSupportedRange() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ui-font-scale-clamp");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+
+            manager.getSettings().setUiFontScalePercent(5000);
+            assertThat(manager.getSettings().getUiFontScalePercent()).isEqualTo(160);
+
+            manager.getSettings().setUiFontScalePercent(5);
+            assertThat(manager.getSettings().getUiFontScalePercent()).isEqualTo(80);
+
+            // A settings file written before this setting existed deserializes the field to null.
+            manager.getSettings().setUiFontScalePercent(null);
+            assertThat(manager.getSettings().getUiFontScalePercent()).isEqualTo(100);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void uiFontScaleAutoDefaultsFalseAndPersists() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ui-font-scale-auto");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().isUiFontScaleAuto()).isFalse();
+
+            manager.getSettings().setUiFontScaleAuto(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().isUiFontScaleAuto()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void defaultTerminalSettingsPersistTerminalColorsEnabled() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-terminal-colors");
         try {

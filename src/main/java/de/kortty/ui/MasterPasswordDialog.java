@@ -124,7 +124,7 @@ public class MasterPasswordDialog {
         root.setAlignment(Pos.CENTER);
         
         Label titleLabel = new Label(I18n.get("masterPassword.enter"));
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
         styleFieldLabel(titleLabel);
         
         PasswordField passwordField = new PasswordField();
@@ -229,7 +229,7 @@ public class MasterPasswordDialog {
 
         shell.setOpacity(0);
         Scene scene = new Scene(shell, ELEGANT_LOGIN_DIALOG_WIDTH, ELEGANT_LOGIN_DIALOG_HEIGHT);
-        AppDesignStyleSupport.applyToScene(scene);
+        applyThemeAtFixedFontScale(scene);
         dialog.setScene(scene);
         dialog.setMinWidth(ELEGANT_LOGIN_DIALOG_WIDTH);
         dialog.setMinHeight(ELEGANT_LOGIN_DIALOG_HEIGHT);
@@ -432,7 +432,7 @@ public class MasterPasswordDialog {
         Text star = new Text("*");
         star.setMouseTransparent(true);
         star.setFill(getPasswordStarColor());
-        star.setStyle("-fx-font-family: Monospaced; -fx-font-size: 19px; -fx-font-weight: bold;");
+        star.setStyle("-fx-font-family: Monospaced; -fx-font-size: 1.4615em; -fx-font-weight: bold;");
         return star;
     }
 
@@ -609,7 +609,7 @@ public class MasterPasswordDialog {
         root.setAlignment(Pos.CENTER);
         
         Label titleLabel = new Label(I18n.get("masterPassword.setup"));
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
         styleFieldLabel(titleLabel);
         
         Label infoLabel = new Label(I18n.get("masterPassword.setup.info"));
@@ -714,7 +714,7 @@ public class MasterPasswordDialog {
         telemetryDetailsLabel.setWrapText(true);
         telemetryDetailsLabel.getStyleClass().add("field-label");
         if (!isCustomAppDesign()) {
-            telemetryDetailsLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 11px;");
+            telemetryDetailsLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 0.8462em;");
         }
         HBox telemetryConsentRow = new HBox(8, telemetryConsentCheck, telemetryInfoButton);
         telemetryConsentRow.setAlignment(Pos.CENTER_LEFT);
@@ -815,7 +815,7 @@ public class MasterPasswordDialog {
         Scene scene = loginScene
             ? createLoginSceneWithTopLeftVersion(brandedRoot, width, height)
             : new Scene(brandedRoot, width, height);
-        AppDesignStyleSupport.applyToScene(scene);
+        applyThemeAtFixedFontScale(scene);
         return scene;
     }
 
@@ -865,8 +865,27 @@ public class MasterPasswordDialog {
         shell.setClip(new Rectangle(width, height));
 
         Scene scene = new Scene(shell, width, height);
-        AppDesignStyleSupport.applyToScene(scene);
+        applyThemeAtFixedFontScale(scene);
         return scene;
+    }
+
+    /**
+     * Themes a master-password scene but pins its font at 100%, opting out of the global UI font
+     * scale.
+     *
+     * <p>This window's geometry is frozen in two ways that larger text would break: the scene
+     * layout is picked by comparing the requested size against {@code LOGIN_DIALOG_WIDTH}/
+     * {@code HEIGHT} exactly, and the full-bleed shell is hard-clipped to those bounds, so overflow
+     * is cropped rather than merely tight. Scaling it needs the size constants, the dispatch and the
+     * clip to move together — a change of its own, not a side effect of this setting.</p>
+     */
+    private static void applyThemeAtFixedFontScale(Scene scene) {
+        if (scene != null && scene.getRoot() != null
+            && !scene.getRoot().getStyleClass().contains(UiFontScaleSupport.FIXED_SCALE_STYLE_CLASS)) {
+            // Must be set before the styler runs — that is when the scale is resolved.
+            scene.getRoot().getStyleClass().add(UiFontScaleSupport.FIXED_SCALE_STYLE_CLASS);
+        }
+        AppDesignStyleSupport.applyToScene(scene);
     }
 
     private Scene createLoginSceneWithTopLeftVersion(Node content, double width, double height) {
@@ -902,7 +921,7 @@ public class MasterPasswordDialog {
 
         shell.getChildren().addAll(accentBar, header, body, footer);
         Scene scene = new Scene(shell, width, height);
-        AppDesignStyleSupport.applyToScene(scene);
+        applyThemeAtFixedFontScale(scene);
         return scene;
     }
 
@@ -1178,11 +1197,11 @@ public class MasterPasswordDialog {
         versionLabel.setMouseTransparent(true);
         versionLabel.setAlignment(Pos.CENTER_LEFT);
         if (isElegantDarkDesign()) {
-            versionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #8b9099;");
+            versionLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #8b9099;");
         } else if (isKlingonTacticalDesign()) {
-            versionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: rgba(204,68,85,0.72);");
+            versionLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: rgba(204,68,85,0.72);");
         } else if (!isCustomAppDesign()) {
-            versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #d8e3f0;");
+            versionLabel.setStyle("-fx-font-size: 0.9231em; -fx-text-fill: #d8e3f0;");
         }
         return versionLabel;
     }
@@ -1191,9 +1210,9 @@ public class MasterPasswordDialog {
         Label versionLabel = new Label(I18n.get("app.version") + " " + KorTTYApplication.getAppVersion());
         versionLabel.getStyleClass().add("version-label");
         if (isCustomAppDesign()) {
-            versionLabel.setStyle("-fx-font-size: 12px;");
+            versionLabel.setStyle("-fx-font-size: 0.9231em;");
         } else {
-            versionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #d8e3f0;");
+            versionLabel.setStyle("-fx-font-size: 0.9231em; -fx-text-fill: #d8e3f0;");
         }
         return versionLabel;
     }

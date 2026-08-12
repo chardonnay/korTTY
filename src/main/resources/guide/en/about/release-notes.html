@@ -2199,6 +2199,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2358,6 +2369,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippet-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2419,6 +2441,10 @@
 <li><strong>Screenshots can be <a href="../features/session-journal.html#screenshot-notes-and-annotations">annotated</a></strong> — pen, box, an "Unreadable" tool that coarsens a region into blocks, and text labels, plus a note field, reachable by right-clicking a screenshot. Marks are stored as data and stay re-editable; the untouched capture is kept locally as <code>.orig.png</code> and is never included in an export. This obscures a value in the rendered page, it does not redact it — use Search &amp; replace or a policy redaction rule to remove something from a journal for good.</li>
 <li><strong>Selecting a time range got easier</strong> — inside korTTY the viewer's timeline can be switched into range-selection mode: click a first and a last entry to highlight the span between them and hand it straight to the export dialog, or collect several windows before exporting. The same selection is available from the edit-mode entry table via right-click.</li>
 <li><strong>You can edit a journal title directly on its page</strong>, and a header button jumps from one marked entry to the next.</li>
+</ul>
+<h3 id="appearance">Appearance<a class="headerlink" href="#appearance" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The interface font size can now be set, and optionally follows the display</strong> — a high-resolution monitor left korTTY's own text, the menu bar most of all, uncomfortably small, because every size in the interface was fixed in pixels. <a href="../reference/settings/appearance.html#ui-font-size">UI font size</a> on the Appearance tab now scales the whole interface between 80 % and 160 %: the menu bar and its dropdowns, dialogs, labels, buttons, tab titles, the dashboard, the file browser and the status bar. It applies the moment you save, to windows that are already open as well as new ones, and the main window's first-launch size and any remembered dialog sizes are re-measured to match. <strong>Match display resolution</strong> derives the value from the primary display's logical resolution instead, which leaves a Retina panel at 100 % — macOS has already scaled it — and raises a 4K display running at 100 % operating-system scaling to 125 %. Surfaces that already have their own size control are deliberately left alone, so nothing gains two competing settings: terminal sessions keep the Font tab and the zoom shortcuts, the editor keeps the Editor tab, and the AI chat, plan and activity panels keep their <code>A-</code> / <code>A+</code> buttons. Two parts stay fixed at every setting: the macOS application menu, which the operating system draws, and the AI swarm status strip, whose labels are painted onto a canvas alongside hand-computed positions.</li>
 </ul>
 <h3 id="snippet-editor">Snippet editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h3>
 <ul>

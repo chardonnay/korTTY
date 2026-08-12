@@ -18,6 +18,13 @@ public class GlobalSettings {
     public static final int DEFAULT_UPDATE_CHECK_INTERVAL_DAYS = 1;
     public static final int MIN_UPDATE_CHECK_INTERVAL_DAYS = 1;
     public static final int MAX_UPDATE_CHECK_INTERVAL_DAYS = 30;
+    /**
+     * UI font scale bounds. The upper bound is deliberately conservative: several dialogs size
+     * themselves from hard-coded pixel widths, so text starts to crowd well before 200%.
+     */
+    public static final int UI_FONT_SCALE_DEFAULT_PERCENT = 100;
+    public static final int MIN_UI_FONT_SCALE_PERCENT = 80;
+    public static final int MAX_UI_FONT_SCALE_PERCENT = 160;
 
     @XmlElement
     private String logDirectoryPath; // Blank/null = ~/.kortty/logs
@@ -247,6 +254,24 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean appDesignAnimationsEnabled = true; // Subtle design animations (glow pulse / blink); doubles as reduce-motion switch
+
+    /**
+     * UI chrome font size in percent (menus, dialogs, labels). Boxed so a settings file written
+     * before this setting existed deserializes to null and falls back to the default.
+     */
+    @XmlElement
+    private Integer uiFontScalePercent = UI_FONT_SCALE_DEFAULT_PERCENT;
+
+    @XmlElement
+    private boolean uiFontScaleAuto = false; // Derive the UI font size from the display resolution
+
+    /**
+     * The UI font scale that was in effect when dialog geometry was last stored. Remembered sizes
+     * were measured against that scale, so a different one makes them the wrong size and they are
+     * discarded in favour of a fresh layout. Null means "recorded before this was tracked".
+     */
+    @XmlElement
+    private Integer uiFontScalePercentAtGeometrySave;
 
     @XmlElement
     private boolean requireMasterPasswordOnStartup = true; // Require master password on startup
@@ -1530,6 +1555,42 @@ public class GlobalSettings {
 
     public void setAppDesignAnimationsEnabled(boolean appDesignAnimationsEnabled) {
         this.appDesignAnimationsEnabled = appDesignAnimationsEnabled;
+    }
+
+    /** @return the UI chrome font size in percent, clamped to the supported range (100 = built-in size). */
+    public int getUiFontScalePercent() {
+        return uiFontScalePercent != null
+            ? clampUiFontScalePercent(uiFontScalePercent)
+            : UI_FONT_SCALE_DEFAULT_PERCENT;
+    }
+
+    public void setUiFontScalePercent(Integer uiFontScalePercent) {
+        this.uiFontScalePercent = uiFontScalePercent != null
+            ? clampUiFontScalePercent(uiFontScalePercent)
+            : UI_FONT_SCALE_DEFAULT_PERCENT;
+    }
+
+    /** Clamps a UI font scale to the supported range. */
+    public static int clampUiFontScalePercent(int percent) {
+        return Math.max(MIN_UI_FONT_SCALE_PERCENT, Math.min(MAX_UI_FONT_SCALE_PERCENT, percent));
+    }
+
+    /** @return whether the UI font size follows the display resolution instead of the stored percent. */
+    public boolean isUiFontScaleAuto() {
+        return uiFontScaleAuto;
+    }
+
+    public void setUiFontScaleAuto(boolean uiFontScaleAuto) {
+        this.uiFontScaleAuto = uiFontScaleAuto;
+    }
+
+    /** @return the UI font scale stored dialog sizes were measured at, or null if never recorded. */
+    public Integer getUiFontScalePercentAtGeometrySave() {
+        return uiFontScalePercentAtGeometrySave;
+    }
+
+    public void setUiFontScalePercentAtGeometrySave(Integer uiFontScalePercentAtGeometrySave) {
+        this.uiFontScalePercentAtGeometrySave = uiFontScalePercentAtGeometrySave;
     }
 
     public boolean isRequireMasterPasswordOnStartup() {

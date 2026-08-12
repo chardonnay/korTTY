@@ -158,7 +158,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
 
         Label infoLabel = new Label(I18n.get("snippets.ai.analysis.info"));
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.9231em; -fx-text-fill: gray;");
 
         findingsView.setContextMenuEnabled(false);
         findingsView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {

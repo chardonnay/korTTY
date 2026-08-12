@@ -35,13 +35,13 @@
 .field-label {
     -fx-font-family: "Monospaced";
     -fx-text-fill: #9c6a12;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-font-weight: bold;
 }
 
 .version-label {
     -fx-font-family: "Monospaced";
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-text-fill: #9c6a12;
 }
 
@@ -196,7 +196,7 @@
     -fx-border-width: 1;
     -fx-border-radius: 0;
     -fx-background-radius: 0;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
     -fx-padding: 6 12 6 12;
 }
 

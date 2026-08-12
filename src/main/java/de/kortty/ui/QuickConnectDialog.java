@@ -171,7 +171,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // header, tab strip, buttons — adds ~350px on top). The form is taller than this even fully
         // collapsed, so there is never dead space and the scroll bar engages whenever needed. The
         // dialog stays resizable; enlarging the window grows the viewport (VGROW below).
-        viewportHeightCap = Math.min(Screen.getPrimary().getVisualBounds().getHeight() * 0.55, 620);
+        // The 0.55 share is already screen-relative; only the fixed 620 cap needs to follow the UI
+        // font scale, so a larger form does not simply scroll sooner in the same small viewport.
+        viewportHeightCap = Math.min(Screen.getPrimary().getVisualBounds().getHeight() * 0.55,
+            UiFontScaleSupport.scaleDimension(620, false));
         contentScroll.setPrefViewportHeight(viewportHeightCap);
         individualTab.setContent(contentScroll);
 
@@ -864,7 +867,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         logGrid.add(quickLogFormatCombo, 1, lrow++);
         logGrid.add(quickLogCompressCheck, 1, lrow++);
         Label quickLogHint = new Label(I18n.get("quickConnect.log.hint"));
-        quickLogHint.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        quickLogHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         quickLogHint.setWrapText(true);
         logGrid.add(quickLogHint, 0, lrow++, 2, 1);
 

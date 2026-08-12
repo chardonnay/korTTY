@@ -138,7 +138,7 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
         HBox storeActions = storeActions();
         HBox sourceActions = sourceActions();
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         VBox storeBox = new VBox(6, sectionTitle(I18n.get("ai.rag.stores")), storeTable, storeActions);
         VBox sourceBox = new VBox(6, sectionTitle(I18n.get("ai.rag.sources")), sourceTable, sourceActions);
         VBox.setVgrow(storeTable, Priority.ALWAYS);
@@ -896,7 +896,7 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
     }
 
     private static Label sectionTitle(String text) {
-        Label label = new Label(text); label.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;"); return label;
+        Label label = new Label(text); label.setStyle("-fx-font-weight: bold; -fx-font-size: 1em;"); return label;
     }
 
     private static <T> TableColumn<T, String> column(String title, java.util.function.Function<T, String> value) {

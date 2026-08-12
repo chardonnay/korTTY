@@ -68,7 +68,7 @@ final class AiSkillPickerControl extends HBox {
         modeBadge.setText(I18n.get(userEdited
             ? "snippets.ai.analysis.skills.manual"
             : "snippets.ai.analysis.skills.auto"));
-        modeBadge.setStyle("-fx-opacity: 0.7; -fx-font-size: 11px;");
+        modeBadge.setStyle("-fx-opacity: 0.7; -fx-font-size: 0.8462em;");
     }
 
     private void refreshChips() {
@@ -89,7 +89,7 @@ final class AiSkillPickerControl extends HBox {
     private Label makeChip(String text, String tooltip) {
         Label chip = new Label(text);
         chip.setStyle("-fx-background-color: rgba(59,130,246,0.18); -fx-background-radius: 999;"
-            + " -fx-padding: 2 9 2 9; -fx-font-size: 11px;");
+            + " -fx-padding: 2 9 2 9; -fx-font-size: 0.8462em;");
         if (tooltip != null && !tooltip.isBlank()) {
             chip.setTooltip(new Tooltip(tooltip));
         }

@@ -57,7 +57,7 @@ public class SaveAiChatDialog extends ThemeAwareDialog<String> {
 
         statusLabel = new Label();
         statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         VBox content = new VBox(10, new Label(I18n.get("ai.result.save.label")), titleField, statusLabel);
         content.setPadding(new Insets(6, 0, 0, 0));

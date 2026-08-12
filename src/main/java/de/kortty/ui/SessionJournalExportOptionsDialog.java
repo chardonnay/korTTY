@@ -210,9 +210,9 @@ public final class SessionJournalExportOptionsDialog {
                 content.getChildren().add(titled("journal.export.archive.password", buildPasswordSection()));
             }
 
-            previewLabel.setStyle("-fx-font-size: 11px;");
+            previewLabel.setStyle("-fx-font-size: 0.8462em;");
             bundleHint.setWrapText(true);
-            bundleHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+            bundleHint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
             if (request.format() == SessionJournalExportService.Format.HTML_BUNDLE) {
                 bundleHint.setText(I18n.get("journal.export.filter.bundleHint"));
             }
@@ -263,7 +263,7 @@ public final class SessionJournalExportOptionsDialog {
             toleranceRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
             windowHint.setWrapText(true);
-            windowHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+            windowHint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
             windowHint.setManaged(false);
             windowHint.setVisible(false);
 
@@ -308,7 +308,7 @@ public final class SessionJournalExportOptionsDialog {
         }
 
         private VBox buildPasswordSection() {
-            mismatch.setStyle("-fx-text-fill: #cf222e; -fx-font-size: 11px;");
+            mismatch.setStyle("-fx-text-fill: #cf222e; -fx-font-size: 0.8462em;");
             mismatch.setVisible(false);
             passwordField.disableProperty().bind(protectCheck.selectedProperty().not());
             repeatField.disableProperty().bind(protectCheck.selectedProperty().not());
@@ -504,7 +504,7 @@ public final class SessionJournalExportOptionsDialog {
             }
             if (filter.hasTopicFilter() && filter.topicAi()) {
                 // A text count would be misleading here: the model decides during the export.
-                previewLabel.setStyle("-fx-font-size: 11px;");
+                previewLabel.setStyle("-fx-font-size: 0.8462em;");
                 previewLabel.setText(I18n.get("journal.export.filter.preview.ai"));
                 return false;
             }
@@ -517,8 +517,8 @@ public final class SessionJournalExportOptionsDialog {
             }
             boolean empty = filter.isActive() && kept == 0;
             previewLabel.setStyle(empty
-                ? "-fx-font-size: 11px; -fx-text-fill: #cf222e;"
-                : "-fx-font-size: 11px;");
+                ? "-fx-font-size: 0.8462em; -fx-text-fill: #cf222e;"
+                : "-fx-font-size: 0.8462em;");
             previewLabel.setText(loaded.size() > 1
                 ? I18n.get("journal.export.filter.preview.multi", kept, total, loaded.size())
                 : I18n.get("journal.export.filter.preview", kept, total));

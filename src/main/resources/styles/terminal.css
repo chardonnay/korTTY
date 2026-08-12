@@ -120,7 +120,7 @@
 
 .menu-bar .menu .label {
     -fx-text-fill: #cccccc;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
 }
 
 .menu-bar .menu:hover,
@@ -228,7 +228,7 @@
 
 .ai-agent-activity-title {
     -fx-text-fill: #e8f3f2;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
     -fx-font-weight: bold;
 }
 
@@ -271,13 +271,13 @@
 
 .ai-agent-header-busy-label {
     -fx-text-fill: #b8ded6;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: bold;
 }
 
 .ai-agent-activity-meta {
     -fx-text-fill: #8fb0b4;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-agent-control-row {
@@ -311,12 +311,12 @@
 
 .ai-agent-activity-text {
     -fx-text-fill: #b8ced0;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
 }
 
 .ai-agent-detail {
     -fx-text-fill: #78999f;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-agent-dot {
@@ -345,7 +345,7 @@
 
 .ai-agent-spinner {
     -fx-text-fill: #e36a4d;
-    -fx-font-size: 17px;
+    -fx-font-size: 1.3077em;
     -fx-font-weight: bold;
 }
 
@@ -376,12 +376,12 @@
 .ai-wizard-card .ai-wizard-card-title {
     -fx-font-weight: bold;
     -fx-text-fill: #e6e6e6;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
 }
 
 .ai-wizard-card .ai-wizard-card-desc {
     -fx-text-fill: #a8b0ba;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-wizard-flow-chip {
@@ -389,12 +389,12 @@
     -fx-background-radius: 10;
     -fx-padding: 3 9 3 9;
     -fx-text-fill: #cfd6df;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .ai-wizard-flow-arrow {
     -fx-text-fill: #6b7682;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-agent-toggle-button {
@@ -404,7 +404,7 @@
     -fx-background-radius: 2;
     -fx-padding: 0 5 0 5;
     -fx-text-fill: #91b4b9;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .ai-agent-toggle-button:hover {
@@ -418,7 +418,7 @@
     -fx-background-radius: 2;
     -fx-padding: 0 6 0 6;
     -fx-text-fill: #91b4b9;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .ai-agent-font-button:hover {
@@ -436,7 +436,7 @@
     -fx-border-radius: 2;
     -fx-background-radius: 2;
     -fx-padding: 0 2 0 2;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .ai-agent-export-format .list-cell {
@@ -482,7 +482,7 @@
 
 .ai-agent-option-check {
     -fx-text-fill: #91b4b9;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .ai-agent-option-check .box {
@@ -503,7 +503,7 @@
     -fx-border-radius: 2;
     -fx-padding: 0 6 0 6;
     -fx-text-fill: #91b4b9;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-agent-close-button:hover {
@@ -525,7 +525,7 @@
 
 .ai-agent-prompt-label {
     -fx-text-fill: #e8f3f2;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
 }
 
 .ai-agent-command-preview {
@@ -538,7 +538,7 @@
 
 .ai-agent-command-line {
     -fx-text-fill: #d7e7e8;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .ai-agent-password-field {
@@ -559,14 +559,14 @@
 .terminal-agent-busy-robot {
     -fx-text-fill: #18c26e;
     -fx-font-family: "Noto Sans Mono", "Monospaced";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: bold;
 }
 
 .terminal-agent-busy-text {
     -fx-text-fill: #e8f3f2;
     -fx-font-family: "Noto Sans Mono", "Monospaced";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: bold;
 }
 
@@ -625,7 +625,7 @@
 
 .dashboard-title-label {
     -fx-text-fill: -kortty-dash-fg;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
     -fx-font-weight: bold;
 }
 
@@ -659,13 +659,13 @@
 
 .dashboard-empty-label {
     -fx-text-fill: -kortty-dash-dim;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-text-alignment: center;
 }
 
 .dashboard-footer {
     -fx-text-fill: -kortty-dash-dim;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-padding: 5 12 5 12;
     -fx-border-color: -kortty-dash-border transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
@@ -731,12 +731,12 @@
 
 .dashboard-node-count {
     -fx-text-fill: -kortty-dash-dim;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 .dashboard-protocol-badge {
     -fx-text-fill: -kortty-dash-dim;
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-border-color: -kortty-dash-border;
     -fx-border-radius: 3;
     -fx-padding: 0 4 0 4;
@@ -759,7 +759,7 @@
 }
 
 .dashboard-agent-badge {
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 /* Context-menu icons live in a popup outside the dashboard's scene-graph
@@ -966,12 +966,12 @@
 .settings-section-nav-button {
     -fx-min-width: 32;
     -fx-padding: 3 12 3 12;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
 }
 
 .settings-section-nav-label {
     -fx-text-fill: #aaaaaa;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 /* Titled panes = collapsible sections (e.g. Quick Connect's optional settings).

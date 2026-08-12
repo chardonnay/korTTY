@@ -406,7 +406,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
             ? summary
             : I18n.get("snippets.ai.diff.summary.empty"));
         summaryLabel.setWrapText(true);
-        summaryLabel.setStyle("-fx-font-size: 12.5px;");
+        summaryLabel.setStyle("-fx-font-size: 0.9615em;");
         HBox.setHgrow(summaryLabel, Priority.ALWAYS);
 
         HBox banner = new HBox(10, accentBar, summaryLabel);

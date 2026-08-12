@@ -203,7 +203,7 @@ public class TerminalTab extends Tab {
     private void createStatusBar() {
         // Always show status bar so transient network interruption details are visible.
         statusBarLabel = new Label();
-        statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+        statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 0.8462em;");
         // Fill the row so its opaque background covers the full width. Otherwise, in the see-through
         // window mode, the transparent area to the right of the label would reveal the desktop.
         statusBarLabel.setMaxWidth(Double.MAX_VALUE);
@@ -218,7 +218,7 @@ public class TerminalTab extends Tab {
      */
     private void createDisconnectedStatusBar() {
         disconnectedStatusBar = new Label();
-        disconnectedStatusBar.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 6 10; -fx-font-size: 12px; -fx-cursor: hand;");
+        disconnectedStatusBar.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 6 10; -fx-font-size: 0.9231em; -fx-cursor: hand;");
         disconnectedStatusBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
         disconnectedStatusBar.setVisible(false);
         disconnectedStatusBar.setManaged(false);
@@ -235,7 +235,7 @@ public class TerminalTab extends Tab {
         recordingToggleButton.setGraphicTextGap(6);
         recordingToggleButton.setOnAction(event -> toggleRecordingFromUser());
         recordingStatusLabel = new Label(I18n.get("terminal.recording.idle"));
-        recordingStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 11px;");
+        recordingStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 0.8462em;");
         recordingBar = new HBox(8, recordingToggleButton, recordingStatusLabel);
         recordingBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
         recordingBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
@@ -474,7 +474,7 @@ public class TerminalTab extends Tab {
         journalNoteButton.setGraphicTextGap(6);
         journalNoteButton.setOnAction(event -> addJournalNote());
         journalStatusLabel = new Label(I18n.get("terminal.journal.off"));
-        journalStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 11px;");
+        journalStatusLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 0.8462em;");
         journalBar = new HBox(8, journalToggleButton, journalScreenshotButton, journalNoteButton, journalStatusLabel);
         journalBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
         journalBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
@@ -848,7 +848,7 @@ public class TerminalTab extends Tab {
         Platform.runLater(() -> {
             statusBarLabel.setText(status.toString());
             if (wasInterrupted) {
-                statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+                statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-font-size: 0.8462em;");
                 if (!isConnectionFailed) {
                     setTabErrorColor();
                 }
@@ -864,7 +864,7 @@ public class TerminalTab extends Tab {
                 if (moshInterruptedBarVisible) {
                     hideDisconnectedStatusBar();
                 }
-                statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 11px;");
+                statusBarLabel.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: #cccccc; -fx-padding: 3 8 3 8; -fx-font-size: 0.8462em;");
                 if (!isConnectionFailed) {
                     resetTabColor();
                 }

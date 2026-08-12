@@ -109,7 +109,7 @@ public class TunnelEditDialog extends ThemeAwareDialog<SSHTunnel> {
         
         // Info label
         Label infoLabel = new Label();
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         grid.add(infoLabel, 0, row++, 2, 1);
         

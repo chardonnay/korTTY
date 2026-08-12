@@ -192,7 +192,7 @@ final class LocalModelManagerPane extends VBox {
         Label intro = new Label(I18n.get("ai.local.models.intro"));
         intro.setWrapText(true);
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
 
         configureInstalledTable();
         configureHubTable();
@@ -2596,7 +2596,7 @@ final class LocalModelManagerPane extends VBox {
 
     private static Label sectionTitle(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        label.setStyle("-fx-font-weight: bold; -fx-font-size: 1em;");
         return label;
     }
 
