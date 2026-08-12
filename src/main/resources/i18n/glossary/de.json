@@ -33,6 +33,30 @@
       "note": "UI label snippets.ai.analysis.applySelected."
     },
     {
+      "from": "**Unterbrochene anwenden**",
+      "to": "**Übernahme unterbrochen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.title."
+    },
+    {
+      "from": "**Verbleibende Stufen fortsetzen**",
+      "to": "**Verbleibende Schritte fortsetzen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.resume."
+    },
+    {
+      "from": "**Vorschau des Teilergebnisses**",
+      "to": "**Teilergebnis prüfen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.partial."
+    },
+    {
+      "from": "**Discard**",
+      "to": "**Verwerfen**",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.fix.recovery.discard; MT tends to leave the English button name untranslated."
+    },
+    {
       "from": "Eine **Hervorhebung**-Auswahl",
       "to": "Die Auswahl **Hervorheben**",
       "scope": "markdown",
@@ -106,6 +130,12 @@
       "from": "Der aktive Stapel",
       "to": "Der aktive KI-Batch",
       "scope": "markdown"
+    },
+    {
+      "from": "Jede Stufe wird jetzt auch mit den Literalen der Regeln früherer Stufen verglichen, sodass die fehlerhafte Stufe sofort fehlschlägt, einen einzigen Reparaturversuch erhält, in dem genau angegeben ist, was wiederhergestellt werden soll, und der Lauf fortsetzbar bleibt, wenn dieser Versuch das Problem nicht behebt.",
+      "to": "Jede Phase wird jetzt zusätzlich gegen die Literale der Regeln geprüft, die frühere Phasen bereits geliefert haben: Die verursachende Phase schlägt sofort fehl und erhält ihren einen Reparaturversuch, der genau benennt, was wiederherzustellen ist; schlägt auch der fehl, bleibt der Lauf fortsetzbar.",
+      "scope": "markdown",
+      "note": "MT switched from Phase to Stufe mid-bullet; the release note keeps one term for a stage."
     },
     {
       "from": "der Begleiter geschlossen",
@@ -242,6 +272,12 @@
       "to": "**Reasoning-Optionen aktualisieren**",
       "scope": "markdown",
       "note": "UI label settings.ai.reasoning.refresh."
+    },
+    {
+      "from": "Verbesserungen anwenden – Teiländerungen überprüfen",
+      "to": "Verbesserungen teilweise übernehmen – Änderungen prüfen",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.diff.partialTitle. Matched without markup because MT wraps the title in varying quote/emphasis characters; must precede the diff.title row so the longer Teiländerungen match wins."
     },
     {
       "from": "*Verbesserungen anwenden – Änderungen überprüfen*",
