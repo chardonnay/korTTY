@@ -45,6 +45,30 @@
       "note": "Sentence-internal variant of the row above."
     },
     {
+      "from": "einen Fund nach dem anderen",
+      "to": "Ergebnis für Ergebnis",
+      "scope": "markdown",
+      "note": "MT reads \"finding\" as a treasure find; the guide calls it Ergebnis."
+    },
+    {
+      "from": "und wickeln Sie ihn an den Enden ein",
+      "to": "und springen an den Enden wieder zum Anfang",
+      "scope": "markdown",
+      "note": "MT turns \"wrapping at the ends\" into an imperative about wrapping something up."
+    },
+    {
+      "from": "Der Picker erscheint",
+      "to": "Die Auswahl erscheint",
+      "scope": "markdown",
+      "note": "\"picker\" stays English in MT output; the UI label is an Auswahl."
+    },
+    {
+      "from": "neben dem Picker",
+      "to": "neben der Auswahl",
+      "scope": "markdown",
+      "note": "Sentence-internal variant of the row above."
+    },
+    {
       "from": "jeder zweite geänderte Block",
       "to": "jeder andere geänderte Block",
       "scope": "markdown",

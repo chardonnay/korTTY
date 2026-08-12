@@ -748,6 +748,17 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry snippetCodeAnalysisDialogGeometry;
 
+    /** Last window geometry of the AI change-review (diff) window. */
+    @XmlElement
+    private WindowGeometry aiDiffDialogGeometry;
+
+    /**
+     * Divider between the summary and the diff in the AI change-review window, stored only once the
+     * reviewer moved it themselves. While it is unset, the divider follows the summary's own height.
+     */
+    @XmlElement
+    private Double aiDiffDialogSummaryDividerPosition;
+
     /** Last window geometry of the Generate Workflow Script dialog. */
     @XmlElement
     private WindowGeometry workflowScriptDialogGeometry;
@@ -2995,6 +3006,16 @@ public class GlobalSettings {
     public WindowGeometry getSnippetCodeAnalysisDialogGeometry() { return snippetCodeAnalysisDialogGeometry; }
     public void setSnippetCodeAnalysisDialogGeometry(WindowGeometry snippetCodeAnalysisDialogGeometry) {
         this.snippetCodeAnalysisDialogGeometry = snippetCodeAnalysisDialogGeometry;
+    }
+
+    public WindowGeometry getAiDiffDialogGeometry() { return aiDiffDialogGeometry; }
+    public void setAiDiffDialogGeometry(WindowGeometry aiDiffDialogGeometry) {
+        this.aiDiffDialogGeometry = aiDiffDialogGeometry;
+    }
+
+    public Double getAiDiffDialogSummaryDividerPosition() { return aiDiffDialogSummaryDividerPosition; }
+    public void setAiDiffDialogSummaryDividerPosition(Double aiDiffDialogSummaryDividerPosition) {
+        this.aiDiffDialogSummaryDividerPosition = aiDiffDialogSummaryDividerPosition;
     }
 
     public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }

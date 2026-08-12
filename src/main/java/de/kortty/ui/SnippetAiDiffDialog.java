@@ -74,9 +74,10 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private final SplitPane summarySplit;
     private final Region summaryContent;
     private ComboBox<String> findingFilterCombo;
-    private Button previousPlaceButton;
-    private Button nextPlaceButton;
+    private Button previousFindingButton;
+    private Button nextFindingButton;
     private String activeFindingFilter;
+    private Double appliedSummaryDivider;
     private final String originalText;
     private final String replacementText;
     private final EditorSettingsHelper.Settings previewSettings;
@@ -181,8 +182,11 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         getDialogPane().getButtonTypes().addAll(applyButton, ButtonType.CANCEL);
         getDialogPane().setPrefWidth(1040);
         getDialogPane().setPrefHeight(700);
+        // After the designed size, so a stored geometry wins over it rather than the other way round.
+        restoreGeometry();
         getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            persistGeometry();
             diffPane.dispose();
             explanationsView.getEngine().loadContent("");
         });
@@ -194,19 +198,86 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     }
 
     /**
-     * Starts the divider at the summary's own height instead of a fixed share: a one-line security-fix
-     * summary gets a strip, a staged apply's multi-paragraph summary gets up to a third of the window
-     * and scrolls beyond that. The reviewer can drag it either way afterwards.
+     * Starts the divider where the reviewer last put it. Without a stored position it follows the
+     * summary's own height instead of a fixed share: a one-line security-fix summary gets a strip, a
+     * staged apply's multi-paragraph summary gets up to a third of the window and scrolls beyond
+     * that. Dragging it afterwards is what makes the position stored.
      */
     private void fitSummaryHeight() {
         double available = summarySplit.getHeight();
         if (available <= 0) {
             return;
         }
-        double width = summaryContent.getWidth() > 0 ? summaryContent.getWidth() : getDialogPane().getWidth();
-        double needed = summaryContent.prefHeight(width) + 4;
-        double target = Math.min(Math.max(needed, SUMMARY_MIN_HEIGHT), available * SUMMARY_MAX_SHARE);
-        summarySplit.setDividerPositions(target / available);
+        Double stored = storedSummaryDividerPosition();
+        double position;
+        if (stored != null) {
+            position = Math.min(Math.max(stored, 0.02), 0.9);
+        } else {
+            double width = summaryContent.getWidth() > 0 ? summaryContent.getWidth() : getDialogPane().getWidth();
+            double needed = summaryContent.prefHeight(width) + 4;
+            position = Math.min(Math.max(needed, SUMMARY_MIN_HEIGHT), available * SUMMARY_MAX_SHARE) / available;
+        }
+        summarySplit.setDividerPositions(position);
+        appliedSummaryDivider = position;
+    }
+
+    private static Double storedSummaryDividerPosition() {
+        try {
+            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            return settings != null ? settings.getAiDiffDialogSummaryDividerPosition() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void restoreGeometry() {
+        GlobalSettings settings = currentSettings();
+        DialogGeometrySupport.restore(this, settings != null ? settings.getAiDiffDialogGeometry() : null);
+    }
+
+    /**
+     * Stores where the reviewer left the window, plus the summary divider — but the divider only once
+     * they moved it themselves, so a window that was merely resized keeps following the summary's
+     * height on the next review.
+     */
+    private void persistGeometry() {
+        if (isHostedInTab()) {
+            return; // the pane's window is the main window's stage, not this dialog's geometry
+        }
+        Double moved = movedSummaryDividerPosition();
+        DialogGeometrySupport.persist(this, (settings, geometry) -> {
+            settings.setAiDiffDialogGeometry(geometry);
+            if (moved != null) {
+                settings.setAiDiffDialogSummaryDividerPosition(moved);
+            }
+        });
+    }
+
+    private Double movedSummaryDividerPosition() {
+        double[] positions = summarySplit.getDividerPositions();
+        return positions.length == 0
+            ? null
+            : movedDividerPosition(positions[0], appliedSummaryDivider);
+    }
+
+    /**
+     * The divider position to store: the current one when the reviewer moved it away from what this
+     * window applied on opening, otherwise {@code null} so the content fit keeps applying. The
+     * tolerance absorbs the rounding a layout pass introduces without any user interaction.
+     */
+    static Double movedDividerPosition(double current, Double applied) {
+        if (applied == null) {
+            return null;
+        }
+        return Math.abs(current - applied) > 0.01 ? current : null;
+    }
+
+    private static GlobalSettings currentSettings() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /** Keeps a newly opened review window above its non-modal editor/analysis window on macOS. */
@@ -361,30 +432,51 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         findingFilterCombo.setVisibleRowCount(12);
         findingFilterCombo.valueProperty().addListener((obs, oldValue, newValue) -> applyFindingFilter(newValue));
 
-        previousPlaceButton = new Button("◀");
-        previousPlaceButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.previous")));
-        previousPlaceButton.setOnAction(event -> diffPane.revealReasonPlace(-1));
-        nextPlaceButton = new Button("▶");
-        nextPlaceButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.next")));
-        nextPlaceButton.setOnAction(event -> diffPane.revealReasonPlace(1));
-        updatePlaceNavigation();
+        previousFindingButton = new Button("◀");
+        previousFindingButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.previous")));
+        previousFindingButton.setOnAction(event -> stepFinding(-1));
+        nextFindingButton = new Button("▶");
+        nextFindingButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diff.focus.next")));
+        nextFindingButton.setOnAction(event -> stepFinding(1));
 
         HBox bar = new HBox(8,
             new Label(I18n.get("snippets.ai.diff.focus")),
             findingFilterCombo,
-            previousPlaceButton,
-            nextPlaceButton);
+            previousFindingButton,
+            nextFindingButton);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setManaged(false);
         bar.setVisible(false);
         return bar;
     }
 
-    /** Stepping through places only means something once the diff is narrowed to one finding. */
-    private void updatePlaceNavigation() {
-        boolean enabled = activeFindingFilter != null;
-        previousPlaceButton.setDisable(!enabled);
-        nextPlaceButton.setDisable(!enabled);
+    /**
+     * Walks the picker one finding at a time, which re-filters the diff and scrolls to that
+     * finding's first place. Also the way out of "all changes": from there the arrows step to the
+     * first or last finding.
+     */
+    private void stepFinding(int step) {
+        int next = steppedFindingIndex(
+            findingFilterCombo.getSelectionModel().getSelectedIndex(),
+            findingFilterCombo.getItems().size(),
+            step);
+        if (next >= 0 && next < findingFilterCombo.getItems().size()) {
+            findingFilterCombo.getSelectionModel().select(next);
+        }
+    }
+
+    /**
+     * The picker index the arrows move to. Item 0 is "all changes" and is skipped: stepping forward
+     * from it selects the first finding, backward the last, and the ends wrap into each other.
+     * Returns {@code currentIndex} when there is no finding to move to.
+     */
+    static int steppedFindingIndex(int currentIndex, int itemCount, int step) {
+        int findings = itemCount - 1;
+        if (findings <= 0) {
+            return currentIndex;
+        }
+        int position = currentIndex <= 0 ? (step > 0 ? -1 : 0) : currentIndex - 1;
+        return Math.floorMod(position + (step > 0 ? 1 : -1), findings) + 1;
     }
 
     /** Distinct finding ids that actually carry a reason, in the order the model reported them. */
@@ -419,7 +511,6 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         boolean showAll = selected == null || findingFilterCombo.getSelectionModel().getSelectedIndex() <= 0;
         activeFindingFilter = showAll ? null : selected;
         diffPane.setReasonFilter(activeFindingFilter);
-        updatePlaceNavigation();
         renderExplanations();
     }
 

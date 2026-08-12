@@ -14,13 +14,10 @@ let changeDecorations = [];
 let changeReasons = [];
 let changeReasonListenerAttached = false;
 // Finding id the reviewer picked below the diff, or "" for "every change". While one is set, only its
-// blocks stay decorated, so a long staged rewrite can be read one finding at a time.
+// blocks stay decorated and the diff's own colouring is muted, so a long staged rewrite can be read
+// one finding at a time.
 let reasonFilter = "";
 let pendingFilterReveal = false;
-// Start lines of the picked finding's blocks, in code order, plus the cursor the navigation buttons
-// move through them.
-let filteredPlaces = [];
-let filteredPlaceCursor = -1;
 let booted = false;
 let currentThemeName = "kortty-monaco-diff-theme";
 let currentTheme = {};
@@ -146,7 +143,6 @@ function setReasonFilter(finding) {
   if (next === reasonFilter) return;
   reasonFilter = next;
   pendingFilterReveal = next !== "";
-  filteredPlaceCursor = -1;
   // Mutes the diff's own colouring of every changed block while one finding is picked, so its places
   // are the only ones that read as changed. Nothing is hidden: the muted blocks keep a neutral tint.
   if (diffEditor && typeof diffEditor.getDomNode === "function") {
@@ -154,23 +150,6 @@ function setReasonFilter(finding) {
     if (dom && dom.classList) dom.classList.toggle("kortty-reason-focus-mode", reasonFilter !== "");
   }
   applyReasonDecorations();
-}
-
-/**
- * Moves to the next (step > 0) or previous (step < 0) place of the picked finding, wrapping around.
- * Without a filter, or before any place was located, this is a no-op.
- */
-function revealReasonPlace(step) {
-  if (filteredPlaces.length === 0) return;
-  const delta = Number(step) < 0 ? -1 : 1;
-  filteredPlaceCursor = filteredPlaceCursor < 0
-    ? (delta > 0 ? 0 : filteredPlaces.length - 1)
-    : (filteredPlaceCursor + delta + filteredPlaces.length) % filteredPlaces.length;
-  const line = filteredPlaces[filteredPlaceCursor];
-  const modifiedEditor = diffEditor ? diffEditor.getModifiedEditor() : null;
-  if (modifiedEditor && typeof modifiedEditor.revealLineInCenter === "function") {
-    modifiedEditor.revealLineInCenter(line);
-  }
 }
 
 function matchesReasonFilter(item) {
@@ -298,15 +277,14 @@ function applyReasonDecorations() {
     decorations.push(reasonDecoration(item.line, item.line, [item], focused));
   }
   changeDecorations = modifiedEditor.deltaDecorations([], decorations);
-  filteredPlaces = places.sort((left, right) => left - right);
-  const firstFilteredLine = filteredPlaces.length > 0 ? filteredPlaces[0] : null;
+  places.sort((left, right) => left - right);
+  const firstFilteredLine = places.length > 0 ? places[0] : null;
 
   // Scroll to the selection once, right after it was picked. Monaco re-runs this on every diff
   // update, and yanking the viewport back on each of those would fight the reviewer's own scrolling.
   if (pendingFilterReveal) {
     pendingFilterReveal = false;
     if (firstFilteredLine != null && typeof modifiedEditor.revealLineInCenter === "function") {
-      filteredPlaceCursor = 0;
       modifiedEditor.revealLineInCenter(firstFilteredLine);
     }
   }
@@ -382,8 +360,6 @@ function dispose() {
   changeReasonListenerAttached = false;
   reasonFilter = "";
   pendingFilterReveal = false;
-  filteredPlaces = [];
-  filteredPlaceCursor = -1;
 }
 
 export function installDiffHost() {
@@ -394,7 +370,6 @@ export function installDiffHost() {
     setTheme,
     setChangeReasons,
     setReasonFilter,
-    revealReasonPlace,
     dispose
   };
 }
