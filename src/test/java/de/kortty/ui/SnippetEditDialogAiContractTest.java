@@ -86,6 +86,33 @@ class SnippetEditDialogAiContractTest {
     }
 
     @Test
+    void abortRecoveryIsOfferedOnlyForInteractiveAbortsWithCompletedStages() {
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint =
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                1, 3, "#!/bin/sh\n", List.of(), List.of(), List.of(), null);
+
+        assertThat(SnippetEditDialog.shouldOfferImprovementApplyRecovery(checkpoint, false, false)).isTrue();
+        assertThat(SnippetEditDialog.shouldOfferImprovementApplyRecovery(null, false, false)).isFalse();
+        // Closing the analysis window is a deliberate discard, not an accident to recover from.
+        assertThat(SnippetEditDialog.shouldOfferImprovementApplyRecovery(checkpoint, true, false)).isFalse();
+        // Editor teardown must never pop a recovery dialog over a closing window.
+        assertThat(SnippetEditDialog.shouldOfferImprovementApplyRecovery(checkpoint, false, true)).isFalse();
+    }
+
+    @Test
+    void resumeChoiceIsHiddenWhenEveryStageAlreadyCompleted() {
+        assertThat(SnippetEditDialog.improvementApplyResumeOffered(
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                1, 3, "#!/bin/sh\n", List.of(), List.of(), List.of(), null))).isTrue();
+        // Every stage done and still aborted = the final cumulative verification failed; re-running
+        // the remaining (zero) stages would deterministically fail again.
+        assertThat(SnippetEditDialog.improvementApplyResumeOffered(
+            new SnippetAiWorkflowSupport.ImprovementApplyCheckpoint(
+                3, 3, "#!/bin/sh\n", List.of(), List.of(), List.of(), null))).isFalse();
+        assertThat(SnippetEditDialog.improvementApplyResumeOffered(null)).isFalse();
+    }
+
+    @Test
     void stagedApplyProgressDescribesCurrentRequirementRangeAndOverallStep() {
         String message = SnippetEditDialog.improvementApplyProgressText(
             new SnippetAiWorkflowSupport.ImprovementApplyProgress(

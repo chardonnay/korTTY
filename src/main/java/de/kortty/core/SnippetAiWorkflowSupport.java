@@ -109,6 +109,47 @@ public final class SnippetAiWorkflowSupport {
         void onProgress(ImprovementApplyProgress progress);
     }
 
+    /**
+     * Immutable snapshot of everything a staged Full-code-analysis apply completed so far. Emitted
+     * after each finished stage so an aborted run can either resume from the next stage or surface
+     * the partial rewrite for review; checkpoints never describe half-finished stages.
+     */
+    public record ImprovementApplyCheckpoint(
+        int completedStages,
+        int totalStages,
+        String content,
+        List<String> summaries,
+        List<SnippetAiResponseSupport.SecurityChange> changes,
+        List<String> completedRequirementIds,
+        AiTokenUsage cumulativeUsage) {
+
+        public ImprovementApplyCheckpoint {
+            content = content != null ? content : "";
+            summaries = summaries != null ? List.copyOf(summaries) : List.of();
+            changes = changes != null ? List.copyOf(changes) : List.of();
+            completedRequirementIds =
+                completedRequirementIds != null ? List.copyOf(completedRequirementIds) : List.of();
+        }
+
+        /**
+         * The accumulated partial result in the same shape a fully completed run returns. Callers
+         * must not run it through the cumulative hardening verification — requirements of stages
+         * that never ran are missing by definition.
+         */
+        public SnippetAiResponseSupport.SnippetSecurityFix toPartialFix() {
+            return new SnippetAiResponseSupport.SnippetSecurityFix(
+                content,
+                String.join("\n\n", summaries),
+                changes,
+                completedRequirementIds);
+        }
+    }
+
+    @FunctionalInterface
+    public interface ImprovementApplyCheckpointListener {
+        void onCheckpoint(ImprovementApplyCheckpoint checkpoint);
+    }
+
     private SnippetAiWorkflowSupport() {
     }
 
@@ -512,6 +553,46 @@ public final class SnippetAiWorkflowSupport {
         String inputHardeningInstructions,
         ImprovementApplyProgressListener progressListener) throws Exception {
 
+        return applySnippetImprovements(
+            aiService,
+            usageRecorder,
+            fullContent,
+            snippetLanguage,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            improvements,
+            dependencies,
+            additionalInstructions,
+            classicHardeningInstructions,
+            inputHardeningInstructions,
+            progressListener,
+            null,
+            null);
+    }
+
+    /**
+     * Staged apply with abort recovery: after every completed stage the optional
+     * {@code checkpointListener} receives the accumulated partial result, and a checkpoint from an
+     * aborted run can be passed as {@code resumeFrom} to skip its completed stages and continue with
+     * the first unfinished one. The stage plan must be rebuilt from the same selection the
+     * checkpoint was recorded against; a mismatching checkpoint is rejected.
+     */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        ImprovementApplyProgressListener progressListener,
+        ImprovementApplyCheckpointListener checkpointListener,
+        ImprovementApplyCheckpoint resumeFrom) throws Exception {
+
         List<MandatoryRequirement> classicRequirements =
             extractMandatoryRequirements(classicHardeningInstructions, 0);
         List<MandatoryRequirement> inputRequirements =
@@ -522,17 +603,38 @@ public final class SnippetAiWorkflowSupport {
 
         List<ImprovementApplyStagePlan> stagePlans = buildImprovementApplyStagePlans(
             improvements, dependencies, classicRequirements, inputRequirements);
-        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
-            notifyImprovementProgress(progressListener, stagePlan.progress());
+        int completedStageCount = resumeFrom != null ? resumeFrom.completedStages() : 0;
+        if (resumeFrom != null
+            && (resumeFrom.totalStages() != stagePlans.size()
+                || completedStageCount < 1
+                || completedStageCount >= stagePlans.size())) {
+            throw new IllegalArgumentException("Resume checkpoint does not match the requested apply plan.");
         }
 
-        String currentContent = fullContent != null ? fullContent : "";
-        Set<String> completedRequirementIds = new LinkedHashSet<>();
-        Set<String> summaries = new LinkedHashSet<>();
-        List<SnippetAiResponseSupport.SecurityChange> mergedChanges = new ArrayList<>();
+        String currentContent = resumeFrom != null
+            ? resumeFrom.content()
+            : fullContent != null ? fullContent : "";
+        Set<String> completedRequirementIds = new LinkedHashSet<>(
+            resumeFrom != null ? resumeFrom.completedRequirementIds() : List.of());
+        Set<String> summaries = new LinkedHashSet<>(
+            resumeFrom != null ? resumeFrom.summaries() : List.of());
+        List<SnippetAiResponseSupport.SecurityChange> mergedChanges = new ArrayList<>(
+            resumeFrom != null ? resumeFrom.changes() : List.of());
         UsageAccumulator usageAccumulator = new UsageAccumulator();
+        if (resumeFrom != null) {
+            usageAccumulator.add(resumeFrom.cumulativeUsage());
+        }
 
-        for (ImprovementApplyStagePlan stagePlan : stagePlans) {
+        for (int index = 0; index < stagePlans.size(); index++) {
+            ImprovementApplyStagePlan stagePlan = stagePlans.get(index);
+            notifyImprovementProgress(progressListener, index < completedStageCount
+                ? progressWithState(
+                    stagePlan.progress(), ImprovementApplyProgressState.COMPLETED, usageAccumulator.total())
+                : stagePlan.progress());
+        }
+
+        for (int index = completedStageCount; index < stagePlans.size(); index++) {
+            ImprovementApplyStagePlan stagePlan = stagePlans.get(index);
             checkImprovementApplyInterrupted();
             ImprovementApplyProgress running = progressWithState(
                 stagePlan.progress(), ImprovementApplyProgressState.RUNNING, usageAccumulator.total());
@@ -556,6 +658,14 @@ public final class SnippetAiWorkflowSupport {
                 notifyImprovementProgress(
                     progressListener,
                     progressWithState(running, ImprovementApplyProgressState.COMPLETED, usageAccumulator.total()));
+                notifyImprovementCheckpoint(checkpointListener, new ImprovementApplyCheckpoint(
+                    index + 1,
+                    stagePlans.size(),
+                    currentContent,
+                    List.copyOf(summaries),
+                    List.copyOf(mergedChanges),
+                    List.copyOf(completedRequirementIds),
+                    usageAccumulator.total()));
             } catch (Exception e) {
                 notifyImprovementProgress(
                     progressListener,
@@ -905,6 +1015,15 @@ public final class SnippetAiWorkflowSupport {
 
         if (listener != null) {
             listener.onProgress(progress);
+        }
+    }
+
+    private static void notifyImprovementCheckpoint(
+        ImprovementApplyCheckpointListener listener,
+        ImprovementApplyCheckpoint checkpoint) {
+
+        if (listener != null) {
+            listener.onCheckpoint(checkpoint);
         }
     }
 

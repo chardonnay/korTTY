@@ -71,6 +71,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -161,6 +163,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Task<String> descriptionCorrectionTask;
     private Task<?> snippetAiActionTask;
     private SnippetAiApplyProgressWindow improvementApplyProgressWindow;
+    // Editor teardown cancels AI tasks; the abort-recovery dialog must not pop over a closing editor.
+    private boolean improvementApplyRecoverySuppressed;
     private boolean programmaticNameUpdate;
     private boolean programmaticLanguageUpdate;
     private boolean programmaticAiTextLanguageUpdate;
@@ -493,6 +497,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String classicHardeningInstructions,
         String inputHardeningInstructions,
         SnippetAiWorkflowSupport.ImprovementApplyProgressListener progressListener,
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
         String aiProfileId) {
 
         /** Compatibility view used by callers that only need to inspect the complete selected contract. */
@@ -3760,6 +3766,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void runImprovementFixes(
             SnippetCodeAnalysisDialog.ApplySelection selection,
             SnippetCodeAnalysisDialog analysisDialog) {
+        runImprovementFixes(selection, analysisDialog, null, null);
+    }
+
+    /**
+     * Runs the staged apply, optionally resuming from an abort-recovery checkpoint. A resumed run
+     * keeps diffing and applying against the content its checkpoint chain started from, so that
+     * content travels with the checkpoint instead of being re-read from the editor.
+     */
+    private void runImprovementFixes(
+            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetCodeAnalysisDialog analysisDialog,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
+            String resumeOriginalContent) {
         if (selection == null || selection.isEmpty()) {
             if (analysisDialog != null) {
                 analysisDialog.setApplyProcessing(false);
@@ -3772,7 +3791,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             return;
         }
-        String originalContent = contentArea.getText();
+        String originalContent = resumeOriginalContent != null ? resumeOriginalContent : contentArea.getText();
         // Input hardening only counts as AI work when the snippet language can actually receive the
         // guard rules — for declarative languages the rules render empty, and an otherwise empty
         // selection would fire a pointless AI request with no work order.
@@ -3817,6 +3836,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             new SnippetAiApplyProgressWindow(progressAnchor, applyPlan);
         improvementApplyProgressWindow = progressWindow;
         progressWindow.show();
+        // Worker thread writes after each completed stage, FX thread reads after an abort. Pre-seeding
+        // with the resume checkpoint keeps recovery available when a resumed run aborts again before
+        // completing any further stage.
+        AtomicReference<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpointRef =
+            new AtomicReference<>(resumeFrom);
+        // Closing the analysis window is a deliberate discard: it cancels the task like the editor's
+        // cancel button, but must not trigger the abort-recovery dialog.
+        AtomicBoolean silentCancel = new AtomicBoolean(false);
         Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.SnippetSecurityFix call() throws Exception {
@@ -3840,11 +3867,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                             : progress.stage() - 1L;
                         updateProgress(completedStages, Math.max(1, progress.totalStages()));
                     },
+                    checkpointRef::set,
+                    resumeFrom,
                     null));
             }
         };
         if (analysisDialog != null) {
             analysisDialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+                silentCancel.set(true);
                 if (!task.isDone()) {
                     task.cancel(true);
                 }
@@ -3933,6 +3963,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 analysisDialog.setApplyProcessing(false);
             }
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.analysis.fix.failed"));
+            maybeOfferAbortRecovery(
+                selection, analysisDialog, checkpointRef.get(), silentCancel.get(), originalContent, false);
         });
         task.setOnCancelled(event -> {
             progressWindow.markCancelled();
@@ -3940,10 +3972,149 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 analysisDialog.setApplyProcessing(false);
             }
             finishSnippetAiAction(task);
+            maybeOfferAbortRecovery(
+                selection, analysisDialog, checkpointRef.get(), silentCancel.get(), originalContent, true);
         });
         Thread thread = new Thread(task, "snippet-ai-improvement-fix");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /** Offers resume / partial preview / discard after an aborted staged apply left completed work behind. */
+    private void maybeOfferAbortRecovery(
+            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetCodeAnalysisDialog analysisDialog,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
+            boolean silentCancel,
+            String originalContent,
+            boolean cancelled) {
+        if (!shouldOfferImprovementApplyRecovery(checkpoint, silentCancel, improvementApplyRecoverySuppressed)) {
+            return;
+        }
+        switch (promptForImprovementApplyAbortChoice(checkpoint, cancelled, analysisDialog)) {
+            case RESUME -> {
+                if (analysisDialog != null) {
+                    analysisDialog.setApplyProcessing(true);
+                }
+                setStatus(I18n.get("snippets.ai.analysis.fix.resuming",
+                    checkpoint.completedStages() + 1, checkpoint.totalStages()));
+                runImprovementFixes(selection, analysisDialog, checkpoint, originalContent);
+            }
+            case PARTIAL_PREVIEW ->
+                previewPartialImprovementFix(selection, analysisDialog, checkpoint, originalContent);
+            case DISCARD -> {
+            }
+        }
+    }
+
+    /** True when an aborted staged apply left recoverable work and the abort was an interactive one. */
+    static boolean shouldOfferImprovementApplyRecovery(
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
+            boolean silentCancel,
+            boolean recoverySuppressed) {
+        return checkpoint != null && checkpoint.completedStages() >= 1 && !silentCancel && !recoverySuppressed;
+    }
+
+    /** Resume is pointless when every stage completed and only the final cumulative verification failed. */
+    static boolean improvementApplyResumeOffered(
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint) {
+        return checkpoint != null && checkpoint.completedStages() < checkpoint.totalStages();
+    }
+
+    private ImprovementApplyAbortChoice promptForImprovementApplyAbortChoice(
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
+            boolean cancelled,
+            SnippetCodeAnalysisDialog analysisDialog) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(I18n.get("snippets.ai.analysis.fix.recovery.title"));
+        alert.setHeaderText(I18n.get(
+            cancelled
+                ? "snippets.ai.analysis.fix.recovery.header.cancelled"
+                : "snippets.ai.analysis.fix.recovery.header.failed",
+            checkpoint.completedStages(), checkpoint.totalStages()));
+        alert.setContentText(I18n.get("snippets.ai.analysis.fix.recovery.content"));
+
+        ButtonType resumeButtonType = new ButtonType(I18n.get("snippets.ai.analysis.fix.recovery.resume"));
+        ButtonType partialButtonType = new ButtonType(I18n.get("snippets.ai.analysis.fix.recovery.partial"));
+        ButtonType discardButtonType = new ButtonType(
+            I18n.get("snippets.ai.analysis.fix.recovery.discard"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        if (improvementApplyResumeOffered(checkpoint)) {
+            alert.getButtonTypes().setAll(resumeButtonType, partialButtonType, discardButtonType);
+        } else {
+            alert.getButtonTypes().setAll(partialButtonType, discardButtonType);
+        }
+        Window owner = analysisDialog != null && analysisDialog.displayWindow() != null
+            ? analysisDialog.displayWindow()
+            : resolveAlertOwner();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        DialogThemeHelper.applyTheme(alert);
+
+        Optional<ButtonType> response = alert.showAndWait();
+        if (response.isEmpty() || response.get() == discardButtonType) {
+            return ImprovementApplyAbortChoice.DISCARD;
+        }
+        return response.get() == resumeButtonType
+            ? ImprovementApplyAbortChoice.RESUME
+            : ImprovementApplyAbortChoice.PARTIAL_PREVIEW;
+    }
+
+    /**
+     * Reviews the checkpoint's partial rewrite in the normal diff preview and applies it on confirm.
+     * The partial fix deliberately skips the cumulative hardening verification — requirements of
+     * stages that never ran are missing by definition — but keeps the degenerate-replacement guard.
+     */
+    private void previewPartialImprovementFix(
+            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetCodeAnalysisDialog analysisDialog,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
+            String originalContent) {
+        SnippetAiResponseSupport.SnippetSecurityFix partial = checkpoint.toPartialFix();
+        if (!partial.isUsable() || partial.replacement().equals(originalContent)) {
+            setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
+            return;
+        }
+        if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, partial.replacement())) {
+            setStatus(I18n.get("snippets.ai.fix.degenerate"));
+            return;
+        }
+        String replacement = injectSelectedHeader(selection, partial.replacement());
+        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+            analysisDialog != null ? analysisDialog.displayWindow()
+                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
+            I18n.get("snippets.ai.analysis.diff.partialTitle"),
+            partial.summary(),
+            originalContent,
+            replacement,
+            languageCombo.getValue(),
+            editorSettings,
+            editorProfile);
+        diffDialog.setChangeExplanations(partial.changes());
+        if (!diffDialog.showAndWait().orElse(false)) {
+            return;
+        }
+        applyAiContentChange(0, originalContent.length(), replacement,
+            I18n.get("snippets.ai.toggle.action.improve"));
+        setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
+            checkpoint.completedStages(), checkpoint.totalStages()));
+        // Same deferred cleanup as the full-success path: closing owned stages synchronously while
+        // showAndWait() is still unwinding can crash JavaFX/WebKit in native window disposal on macOS.
+        Platform.runLater(() -> {
+            if (improvementApplyProgressWindow != null) {
+                improvementApplyProgressWindow.close();
+                improvementApplyProgressWindow = null;
+            }
+            if (analysisDialog != null) {
+                analysisDialog.closeAfterApply();
+            }
+        });
+    }
+
+    private enum ImprovementApplyAbortChoice {
+        RESUME,
+        PARTIAL_PREVIEW,
+        DISCARD
     }
 
     static String improvementApplyProgressText(SnippetAiWorkflowSupport.ImprovementApplyProgress progress) {
@@ -5194,6 +5365,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void cancelAiTasks() {
+        improvementApplyRecoverySuppressed = true;
         autoCompletionDelay.stop();
         hideCompletionSuggestion();
         cancelMetadataTask();
