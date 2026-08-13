@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -96,6 +97,7 @@ public class SessionJournalSession implements AutoCloseable {
     private volatile long lastActivityMillis = System.currentTimeMillis();
     private volatile int currentPart = 1;
     private volatile Consumer<String> warningListener;
+    private final CopyOnWriteArrayList<Consumer<SessionJournalLogEntry>> liveEntrySinks = new CopyOnWriteArrayList<>();
     private ScheduledFuture<?> idleFlushTask;
 
     // Owned exclusively by the writer thread (and by close() after joining it):
@@ -171,6 +173,22 @@ public class SessionJournalSession implements AutoCloseable {
     /** Receives a user-facing warning (i18n happens at the UI layer) when capture degrades. */
     public void setWarningListener(Consumer<String> warningListener) {
         this.warningListener = warningListener;
+    }
+
+    /**
+     * Registers a sink that receives every entry the writer thread actually persisted, in sequence
+     * order, on the writer thread. Entries are redacted before they are enqueued, so sinks never
+     * see suppressed secrets. Sinks must be cheap and must not throw; a list (rather than a single
+     * consumer) so that two windows can observe the same session after a tab drag.
+     */
+    public void addLiveEntrySink(Consumer<SessionJournalLogEntry> sink) {
+        if (sink != null) {
+            liveEntrySinks.addIfAbsent(sink);
+        }
+    }
+
+    public void removeLiveEntrySink(Consumer<SessionJournalLogEntry> sink) {
+        liveEntrySinks.remove(sink);
     }
 
     /** Opens the first log part and starts the writer thread and idle flusher. Idempotent. */
@@ -415,8 +433,8 @@ public class SessionJournalSession implements AutoCloseable {
         while (running || !queue.isEmpty()) {
             try {
                 SessionJournalLogEntry entry = queue.poll(100, TimeUnit.MILLISECONDS);
-                if (entry != null) {
-                    writeEntry(entry);
+                if (entry != null && writeEntry(entry)) {
+                    notifyLiveSinks(entry);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -427,14 +445,15 @@ public class SessionJournalSession implements AutoCloseable {
         }
     }
 
-    private void writeEntry(SessionJournalLogEntry entry) throws IOException {
+    /** Returns {@code true} only when the entry was actually written to the log. */
+    private boolean writeEntry(SessionJournalLogEntry entry) throws IOException {
         if (writer == null) {
-            return;
+            return false;
         }
         boolean isOutput = entry.kind() == SessionJournalLogEntry.Kind.OUT
             || entry.kind() == SessionJournalLogEntry.Kind.SEED;
         if (outputCaptureStopped && isOutput) {
-            return;
+            return false;
         }
         String line = serializer.entryLine(entry);
         byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
@@ -442,7 +461,7 @@ public class SessionJournalSession implements AutoCloseable {
             if (currentPart >= MAX_PARTS) {
                 stopOutputCapture();
                 if (isOutput) {
-                    return;
+                    return false;
                 }
             } else {
                 rotate();
@@ -452,21 +471,43 @@ public class SessionJournalSession implements AutoCloseable {
         writer.flush();
         currentFileSize += bytes.length;
         writtenEntryCount.incrementAndGet();
+        return true;
+    }
+
+    /**
+     * Delivers a persisted entry to all live sinks. Runs on the writer thread; a failing sink is
+     * logged and skipped so it can never stall journal writing. Note that rotation and the
+     * capture-stop path assign their synthetic NOTE entries sequence numbers ABOVE entries still
+     * waiting in the queue, so sink delivery is not strictly monotonic in seq — consumers must
+     * deduplicate by seq value, not by a high-water mark.
+     */
+    private void notifyLiveSinks(SessionJournalLogEntry entry) {
+        for (Consumer<SessionJournalLogEntry> sink : liveEntrySinks) {
+            try {
+                sink.accept(entry);
+            } catch (Exception e) {
+                logger.warn("Live entry sink failed for {}: {}", directory.getFileName(), e.getMessage(), e);
+            }
+        }
     }
 
     /** Rolls to the next part — the closed part is compressed, never deleted. */
     private void rotate() throws IOException {
         int closingPart = currentPart;
-        writer.write(serializer.entryLine(noteEntry("continued in part " + (closingPart + 1))));
+        SessionJournalLogEntry continuedIn = noteEntry("continued in part " + (closingPart + 1));
+        writer.write(serializer.entryLine(continuedIn));
         writer.write(serializer.footer());
         writer.flush();
         writer.close();
         writer = null;
+        notifyLiveSinks(continuedIn);
         SessionJournalLogCompressor.compress(
             directory.resolve(SessionJournalLogReader.partFileName(closingPart, format)));
         openPart(closingPart + 1);
-        writer.write(serializer.entryLine(noteEntry("continued from part " + closingPart)));
+        SessionJournalLogEntry continuedFrom = noteEntry("continued from part " + closingPart);
+        writer.write(serializer.entryLine(continuedFrom));
         writer.flush();
+        notifyLiveSinks(continuedFrom);
         logger.info("Session journal log rotated to part {} in {}", currentPart, directory.getFileName());
     }
 
@@ -476,9 +517,11 @@ public class SessionJournalSession implements AutoCloseable {
             return;
         }
         outputCaptureStopped = true;
-        writer.write(serializer.entryLine(noteEntry(
-            "output capture stopped: size limit reached after " + MAX_PARTS + " log parts")));
+        SessionJournalLogEntry stopNote = noteEntry(
+            "output capture stopped: size limit reached after " + MAX_PARTS + " log parts");
+        writer.write(serializer.entryLine(stopNote));
         writer.flush();
+        notifyLiveSinks(stopNote);
         Consumer<String> listener = warningListener;
         if (listener != null) {
             try {
