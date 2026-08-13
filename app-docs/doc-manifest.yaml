@@ -375,6 +375,8 @@ pages:
       - src/main/java/de/kortty/ui/SessionJournalLivePanel.java
       - src/main/java/de/kortty/ui/SessionJournalLiveFeed.java
       - src/main/java/de/kortty/ui/SessionJournalLivePanelDockManager.java
+      - src/main/java/de/kortty/ui/SessionJournalViewerPane.java
+      - src/main/java/de/kortty/ui/SessionJournalLiveScript.java
     diagrams: [session-journal-flow.svg]
     screenshots:
       - journal/journal-manager.png

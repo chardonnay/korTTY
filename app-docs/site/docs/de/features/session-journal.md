@@ -45,19 +45,20 @@ Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen
 
 ## Das Live-Journal-Panel
 
-**Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt eine Echtzeitansicht des laufenden Journals **links oder rechts** am Terminal an. Es zeigt das Capture-Log, während es geschrieben wird – Befehlsausgabe, die von Ihnen eingegebenen (hervorgehobenen) Befehle, Notizen und Screenshot-Markierungen, jeweils mit einem Zeitstempel – beginnend mit den neuesten Einträgen des Protokolls und dann Streaming neuer Zeilen, während sie erfasst werden. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
+**Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt die **vollständige Journalseite** des laufenden Journals an – dieselbe Seite wie die [Zuschauer](#die-journalseite) zeigt – **links oder rechts** vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
 
-Das Panel folgt Ihren Tabs mit einem Gedächtnis: Es zeigt das Journal des aktuellen Tabs an, und wenn Sie zwischen Tabs wechseln, schaltet es nur weiter, **wenn der neu ausgewählte Tab auch ein laufendes Journal hat** – andernfalls zeigt es weiterhin das Journal an, das es bereits anzeigt. Wenn das angezeigte Journal gestoppt oder sein Tab geschlossen wird, bleibt der Inhalt mit dem Abzeichen **Journal gestoppt** / **Tab geschlossen** sichtbar, bis Sie einen anderen Tab mit einem Live-Journal auswählen.
+Zwei Dinge werden während der Sitzung live aktualisiert:
 
-Was das Panel während einer Sitzung bietet:
+- **Das Protokollende** – Das Protokollfenster der Seite wird im Folgemodus geöffnet und streamt das Capture-Log, während es geschrieben wird: Befehlsausgabe, die von Ihnen eingegebenen Befehle, Notizen und Screenshot-Markierungen, jeweils mit einem Zeitstempel. Wenn Sie nach oben scrollen, wird das Folgende angehalten, damit Sie lesen können. Wenn Sie nach unten scrollen, wird es fortgesetzt. Der Schwanz hält die neuesten 5000 Zeilen; Alles bleibt im Capture-Log und in den Protokollauszügen der Eintrittskarten.
+- **Die Zeitleiste** – neue Karten (KI-Zusammenfassungen, Notizen, Screenshots) und Änderungen werden kurz nach ihrer Änderung angezeigt, ohne dass Sie Ihre Scrollposition verlieren.
 
-- **Folgen** – scrollt automatisch zu neuen Einträgen; Wenn Sie nach oben scrollen, wird das Folgende angehalten, damit Sie lesen können. Durch Drücken des Schalters wird es fortgesetzt.
-- **Notiz** und **Screenshot** – die gleichen Aktionen wie die [Journalleiste ](#die-journalleiste) für das im Panel angezeigte Journal.
-- **Viewer öffnen** – öffnet die vollständige [Journalseite](#die-journalseite) des angezeigten Journals.
-- **Filter** – ein Textfeld plus **Eingabe/Ausgabe/Notizen** schaltet die sichtbaren Einträge live ein; Die Filterung wirkt sich nur auf die Ansicht aus, niemals auf das Protokoll.
-- **Klicken Sie mit der rechten Maustaste auf einen Eintrag** – kopieren Sie seinen Text oder fügen Sie eine Notiz hinzu, die mit der Zeit dieses Eintrags vorausgefüllt ist.
+Da es sich um die eigentliche Journalseite handelt, funktioniert alles, was die Viewer-Seite bietet, genau hier: Klicken Sie auf eine Eintragskarte, um den Protokollauszug anzuzeigen, durchsuchen Sie das Journal, springen Sie zwischen markierten Einträgen und **klicken** Sie mit der rechten Maustaste** auf einen Screenshot, um den [Annotationseditor](#screenshot-notizen-und-anmerkungen) zu öffnen (Stift, Box, unlesbar, Text und eine Notiz) oder kopieren Sie ihn – das bearbeitete Bild erscheint im Panel, sobald Sie speichern. Wenn Sie mit der rechten Maustaste auf einen Eintrag klicken, steht Ihnen die gleiche Markierungsauswahl zur Verfügung wie im Viewer.
 
-Das Panel zeigt höchstens die neuesten 5000 Einträge an; Ältere Zeilen bleiben im Capture-Log und sind immer im Viewer verfügbar. Alles, was angezeigt wird, hat bereits den [-Passwortschutz ](#passwortschutz) bestanden – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.
+Die Kopfzeile des Panels fügt die sofortigen Steuerelemente hinzu: **Notiz** und **Screenshot** wirken auf das angezeigte Journal genau wie die [Journalleiste](#die-journalleiste) – Eine von Ihnen hinzugefügte Notiz erscheint sowohl in der Timeline als auch im Protokollende – und **Viewer öffnen** öffnet das vollständige Viewer-Fenster zum Bearbeiten, Suchen und Ersetzen sowie zum Exportieren. Das **⋯**-Menü aktualisiert die Seite und öffnet die Seite [Aussehen](#aussehen) Einstellungen.
+
+Das Panel folgt Ihren Tabs mit einem Gedächtnis: Es zeigt das Journal des aktuellen Tabs an, und wenn Sie zwischen Tabs wechseln, schaltet es nur weiter, **wenn der neu ausgewählte Tab auch ein laufendes Journal hat** – andernfalls zeigt es weiterhin das Journal an, das es bereits anzeigt. Wenn das angezeigte Journal gestoppt oder sein Tab geschlossen wird, bleibt die Seite mit dem Abzeichen **Journal gestoppt** / **Tab geschlossen** sichtbar, bis Sie einen anderen Tab mit einem Live-Journal auswählen.
+
+Alles, was angezeigt wird, hat bereits den [-Passwortschutz ](#passwortschutz) bestanden – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.
 
 ## KI-Zusammenfassungen
 
