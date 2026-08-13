@@ -43,6 +43,22 @@ While a journal is available, a bar below the terminal shows its state (**Journa
 - **Screenshot** (++ctrl+alt+c++, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
 - **Note** opens a small input for a free-text remark that appears as its own timeline entry at the current position.
 
+## The live journal panel
+
+**View > Live Journal** (or ++ctrl+alt+l++) docks a real-time view of the running journal to the **left or right** of the terminal. It shows the capture log as it is written — command output, the commands you typed (highlighted), notes and screenshot markers, each with a timestamp — starting with the newest entries of the log and then streaming new lines as they are captured. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.
+
+The panel follows your tabs with a memory: it shows the journal of the current tab, and when you switch tabs it only switches along **if the newly selected tab also has a running journal** — otherwise it keeps showing the journal it already displays. When the shown journal is stopped or its tab is closed, the content stays visible with a **Journal stopped** / **Tab closed** badge until you select another tab with a live journal.
+
+What the panel offers while a session runs:
+
+- **Follow** — auto-scrolls to new entries; scrolling up pauses following so you can read, the toggle resumes it.
+- **Note** and **Screenshot** — the same actions as the [journal bar](#the-journal-bar), for the journal shown in the panel.
+- **Open Viewer** — opens the full [journal page](#the-journal-page) of the shown journal.
+- **Filter** — a text field plus **Input / Output / Notes** toggles narrow the visible entries live; filtering only affects the view, never the log.
+- **Right-click an entry** — copy its text, or add a note pre-filled with that entry's time.
+
+The panel displays at most the newest 5000 entries; older lines stay in the capture log and are always available in the viewer. Everything shown has already passed [password protection](#password-protection) — suppressed input and redacted secrets never reach the panel.
+
 ## AI summaries
 
 While the journal runs, the AI summarizer periodically reads the newest capture-log lines and appends a compact journal entry (title, summary and a suggested marker: info, important or error). Defaults and limits:

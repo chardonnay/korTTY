@@ -77,7 +77,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "ea25fb4d"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -87,11 +87,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "ea25fb4d"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java]
-    last_synced_ref: "093cbbf4"
+    last_synced_ref: "ea25fb4d"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -372,13 +372,16 @@ pages:
       - src/main/java/de/kortty/core/SessionJournalScreenshotAnnotator.java
       - src/main/java/de/kortty/model/SessionJournalAnnotation.java
       - src/main/java/de/kortty/ui/SessionJournalScreenshotEditorDialog.java
+      - src/main/java/de/kortty/ui/SessionJournalLivePanel.java
+      - src/main/java/de/kortty/ui/SessionJournalLiveFeed.java
+      - src/main/java/de/kortty/ui/SessionJournalLivePanelDockManager.java
     diagrams: [session-journal-flow.svg]
     screenshots:
       - journal/journal-manager.png
       - journal/journal-viewer.png
       - journal/journal-export-options.png
       - journal/journal-markers.png
-    last_synced_ref: "031ad3c0"
+    last_synced_ref: "ea25fb4d"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
