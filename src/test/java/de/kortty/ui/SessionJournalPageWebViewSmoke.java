@@ -213,7 +213,7 @@ public final class SessionJournalPageWebViewSmoke {
                 + "var r=el.getBoundingClientRect();"
                 + "return Math.round(r.left+r.width/2)+','+Math.round(r.top+r.height/2);})()");
         String[] xy = centre.split(",");
-        SessionJournalViewerDialog.forwardContextMenu(
+        SessionJournalViewerPane.forwardContextMenu(
             webView.getEngine(), Double.parseDouble(xy[0]), Double.parseDouble(xy[1]));
         String forwarded = (String) webView.getEngine().executeScript(
             "(function(){var menu=document.getElementById('ctxMenu');"
