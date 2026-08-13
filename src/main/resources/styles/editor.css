@@ -3,7 +3,7 @@
 
 .code-area {
     -fx-font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-background-color: #ffffff;
 }
 
@@ -18,7 +18,7 @@
 /* Line numbers */
 .lineno {
     -fx-fill: #999999;
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
 }
 
 /* XML Elements - blue bold */

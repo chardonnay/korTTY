@@ -165,6 +165,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AppDesign> appDesignCombo;
     private ComboBox<ChatColorProfile> chatColorProfileCombo;
     private CheckBox appDesignAnimationsCheck;
+    private Spinner<Integer> uiFontScaleSpinner;
+    private CheckBox uiFontScaleAutoCheck;
     
     // Security settings
     private final CheckBox requireMasterPasswordOnStartupCheck;
@@ -428,6 +430,51 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         appDesignAnimationsCheck = new CheckBox(I18n.get("settings.appearance.animations"));
         appDesignAnimationsCheck.setSelected(globalSettings == null || globalSettings.isAppDesignAnimationsEnabled());
 
+        // UI font size. Not editable on purpose — unlike the terminal font spinner, this one resizes
+        // the dialog the user is standing in, so arrows-only rules out both a typed value that never
+        // commits and an accidental extreme that makes Settings hard to navigate back out of.
+        uiFontScaleSpinner = new Spinner<>(GlobalSettings.MIN_UI_FONT_SCALE_PERCENT,
+            GlobalSettings.MAX_UI_FONT_SCALE_PERCENT,
+            globalSettings != null
+                ? globalSettings.getUiFontScalePercent()
+                : GlobalSettings.UI_FONT_SCALE_DEFAULT_PERCENT,
+            5);
+        uiFontScaleSpinner.setEditable(false);
+        uiFontScaleSpinner.setPrefWidth(90);
+        uiFontScaleSpinner.setTooltip(new Tooltip(I18n.get("settings.appearance.uiFontScale.tooltip")));
+
+        uiFontScaleAutoCheck = new CheckBox(I18n.get("settings.appearance.uiFontScale.auto"));
+        uiFontScaleAutoCheck.setSelected(globalSettings != null && globalSettings.isUiFontScaleAuto());
+        uiFontScaleAutoCheck.setTooltip(new Tooltip(I18n.get("settings.appearance.uiFontScale.auto.tooltip")));
+        // With auto on the stored percent is ignored, so show the value the screen actually yields
+        // rather than leaving a stale manual number under a disabled control.
+        uiFontScaleSpinner.disableProperty().bind(uiFontScaleAutoCheck.selectedProperty());
+        uiFontScaleAutoCheck.selectedProperty().addListener((obs, wasAuto, isAuto) -> {
+            if (Boolean.TRUE.equals(isAuto)) {
+                uiFontScaleSpinner.getValueFactory().setValue(UiFontScaleSupport.autoPercentForPrimaryScreen());
+            } else if (globalSettings != null) {
+                uiFontScaleSpinner.getValueFactory().setValue(globalSettings.getUiFontScalePercent());
+            }
+        });
+        if (uiFontScaleAutoCheck.isSelected()) {
+            uiFontScaleSpinner.getValueFactory().setValue(UiFontScaleSupport.autoPercentForPrimaryScreen());
+        }
+
+        // Without the unit the number reads as a font size in points rather than a scale factor.
+        Label uiFontScaleUnit = new Label("%");
+        HBox uiFontScaleValue = new HBox(4, uiFontScaleSpinner, uiFontScaleUnit);
+        uiFontScaleValue.setAlignment(Pos.CENTER_LEFT);
+
+        HBox uiFontScaleControls = new HBox(8,
+            new Label(I18n.get("settings.appearance.uiFontScale")), uiFontScaleValue, uiFontScaleAutoCheck);
+        uiFontScaleControls.setAlignment(Pos.CENTER_LEFT);
+
+        Label uiFontScaleInfo = new Label(I18n.get("settings.appearance.uiFontScale.info"));
+        uiFontScaleInfo.setWrapText(true);
+        uiFontScaleInfo.setMaxWidth(460);
+        uiFontScaleInfo.getStyleClass().add("settings-info-label");
+        uiFontScaleInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+
         // Chat color profile (themes for the AI/swarm chat surfaces).
         chatColorProfileCombo = new ComboBox<>();
         chatColorProfileCombo.getItems().setAll(ChatColorProfileSupport.all());
@@ -451,8 +498,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         appearanceInfo.setMaxWidth(460);
         appearanceInfo.getStyleClass().add("settings-info-label");
         appearanceInfo.setStyle(globalSettings == null || globalSettings.getAppDesign() == AppDesign.NORMAL
-            ? "-fx-font-size: 11px; -fx-text-fill: gray;"
-            : "-fx-font-size: 11px;");
+            ? "-fx-font-size: 0.8462em; -fx-text-fill: gray;"
+            : "-fx-font-size: 0.8462em;");
 
         Label appDesignPreviewLabel = new Label(I18n.get("settings.appearance.preview"));
         appDesignPreviewLabel.getStyleClass().add("settings-info-label");
@@ -461,7 +508,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Shown centered in place of the image for designs without a preview (e.g. Default).
         Label appDesignPreviewPlaceholder = new Label(I18n.get("settings.appearance.preview.none"));
         appDesignPreviewPlaceholder.getStyleClass().add("settings-info-label");
-        appDesignPreviewPlaceholder.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        appDesignPreviewPlaceholder.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         appDesignPreviewPlaceholder.setWrapText(true);
 
         // Fixed-size area that holds either the preview image or the "no preview" note, both
@@ -483,9 +530,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         // Plain top-to-bottom stack: controls row, the info text, then the fixed preview box below.
         VBox appearanceContent = new VBox(14, appDesignControls, appDesignAnimationsCheck,
-            chatColorProfileControls, appearanceInfo, appDesignPreviewBox);
+            uiFontScaleControls, uiFontScaleInfo, chatColorProfileControls, appearanceInfo, appDesignPreviewBox);
         appearanceContent.setPadding(new Insets(20));
-        appearanceTab.setContent(appearanceContent);
+        // This tab holds a fixed-height preview box below its controls, so it is the one tab with no
+        // slack left: at a large UI font size the stack outgrows the dialog. Scrolling keeps every
+        // control reachable instead of pushing the preview off the bottom edge.
+        ScrollPane appearanceScroll = new ScrollPane(appearanceContent);
+        appearanceScroll.setFitToWidth(true);
+        appearanceScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        appearanceScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        appearanceTab.setContent(appearanceScroll);
         
         // Font tab
         Tab fontTab = new Tab(I18n.get("settings.tab.font"));
@@ -726,7 +780,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         disableHostKeyCheckAllCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.hostKeyCheck.disableAll.tooltip")));
         terminalGrid.add(disableHostKeyCheckAllCheck, 0, 16, 2, 1);
         Label hostKeyWarn = new Label(I18n.get("settings.terminal.hostKeyCheck.warning"));
-        hostKeyWarn.setStyle("-fx-font-size: 10px; -fx-text-fill: #d9534f;");
+        hostKeyWarn.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #d9534f;");
         hostKeyWarn.setWrapText(true);
         terminalGrid.add(hostKeyWarn, 0, 17, 2, 1);
 
@@ -772,7 +826,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int backupRow = 0;
         
         Label backupHeader = new Label(I18n.get("settings.backup.header"));
-        backupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        backupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         backupGrid.add(backupHeader, 0, backupRow++, 2, 1);
         
         // Max backup count
@@ -788,12 +842,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         backupGrid.add(maxBackupSpinner, 1, backupRow++);
         
         Label infoLabel = new Label(I18n.get("settings.backup.maxCount.info"));
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         backupGrid.add(infoLabel, 0, backupRow++, 2, 1);
         
         // Encryption (REQUIRED!)
         Label encryptionHeader = new Label(I18n.get("settings.backup.encryption.header"));
-        encryptionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        encryptionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         backupGrid.add(encryptionHeader, 0, backupRow++, 2, 1);
         
         javafx.scene.control.ToggleGroup encryptionGroup = new javafx.scene.control.ToggleGroup();
@@ -885,7 +939,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // Warning message
         Label warningLabel = new Label(I18n.get("settings.backup.warning"));
-        warningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #d97706; -fx-font-weight: bold;");
+        warningLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #d97706; -fx-font-weight: bold;");
         backupGrid.add(warningLabel, 0, backupRow++, 2, 1);
         
         // Show last backup info
@@ -900,7 +954,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 lastBackupText += "\n→ " + globalSettings.getLastBackupPath();
             }
             Label lastBackupValue = new Label(lastBackupText);
-            lastBackupValue.setStyle("-fx-font-size: 10px;");
+            lastBackupValue.setStyle("-fx-font-size: 0.7692em;");
             lastBackupValue.setWrapText(true);
             lastBackupValue.setMaxWidth(350);
             
@@ -919,7 +973,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int loggingRow = 0;
 
         Label loggingHeader = new Label(I18n.get("settings.logging.header"));
-        loggingHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        loggingHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         loggingGrid.add(loggingHeader, 0, loggingRow++, 2, 1);
 
         logDirectoryPathField = new TextField();
@@ -943,7 +997,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             "settings.logging.directory.info",
             LoggingConfiguration.defaultLogDirectory(KorTTYApplication.getConfigDirectory())));
         logDirectoryInfo.setWrapText(true);
-        logDirectoryInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        logDirectoryInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         loggingGrid.add(logDirectoryInfo, 1, loggingRow++);
 
         logRetentionDaysSpinner = new Spinner<>(
@@ -965,18 +1019,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label logRetentionInfo = new Label(I18n.get("settings.logging.retention.info"));
         logRetentionInfo.setWrapText(true);
-        logRetentionInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        logRetentionInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         loggingGrid.add(logRetentionInfo, 1, loggingRow++);
 
         Label logCompressionInfo = new Label(I18n.get("settings.logging.compression.info"));
         logCompressionInfo.setWrapText(true);
-        logCompressionInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        logCompressionInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         loggingGrid.add(logCompressionInfo, 0, loggingRow++, 2, 1);
 
         // Session journal section (journal capture is logging-adjacent, so it lives on this tab)
         loggingGrid.add(new Separator(), 0, loggingRow++, 2, 1);
         Label journalHeader = new Label(I18n.get("settings.journal.section"));
-        journalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        journalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         loggingGrid.add(journalHeader, 0, loggingRow++, 2, 1);
 
         de.kortty.policy.EffectivePolicy journalPolicy = de.kortty.policy.PolicyManager.effective();
@@ -1068,13 +1122,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int exportRow = 0;
 
         Label exportHeader = new Label(I18n.get("settings.export.header"));
-        exportHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        exportHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         exportGrid.add(exportHeader, 0, exportRow++, 2, 1);
 
         Label exportIntro = new Label(I18n.get("settings.export.intro"));
         exportIntro.setWrapText(true);
         exportIntro.setMaxWidth(560);
-        exportIntro.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        exportIntro.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         exportGrid.add(exportIntro, 0, exportRow++, 2, 1);
 
         pdfWatermarkEnabledCheck = new CheckBox(I18n.get("settings.export.watermark"));
@@ -1100,7 +1154,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label watermarkInfo = new Label(I18n.get("settings.export.watermark.info"));
         watermarkInfo.setWrapText(true);
         watermarkInfo.setMaxWidth(360);
-        watermarkInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        watermarkInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         exportGrid.add(watermarkInfo, 1, exportRow++);
 
         exportGrid.add(new Separator(), 0, exportRow++, 2, 1);
@@ -1121,7 +1175,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label footerInfo = new Label(I18n.get("settings.export.footer.info"));
         footerInfo.setWrapText(true);
         footerInfo.setMaxWidth(360);
-        footerInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        footerInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         exportGrid.add(footerInfo, 1, exportRow++);
 
         exportTab.setContent(exportGrid);
@@ -1135,7 +1189,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int updatesRow = 0;
 
         Label updatesHeader = new Label(I18n.get("settings.updates.header"));
-        updatesHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        updatesHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         updatesGrid.add(updatesHeader, 0, updatesRow++, 2, 1);
 
         updateChecksEnabledCheck = new CheckBox(I18n.get("settings.updates.automatic"));
@@ -1174,7 +1228,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label updatesInfoLabel = new Label(I18n.get("settings.updates.info"));
         updatesInfoLabel.setWrapText(true);
-        updatesInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        updatesInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         updatesGrid.add(updatesInfoLabel, 0, updatesRow++, 2, 1);
 
         updatesTab.setContent(updatesGrid);
@@ -1189,7 +1243,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int windowRow = 0;
         
         Label windowHeader = new Label(I18n.get("settings.window.header"));
-        windowHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        windowHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         windowGrid.add(windowHeader, 0, windowRow++, 2, 1);
         
         rememberWindowGeometryCheck = new CheckBox(I18n.get("settings.window.rememberGeometry"));
@@ -1198,7 +1252,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         windowGrid.add(rememberWindowGeometryCheck, 0, windowRow++, 2, 1);
         
         Label windowInfoLabel = new Label(I18n.get("settings.window.rememberGeometry.info"));
-        windowInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        windowInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(windowInfoLabel, 0, windowRow++, 2, 1);
         
         rememberDashboardStateCheck = new CheckBox(I18n.get("settings.window.rememberDashboard"));
@@ -1207,7 +1261,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         windowGrid.add(rememberDashboardStateCheck, 0, windowRow++, 2, 1);
         
         Label dashboardInfoLabel = new Label(I18n.get("settings.window.rememberDashboard.info"));
-        dashboardInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        dashboardInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(dashboardInfoLabel, 0, windowRow++, 2, 1);
 
         openToolWindowsAsTabsCheck = new CheckBox(I18n.get("settings.window.toolWindowTabs"));
@@ -1216,14 +1270,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         windowGrid.add(openToolWindowsAsTabsCheck, 0, windowRow++, 2, 1);
 
         Label toolWindowTabsInfoLabel = new Label(I18n.get("settings.window.toolWindowTabs.info"));
-        toolWindowTabsInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        toolWindowTabsInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(toolWindowTabsInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
         
         Label fixedGeometryHeader = new Label(I18n.get("settings.window.fixedGeometry.header"));
-        fixedGeometryHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        fixedGeometryHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         windowGrid.add(fixedGeometryHeader, 0, windowRow++, 2, 1);
         
         useFixedGeometryCheck = new CheckBox(I18n.get("settings.window.fixedGeometry"));
@@ -1283,7 +1337,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
         
         Label fixedGeometryInfoLabel = new Label(I18n.get("settings.window.fixedGeometry.info"));
-        fixedGeometryInfoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        fixedGeometryInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
         windowTab.setContent(windowGrid);
@@ -1298,12 +1352,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int securityRow = 0;
         
         Label securityHeader = new Label(I18n.get("settings.security.masterPassword"));
-        securityHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        securityHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         securityGrid.add(securityHeader, 0, securityRow++, 2, 1);
         
         Label passwordInfoLabel = new Label(I18n.get("settings.security.masterPassword.info"));
         passwordInfoLabel.setWrapText(true);
-        passwordInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        passwordInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         securityGrid.add(passwordInfoLabel, 0, securityRow++, 2, 1);
         
         Button changePasswordButton = new Button(I18n.get("settings.security.masterPassword.change"));
@@ -1322,7 +1376,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         Label masterPasswordWarningLabel = new Label(I18n.get("settings.security.masterPassword.warning"));
         masterPasswordWarningLabel.setWrapText(true);
-        masterPasswordWarningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+        masterPasswordWarningLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
         masterPasswordWarningLabel.setVisible(!requireMasterPasswordOnStartupCheck.isSelected());
         
         // Show/hide warning based on checkbox state
@@ -1344,7 +1398,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label skipPromptWarningLabel = new Label(I18n.get("settings.security.masterPassword.skipPrompt.warning"));
         skipPromptWarningLabel.setWrapText(true);
         skipPromptWarningLabel.setMaxWidth(640);
-        skipPromptWarningLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+        skipPromptWarningLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
         skipPromptWarningLabel.setVisible(skipMasterPasswordPromptCheck.isSelected());
 
         skipMasterPasswordPromptCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
@@ -1400,13 +1454,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int privacyRow = 0;
 
         Label privacyHeader = new Label(I18n.get("settings.telemetry.header"));
-        privacyHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        privacyHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         privacyGrid.add(privacyHeader, 0, privacyRow++, 2, 1);
 
         Label privacySummaryLabel = new Label(I18n.get("settings.telemetry.summary"));
         privacySummaryLabel.setWrapText(true);
         privacySummaryLabel.setMaxWidth(640);
-        privacySummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        privacySummaryLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         privacyGrid.add(privacySummaryLabel, 0, privacyRow++, 2, 1);
 
         telemetryEnabledCheck = new CheckBox(I18n.get("settings.telemetry.enable"));
@@ -1434,13 +1488,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label telemetryCollectedLabel = new Label(I18n.get("settings.telemetry.collected"));
         telemetryCollectedLabel.setWrapText(true);
         telemetryCollectedLabel.setMaxWidth(640);
-        telemetryCollectedLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        telemetryCollectedLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         privacyGrid.add(telemetryCollectedLabel, 0, privacyRow++, 2, 1);
 
         Label telemetryNotCollectedLabel = new Label(I18n.get("settings.telemetry.notCollected"));
         telemetryNotCollectedLabel.setWrapText(true);
         telemetryNotCollectedLabel.setMaxWidth(640);
-        telemetryNotCollectedLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        telemetryNotCollectedLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         privacyGrid.add(telemetryNotCollectedLabel, 0, privacyRow++, 2, 1);
 
         String telemetryConsentDate = globalSettings != null ? globalSettings.getTelemetryConsentDate() : null;
@@ -1448,7 +1502,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             Label telemetryDecisionLabel =
                 new Label(I18n.get("settings.telemetry.decisionDate", formatConsentDate(telemetryConsentDate)));
             telemetryDecisionLabel.setWrapText(true);
-            telemetryDecisionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+            telemetryDecisionLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
             privacyGrid.add(telemetryDecisionLabel, 0, privacyRow++, 2, 1);
         }
 
@@ -1514,7 +1568,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         Label languageInfo = new Label(I18n.get("settings.language.info"));
         languageInfo.setWrapText(true);
-        languageInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        languageInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         languageGrid.add(languageInfo, 0, 1, 2, 1);
         
         languageTab.setContent(languageGrid);
@@ -1625,7 +1679,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         translationGrid.add(new Label(I18n.get("settings.translation.generatedLanguages")), 0, transRow);
         translationOutdatedLabelRef = new Label();
         translationOutdatedLabelRef.setWrapText(true);
-        translationOutdatedLabelRef.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        translationOutdatedLabelRef.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         translationOutdatedLabelRef.setVisible(false);
         translationRegenerateOutdatedButtonRef = new Button(I18n.get("settings.translation.regenerateOutdated"));
         translationRegenerateOutdatedButtonRef.setVisible(false);
@@ -1664,7 +1718,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // multi-hour runtime — the part users most need to read — never appears.
         guideHint.setPrefWidth(520);
         guideHint.setMinHeight(Region.USE_PREF_SIZE);
-        guideHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        guideHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         translationGrid.add(guideHint, 1, transRow++);
 
         Button guideGenerateButton = new Button(I18n.get("settings.translation.guide.generate"));
@@ -1674,7 +1728,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         guideTranslationProgress.setPrefWidth(160);
         guideTranslationProgress.setVisible(false);
         guideTranslationStatusLabel = new Label();
-        guideTranslationStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        guideTranslationStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         // Which AI profile does the work. Without this the guide is stuck on the default text
         // profile, so a user could neither benchmark a second model nor point the run at the one
         // they actually want spending the next few hours on.
@@ -1735,12 +1789,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label aiFeaturesHint = new Label(I18n.get("settings.ai.featuresEnabled.hint"));
         aiFeaturesHint.setWrapText(true);
-        aiFeaturesHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiFeaturesHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiFeaturesHint);
 
         Label aiInfo = new Label(I18n.get("settings.ai.info"));
         aiInfo.setWrapText(true);
-        aiInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiInfo);
 
         aiConfirmBeforeSendCheck = new CheckBox(I18n.get("settings.ai.confirmBeforeSend"));
@@ -1755,7 +1809,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label aiTerminalAgentExecutionHint = new Label(I18n.get("settings.ai.terminalAgentExecutionEnabled.hint"));
         aiTerminalAgentExecutionHint.setWrapText(true);
-        aiTerminalAgentExecutionHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiTerminalAgentExecutionHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiTerminalAgentExecutionHint);
 
         aiTerminalAgentConfirmMutatingCommandSetsCheck =
@@ -1770,7 +1824,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label aiTerminalAgentConfirmMutatingHint =
             new Label(I18n.get("settings.ai.terminalAgentConfirmMutatingCommandSets.hint"));
         aiTerminalAgentConfirmMutatingHint.setWrapText(true);
-        aiTerminalAgentConfirmMutatingHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiTerminalAgentConfirmMutatingHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiTerminalAgentConfirmMutatingHint);
 
         aiPromptHookEnabledCheck = new CheckBox(I18n.get("settings.ai.promptHook"));
@@ -1793,7 +1847,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiAgentCommandNameField.setPrefWidth(220);
         Label aiAgentCommandInfoLabel = new Label();
         aiAgentCommandInfoLabel.setWrapText(true);
-        aiAgentCommandInfoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiAgentCommandInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         Runnable updateAgentCommandInfo = () -> {
             String configured = aiAgentCommandNameField.getText();
@@ -1873,7 +1927,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiDefaultProfileCombo);
         Label aiDefaultProfileHint = new Label(I18n.get("settings.ai.defaultProfile.hint"));
         aiDefaultProfileHint.setWrapText(true);
-        aiDefaultProfileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiDefaultProfileHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().addAll(aiDefaultProfileBox, aiDefaultProfileHint);
 
         aiSecurityCheckProfileCombo = new ComboBox<>();
@@ -1902,7 +1956,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiSecurityCheckProfileClear);
         Label aiSecurityCheckProfileHint = new Label(I18n.get("settings.ai.securityProfile.hint"));
         aiSecurityCheckProfileHint.setWrapText(true);
-        aiSecurityCheckProfileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiSecurityCheckProfileHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().addAll(aiSecurityCheckProfileBox, aiSecurityCheckProfileHint);
 
         aiCodeTextLanguageCombo = new ComboBox<>();
@@ -2124,7 +2178,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiEditorGrid.add(new Label(I18n.get("settings.ai.cli.status")), 0, aiRow);
         aiCliStatusLabel = new Label();
         aiCliStatusLabel.setWrapText(true);
-        aiCliStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiCliStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiEditorGrid.add(aiCliStatusLabel, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.cli.executable")), 0, aiRow);
@@ -2271,7 +2325,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiGlobalRequestTimeoutSpinner.setPrefWidth(110);
         aiGlobalRequestTimeoutSpinner.setTooltip(new Tooltip(I18n.get("settings.ai.timeout.global.tooltip")));
         Label aiGlobalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        aiGlobalTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        aiGlobalTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         HBox aiGlobalTimeoutBox = new HBox(6, aiGlobalRequestTimeoutSpinner, aiGlobalTimeoutHint);
         aiGlobalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
         aiEditorGrid.add(aiGlobalTimeoutBox, 1, aiRow++);
@@ -2288,7 +2342,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiRequestTimeoutOverrideCheck.setTooltip(aiProfileTimeoutTooltip);
         aiRequestTimeoutSpinner.setTooltip(aiProfileTimeoutTooltip);
         Label aiProfileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        aiProfileTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        aiProfileTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         HBox aiProfileTimeoutBox = new HBox(
             6, aiRequestTimeoutOverrideCheck, aiRequestTimeoutSpinner, aiProfileTimeoutHint);
         aiProfileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
@@ -2397,7 +2451,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         aiTokenUsageLabel = new Label();
         aiTokenUsageLabel.setWrapText(true);
-        aiTokenUsageLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        aiTokenUsageLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiEditorGrid.add(aiTokenUsageLabel, 1, aiRow++);
 
         Button aiTestConnectionButton = new Button(I18n.get("settings.ai.testConnection"));
@@ -2435,7 +2489,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // SFTP Manager title
         Label sftpTitle = new Label(I18n.get("settings.sftp.title"));
-        sftpTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        sftpTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         sftpGrid.add(sftpTitle, 0, sftpRow++, 2, 1);
         
         // Auto-close enabled checkbox
@@ -2463,7 +2517,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // Info label
         Label sftpInfo = new Label(I18n.get("settings.sftp.info"));
-        sftpInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        sftpInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         sftpInfo.setWrapText(true);
         sftpInfo.setMaxWidth(400);
         sftpGrid.add(sftpInfo, 0, sftpRow++, 2, 1);
@@ -2473,7 +2527,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // ZIP settings title
         Label zipTitle = new Label(I18n.get("settings.sftp.zipTitle"));
-        zipTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        zipTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         sftpGrid.add(zipTitle, 0, sftpRow++, 2, 1);
         
         // Default ZIP path
@@ -2495,7 +2549,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // ZIP info
         Label zipInfo = new Label(I18n.get("settings.sftp.zipInfo"));
-        zipInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        zipInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         zipInfo.setWrapText(true);
         zipInfo.setMaxWidth(400);
         sftpGrid.add(zipInfo, 0, sftpRow++, 2, 1);
@@ -2503,7 +2557,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
 
         Label rsyncTitle = new Label(I18n.get("settings.sftp.rsyncTitle"));
-        rsyncTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        rsyncTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         sftpGrid.add(rsyncTitle, 0, sftpRow++, 2, 1);
 
         Label rsyncBinaryLabel = new Label(I18n.get("settings.sftp.rsyncBinaryPath"));
@@ -2517,7 +2571,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sftpGrid.add(rsyncBinaryBox, 0, sftpRow++, 2, 1);
 
         Label rsyncInfo = new Label(I18n.get("settings.sftp.rsyncInfo"));
-        rsyncInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        rsyncInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         rsyncInfo.setWrapText(true);
         rsyncInfo.setMaxWidth(400);
         sftpGrid.add(rsyncInfo, 0, sftpRow++, 2, 1);
@@ -2535,12 +2589,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // Editor settings title
         Label editorTitle = new Label(I18n.get("settings.editor.title"));
-        editorTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        editorTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         editorGrid.add(editorTitle, 0, editorRow++, 2, 1);
         
         // Info about editor using terminal settings
         Label editorInfo = new Label(I18n.get("settings.editor.info"));
-        editorInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        editorInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         editorInfo.setWrapText(true);
         editorInfo.setMaxWidth(400);
         editorGrid.add(editorInfo, 0, editorRow++, 2, 1);
@@ -2567,7 +2621,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         // Cursor info
         Label cursorInfo = new Label(I18n.get("settings.editor.cursorInfo"));
-        cursorInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        cursorInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         cursorInfo.setWrapText(true);
         cursorInfo.setMaxWidth(400);
         editorGrid.add(cursorInfo, 0, editorRow++, 2, 1);
@@ -2584,11 +2638,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         int snippetRow = 0;
         
         Label snippetTitle = new Label(I18n.get("settings.snippetEditor.title"));
-        snippetTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        snippetTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         snippetEditorGrid.add(snippetTitle, 0, snippetRow++, 2, 1);
         
         Label snippetInfo = new Label(I18n.get("settings.snippetEditor.info"));
-        snippetInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        snippetInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         snippetInfo.setWrapText(true);
         snippetInfo.setMaxWidth(400);
         snippetEditorGrid.add(snippetInfo, 0, snippetRow++, 2, 1);
@@ -2609,7 +2663,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetFontSizeSpinner.setEditable(true);
         snippetFontSizeSpinner.setPrefWidth(80);
         Label snippetSizeInfo = new Label(I18n.get("settings.snippetEditor.fontSizeInfo"));
-        snippetSizeInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        snippetSizeInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         HBox snippetSizeBox = new HBox(10, snippetFontSizeSpinner, snippetSizeInfo);
         snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.fontSize")), 0, snippetRow);
         snippetEditorGrid.add(snippetSizeBox, 1, snippetRow++);
@@ -2651,18 +2705,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
-        final double defaultContentWidth = 1000;
-        final double minimumContentWidth = 860;
-        final double defaultContentHeight = 920;
-        final double minimumContentHeight = 720;
-        final double defaultDialogHeight = 1080;
-        final double minimumDialogHeight = 960;
+        // These are fixed pixel sizes rather than content-derived ones, so they have to grow with
+        // the UI font scale or the tabs would crowd inside an unchanged frame. scaleDimension caps
+        // each against the screen — the minimums especially: an unclamped 960 minimum height at a
+        // large scale would exceed a 1080p panel and leave the dialog unusable.
+        final double defaultContentWidth = UiFontScaleSupport.scaleDimension(1000, true);
+        final double minimumContentWidth = UiFontScaleSupport.scaleDimension(860, true);
+        final double defaultContentHeight = UiFontScaleSupport.scaleDimension(920, false);
+        final double minimumContentHeight = UiFontScaleSupport.scaleDimension(720, false);
+        final double defaultDialogHeight = UiFontScaleSupport.scaleDimension(1080, false);
+        final double minimumDialogHeight = UiFontScaleSupport.scaleDimension(960, false);
 
         tabPane.setPrefSize(defaultContentWidth, defaultContentHeight);
         tabPane.setMinSize(minimumContentWidth, minimumContentHeight);
         getDialogPane().setContent(buildSectionNavigationContent(tabPane));
-        getDialogPane().setPrefWidth(1120);
-        getDialogPane().setMinWidth(1000);
+        getDialogPane().setPrefWidth(UiFontScaleSupport.scaleDimension(1120, true));
+        getDialogPane().setMinWidth(UiFontScaleSupport.scaleDimension(1000, true));
         getDialogPane().setPrefHeight(defaultDialogHeight);
         getDialogPane().setMinHeight(minimumDialogHeight);
         
@@ -2815,6 +2873,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
             globalSettings.setAppDesign(appDesignCombo.getValue());
             globalSettings.setAppDesignAnimationsEnabled(appDesignAnimationsCheck.isSelected());
+            globalSettings.setUiFontScaleAuto(uiFontScaleAutoCheck.isSelected());
+            // Only store the spinner while it is the live control. Under auto it shows the derived
+            // value, and writing that back would overwrite the manual choice the user returns to.
+            if (!uiFontScaleAutoCheck.isSelected()) {
+                globalSettings.setUiFontScalePercent(uiFontScaleSpinner.getValue());
+            }
             globalSettings.setChatColorProfileId(
                 chatColorProfileCombo.getValue() != null ? chatColorProfileCombo.getValue().id() : null);
         }
@@ -3040,6 +3104,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("appearance", "app_design", gs::getAppDesign, true));
             tracked.add(new TrackedSetting("appearance", "animations_enabled", gs::isAppDesignAnimationsEnabled, true));
             tracked.add(new TrackedSetting("appearance", "apply_theme_fonts", gs::isApplyThemeFonts, true));
+            tracked.add(new TrackedSetting("appearance", "ui_font_scale_percent", gs::getUiFontScalePercent, true));
+            tracked.add(new TrackedSetting("appearance", "ui_font_scale_auto", gs::isUiFontScaleAuto, true));
             tracked.add(new TrackedSetting("terminal", "connection_retries_enabled", gs::isConnectionRetriesEnabled, true));
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
@@ -3306,12 +3372,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         vbox.setPadding(new Insets(20));
         
         Label header = new Label(I18n.get("theme.header"));
-        header.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         vbox.getChildren().add(header);
         
         Label desc = new Label(I18n.get("theme.description"));
         desc.setWrapText(true);
-        desc.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        desc.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         vbox.getChildren().add(desc);
 
         CheckBox applyThemeFontsCheck = new CheckBox(I18n.get("theme.applyFontOption"));
@@ -3457,10 +3523,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         vbox.setPadding(new Insets(20));
 
         Label header = new Label(I18n.get("settings.resources.header"));
-        header.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         Label desc = new Label(I18n.get("settings.resources.description"));
         desc.setWrapText(true);
-        desc.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        desc.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         jvmResourceProfileCombo = new ComboBox<>();
         jvmResourceProfileCombo.getItems().addAll(
@@ -3487,7 +3553,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label ramLabel = new Label(ramBytes > 0
             ? I18n.get("settings.resources.detectedRam", formatGigabytes(ramBytes))
             : I18n.get("settings.resources.detectedRam.unknown"));
-        ramLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        ramLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         // Live ceiling for the selected profile: how much memory korTTY may use at most.
         Label maxHeapLabel = new Label();
@@ -3496,7 +3562,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label profileDetail = new Label();
         profileDetail.setWrapText(true);
-        profileDetail.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        profileDetail.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         Runnable updateDetail = () -> {
             JvmResourceProfile selected = jvmResourceProfileCombo.getValue();
@@ -3516,11 +3582,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label warn = new Label(I18n.get("settings.resources.warning"));
         warn.setWrapText(true);
-        warn.setStyle("-fx-font-size: 11px; -fx-text-fill: derive(-fx-text-inner-color, -20%);");
+        warn.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: derive(-fx-text-inner-color, -20%);");
 
         Label restartInfo = new Label(I18n.get("settings.resources.restart"));
         restartInfo.setWrapText(true);
-        restartInfo.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        restartInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         vbox.getChildren().addAll(header, desc, profileRow, ramLabel, maxHeapLabel, profileDetail, warn, restartInfo);
         tab.setContent(vbox);

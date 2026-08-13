@@ -115,7 +115,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
 
         statusLabel = new Label();
         statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         HBox topBar = new HBox(10, instructionsArea, reloadButton, progressIndicator);
         topBar.setAlignment(Pos.TOP_LEFT);

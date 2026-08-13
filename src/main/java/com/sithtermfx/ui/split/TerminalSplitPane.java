@@ -907,7 +907,7 @@ public class TerminalSplitPane extends StackPane {
             closeButton.setMinSize(18, 18);
             closeButton.setPrefSize(18, 18);
             closeButton.setMaxSize(18, 18);
-            closeButton.setStyle("-fx-font-size: 10px; -fx-padding: 0; -fx-background-radius: 9;");
+            closeButton.setStyle("-fx-font-size: 0.7692em; -fx-padding: 0; -fx-background-radius: 9;");
             closeButton.setOnAction(e -> {
                 e.consume();
                 closeSplit(widget);

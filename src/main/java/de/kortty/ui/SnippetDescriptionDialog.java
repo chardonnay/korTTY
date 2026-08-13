@@ -131,7 +131,7 @@ public class SnippetDescriptionDialog extends ThemeAwareDialog<Void> {
 
         Label infoLabel = new Label(I18n.get("snippets.ai.describe.info"));
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         Region spacer = new Region();
         HBox toolbar = new HBox(

@@ -155,7 +155,7 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
 
         if (!availableTags.isEmpty()) {
             Label selectionHeader = new Label(I18n.get("connExport.selection"));
-            selectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+            selectionHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
             grid.add(selectionHeader, 0, row++, 3, 1);
 
             ToggleGroup selectionToggle = new ToggleGroup();
@@ -185,7 +185,7 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
 
         // Section: Authentication data
         Label authHeader = new Label(I18n.get("connExport.authData"));
-        authHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        authHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(authHeader, 0, row++, 3, 1);
         
         includeUsernameCheck = new CheckBox(I18n.get("connExport.exportUsername"));
@@ -197,12 +197,12 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
         grid.add(includePasswordCheck, 0, row++, 3, 1);
         
         Label authInfo = new Label(I18n.get("connExport.authInfo"));
-        authInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        authInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         grid.add(authInfo, 0, row++, 3, 1);
         
         // Section: Additional data
         Label additionalHeader = new Label(I18n.get("connExport.additionalInfo"));
-        additionalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        additionalHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(additionalHeader, 0, row++, 3, 1);
         
         includeTunnelsCheck = new CheckBox(I18n.get("connExport.exportTunnels"));
@@ -215,7 +215,7 @@ public class ConnectionExportDialog extends ThemeAwareDialog<ConnectionExportDia
         
         // Add info about format compatibility
         Label compatInfo = new Label(I18n.get("connExport.compatInfo"));
-        compatInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666; -fx-font-style: italic;");
+        compatInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #666666; -fx-font-style: italic;");
         grid.add(compatInfo, 0, row++, 3, 1);
         
         VBox content = new VBox(grid);

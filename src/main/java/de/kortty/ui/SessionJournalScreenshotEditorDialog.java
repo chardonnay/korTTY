@@ -228,7 +228,7 @@ public final class SessionJournalScreenshotEditorDialog {
 
         Label hint = new Label(I18n.get("journal.screenshot.hint"));
         hint.setWrapText(true);
-        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        hint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         VBox content = new VBox(10, tools, canvasHolder,
             new Label(I18n.get("journal.screenshot.note")), noteArea, hint);

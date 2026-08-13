@@ -53,7 +53,7 @@ public final class PolicyUiSupport {
         Label banner = new Label("🔒 " + I18n.get("policy.settings.tabBanner"));
         banner.setWrapText(true);
         banner.getStyleClass().add("policy-managed-banner");
-        banner.setStyle("-fx-font-size: 11px; -fx-text-fill: #8a6d3b; -fx-background-color: #fcf8e3; "
+        banner.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #8a6d3b; -fx-background-color: #fcf8e3; "
             + "-fx-padding: 6 10 6 10; -fx-background-radius: 4;");
         return banner;
     }

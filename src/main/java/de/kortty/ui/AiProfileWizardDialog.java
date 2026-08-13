@@ -188,9 +188,9 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         // ButtonType itself as the AiProfile result and callers would hit a ClassCastException.
         setResultConverter(buttonType -> null);
 
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
         subtitleLabel.setWrapText(true);
-        subtitleLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-text-inner-color;");
+        subtitleLabel.setStyle("-fx-font-size: 0.9231em; -fx-text-fill: -fx-text-inner-color;");
         illustrationHolder.setMinSize(96, 96);
         illustrationHolder.setPrefSize(96, 96);
 
@@ -774,7 +774,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         loadButton.setOnAction(e -> loadServerModels());
         serverModelStatus = new Label();
         serverModelStatus.setWrapText(true);
-        serverModelStatus.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        serverModelStatus.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         serverModelToggle.selectedToggleProperty().addListener((o, a, b) -> {
             refreshReasoningLevels();
             updateButtons();

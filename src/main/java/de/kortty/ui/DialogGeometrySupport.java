@@ -62,7 +62,11 @@ public final class DialogGeometrySupport {
      */
     public static void restore(Dialog<?> dialog, WindowGeometry geometry) {
         WindowGeometry usable = sanitize(geometry, visualScreenBounds());
-        if (usable != null) {
+        // A remembered size was measured against the UI font scale in effect at the time. After a
+        // scale change it is the wrong size — too tight for larger text, needlessly roomy for
+        // smaller — so keep where the user put the dialog but let it size itself afresh.
+        boolean sizeStillValid = uiFontScaleMatchesStoredGeometry();
+        if (usable != null && sizeStillValid) {
             dialog.getDialogPane().setPrefWidth(usable.getWidth());
             dialog.getDialogPane().setPrefHeight(usable.getHeight());
         }
@@ -73,13 +77,28 @@ public final class DialogGeometrySupport {
                 return;
             }
             if (usable != null) {
-                stage.setWidth(usable.getWidth());
-                stage.setHeight(usable.getHeight());
+                if (sizeStillValid) {
+                    stage.setWidth(usable.getWidth());
+                    stage.setHeight(usable.getHeight());
+                }
                 stage.setX(usable.getX());
                 stage.setY(usable.getY());
             }
             track(dialog, stage);
         });
+    }
+
+    /**
+     * @return whether stored dialog sizes were captured at the UI font scale that is active now.
+     *     True when nothing was ever recorded, so pre-existing geometry keeps working unchanged.
+     */
+    private static boolean uiFontScaleMatchesStoredGeometry() {
+        GlobalSettings settings = settings();
+        if (settings == null) {
+            return true;
+        }
+        Integer storedAt = settings.getUiFontScalePercentAtGeometrySave();
+        return storedAt == null || storedAt == UiFontScaleSupport.effectivePercent();
     }
 
     /**
@@ -104,6 +123,9 @@ public final class DialogGeometrySupport {
             return;
         }
         setter.accept(manager.getSettings(), geometry);
+        // Stamp the scale this size was measured at, so restore() can tell a stale size apart from
+        // one that still fits.
+        manager.getSettings().setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
         try {
             manager.save();
         } catch (Exception e) {

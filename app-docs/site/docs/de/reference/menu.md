@@ -70,6 +70,8 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Journal-Screenshot hinzufügen | Erstellen Sie einen Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |
 
+Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Sitzungsjournalfunktion verweigert.
+
 ## AI
 
 ![AI menu](../assets/screenshots/main/menu-ai.png)
@@ -122,6 +124,8 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | --- | --- | --- |
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
+
+Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
 
 ## macOS Dock & Menüleiste
 

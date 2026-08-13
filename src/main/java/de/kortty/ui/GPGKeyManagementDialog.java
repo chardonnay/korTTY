@@ -78,7 +78,7 @@ public class GPGKeyManagementDialog extends ThemeAwareDialog<Boolean> {
         // Info text
         Label infoLabel = new Label(I18n.get("gpg.info"));
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         content.getChildren().addAll(listLabel, keyListView, buttonBox, infoLabel);
         VBox.setVgrow(keyListView, Priority.ALWAYS);

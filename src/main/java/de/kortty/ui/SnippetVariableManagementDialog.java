@@ -226,7 +226,7 @@ public class SnippetVariableManagementDialog extends ThemeAwareDialog<Void> {
         valueField.setPromptText(I18n.get("snippets.variables.valuePrompt"));
 
         Label nameExistsLabel = new Label(I18n.get("snippets.variables.nameExists"));
-        nameExistsLabel.setStyle("-fx-text-fill: #cc0000; -fx-font-size: 11px;");
+        nameExistsLabel.setStyle("-fx-text-fill: #cc0000; -fx-font-size: 0.8462em;");
         nameExistsLabel.setVisible(false);
 
         GridPane grid = new GridPane();

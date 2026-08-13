@@ -765,18 +765,18 @@ class SwarmStatusStrip extends Pane {
         hoverPopup.setAutoHide(true);
 
         popupNameLabel = new Label();
-        popupNameLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 13px; -fx-font-weight: bold;");
+        popupNameLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 1em; -fx-font-weight: bold;");
         popupStateLabel = new Label();
-        popupStateLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 12px;");
+        popupStateLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 0.9231em;");
         popupElapsedLabel = new Label();
-        popupElapsedLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 11px;");
+        popupElapsedLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 0.8462em;");
         popupTokensLabel = new Label();
-        popupTokensLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 11px;");
+        popupTokensLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 0.8462em;");
         popupSlowLabel = new Label();
         popupSlowLabel.setStyle("-fx-text-fill: " + SwarmStatusStripSupport.SLOW_RING_HEX
-            + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+            + "; -fx-font-size: 0.8462em; -fx-font-weight: bold;");
         popupHintLabel = new Label();
-        popupHintLabel.setStyle("-fx-text-fill: #777777; -fx-font-size: 11px;");
+        popupHintLabel.setStyle("-fx-text-fill: #777777; -fx-font-size: 0.8462em;");
 
         VBox content = new VBox(3, popupNameLabel, popupStateLabel, popupElapsedLabel,
             popupTokensLabel, popupSlowLabel, popupHintLabel);
@@ -788,6 +788,9 @@ class SwarmStatusStrip extends Pane {
                 + "-fx-border-radius: 6;"
                 + "-fx-border-width: 1;"
                 + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 2, 2);");
+        // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
+        // be applied to its content root directly.
+        UiFontScaleSupport.applyToParent(content);
         hoverPopup.getContent().add(content);
     }
 

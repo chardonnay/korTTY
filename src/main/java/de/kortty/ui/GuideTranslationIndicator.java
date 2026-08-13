@@ -57,7 +57,7 @@ final class GuideTranslationIndicator {
         barFill.setMaxHeight(BAR_HEIGHT);
         barFill.setStyle("-fx-background-color: #4a9eff; -fx-background-radius: 4;");
         bar.getChildren().addAll(barTrack, barFill);
-        label.setStyle("-fx-font-size: 11px;");
+        label.setStyle("-fx-font-size: 0.8462em;");
         node.setAlignment(Pos.CENTER_RIGHT);
         node.setPadding(new Insets(0, 10, 0, 10));
         node.getChildren().addAll(bar, label);

@@ -26,7 +26,7 @@
 
 .elegant-window-title {
     -fx-font-family: "Inter";
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
     -fx-font-weight: 600;
     -fx-text-fill: #8b9099;
 }
@@ -73,13 +73,13 @@
 .field-label {
     -fx-font-family: "Inter";
     -fx-text-fill: #8b9099;
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: 500;
 }
 
 .version-label {
     -fx-font-family: "JetBrains Mono";
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-text-fill: #4a5060;
 }
 
@@ -92,7 +92,7 @@
 
 .footer-text {
     -fx-font-family: "JetBrains Mono";
-    -fx-font-size: 9px;
+    -fx-font-size: 0.6923em;
     -fx-text-fill: #8b9099;
 }
 
@@ -233,7 +233,7 @@
     -fx-border-width: 1;
     -fx-border-radius: 7;
     -fx-background-radius: 7;
-    -fx-font-size: 13px;
+    -fx-font-size: 1em;
     -fx-pref-height: 40;
     -fx-padding: 0 36 0 16;
     -fx-effect: innershadow(gaussian, rgba(0,0,0,0.3), 4, 0, 0, 1);
@@ -250,7 +250,7 @@
 
 .elegant-eye-icon {
     -fx-font-family: "Inter";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-text-fill: #8b9099;
     -fx-padding: 0 14 0 0;
 }
@@ -388,14 +388,14 @@
 
 .elegant-brand-mark {
     -fx-font-family: "JetBrains Mono";
-    -fx-font-size: 18px;
+    -fx-font-size: 1.3846em;
     -fx-font-weight: bold;
     -fx-text-fill: #e2e4e8;
 }
 
 .elegant-brand-name {
     -fx-font-family: "Inter";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: bold;
     -fx-text-fill: #e2e4e8;
 }

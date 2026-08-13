@@ -261,13 +261,13 @@ public class TimestampGutter extends Pane {
         hoverPopup.setAutoHide(true);
 
         popupDateLabel = new Label();
-        popupDateLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 12px; -fx-font-weight: bold;");
+        popupDateLabel.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 0.9231em; -fx-font-weight: bold;");
 
         popupTimeLabel = new Label();
-        popupTimeLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 16px; -fx-font-weight: bold;");
+        popupTimeLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 1.2308em; -fx-font-weight: bold;");
 
         popupDurationLabel = new Label();
-        popupDurationLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 11px;");
+        popupDurationLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 0.8462em;");
 
         VBox popupContent = new VBox(4, popupDateLabel, popupTimeLabel, popupDurationLabel);
         popupContent.setPadding(new Insets(8, 12, 8, 12));
@@ -280,6 +280,9 @@ public class TimestampGutter extends Pane {
             "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 2, 2);"
         );
 
+        // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
+        // be applied to its content root directly.
+        UiFontScaleSupport.applyToParent(popupContent);
         hoverPopup.getContent().add(popupContent);
 
         canvas.setOnMouseMoved(event -> {

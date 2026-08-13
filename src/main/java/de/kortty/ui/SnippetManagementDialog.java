@@ -1493,7 +1493,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         if (gpgKeyCombo.getItems().isEmpty()) {
             gpgEncryptionRadio.setDisable(true);
             Label noKeysLabel = new Label(I18n.get("export.noGPGKeys"));
-            noKeysLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 10px;");
+            noKeysLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 0.7692em;");
             gpgPane.add(noKeysLabel, 1, 1);
         }
         gpgPane.setDisable(true);

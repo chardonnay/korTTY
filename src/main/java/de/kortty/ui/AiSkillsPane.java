@@ -279,7 +279,7 @@ final class AiSkillsPane extends VBox {
 
         builtinStateLabel = new Label();
         builtinStateLabel.setWrapText(true);
-        builtinStateLabel.setStyle("-fx-font-size: 11px;");
+        builtinStateLabel.setStyle("-fx-font-size: 0.8462em;");
         HBox.setHgrow(builtinStateLabel, Priority.ALWAYS);
         builtinStateLabel.setMaxWidth(Double.MAX_VALUE);
         builtinResetButton = new Button(I18n.get("settings.aiSkills.reset"));
@@ -310,7 +310,7 @@ final class AiSkillsPane extends VBox {
         Button saveButton = new Button(I18n.get("settings.save"));
         saveButton.setOnAction(event -> save());
         statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 11px;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em;");
         HBox actionBar = new HBox(8, saveButton, statusLabel);
 
         getChildren().addAll(aiSkillsContent, actionBar);

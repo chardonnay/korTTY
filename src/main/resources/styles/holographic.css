@@ -373,12 +373,12 @@
 }
 
 .field-label {
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-font-weight: bold;
 }
 
 .version-label {
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-text-fill: rgba(0,212,255,0.5);
 }
 

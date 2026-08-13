@@ -857,7 +857,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label profileHint = new Label(I18n.get("connEdit.ai.profile.hint"));
         profileHint.setWrapText(true);
-        profileHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        profileHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
 
         java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
@@ -885,7 +885,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label skillsHint = new Label(I18n.get("connEdit.ai.skills.hint"));
         skillsHint.setWrapText(true);
-        skillsHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        skillsHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
 
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
@@ -1395,7 +1395,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         buttonBox.getChildren().addAll(addButton, editButton, removeButton);
         
         Label infoLabel = new Label(I18n.get("connEdit.tunnelInfo"));
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
         vbox.getChildren().addAll(enableTunnelsCheck, new Separator(), label, tunnelList, buttonBox, infoLabel);
@@ -1505,13 +1505,13 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         });
 
         Label infoLabel = new Label(I18n.get("connEdit.jumpInfo"));
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
 
         // Mosh sessions are UDP and cannot ride the bastion's TCP tunnel; the connectors refuse
         // the combination at connect time. Surface that here as soon as it is configured.
         Label moshWarningLabel = new Label(I18n.get("connEdit.jumpMoshWarning"));
-        moshWarningLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #e67e22;");
+        moshWarningLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #e67e22;");
         moshWarningLabel.setWrapText(true);
         Runnable syncMoshWarning = () -> {
             ConnectionProtocol protocol = protocolCombo.getValue();
@@ -1624,7 +1624,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         });
         
         Label infoLabel = new Label(I18n.get("connEdit.loggingInfo"));
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
         
         vbox.getChildren().addAll(enableLoggingCheck, new Separator(), grid, infoLabel);
@@ -1674,7 +1674,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         enableJournalCheck.selectedProperty().addListener((obs, old, newVal) -> grid.setDisable(!newVal));
 
         Label infoLabel = new Label(I18n.get("connEdit.journal.info"));
-        infoLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         infoLabel.setWrapText(true);
 
         vbox.getChildren().addAll(enableJournalCheck, new Separator(), grid, infoLabel);
@@ -1685,7 +1685,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             // Mandated journals: the enable switch is locked on.
             enableJournalCheck.setDisable(true);
             Label managedLabel = new Label(I18n.get("journal.options.managed"));
-            managedLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            managedLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
             managedLabel.setWrapText(true);
             vbox.getChildren().add(managedLabel);
         }
@@ -1829,7 +1829,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             I18n.get("connEdit.geometryInfo")
         );
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         // Get current or default values
         int currentWidth = connGeo != null ? (int)connGeo.getWidth() : 1200;

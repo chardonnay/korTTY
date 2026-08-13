@@ -247,7 +247,7 @@ final class LocalAiSetupWizardDialog extends Dialog<Void> {
 
     private VBox page(String title, String body) {
         Label heading = new Label(title);
-        heading.setStyle("-fx-font-size: 17px; -fx-font-weight: bold;");
+        heading.setStyle("-fx-font-size: 1.3077em; -fx-font-weight: bold;");
         Label text = new Label(body);
         text.setWrapText(true);
         VBox box = new VBox(14, heading, text);

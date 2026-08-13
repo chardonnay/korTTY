@@ -16,6 +16,8 @@ Customize the application window and dialog visual style.
 | --- | --- | --- | --- | --- |
 | App Design | dropdown | Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | Default | `appDesign` |
 | Enable design animations | toggle | On, Off | On | `appDesignAnimationsEnabled` |
+| UI font size | number | 80–160 % in steps of 5 | 100 % | `uiFontScalePercent` |
+| Match display resolution | toggle | On, Off | Off | `uiFontScaleAuto` |
 | Chat color profile | dropdown | Automatic (theme), Original, Paper, Midnight, Cyberpunk, Retrowave, Forest, Ocean, Terminal, GPT, Cute | Automatic (theme) | `chatColorProfileId` |
 
 The `◀` and `▶` buttons next to the dropdown step backward and forward through the designs (wrapping around at the ends). When a design other than **Default** is selected, a preview image of that design is shown below the controls; the **Default** design has no preview and shows a short note in its place.
@@ -26,6 +28,47 @@ The `◀` and `▶` buttons next to the dropdown step backward and forward throu
 
 !!! note
     App Design applies only to korTTY's application windows and dialogs. Terminal sessions and the file editor retain their own independent color settings (configured via the Colors or Themes tabs).
+
+### UI font size
+
+**UI font size** scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.
+
+It deliberately does **not** touch surfaces that already have their own size control, so the two never fight each other:
+
+| Surface | Where its size is set instead |
+| --- | --- |
+| Terminal sessions | The **Font** tab, plus the View menu's zoom shortcuts |
+| File editor | The **Editor** tab |
+| AI chat, agent plan and activity panels | Their own `A-` / `A+` buttons |
+| The manual (**Help → Manual**) | The `A-` / `A+` buttons in its own window — see [below](#manual-text-size) |
+| Session journal page | The journal viewer's appearance popover |
+
+Two further parts of the interface keep their size at every setting: the macOS application menu (the one in the system menu bar), because macOS draws it rather than korTTY, and the AI swarm status strip, whose labels are painted onto a canvas together with hand-computed positions.
+
+**Match display resolution** derives the size from the primary display instead, and disables the number field while it is on. The value comes from the display's *logical* height — the resolution the operating system reports after its own scaling:
+
+| Logical screen height | UI font size |
+| --- | --- |
+| Below 1400 px | 100 % |
+| 1400–1799 px | 110 % |
+| 1800–2299 px | 125 % |
+| 2300 px and above | 140 % |
+
+This is why a Retina MacBook stays at 100 %: macOS already scales it, so it reports roughly 1100 logical pixels and needs no help. The case the option exists for is a 4K or 5K display running at 100 % operating-system scaling, where korTTY really does get the full 2160 or 2880 pixels to draw into.
+
+!!! note
+    Automatic is a suggestion, not a measurement. JavaFX cannot report a display's physical size, so korTTY cannot tell a 27-inch 4K panel from a 32-inch one at the same resolution, even though they need different sizes. If the result does not suit you, turn the option off and set the percentage yourself — your manual value is remembered while automatic is on.
+
+Automatic tops out at 140 % and the manual setting at 160 %. The ceiling is deliberate: a handful of dialogs size themselves from fixed pixel widths, and beyond that point their text starts to crowd. korTTY re-reads the display when you save the settings, so after changing your monitor setup, open Settings and save again (or restart) to pick up the new resolution.
+
+### Manual text size
+
+The manual (**Help → Manual**, ++f1++) has its own text size. Three buttons at the top left of its window control it: `A-`, the current percentage, and `A+`. The percentage is also the reset control. Click it to return to 100 %. There are keyboard shortcuts for all three: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. On Windows and Linux they are ++ctrl+plus++, ++ctrl+minus++, ++ctrl+0++. They are registered on the manual's own window, so they never collide with the terminal zoom in the main window.
+
+The range is 70–250 % in steps of 10, wider than the interface setting because the manual is a reflowing document rather than a layout built from fixed widths. The size is remembered across restarts, applies to the AI search answers next to the manual as well, and stays put as you navigate between pages. It scales the page as a whole — text, images and diagrams together — the way a browser's zoom does.
+
+!!! note
+    This is separate from **UI font size** above, which governs the buttons and window chrome *around* the manual. If the manual's own toolbar looks too small, that is the setting to change.
 
 ## Font tab
 

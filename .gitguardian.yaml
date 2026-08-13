@@ -22,3 +22,10 @@ secret:
     # Test fixtures: throwaway passwords created and thrown away inside temp directories.
     - "src/test/java/de/kortty/security/MasterPasswordManagerAutoUnlockTest.java"
     - "src/test/java/de/kortty/security/MasterPasswordReEncryptorTest.java"
+    # Generated MkDocs search indexes. Not a credential and not authored: they are one-line JSON
+    # rebuilt in full by build-docs-site.py, so every docs change re-adds the whole file and the
+    # scanner reads long-standing content as new. The concrete match is the heading anchor
+    # "#ask-the-manual-ai-docs-search" (features/ai-assistant.md, "Ask the manual (AI docs search)"),
+    # whose "a|sk-the-manual..." split looks like an OpenAI key. Nothing is hidden by this entry:
+    # the index only mirrors the guide pages, which are themselves scanned.
+    - "src/main/resources/guide/**/search/search_index.*"

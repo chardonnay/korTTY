@@ -88,7 +88,7 @@ final class AiLocalPreferencesPane extends VBox {
         grid.add(journalProfile, 1, row++);
         Label journalHint = new Label(I18n.get("ai.local.preferences.journalProfile.hint"));
         journalHint.setWrapText(true);
-        journalHint.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        journalHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         journalHint.setMaxWidth(320);
         grid.add(journalHint, 1, row++);
         grid.add(new Label(I18n.get("ai.local.preferences.embeddingModel")), 0, row);
@@ -104,7 +104,7 @@ final class AiLocalPreferencesPane extends VBox {
         Button save = new Button(I18n.get("settings.save"));
         save.setOnAction(event -> save());
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         getChildren().addAll(intro, grid, save, status);
         refresh(List.of());
     }

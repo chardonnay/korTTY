@@ -108,7 +108,7 @@ public class SFTPManagerDialog extends ThemeAwareDialog<Void> {
         viewModel.setStatusText(I18n.get("sftp.connecting"));
         statusLabel = new Label();
         statusLabel.textProperty().bind(viewModel.statusTextProperty());
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         // Split pane for local and remote
         SplitPane splitPane = new SplitPane();
@@ -804,7 +804,7 @@ public class SFTPManagerDialog extends ThemeAwareDialog<Void> {
         Label titleLabel = new Label(title);
         
         Button sortButton = new Button("⇅");
-        sortButton.setStyle("-fx-font-size: 10px; -fx-padding: 2 4 2 4; -fx-min-width: 20px; -fx-pref-width: 20px;");
+        sortButton.setStyle("-fx-font-size: 0.7692em; -fx-padding: 2 4 2 4; -fx-min-width: 20px; -fx-pref-width: 20px;");
         sortButton.setTooltip(new Tooltip(I18n.get("sftp.sort")));
         
         // Track sort state: 0 = unsorted, 1 = ascending, 2 = descending

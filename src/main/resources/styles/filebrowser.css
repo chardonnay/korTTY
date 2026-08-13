@@ -73,7 +73,7 @@
     -fx-border-radius: 3;
     -fx-background-radius: 3;
     -fx-font-family: "Menlo", "Monaco", "Consolas", "monospace";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-padding: 3 6 3 6;
 }
 
@@ -97,7 +97,7 @@
     -fx-background-color: -kortty-fb-bg;
     -fx-text-fill: -kortty-fb-fg;
     -fx-font-family: "Menlo", "Monaco", "Consolas", "monospace";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-cell-size: 22px;
     -fx-padding: 0 4 0 2;
 }
@@ -117,7 +117,9 @@
     -fx-background-color: -kortty-fb-status-bg;
     -fx-text-fill: -kortty-fb-fg;
     -fx-border-color: -kortty-fb-accent;
-    -fx-font-size: 12px;
+    /* 1em, not the 0.9231em the cell size converts to: this sits INSIDE .tree-cell, which already
+       declares 0.9231em, so a second relative value would compound down to ~11.1px. */
+    -fx-font-size: 1em;
     -fx-padding: 0 2 0 2;
 }
 
@@ -161,7 +163,7 @@
 .file-browser-footer {
     -fx-background-color: -kortty-fb-status-bg;
     -fx-text-fill: -kortty-fb-fg;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-padding: 4 6 4 6;
 }
 
@@ -175,7 +177,7 @@
 
 .file-browser-loading .label {
     -fx-text-fill: -kortty-fb-fg;
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
 }
 
 /* ---------- Shared table styling (SFTP manager reuse) ---------- */
@@ -187,7 +189,7 @@
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
     -fx-font-family: "Menlo", "Monaco", "Consolas", "monospace";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
 }
 
 .file-browser-table .column-header-background,

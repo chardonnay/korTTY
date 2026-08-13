@@ -125,6 +125,8 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Manual | ++f1++ | Open this documentation inside korTTY |
 | About korTTY | | Version and project information |
 
+The manual has its own text-size buttons at the top left of its window: `A-`, the current percentage, and `A+`. Clicking the percentage resets it. The same three actions have keyboard shortcuts: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY remembers the size. See [Manual text size](settings/appearance.md#manual-text-size).
+
 ## macOS Dock & menu bar
 
 On macOS the packaged app keeps running in the background (so the JobScheduler can run scheduled jobs) even after the last window is closed. korTTY therefore adds two extra entry points so it stays reachable — and quittable — with no window open:

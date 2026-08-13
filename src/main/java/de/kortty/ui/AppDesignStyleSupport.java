@@ -153,6 +153,7 @@ final class AppDesignStyleSupport {
         }
         AppDesign active = resolveActiveDesign();
         applyToStylesheets(scene.getStylesheets(), active);
+        UiFontScaleSupport.applyToScene(scene);
         forceRestyle(active, scene.getRoot());
     }
 
@@ -162,6 +163,7 @@ final class AppDesignStyleSupport {
         }
         AppDesign active = resolveActiveDesign();
         applyToStylesheets(dialogPane.getStylesheets(), active);
+        UiFontScaleSupport.applyToDialogPane(dialogPane);
         forceRestyle(active, dialogPane);
     }
 
@@ -171,6 +173,7 @@ final class AppDesignStyleSupport {
         }
         AppDesign active = resolveActiveDesign();
         applyToStylesheets(parent.getStylesheets(), active);
+        UiFontScaleSupport.applyToParent(parent);
         forceRestyle(active, parent);
     }
 
@@ -179,9 +182,17 @@ final class AppDesignStyleSupport {
      * MenuBar buttons — fall back to the JavaFX default colour and only restyle on the next user
      * interaction (hover). For a custom design, force a CSS re-application so the design colours apply
      * deterministically right away. Skipped for NORMAL to avoid needless restyles in the common case.
+     *
+     * <p>Swapping the UI font scale stylesheet triggers the same stale rendering, and unlike a design
+     * it also affects NORMAL — which is what most users are on. So a non-default scale forces the
+     * restyle too.</p>
      */
     private static void forceRestyle(AppDesign active, Parent root) {
-        if (active != AppDesign.NORMAL && root != null) {
+        if (root == null) {
+            return;
+        }
+        if (active != AppDesign.NORMAL
+            || UiFontScaleSupport.effectivePercent() != GlobalSettings.UI_FONT_SCALE_DEFAULT_PERCENT) {
             root.applyCss();
         }
     }

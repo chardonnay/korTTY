@@ -84,7 +84,7 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
         
         Label infoLabel = new Label(I18n.get("credential.info"));
         infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
+        infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
         content.getChildren().addAll(listLabel, credentialListView, buttonBox, infoLabel);
         VBox.setVgrow(credentialListView, Priority.ALWAYS);

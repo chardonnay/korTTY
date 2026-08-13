@@ -97,7 +97,7 @@ public final class InputHardeningSelector extends VBox {
         sizeLabel.setTooltip(sizeTooltip);
         maxFileSizeSpinner.setTooltip(sizeTooltip);
         Label sizeHint = new Label(I18n.get("ai.inputHardening.maxFileSize.hint"));
-        sizeHint.setStyle("-fx-font-size: 11px;");
+        sizeHint.setStyle("-fx-font-size: 0.8462em;");
         HBox sizeRow = new HBox(6, sizeLabel, maxFileSizeSpinner, sizeHint);
         sizeRow.setAlignment(Pos.CENTER_LEFT);
         // The limit only reaches the script through the FILE_SIZE_LIMIT bullet, so the spinner is

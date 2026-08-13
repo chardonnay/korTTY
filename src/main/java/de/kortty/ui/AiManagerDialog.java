@@ -231,7 +231,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
         statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
 
         getDialogPane().setContent(root);
         getDialogPane().setPrefSize(980, 640);
@@ -439,7 +439,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliCustomModelField.textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
         cliStatusLabel.setWrapText(true);
-        cliStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        cliStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         configureDefaultProfileCombo();
 
         profileNameField.textProperty().addListener((obs, oldValue, newValue) -> {
@@ -473,7 +473,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         globalRequestTimeoutSpinner.setEditable(true);
         globalRequestTimeoutSpinner.setPrefWidth(110);
         Label globalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        globalTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        globalTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         HBox globalTimeoutBox = new HBox(6, globalRequestTimeoutSpinner, globalTimeoutHint);
         globalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
         Tooltip globalTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.global.tooltip"));
@@ -560,7 +560,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileRequestTimeoutSpinner.disableProperty().bind(
             profileRequestTimeoutOverrideCheck.selectedProperty().not());
         Label profileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        profileTimeoutHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        profileTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         Tooltip profileTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.profile.tooltip"));
         profileRequestTimeoutOverrideCheck.setTooltip(profileTimeoutTooltip);
         profileRequestTimeoutSpinner.setTooltip(profileTimeoutTooltip);
@@ -601,7 +601,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tokenUsageBar.setPrefWidth(360);
         editorGrid.add(tokenUsageBar, 1, row++);
         tokenUsageLabel.setWrapText(true);
-        tokenUsageLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-text-inner-color;");
+        tokenUsageLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
         editorGrid.add(tokenUsageLabel, 1, row++);
 
         VBox editorBox = new VBox(10, editorGrid);

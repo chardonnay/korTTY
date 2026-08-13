@@ -127,7 +127,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         
         // Section: Group filter
         Label groupFilterHeader = new Label(I18n.get("connImport.groupFilter"));
-        groupFilterHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        groupFilterHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(groupFilterHeader, 0, row++, 3, 1);
         
         filterGroupsCheck = new CheckBox(I18n.get("connImport.filterGroups"));
@@ -146,7 +146,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         grid.add(groupListView, 1, row++, 2, 1);
         
         Label groupFilterInfo = new Label(I18n.get("connImport.multiSelectInfo"));
-        groupFilterInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        groupFilterInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         grid.add(groupFilterInfo, 0, row++, 3, 1);
         
         filterGroupsCheck.selectedProperty().addListener((obs, old, selected) -> {
@@ -155,7 +155,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         
         // Section: Import options
         Label importHeader = new Label(I18n.get("connImport.options"));
-        importHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        importHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(importHeader, 0, row++, 3, 1);
         
         importUsernameCheck = new CheckBox(I18n.get("connImport.importUsername"));
@@ -176,7 +176,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         
         // Section: Credential replacement
         Label credentialHeader = new Label(I18n.get("connImport.replaceCredentials"));
-        credentialHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        credentialHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(credentialHeader, 0, row++, 3, 1);
         
         replaceCredentialsCheck = new CheckBox(I18n.get("connImport.replaceWithCredentials"));
@@ -254,7 +254,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         
         // Section: Target group assignment
         Label targetGroupHeader = new Label(I18n.get("connImport.targetGroup"));
-        targetGroupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        targetGroupHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
         grid.add(targetGroupHeader, 0, row++, 3, 1);
         
         assignToGroupCheck = new CheckBox(I18n.get("connImport.assignToGroup"));
@@ -281,7 +281,7 @@ public class ConnectionImportDialog extends ThemeAwareDialog<ConnectionImportDia
         grid.add(targetGroupBox, 1, row++, 2, 1);
         
         Label targetGroupInfo = new Label(I18n.get("connImport.targetGroupInfo"));
-        targetGroupInfo.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        targetGroupInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         grid.add(targetGroupInfo, 0, row++, 3, 1);
         
         assignToGroupCheck.selectedProperty().addListener((obs, old, selected) -> {

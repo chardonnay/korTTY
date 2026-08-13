@@ -83,7 +83,7 @@ final class AiTableRowViewerDialog {
 
         int[] fontSize = {DEFAULT_FONT_SIZE};
         Label status = new Label();
-        status.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        status.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
         Button copyButton = new Button(I18n.get("ai.result.copy"));
         copyButton.setOnAction(e -> {
             de.kortty.core.KorttyClipboard.setText(buildClipboardText(headers, values));

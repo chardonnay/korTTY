@@ -376,7 +376,7 @@
 
 .header-tag {
     -fx-font-family: "Rajdhani";
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-font-weight: bold;
     -fx-text-fill: rgba(204,68,85,0.6);
 }
@@ -389,20 +389,20 @@
 }
 
 .tactical-header-title {
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-text-fill: #ff3c5a;
 }
 
 .tactical-brand-mark {
     -fx-font-family: "Monospaced";
-    -fx-font-size: 12px;
+    -fx-font-size: 0.9231em;
     -fx-font-weight: bold;
     -fx-text-fill: #ff3c5a;
 }
 
 .tactical-brand-name {
     -fx-font-family: "Monospaced";
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-font-weight: bold;
     -fx-text-fill: rgba(255,180,180,0.85);
 }
@@ -415,13 +415,13 @@
 }
 
 .field-label {
-    -fx-font-size: 11px;
+    -fx-font-size: 0.8462em;
     -fx-font-weight: bold;
     -fx-text-fill: #ff3c5a;
 }
 
 .version-label {
-    -fx-font-size: 10px;
+    -fx-font-size: 0.7692em;
     -fx-text-fill: rgba(204,68,85,0.6);
 }
 
