@@ -305,6 +305,19 @@ public class SessionJournalSession implements AutoCloseable {
         enqueue(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null);
     }
 
+    /**
+     * Appends a user note to the capture log so live consumers (the docked live panel) see it in
+     * the stream. The curated document entry is written separately by the caller; this is the
+     * timeline twin. Known secrets are redacted like every other captured line.
+     */
+    public void appendUserNote(String text) {
+        if (!running || closed || text == null || text.isBlank()) {
+            return;
+        }
+        lastActivityMillis = System.currentTimeMillis();
+        enqueue(SessionJournalLogEntry.Kind.NOTE, redactor.redact(text.strip()), false, false, null);
+    }
+
     /** Marks a reconnect of the tab's connection in the log. */
     public void noteReconnect() {
         if (!running || closed) {

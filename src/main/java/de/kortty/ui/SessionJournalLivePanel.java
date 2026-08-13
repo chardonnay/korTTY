@@ -275,7 +275,11 @@ public class SessionJournalLivePanel extends BorderPane {
         entries.clear();
         trimHint.setVisible(false);
         trimHint.setManaged(false);
-        titleLabel.setText(session.getMetaSnapshot().getConnectionName());
+        String connectionName = session.getMetaSnapshot().getConnectionName();
+        // Quick-Connect sessions may carry no connection name; the tab title always has one.
+        titleLabel.setText(connectionName != null && !connectionName.isBlank()
+            ? connectionName
+            : tab.getText());
         applyState(PanelState.LOADING);
         SessionJournalLiveFeed newFeed = new SessionJournalLiveFeed(
             session,

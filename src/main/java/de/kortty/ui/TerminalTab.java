@@ -615,6 +615,8 @@ public class TerminalTab extends Tab {
                     }
                     KorTTYApplication.getInstance().getSessionJournalService()
                         .appendEntry(session.getDirectory(), entry);
+                    // Timeline twin in the capture log so the live panel streams the note too.
+                    session.appendUserNote(text);
                     Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.noteAdded")));
                 } catch (Exception e) {
                     showJournalError(I18n.get("terminal.journal.error.note", e.getMessage()));

@@ -119,6 +119,28 @@ class SessionJournalSessionSinkTest {
     }
 
     @Test
+    void userNotesReachTheSinkAndTheLog() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of("vault-secret-pw"), false);
+        List<SessionJournalLogEntry> received = new CopyOnWriteArrayList<>();
+        session.addLiveEntrySink(received::add);
+        session.start();
+
+        session.appendUserNote("checkpoint before restart of vault-secret-pw");
+        waitUntil(() -> received.size() >= 1);
+        session.close();
+
+        assertThat(received.get(0).kind()).isEqualTo(SessionJournalLogEntry.Kind.NOTE);
+        assertThat(received.get(0).text()).doesNotContain("vault-secret-pw");
+        assertThat(received.get(0).text()).contains("checkpoint before restart");
+        List<SessionJournalLogEntry> persisted =
+            SessionJournalLogReader.readAfter(session.getDirectory(), 0);
+        assertThat(persisted.stream().anyMatch(e ->
+            e.kind() == SessionJournalLogEntry.Kind.NOTE
+                && e.text().startsWith("checkpoint before restart"))).isTrue();
+    }
+
+    @Test
     void removedSinkReceivesNothingFurther() throws IOException {
         SessionJournalSession session = service.createSession(
             sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
