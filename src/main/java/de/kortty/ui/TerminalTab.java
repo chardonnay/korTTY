@@ -565,7 +565,13 @@ public class TerminalTab extends Tab {
             de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
             Thread saver = new Thread(() -> {
                 try {
-                    session.attachScreenshot(png, null);
+                    de.kortty.model.SessionJournalEntry entry = session.attachScreenshot(png, null);
+                    de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                    if (app != null && app.getSessionJournalScreenshotAnalyzer() != null) {
+                        // Fire-and-forget: the analyzer applies its own gates and never blocks the save.
+                        app.getSessionJournalScreenshotAnalyzer().analyzeAutomatically(
+                            session.getDirectory(), entry.getId(), session.isAiSummariesEnabled());
+                    }
                     Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.screenshotAdded")));
                 } catch (Exception e) {
                     showJournalError(I18n.get("terminal.journal.error.screenshot", e.getMessage()));

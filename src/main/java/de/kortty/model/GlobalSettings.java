@@ -200,6 +200,9 @@ public class GlobalSettings {
     private boolean sessionJournalAiTitleEnabled = false; // Let the AI title the journal on close
 
     @XmlElement
+    private boolean sessionJournalAiScreenshotAnalysisEnabled = true; // AI description + tags per screenshot
+
+    @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
     /** Height of the journal page's live-log tail in vh (null = the page's CSS default). */
@@ -1401,6 +1404,15 @@ public class GlobalSettings {
 
     public void setSessionJournalAiTitleEnabled(boolean sessionJournalAiTitleEnabled) {
         this.sessionJournalAiTitleEnabled = sessionJournalAiTitleEnabled;
+    }
+
+    /** Gates only the automatic analysis on capture; the context-menu run is a deliberate action. */
+    public boolean isSessionJournalAiScreenshotAnalysisEnabled() {
+        return sessionJournalAiScreenshotAnalysisEnabled;
+    }
+
+    public void setSessionJournalAiScreenshotAnalysisEnabled(boolean sessionJournalAiScreenshotAnalysisEnabled) {
+        this.sessionJournalAiScreenshotAnalysisEnabled = sessionJournalAiScreenshotAnalysisEnabled;
     }
 
     /** Font size of the generated journal page in percent; the page's A-/A+ buttons write it back. */

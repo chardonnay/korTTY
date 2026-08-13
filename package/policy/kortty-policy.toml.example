@@ -123,6 +123,8 @@
 #   allow-delete = false              # forbid deleting journals in the manager
 #   name-template = "{connection} {date} {time} ({user})"   # also {host}, {user}
 #   ai-title = true                   # let the AI name the journal when the session ends
+#   ai-screenshot-analysis = false    # false forbids AI screenshot analysis (even manual runs),
+#                                     # true forces it on; omit to leave the choice to the user
 
 # Automatic search-and-replace in every journal. The rules run BEFORE a line is written,
 # so a matching text never reaches the log file at all, and they also cover AI summaries

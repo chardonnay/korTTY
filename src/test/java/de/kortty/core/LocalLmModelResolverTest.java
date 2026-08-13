@@ -385,6 +385,60 @@ class LocalLmModelResolverTest {
     }
 
     /** Test double for deterministic LM Studio model-list responses. */
+    @Test
+    void includesVlmModelsInTheLoadedModelList() throws Exception {
+        List<String> keys = LocalLmModelResolver.parseLoadedLlmModelKeys("""
+            {"models": [
+              {"type": "vlm", "key": "qwen/qwen2.5-vl-7b", "loaded_instances": [{"id": "x"}]},
+              {"type": "llm", "key": "text-model", "loaded_instances": [{"id": "y"}]},
+              {"type": "embedding", "key": "embed-model", "loaded_instances": [{"id": "z"}]}
+            ]}
+            """, URI.create("http://127.0.0.1:1234/api/v1/models"));
+
+        assertThat(keys).containsExactly("qwen/qwen2.5-vl-7b", "text-model").inOrder();
+    }
+
+    @Test
+    void readsVisionCapabilityFromLmStudioMetadata() {
+        String body = """
+            {"models": [
+              {"type": "vlm", "key": "qwen/qwen2.5-vl-7b", "loaded_instances": [{"id": "a"}]},
+              {"type": "llm", "key": "text-model", "loaded_instances": [{"id": "b"}]},
+              {"type": "llm", "key": "flagged-model", "capabilities": {"vision": true},
+               "loaded_instances": [{"id": "c"}]}
+            ]}
+            """;
+
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            body, "qwen/qwen2.5-vl-7b", AiModelSelectionMode.MANUAL)).hasValue(true);
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            body, "flagged-model", AiModelSelectionMode.MANUAL)).hasValue(true);
+        // An identified model without any vision marker is an authoritative "no image input".
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            body, "text-model", AiModelSelectionMode.MANUAL)).hasValue(false);
+        // Unidentifiable model or non-metadata body: unknown, heuristics decide.
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            body, "unknown-model", AiModelSelectionMode.MANUAL)).isEmpty();
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            body, null, AiModelSelectionMode.DEFAULT)).isEmpty();
+        assertThat(LocalLmModelResolver.parseLmStudioVisionCapability(
+            "not json", "m", AiModelSelectionMode.MANUAL)).isEmpty();
+    }
+
+    @Test
+    void reasoningMetadataOfAVlmModelIsStillRead() {
+        Optional<List<AiReasoningEffort>> efforts = LocalLmModelResolver.parseLmStudioReasoningEfforts("""
+            {"models": [{
+              "type": "vlm",
+              "key": "qwen/qwen2.5-vl-7b",
+              "capabilities": {"reasoning": {"allowed_options": ["low", "high"]}},
+              "loaded_instances": [{"id": "a"}]
+            }]}
+            """, "qwen/qwen2.5-vl-7b", AiModelSelectionMode.MANUAL);
+
+        assertThat(efforts).hasValue(List.of(AiReasoningEffort.LOW, AiReasoningEffort.HIGH));
+    }
+
     private static final class StringHttpClientTestDouble extends HttpClient {
         private final String responseBody;
         private final List<HttpRequest> requests = new ArrayList<>();

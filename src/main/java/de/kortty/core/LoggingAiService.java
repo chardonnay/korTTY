@@ -128,6 +128,59 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     @Override
+    public boolean supportsVision() {
+        return delegate instanceof AiPromptService service && service.supportsVision();
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executeVisionJsonPrompt(systemPrompt, userPrompt, images, AiPromptExecutionScope.AUTONOMOUS);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return logged(visionAction("vision-json-prompt", images), promptChars(systemPrompt, userPrompt),
+            () -> promptDelegate().executeVisionJsonPrompt(systemPrompt, userPrompt, images, scope));
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executeVisionJsonPromptWithoutResponseFormat(
+            systemPrompt, userPrompt, images, AiPromptExecutionScope.AUTONOMOUS);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return logged(visionAction("vision-json-prompt-nf", images), promptChars(systemPrompt, userPrompt),
+            () -> promptDelegate().executeVisionJsonPromptWithoutResponseFormat(
+                systemPrompt, userPrompt, images, scope));
+    }
+
+    /** Image count and byte total only — the image content itself must never reach the log. */
+    private static String visionAction(String action, List<AiImageInput> images) {
+        int count = images != null ? images.size() : 0;
+        long totalBytes = 0;
+        if (images != null) {
+            for (AiImageInput image : images) {
+                totalBytes += image != null ? image.bytes().length : 0;
+            }
+        }
+        return action + "(images=" + count + ", imageBytes=" + totalBytes + ")";
+    }
+
+    @Override
     public boolean testConnection() {
         return delegate.testConnection();
     }

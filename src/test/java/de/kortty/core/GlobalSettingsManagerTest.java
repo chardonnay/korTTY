@@ -49,6 +49,24 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesTheSessionJournalAiScreenshotAnalysisFlag() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-shots");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().isSessionJournalAiScreenshotAnalysisEnabled()).isTrue();
+            manager.getSettings().setSessionJournalAiScreenshotAnalysisEnabled(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().isSessionJournalAiScreenshotAnalysisEnabled()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesSessionJournalMarkersAndRules() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

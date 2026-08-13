@@ -110,6 +110,48 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
     }
 
     @Override
+    public boolean supportsVision() {
+        return delegate instanceof AiPromptService service && service.supportsVision();
+    }
+
+    /**
+     * Vision prompts deliberately skip retrieval: the knowledge stores hold text, and a query built
+     * from a generic screenshot prompt would only add irrelevant context to an already large
+     * image payload.
+     */
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return promptDelegate().executeVisionJsonPrompt(systemPrompt, userPrompt, images);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return promptDelegate().executeVisionJsonPrompt(systemPrompt, userPrompt, images, scope);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return promptDelegate().executeVisionJsonPromptWithoutResponseFormat(systemPrompt, userPrompt, images);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return promptDelegate().executeVisionJsonPromptWithoutResponseFormat(systemPrompt, userPrompt, images, scope);
+    }
+
+    @Override
     public boolean testConnection() {
         return delegate.testConnection();
     }

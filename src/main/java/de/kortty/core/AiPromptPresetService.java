@@ -74,6 +74,46 @@ final class AiPromptPresetService implements AiPromptService, AiSkillUsageTracke
     }
 
     @Override
+    public boolean supportsVision() {
+        return delegate instanceof AiPromptService service && service.supportsVision();
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executeVisionJsonPrompt(systemPrompt, userPrompt, images, AiPromptExecutionScope.AUTONOMOUS);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return promptDelegate().executeVisionJsonPrompt(
+            AiPromptPresetSupport.append(systemPrompt, preset), userPrompt, images, scope);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executeVisionJsonPromptWithoutResponseFormat(
+            systemPrompt, userPrompt, images, AiPromptExecutionScope.AUTONOMOUS);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        AiPromptExecutionScope scope) throws Exception {
+
+        return promptDelegate().executeVisionJsonPromptWithoutResponseFormat(
+            AiPromptPresetSupport.append(systemPrompt, preset), userPrompt, images, scope);
+    }
+
+    @Override
     public boolean testConnection() {
         return delegate.testConnection();
     }

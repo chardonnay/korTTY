@@ -460,8 +460,16 @@ public class SessionJournalService {
                 entry.setUserNote(note);
             }
         }
+        String aiDescription = replacer.apply(entry.getAiDescription());
+        if (changed(entry.getAiDescription(), aiDescription)) {
+            hits++;
+            if (!dryRun) {
+                entry.setAiDescription(aiDescription);
+            }
+        }
         hits += replaceInLines(entry.getInputExcerpt(), replacer, dryRun);
         hits += replaceInLines(entry.getOutputExcerpt(), replacer, dryRun);
+        hits += replaceInLines(entry.getAiTags(), replacer, dryRun);
         return hits;
     }
 

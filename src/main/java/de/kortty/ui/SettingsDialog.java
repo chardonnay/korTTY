@@ -257,6 +257,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField aiCliCustomModelField;
     private final Button aiRefreshModelsButton;
     private final ComboBox<AiReasoningEffort> aiReasoningCombo;
+    private final ComboBox<de.kortty.model.AiVisionMode> aiVisionCombo;
     private final Button aiRefreshReasoningButton;
     private final ComboBox<AiInternetAccessMode> aiInternetAccessModeCombo;
     private final PasswordField aiApiKeyField;
@@ -2243,6 +2244,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox aiReasoningBox = new HBox(6, aiReasoningCombo, aiRefreshReasoningButton);
         HBox.setHgrow(aiReasoningCombo, Priority.ALWAYS);
         aiEditorGrid.add(aiReasoningBox, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.vision")), 0, aiRow);
+        aiVisionCombo = new ComboBox<>();
+        aiVisionCombo.getItems().setAll(de.kortty.model.AiVisionMode.values());
+        aiVisionCombo.setPrefWidth(220);
+        aiVisionCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiVisionMode mode) {
+                return mode == null ? "" : I18n.get("settings.ai.vision." + mode.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public de.kortty.model.AiVisionMode fromString(String value) {
+                return null;
+            }
+        });
+        aiVisionCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedAiProfile != null && newValue != null) {
+                selectedAiProfile.setVisionSupport(newValue);
+            }
+        });
+        aiEditorGrid.add(aiVisionCombo, 1, aiRow++);
 
         aiApiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshAiReasoningOptions(aiReasoningCombo.getValue());
@@ -4789,7 +4812,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     throw new RuntimeException(ex);
                 }
             })
-            .whenComplete((options, throwable) -> Platform.runLater(() -> {
+            .whenComplete((result, throwable) -> Platform.runLater(() -> {
                 refreshButton.setDisable(false);
                 if (throwable != null) {
                     Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
@@ -4805,9 +4828,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     || !discoveryKey.equals(AiReasoningSupport.discoveryKey(selectedAiProfile))) {
                     return;
                 }
-                List<AiReasoningEffort> discovered = AiReasoningSupport.normalizeOptions(options);
+                List<AiReasoningEffort> discovered = AiReasoningSupport.normalizeOptions(result.reasoningEfforts());
                 selectedAiProfile.setReasoningDiscoveryKey(discoveryKey);
                 selectedAiProfile.setDiscoveredReasoningEfforts(discovered);
+                selectedAiProfile.setDiscoveredVisionCapable(result.visionCapable());
                 refreshAiReasoningOptions(selectedAiReasoningEffort());
                 Alert alert = new Alert(
                     Alert.AlertType.INFORMATION,
@@ -4978,6 +5002,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         selectedAiProfile.setReasoningEffort(AiReasoningSupport.normalize(
             aiReasoningCombo.getValue(),
             AiReasoningSupport.availableEfforts(selectedAiProfile)));
+        if (aiVisionCombo.getValue() != null) {
+            selectedAiProfile.setVisionSupport(aiVisionCombo.getValue());
+        }
         selectedAiProfile.setInternetAccessMode(aiInternetAccessModeCombo.getValue());
         selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         selectedAiProfile.setRequestTimeoutMinutes(
@@ -5022,6 +5049,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiEmbeddedModelCombo.getItems().clear();
             aiEmbeddedModelCombo.setValue(null);
             refreshAiReasoningOptions(AiReasoningEffort.DISABLED);
+            aiVisionCombo.setValue(de.kortty.model.AiVisionMode.AUTO);
             aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             aiApiKeyField.clear();
             aiClearApiKeyCheck.setDisable(false);
@@ -5050,6 +5078,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiCliArgumentsTemplateArea.setText(profile.getCliArgumentsTemplate() != null ? profile.getCliArgumentsTemplate() : "");
         loadAiModelSelection(profile);
         refreshAiReasoningOptions(profile.getReasoningEffort());
+        aiVisionCombo.setValue(profile.getVisionSupport());
         refreshLocalAiModels(false);
         aiInternetAccessModeCombo.setValue(profile.getInternetAccessMode());
         aiMaxSelectionCharsSpinner.getValueFactory().setValue(

@@ -94,7 +94,7 @@ class SessionJournalServiceTest {
         session.appendInputLine("mySecretTyped123");
         assertThat(session.isInputSuppressed()).isFalse();
         session.appendOutputChunk("\r\nAccess granted\r\n");
-        long screenshotSeq = session.attachScreenshot(new byte[] {1, 2, 3, 4}, "before restart");
+        long screenshotSeq = session.attachScreenshot(new byte[] {1, 2, 3, 4}, "before restart").getLogStartSeq();
         session.close();
 
         Path dir = session.getDirectory();
@@ -493,6 +493,35 @@ class SessionJournalServiceTest {
             .map(SessionJournalLogEntry::text)
             .toList())
             .containsExactly("aws_access_key_id = ***AWS-KEY***", "export KEY=***AWS-KEY***").inOrder();
+    }
+
+    @Test
+    void replaceRewritesAiDescriptionAndTags() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("unrelated\n");
+        session.close();
+        Path dir = session.getDirectory();
+
+        SessionJournalEntry shot = new SessionJournalEntry();
+        shot.setKind(SessionJournalEntryKind.SCREENSHOT);
+        shot.setScreenshotFile("screenshots/shot-000001.png");
+        shot.setAiDescription("shows the internal.acme.corp gateway");
+        shot.setAiTags(List.of("internal.acme.corp", "gateway"));
+        service.appendEntry(dir, shot);
+
+        SessionJournalService.RedactionResult result = service.replace(
+            dir, de.kortty.model.SessionJournalReplacement.literal("internal.acme.corp", "<host>"),
+            false, false);
+
+        // One hit in the description, one in the tag list — redaction must reach both.
+        assertThat(result.entryHits()).isEqualTo(2);
+        SessionJournalEntry rewritten = service.loadDocument(dir).getEntries().stream()
+            .filter(entry -> entry.getKind() == SessionJournalEntryKind.SCREENSHOT)
+            .findFirst().orElseThrow();
+        assertThat(rewritten.getAiDescription()).isEqualTo("shows the <host> gateway");
+        assertThat(rewritten.getAiTags()).containsExactly("<host>", "gateway").inOrder();
     }
 
     @Test

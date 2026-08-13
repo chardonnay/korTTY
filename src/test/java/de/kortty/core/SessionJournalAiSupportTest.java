@@ -86,4 +86,57 @@ class SessionJournalAiSupportTest {
         String longTitle = "x".repeat(200);
         assertThat(SessionJournalAiSupport.normalizeTitle(longTitle, "fb", 80).length()).isAtMost(80);
     }
+
+    @Test
+    void parsesScreenshotAnalysisAndNormalizesTags() {
+        SessionJournalAiSupport.ScreenshotAnalysis analysis = SessionJournalAiSupport.parseScreenshotAnalysis(
+            "{\"description\":\"Zeigt den nginx-Status.\",\"tags\":[\"Nginx\",\"STATUS\",\"nginx\",\" \"]}");
+        assertThat(analysis.description()).isEqualTo("Zeigt den nginx-Status.");
+        assertThat(analysis.tags()).containsExactly("nginx", "status").inOrder();
+    }
+
+    @Test
+    void unwrapsFencedAndThinkPrefixedScreenshotAnalysis() {
+        SessionJournalAiSupport.ScreenshotAnalysis fenced = SessionJournalAiSupport.parseScreenshotAnalysis(
+            "```json\n{\"description\":\"D.\",\"tags\":[\"a\"]}\n```");
+        assertThat(fenced.description()).isEqualTo("D.");
+        assertThat(fenced.tags()).containsExactly("a");
+
+        SessionJournalAiSupport.ScreenshotAnalysis thought = SessionJournalAiSupport.parseScreenshotAnalysis(
+            "<think>internal chain</think>{\"description\":\"D.\",\"tags\":[]}");
+        assertThat(thought.description()).isEqualTo("D.");
+        assertThat(thought.tags()).isEmpty();
+    }
+
+    @Test
+    void screenshotAnalysisFallsBackToProse() {
+        SessionJournalAiSupport.ScreenshotAnalysis analysis =
+            SessionJournalAiSupport.parseScreenshotAnalysis("The screenshot shows a terminal.");
+        assertThat(analysis.description()).isEqualTo("The screenshot shows a terminal.");
+        assertThat(analysis.tags()).isEmpty();
+    }
+
+    @Test
+    void screenshotAnalysisCapsTagCountAndLength() {
+        StringBuilder json = new StringBuilder("{\"description\":\"D.\",\"tags\":[");
+        for (int i = 0; i < 12; i++) {
+            json.append(i > 0 ? "," : "").append("\"tag-").append(i).append("\"");
+        }
+        json.append(",\"").append("y".repeat(80)).append("\"]}");
+        SessionJournalAiSupport.ScreenshotAnalysis analysis =
+            SessionJournalAiSupport.parseScreenshotAnalysis(json.toString());
+        assertThat(analysis.tags()).hasSize(8);
+
+        SessionJournalAiSupport.ScreenshotAnalysis overlong = SessionJournalAiSupport.parseScreenshotAnalysis(
+            "{\"description\":\"D.\",\"tags\":[\"" + "z".repeat(80) + "\"]}");
+        assertThat(overlong.tags().get(0).length()).isAtMost(40);
+    }
+
+    @Test
+    void unusableScreenshotAnalysisIsNull() {
+        assertThat(SessionJournalAiSupport.parseScreenshotAnalysis(null)).isNull();
+        assertThat(SessionJournalAiSupport.parseScreenshotAnalysis("   ")).isNull();
+        assertThat(SessionJournalAiSupport.parseScreenshotAnalysis(
+            "{\"description\":\"\",\"tags\":[]}")).isNull();
+    }
 }

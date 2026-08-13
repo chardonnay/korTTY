@@ -25,7 +25,15 @@ public final class AiReasoningDiscoveryService {
     private AiReasoningDiscoveryService() {
     }
 
-    public static List<AiReasoningEffort> discover(
+    /**
+     * One capability discovery run. {@code visionCapable} is {@code null} when the endpoint's
+     * metadata could not determine it (cloud endpoints, unidentifiable model) — image support then
+     * stays a heuristics question, see {@link AiVisionSupport}.
+     */
+    public record AiCapabilityDiscovery(List<AiReasoningEffort> reasoningEfforts, Boolean visionCapable) {
+    }
+
+    public static AiCapabilityDiscovery discover(
         AiProfile profile,
         String apiKey,
         AiInternetAccessConfiguration internetConfig,
@@ -34,26 +42,33 @@ public final class AiReasoningDiscoveryService {
         if (profile == null) {
             throw new IllegalStateException("AI profile must be configured.");
         }
-        Optional<List<AiReasoningEffort>> lmStudioCapabilities = Optional.empty();
+        Optional<LocalLmModelResolver.LmStudioCapabilities> lmStudio = Optional.empty();
         if (usesExactLmStudioMetadata(profile)) {
             try {
-                lmStudioCapabilities = LocalLmModelResolver.loadLmStudioReasoningEfforts(
+                lmStudio = LocalLmModelResolver.loadLmStudioCapabilities(
                     profile.getApiUrl(),
                     profile.getModel(),
                     profile.getModelSelectionMode(),
                     apiKey,
                     null);
             } catch (java.io.IOException ignored) {
-                lmStudioCapabilities = Optional.empty();
+                lmStudio = Optional.empty();
             }
         }
-        if (lmStudioCapabilities.isPresent()) {
+        Boolean visionCapable = lmStudio.flatMap(LocalLmModelResolver.LmStudioCapabilities::visionCapable)
+            .orElse(null);
+        Optional<List<AiReasoningEffort>> lmStudioEfforts =
+            lmStudio.flatMap(LocalLmModelResolver.LmStudioCapabilities::reasoningEfforts);
+        if (lmStudioEfforts.isPresent()) {
             if (!testEffort(profile, apiKey, internetConfig, skillPromptSupport, AiReasoningEffort.DISABLED)) {
                 throw new IllegalStateException("AI connection test failed.");
             }
-            return AiReasoningSupport.normalizeOptions(lmStudioCapabilities.get());
+            return new AiCapabilityDiscovery(
+                AiReasoningSupport.normalizeOptions(lmStudioEfforts.get()), visionCapable);
         }
-        return discover(effort -> testEffort(profile, apiKey, internetConfig, skillPromptSupport, effort));
+        return new AiCapabilityDiscovery(
+            discover(effort -> testEffort(profile, apiKey, internetConfig, skillPromptSupport, effort)),
+            visionCapable);
     }
 
     static boolean usesExactLmStudioMetadata(AiProfile profile) {

@@ -215,6 +215,53 @@ class PolicyClampTest {
     }
 
     @Test
+    void sessionJournalAiScreenshotAnalysisIsClampedInBothDirections() throws Exception {
+        GlobalSettingsManager plain = new GlobalSettingsManager(configDir);
+        plain.setPolicyClamp(new PolicyClamp(EffectivePolicy.unrestricted()));
+        plain.load();
+        plain.getSettings().setSessionJournalAiScreenshotAnalysisEnabled(false);
+        plain.save();
+
+        GlobalSettingsManager forcedOn = new GlobalSettingsManager(configDir);
+        forcedOn.setPolicyClamp(new PolicyClamp(screenshotAnalysisPolicy(true)));
+        forcedOn.load();
+        assertThat(forcedOn.getSettings().isSessionJournalAiScreenshotAnalysisEnabled()).isTrue();
+
+        // beforeSave re-forces the clamp, so even a mutated in-memory value never reaches the XML.
+        forcedOn.getSettings().setSessionJournalAiScreenshotAnalysisEnabled(false);
+        forcedOn.save();
+        GlobalSettingsManager reloaded = new GlobalSettingsManager(configDir);
+        reloaded.setPolicyClamp(new PolicyClamp(screenshotAnalysisPolicy(true)));
+        reloaded.load();
+        assertThat(reloaded.getSettings().isSessionJournalAiScreenshotAnalysisEnabled()).isTrue();
+
+        GlobalSettingsManager forcedOff = new GlobalSettingsManager(configDir);
+        forcedOff.setPolicyClamp(new PolicyClamp(screenshotAnalysisPolicy(false)));
+        forcedOff.load();
+        assertThat(forcedOff.getSettings().isSessionJournalAiScreenshotAnalysisEnabled()).isFalse();
+    }
+
+    private static EffectivePolicy screenshotAnalysisPolicy(boolean value) {
+        PolicyRule rule = PolicyRule.builder()
+            .sessionJournal(new PolicyRule.SessionJournalRule(
+                null, null, null, null, null, null, null, null, value, List.of()))
+            .build();
+        PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(rule),
+            List.of(), List.of(), List.of(), List.of());
+        return EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+    }
+
+    @Test
     void withoutPolicyFileTheClampIsInert() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
         manager.setPolicyClamp(new PolicyClamp(EffectivePolicy.unrestricted()));

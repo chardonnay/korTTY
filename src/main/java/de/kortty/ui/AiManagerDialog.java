@@ -107,6 +107,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final TextField cliCustomModelField;
     private final Button refreshModelsButton;
     private final ComboBox<AiReasoningEffort> reasoningCombo;
+    private final ComboBox<de.kortty.model.AiVisionMode> visionCombo;
     private final ComboBox<AiPromptPreset> promptPresetCombo;
     private final Button refreshReasoningButton;
     private final ComboBox<AiInternetAccessMode> internetAccessModeCombo;
@@ -185,6 +186,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshModelsButton.setTooltip(new Tooltip(I18n.get("ai.model.refresh.tooltip")));
         refreshModelsButton.setAccessibleText(I18n.get("ai.model.refresh.accessible"));
         reasoningCombo = new ComboBox<>();
+        visionCombo = new ComboBox<>();
         promptPresetCombo = new ComboBox<>();
         refreshReasoningButton = new Button("↻");
         refreshReasoningButton.setTooltip(new Tooltip(I18n.get("settings.ai.reasoning.refresh")));
@@ -371,6 +373,26 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         });
 
+        visionCombo.getItems().setAll(de.kortty.model.AiVisionMode.values());
+        visionCombo.setPrefWidth(220);
+        visionCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiVisionMode mode) {
+                return mode == null ? "" : I18n.get("settings.ai.vision." + mode.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public de.kortty.model.AiVisionMode fromString(String value) {
+                return null;
+            }
+        });
+        visionCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            // Same guard as reasoningCombo: populating the form must never write into the profile.
+            if (selectedProfile != null && !loadingProfile && newValue != null) {
+                selectedProfile.setVisionSupport(newValue);
+            }
+        });
+
         promptPresetCombo.getItems().setAll(AiPromptPreset.values());
         promptPresetCombo.setPrefWidth(220);
         promptPresetCombo.setConverter(new javafx.util.StringConverter<>() {
@@ -517,6 +539,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox reasoningBox = new HBox(6, reasoningCombo, refreshReasoningButton);
         HBox.setHgrow(reasoningCombo, Priority.ALWAYS);
         editorGrid.add(reasoningBox, 1, row++);
+
+        editorGrid.add(new Label(I18n.get("settings.ai.vision")), 0, row);
+        editorGrid.add(visionCombo, 1, row++);
 
         editorGrid.add(new Label(I18n.get("settings.ai.promptPreset")), 0, row);
         editorGrid.add(promptPresetCombo, 1, row++);
@@ -1320,7 +1345,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     throw new RuntimeException(ex);
                 }
             })
-            .whenComplete((options, throwable) -> Platform.runLater(() -> {
+            .whenComplete((result, throwable) -> Platform.runLater(() -> {
                 profileTestRunning.set(false);
                 refreshButton.setDisable(false);
                 if (isStaleReasoningRefresh(profileId, discoveryKey)) {
@@ -1333,9 +1358,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                         cause.getMessage() != null ? cause.getMessage() : cause.toString());
                     return;
                 }
-                List<AiReasoningEffort> discovered = AiReasoningSupport.normalizeOptions(options);
+                List<AiReasoningEffort> discovered = AiReasoningSupport.normalizeOptions(result.reasoningEfforts());
                 selectedProfile.setReasoningDiscoveryKey(discoveryKey);
                 selectedProfile.setDiscoveredReasoningEfforts(discovered);
+                selectedProfile.setDiscoveredVisionCapable(result.visionCapable());
                 refreshReasoningOptions(reasoningCombo.getValue());
                 statusLabel.setText(discovered.size() > 1
                     ? I18n.get("settings.ai.reasoning.refresh.success", formatReasoningOptions(discovered))
@@ -1536,6 +1562,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setReasoningEffort(AiReasoningSupport.normalize(
             reasoningCombo.getValue(),
             AiReasoningSupport.availableEfforts(selectedProfile)));
+        if (visionCombo.getValue() != null) {
+            selectedProfile.setVisionSupport(visionCombo.getValue());
+        }
         selectedProfile.setPromptPreset(promptPresetCombo.getValue());
         selectedProfile.setInternetAccessMode(internetAccessModeCombo.getValue());
         selectedProfile.setMaxSelectionChars(maxSelectionCharsSpinner.getValue());
@@ -1596,6 +1625,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             modelCombo.getItems().setAll(AI_MODEL_DEFAULT_LABEL, AI_MODEL_AUTO_LABEL);
             modelCombo.getSelectionModel().select(AI_MODEL_AUTO_LABEL);
             refreshReasoningOptions(AiReasoningEffort.DISABLED);
+            visionCombo.setValue(de.kortty.model.AiVisionMode.AUTO);
             promptPresetCombo.setValue(AiPromptPreset.AUTO);
             internetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
             apiKeyField.clear();
@@ -1627,6 +1657,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliArgumentsTemplateArea.setText(profile.getCliArgumentsTemplate() != null ? profile.getCliArgumentsTemplate() : "");
         loadModelSelection(profile);
         refreshReasoningOptions(profile.getReasoningEffort());
+        visionCombo.setValue(profile.getVisionSupport());
         promptPresetCombo.setValue(profile.getPromptPreset());
         refreshLocalModels(false);
         internetAccessModeCombo.setValue(profile.getInternetAccessMode());

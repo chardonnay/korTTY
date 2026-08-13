@@ -27,7 +27,7 @@ public final class EffectivePolicy {
         new PolicyRule.LoggingRule(null, null, null, null, null, null);
 
     private static final PolicyRule.SessionJournalRule EMPTY_SESSION_JOURNAL =
-        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, List.of());
+        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, null, List.of());
 
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
@@ -510,9 +510,14 @@ public final class EffectivePolicy {
         Boolean aiTitle = resolver.resolve(
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiTitle() : null,
             (a, b) -> a || b);
+        // Deliberately && (unlike aiTitle's ||): screenshots leaving the machine is the risk, so
+        // when same-tier rules conflict the analysis stays off.
+        Boolean aiScreenshotAnalysis = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiScreenshotAnalysis() : null,
+            (a, b) -> a && b);
         return new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-            aiTitle, resolveSessionJournalReplacements(resolver));
+            aiTitle, aiScreenshotAnalysis, resolveSessionJournalReplacements(resolver));
     }
 
     /**
