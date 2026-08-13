@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SessionJournalExportService;
 import de.kortty.core.SessionJournalHtmlRenderer;
+import de.kortty.core.SessionJournalLogEntry;
 import de.kortty.core.SessionJournalService;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalDocument;
@@ -100,6 +101,23 @@ public class SessionJournalViewerPane extends BorderPane {
     private SplitPane editSplit;
     private volatile boolean disposed;
 
+    // ==== live state ====
+    /**
+     * Debounced document reload: sits above the renderer's own 1000 ms debounce so the fresh
+     * render this pane triggers never races a stale journal.html on disk.
+     */
+    private final javafx.animation.PauseTransition documentReloadDelay =
+        new javafx.animation.PauseTransition(javafx.util.Duration.millis(1200));
+    /** True once the bridge is installed in the current page; executeScript is safe then. */
+    private boolean pageReady;
+    /** Timeline scroll offset to restore after the next load (0 = leave at the top/anchor). */
+    private double pendingScrollY;
+    /** Live batches that arrived while the page was loading; bounded, oldest dropped. */
+    private final java.util.ArrayDeque<SessionJournalLogEntry> pendingLive = new java.util.ArrayDeque<>();
+    private static final int PENDING_LIVE_CAP = SessionJournalLiveFeed.DEFAULT_MAX_ENTRIES;
+    private SessionJournalLiveFeed feed;
+    private boolean liveFeedActive;
+
     public SessionJournalViewerPane(MainWindow mainWindow, Path journalDir, Mode mode,
                                     Consumer<String> onTitleChanged) {
         this.mainWindow = mainWindow;
@@ -129,18 +147,130 @@ public class SessionJournalViewerPane extends BorderPane {
         setCenter(centerPane);
 
         // Live view: reload whenever this journal changes — the summarizer appended an entry,
-        // an edit saved, the session closed.
+        // an edit saved, the session closed. Debounced above the renderer's own debounce, and
+        // the reload renders fresh HTML itself, so it never loads a stale journal.html.
+        documentReloadDelay.setOnFinished(event -> reloadPreservingScroll());
         changeListener = changedDir -> {
             Path dir = this.journalDir;
             if (!disposed && dir != null
                 && changedDir.toAbsolutePath().normalize().equals(dir.toAbsolutePath().normalize())) {
-                Platform.runLater(this::reloadPage);
+                Platform.runLater(documentReloadDelay::playFromStart);
             }
         };
         if (service() != null) {
             service().addChangeListener(changeListener);
         }
 
+        renderAndLoad(null);
+    }
+
+    // ==== live binding (docked panel) ====
+
+    /**
+     * Rebinds the pane to another journal: one WebView per window, reused across sessions.
+     * Must be called on the FX thread.
+     */
+    public void showJournal(Path dir) {
+        detachLiveSession();
+        documentReloadDelay.stop();
+        pendingLive.clear();
+        pendingScrollY = 0;
+        pageReady = false;
+        this.journalDir = dir;
+        renderAndLoad(null);
+    }
+
+    /**
+     * Streams the session's capture log into the loaded page. The feed keeps running across page
+     * reloads: a fresh page's embedded {@code LOG} already holds every persisted line and the
+     * page deduplicates by seq value, so batches queued here while a page loads are safe to flush
+     * afterwards — the page discards what the render already caught. Lines older than the page's
+     * 8 MB embed cap are never re-delivered, so the missing seqs there are harmless.
+     */
+    public void attachLiveSession(de.kortty.core.SessionJournalSession session) {
+        detachLiveSession();
+        liveFeedActive = true;
+        feed = new SessionJournalLiveFeed(
+            session,
+            SessionJournalLiveFeed.DEFAULT_MAX_ENTRIES,
+            SessionJournalLiveFeed.DEFAULT_COALESCE_MILLIS,
+            Platform::runLater,
+            backfill -> { /* the rendered page's embedded LOG already holds all persisted lines */ },
+            this::onLiveBatch);
+        feed.start();
+        if (pageReady) {
+            runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
+        }
+    }
+
+    /** Stops feeding; the tail stays visible (frozen) so a stopped journal keeps its context. */
+    public void detachLiveSession() {
+        liveFeedActive = false;
+        if (feed != null) {
+            feed.stop();
+            feed = null;
+        }
+        pendingLive.clear();
+    }
+
+    private void onLiveBatch(List<SessionJournalLogEntry> batch) {
+        if (disposed) {
+            return;
+        }
+        if (!pageReady) {
+            for (SessionJournalLogEntry entry : batch) {
+                if (pendingLive.size() >= PENDING_LIVE_CAP) {
+                    pendingLive.pollFirst();
+                }
+                pendingLive.addLast(entry);
+            }
+            return;
+        }
+        pushLiveEntries(batch);
+    }
+
+    private void pushLiveEntries(List<SessionJournalLogEntry> batch) {
+        String script = SessionJournalLiveScript.appendLogCall(
+            batch, ZoneId.systemDefault(),
+            I18n.get("journal.html.hiddenInput"),
+            I18n.get("journal.html.screenshot"));
+        if (!script.isEmpty()) {
+            runScript(script);
+        }
+    }
+
+    private void flushPendingLiveEntries() {
+        if (pendingLive.isEmpty()) {
+            return;
+        }
+        List<SessionJournalLogEntry> batch = new java.util.ArrayList<>(pendingLive);
+        pendingLive.clear();
+        pushLiveEntries(batch);
+    }
+
+    /** FX-thread executeScript with the disposed/pageReady guards; failures are debug-logged. */
+    private void runScript(String script) {
+        if (disposed || !pageReady || script == null || script.isEmpty()) {
+            return;
+        }
+        try {
+            webView.getEngine().executeScript(script);
+        } catch (Exception e) {
+            logger.debug("Journal page script failed: {}", e.getMessage());
+        }
+    }
+
+    /** Captures the timeline scroll offset, then reloads with a fresh render. */
+    private void reloadPreservingScroll() {
+        if (disposed) {
+            return;
+        }
+        try {
+            Object y = webView.getEngine().executeScript("window.scrollY");
+            pendingScrollY = y instanceof Number number ? number.doubleValue() : 0;
+        } catch (Exception ignored) {
+            pendingScrollY = 0;
+        }
         renderAndLoad(null);
     }
 
@@ -214,6 +344,11 @@ public class SessionJournalViewerPane extends BorderPane {
 
     /** Regenerates journal.html and loads it; a non-null anchor keeps the scroll position. */
     void renderAndLoad(String anchorEntryId) {
+        // A direct (often anchored) load supersedes any pending debounced reload.
+        documentReloadDelay.stop();
+        if (anchorEntryId != null) {
+            pendingScrollY = 0; // the anchor is the better position
+        }
         Path dir = journalDir;
         Thread rendererThread = new Thread(() -> {
             try {
@@ -241,20 +376,6 @@ public class SessionJournalViewerPane extends BorderPane {
         }
     }
 
-    private void reloadPage() {
-        try {
-            Path htmlFile = journalDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME);
-            if (Files.isRegularFile(htmlFile) && !disposed) {
-                webView.getEngine().load(htmlFile.toUri().toURL().toExternalForm());
-                if (editToggle.isSelected()) {
-                    loadEntries();
-                }
-            }
-        } catch (Exception e) {
-            logger.debug("Session journal viewer reload failed: {}", e.getMessage());
-        }
-    }
-
     /**
      * Exposes {@code window.korttyJournal} to the page so it can copy screenshots and text through
      * the system clipboard and persist its font size in the korTTY settings.
@@ -265,7 +386,15 @@ public class SessionJournalViewerPane extends BorderPane {
         webView.getEngine().setOnError(event ->
             logger.warn("Session journal page error: {}", event.getMessage()));
         webView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (disposed || newState != javafx.concurrent.Worker.State.SUCCEEDED) {
+            if (disposed) {
+                return;
+            }
+            if (newState == javafx.concurrent.Worker.State.SCHEDULED
+                || newState == javafx.concurrent.Worker.State.RUNNING) {
+                pageReady = false;
+                return;
+            }
+            if (newState != javafx.concurrent.Worker.State.SUCCEEDED) {
                 return;
             }
             // Defer off the load-worker callback: WebKit is still inside its native load-finished
@@ -283,6 +412,18 @@ public class SessionJournalViewerPane extends BorderPane {
                         "if(window.korttyEnableReplace){window.korttyEnableReplace();}"
                             + "if(window.korttyEnableRange){window.korttyEnableRange();}"
                             + "if(window.korttyEnableAppActions){window.korttyEnableAppActions();}");
+                    pageReady = true;
+                    // Re-establish the live state the load reset: the tail, the timeline scroll
+                    // offset, and any batches that arrived while loading (the page's seq set
+                    // discards what the fresh render already contains).
+                    if (liveFeedActive) {
+                        runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
+                    }
+                    if (pendingScrollY > 0) {
+                        runScript("window.scrollTo(0," + pendingScrollY + ");");
+                        pendingScrollY = 0;
+                    }
+                    flushPendingLiveEntries();
                 } catch (Exception e) {
                     logger.warn("Could not install the session journal page bridge: {}", e.getMessage());
                 }
@@ -1421,6 +1562,8 @@ public class SessionJournalViewerPane extends BorderPane {
             return;
         }
         disposed = true;
+        detachLiveSession();
+        documentReloadDelay.stop();
         if (service() != null) {
             service().removeChangeListener(changeListener);
         }
