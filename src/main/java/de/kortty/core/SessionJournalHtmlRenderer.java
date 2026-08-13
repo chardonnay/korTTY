@@ -589,6 +589,7 @@ public final class SessionJournalHtmlRenderer {
             html.append("<h3>").append(escapeHtml(entry.getTitle())).append("</h3>");
         }
         html.append("</div>\n");
+        appendAgentMeta(html, entry);
 
         if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
             // An edited screenshot keeps its file name, so without a token that changes with the
@@ -719,6 +720,45 @@ public final class SessionJournalHtmlRenderer {
 
     // ==== data embedding ====
 
+    /** Model, duration and token count of an AGENT run, as one muted meta line under the title. */
+    private void appendAgentMeta(StringBuilder html, SessionJournalEntry entry) {
+        if (entry.getKind() != SessionJournalEntryKind.AGENT) {
+            return;
+        }
+        List<String> parts = new ArrayList<>();
+        if (entry.getAgentModel() != null && !entry.getAgentModel().isBlank()) {
+            parts.add(escapeHtml(entry.getAgentModel().strip()));
+        }
+        if (entry.getAgentDurationMillis() != null && entry.getAgentDurationMillis() > 0) {
+            parts.add(escapeHtml(formatAgentDuration(entry.getAgentDurationMillis())));
+        }
+        if (entry.getAgentTokens() != null && entry.getAgentTokens() > 0) {
+            parts.add(escapeHtml(formatAgentTokens(entry.getAgentTokens()) + " "
+                + i18n("journal.html.tokens", "tokens")));
+        }
+        if (parts.isEmpty()) {
+            return;
+        }
+        html.append("<div class=\"agent-meta\">").append(String.join(" · ", parts)).append("</div>\n");
+    }
+
+    static String formatAgentDuration(long millis) {
+        long totalSeconds = Math.max(1, Math.round(millis / 1000.0));
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        if (minutes >= 60) {
+            return (minutes / 60) + " h " + (minutes % 60) + " min";
+        }
+        return minutes > 0 ? minutes + " min " + seconds + " s" : seconds + " s";
+    }
+
+    static String formatAgentTokens(long tokens) {
+        if (tokens < 1000) {
+            return Long.toString(tokens);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1fk", tokens / 1000.0);
+    }
+
     /**
      * Keeps the embedded log within {@link #MAX_EMBEDDED_LOG_CHARS}: oversized journals embed
      * only the ranges the timeline actually links to, newest first.
@@ -819,6 +859,12 @@ public final class SessionJournalHtmlRenderer {
             .append(",liveTail:")
             .append(AiChatRenderPageSupport.toJsStringLiteral(
                 i18n("journal.html.liveTail", "Live log — following")))
+            .append(",showMore:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.showMore", "Show full answer")))
+            .append(",showLess:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.showLess", "Show less")))
             .append("};\n");
         // The marker block goes inside behaviorJs's closure — hence the closing "})();" here.
         return data + behaviorJs() + (hasMarkers ? markerJs() : "") + "})();\n";
@@ -954,6 +1000,14 @@ public final class SessionJournalHtmlRenderer {
             .final .card{border-left:3px solid var(--accent)}
             .agent-entry .card{border-left:3px solid var(--info)}
             .state-tag.agent-tag{color:var(--info);border-color:var(--info)}
+            /* Long agent answers collapse to a preview; a click expands them. */
+            .agent-entry .summary.collapsible{cursor:pointer}
+            .agent-entry .summary.collapsed{max-height:220px;overflow:hidden;position:relative}
+            .agent-entry .summary.collapsed::after{content:"";position:absolute;left:0;right:0;bottom:0;
+              height:52px;background:linear-gradient(transparent,var(--surface))}
+            .summary-toggle{margin-top:6px;background:none;border:none;color:var(--accent);
+              cursor:pointer;font-size:.8em;padding:0;font-family:inherit}
+            .agent-meta{color:var(--muted);font-size:.75em;margin-top:2px}
             .summary{margin:8px 0 0;white-space:pre-wrap}
             .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
@@ -1216,6 +1270,22 @@ public final class SessionJournalHtmlRenderer {
                 if(e.target!==card){return;}
                 if(e.key==="Enter"||e.key===" "){e.preventDefault();activate();}
               });
+            });
+            /* Long agent answers collapse to a preview; clicking the text or the link toggles
+               the full answer without also opening the card's log panel. */
+            document.querySelectorAll(".agent-entry .summary").forEach(function(sum){
+              if(sum.scrollHeight<=260){return;}
+              sum.classList.add("collapsible","collapsed");
+              var more=document.createElement("button");
+              more.type="button"; more.className="summary-toggle"; more.textContent=T.showMore;
+              function toggleAnswer(e){
+                e.stopPropagation();
+                var collapsed=sum.classList.toggle("collapsed");
+                more.textContent=collapsed?T.showMore:T.showLess;
+              }
+              more.addEventListener("click",toggleAnswer);
+              sum.addEventListener("click",toggleAnswer);
+              sum.parentNode.insertBefore(more,sum.nextSibling);
             });
             var lightbox=document.getElementById("lightbox");
             var lightboxImg=lightbox.querySelector("img");

@@ -189,6 +189,12 @@ public final class SessionJournalPageWebViewSmoke {
         session.close();
         Path dir = session.getDirectory();
 
+        SessionJournalEntry agentRun = new SessionJournalEntry();
+        agentRun.setKind(SessionJournalEntryKind.AGENT);
+        agentRun.setTitle("check script if there is any failure");
+        agentRun.setText("Finding: potential failure point in the script.\n".repeat(40));
+        service.appendEntry(dir, agentRun);
+
         SessionJournalEntry summary = new SessionJournalEntry();
         summary.setKind(SessionJournalEntryKind.AI_SUMMARY);
         summary.setTitle("Checked nginx");
@@ -217,7 +223,9 @@ public final class SessionJournalPageWebViewSmoke {
         // element underneath and dispatches into the DOM. A synthetic dispatch alone would not
         // catch a broken elementFromPoint mapping.
         String centre = (String) webView.getEngine().executeScript(
-            "(function(){var el=document.querySelector('img.thumb');el.scrollIntoView();"
+            "(function(){var el=document.querySelector('img.thumb');"
+                // Centered, or the sticky header overlaps the image and swallows the click.
+                + "el.scrollIntoView({block:'center'});"
                 + "var r=el.getBoundingClientRect();"
                 + "return Math.round(r.left+r.width/2)+','+Math.round(r.top+r.height/2);})()");
         String[] xy = centre.split(",");
@@ -297,6 +305,23 @@ public final class SessionJournalPageWebViewSmoke {
             throw new IllegalStateException("live tail state changes did not reach the bridge: "
                 + bridge.calls);
         }
+        // Long agent answers collapse to a preview; a click on the text expands them without
+        // opening the card's log panel (dispatchEvent — WebKit has no click() on buttons).
+        String agentCollapse = (String) webView.getEngine().executeScript(
+            "(function(){var sum=document.querySelector('.agent-entry .summary');"
+                + "if(!sum){return 'no-summary';}"
+                + "var before=sum.classList.contains('collapsed');"
+                + "sum.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var after=sum.classList.contains('collapsed');"
+                + "var toggle=document.querySelector('.agent-entry .summary-toggle');"
+                + "var panelOpen=document.getElementById('logPanel').classList.contains('open');"
+                + "return 'before='+before+',after='+after+',toggle='+(toggle!=null)"
+                + "+',panel='+panelOpen;})()");
+        System.out.println("agent collapse: " + agentCollapse);
+        if (!"before=true,after=false,toggle=true,panel=false".equals(agentCollapse)) {
+            throw new IllegalStateException("agent answer collapse misbehaved: " + agentCollapse);
+        }
+
         // Height hook: set from Java, read back from the CSS variable; the resize grip exists.
         String height = (String) webView.getEngine().executeScript(
             "(function(){korttySetLiveTailHeight(33);"

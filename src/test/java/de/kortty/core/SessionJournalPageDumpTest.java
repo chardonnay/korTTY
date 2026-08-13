@@ -78,11 +78,16 @@ class SessionJournalPageDumpTest {
                 de.kortty.model.SessionJournalMarker.IMPORTANT));
             service.appendEntry(dir, deployed);
 
-            // A terminal-agent run so the dump exercises the AGENT card and its badge.
+            // A terminal-agent run so the dump exercises the AGENT card, its badge and the
+            // collapse-long-answers wiring (the answer is long enough to trigger it).
             SessionJournalEntry agentRun = new SessionJournalEntry();
             agentRun.setKind(SessionJournalEntryKind.AGENT);
             agentRun.setTitle("check script server_auslastung.pl if there is any failure");
-            agentRun.setText("The script has several potential failure points: missing sysstat logs.");
+            agentRun.setText("The script has several potential failure points:\n"
+                + "missing sysstat logs.\n".repeat(40));
+            agentRun.setAgentModel("Claude (claude-sonnet-5)");
+            agentRun.setAgentDurationMillis(383_000L);
+            agentRun.setAgentTokens(12_040L);
             service.appendEntry(dir, agentRun);
 
             SessionJournalDocument document = service.loadDocument(dir);
@@ -110,9 +115,15 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("window.korttyCloseLiveTail");
             assertThat(html).contains("window.korttySetLiveTailHeight");
             assertThat(html).contains("id=\"logResize\"");
-            // The terminal-agent run renders as its own badged card.
+            // The terminal-agent run renders as its own badged card, with the collapse wiring
+            // for long answers on board.
             assertThat(html).contains("agent-entry");
             assertThat(html).contains("agent-tag");
+            assertThat(html).contains("summary-toggle");
+            assertThat(html).contains("showMore:");
+            // Model, duration and token count render as one muted meta line.
+            assertThat(html).contains("class=\"agent-meta\"");
+            assertThat(html).contains("Claude (claude-sonnet-5) · 6 min 23 s · 12.0k tokens");
             assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");
             // The marker bar and the navigator it shares with the search must both be present.

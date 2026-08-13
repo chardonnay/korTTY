@@ -4039,7 +4039,8 @@ public class MainWindow {
      * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
      * session journal as an AGENT timeline card. No-op without a running journal.
      */
-    private void appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer) {
+    private void appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer,
+                                         String modelText, long durationMillis, long totalTokens) {
         if (terminalTab == null || terminalTab.getTerminalView() == null
             || answer == null || answer.isBlank()) {
             return;
@@ -4054,6 +4055,15 @@ public class MainWindow {
         String title = prompt != null && !prompt.isBlank() ? prompt.strip() : I18n.get("ai.agent.title");
         entry.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
         entry.setText(answer.strip());
+        if (modelText != null && !modelText.isBlank()) {
+            entry.setAgentModel(modelText.strip());
+        }
+        if (durationMillis > 0) {
+            entry.setAgentDurationMillis(durationMillis);
+        }
+        if (totalTokens > 0) {
+            entry.setAgentTokens(totalTokens);
+        }
         long seq = session.getLastSequence();
         if (seq > 0) {
             entry.setLogStartSeq(seq);
@@ -7037,6 +7047,12 @@ public class MainWindow {
         activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
         java.util.concurrent.atomic.AtomicBoolean agentResultJournaled =
             new java.util.concurrent.atomic.AtomicBoolean();
+        long agentRunStartedNanos = System.nanoTime();
+        java.util.concurrent.atomic.AtomicLong agentTokensTotal =
+            new java.util.concurrent.atomic.AtomicLong();
+        java.util.Set<String> agentTokenActivityIds =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+        String agentModelText = aiModelDisplayText(profile);
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
@@ -7049,7 +7065,10 @@ public class MainWindow {
                                 // the run happened either way, and the summarizer deliberately
                                 // ignores agent text it finds inline in the capture log.
                                 if (agentResultJournaled.compareAndSet(false, true)) {
-                                    appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(), message);
+                                    appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(), message,
+                                        agentModelText,
+                                        (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
+                                        agentTokensTotal.get());
                                 }
                                 if (scopedRequest.mirrorFinalAnswerToTerminal()) {
                                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
@@ -7078,6 +7097,14 @@ public class MainWindow {
                     @Override
                     public void publishActivity(TerminalAgentModels.AgentActivity activity) {
                         activityPanel.publishActivity(runId, activity);
+                        // Same accounting as the activity panel's token counter, for the
+                        // journal's AGENT card meta line.
+                        TerminalAgentModels.AgentActivityTokenUsage usage =
+                            activity != null ? activity.tokenUsage() : null;
+                        if (usage != null && usage.known() && usage.totalTokens() > 0
+                            && agentTokenActivityIds.add(activity.id())) {
+                            agentTokensTotal.addAndGet(usage.totalTokens());
+                        }
                     }
 
                     @Override
@@ -7128,7 +7155,10 @@ public class MainWindow {
                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
                     if (agentResultJournaled.compareAndSet(false, true)) {
                         appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
-                            I18n.get("ai.agent.activity.cancelled"));
+                            I18n.get("ai.agent.activity.cancelled"),
+                            agentModelText,
+                            (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
+                            agentTokensTotal.get());
                     }
                 } else {
                     activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
