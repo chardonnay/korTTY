@@ -77,6 +77,19 @@ class SessionJournalPageDumpTest {
                 "deploy", "Deployment", "#7c3aed", false,
                 de.kortty.model.SessionJournalMarker.IMPORTANT));
             service.appendEntry(dir, deployed);
+
+            // A terminal-agent run so the dump exercises the AGENT card, its badge and the
+            // collapse-long-answers wiring (the answer is long enough to trigger it).
+            SessionJournalEntry agentRun = new SessionJournalEntry();
+            agentRun.setKind(SessionJournalEntryKind.AGENT);
+            agentRun.setTitle("check script server_auslastung.pl if there is any failure");
+            agentRun.setText("The script has several potential failure points:\n"
+                + "missing sysstat logs.\n".repeat(40));
+            agentRun.setAgentModel("Claude (claude-sonnet-5)");
+            agentRun.setAgentDurationMillis(383_000L);
+            agentRun.setAgentTokens(12_040L);
+            service.appendEntry(dir, agentRun);
+
             SessionJournalDocument document = service.loadDocument(dir);
             SessionJournalMarkers.snapshot(document, new de.kortty.model.SessionJournalMarkerDefinition(
                 "deploy", "Deployment", "#7c3aed", false,
@@ -96,6 +109,29 @@ class SessionJournalPageDumpTest {
             // so a standalone page in a browser never offers an action it cannot perform.
             assertThat(html).contains("id=\"journalReplace\"");
             assertThat(html).contains("window.korttyEnableReplace");
+            // Live-tail hooks for the docked panel's push path.
+            assertThat(html).contains("window.korttyAppendLog");
+            assertThat(html).contains("window.korttyOpenLiveTail");
+            assertThat(html).contains("window.korttyCloseLiveTail");
+            assertThat(html).contains("window.korttySetLiveTailHeight");
+            assertThat(html).contains("id=\"logResize\"");
+            // The terminal-agent run renders as its own badged card, with the collapse wiring
+            // for long answers on board.
+            assertThat(html).contains("agent-entry");
+            assertThat(html).contains("agent-tag");
+            assertThat(html).contains("summary-toggle");
+            assertThat(html).contains("showMore:");
+            // Cards must be able to shrink with the docked panel: a plain 1fr track would keep
+            // the pre-formatted excerpts from ever letting the grid narrow.
+            assertThat(html).contains("clamp(44px,7vw,64px) minmax(0,1fr)");
+            // Jump-to-a-time bar.
+            assertThat(html).contains("id=\"timeBar\"");
+            assertThat(html).contains("id=\"timeJump\"");
+            assertThat(html).contains("id=\"timeToggle\"");
+            // Model, duration and token count render as one muted meta line.
+            assertThat(html).contains("class=\"agent-meta\"");
+            assertThat(html).contains("Claude (claude-sonnet-5) · 6 min 23 s · 12.0k tokens");
+            assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");
             // The marker bar and the navigator it shares with the search must both be present.
             assertThat(html).contains("id=\"markerBar\"");

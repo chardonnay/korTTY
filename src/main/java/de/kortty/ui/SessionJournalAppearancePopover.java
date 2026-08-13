@@ -40,7 +40,7 @@ public final class SessionJournalAppearancePopover {
      * @param onPreview called on every change with the appearance to preview immediately
      * @param onCommit  called (debounced by the caller) with the appearance to persist
      */
-    public static void show(Button anchor, GlobalSettings settings,
+    public static void show(javafx.scene.Node anchor, GlobalSettings settings,
                             Consumer<SessionJournalPageAppearance> onPreview,
                             Consumer<SessionJournalPageAppearance> onCommit) {
         Popup popup = new Popup();

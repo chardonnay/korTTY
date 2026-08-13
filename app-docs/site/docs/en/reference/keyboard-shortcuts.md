@@ -34,6 +34,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+alt+j++ | Session Journals |
 | ++ctrl+alt+t++ | Start / stop the session journal of the active tab |
 | ++ctrl+alt+c++ | Add a screenshot to the running session journal |
+| ++ctrl+alt+l++ | Show/hide the live journal panel on its last-used side |
 | ++ctrl+shift+a++ | ASCII Art |
 | ++ctrl+shift+y++ | Open AI Manager |
 | ++ctrl+alt+a++ | Open AI Agent |

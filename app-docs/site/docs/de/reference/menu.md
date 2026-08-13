@@ -111,6 +111,8 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigen Sie das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
+| Live Journal ▸ Links andocken / Rechts andocken | | Docken Sie an [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Wenn Sie die aktive Seite auswählen, wird sie ausgeblendet |
+| Live-Journal ▸ Einblenden/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf die zuletzt verwendete Seite um (standardmäßig rechts). |
 
 ## Teamarbeit
 

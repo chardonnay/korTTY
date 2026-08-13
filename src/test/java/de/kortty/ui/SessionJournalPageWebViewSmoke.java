@@ -81,6 +81,14 @@ public final class SessionJournalPageWebViewSmoke {
         public void applyTimeWindows(String windowsJson) {
             calls.add("applyTimeWindows");
         }
+
+        public void liveTailStateChanged(boolean open) {
+            calls.add("liveTailStateChanged:" + open);
+        }
+
+        public void liveTailHeightChanged(int heightVh) {
+            calls.add("liveTailHeightChanged:" + heightVh);
+        }
     }
 
     private SessionJournalPageWebViewSmoke() {
@@ -181,13 +189,24 @@ public final class SessionJournalPageWebViewSmoke {
         session.close();
         Path dir = session.getDirectory();
 
+        SessionJournalEntry agentRun = new SessionJournalEntry();
+        agentRun.setKind(SessionJournalEntryKind.AGENT);
+        agentRun.setTitle("check script if there is any failure");
+        agentRun.setText("Finding: potential failure point in the script.\n".repeat(40));
+        service.appendEntry(dir, agentRun);
+
         SessionJournalEntry summary = new SessionJournalEntry();
         summary.setKind(SessionJournalEntryKind.AI_SUMMARY);
         summary.setTitle("Checked nginx");
-        summary.setText("The service is running.");
+        summary.setText("The service is running. Checked /home/daniel/Dokumente/"+"server_auslastung_optimiert_"+"x".repeat(120)+".pl for failures.");
         summary.setMarker(de.kortty.model.SessionJournalMarker.IMPORTANT);
         summary.setLogStartSeq(1L);
         summary.setLogEndSeq(2L);
+        // A pre-formatted line far wider than a docked panel: this is what used to stretch every
+        // card past the panel edge and clip the text.
+        summary.getInputExcerpt().add("systemctl status nginx");
+        summary.getOutputExcerpt().add(
+            "Aug 13 21:00:00 web01 nginx[1234]: " + "unbreakable-token-".repeat(30) + "end");
         service.appendEntry(dir, summary);
 
         return new de.kortty.core.SessionJournalHtmlRenderer(service).renderToFile(dir);
@@ -209,11 +228,13 @@ public final class SessionJournalPageWebViewSmoke {
         // element underneath and dispatches into the DOM. A synthetic dispatch alone would not
         // catch a broken elementFromPoint mapping.
         String centre = (String) webView.getEngine().executeScript(
-            "(function(){var el=document.querySelector('img.thumb');el.scrollIntoView();"
+            "(function(){var el=document.querySelector('img.thumb');"
+                // Centered, or the sticky header overlaps the image and swallows the click.
+                + "el.scrollIntoView({block:'center'});"
                 + "var r=el.getBoundingClientRect();"
                 + "return Math.round(r.left+r.width/2)+','+Math.round(r.top+r.height/2);})()");
         String[] xy = centre.split(",");
-        SessionJournalViewerDialog.forwardContextMenu(
+        SessionJournalViewerPane.forwardContextMenu(
             webView.getEngine(), Double.parseDouble(xy[0]), Double.parseDouble(xy[1]));
         String forwarded = (String) webView.getEngine().executeScript(
             "(function(){var menu=document.getElementById('ctxMenu');"
@@ -258,6 +279,128 @@ public final class SessionJournalPageWebViewSmoke {
                 + "t.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));");
         if (bridge.calls.stream().filter(call -> call.equals("requestRename")).count() < 2) {
             throw new IllegalStateException("rename did not reach the bridge from both paths");
+        }
+
+        // Live tail: append streams into the open tail, duplicate seqs are ignored.
+        String tail = (String) webView.getEngine().executeScript(
+            "(function(){"
+                + "korttyOpenLiveTail();"
+                + "korttyAppendLog([{s:999901,t:'12:00:00',k:'o',x:'live line one'},"
+                + "{s:999902,t:'12:00:01',k:'i',x:'live input'}]);"
+                + "korttyAppendLog([{s:999902,t:'12:00:01',k:'i',x:'live input'},"
+                + "{s:999903,t:'12:00:02',k:'n',x:'live note'}]);"
+                + "var text=document.getElementById('logBody').textContent;"
+                + "var panelOpen=document.getElementById('logPanel').classList.contains('open');"
+                + "var inputs=(text.match(/live input/g)||[]).length;"
+                + "return 'open='+panelOpen+',one='+(text.indexOf('live line one')>=0)"
+                + "+',note='+(text.indexOf('live note')>=0)+',inputs='+inputs;})()");
+        System.out.println("live tail: " + tail);
+        if (!tail.equals("open=true,one=true,note=true,inputs=1")) {
+            throw new IllegalStateException("live tail append/dedup misbehaved: " + tail);
+        }
+        webView.getEngine().executeScript("korttyCloseLiveTail();");
+        String closed = (String) webView.getEngine().executeScript(
+            "document.getElementById('logPanel').classList.contains('open') ? 'open' : 'closed'");
+        if (!"closed".equals(closed)) {
+            throw new IllegalStateException("korttyCloseLiveTail left the panel open");
+        }
+        // Open/close must have reached the bridge so the host toggle can stay in sync.
+        if (!bridge.calls.contains("liveTailStateChanged:true")
+            || !bridge.calls.contains("liveTailStateChanged:false")) {
+            throw new IllegalStateException("live tail state changes did not reach the bridge: "
+                + bridge.calls);
+        }
+        // Long agent answers collapse to a preview; a click on the text expands them without
+        // opening the card's log panel (dispatchEvent — WebKit has no click() on buttons).
+        String agentCollapse = (String) webView.getEngine().executeScript(
+            "(function(){var sum=document.querySelector('.agent-entry .summary');"
+                + "if(!sum){return 'no-summary';}"
+                + "var before=sum.classList.contains('collapsed');"
+                + "sum.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var after=sum.classList.contains('collapsed');"
+                + "var toggle=document.querySelector('.agent-entry .summary-toggle');"
+                + "var panelOpen=document.getElementById('logPanel').classList.contains('open');"
+                + "return 'before='+before+',after='+after+',toggle='+(toggle!=null)"
+                + "+',panel='+panelOpen;})()");
+        System.out.println("agent collapse: " + agentCollapse);
+        if (!"before=true,after=false,toggle=true,panel=false".equals(agentCollapse)) {
+            throw new IllegalStateException("agent answer collapse misbehaved: " + agentCollapse);
+        }
+
+        // Every bar input must carry the theme's own colours. An unstyled field falls back to the
+        // engine's defaults, which on a dark system paints dark text on a dark surface — the
+        // luminance alone cannot catch that, because the fallback differs per system appearance,
+        // so this compares against what var(--text)/var(--surface2) actually resolve to.
+        String inputColours = (String) webView.getEngine().executeScript(
+            "(function(){var probe=document.createElement('span');"
+                + "probe.style.color='var(--text)';probe.style.backgroundColor='var(--surface2)';"
+                + "document.body.appendChild(probe);var pc=getComputedStyle(probe);"
+                + "var want=pc.color+'|'+pc.backgroundColor;probe.remove();"
+                + "var out=[];['timeJump','journalSearch','logSearch'].forEach(function(id){"
+                + "var el=document.getElementById(id);if(!el){out.push(id+':missing');return;}"
+                + "var cs=getComputedStyle(el);"
+                + "out.push(id+':'+((cs.color+'|'+cs.backgroundColor)===want?'themed':'default'));"
+                + "});return out.join(',');})()");
+        System.out.println("input colours: " + inputColours);
+        if (inputColours.contains(":default") || inputColours.contains(":missing")) {
+            throw new IllegalStateException(
+                "a bar input uses engine default colours (unreadable on a dark system): "
+                    + inputColours);
+        }
+
+        // Jump to a time: the entry closest to the typed moment scrolls into view and is marked.
+        String timeJump = (String) webView.getEngine().executeScript(
+            "(function(){var entry=document.querySelector('.entry[data-time]');"
+                + "if(!entry){return 'no-entry';}"
+                + "var when=new Date(Date.parse(entry.getAttribute('data-time')));"
+                + "var text=('0'+when.getHours()).slice(-2)+':'+('0'+when.getMinutes()).slice(-2);"
+                + "document.getElementById('timeToggle').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var barOpen=!document.getElementById('timeBar').hasAttribute('hidden');"
+                + "var input=document.getElementById('timeJump');input.value=text;"
+                + "document.getElementById('timeJumpGo').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var hit=document.querySelectorAll('.entry.time-hit').length;"
+                + "var status=document.getElementById('timeJumpStatus').textContent.trim();"
+                + "input.value='not a time';"
+                + "document.getElementById('timeJumpGo').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var rejected=document.getElementById('timeJumpStatus').textContent.trim();"
+                + "return 'bar='+barOpen+',hits='+hit+',status='+(status.length>0)"
+                + "+',rejected='+(rejected.indexOf('recognized')>=0);})()");
+        System.out.println("time jump: " + timeJump);
+        if (!"bar=true,hits=1,status=true,rejected=true".equals(timeJump)) {
+            throw new IllegalStateException("jump-to-time misbehaved: " + timeJump);
+        }
+
+        // Cards must follow the panel width when the container narrows. Note: this passes both
+        // with and without the minmax(0,1fr) track, because the excerpts are scroll containers
+        // and contribute no intrinsic minimum — it guards the shrink behaviour, it does not
+        // reproduce the clipping reported from a docked panel, which is still unexplained.
+        String narrow = (String) webView.getEngine().executeScript(
+            "(function(){var tl=document.querySelector('.timeline');"
+                + "tl.style.maxWidth='340px';tl.style.width='340px';"
+                + "var card=document.querySelector('.card');"
+                + "var cardWidth=Math.round(card.getBoundingClientRect().width);"
+                + "var entry=card.closest('.entry');"
+                + "var entryWidth=Math.round(entry.getBoundingClientRect().width);"
+                + "tl.style.maxWidth='';tl.style.width='';"
+                + "return 'card='+cardWidth+',entry='+entryWidth;})()");
+        System.out.println("narrow layout: " + narrow);
+        int cardWidth = Integer.parseInt(narrow.replaceAll(".*card=(\\d+),entry.*", "$1"));
+        int entryWidth = Integer.parseInt(narrow.replaceAll(".*entry=(\\d+)", "$1"));
+        if (entryWidth > 340 || cardWidth > 300) {
+            throw new IllegalStateException("cards do not adapt to a narrow panel: " + narrow);
+        }
+
+        // Height hook: set from Java, read back from the CSS variable; the resize grip exists.
+        String height = (String) webView.getEngine().executeScript(
+            "(function(){korttySetLiveTailHeight(33);"
+                + "var v=document.documentElement.style.getPropertyValue('--kortty-tail-h');"
+                + "var grip=document.getElementById('logResize');"
+                + "return v+','+(grip?'grip':'no-grip');})()");
+        if (!"33vh,grip".equals(height)) {
+            throw new IllegalStateException("live tail height hook misbehaved: " + height);
         }
     }
 

@@ -43,6 +43,27 @@ Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen
 - **Screenshot** (++ctrl+alt+c++, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.
 - **Notiz** öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.
 
+## Das Live-Journal-Panel
+
+**Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt die **vollständige Journalseite** des laufenden Journals an – dieselbe Seite wie die [Zuschauer](#die-journalseite) zeigt – **links oder rechts** vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
+
+Zwei Dinge werden während der Sitzung live aktualisiert:
+
+- **Das Live-Protokoll** – Die Schaltfläche **Live-Protokoll** in der Kopfzeile des Bedienfelds öffnet das Protokollfeld der Seite im Folgemodus und streamt das Capture-Log, während es geschrieben wird: Befehlsausgabe, die von Ihnen eingegebenen Befehle, Notizen und Screenshot-Markierungen, jeweils mit einem Zeitstempel. Es beginnt im Verborgenen; Die Zeilen sammeln sich in beide Richtungen an, sodass beim späteren Öffnen alles angezeigt wird. Durch Scrollen nach oben wird die Folge angehalten, durch Scrollen nach unten wird sie fortgesetzt, das ✕ in der Ecke blendet sie wieder aus (die Schaltfläche bleibt synchron) und durch Ziehen an der Oberkante wird die Höhe angepasst – was gespeichert wird. Die Ansicht behält die neuesten 5000 Zeilen; Alles bleibt im Capture-Log und in den Protokollauszügen der Eintrittskarten.
+- **Die Zeitleiste** – neue Karten (KI-Zusammenfassungen, Notizen, Screenshots) und Änderungen werden kurz nach ihrer Änderung angezeigt, ohne dass Sie Ihre Scrollposition verlieren. Ein [terminaler KI-Agent](ai-assistant.md)-Lauf fügt in dem Moment, in dem er beendet ist, seine eigene **KI-Agent**-Karte hinzu: Ihre Eingabeaufforderung als Titel, die endgültige Antwort des Agenten als Text und eine Metazeile mit dem Modell, der Laufdauer und der gemeldeten Token-Anzahl. Lange Antworten werden zu einer Vorschau verkleinert. Klicken Sie zum Erweitern auf den Text (oder **Vollständige Antwort anzeigen**). Die Agentenarbeit ist Teil des Journaldatensatzes, auch wenn die Zusammenfassung den Inline-Terminaltext des Agenten als Rauschen behandelt.
+
+Da es sich um die eigentliche Journalseite handelt, funktioniert alles, was die Viewer-Seite bietet, genau hier: Klicken Sie auf eine Eintragskarte, um den Protokollauszug anzuzeigen, durchsuchen Sie das Journal, springen Sie zwischen markierten Einträgen und **klicken** Sie mit der rechten Maustaste** auf einen Screenshot, um den [Annotationseditor](#screenshot-notizen-und-anmerkungen) zu öffnen (Stift, Box, unlesbar, Text und eine Notiz) oder kopieren Sie ihn – das bearbeitete Bild erscheint im Panel, sobald Sie speichern. Wenn Sie mit der rechten Maustaste auf einen Eintrag klicken, steht Ihnen die gleiche Markierungsauswahl zur Verfügung wie im Viewer. Die Karten passen sich der Breite des Panels an, sodass der Text lesbar bleibt, egal wie schmal oder breit Sie ihn ziehen.
+
+### Spring zu einer Zeit
+
+Die Schaltfläche **◷** in der Kopfzeile der Seite öffnet ein Zeitfeld: Geben Sie eine Zeit ein und die Zeitleiste scrollt zum nächstgelegenen Eintrag und hebt ihn kurz hervor. Die Eingabe ist nachsichtig – `19:00`, `19.00`, `1900` und `19` bedeuten alle dasselbe, und ein Datum kann vorangestellt werden (`13.08. 19:00`, `13.08.2026 19:00` oder `2026-08-13 19:00`). Ohne Datum wird die Uhrzeit mit dem jeweiligen Tag jedes Eintrags abgeglichen, sodass eine Sitzung, die nach Mitternacht läuft, zum nächsten Vorkommen springt und nicht immer zum ersten Tag.
+
+Die Kopfzeile des Panels fügt die sofortigen Steuerelemente hinzu: **Notiz** und **Screenshot** wirken auf das angezeigte Journal genau wie die [Journalleiste](#die-journalleiste) – Eine von Ihnen hinzugefügte Notiz wird sowohl in der Zeitleiste als auch im Live-Protokoll angezeigt. – **Live-Protokoll** zeigt die Protokollansicht an oder verbirgt sie, und **Viewer öffnen** öffnet das vollständige Viewer-Fenster zum Bearbeiten, Suchen und Ersetzen sowie zum Exportieren. Das **⋯**-Menü schaltet die Seite zwischen hell und dunkel um, aktualisiert sie und öffnet die Seite [Aussehen](#aussehen) Einstellungen.
+
+Das Panel folgt Ihren Tabs mit einem Gedächtnis: Es zeigt das Journal des aktuellen Tabs an, und wenn Sie zwischen Tabs wechseln, schaltet es nur weiter, **wenn der neu ausgewählte Tab auch ein laufendes Journal hat** – andernfalls zeigt es weiterhin das Journal an, das es bereits anzeigt. Wenn das angezeigte Journal gestoppt oder sein Tab geschlossen wird, bleibt die Seite mit dem Abzeichen **Journal gestoppt** / **Tab geschlossen** sichtbar, bis Sie einen anderen Tab mit einem Live-Journal auswählen.
+
+Alles, was angezeigt wird, hat bereits den [-Passwortschutz ](#passwortschutz) bestanden – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.
+
 ## KI-Zusammenfassungen
 
 Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neuesten Capture-Log-Zeilen und hängt einen kompakten Journaleintrag an (Titel, Zusammenfassung und eine vorgeschlagene Markierung: Info, wichtig oder Fehler). Standardwerte und Grenzwerte:
@@ -93,7 +114,7 @@ Wenn trotzdem etwas durchgerutscht ist, dann das des Viewers [suchen und ersetze
 
 ### Suche im Journal
 
-Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (++ctrl+f++ funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, Eingabe- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Übereinstimmungszähler angezeigt; ▲ und ▼ oder ++enter++ / ++shift+enter++ springen zwischen den Treffern, ++esc++ oder ✕ schließt die Leiste und löscht die Hervorhebung.
+Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (++ctrl+f++ funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, Eingabe- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Trefferzähler wird angezeigt; ▲ und ▼ oder ++enter++ / ++shift+enter++ springen zwischen den Treffern, ++esc++ oder ✕ schließt die Leiste und löscht die Hervorhebung.
 
 !!! note
     Dadurch werden die Journaleinträge durchsucht. Das Roherfassungsprotokoll verfügt über eine eigene Suche im Protokollbereich, und der Journalmanager kann mit **Inhalte durchsuchen** in *allen* Journalen suchen.

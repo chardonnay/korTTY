@@ -14,6 +14,7 @@ korTTY's main window has these regions:
 - **Tab bar** — each SSH/Mosh session runs in its own tab. ++ctrl+t++ opens Quick Connect for a new tab; ++ctrl+tab++ / ++ctrl+shift+tab++ switch tabs. With **Open tool windows as tabs** enabled ([Window settings](../reference/settings/window.md)), management tools such as Snippets, the JobScheduler or the AI Manager open here as tabs too — in the window whose menu you used — instead of as separate windows.
 - **Dashboard** (toggle ++ctrl+shift+d++) — a side panel listing every open connection with status dots, protocol badges and AI-agent badges. See [Dashboard](#dashboard) below.
 - **File browser** (**View → File Browser ▸ Show on Left / Show on Right**) — a dockable local file manager with navigation toolbar, path bar, filter, type icons and a folder/file/selection counter. Its side, width, hidden-file state and last directory are restored on the next launch. See [File browser](../features/file-browser.md).
+- **Live journal panel** (**View → Live Journal**, ++ctrl+alt+l++) — the active tab's running [session journal](../features/session-journal.md#the-live-journal-panel) as its full journal page, docked and updating in real time; side and width are restored on the next launch.
 - **Terminal area** — the active terminal, with optional split-screen and broadcast input.
 - **Status bar** — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.
 

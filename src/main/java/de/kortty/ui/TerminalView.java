@@ -5315,6 +5315,7 @@ public class TerminalView extends BorderPane {
             SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 targetWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
+                forwardLocalOutputToJournal("\r\n*** " + message + " ***\r\n");
             }
         });
     }
@@ -5353,9 +5354,26 @@ public class TerminalView extends BorderPane {
             return;
         }
         writeTerminalNewLine(terminal);
+        StringBuilder journalChunk = new StringBuilder("\r\n");
         for (String line : normalizeTerminalMessageLines(message)) {
             terminal.writeUnwrappedString(line);
             writeTerminalNewLine(terminal);
+            journalChunk.append(line).append("\r\n");
+        }
+        forwardLocalOutputToJournal(journalChunk.toString());
+    }
+
+    /**
+     * Locally rendered terminal text (AI-agent replies, app messages) never passes the connector
+     * stream the journal taps, so it is fed into the capture pipeline here — through the same
+     * ANSI/redaction path as remote output, and thus into the live log too. The leading newline
+     * a caller includes flushes any half-received remote line first, mirroring what the screen
+     * shows.
+     */
+    private void forwardLocalOutputToJournal(String text) {
+        de.kortty.core.SessionJournalSession session = journalSession;
+        if (session != null && session.isActive() && text != null && !text.isBlank()) {
+            session.appendOutputChunk(text);
         }
     }
 

@@ -111,6 +111,8 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Terminal-only Fullscreen | ++ctrl+shift+f++ | Show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, hiding the desktop and other windows |
 | Hide terminal scrollbars in fullscreen | | Also hide scrollbars while in fullscreen |
 | AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
+| Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
+| Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
 
 ## Teamwork
 

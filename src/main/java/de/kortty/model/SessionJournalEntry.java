@@ -108,6 +108,18 @@ public class SessionJournalEntry {
     @XmlElement(name = "annotation")
     private List<SessionJournalAnnotation> annotations;
 
+    /** Display text of the LLM behind an AGENT entry's run (profile/model); null otherwise. */
+    @XmlElement
+    private String agentModel;
+
+    /** Wall-clock duration of an AGENT entry's run in milliseconds; null otherwise. */
+    @XmlElement
+    private Long agentDurationMillis;
+
+    /** Total tokens the AGENT entry's run reported; null when unknown. */
+    @XmlElement
+    private Long agentTokens;
+
     public SessionJournalEntry() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = OffsetDateTime.now();
@@ -137,6 +149,33 @@ public class SessionJournalEntry {
                 this.annotations.add(new SessionJournalAnnotation(annotation));
             }
         }
+        this.agentModel = other.agentModel;
+        this.agentDurationMillis = other.agentDurationMillis;
+        this.agentTokens = other.agentTokens;
+    }
+
+    public String getAgentModel() {
+        return agentModel;
+    }
+
+    public void setAgentModel(String agentModel) {
+        this.agentModel = agentModel;
+    }
+
+    public Long getAgentDurationMillis() {
+        return agentDurationMillis;
+    }
+
+    public void setAgentDurationMillis(Long agentDurationMillis) {
+        this.agentDurationMillis = agentDurationMillis;
+    }
+
+    public Long getAgentTokens() {
+        return agentTokens;
+    }
+
+    public void setAgentTokens(Long agentTokens) {
+        this.agentTokens = agentTokens;
     }
 
     public String getId() {

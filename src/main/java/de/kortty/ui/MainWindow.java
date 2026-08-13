@@ -228,6 +228,17 @@ public class MainWindow {
     private CheckMenuItem systemShowAiAgentBottomMenuItem;
     private CheckMenuItem systemShowAiAgentLeftMenuItem;
     private CheckMenuItem systemShowAiAgentRightMenuItem;
+    // Live session-journal panel docking (hidden by default, or docked left/right).
+    private SessionJournalLivePanel journalLivePanel;
+    private SessionJournalLivePanelDockManager journalLiveDockManager;
+    private ResizableDivider journalLiveDivider;
+    private java.util.function.Consumer<SessionJournalLivePanelDockManager.Placement> journalLivePlacementListener;
+    private javafx.animation.PauseTransition windowGeometrySaveDelay;
+    private javafx.animation.PauseTransition journalLiveWidthSaveDelay;
+    private CheckMenuItem showJournalLiveLeftMenuItem;
+    private CheckMenuItem showJournalLiveRightMenuItem;
+    private CheckMenuItem systemShowJournalLiveLeftMenuItem;
+    private CheckMenuItem systemShowJournalLiveRightMenuItem;
     // 1s tick that refreshes the per-tab AI-agent status badge (✋/⚡/⏸/✓) in tab titles.
     private javafx.animation.Timeline agentStatusIndicatorTimer;
     private CheckMenuItem systemShowDashboardMenuItem;
@@ -420,6 +431,8 @@ public class MainWindow {
             refreshTransparentModeContainers();
             // When the agent panel is docked to the side, swap it to show only the now-active tab.
             Platform.runLater(this::rebindAiAgentSidePanelToActiveTab);
+            // The live journal panel follows only tabs that have a running journal.
+            Platform.runLater(this::rebindJournalLivePanelToActiveTab);
         });
         
         // Listen for tab removals to update dashboard and clear per-terminal AI state.
@@ -437,6 +450,9 @@ public class MainWindow {
                     for (Tab removedTab : change.getRemoved()) {
                         if (removedTab instanceof TerminalTab terminalTab) {
                             terminalAgentService.clearCachedSudoPassword(terminalTab.getAiSessionId());
+                            if (journalLivePanel != null && journalLivePanel.getBoundTab() == terminalTab) {
+                                journalLivePanel.notifyBoundTabClosed();
+                            }
                         }
                     }
                     Platform.runLater(() -> {
@@ -758,16 +774,9 @@ public class MainWindow {
             // Save window geometry on close if enabled (not when using fixed geometry)
             GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
             
-            // Always save last geometry (for next session) unless fixed geometry is used
-            if (!globalSettings.isUseFixedWindowGeometry()) {
-                WindowGeometry geo = new WindowGeometry(
-                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
-                );
-                geo.setMaximized(stage.isMaximized());
-                globalSettings.setLastWindowGeometry(geo);
-                logger.info("Saving window geometry: x={}, y={}, w={}, h={}, maximized={}", 
-                    geo.getX(), geo.getY(), geo.getWidth(), geo.getHeight(), geo.isMaximized());
-            }
+            // Always save last geometry (for next session) unless fixed geometry is used.
+            // One path for both close and live persistence, so the maximized handling matches.
+            persistWindowGeometry();
             
             // Save dashboard state on close if enabled
             if (globalSettings.isRememberDashboardState()) {
@@ -778,6 +787,12 @@ public class MainWindow {
             if (fileBrowserManager != null) {
                 globalSettings.setFileBrowserPosition(fileBrowserManager.getPosition().name());
                 globalSettings.setFileBrowserWidth(fileBrowserManager.getPreferredWidth());
+            }
+
+            // Save live journal panel placement + width on close
+            if (journalLiveDockManager != null) {
+                globalSettings.setJournalLivePanelPlacement(journalLiveDockManager.getPlacement().name());
+                globalSettings.setJournalLivePanelWidth(journalLiveDockManager.getPreferredWidth());
             }
 
             // Save settings BEFORE confirmClose (which might exit the app)
@@ -808,6 +823,14 @@ public class MainWindow {
                 if (aiAgentDockManager != null && aiAgentPlacementListener != null) {
                     aiAgentDockManager.removePlacementListener(aiAgentPlacementListener);
                     aiAgentPlacementListener = null;
+                }
+                // Detach the live journal panel's feed and its placement listener.
+                if (journalLivePanel != null) {
+                    journalLivePanel.unbind();
+                }
+                if (journalLiveDockManager != null && journalLivePlacementListener != null) {
+                    journalLiveDockManager.removePlacementListener(journalLivePlacementListener);
+                    journalLivePlacementListener = null;
                 }
                 if (powerManagementStateListener != null && app.getPowerManagementCoordinator() != null) {
                     app.getPowerManagementCoordinator().removeListener(powerManagementStateListener);
@@ -1731,6 +1754,29 @@ public class MainWindow {
         }
         aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem);
 
+        // Live journal panel: hidden by default, dockable left/right beside the terminal tabs.
+        Menu journalLivePanelMenu = new Menu(I18n.get("menu.view.journalPanel"));
+        CheckMenuItem journalLiveLeftItem = new CheckMenuItem(I18n.get("menu.view.journalPanel.left"));
+        journalLiveLeftItem.setOnAction(e ->
+            setJournalLivePanelPlacement(SessionJournalLivePanelDockManager.Placement.LEFT));
+        CheckMenuItem journalLiveRightItem = new CheckMenuItem(I18n.get("menu.view.journalPanel.right"));
+        journalLiveRightItem.setOnAction(e ->
+            setJournalLivePanelPlacement(SessionJournalLivePanelDockManager.Placement.RIGHT));
+        MenuItem journalLiveToggleItem = new MenuItem(I18n.get("menu.view.journalPanel.toggle"));
+        // Cmd/Ctrl+Alt+L: free next to the journal family (Alt+J/T/C) and the file browser (Shift+K/R).
+        journalLiveToggleItem.setAccelerator(
+            new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+        journalLiveToggleItem.setOnAction(e -> toggleJournalLivePanelVisible());
+        if (target == MenuBarTarget.WINDOW) {
+            showJournalLiveLeftMenuItem = journalLiveLeftItem;
+            showJournalLiveRightMenuItem = journalLiveRightItem;
+        } else {
+            systemShowJournalLiveLeftMenuItem = journalLiveLeftItem;
+            systemShowJournalLiveRightMenuItem = journalLiveRightItem;
+        }
+        journalLivePanelMenu.getItems().addAll(journalLiveLeftItem, journalLiveRightItem,
+            new SeparatorMenuItem(), journalLiveToggleItem);
+
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
@@ -1781,6 +1827,7 @@ public class MainWindow {
         }
 
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
+            journalLivePanelMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
         // The background-transparency slider is a CustomMenuItem, which the macOS native system menu
@@ -2088,11 +2135,14 @@ public class MainWindow {
         }
         
         stage.show();
+        installWindowGeometryPersistence();
 
         // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
         applyPersistedAiAgentPlacement();
         // Restore the persisted file-browser placement (hidden/left/right) and width.
         applyPersistedFileBrowser();
+        // Restore the persisted live journal panel placement (hidden/left/right) and width.
+        applyPersistedJournalLivePanel();
         updateForegroundActivity();
 
         // Mark startup as complete after a short delay to allow UI to settle
@@ -2110,6 +2160,57 @@ public class MainWindow {
         scheduleOutdatedGuideTranslationCheck();
     }
     
+    /**
+     * Keeps the remembered window geometry current while the window is used. The close handler
+     * alone is not enough: a quit routed through the platform (or a crash) skips it, and the size
+     * the user just set would be lost. Debounced, and skipped while iconified or in fullscreen so
+     * the restored "normal" geometry survives those states.
+     */
+    private void installWindowGeometryPersistence() {
+        windowGeometrySaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(900));
+        windowGeometrySaveDelay.setOnFinished(event -> persistWindowGeometry());
+        javafx.beans.value.ChangeListener<Object> onGeometryChanged = (obs, oldValue, newValue) -> {
+            if (stage.isShowing()) {
+                windowGeometrySaveDelay.playFromStart();
+            }
+        };
+        stage.widthProperty().addListener(onGeometryChanged);
+        stage.heightProperty().addListener(onGeometryChanged);
+        stage.xProperty().addListener(onGeometryChanged);
+        stage.yProperty().addListener(onGeometryChanged);
+        stage.maximizedProperty().addListener(onGeometryChanged);
+    }
+
+    private void persistWindowGeometry() {
+        try {
+            var settingsManager = app.getGlobalSettingsManager();
+            GlobalSettings settings = settingsManager != null ? settingsManager.getSettings() : null;
+            if (settings == null || settings.isUseFixedWindowGeometry()) {
+                return;
+            }
+            if (!stage.isShowing() || stage.isIconified() || stage.isFullScreen()) {
+                return;
+            }
+            WindowGeometry geometry;
+            WindowGeometry previous = settings.getLastWindowGeometry();
+            if (stage.isMaximized() && previous != null && previous.getWidth() > 0) {
+                // While maximized the stage reports the screen's size. Recording that as the
+                // remembered geometry would destroy the normal size, so keep the last known one
+                // and only carry the flag — un-maximizing then returns to a sensible window.
+                geometry = new WindowGeometry(
+                    previous.getX(), previous.getY(), previous.getWidth(), previous.getHeight());
+            } else {
+                geometry = new WindowGeometry(
+                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+            }
+            geometry.setMaximized(stage.isMaximized());
+            settings.setLastWindowGeometry(geometry);
+            settingsManager.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist the window geometry: {}", e.getMessage());
+        }
+    }
+
     /**
      * Kept for tab classes that notify the main window before closing.
      */
@@ -2755,6 +2856,9 @@ public class MainWindow {
             }
             if (localFileBrowser != null) {
                 localFileBrowser.applyTheme(bg, fg);
+            }
+            if (journalLivePanel != null) {
+                journalLivePanel.applyTheme(bg, fg);
             }
             if (customAppDesign) {
                 // The app design fully owns the chrome; the terminal-theme dynamic stylesheet would
@@ -3788,6 +3892,7 @@ public class MainWindow {
             return;
         }
         terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
+        terminalTab.setJournalStateListener(() -> onTabJournalStateChanged(terminalTab));
     }
 
     /** Updates each terminal tab's title badge to reflect its aggregated AI-agent status. */
@@ -3889,6 +3994,236 @@ public class MainWindow {
             gsm.save();
         } catch (Exception e) {
             logger.debug("Could not persist AI agent dock settings: {}", e.getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------- live journal panel docking
+
+    private void ensureJournalLiveDockManager() {
+        if (journalLiveDockManager == null) {
+            // Per-window (not a singleton): each window docks independently and is GC'd with its manager.
+            journalLiveDockManager = new SessionJournalLivePanelDockManager();
+            journalLivePlacementListener = placement -> onJournalLivePanelPlacementChanged(placement);
+            journalLiveDockManager.addPlacementListener(journalLivePlacementListener);
+        }
+    }
+
+    private void setJournalLivePanelPlacement(SessionJournalLivePanelDockManager.Placement placement) {
+        ensureJournalLiveDockManager();
+        journalLiveDockManager.toggle(placement);
+    }
+
+    private void toggleJournalLivePanelVisible() {
+        ensureJournalLiveDockManager();
+        journalLiveDockManager.toggleVisible();
+    }
+
+    private void onJournalLivePanelPlacementChanged(SessionJournalLivePanelDockManager.Placement placement) {
+        ensureJournalLiveDockManager();
+        // Lazily create the panel + resizable divider on first dock.
+        if (placement != SessionJournalLivePanelDockManager.Placement.HIDDEN && journalLivePanel == null) {
+            journalLivePanel = new SessionJournalLivePanel(this, this::openSessionJournalForSession);
+            journalLivePanel.setMinWidth(SessionJournalLivePanelDockManager.MIN_WIDTH);
+            journalLivePanel.setPrefWidth(journalLiveDockManager.getPreferredWidth());
+            journalLivePanel.setMaxWidth(SessionJournalLivePanelDockManager.MAX_WIDTH);
+            journalLiveDivider = new ResizableDivider(Orientation.VERTICAL);
+            journalLiveDivider.setResizeListener(delta -> {
+                double current = journalLivePanel.getPrefWidth();
+                double directional = journalLiveDockManager.getPlacement()
+                    == SessionJournalLivePanelDockManager.Placement.RIGHT ? -delta : delta;
+                double newWidth = SessionJournalLivePanelDockManager.clampWidth(current + directional);
+                journalLivePanel.setPrefWidth(newWidth);
+                journalLiveDockManager.setPreferredWidth(newWidth);
+                // Debounced: the resize listener fires per drag delta, and the settings file is
+                // large enough that writing it on every pixel would stutter the drag.
+                if (journalLiveWidthSaveDelay == null) {
+                    journalLiveWidthSaveDelay =
+                        new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+                    journalLiveWidthSaveDelay.setOnFinished(event -> persistJournalLivePanelSettings());
+                }
+                journalLiveWidthSaveDelay.playFromStart();
+                return newWidth;
+            });
+        }
+        // Remove the panel + divider from the layout if currently present.
+        if (journalLivePanel != null) {
+            mainContentBox.getChildren().remove(journalLivePanel);
+        }
+        if (journalLiveDivider != null) {
+            mainContentBox.getChildren().remove(journalLiveDivider);
+        }
+
+        if (placement == SessionJournalLivePanelDockManager.Placement.HIDDEN) {
+            if (journalLivePanel != null) {
+                journalLivePanel.unbind(); // re-showing re-backfills; the log is the source of truth
+            }
+            syncJournalLivePanelMenuItems(placement);
+        } else {
+            double width = SessionJournalLivePanelDockManager.clampWidth(
+                journalLiveDockManager.getPreferredWidth());
+            journalLivePanel.setPrefWidth(width);
+            // Dock immediately adjacent to the terminal tabPane, computing the index relative to it so
+            // the layout is independent of action order and of the other docked side panels.
+            int tabIndex = Math.max(0, mainContentBox.getChildren().indexOf(tabPane));
+            if (placement == SessionJournalLivePanelDockManager.Placement.LEFT) {
+                // Result order: [ ... ][ panel ][ divider ][ tabPane ][ ... ]
+                mainContentBox.getChildren().add(tabIndex, journalLiveDivider);
+                mainContentBox.getChildren().add(tabIndex, journalLivePanel);
+            } else {
+                // Result order: [ ... ][ tabPane ][ divider ][ panel ][ ... ]
+                mainContentBox.getChildren().add(tabIndex + 1, journalLiveDivider);
+                mainContentBox.getChildren().add(tabIndex + 2, journalLivePanel);
+            }
+            TerminalTab active = activeTerminalTab();
+            if (active != null && active.getTerminalView() != null
+                    && active.getTerminalView().isSessionJournalActive()) {
+                journalLivePanel.bindToTab(active);
+            } else {
+                journalLivePanel.showNoJournalPlaceholder();
+            }
+            syncJournalLivePanelMenuItems(placement);
+            applyMainWindowThemeFromGlobalSettings();
+        }
+        persistJournalLivePanelSettings();
+        Telemetry.track(TelemetryEvents.JOURNAL_LIVE_PANEL_TOGGLED,
+            java.util.Map.of("placement", placement.name()));
+    }
+
+    /**
+     * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
+     * session journal as an AGENT timeline card. No-op without a running journal.
+     */
+    private void appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer,
+                                         String modelText, long durationMillis, long totalTokens) {
+        if (terminalTab == null || terminalTab.getTerminalView() == null
+            || answer == null || answer.isBlank()) {
+            return;
+        }
+        de.kortty.core.SessionJournalSession session =
+            terminalTab.getTerminalView().getSessionJournalSession();
+        if (session == null || !session.isActive()) {
+            return;
+        }
+        de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
+        entry.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
+        String title = prompt != null && !prompt.isBlank() ? prompt.strip() : I18n.get("ai.agent.title");
+        entry.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
+        entry.setText(answer.strip());
+        if (modelText != null && !modelText.isBlank()) {
+            entry.setAgentModel(modelText.strip());
+        }
+        if (durationMillis > 0) {
+            entry.setAgentDurationMillis(durationMillis);
+        }
+        if (totalTokens > 0) {
+            entry.setAgentTokens(totalTokens);
+        }
+        long seq = session.getLastSequence();
+        if (seq > 0) {
+            entry.setLogStartSeq(seq);
+            entry.setLogEndSeq(seq);
+        }
+        Thread saver = new Thread(() -> {
+            try {
+                app.getSessionJournalService().appendEntry(session.getDirectory(), entry);
+            } catch (Exception e) {
+                logger.warn("Could not journal the agent result: {}", e.getMessage());
+            }
+        }, "SessionJournal-AgentEntry");
+        saver.setDaemon(true);
+        saver.start();
+    }
+
+    /** Opens the full journal viewer for a session shown in the live panel. */
+    private void openSessionJournalForSession(de.kortty.core.SessionJournalSession session) {
+        if (session == null) {
+            return;
+        }
+        de.kortty.model.SessionJournalMeta meta = session.getMetaSnapshot();
+        meta.setDirectory(session.getDirectory());
+        openSessionJournal(meta);
+    }
+
+    /**
+     * Spotlight follow with a memory: the panel only rebinds when the newly selected tab has a live
+     * journal; otherwise it keeps showing the journal it is already bound to.
+     */
+    private void rebindJournalLivePanelToActiveTab() {
+        if (journalLiveDockManager == null || !journalLiveDockManager.isDocked() || journalLivePanel == null) {
+            return;
+        }
+        TerminalTab active = activeTerminalTab();
+        if (active != null && active.getTerminalView() != null
+                && active.getTerminalView().isSessionJournalActive()) {
+            journalLivePanel.bindToTab(active);
+        }
+    }
+
+    /** Reacts to journal start/stop in a tab (fired by the tab's journal bar state funnel). */
+    private void onTabJournalStateChanged(TerminalTab tab) {
+        if (journalLiveDockManager == null || !journalLiveDockManager.isDocked() || journalLivePanel == null) {
+            return;
+        }
+        boolean active = tab.getTerminalView() != null
+            && tab.getTerminalView().isSessionJournalActive();
+        if (active && tab == activeTerminalTab()) {
+            // Covers manual start, auto-start on connect and a restart in the bound tab
+            // (bindToTab sees a new session object and restarts the feed).
+            journalLivePanel.bindToTab(tab);
+        } else if (!active && tab == journalLivePanel.getBoundTab()) {
+            journalLivePanel.notifyBoundJournalStopped();
+        }
+    }
+
+    private void syncJournalLivePanelMenuItems(SessionJournalLivePanelDockManager.Placement placement) {
+        boolean left = placement == SessionJournalLivePanelDockManager.Placement.LEFT;
+        boolean right = placement == SessionJournalLivePanelDockManager.Placement.RIGHT;
+        if (showJournalLiveLeftMenuItem != null) {
+            showJournalLiveLeftMenuItem.setSelected(left);
+        }
+        if (showJournalLiveRightMenuItem != null) {
+            showJournalLiveRightMenuItem.setSelected(right);
+        }
+        if (systemShowJournalLiveLeftMenuItem != null) {
+            systemShowJournalLiveLeftMenuItem.setSelected(left);
+        }
+        if (systemShowJournalLiveRightMenuItem != null) {
+            systemShowJournalLiveRightMenuItem.setSelected(right);
+        }
+    }
+
+    private void applyPersistedJournalLivePanel() {
+        try {
+            ensureJournalLiveDockManager();
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings == null) {
+                return;
+            }
+            journalLiveDockManager.setPreferredWidth(settings.getJournalLivePanelWidth());
+            SessionJournalLivePanelDockManager.Placement placement =
+                SessionJournalLivePanelDockManager.parsePlacement(settings.getJournalLivePanelPlacement());
+            if (placement == SessionJournalLivePanelDockManager.Placement.HIDDEN) {
+                syncJournalLivePanelMenuItems(placement);
+            } else {
+                journalLiveDockManager.setPlacement(placement); // fires the placement listener → docks
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply persisted live journal panel placement: {}", e.getMessage());
+        }
+    }
+
+    private void persistJournalLivePanelSettings() {
+        try {
+            var gsm = app.getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null || journalLiveDockManager == null) {
+                return;
+            }
+            settings.setJournalLivePanelPlacement(journalLiveDockManager.getPlacement().name());
+            settings.setJournalLivePanelWidth(journalLiveDockManager.getPreferredWidth());
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist live journal panel settings: {}", e.getMessage());
         }
     }
 
@@ -6764,16 +7099,34 @@ public class MainWindow {
             sshUser,
             connectionName);
         activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
+        java.util.concurrent.atomic.AtomicBoolean agentResultJournaled =
+            new java.util.concurrent.atomic.AtomicBoolean();
+        long agentRunStartedNanos = System.nanoTime();
+        java.util.concurrent.atomic.AtomicLong agentTokensTotal =
+            new java.util.concurrent.atomic.AtomicLong();
+        java.util.Set<String> agentTokenActivityIds =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+        String agentModelText = aiModelDisplayText(profile);
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
-                        if (state != null && isTerminalAgentFinalPhase(state.phase())
-                            && scopedRequest.mirrorFinalAnswerToTerminal()) {
+                        if (state != null && isTerminalAgentFinalPhase(state.phase())) {
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
-                                terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
+                                // The journal card is written regardless of terminal mirroring:
+                                // the run happened either way, and the summarizer deliberately
+                                // ignores agent text it finds inline in the capture log.
+                                if (agentResultJournaled.compareAndSet(false, true)) {
+                                    appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(), message,
+                                        agentModelText,
+                                        (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
+                                        agentTokensTotal.get());
+                                }
+                                if (scopedRequest.mirrorFinalAnswerToTerminal()) {
+                                    terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
+                                }
                             }
                         }
                     }
@@ -6798,6 +7151,14 @@ public class MainWindow {
                     @Override
                     public void publishActivity(TerminalAgentModels.AgentActivity activity) {
                         activityPanel.publishActivity(runId, activity);
+                        // Same accounting as the activity panel's token counter, for the
+                        // journal's AGENT card meta line.
+                        TerminalAgentModels.AgentActivityTokenUsage usage =
+                            activity != null ? activity.tokenUsage() : null;
+                        if (usage != null && usage.known() && usage.totalTokens() > 0
+                            && agentTokenActivityIds.add(activity.id())) {
+                            agentTokensTotal.addAndGet(usage.totalTokens());
+                        }
                     }
 
                     @Override
@@ -6846,6 +7207,13 @@ public class MainWindow {
                         false,
                         true));
                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
+                    if (agentResultJournaled.compareAndSet(false, true)) {
+                        appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                            I18n.get("ai.agent.activity.cancelled"),
+                            agentModelText,
+                            (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
+                            agentTokensTotal.get());
+                    }
                 } else {
                     activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),

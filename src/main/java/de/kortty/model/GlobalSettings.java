@@ -202,6 +202,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
+    /** Height of the journal page's live-log tail in vh (null = the page's CSS default). */
+    @XmlElement
+    private Integer sessionJournalLiveTailHeightVh;
+
     /** User-defined markers; the four built-ins are added by SessionJournalMarkers, not stored. */
     @XmlElementWrapper(name = "sessionJournalMarkers")
     @XmlElement(name = "marker")
@@ -580,6 +584,14 @@ public class GlobalSettings {
     /** Persisted width of the docked AI-agent side panel (null = default). */
     @XmlElement
     private Double aiAgentPanelSideWidth;
+
+    /** Where the live session-journal panel is docked: HIDDEN (default), LEFT or RIGHT. */
+    @XmlElement
+    private String journalLivePanelPlacement = "HIDDEN";
+
+    /** Persisted width of the docked live session-journal panel (null = default). */
+    @XmlElement
+    private Double journalLivePanelWidth;
 
     /** Where the file-browser sidebar is docked: HIDDEN (default), LEFT or RIGHT. */
     @XmlElement
@@ -1403,6 +1415,19 @@ public class GlobalSettings {
         this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
             ? 100
             : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    /** Live-log tail height in vh (15–85), or null for the page's CSS default. */
+    public Integer getSessionJournalLiveTailHeightVh() {
+        return sessionJournalLiveTailHeightVh == null
+            ? null
+            : Math.max(15, Math.min(sessionJournalLiveTailHeightVh, 85));
+    }
+
+    public void setSessionJournalLiveTailHeightVh(Integer sessionJournalLiveTailHeightVh) {
+        this.sessionJournalLiveTailHeightVh = sessionJournalLiveTailHeightVh == null
+            ? null
+            : Math.max(15, Math.min(sessionJournalLiveTailHeightVh, 85));
     }
 
     /** User-defined markers only; {@code SessionJournalMarkers.registry} adds the built-ins. */
@@ -2261,6 +2286,37 @@ public class GlobalSettings {
 
     public void setAiAgentPanelSideWidth(double width) {
         this.aiAgentPanelSideWidth = Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(width, AI_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    /**
+     * Allowed range and default for the docked live session-journal panel width. Single source of
+     * truth; {@code SessionJournalLivePanelDockManager} derives its constants from these.
+     * These are plain String/Double fields on this class, so no JAXBContext change in
+     * {@code GlobalSettingsManager} is needed.
+     */
+    public static final double JOURNAL_LIVE_PANEL_MIN_WIDTH = 240.0;
+    // Generous: the panel shows a full journal page with timeline cards and log excerpts, and on
+    // a wide display a reader may well want it larger than the terminal beside it.
+    public static final double JOURNAL_LIVE_PANEL_MAX_WIDTH = 1600.0;
+    public static final double JOURNAL_LIVE_PANEL_DEFAULT_WIDTH = 380.0;
+
+    /** Live session-journal panel placement: "HIDDEN" (default), "LEFT" or "RIGHT". */
+    public String getJournalLivePanelPlacement() {
+        return journalLivePanelPlacement != null ? journalLivePanelPlacement : "HIDDEN";
+    }
+
+    public void setJournalLivePanelPlacement(String journalLivePanelPlacement) {
+        this.journalLivePanelPlacement = journalLivePanelPlacement;
+    }
+
+    /** Docked live session-journal panel width, clamped to the allowed range (default 380). */
+    public double getJournalLivePanelWidth() {
+        double value = journalLivePanelWidth != null ? journalLivePanelWidth : JOURNAL_LIVE_PANEL_DEFAULT_WIDTH;
+        return Math.max(JOURNAL_LIVE_PANEL_MIN_WIDTH, Math.min(value, JOURNAL_LIVE_PANEL_MAX_WIDTH));
+    }
+
+    public void setJournalLivePanelWidth(double width) {
+        this.journalLivePanelWidth = Math.max(JOURNAL_LIVE_PANEL_MIN_WIDTH, Math.min(width, JOURNAL_LIVE_PANEL_MAX_WIDTH));
     }
 
     /**

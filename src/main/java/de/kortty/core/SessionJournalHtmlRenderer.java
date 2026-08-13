@@ -233,6 +233,9 @@ public final class SessionJournalHtmlRenderer {
                 .append(escapeAttr(i18n("journal.html.marker.title", "Jump between marked entries")))
                 .append("\">◆</button>");
         }
+        html.append("<button id=\"timeToggle\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.title", "Jump to a time")))
+            .append("\">◷</button>");
         html.append("<button id=\"searchToggle\" class=\"icon-button\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.title", "Search journal"))).append("\">")
             .append(ICON_SEARCH).append("</button>");
@@ -253,6 +256,7 @@ public final class SessionJournalHtmlRenderer {
         html.append("</div>\n");
         html.append("</div>\n</div>\n");
         appendSearchBar(html);
+        appendTimeBar(html);
         appendMarkerBar(html, usedMarkers);
         appendRangeBar(html);
         html.append("</header>\n");
@@ -313,6 +317,23 @@ public final class SessionJournalHtmlRenderer {
     }
 
     /** Journal-wide search, revealed by the header's magnifier and hidden by default. */
+    /**
+     * Jump-to-a-time bar: a lenient time (and optional date) entry that scrolls the timeline to
+     * the entry closest to that moment — the fast way into a long session.
+     */
+    private void appendTimeBar(StringBuilder html) {
+        html.append("<div id=\"timeBar\" class=\"search-bar time-bar\" hidden>\n")
+            .append("<input type=\"text\" id=\"timeJump\" autocomplete=\"off\" placeholder=\"")
+            .append(escapeAttr(i18n("journal.html.time.placeholder", "e.g. 19:00 or 13.08. 19:00")))
+            .append("\">\n")
+            .append("<button type=\"button\" id=\"timeJumpGo\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.title", "Jump to a time"))).append("\">→</button>\n")
+            .append("<span id=\"timeJumpStatus\" class=\"time-status\"></span>\n")
+            .append("<button type=\"button\" id=\"timeBarClose\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.close", "Close"))).append("\">✕</button>\n")
+            .append("</div>\n");
+    }
+
     private void appendSearchBar(StringBuilder html) {
         html.append("<div id=\"searchBar\" class=\"search-bar\" hidden>\n")
             .append("<input type=\"search\" id=\"journalSearch\" autocomplete=\"off\" placeholder=\"")
@@ -536,6 +557,7 @@ public final class SessionJournalHtmlRenderer {
             case SCREENSHOT -> "shot";
             case USER_NOTE -> "user-note";
             case SESSION_SUMMARY -> "final";
+            case AGENT -> "agent-entry";
             default -> "summary-entry";
         };
         String time = entry.getCreatedAt() != null
@@ -580,10 +602,15 @@ public final class SessionJournalHtmlRenderer {
             html.append("<span class=\"state-tag final-tag\">")
                 .append(escapeHtml(i18n("journal.html.sessionSummary", "session summary"))).append("</span>");
         }
+        if (entry.getKind() == SessionJournalEntryKind.AGENT) {
+            html.append("<span class=\"state-tag agent-tag\">")
+                .append(escapeHtml(i18n("journal.html.agent", "AI agent"))).append("</span>");
+        }
         if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
             html.append("<h3>").append(escapeHtml(entry.getTitle())).append("</h3>");
         }
         html.append("</div>\n");
+        appendAgentMeta(html, entry);
 
         if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
             // An edited screenshot keeps its file name, so without a token that changes with the
@@ -696,6 +723,7 @@ public final class SessionJournalHtmlRenderer {
 
     private void appendLogPanel(StringBuilder html) {
         html.append("<aside id=\"logPanel\" class=\"log-panel\" aria-hidden=\"true\">\n")
+            .append("<div id=\"logResize\" class=\"log-resize\"></div>\n")
             .append("<div class=\"panel-head\">\n")
             .append("<span id=\"panelTitle\" class=\"panel-title\"></span>\n")
             .append("<input type=\"search\" id=\"logSearch\" placeholder=\"")
@@ -712,6 +740,45 @@ public final class SessionJournalHtmlRenderer {
     }
 
     // ==== data embedding ====
+
+    /** Model, duration and token count of an AGENT run, as one muted meta line under the title. */
+    private void appendAgentMeta(StringBuilder html, SessionJournalEntry entry) {
+        if (entry.getKind() != SessionJournalEntryKind.AGENT) {
+            return;
+        }
+        List<String> parts = new ArrayList<>();
+        if (entry.getAgentModel() != null && !entry.getAgentModel().isBlank()) {
+            parts.add(escapeHtml(entry.getAgentModel().strip()));
+        }
+        if (entry.getAgentDurationMillis() != null && entry.getAgentDurationMillis() > 0) {
+            parts.add(escapeHtml(formatAgentDuration(entry.getAgentDurationMillis())));
+        }
+        if (entry.getAgentTokens() != null && entry.getAgentTokens() > 0) {
+            parts.add(escapeHtml(formatAgentTokens(entry.getAgentTokens()) + " "
+                + i18n("journal.html.tokens", "tokens")));
+        }
+        if (parts.isEmpty()) {
+            return;
+        }
+        html.append("<div class=\"agent-meta\">").append(String.join(" · ", parts)).append("</div>\n");
+    }
+
+    static String formatAgentDuration(long millis) {
+        long totalSeconds = Math.max(1, Math.round(millis / 1000.0));
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        if (minutes >= 60) {
+            return (minutes / 60) + " h " + (minutes % 60) + " min";
+        }
+        return minutes > 0 ? minutes + " min " + seconds + " s" : seconds + " s";
+    }
+
+    static String formatAgentTokens(long tokens) {
+        if (tokens < 1000) {
+            return Long.toString(tokens);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1fk", tokens / 1000.0);
+    }
 
     /**
      * Keeps the embedded log within {@link #MAX_EMBEDDED_LOG_CHARS}: oversized journals embed
@@ -746,33 +813,46 @@ public final class SessionJournalHtmlRenderer {
         return result;
     }
 
+    /**
+     * One capture-log entry as the page's JS object literal ({@code {s,t,k,x}}). Shared between
+     * the embedded {@code LOG} array built here and the live-panel push path
+     * ({@code SessionJournalLiveScript}) so the two field mappings can never drift. The two
+     * translated strings are parameters because the caller owns the i18n context.
+     */
+    public static String logEntryJs(SessionJournalLogEntry entry, ZoneId zone,
+            String hiddenInputText, String screenshotLabel) {
+        String kind = switch (entry.kind()) {
+            case IN -> "i";
+            case SCREENSHOT -> "s";
+            case NOTE -> "n";
+            default -> "o";
+        };
+        String text = entry.redacted()
+            ? hiddenInputText
+            : (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT
+                ? screenshotLabel + " " + nullSafe(entry.file())
+                : nullSafe(entry.text()));
+        return "{s:" + entry.seq()
+            + ",t:" + AiChatRenderPageSupport.toJsStringLiteral(
+                entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS))
+            + ",k:\"" + kind + '"'
+            + ",x:" + AiChatRenderPageSupport.toJsStringLiteral(text)
+            + '}';
+    }
+
     private String js(List<SessionJournalLogEntry> logEntries, boolean hasMarkers) {
         StringBuilder data = new StringBuilder(logEntries.size() * 48 + 1024);
         data.append("const LOG=[");
         ZoneId zone = ZoneId.systemDefault();
+        String hiddenInputText = i18n("journal.html.hiddenInput", "(hidden input)");
+        String screenshotLabel = i18n("journal.html.screenshot", "Screenshot");
         boolean first = true;
         for (SessionJournalLogEntry entry : logEntries) {
             if (!first) {
                 data.append(',');
             }
             first = false;
-            String kind = switch (entry.kind()) {
-                case IN -> "i";
-                case SCREENSHOT -> "s";
-                case NOTE -> "n";
-                default -> "o";
-            };
-            String text = entry.redacted()
-                ? i18n("journal.html.hiddenInput", "(hidden input)")
-                : (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT
-                    ? i18n("journal.html.screenshot", "Screenshot") + " " + nullSafe(entry.file())
-                    : nullSafe(entry.text()));
-            data.append("{s:").append(entry.seq())
-                .append(",t:").append(AiChatRenderPageSupport.toJsStringLiteral(
-                    entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS)))
-                .append(",k:\"").append(kind).append('"')
-                .append(",x:").append(AiChatRenderPageSupport.toJsStringLiteral(text))
-                .append('}');
+            data.append(logEntryJs(entry, zone, hiddenInputText, screenshotLabel));
         }
         data.append("];\n");
         data.append("const T={copied:")
@@ -797,6 +877,24 @@ public final class SessionJournalHtmlRenderer {
                 i18n("journal.html.rename.hint", "Double-click to rename the journal")))
             .append(",themeDark:")
             .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.theme.dark", "dark")))
+            .append(",liveTail:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.liveTail", "Live log — following")))
+            .append(",showMore:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.showMore", "Show full answer")))
+            .append(",showLess:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.showLess", "Show less")))
+            .append(",timeJumped:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.jumped", "Jumped to")))
+            .append(",timeInvalid:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.invalid", "Time not recognized")))
+            .append(",timeNone:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.none", "No entries yet")))
             .append("};\n");
         // The marker block goes inside behaviorJs's closure — hence the closing "})();" here.
         return data + behaviorJs() + (hasMarkers ? markerJs() : "") + "})();\n";
@@ -835,7 +933,7 @@ public final class SessionJournalHtmlRenderer {
               font-family:var(--ui-font,ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif);
               font-size:calc(15px * var(--font-scale));line-height:1.5;
               padding-bottom:12px}
-            body.panel-open{padding-bottom:46vh}
+            body.panel-open{padding-bottom:calc(var(--kortty-tail-h,46vh) + 4vh)}
             .session-head{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;
               padding:16px clamp(12px,3vw,24px);
               background:color-mix(in srgb,var(--surface) 88%,transparent);
@@ -845,9 +943,14 @@ public final class SessionJournalHtmlRenderer {
             .search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
               padding-top:8px;border-top:1px solid var(--border)}
             .search-bar[hidden]{display:none}
-            #journalSearch{flex:1 1 240px;min-width:min(200px,50vw);background:var(--surface2);
-              border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;
+            /* Every field in a bar, not just #journalSearch by id: an unstyled input keeps the
+               engine's default text colour (black), which is invisible on the dark surface. */
+            .search-bar input{background:var(--surface2);border:1px solid var(--border);
+              color:var(--text);border-radius:8px;padding:6px 12px;
               font-size:.87em;font-family:inherit}
+            .search-bar input::placeholder{color:var(--muted);opacity:1}
+            #journalSearch{flex:1 1 240px;min-width:min(200px,50vw)}
+            #timeJump{flex:0 1 240px;min-width:min(150px,45vw)}
             .search-bar button{background:var(--surface2);border:1px solid var(--border);
               color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;
               font-size:.87em}
@@ -860,7 +963,7 @@ public final class SessionJournalHtmlRenderer {
             .stat{display:flex;flex-direction:column;align-items:flex-end}
             .stat-label{font-size:.67em;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
             .stat-value{font-size:.93em;font-weight:600}
-            .head-buttons{display:flex;gap:4px;align-items:center}
+            .head-buttons{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
             .icon-button{border:1px solid var(--border);background:var(--surface2);color:var(--text);
               border-radius:8px;padding:4px 9px;cursor:pointer;font-size:.87em;font-family:inherit;
               line-height:1.2;min-width:32px}
@@ -871,8 +974,11 @@ public final class SessionJournalHtmlRenderer {
             .day-divider{position:sticky;top:78px;z-index:10;margin:18px 0 10px clamp(52px,8vw,74px)}
             .day-divider span{background:var(--surface2);border:1px solid var(--border);
               border-radius:999px;padding:2px 12px;font-size:.8em;color:var(--muted)}
-            .entry{display:grid;grid-template-columns:clamp(44px,7vw,64px) 1fr;gap:10px;position:relative;
-              padding:6px 0}
+            /* minmax(0,1fr), not 1fr: a plain 1fr track refuses to shrink below its content's
+               intrinsic width, so one `white-space:pre` excerpt would push every card wider than
+               the docked panel and clip the text. */
+            .entry{display:grid;grid-template-columns:clamp(44px,7vw,64px) minmax(0,1fr);gap:10px;
+              position:relative;padding:6px 0}
             .entry:before{content:"";position:absolute;left:calc(clamp(44px,7vw,64px) - 8px);top:0;bottom:0;
               width:2px;background:var(--border)}
             .node{position:relative;text-align:right;padding-right:16px;color:var(--muted);
@@ -884,7 +990,8 @@ public final class SessionJournalHtmlRenderer {
             .dot{position:absolute;right:-5px;top:12px;width:10px;height:10px;border-radius:50%;
               background:var(--mk,var(--none));border:2px solid var(--bg)}
             .card{position:relative;background:var(--surface);border:1px solid var(--border);
-              border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s}
+              border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s;
+              min-width:0;overflow-wrap:anywhere}
             .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
             .copy-btn{border:1px solid var(--border);background:var(--surface2);color:var(--muted);
               border-radius:6px;padding:4px 6px;cursor:pointer;line-height:0;opacity:.7;
@@ -930,13 +1037,33 @@ public final class SessionJournalHtmlRenderer {
               font-size:.67em;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px}
             .state-tag.failed{color:var(--err);border-color:var(--err)}
             .final .card{border-left:3px solid var(--accent)}
-            .summary{margin:8px 0 0;white-space:pre-wrap}
-            .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+            .agent-entry .card{border-left:3px solid var(--info)}
+            .state-tag.agent-tag{color:var(--info);border-color:var(--info)}
+            /* Long agent answers collapse to a preview; a click expands them. */
+            .agent-entry .summary.collapsible{cursor:pointer}
+            .agent-entry .summary.collapsed{max-height:220px;overflow:hidden;position:relative}
+            .agent-entry .summary.collapsed::after{content:"";position:absolute;left:0;right:0;bottom:0;
+              height:52px;background:linear-gradient(transparent,var(--surface))}
+            .summary-toggle{margin-top:6px;background:none;border:none;color:var(--accent);
+              cursor:pointer;font-size:.8em;padding:0;font-family:inherit}
+            .agent-meta{color:var(--muted);font-size:.75em;margin-top:2px}
+            .time-status{color:var(--muted);font-size:.8em}
+            .entry.time-hit .card{outline:2px solid var(--accent);outline-offset:3px}
+            /* Docked narrow: give the cards every pixel the panel has. */
+            @media (max-width:560px){
+              .timeline{padding-left:8px;padding-right:8px}
+              .entry{grid-template-columns:38px minmax(0,1fr);gap:6px}
+              .entry:before{left:30px}
+              .card{padding:10px 11px}
+              .card-head{padding-right:64px}
+            }
+            .summary{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+            .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
             .excerpt{margin:0;padding:8px 10px;border-radius:8px;background:var(--surface2);
               font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.45;
-              overflow:auto;max-height:min(340px,34vh);white-space:pre}
+              overflow:auto;max-height:min(340px,34vh);white-space:pre;min-width:0}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
@@ -957,11 +1084,14 @@ public final class SessionJournalHtmlRenderer {
             .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
             .lightbox-close{position:absolute;top:16px;right:20px;background:none;border:none;
               color:#fff;font-size:22px;cursor:pointer}
-            .log-panel{position:fixed;left:0;right:0;bottom:0;height:clamp(200px,44vh,60vh);z-index:40;
+            .log-panel{position:fixed;left:0;right:0;bottom:0;z-index:40;
+              height:var(--kortty-tail-h,clamp(200px,44vh,60vh));
               background:var(--surface);border-top:1px solid var(--border);
               transform:translateY(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
               display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(0,0,0,.35)}
             .log-panel.open{transform:none}
+            .log-resize{flex:0 0 auto;height:6px;cursor:ns-resize;background:transparent}
+            .log-resize:hover,.log-resize.dragging{background:var(--accent)}
             .panel-head{display:flex;gap:8px;align-items:center;padding:8px clamp(8px,2vw,14px);
               border-bottom:1px solid var(--border);flex-wrap:wrap}
             .panel-title{font-size:.8em;color:var(--muted);margin-right:auto}
@@ -1034,14 +1164,16 @@ public final class SessionJournalHtmlRenderer {
               }
               return out;
             }
+            function lineHtml(r,query){
+              var text=textFor(r);
+              var content=query?highlight(text,query):esc(text);
+              // One wrapper per line so the live tail can append and trim per DOM child.
+              return "<span class=\\"l-line\\"><span class=\\"l-seq\\">"+r.t+" </span>"
+                +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>\\n</span>";
+            }
             function renderBody(query){
               var html="";
-              for(var i=0;i<records.length;i++){
-                var r=records[i]; var text=textFor(r);
-                var content=query?highlight(text,query):esc(text);
-                html+="<span class=\\"l-seq\\">"+r.t+" </span>"
-                  +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>\\n";
-              }
+              for(var i=0;i<records.length;i++){html+=lineHtml(records[i],query);}
               body.innerHTML=html;
             }
             function applyCurrent(scroll){
@@ -1082,6 +1214,7 @@ public final class SessionJournalHtmlRenderer {
             document.getElementById("prevMatch").addEventListener("click",function(){move(-1);});
             document.getElementById("closePanel").addEventListener("click",closePanel);
             function openPanel(from,to,label){
+              liveMode=false; notifyTailState();
               records=LOG.filter(function(r){return r.s>=from&&r.s<=to;});
               title.textContent=label+" · seq "+from+"–"+to+" · "+records.length+" lines";
               search.value=""; current=-1;
@@ -1091,9 +1224,79 @@ public final class SessionJournalHtmlRenderer {
               search.focus();
             }
             function closePanel(){
+              liveMode=false; notifyTailState();
               panel.classList.remove("open"); panel.setAttribute("aria-hidden","true");
               document.body.classList.remove("panel-open");
               if(activeCard){activeCard.classList.remove("active");activeCard=null;}
+            }
+            // ==== live tail (docked live panel) ====
+            var LIVE_MAX=5000;
+            var logSeqs=Object.create(null);
+            for(var li=0;li<LOG.length;li++){logSeqs[LOG[li].s]=1;}
+            var liveMode=false, liveFollow=true;
+            body.addEventListener("scroll",function(){
+              if(!liveMode){return;}
+              // Scrolling up pauses following; scrolling back to the bottom resumes it.
+              liveFollow=body.scrollTop+body.clientHeight>=body.scrollHeight-40;
+            });
+            window.korttyAppendLog=function(entries){
+              var appended=[];
+              for(var i=0;i<entries.length;i++){
+                var r=entries[i];
+                // Seq-value dedup: a fresh page's LOG already holds every persisted line, and
+                // delivery is not seq-monotonic, so a high-water mark would drop lines.
+                if(logSeqs[r.s]){continue;}
+                logSeqs[r.s]=1; LOG.push(r); appended.push(r);
+              }
+              if(!liveMode||appended.length===0){return;}
+              var q=search.value.trim().toLowerCase(); if(q.length===0){q=null;}
+              var html="";
+              for(var j=0;j<appended.length;j++){records.push(appended[j]);html+=lineHtml(appended[j],q);}
+              body.insertAdjacentHTML("beforeend",html);
+              while(records.length>LIVE_MAX&&body.firstChild){records.shift();body.removeChild(body.firstChild);}
+              if(liveFollow){body.scrollTop=body.scrollHeight;}
+            };
+            window.korttyOpenLiveTail=function(){
+              liveMode=true; liveFollow=true;
+              records=LOG.slice(Math.max(0,LOG.length-LIVE_MAX));
+              title.textContent=T.liveTail;
+              search.value=""; current=-1;
+              renderBody(null); updateCount(0);
+              panel.classList.add("open"); panel.setAttribute("aria-hidden","false");
+              document.body.classList.add("panel-open");
+              // Unlike openPanel, no search.focus(): the tail opens programmatically and must
+              // not steal focus from the terminal.
+              body.scrollTop=body.scrollHeight;
+              notifyTailState();
+            };
+            window.korttyCloseLiveTail=function(){liveMode=false;closePanel();};
+            /* Tell the app when the tail opens or closes (host toggle stays in sync). */
+            function notifyTailState(){callBridge("liveTailStateChanged",liveMode);}
+            /* Height in vh, settable from the app and draggable via the grip; survives reloads
+               because the app re-applies the persisted value after every load. */
+            window.korttySetLiveTailHeight=function(vh){
+              if(typeof vh!=="number"||!isFinite(vh)){return;}
+              vh=Math.max(15,Math.min(85,vh));
+              document.documentElement.style.setProperty("--kortty-tail-h",vh+"vh");
+            };
+            var grip=document.getElementById("logResize");
+            if(grip){
+              var dragging=false;
+              grip.addEventListener("mousedown",function(e){
+                dragging=true; grip.classList.add("dragging"); e.preventDefault();
+              });
+              document.addEventListener("mousemove",function(e){
+                if(!dragging){return;}
+                var vh=(window.innerHeight-e.clientY)/window.innerHeight*100;
+                window.korttySetLiveTailHeight(vh);
+              });
+              document.addEventListener("mouseup",function(e){
+                if(!dragging){return;}
+                dragging=false; grip.classList.remove("dragging");
+                var vh=(window.innerHeight-e.clientY)/window.innerHeight*100;
+                vh=Math.max(15,Math.min(85,Math.round(vh)));
+                callBridge("liveTailHeightChanged",vh);
+              });
             }
             var cards=document.querySelectorAll(".card[data-from]");
             cards.forEach(function(card){
@@ -1117,6 +1320,107 @@ public final class SessionJournalHtmlRenderer {
                 if(e.key==="Enter"||e.key===" "){e.preventDefault();activate();}
               });
             });
+            /* Long agent answers collapse to a preview; clicking the text or the link toggles
+               the full answer without also opening the card's log panel. */
+            document.querySelectorAll(".agent-entry .summary").forEach(function(sum){
+              if(sum.scrollHeight<=260){return;}
+              sum.classList.add("collapsible","collapsed");
+              var more=document.createElement("button");
+              more.type="button"; more.className="summary-toggle"; more.textContent=T.showMore;
+              function toggleAnswer(e){
+                e.stopPropagation();
+                var collapsed=sum.classList.toggle("collapsed");
+                more.textContent=collapsed?T.showMore:T.showLess;
+              }
+              more.addEventListener("click",toggleAnswer);
+              sum.addEventListener("click",toggleAnswer);
+              sum.parentNode.insertBefore(more,sum.nextSibling);
+            });
+            /* ---- jump to a time ----------------------------------------------------- */
+            var timeBar=document.getElementById("timeBar");
+            var timeInput=document.getElementById("timeJump");
+            var timeStatus=document.getElementById("timeJumpStatus");
+            var timeHitTimer=null;
+            function timedEntries(){
+              var out=[];
+              document.querySelectorAll(".entry[data-time]").forEach(function(el){
+                var t=Date.parse(el.getAttribute("data-time"));
+                if(!isNaN(t)){out.push({el:el,t:t});}
+              });
+              return out;
+            }
+            /* Absolute moment from an ISO or German date plus time; null when only a time was
+               typed (that case is matched per entry against its own day). */
+            function parseAbsoluteWhen(s){
+              var m=s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T]+(\\d{1,2})[:.h]?(\\d{2})?/);
+              if(m){return new Date(+m[1],+m[2]-1,+m[3],+m[4],+(m[5]||0),0,0).getTime();}
+              m=s.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?\\s*(\\d{1,2})[:.h]?(\\d{2})?/);
+              if(m){
+                var year=m[3]?+m[3]:new Date().getFullYear();
+                return new Date(year,+m[2]-1,+m[1],+m[4],+(m[5]||0),0,0).getTime();
+              }
+              return null;
+            }
+            /* 19:00 | 19.00 | 19h00 | 1900 | 19 — all mean the same time of day. */
+            function parseTimeOfDay(s){
+              var m=s.match(/^(\\d{1,2})[:.h]?(\\d{2})?$/);
+              if(!m){return null;}
+              var h=+m[1],mi=+(m[2]||0);
+              if(h>23||mi>59){return null;}
+              return {h:h,m:mi};
+            }
+            function jumpToTime(text){
+              var s=(text||"").trim().replace(/\\s+/g," ");
+              if(!s){return;}
+              var entries=timedEntries();
+              if(!entries.length){timeStatus.textContent=T.timeNone;return;}
+              var absolute=parseAbsoluteWhen(s);
+              var timeOfDay=absolute===null?parseTimeOfDay(s):null;
+              if(absolute===null&&timeOfDay===null){timeStatus.textContent=T.timeInvalid;return;}
+              var best=null,bestDiff=Infinity;
+              for(var i=0;i<entries.length;i++){
+                var target;
+                if(absolute!==null){target=absolute;}
+                else{
+                  // Anchor the time of day on each entry's own day, so a journal spanning
+                  // midnight jumps to the nearest occurrence instead of the first day.
+                  var d=new Date(entries[i].t);
+                  d.setHours(timeOfDay.h,timeOfDay.m,0,0);
+                  target=d.getTime();
+                }
+                var diff=Math.abs(entries[i].t-target);
+                if(diff<bestDiff){bestDiff=diff;best=entries[i];}
+              }
+              if(!best){timeStatus.textContent=T.timeNone;return;}
+              best.el.scrollIntoView({block:"center",behavior:"smooth"});
+              if(timeHitTimer){clearTimeout(timeHitTimer);}
+              document.querySelectorAll(".entry.time-hit").forEach(function(el){
+                el.classList.remove("time-hit");
+              });
+              best.el.classList.add("time-hit");
+              timeHitTimer=setTimeout(function(){best.el.classList.remove("time-hit");},4000);
+              var stamp=best.el.querySelector("time");
+              timeStatus.textContent=T.timeJumped+" "+(stamp?stamp.textContent:"");
+            }
+            if(timeBar){
+              document.getElementById("timeToggle").addEventListener("click",function(){
+                var open=!timeBar.hasAttribute("hidden");
+                if(open){timeBar.setAttribute("hidden","");return;}
+                timeBar.removeAttribute("hidden");
+                timeStatus.textContent="";
+                timeInput.focus(); timeInput.select();
+              });
+              document.getElementById("timeBarClose").addEventListener("click",function(){
+                timeBar.setAttribute("hidden","");
+              });
+              document.getElementById("timeJumpGo").addEventListener("click",function(){
+                jumpToTime(timeInput.value);
+              });
+              timeInput.addEventListener("keydown",function(e){
+                if(e.key==="Enter"){e.preventDefault();jumpToTime(timeInput.value);}
+                else if(e.key==="Escape"){timeBar.setAttribute("hidden","");}
+              });
+            }
             var lightbox=document.getElementById("lightbox");
             var lightboxImg=lightbox.querySelector("img");
             document.querySelectorAll("img.thumb").forEach(function(img){

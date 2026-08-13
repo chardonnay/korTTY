@@ -43,6 +43,27 @@ While a journal is available, a bar below the terminal shows its state (**Journa
 - **Screenshot** (++ctrl+alt+c++, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
 - **Note** opens a small input for a free-text remark that appears as its own timeline entry at the current position.
 
+## The live journal panel
+
+**View > Live Journal** (or ++ctrl+alt+l++) docks the running journal's **full journal page** — the same page the [viewer](#the-journal-page) shows — to the **left or right** of the terminal, kept up to date in real time. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.
+
+Two things update live while the session runs:
+
+- **The live log** — the **Live Log** button in the panel header opens the page's log panel in follow mode, streaming the capture log as it is written: command output, the commands you typed, notes and screenshot markers, each with a timestamp. It starts hidden; lines accumulate either way, so opening it later shows everything. Scrolling up pauses following, scrolling back to the bottom resumes it, the ✕ in its corner hides it again (the button stays in sync), and dragging its top edge adjusts the height — which is remembered. The view keeps the newest 5000 lines; everything stays in the capture log and in the entry cards' log excerpts.
+- **The timeline** — new cards (AI summaries, notes, screenshots) and edits appear moments after they happen, without losing your scroll position. A [terminal AI-agent](ai-assistant.md) run adds its own **AI agent** card the moment it finishes: your prompt as the title, the agent's final answer as the body, and a meta line with the model, the run duration and the reported token count. Long answers collapse to a preview — click the text (or **Show full answer**) to expand. Agent work is part of the journal record even though the summarizer treats the agent's inline terminal text as noise.
+
+Because it is the real journal page, everything the viewer's page offers works right here: click an entry card to see its log excerpt, search the journal, jump between marked entries, and **right-click** a screenshot to open the [annotation editor](#screenshot-notes-and-annotations) (pen, box, unreadable, text and a note) or copy it — the edited picture appears in the panel as soon as you save. Right-clicking an entry offers the same marker picker as the viewer. The cards adapt to the panel width, so the text stays readable however narrow or wide you drag it.
+
+### Jumping to a time
+
+The **◷** button in the page header opens a time field: type a time and the timeline scrolls to the entry closest to it and highlights it briefly. The input is lenient — `19:00`, `19.00`, `1900` and `19` all mean the same, and a date can be prefixed (`13.08. 19:00`, `13.08.2026 19:00` or `2026-08-13 19:00`). Without a date the time is matched against each entry's own day, so a session running past midnight jumps to the nearest occurrence rather than always the first day.
+
+The panel's header adds the instant controls: **Note** and **Screenshot** act on the shown journal exactly like the [journal bar](#the-journal-bar) — a note you add appears in both the timeline and the live log — **Live Log** shows or hides the log view, and **Open Viewer** opens the full viewer window for editing, search & replace and exports. The **⋯** menu switches the page between light and dark, refreshes it, and opens the page [appearance](#appearance) settings.
+
+The panel follows your tabs with a memory: it shows the journal of the current tab, and when you switch tabs it only switches along **if the newly selected tab also has a running journal** — otherwise it keeps showing the journal it already displays. When the shown journal is stopped or its tab is closed, the page stays visible with a **Journal stopped** / **Tab closed** badge until you select another tab with a live journal.
+
+Everything shown has already passed [password protection](#password-protection) — suppressed input and redacted secrets never reach the panel.
+
 ## AI summaries
 
 While the journal runs, the AI summarizer periodically reads the newest capture-log lines and appends a compact journal entry (title, summary and a suggested marker: info, important or error). Defaults and limits:
