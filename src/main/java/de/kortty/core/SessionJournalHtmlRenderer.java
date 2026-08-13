@@ -746,33 +746,46 @@ public final class SessionJournalHtmlRenderer {
         return result;
     }
 
+    /**
+     * One capture-log entry as the page's JS object literal ({@code {s,t,k,x}}). Shared between
+     * the embedded {@code LOG} array built here and the live-panel push path
+     * ({@code SessionJournalLiveScript}) so the two field mappings can never drift. The two
+     * translated strings are parameters because the caller owns the i18n context.
+     */
+    public static String logEntryJs(SessionJournalLogEntry entry, ZoneId zone,
+            String hiddenInputText, String screenshotLabel) {
+        String kind = switch (entry.kind()) {
+            case IN -> "i";
+            case SCREENSHOT -> "s";
+            case NOTE -> "n";
+            default -> "o";
+        };
+        String text = entry.redacted()
+            ? hiddenInputText
+            : (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT
+                ? screenshotLabel + " " + nullSafe(entry.file())
+                : nullSafe(entry.text()));
+        return "{s:" + entry.seq()
+            + ",t:" + AiChatRenderPageSupport.toJsStringLiteral(
+                entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS))
+            + ",k:\"" + kind + '"'
+            + ",x:" + AiChatRenderPageSupport.toJsStringLiteral(text)
+            + '}';
+    }
+
     private String js(List<SessionJournalLogEntry> logEntries, boolean hasMarkers) {
         StringBuilder data = new StringBuilder(logEntries.size() * 48 + 1024);
         data.append("const LOG=[");
         ZoneId zone = ZoneId.systemDefault();
+        String hiddenInputText = i18n("journal.html.hiddenInput", "(hidden input)");
+        String screenshotLabel = i18n("journal.html.screenshot", "Screenshot");
         boolean first = true;
         for (SessionJournalLogEntry entry : logEntries) {
             if (!first) {
                 data.append(',');
             }
             first = false;
-            String kind = switch (entry.kind()) {
-                case IN -> "i";
-                case SCREENSHOT -> "s";
-                case NOTE -> "n";
-                default -> "o";
-            };
-            String text = entry.redacted()
-                ? i18n("journal.html.hiddenInput", "(hidden input)")
-                : (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT
-                    ? i18n("journal.html.screenshot", "Screenshot") + " " + nullSafe(entry.file())
-                    : nullSafe(entry.text()));
-            data.append("{s:").append(entry.seq())
-                .append(",t:").append(AiChatRenderPageSupport.toJsStringLiteral(
-                    entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS)))
-                .append(",k:\"").append(kind).append('"')
-                .append(",x:").append(AiChatRenderPageSupport.toJsStringLiteral(text))
-                .append('}');
+            data.append(logEntryJs(entry, zone, hiddenInputText, screenshotLabel));
         }
         data.append("];\n");
         data.append("const T={copied:")
@@ -797,6 +810,9 @@ public final class SessionJournalHtmlRenderer {
                 i18n("journal.html.rename.hint", "Double-click to rename the journal")))
             .append(",themeDark:")
             .append(AiChatRenderPageSupport.toJsStringLiteral(i18n("journal.html.theme.dark", "dark")))
+            .append(",liveTail:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.liveTail", "Live log — following")))
             .append("};\n");
         // The marker block goes inside behaviorJs's closure — hence the closing "})();" here.
         return data + behaviorJs() + (hasMarkers ? markerJs() : "") + "})();\n";
@@ -1034,14 +1050,16 @@ public final class SessionJournalHtmlRenderer {
               }
               return out;
             }
+            function lineHtml(r,query){
+              var text=textFor(r);
+              var content=query?highlight(text,query):esc(text);
+              // One wrapper per line so the live tail can append and trim per DOM child.
+              return "<span class=\\"l-line\\"><span class=\\"l-seq\\">"+r.t+" </span>"
+                +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>\\n</span>";
+            }
             function renderBody(query){
               var html="";
-              for(var i=0;i<records.length;i++){
-                var r=records[i]; var text=textFor(r);
-                var content=query?highlight(text,query):esc(text);
-                html+="<span class=\\"l-seq\\">"+r.t+" </span>"
-                  +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>\\n";
-              }
+              for(var i=0;i<records.length;i++){html+=lineHtml(records[i],query);}
               body.innerHTML=html;
             }
             function applyCurrent(scroll){
@@ -1082,6 +1100,7 @@ public final class SessionJournalHtmlRenderer {
             document.getElementById("prevMatch").addEventListener("click",function(){move(-1);});
             document.getElementById("closePanel").addEventListener("click",closePanel);
             function openPanel(from,to,label){
+              liveMode=false;
               records=LOG.filter(function(r){return r.s>=from&&r.s<=to;});
               title.textContent=label+" · seq "+from+"–"+to+" · "+records.length+" lines";
               search.value=""; current=-1;
@@ -1091,10 +1110,51 @@ public final class SessionJournalHtmlRenderer {
               search.focus();
             }
             function closePanel(){
+              liveMode=false;
               panel.classList.remove("open"); panel.setAttribute("aria-hidden","true");
               document.body.classList.remove("panel-open");
               if(activeCard){activeCard.classList.remove("active");activeCard=null;}
             }
+            // ==== live tail (docked live panel) ====
+            var LIVE_MAX=5000;
+            var logSeqs=Object.create(null);
+            for(var li=0;li<LOG.length;li++){logSeqs[LOG[li].s]=1;}
+            var liveMode=false, liveFollow=true;
+            body.addEventListener("scroll",function(){
+              if(!liveMode){return;}
+              // Scrolling up pauses following; scrolling back to the bottom resumes it.
+              liveFollow=body.scrollTop+body.clientHeight>=body.scrollHeight-40;
+            });
+            window.korttyAppendLog=function(entries){
+              var appended=[];
+              for(var i=0;i<entries.length;i++){
+                var r=entries[i];
+                // Seq-value dedup: a fresh page's LOG already holds every persisted line, and
+                // delivery is not seq-monotonic, so a high-water mark would drop lines.
+                if(logSeqs[r.s]){continue;}
+                logSeqs[r.s]=1; LOG.push(r); appended.push(r);
+              }
+              if(!liveMode||appended.length===0){return;}
+              var q=search.value.trim().toLowerCase(); if(q.length===0){q=null;}
+              var html="";
+              for(var j=0;j<appended.length;j++){records.push(appended[j]);html+=lineHtml(appended[j],q);}
+              body.insertAdjacentHTML("beforeend",html);
+              while(records.length>LIVE_MAX&&body.firstChild){records.shift();body.removeChild(body.firstChild);}
+              if(liveFollow){body.scrollTop=body.scrollHeight;}
+            };
+            window.korttyOpenLiveTail=function(){
+              liveMode=true; liveFollow=true;
+              records=LOG.slice(Math.max(0,LOG.length-LIVE_MAX));
+              title.textContent=T.liveTail;
+              search.value=""; current=-1;
+              renderBody(null); updateCount(0);
+              panel.classList.add("open"); panel.setAttribute("aria-hidden","false");
+              document.body.classList.add("panel-open");
+              // Unlike openPanel, no search.focus(): the tail opens programmatically and must
+              // not steal focus from the terminal.
+              body.scrollTop=body.scrollHeight;
+            };
+            window.korttyCloseLiveTail=function(){liveMode=false;closePanel();};
             var cards=document.querySelectorAll(".card[data-from]");
             cards.forEach(function(card){
               function activate(){

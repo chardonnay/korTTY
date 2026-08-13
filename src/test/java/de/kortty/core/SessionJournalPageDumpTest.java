@@ -96,6 +96,11 @@ class SessionJournalPageDumpTest {
             // so a standalone page in a browser never offers an action it cannot perform.
             assertThat(html).contains("id=\"journalReplace\"");
             assertThat(html).contains("window.korttyEnableReplace");
+            // Live-tail hooks for the docked panel's push path.
+            assertThat(html).contains("window.korttyAppendLog");
+            assertThat(html).contains("window.korttyOpenLiveTail");
+            assertThat(html).contains("window.korttyCloseLiveTail");
+            assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");
             // The marker bar and the navigator it shares with the search must both be present.
             assertThat(html).contains("id=\"markerBar\"");

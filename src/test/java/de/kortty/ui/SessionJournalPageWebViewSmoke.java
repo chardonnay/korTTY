@@ -259,6 +259,30 @@ public final class SessionJournalPageWebViewSmoke {
         if (bridge.calls.stream().filter(call -> call.equals("requestRename")).count() < 2) {
             throw new IllegalStateException("rename did not reach the bridge from both paths");
         }
+
+        // Live tail: append streams into the open tail, duplicate seqs are ignored.
+        String tail = (String) webView.getEngine().executeScript(
+            "(function(){"
+                + "korttyOpenLiveTail();"
+                + "korttyAppendLog([{s:999901,t:'12:00:00',k:'o',x:'live line one'},"
+                + "{s:999902,t:'12:00:01',k:'i',x:'live input'}]);"
+                + "korttyAppendLog([{s:999902,t:'12:00:01',k:'i',x:'live input'},"
+                + "{s:999903,t:'12:00:02',k:'n',x:'live note'}]);"
+                + "var text=document.getElementById('logBody').textContent;"
+                + "var panelOpen=document.getElementById('logPanel').classList.contains('open');"
+                + "var inputs=(text.match(/live input/g)||[]).length;"
+                + "return 'open='+panelOpen+',one='+(text.indexOf('live line one')>=0)"
+                + "+',note='+(text.indexOf('live note')>=0)+',inputs='+inputs;})()");
+        System.out.println("live tail: " + tail);
+        if (!tail.equals("open=true,one=true,note=true,inputs=1")) {
+            throw new IllegalStateException("live tail append/dedup misbehaved: " + tail);
+        }
+        webView.getEngine().executeScript("korttyCloseLiveTail();");
+        String closed = (String) webView.getEngine().executeScript(
+            "document.getElementById('logPanel').classList.contains('open') ? 'open' : 'closed'");
+        if (!"closed".equals(closed)) {
+            throw new IllegalStateException("korttyCloseLiveTail left the panel open");
+        }
     }
 
     /** Fires a contextmenu event on the selector and reports the menu state. */
