@@ -57,6 +57,7 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 | Custom model | text | — | — | (profile `cliCustomModel` field) |
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
+| Image input (vision) | dropdown | Auto (detect), Enabled, Disabled | Auto (detect) | (profile `visionSupport` field) |
 | Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Disabled | (profile `internetAccessMode` field) |
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
 | Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
@@ -140,6 +141,10 @@ Reasoning effort configures how deeply the AI thinks before responding. Availabl
 Not all models support all levels. Use the **Refresh reasoning options** button to detect available levels for the current profile and model. When LM Studio publishes `capabilities.reasoning.allowed_options` through its native model metadata, korTTY uses that exact list instead of treating a silently converted value as supported. For a binary `off`/`on` model, an explicit `none` request switches this feature off, while omitting the reasoning parameter uses the model's published default; the unsupported Minimal, Low, Medium, High, and Extra high levels are not offered. A model whose LM Studio metadata publishes no reasoning capability at all — including a virtual model that overrides its reasoning metadata to false — offers only **Disabled**: LM Studio skips an unsupported request-time reasoning value with a log warning instead of rejecting the request, so an active probe would mistake every level for supported. Levels that an earlier korTTY version detected are not carried over, because they may have come from exactly that probe: until you press **Refresh reasoning options** once more, an HTTP or CLI profile falls back to the conservative defaults for its model name, and a level that is no longer offered is dropped from the request with a log line naming the level actually used. Profiles using an integrated model keep their detected levels. Other compatible endpoints continue to use active connection probes when no such metadata is available.
 
 For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
+
+### Image input (vision)
+
+**Image input (vision)** decides whether korTTY may attach images to a prompt for this profile — used by the [session journal's AI screenshot analysis](../../features/session-journal.md#ai-screenshot-analysis). **Auto (detect)** derives the capability from the endpoint: for a local LM Studio endpoint the model metadata is authoritative (a `vlm` model counts as image-capable; the answer is read during the same **Refresh reasoning options** call and cached with it), the native Anthropic endpoint always counts as image-capable, and other endpoints are recognized by well-known vision model names (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral and similar). **Enabled**/**Disabled** override the detection for models it misjudges. CLI and integrated (llama.cpp/MLX) profiles cannot send images. Local LM Studio vision models (`vlm`) also appear in the model dropdown.
 
 ### Token Quota Management
 
