@@ -774,16 +774,9 @@ public class MainWindow {
             // Save window geometry on close if enabled (not when using fixed geometry)
             GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
             
-            // Always save last geometry (for next session) unless fixed geometry is used
-            if (!globalSettings.isUseFixedWindowGeometry()) {
-                WindowGeometry geo = new WindowGeometry(
-                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()
-                );
-                geo.setMaximized(stage.isMaximized());
-                globalSettings.setLastWindowGeometry(geo);
-                logger.info("Saving window geometry: x={}, y={}, w={}, h={}, maximized={}", 
-                    geo.getX(), geo.getY(), geo.getWidth(), geo.getHeight(), geo.isMaximized());
-            }
+            // Always save last geometry (for next session) unless fixed geometry is used.
+            // One path for both close and live persistence, so the maximized handling matches.
+            persistWindowGeometry();
             
             // Save dashboard state on close if enabled
             if (globalSettings.isRememberDashboardState()) {
@@ -2198,8 +2191,18 @@ public class MainWindow {
             if (!stage.isShowing() || stage.isIconified() || stage.isFullScreen()) {
                 return;
             }
-            WindowGeometry geometry = new WindowGeometry(
-                stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+            WindowGeometry geometry;
+            WindowGeometry previous = settings.getLastWindowGeometry();
+            if (stage.isMaximized() && previous != null && previous.getWidth() > 0) {
+                // While maximized the stage reports the screen's size. Recording that as the
+                // remembered geometry would destroy the normal size, so keep the last known one
+                // and only carry the flag — un-maximizing then returns to a sensible window.
+                geometry = new WindowGeometry(
+                    previous.getX(), previous.getY(), previous.getWidth(), previous.getHeight());
+            } else {
+                geometry = new WindowGeometry(
+                    stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+            }
             geometry.setMaximized(stage.isMaximized());
             settings.setLastWindowGeometry(geometry);
             settingsManager.save();

@@ -198,10 +198,15 @@ public final class SessionJournalPageWebViewSmoke {
         SessionJournalEntry summary = new SessionJournalEntry();
         summary.setKind(SessionJournalEntryKind.AI_SUMMARY);
         summary.setTitle("Checked nginx");
-        summary.setText("The service is running.");
+        summary.setText("The service is running. Checked /home/daniel/Dokumente/"+"server_auslastung_optimiert_"+"x".repeat(120)+".pl for failures.");
         summary.setMarker(de.kortty.model.SessionJournalMarker.IMPORTANT);
         summary.setLogStartSeq(1L);
         summary.setLogEndSeq(2L);
+        // A pre-formatted line far wider than a docked panel: this is what used to stretch every
+        // card past the panel edge and clip the text.
+        summary.getInputExcerpt().add("systemctl status nginx");
+        summary.getOutputExcerpt().add(
+            "Aug 13 21:00:00 web01 nginx[1234]: " + "unbreakable-token-".repeat(30) + "end");
         service.appendEntry(dir, summary);
 
         return new de.kortty.core.SessionJournalHtmlRenderer(service).renderToFile(dir);
@@ -347,17 +352,23 @@ public final class SessionJournalPageWebViewSmoke {
             throw new IllegalStateException("jump-to-time misbehaved: " + timeJump);
         }
 
-        // Cards must fit a narrow docked panel instead of overflowing horizontally.
+        // Cards must follow the panel width when the container narrows. Note: this passes both
+        // with and without the minmax(0,1fr) track, because the excerpts are scroll containers
+        // and contribute no intrinsic minimum — it guards the shrink behaviour, it does not
+        // reproduce the clipping reported from a docked panel, which is still unexplained.
         String narrow = (String) webView.getEngine().executeScript(
-            "(function(){document.documentElement.style.width='380px';"
-                + "document.body.style.width='380px';"
+            "(function(){var tl=document.querySelector('.timeline');"
+                + "tl.style.maxWidth='340px';tl.style.width='340px';"
                 + "var card=document.querySelector('.card');"
-                + "var overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;"
-                + "var fits=card.getBoundingClientRect().width<=380;"
-                + "document.documentElement.style.width='';document.body.style.width='';"
-                + "return 'overflow='+(overflow<=1)+',fits='+fits;})()");
+                + "var cardWidth=Math.round(card.getBoundingClientRect().width);"
+                + "var entry=card.closest('.entry');"
+                + "var entryWidth=Math.round(entry.getBoundingClientRect().width);"
+                + "tl.style.maxWidth='';tl.style.width='';"
+                + "return 'card='+cardWidth+',entry='+entryWidth;})()");
         System.out.println("narrow layout: " + narrow);
-        if (!"overflow=true,fits=true".equals(narrow)) {
+        int cardWidth = Integer.parseInt(narrow.replaceAll(".*card=(\\d+),entry.*", "$1"));
+        int entryWidth = Integer.parseInt(narrow.replaceAll(".*entry=(\\d+)", "$1"));
+        if (entryWidth > 340 || cardWidth > 300) {
             throw new IllegalStateException("cards do not adapt to a narrow panel: " + narrow);
         }
 
