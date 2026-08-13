@@ -581,6 +581,14 @@ public class GlobalSettings {
     @XmlElement
     private Double aiAgentPanelSideWidth;
 
+    /** Where the live session-journal panel is docked: HIDDEN (default), LEFT or RIGHT. */
+    @XmlElement
+    private String journalLivePanelPlacement = "HIDDEN";
+
+    /** Persisted width of the docked live session-journal panel (null = default). */
+    @XmlElement
+    private Double journalLivePanelWidth;
+
     /** Where the file-browser sidebar is docked: HIDDEN (default), LEFT or RIGHT. */
     @XmlElement
     private String fileBrowserPosition = "HIDDEN";
@@ -2261,6 +2269,35 @@ public class GlobalSettings {
 
     public void setAiAgentPanelSideWidth(double width) {
         this.aiAgentPanelSideWidth = Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(width, AI_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    /**
+     * Allowed range and default for the docked live session-journal panel width. Single source of
+     * truth; {@code SessionJournalLivePanelDockManager} derives its constants from these.
+     * These are plain String/Double fields on this class, so no JAXBContext change in
+     * {@code GlobalSettingsManager} is needed.
+     */
+    public static final double JOURNAL_LIVE_PANEL_MIN_WIDTH = 240.0;
+    public static final double JOURNAL_LIVE_PANEL_MAX_WIDTH = 800.0;
+    public static final double JOURNAL_LIVE_PANEL_DEFAULT_WIDTH = 380.0;
+
+    /** Live session-journal panel placement: "HIDDEN" (default), "LEFT" or "RIGHT". */
+    public String getJournalLivePanelPlacement() {
+        return journalLivePanelPlacement != null ? journalLivePanelPlacement : "HIDDEN";
+    }
+
+    public void setJournalLivePanelPlacement(String journalLivePanelPlacement) {
+        this.journalLivePanelPlacement = journalLivePanelPlacement;
+    }
+
+    /** Docked live session-journal panel width, clamped to the allowed range (default 380). */
+    public double getJournalLivePanelWidth() {
+        double value = journalLivePanelWidth != null ? journalLivePanelWidth : JOURNAL_LIVE_PANEL_DEFAULT_WIDTH;
+        return Math.max(JOURNAL_LIVE_PANEL_MIN_WIDTH, Math.min(value, JOURNAL_LIVE_PANEL_MAX_WIDTH));
+    }
+
+    public void setJournalLivePanelWidth(double width) {
+        this.journalLivePanelWidth = Math.max(JOURNAL_LIVE_PANEL_MIN_WIDTH, Math.min(width, JOURNAL_LIVE_PANEL_MAX_WIDTH));
     }
 
     /**
