@@ -93,6 +93,7 @@ public class TerminalTab extends Tab {
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
+    private Runnable journalStateListener;
     
     // Tab group (independent from connection group)
     private String tabGroup = null;
@@ -579,11 +580,17 @@ public class TerminalTab extends Tab {
 
     /** Quick note: a short user text added to the journal timeline at the current position. */
     public void addJournalNote() {
+        addJournalNote(null);
+    }
+
+    /** Quick note with a pre-filled suggestion (e.g. a timestamp reference from the live panel). */
+    public void addJournalNote(String prefillText) {
         if (!isJournalActive()) {
             showJournalError(I18n.get("terminal.journal.error.notActive"));
             return;
         }
-        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+        javafx.scene.control.TextInputDialog dialog =
+            new javafx.scene.control.TextInputDialog(prefillText != null ? prefillText : "");
         DialogThemeHelper.applyTheme(dialog);
         dialog.setTitle(I18n.get("terminal.journal.note.title"));
         dialog.setHeaderText(I18n.get("terminal.journal.note.header"));
@@ -618,9 +625,22 @@ public class TerminalTab extends Tab {
         });
     }
 
+    /** Notified (on the FX thread) whenever the journal bar re-evaluates its state — the funnel all
+     *  start/stop/auto-start paths go through. Used by MainWindow to (re)bind the live panel. */
+    public void setJournalStateListener(Runnable listener) {
+        this.journalStateListener = listener;
+    }
+
     private void refreshJournalUi() {
         if (journalBar == null || journalToggleButton == null || journalStatusLabel == null) {
             return;
+        }
+        if (journalStateListener != null) {
+            try {
+                journalStateListener.run();
+            } catch (Exception ignored) {
+                // A live-panel bug must never break the journal bar itself.
+            }
         }
         boolean active = isJournalActive();
         refreshJournalControlsVisibility();
