@@ -233,6 +233,8 @@ public class MainWindow {
     private SessionJournalLivePanelDockManager journalLiveDockManager;
     private ResizableDivider journalLiveDivider;
     private java.util.function.Consumer<SessionJournalLivePanelDockManager.Placement> journalLivePlacementListener;
+    private javafx.animation.PauseTransition windowGeometrySaveDelay;
+    private javafx.animation.PauseTransition journalLiveWidthSaveDelay;
     private CheckMenuItem showJournalLiveLeftMenuItem;
     private CheckMenuItem showJournalLiveRightMenuItem;
     private CheckMenuItem systemShowJournalLiveLeftMenuItem;
@@ -2140,6 +2142,7 @@ public class MainWindow {
         }
         
         stage.show();
+        installWindowGeometryPersistence();
 
         // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
         applyPersistedAiAgentPlacement();
@@ -2164,6 +2167,47 @@ public class MainWindow {
         scheduleOutdatedGuideTranslationCheck();
     }
     
+    /**
+     * Keeps the remembered window geometry current while the window is used. The close handler
+     * alone is not enough: a quit routed through the platform (or a crash) skips it, and the size
+     * the user just set would be lost. Debounced, and skipped while iconified or in fullscreen so
+     * the restored "normal" geometry survives those states.
+     */
+    private void installWindowGeometryPersistence() {
+        windowGeometrySaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(900));
+        windowGeometrySaveDelay.setOnFinished(event -> persistWindowGeometry());
+        javafx.beans.value.ChangeListener<Object> onGeometryChanged = (obs, oldValue, newValue) -> {
+            if (stage.isShowing()) {
+                windowGeometrySaveDelay.playFromStart();
+            }
+        };
+        stage.widthProperty().addListener(onGeometryChanged);
+        stage.heightProperty().addListener(onGeometryChanged);
+        stage.xProperty().addListener(onGeometryChanged);
+        stage.yProperty().addListener(onGeometryChanged);
+        stage.maximizedProperty().addListener(onGeometryChanged);
+    }
+
+    private void persistWindowGeometry() {
+        try {
+            var settingsManager = app.getGlobalSettingsManager();
+            GlobalSettings settings = settingsManager != null ? settingsManager.getSettings() : null;
+            if (settings == null || settings.isUseFixedWindowGeometry()) {
+                return;
+            }
+            if (!stage.isShowing() || stage.isIconified() || stage.isFullScreen()) {
+                return;
+            }
+            WindowGeometry geometry = new WindowGeometry(
+                stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+            geometry.setMaximized(stage.isMaximized());
+            settings.setLastWindowGeometry(geometry);
+            settingsManager.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist the window geometry: {}", e.getMessage());
+        }
+    }
+
     /**
      * Kept for tab classes that notify the main window before closing.
      */
@@ -3987,7 +4031,14 @@ public class MainWindow {
                 double newWidth = SessionJournalLivePanelDockManager.clampWidth(current + directional);
                 journalLivePanel.setPrefWidth(newWidth);
                 journalLiveDockManager.setPreferredWidth(newWidth);
-                persistJournalLivePanelSettings();
+                // Debounced: the resize listener fires per drag delta, and the settings file is
+                // large enough that writing it on every pixel would stutter the drag.
+                if (journalLiveWidthSaveDelay == null) {
+                    journalLiveWidthSaveDelay =
+                        new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+                    journalLiveWidthSaveDelay.setOnFinished(event -> persistJournalLivePanelSettings());
+                }
+                journalLiveWidthSaveDelay.playFromStart();
                 return newWidth;
             });
         }

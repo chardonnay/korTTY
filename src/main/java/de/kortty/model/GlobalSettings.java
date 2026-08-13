@@ -2295,7 +2295,9 @@ public class GlobalSettings {
      * {@code GlobalSettingsManager} is needed.
      */
     public static final double JOURNAL_LIVE_PANEL_MIN_WIDTH = 240.0;
-    public static final double JOURNAL_LIVE_PANEL_MAX_WIDTH = 800.0;
+    // Generous: the panel shows a full journal page with timeline cards and log excerpts, and on
+    // a wide display a reader may well want it larger than the terminal beside it.
+    public static final double JOURNAL_LIVE_PANEL_MAX_WIDTH = 1600.0;
     public static final double JOURNAL_LIVE_PANEL_DEFAULT_WIDTH = 380.0;
 
     /** Live session-journal panel placement: "HIDDEN" (default), "LEFT" or "RIGHT". */

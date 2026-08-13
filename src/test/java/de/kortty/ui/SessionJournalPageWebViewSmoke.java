@@ -322,6 +322,45 @@ public final class SessionJournalPageWebViewSmoke {
             throw new IllegalStateException("agent answer collapse misbehaved: " + agentCollapse);
         }
 
+        // Jump to a time: the entry closest to the typed moment scrolls into view and is marked.
+        String timeJump = (String) webView.getEngine().executeScript(
+            "(function(){var entry=document.querySelector('.entry[data-time]');"
+                + "if(!entry){return 'no-entry';}"
+                + "var when=new Date(Date.parse(entry.getAttribute('data-time')));"
+                + "var text=('0'+when.getHours()).slice(-2)+':'+('0'+when.getMinutes()).slice(-2);"
+                + "document.getElementById('timeToggle').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var barOpen=!document.getElementById('timeBar').hasAttribute('hidden');"
+                + "var input=document.getElementById('timeJump');input.value=text;"
+                + "document.getElementById('timeJumpGo').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var hit=document.querySelectorAll('.entry.time-hit').length;"
+                + "var status=document.getElementById('timeJumpStatus').textContent.trim();"
+                + "input.value='not a time';"
+                + "document.getElementById('timeJumpGo').dispatchEvent("
+                + "new MouseEvent('click',{bubbles:true,cancelable:true}));"
+                + "var rejected=document.getElementById('timeJumpStatus').textContent.trim();"
+                + "return 'bar='+barOpen+',hits='+hit+',status='+(status.length>0)"
+                + "+',rejected='+(rejected.indexOf('recognized')>=0);})()");
+        System.out.println("time jump: " + timeJump);
+        if (!"bar=true,hits=1,status=true,rejected=true".equals(timeJump)) {
+            throw new IllegalStateException("jump-to-time misbehaved: " + timeJump);
+        }
+
+        // Cards must fit a narrow docked panel instead of overflowing horizontally.
+        String narrow = (String) webView.getEngine().executeScript(
+            "(function(){document.documentElement.style.width='380px';"
+                + "document.body.style.width='380px';"
+                + "var card=document.querySelector('.card');"
+                + "var overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;"
+                + "var fits=card.getBoundingClientRect().width<=380;"
+                + "document.documentElement.style.width='';document.body.style.width='';"
+                + "return 'overflow='+(overflow<=1)+',fits='+fits;})()");
+        System.out.println("narrow layout: " + narrow);
+        if (!"overflow=true,fits=true".equals(narrow)) {
+            throw new IllegalStateException("cards do not adapt to a narrow panel: " + narrow);
+        }
+
         // Height hook: set from Java, read back from the CSS variable; the resize grip exists.
         String height = (String) webView.getEngine().executeScript(
             "(function(){korttySetLiveTailHeight(33);"

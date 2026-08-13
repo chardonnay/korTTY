@@ -233,6 +233,9 @@ public final class SessionJournalHtmlRenderer {
                 .append(escapeAttr(i18n("journal.html.marker.title", "Jump between marked entries")))
                 .append("\">◆</button>");
         }
+        html.append("<button id=\"timeToggle\" class=\"icon-button\" type=\"button\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.title", "Jump to a time")))
+            .append("\">◷</button>");
         html.append("<button id=\"searchToggle\" class=\"icon-button\" type=\"button\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.title", "Search journal"))).append("\">")
             .append(ICON_SEARCH).append("</button>");
@@ -253,6 +256,7 @@ public final class SessionJournalHtmlRenderer {
         html.append("</div>\n");
         html.append("</div>\n</div>\n");
         appendSearchBar(html);
+        appendTimeBar(html);
         appendMarkerBar(html, usedMarkers);
         appendRangeBar(html);
         html.append("</header>\n");
@@ -313,6 +317,23 @@ public final class SessionJournalHtmlRenderer {
     }
 
     /** Journal-wide search, revealed by the header's magnifier and hidden by default. */
+    /**
+     * Jump-to-a-time bar: a lenient time (and optional date) entry that scrolls the timeline to
+     * the entry closest to that moment — the fast way into a long session.
+     */
+    private void appendTimeBar(StringBuilder html) {
+        html.append("<div id=\"timeBar\" class=\"search-bar time-bar\" hidden>\n")
+            .append("<input type=\"text\" id=\"timeJump\" autocomplete=\"off\" placeholder=\"")
+            .append(escapeAttr(i18n("journal.html.time.placeholder", "e.g. 19:00 or 13.08. 19:00")))
+            .append("\">\n")
+            .append("<button type=\"button\" id=\"timeJumpGo\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.title", "Jump to a time"))).append("\">→</button>\n")
+            .append("<span id=\"timeJumpStatus\" class=\"time-status\"></span>\n")
+            .append("<button type=\"button\" id=\"timeBarClose\" title=\"")
+            .append(escapeAttr(i18n("journal.html.time.close", "Close"))).append("\">✕</button>\n")
+            .append("</div>\n");
+    }
+
     private void appendSearchBar(StringBuilder html) {
         html.append("<div id=\"searchBar\" class=\"search-bar\" hidden>\n")
             .append("<input type=\"search\" id=\"journalSearch\" autocomplete=\"off\" placeholder=\"")
@@ -865,6 +886,15 @@ public final class SessionJournalHtmlRenderer {
             .append(",showLess:")
             .append(AiChatRenderPageSupport.toJsStringLiteral(
                 i18n("journal.html.showLess", "Show less")))
+            .append(",timeJumped:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.jumped", "Jumped to")))
+            .append(",timeInvalid:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.invalid", "Time not recognized")))
+            .append(",timeNone:")
+            .append(AiChatRenderPageSupport.toJsStringLiteral(
+                i18n("journal.html.time.none", "No entries yet")))
             .append("};\n");
         // The marker block goes inside behaviorJs's closure — hence the closing "})();" here.
         return data + behaviorJs() + (hasMarkers ? markerJs() : "") + "})();\n";
@@ -928,7 +958,7 @@ public final class SessionJournalHtmlRenderer {
             .stat{display:flex;flex-direction:column;align-items:flex-end}
             .stat-label{font-size:.67em;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
             .stat-value{font-size:.93em;font-weight:600}
-            .head-buttons{display:flex;gap:4px;align-items:center}
+            .head-buttons{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
             .icon-button{border:1px solid var(--border);background:var(--surface2);color:var(--text);
               border-radius:8px;padding:4px 9px;cursor:pointer;font-size:.87em;font-family:inherit;
               line-height:1.2;min-width:32px}
@@ -939,8 +969,11 @@ public final class SessionJournalHtmlRenderer {
             .day-divider{position:sticky;top:78px;z-index:10;margin:18px 0 10px clamp(52px,8vw,74px)}
             .day-divider span{background:var(--surface2);border:1px solid var(--border);
               border-radius:999px;padding:2px 12px;font-size:.8em;color:var(--muted)}
-            .entry{display:grid;grid-template-columns:clamp(44px,7vw,64px) 1fr;gap:10px;position:relative;
-              padding:6px 0}
+            /* minmax(0,1fr), not 1fr: a plain 1fr track refuses to shrink below its content's
+               intrinsic width, so one `white-space:pre` excerpt would push every card wider than
+               the docked panel and clip the text. */
+            .entry{display:grid;grid-template-columns:clamp(44px,7vw,64px) minmax(0,1fr);gap:10px;
+              position:relative;padding:6px 0}
             .entry:before{content:"";position:absolute;left:calc(clamp(44px,7vw,64px) - 8px);top:0;bottom:0;
               width:2px;background:var(--border)}
             .node{position:relative;text-align:right;padding-right:16px;color:var(--muted);
@@ -952,7 +985,8 @@ public final class SessionJournalHtmlRenderer {
             .dot{position:absolute;right:-5px;top:12px;width:10px;height:10px;border-radius:50%;
               background:var(--mk,var(--none));border:2px solid var(--bg)}
             .card{position:relative;background:var(--surface);border:1px solid var(--border);
-              border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s}
+              border-radius:10px;padding:12px 14px;transition:transform .15s,box-shadow .15s;
+              min-width:0;overflow-wrap:anywhere}
             .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
             .copy-btn{border:1px solid var(--border);background:var(--surface2);color:var(--muted);
               border-radius:6px;padding:4px 6px;cursor:pointer;line-height:0;opacity:.7;
@@ -1008,13 +1042,23 @@ public final class SessionJournalHtmlRenderer {
             .summary-toggle{margin-top:6px;background:none;border:none;color:var(--accent);
               cursor:pointer;font-size:.8em;padding:0;font-family:inherit}
             .agent-meta{color:var(--muted);font-size:.75em;margin-top:2px}
-            .summary{margin:8px 0 0;white-space:pre-wrap}
-            .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+            .time-status{color:var(--muted);font-size:.8em}
+            .entry.time-hit .card{outline:2px solid var(--accent);outline-offset:3px}
+            /* Docked narrow: give the cards every pixel the panel has. */
+            @media (max-width:560px){
+              .timeline{padding-left:8px;padding-right:8px}
+              .entry{grid-template-columns:38px minmax(0,1fr);gap:6px}
+              .entry:before{left:30px}
+              .card{padding:10px 11px}
+              .card-head{padding-right:64px}
+            }
+            .summary{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+            .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
             .excerpt{margin:0;padding:8px 10px;border-radius:8px;background:var(--surface2);
               font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.45;
-              overflow:auto;max-height:min(340px,34vh);white-space:pre}
+              overflow:auto;max-height:min(340px,34vh);white-space:pre;min-width:0}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
@@ -1287,6 +1331,91 @@ public final class SessionJournalHtmlRenderer {
               sum.addEventListener("click",toggleAnswer);
               sum.parentNode.insertBefore(more,sum.nextSibling);
             });
+            /* ---- jump to a time ----------------------------------------------------- */
+            var timeBar=document.getElementById("timeBar");
+            var timeInput=document.getElementById("timeJump");
+            var timeStatus=document.getElementById("timeJumpStatus");
+            var timeHitTimer=null;
+            function timedEntries(){
+              var out=[];
+              document.querySelectorAll(".entry[data-time]").forEach(function(el){
+                var t=Date.parse(el.getAttribute("data-time"));
+                if(!isNaN(t)){out.push({el:el,t:t});}
+              });
+              return out;
+            }
+            /* Absolute moment from an ISO or German date plus time; null when only a time was
+               typed (that case is matched per entry against its own day). */
+            function parseAbsoluteWhen(s){
+              var m=s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T]+(\\d{1,2})[:.h]?(\\d{2})?/);
+              if(m){return new Date(+m[1],+m[2]-1,+m[3],+m[4],+(m[5]||0),0,0).getTime();}
+              m=s.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?\\s*(\\d{1,2})[:.h]?(\\d{2})?/);
+              if(m){
+                var year=m[3]?+m[3]:new Date().getFullYear();
+                return new Date(year,+m[2]-1,+m[1],+m[4],+(m[5]||0),0,0).getTime();
+              }
+              return null;
+            }
+            /* 19:00 | 19.00 | 19h00 | 1900 | 19 — all mean the same time of day. */
+            function parseTimeOfDay(s){
+              var m=s.match(/^(\\d{1,2})[:.h]?(\\d{2})?$/);
+              if(!m){return null;}
+              var h=+m[1],mi=+(m[2]||0);
+              if(h>23||mi>59){return null;}
+              return {h:h,m:mi};
+            }
+            function jumpToTime(text){
+              var s=(text||"").trim().replace(/\\s+/g," ");
+              if(!s){return;}
+              var entries=timedEntries();
+              if(!entries.length){timeStatus.textContent=T.timeNone;return;}
+              var absolute=parseAbsoluteWhen(s);
+              var timeOfDay=absolute===null?parseTimeOfDay(s):null;
+              if(absolute===null&&timeOfDay===null){timeStatus.textContent=T.timeInvalid;return;}
+              var best=null,bestDiff=Infinity;
+              for(var i=0;i<entries.length;i++){
+                var target;
+                if(absolute!==null){target=absolute;}
+                else{
+                  // Anchor the time of day on each entry's own day, so a journal spanning
+                  // midnight jumps to the nearest occurrence instead of the first day.
+                  var d=new Date(entries[i].t);
+                  d.setHours(timeOfDay.h,timeOfDay.m,0,0);
+                  target=d.getTime();
+                }
+                var diff=Math.abs(entries[i].t-target);
+                if(diff<bestDiff){bestDiff=diff;best=entries[i];}
+              }
+              if(!best){timeStatus.textContent=T.timeNone;return;}
+              best.el.scrollIntoView({block:"center",behavior:"smooth"});
+              if(timeHitTimer){clearTimeout(timeHitTimer);}
+              document.querySelectorAll(".entry.time-hit").forEach(function(el){
+                el.classList.remove("time-hit");
+              });
+              best.el.classList.add("time-hit");
+              timeHitTimer=setTimeout(function(){best.el.classList.remove("time-hit");},4000);
+              var stamp=best.el.querySelector("time");
+              timeStatus.textContent=T.timeJumped+" "+(stamp?stamp.textContent:"");
+            }
+            if(timeBar){
+              document.getElementById("timeToggle").addEventListener("click",function(){
+                var open=!timeBar.hasAttribute("hidden");
+                if(open){timeBar.setAttribute("hidden","");return;}
+                timeBar.removeAttribute("hidden");
+                timeStatus.textContent="";
+                timeInput.focus(); timeInput.select();
+              });
+              document.getElementById("timeBarClose").addEventListener("click",function(){
+                timeBar.setAttribute("hidden","");
+              });
+              document.getElementById("timeJumpGo").addEventListener("click",function(){
+                jumpToTime(timeInput.value);
+              });
+              timeInput.addEventListener("keydown",function(e){
+                if(e.key==="Enter"){e.preventDefault();jumpToTime(timeInput.value);}
+                else if(e.key==="Escape"){timeBar.setAttribute("hidden","");}
+              });
+            }
             var lightbox=document.getElementById("lightbox");
             var lightboxImg=lightbox.querySelector("img");
             document.querySelectorAll("img.thumb").forEach(function(img){

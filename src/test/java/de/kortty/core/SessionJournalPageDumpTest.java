@@ -121,6 +121,13 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("agent-tag");
             assertThat(html).contains("summary-toggle");
             assertThat(html).contains("showMore:");
+            // Cards must be able to shrink with the docked panel: a plain 1fr track would keep
+            // the pre-formatted excerpts from ever letting the grid narrow.
+            assertThat(html).contains("clamp(44px,7vw,64px) minmax(0,1fr)");
+            // Jump-to-a-time bar.
+            assertThat(html).contains("id=\"timeBar\"");
+            assertThat(html).contains("id=\"timeJump\"");
+            assertThat(html).contains("id=\"timeToggle\"");
             // Model, duration and token count render as one muted meta line.
             assertThat(html).contains("class=\"agent-meta\"");
             assertThat(html).contains("Claude (claude-sonnet-5) · 6 min 23 s · 12.0k tokens");
