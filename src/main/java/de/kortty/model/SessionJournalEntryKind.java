@@ -13,6 +13,8 @@ public enum SessionJournalEntryKind {
     SCREENSHOT,
     /** A free-text note the user added during or after the session. */
     USER_NOTE,
+    /** A terminal AI-agent run: the user's prompt and the agent's final answer. */
+    AGENT,
     /** Entries written by the journal pipeline itself (e.g. seeding or rotation notices). */
     SYSTEM
 }

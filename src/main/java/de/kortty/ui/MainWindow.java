@@ -4035,6 +4035,41 @@ public class MainWindow {
             java.util.Map.of("placement", placement.name()));
     }
 
+    /**
+     * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
+     * session journal as an AGENT timeline card. No-op without a running journal.
+     */
+    private void appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer) {
+        if (terminalTab == null || terminalTab.getTerminalView() == null
+            || answer == null || answer.isBlank()) {
+            return;
+        }
+        de.kortty.core.SessionJournalSession session =
+            terminalTab.getTerminalView().getSessionJournalSession();
+        if (session == null || !session.isActive()) {
+            return;
+        }
+        de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
+        entry.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
+        String title = prompt != null && !prompt.isBlank() ? prompt.strip() : I18n.get("ai.agent.title");
+        entry.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
+        entry.setText(answer.strip());
+        long seq = session.getLastSequence();
+        if (seq > 0) {
+            entry.setLogStartSeq(seq);
+            entry.setLogEndSeq(seq);
+        }
+        Thread saver = new Thread(() -> {
+            try {
+                app.getSessionJournalService().appendEntry(session.getDirectory(), entry);
+            } catch (Exception e) {
+                logger.warn("Could not journal the agent result: {}", e.getMessage());
+            }
+        }, "SessionJournal-AgentEntry");
+        saver.setDaemon(true);
+        saver.start();
+    }
+
     /** Opens the full journal viewer for a session shown in the live panel. */
     private void openSessionJournalForSession(de.kortty.core.SessionJournalSession session) {
         if (session == null) {
@@ -7000,16 +7035,25 @@ public class MainWindow {
             sshUser,
             connectionName);
         activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
+        java.util.concurrent.atomic.AtomicBoolean agentResultJournaled =
+            new java.util.concurrent.atomic.AtomicBoolean();
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
-                        if (state != null && isTerminalAgentFinalPhase(state.phase())
-                            && scopedRequest.mirrorFinalAnswerToTerminal()) {
+                        if (state != null && isTerminalAgentFinalPhase(state.phase())) {
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
-                                terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
+                                // The journal card is written regardless of terminal mirroring:
+                                // the run happened either way, and the summarizer deliberately
+                                // ignores agent text it finds inline in the capture log.
+                                if (agentResultJournaled.compareAndSet(false, true)) {
+                                    appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(), message);
+                                }
+                                if (scopedRequest.mirrorFinalAnswerToTerminal()) {
+                                    terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
+                                }
                             }
                         }
                     }
@@ -7082,6 +7126,10 @@ public class MainWindow {
                         false,
                         true));
                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
+                    if (agentResultJournaled.compareAndSet(false, true)) {
+                        appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                            I18n.get("ai.agent.activity.cancelled"));
+                    }
                 } else {
                     activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),

@@ -536,6 +536,7 @@ public final class SessionJournalHtmlRenderer {
             case SCREENSHOT -> "shot";
             case USER_NOTE -> "user-note";
             case SESSION_SUMMARY -> "final";
+            case AGENT -> "agent-entry";
             default -> "summary-entry";
         };
         String time = entry.getCreatedAt() != null
@@ -579,6 +580,10 @@ public final class SessionJournalHtmlRenderer {
         if (entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY) {
             html.append("<span class=\"state-tag final-tag\">")
                 .append(escapeHtml(i18n("journal.html.sessionSummary", "session summary"))).append("</span>");
+        }
+        if (entry.getKind() == SessionJournalEntryKind.AGENT) {
+            html.append("<span class=\"state-tag agent-tag\">")
+                .append(escapeHtml(i18n("journal.html.agent", "AI agent"))).append("</span>");
         }
         if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
             html.append("<h3>").append(escapeHtml(entry.getTitle())).append("</h3>");
@@ -947,6 +952,8 @@ public final class SessionJournalHtmlRenderer {
               font-size:.67em;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px}
             .state-tag.failed{color:var(--err);border-color:var(--err)}
             .final .card{border-left:3px solid var(--accent)}
+            .agent-entry .card{border-left:3px solid var(--info)}
+            .state-tag.agent-tag{color:var(--info);border-color:var(--info)}
             .summary{margin:8px 0 0;white-space:pre-wrap}
             .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */

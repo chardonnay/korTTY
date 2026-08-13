@@ -77,6 +77,14 @@ class SessionJournalPageDumpTest {
                 "deploy", "Deployment", "#7c3aed", false,
                 de.kortty.model.SessionJournalMarker.IMPORTANT));
             service.appendEntry(dir, deployed);
+
+            // A terminal-agent run so the dump exercises the AGENT card and its badge.
+            SessionJournalEntry agentRun = new SessionJournalEntry();
+            agentRun.setKind(SessionJournalEntryKind.AGENT);
+            agentRun.setTitle("check script server_auslastung.pl if there is any failure");
+            agentRun.setText("The script has several potential failure points: missing sysstat logs.");
+            service.appendEntry(dir, agentRun);
+
             SessionJournalDocument document = service.loadDocument(dir);
             SessionJournalMarkers.snapshot(document, new de.kortty.model.SessionJournalMarkerDefinition(
                 "deploy", "Deployment", "#7c3aed", false,
@@ -102,6 +110,9 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("window.korttyCloseLiveTail");
             assertThat(html).contains("window.korttySetLiveTailHeight");
             assertThat(html).contains("id=\"logResize\"");
+            // The terminal-agent run renders as its own badged card.
+            assertThat(html).contains("agent-entry");
+            assertThat(html).contains("agent-tag");
             assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");
             // The marker bar and the navigator it shares with the search must both be present.

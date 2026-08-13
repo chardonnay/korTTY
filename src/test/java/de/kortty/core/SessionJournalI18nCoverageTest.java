@@ -155,6 +155,7 @@ class SessionJournalI18nCoverageTest {
         "journal.html.sessionSummary",
         "journal.html.hiddenInput",
         "journal.html.liveTail",
+        "journal.html.agent",
         "journal.html.search.placeholder",
         "journal.html.copy.selection",
         "journal.html.copy.summary",
