@@ -57,6 +57,24 @@ class TerminalAgentWorkingDirectoryTest {
     }
 
     @Test
+    void detectsMissingTildeTrackedWorkingDirectoryDespiteShellExpansion() {
+        // The probe sends `cd ~/'DOku/Dokumente'`; the shell reports the expanded absolute path.
+        assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
+            "bash: Zeile 1: cd: /home/daniel/DOku/Dokumente: Datei oder Verzeichnis nicht gefunden",
+            "~/DOku/Dokumente")).isTrue();
+        assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
+            "bash: line 1: cd: /home/daniel/DOku/Dokumente: No such file or directory",
+            "~/DOku/Dokumente")).isTrue();
+    }
+
+    @Test
+    void bareTildeNeverMatchesAsAWildcard() {
+        assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
+            "bash: Zeile 1: cd: /tmp/other: Datei oder Verzeichnis nicht gefunden",
+            "~")).isFalse();
+    }
+
+    @Test
     void ignoresUnrelatedCdErrorsForTrackedWorkingDirectoryFallback() {
         assertThat(TerminalAgentService.isMissingTrackedWorkingDirectory(
             "bash: Zeile 1: cd: /tmp/other: Datei oder Verzeichnis nicht gefunden",

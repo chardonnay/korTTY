@@ -2187,8 +2187,15 @@ public class TerminalAgentService {
             return false;
         }
         String normalizedError = stderr.toLowerCase(Locale.ROOT);
+        String needle = workingDirectory.toLowerCase(Locale.ROOT);
+        boolean mentionsDirectory = normalizedError.contains(needle);
+        if (!mentionsDirectory && needle.startsWith("~/") && needle.length() > 2) {
+            // The probe's `cd ~/...` reaches the shell tilde-expanded, so its error names the
+            // absolute path; match on the home-relative suffix (starting with the slash) instead.
+            mentionsDirectory = normalizedError.contains(needle.substring(1));
+        }
         return normalizedError.contains("cd:")
-            && normalizedError.contains(workingDirectory.toLowerCase(Locale.ROOT))
+            && mentionsDirectory
             && (normalizedError.contains("no such file or directory")
                 || normalizedError.contains("datei oder verzeichnis nicht gefunden")
                 || normalizedError.contains("not a directory"));
