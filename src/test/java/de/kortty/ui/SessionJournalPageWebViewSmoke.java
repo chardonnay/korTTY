@@ -327,6 +327,27 @@ public final class SessionJournalPageWebViewSmoke {
             throw new IllegalStateException("agent answer collapse misbehaved: " + agentCollapse);
         }
 
+        // Every bar input must carry the theme's own colours. An unstyled field falls back to the
+        // engine's defaults, which on a dark system paints dark text on a dark surface — the
+        // luminance alone cannot catch that, because the fallback differs per system appearance,
+        // so this compares against what var(--text)/var(--surface2) actually resolve to.
+        String inputColours = (String) webView.getEngine().executeScript(
+            "(function(){var probe=document.createElement('span');"
+                + "probe.style.color='var(--text)';probe.style.backgroundColor='var(--surface2)';"
+                + "document.body.appendChild(probe);var pc=getComputedStyle(probe);"
+                + "var want=pc.color+'|'+pc.backgroundColor;probe.remove();"
+                + "var out=[];['timeJump','journalSearch','logSearch'].forEach(function(id){"
+                + "var el=document.getElementById(id);if(!el){out.push(id+':missing');return;}"
+                + "var cs=getComputedStyle(el);"
+                + "out.push(id+':'+((cs.color+'|'+cs.backgroundColor)===want?'themed':'default'));"
+                + "});return out.join(',');})()");
+        System.out.println("input colours: " + inputColours);
+        if (inputColours.contains(":default") || inputColours.contains(":missing")) {
+            throw new IllegalStateException(
+                "a bar input uses engine default colours (unreadable on a dark system): "
+                    + inputColours);
+        }
+
         // Jump to a time: the entry closest to the typed moment scrolls into view and is marked.
         String timeJump = (String) webView.getEngine().executeScript(
             "(function(){var entry=document.querySelector('.entry[data-time]');"

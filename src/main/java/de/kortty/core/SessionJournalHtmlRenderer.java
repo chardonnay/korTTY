@@ -943,9 +943,14 @@ public final class SessionJournalHtmlRenderer {
             .search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
               padding-top:8px;border-top:1px solid var(--border)}
             .search-bar[hidden]{display:none}
-            #journalSearch{flex:1 1 240px;min-width:min(200px,50vw);background:var(--surface2);
-              border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;
+            /* Every field in a bar, not just #journalSearch by id: an unstyled input keeps the
+               engine's default text colour (black), which is invisible on the dark surface. */
+            .search-bar input{background:var(--surface2);border:1px solid var(--border);
+              color:var(--text);border-radius:8px;padding:6px 12px;
               font-size:.87em;font-family:inherit}
+            .search-bar input::placeholder{color:var(--muted);opacity:1}
+            #journalSearch{flex:1 1 240px;min-width:min(200px,50vw)}
+            #timeJump{flex:0 1 240px;min-width:min(150px,45vw)}
             .search-bar button{background:var(--surface2);border:1px solid var(--border);
               color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;
               font-size:.87em}
