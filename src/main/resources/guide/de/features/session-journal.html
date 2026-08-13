@@ -2047,6 +2047,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#das-live-journal-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Das Live-Journal-Panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ki-zusammenfassungen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2640,6 +2651,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#das-live-journal-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Das Live-Journal-Panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ki-zusammenfassungen" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2963,6 +2985,18 @@
 <li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.</li>
 <li><strong>Notiz</strong> öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.</li>
 </ul>
+<h2 id="das-live-journal-panel">Das Live-Journal-Panel<a class="headerlink" href="#das-live-journal-panel" title="Permanent link">&para;</a></h2>
+<p><strong>Ansicht &gt; Live-Journal</strong> (oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) dockt eine Echtzeitansicht des laufenden Journals <strong>links oder rechts</strong> am Terminal an. Es zeigt das Capture-Log, während es geschrieben wird – Befehlsausgabe, die von Ihnen eingegebenen (hervorgehobenen) Befehle, Notizen und Screenshot-Markierungen, jeweils mit einem Zeitstempel – beginnend mit den neuesten Einträgen des Protokolls und dann Streaming neuer Zeilen, während sie erfasst werden. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.</p>
+<p>Das Panel folgt Ihren Tabs mit einem Gedächtnis: Es zeigt das Journal des aktuellen Tabs an, und wenn Sie zwischen Tabs wechseln, schaltet es nur weiter, <strong>wenn der neu ausgewählte Tab auch ein laufendes Journal hat</strong> – andernfalls zeigt es weiterhin das Journal an, das es bereits anzeigt. Wenn das angezeigte Journal gestoppt oder sein Tab geschlossen wird, bleibt der Inhalt mit dem Abzeichen <strong>Journal gestoppt</strong> / <strong>Tab geschlossen</strong> sichtbar, bis Sie einen anderen Tab mit einem Live-Journal auswählen.</p>
+<p>Was das Panel während einer Sitzung bietet:</p>
+<ul>
+<li><strong>Folgen</strong> – scrollt automatisch zu neuen Einträgen; Wenn Sie nach oben scrollen, wird das Folgende angehalten, damit Sie lesen können. Durch Drücken des Schalters wird es fortgesetzt.</li>
+<li><strong>Notiz</strong> und <strong>Screenshot</strong> – die gleichen Aktionen wie die <a href="#die-journalleiste">Journalleiste </a> für das im Panel angezeigte Journal.</li>
+<li><strong>Viewer öffnen</strong> – öffnet die vollständige <a href="#die-journalseite">Journalseite</a> des angezeigten Journals.</li>
+<li><strong>Filter</strong> – ein Textfeld plus <strong>Eingabe/Ausgabe/Notizen</strong> schaltet die sichtbaren Einträge live ein; Die Filterung wirkt sich nur auf die Ansicht aus, niemals auf das Protokoll.</li>
+<li><strong>Klicken Sie mit der rechten Maustaste auf einen Eintrag</strong> – kopieren Sie seinen Text oder fügen Sie eine Notiz hinzu, die mit der Zeit dieses Eintrags vorausgefüllt ist.</li>
+</ul>
+<p>Das Panel zeigt höchstens die neuesten 5000 Einträge an; Ältere Zeilen bleiben im Capture-Log und sind immer im Viewer verfügbar. Alles, was angezeigt wird, hat bereits den <a href="#passwortschutz">-Passwortschutz </a> bestanden – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.</p>
 <h2 id="ki-zusammenfassungen">KI-Zusammenfassungen<a class="headerlink" href="#ki-zusammenfassungen" title="Permanent link">&para;</a></h2>
 <p>Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neuesten Capture-Log-Zeilen und hängt einen kompakten Journaleintrag an (Titel, Zusammenfassung und eine vorgeschlagene Markierung: Info, wichtig oder Fehler). Standardwerte und Grenzwerte:</p>
 <table>
