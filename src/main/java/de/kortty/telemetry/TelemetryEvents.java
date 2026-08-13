@@ -36,6 +36,7 @@ public final class TelemetryEvents {
     public static final String DASHBOARD_ACTION = "dashboard_action";
     public static final String FILE_BROWSER_TOGGLED = "file_browser_toggled";
     public static final String FILE_BROWSER_ACTION = "file_browser_action";
+    public static final String JOURNAL_LIVE_PANEL_TOGGLED = "journal_live_panel_toggled";
 
     // Security / settings
     public static final String SECURITY_MANAGER_OPENED = "security_manager_opened";
