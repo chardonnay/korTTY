@@ -100,6 +100,8 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("window.korttyAppendLog");
             assertThat(html).contains("window.korttyOpenLiveTail");
             assertThat(html).contains("window.korttyCloseLiveTail");
+            assertThat(html).contains("window.korttySetLiveTailHeight");
+            assertThat(html).contains("id=\"logResize\"");
             assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");
             // The marker bar and the navigator it shares with the search must both be present.

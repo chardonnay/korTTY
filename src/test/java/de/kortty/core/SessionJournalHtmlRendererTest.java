@@ -342,7 +342,7 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("max-width:min(560px,100%)");   // screenshot thumbnails
         assertThat(html).contains("max-height:min(340px,34vh)");  // excerpt panels
         assertThat(html).contains("max-width:min(1200px,94vw)");  // timeline column
-        assertThat(html).contains("height:clamp(200px,44vh,60vh)"); // log panel
+        assertThat(html).contains("height:var(--kortty-tail-h,clamp(200px,44vh,60vh))"); // log panel
     }
 
     @Test

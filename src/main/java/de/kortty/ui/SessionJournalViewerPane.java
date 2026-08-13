@@ -117,6 +117,11 @@ public class SessionJournalViewerPane extends BorderPane {
     private static final int PENDING_LIVE_CAP = SessionJournalLiveFeed.DEFAULT_MAX_ENTRIES;
     private SessionJournalLiveFeed feed;
     private boolean liveFeedActive;
+    /** Whether the live tail should be (re)opened after loads — the user's last choice. */
+    private boolean liveTailWanted;
+    /** Notified (FX thread) when the page's live tail opens or closes; the host syncs its toggle. */
+    private Consumer<Boolean> onLiveTailStateChanged;
+    private javafx.animation.PauseTransition tailHeightSaveDelay;
 
     public SessionJournalViewerPane(MainWindow mainWindow, Path journalDir, Mode mode,
                                     Consumer<String> onTitleChanged) {
@@ -179,6 +184,10 @@ public class SessionJournalViewerPane extends BorderPane {
         pendingLive.clear();
         pendingScrollY = 0;
         pageReady = false;
+        liveTailWanted = false; // a new journal starts with the tail hidden (the default)
+        if (onLiveTailStateChanged != null) {
+            onLiveTailStateChanged.accept(false);
+        }
         this.journalDir = dir;
         renderAndLoad(null);
     }
@@ -201,9 +210,97 @@ public class SessionJournalViewerPane extends BorderPane {
             backfill -> { /* the rendered page's embedded LOG already holds all persisted lines */ },
             this::onLiveBatch);
         feed.start();
-        if (pageReady) {
+        // The tail stays hidden by default; the user opens it on demand (host toggle). Lines
+        // keep accumulating in the page's LOG either way, so opening later shows everything.
+        if (pageReady && liveTailWanted) {
+            applyLiveTailHeight();
             runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
         }
+    }
+
+    public void setOnLiveTailStateChanged(Consumer<Boolean> listener) {
+        this.onLiveTailStateChanged = listener;
+    }
+
+    /** Opens the page's live-log tail (host toggle / after the user closed it). */
+    public void openLiveTail() {
+        liveTailWanted = true;
+        applyLiveTailHeight();
+        runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
+    }
+
+    /** Closes the page's live-log tail without stopping the feed (lines keep accumulating). */
+    public void closeLiveTail() {
+        liveTailWanted = false;
+        runScript("if(window.korttyCloseLiveTail){window.korttyCloseLiveTail();}");
+    }
+
+    /**
+     * Toggles the page between light and dark, resolving "auto" against the current appearance
+     * first. Sets the attribute directly rather than clicking the page's ◐ button, and persists
+     * through the same setting the button's bridge call uses.
+     */
+    public void cyclePageTheme() {
+        runScript("(function(){var root=document.documentElement;"
+            + "var cur=root.getAttribute('data-theme')||'auto';"
+            + "var dark=cur==='dark'||(cur==='auto'&&window.matchMedia"
+            + "&&window.matchMedia('(prefers-color-scheme: dark)').matches);"
+            + "var next=dark?'light':'dark';"
+            + "root.setAttribute('data-theme',next);"
+            + "try{localStorage.setItem('kortty-journal-theme',next);}catch(e){}"
+            + "})();");
+        // Persist directly: the page script above cannot know whether the bridge is installed.
+        GlobalSettings settings = settings();
+        if (settings != null) {
+            try {
+                Object theme = webView.getEngine()
+                    .executeScript("document.documentElement.getAttribute('data-theme')");
+                if (theme instanceof String value) {
+                    persistPageTheme(value);
+                }
+            } catch (Exception e) {
+                logger.debug("Could not read the journal page theme: {}", e.getMessage());
+            }
+        }
+    }
+
+    /** Applies the persisted tail height to the page (no-op when unset). */
+    private void applyLiveTailHeight() {
+        GlobalSettings settings = settings();
+        Integer heightVh = settings != null ? settings.getSessionJournalLiveTailHeightVh() : null;
+        if (heightVh != null) {
+            runScript("if(window.korttySetLiveTailHeight){window.korttySetLiveTailHeight(" + heightVh + ");}");
+        }
+    }
+
+    /** The page reported an open/close of the tail (✕ button, card click, host toggle). */
+    void liveTailStateChanged(boolean open) {
+        liveTailWanted = open;
+        if (onLiveTailStateChanged != null) {
+            onLiveTailStateChanged.accept(open);
+        }
+    }
+
+    /** The page reported a drag-resize of the tail; persist debounced like the font scale. */
+    void persistLiveTailHeight(int heightVh) {
+        GlobalSettings settings = settings();
+        if (settings == null) {
+            return;
+        }
+        settings.setSessionJournalLiveTailHeightVh(heightVh);
+        if (tailHeightSaveDelay == null) {
+            tailHeightSaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+            tailHeightSaveDelay.setOnFinished(event -> {
+                try {
+                    if (app != null && app.getGlobalSettingsManager() != null) {
+                        app.getGlobalSettingsManager().save();
+                    }
+                } catch (Exception e) {
+                    logger.warn("Could not save the live tail height: {}", e.getMessage());
+                }
+            });
+        }
+        tailHeightSaveDelay.playFromStart();
     }
 
     /** Stops feeding; the tail stays visible (frozen) so a stopped journal keeps its context. */
@@ -419,10 +516,12 @@ public class SessionJournalViewerPane extends BorderPane {
                             + "if(window.korttyEnableRange){window.korttyEnableRange();}"
                             + "if(window.korttyEnableAppActions){window.korttyEnableAppActions();}");
                     pageReady = true;
-                    // Re-establish the live state the load reset: the tail, the timeline scroll
-                    // offset, and any batches that arrived while loading (the page's seq set
-                    // discards what the fresh render already contains).
-                    if (liveFeedActive) {
+                    // Re-establish the live state the load reset: the tail (unless the user
+                    // closed it), its height, the timeline scroll offset, and any batches that
+                    // arrived while loading (the page's seq set discards what the fresh render
+                    // already contains).
+                    applyLiveTailHeight();
+                    if (liveFeedActive && liveTailWanted) {
                         runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
                     }
                     if (pendingScrollY > 0) {
@@ -736,6 +835,22 @@ public class SessionJournalViewerPane extends BorderPane {
             SessionJournalViewerPane pane = paneRef.get();
             if (pane != null) {
                 Platform.runLater(() -> pane.replaceInJournal(searchTerm));
+            }
+        }
+
+        /** The page's live tail opened or closed (✕, card click, programmatic open). */
+        public void liveTailStateChanged(boolean open) {
+            SessionJournalViewerPane pane = paneRef.get();
+            if (pane != null) {
+                Platform.runLater(() -> pane.liveTailStateChanged(open));
+            }
+        }
+
+        /** The user drag-resized the live tail; height arrives in vh. */
+        public void liveTailHeightChanged(int heightVh) {
+            SessionJournalViewerPane pane = paneRef.get();
+            if (pane != null) {
+                Platform.runLater(() -> pane.persistLiveTailHeight(heightVh));
             }
         }
     }

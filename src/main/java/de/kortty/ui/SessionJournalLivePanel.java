@@ -38,6 +38,8 @@ public class SessionJournalLivePanel extends BorderPane {
     private final Button noteButton = new Button(I18n.get("terminal.journal.note"));
     private final Button screenshotButton = new Button(I18n.get("terminal.journal.screenshot"));
     private final Button openViewerButton = new Button(I18n.get("journal.live.openViewer"));
+    private final javafx.scene.control.ToggleButton tailToggle =
+        new javafx.scene.control.ToggleButton(I18n.get("journal.live.tailToggle"));
     private final MenuButton overflowMenu = new MenuButton("⋯");
     private final Label placeholder = new Label(I18n.get("journal.live.noJournal"));
     private final StackPane centerHost = new StackPane();
@@ -85,6 +87,23 @@ public class SessionJournalLivePanel extends BorderPane {
                 openViewerAction.accept(boundSession);
             }
         });
+        tailToggle.setTooltip(new Tooltip(I18n.get("journal.live.tailToggle")));
+        tailToggle.setOnAction(event -> {
+            if (viewerPane == null) {
+                return;
+            }
+            if (tailToggle.isSelected()) {
+                viewerPane.openLiveTail();
+            } else {
+                viewerPane.closeLiveTail();
+            }
+        });
+        MenuItem themeItem = new MenuItem(I18n.get("journal.live.theme"));
+        themeItem.setOnAction(event -> {
+            if (viewerPane != null) {
+                viewerPane.cyclePageTheme();
+            }
+        });
         MenuItem refreshItem = new MenuItem(I18n.get("journal.viewer.refresh"));
         refreshItem.setOnAction(event -> {
             if (viewerPane != null) {
@@ -97,11 +116,11 @@ public class SessionJournalLivePanel extends BorderPane {
                 viewerPane.showAppearance(overflowMenu);
             }
         });
-        overflowMenu.getItems().addAll(refreshItem, appearanceItem);
+        overflowMenu.getItems().addAll(themeItem, refreshItem, appearanceItem);
 
         HBox titleRow = new HBox(8, titleLabel, stateBadge);
         titleRow.setAlignment(Pos.CENTER_LEFT);
-        HBox buttonRow = new HBox(6, noteButton, screenshotButton, openViewerButton, overflowMenu);
+        HBox buttonRow = new HBox(6, noteButton, screenshotButton, tailToggle, openViewerButton, overflowMenu);
         buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox header = new VBox(6, titleRow, buttonRow);
@@ -147,6 +166,7 @@ public class SessionJournalLivePanel extends BorderPane {
         }
         viewerPane = new SessionJournalViewerPane(ownerWindow, null,
             SessionJournalViewerPane.Mode.COMPACT, titleLabel::setText);
+        viewerPane.setOnLiveTailStateChanged(tailToggle::setSelected);
         if (pendingThemeBg != null) {
             viewerPane.applyTheme(pendingThemeBg, null);
         }
@@ -218,7 +238,11 @@ public class SessionJournalLivePanel extends BorderPane {
         noteButton.setDisable(!live || boundTab == null);
         screenshotButton.setDisable(!live || boundTab == null);
         openViewerButton.setDisable(boundSession == null);
+        tailToggle.setDisable(viewerPane == null);
         overflowMenu.setDisable(viewerPane == null);
+        if (newState == PanelState.EMPTY) {
+            tailToggle.setSelected(false); // the tail starts hidden; the user opens it on demand
+        }
     }
 
     /** Themed inline like the other side panels; the page keeps its own persisted scheme. */

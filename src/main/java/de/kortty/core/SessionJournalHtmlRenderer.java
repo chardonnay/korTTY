@@ -696,6 +696,7 @@ public final class SessionJournalHtmlRenderer {
 
     private void appendLogPanel(StringBuilder html) {
         html.append("<aside id=\"logPanel\" class=\"log-panel\" aria-hidden=\"true\">\n")
+            .append("<div id=\"logResize\" class=\"log-resize\"></div>\n")
             .append("<div class=\"panel-head\">\n")
             .append("<span id=\"panelTitle\" class=\"panel-title\"></span>\n")
             .append("<input type=\"search\" id=\"logSearch\" placeholder=\"")
@@ -851,7 +852,7 @@ public final class SessionJournalHtmlRenderer {
               font-family:var(--ui-font,ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif);
               font-size:calc(15px * var(--font-scale));line-height:1.5;
               padding-bottom:12px}
-            body.panel-open{padding-bottom:46vh}
+            body.panel-open{padding-bottom:calc(var(--kortty-tail-h,46vh) + 4vh)}
             .session-head{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:10px;
               padding:16px clamp(12px,3vw,24px);
               background:color-mix(in srgb,var(--surface) 88%,transparent);
@@ -973,11 +974,14 @@ public final class SessionJournalHtmlRenderer {
             .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
             .lightbox-close{position:absolute;top:16px;right:20px;background:none;border:none;
               color:#fff;font-size:22px;cursor:pointer}
-            .log-panel{position:fixed;left:0;right:0;bottom:0;height:clamp(200px,44vh,60vh);z-index:40;
+            .log-panel{position:fixed;left:0;right:0;bottom:0;z-index:40;
+              height:var(--kortty-tail-h,clamp(200px,44vh,60vh));
               background:var(--surface);border-top:1px solid var(--border);
               transform:translateY(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
               display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(0,0,0,.35)}
             .log-panel.open{transform:none}
+            .log-resize{flex:0 0 auto;height:6px;cursor:ns-resize;background:transparent}
+            .log-resize:hover,.log-resize.dragging{background:var(--accent)}
             .panel-head{display:flex;gap:8px;align-items:center;padding:8px clamp(8px,2vw,14px);
               border-bottom:1px solid var(--border);flex-wrap:wrap}
             .panel-title{font-size:.8em;color:var(--muted);margin-right:auto}
@@ -1100,7 +1104,7 @@ public final class SessionJournalHtmlRenderer {
             document.getElementById("prevMatch").addEventListener("click",function(){move(-1);});
             document.getElementById("closePanel").addEventListener("click",closePanel);
             function openPanel(from,to,label){
-              liveMode=false;
+              liveMode=false; notifyTailState();
               records=LOG.filter(function(r){return r.s>=from&&r.s<=to;});
               title.textContent=label+" · seq "+from+"–"+to+" · "+records.length+" lines";
               search.value=""; current=-1;
@@ -1110,7 +1114,7 @@ public final class SessionJournalHtmlRenderer {
               search.focus();
             }
             function closePanel(){
-              liveMode=false;
+              liveMode=false; notifyTailState();
               panel.classList.remove("open"); panel.setAttribute("aria-hidden","true");
               document.body.classList.remove("panel-open");
               if(activeCard){activeCard.classList.remove("active");activeCard=null;}
@@ -1153,8 +1157,37 @@ public final class SessionJournalHtmlRenderer {
               // Unlike openPanel, no search.focus(): the tail opens programmatically and must
               // not steal focus from the terminal.
               body.scrollTop=body.scrollHeight;
+              notifyTailState();
             };
             window.korttyCloseLiveTail=function(){liveMode=false;closePanel();};
+            /* Tell the app when the tail opens or closes (host toggle stays in sync). */
+            function notifyTailState(){callBridge("liveTailStateChanged",liveMode);}
+            /* Height in vh, settable from the app and draggable via the grip; survives reloads
+               because the app re-applies the persisted value after every load. */
+            window.korttySetLiveTailHeight=function(vh){
+              if(typeof vh!=="number"||!isFinite(vh)){return;}
+              vh=Math.max(15,Math.min(85,vh));
+              document.documentElement.style.setProperty("--kortty-tail-h",vh+"vh");
+            };
+            var grip=document.getElementById("logResize");
+            if(grip){
+              var dragging=false;
+              grip.addEventListener("mousedown",function(e){
+                dragging=true; grip.classList.add("dragging"); e.preventDefault();
+              });
+              document.addEventListener("mousemove",function(e){
+                if(!dragging){return;}
+                var vh=(window.innerHeight-e.clientY)/window.innerHeight*100;
+                window.korttySetLiveTailHeight(vh);
+              });
+              document.addEventListener("mouseup",function(e){
+                if(!dragging){return;}
+                dragging=false; grip.classList.remove("dragging");
+                var vh=(window.innerHeight-e.clientY)/window.innerHeight*100;
+                vh=Math.max(15,Math.min(85,Math.round(vh)));
+                callBridge("liveTailHeightChanged",vh);
+              });
+            }
             var cards=document.querySelectorAll(".card[data-from]");
             cards.forEach(function(card){
               function activate(){

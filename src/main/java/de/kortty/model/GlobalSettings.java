@@ -202,6 +202,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
+    /** Height of the journal page's live-log tail in vh (null = the page's CSS default). */
+    @XmlElement
+    private Integer sessionJournalLiveTailHeightVh;
+
     /** User-defined markers; the four built-ins are added by SessionJournalMarkers, not stored. */
     @XmlElementWrapper(name = "sessionJournalMarkers")
     @XmlElement(name = "marker")
@@ -1411,6 +1415,19 @@ public class GlobalSettings {
         this.sessionJournalFontScalePercent = sessionJournalFontScalePercent == null
             ? 100
             : Math.max(70, Math.min(sessionJournalFontScalePercent, 250));
+    }
+
+    /** Live-log tail height in vh (15–85), or null for the page's CSS default. */
+    public Integer getSessionJournalLiveTailHeightVh() {
+        return sessionJournalLiveTailHeightVh == null
+            ? null
+            : Math.max(15, Math.min(sessionJournalLiveTailHeightVh, 85));
+    }
+
+    public void setSessionJournalLiveTailHeightVh(Integer sessionJournalLiveTailHeightVh) {
+        this.sessionJournalLiveTailHeightVh = sessionJournalLiveTailHeightVh == null
+            ? null
+            : Math.max(15, Math.min(sessionJournalLiveTailHeightVh, 85));
     }
 
     /** User-defined markers only; {@code SessionJournalMarkers.registry} adds the built-ins. */

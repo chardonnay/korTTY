@@ -81,6 +81,14 @@ public final class SessionJournalPageWebViewSmoke {
         public void applyTimeWindows(String windowsJson) {
             calls.add("applyTimeWindows");
         }
+
+        public void liveTailStateChanged(boolean open) {
+            calls.add("liveTailStateChanged:" + open);
+        }
+
+        public void liveTailHeightChanged(int heightVh) {
+            calls.add("liveTailHeightChanged:" + heightVh);
+        }
     }
 
     private SessionJournalPageWebViewSmoke() {
@@ -282,6 +290,21 @@ public final class SessionJournalPageWebViewSmoke {
             "document.getElementById('logPanel').classList.contains('open') ? 'open' : 'closed'");
         if (!"closed".equals(closed)) {
             throw new IllegalStateException("korttyCloseLiveTail left the panel open");
+        }
+        // Open/close must have reached the bridge so the host toggle can stay in sync.
+        if (!bridge.calls.contains("liveTailStateChanged:true")
+            || !bridge.calls.contains("liveTailStateChanged:false")) {
+            throw new IllegalStateException("live tail state changes did not reach the bridge: "
+                + bridge.calls);
+        }
+        // Height hook: set from Java, read back from the CSS variable; the resize grip exists.
+        String height = (String) webView.getEngine().executeScript(
+            "(function(){korttySetLiveTailHeight(33);"
+                + "var v=document.documentElement.style.getPropertyValue('--kortty-tail-h');"
+                + "var grip=document.getElementById('logResize');"
+                + "return v+','+(grip?'grip':'no-grip');})()");
+        if (!"33vh,grip".equals(height)) {
+            throw new IllegalStateException("live tail height hook misbehaved: " + height);
         }
     }
 

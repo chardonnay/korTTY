@@ -72,6 +72,8 @@ class SessionJournalI18nCoverageTest {
         "journal.live.state.stopped",
         "journal.live.state.tabClosed",
         "journal.live.openViewer",
+        "journal.live.tailToggle",
+        "journal.live.theme",
         "journal.manager.title",
         "journal.manager.search.prompt",
         "journal.manager.fulltext",
