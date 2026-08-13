@@ -3975,7 +3975,7 @@ public class MainWindow {
         ensureJournalLiveDockManager();
         // Lazily create the panel + resizable divider on first dock.
         if (placement != SessionJournalLivePanelDockManager.Placement.HIDDEN && journalLivePanel == null) {
-            journalLivePanel = new SessionJournalLivePanel(this::openSessionJournalForSession);
+            journalLivePanel = new SessionJournalLivePanel(this, this::openSessionJournalForSession);
             journalLivePanel.setMinWidth(SessionJournalLivePanelDockManager.MIN_WIDTH);
             journalLivePanel.setPrefWidth(journalLiveDockManager.getPreferredWidth());
             journalLivePanel.setMaxWidth(SessionJournalLivePanelDockManager.MAX_WIDTH);

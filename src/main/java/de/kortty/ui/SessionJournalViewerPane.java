@@ -161,7 +161,10 @@ public class SessionJournalViewerPane extends BorderPane {
             service().addChangeListener(changeListener);
         }
 
-        renderAndLoad(null);
+        // The docked panel constructs the pane unbound (dir == null) and binds via showJournal.
+        if (journalDir != null) {
+            renderAndLoad(null);
+        }
     }
 
     // ==== live binding (docked panel) ====
@@ -350,6 +353,9 @@ public class SessionJournalViewerPane extends BorderPane {
             pendingScrollY = 0; // the anchor is the better position
         }
         Path dir = journalDir;
+        if (dir == null) {
+            return;
+        }
         Thread rendererThread = new Thread(() -> {
             try {
                 Path htmlFile = renderer() != null
