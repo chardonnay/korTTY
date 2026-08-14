@@ -129,7 +129,7 @@ final class SessionJournalNoteEditor extends VBox {
     private void updateTranslateAvailability() {
         boolean available;
         try {
-            available = SessionJournalAiSupport.applicationInvoker().isAvailable();
+            available = SessionJournalAiSupport.textProfileInvoker().isAvailable();
         } catch (Exception e) {
             available = false;
         }
@@ -160,7 +160,7 @@ final class SessionJournalNoteEditor extends VBox {
             @Override
             protected String call() throws Exception {
                 return SessionJournalNoteTranslationSupport.translate(
-                    SessionJournalAiSupport.applicationInvoker(), text, targetCode);
+                    SessionJournalAiSupport.textProfileInvoker(), text, targetCode);
             }
         };
         task.setOnRunning(event -> {

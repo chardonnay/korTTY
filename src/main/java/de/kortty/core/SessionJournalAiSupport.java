@@ -36,6 +36,20 @@ public final class SessionJournalAiSupport {
 
     /** Production invoker bound to the running application; resolves profile fresh per call. */
     public static AiInvoker applicationInvoker() {
+        return invokerFor(SessionJournalAiSupport::resolveProfile, "session journal summaries");
+    }
+
+    /**
+     * Invoker bound to the AI manager's <em>Text and translation</em> role profile. Translating a
+     * note is a text-language job rather than a journal job, so it follows the model the user
+     * assigned to that role; only when the role is unset does the default profile step in.
+     */
+    public static AiInvoker textProfileInvoker() {
+        return invokerFor(SessionJournalAiSupport::resolveTextProfile, "text translation");
+    }
+
+    private static AiInvoker invokerFor(
+            java.util.function.Function<GlobalSettings, AiProfile> profileResolver, String purpose) {
         return new AiInvoker() {
             @Override
             public boolean isAvailable() {
@@ -47,7 +61,7 @@ public final class SessionJournalAiSupport {
                     if (app == null || app.getGlobalSettingsManager() == null) {
                         return false;
                     }
-                    return resolveProfile(app.getGlobalSettingsManager().getSettings()) != null;
+                    return profileResolver.apply(app.getGlobalSettingsManager().getSettings()) != null;
                 } catch (Exception e) {
                     return false;
                 }
@@ -60,9 +74,9 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("Application not available for AI execution");
                 }
                 GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-                AiProfile profile = resolveProfile(settings);
+                AiProfile profile = profileResolver.apply(settings);
                 if (profile == null) {
-                    throw new IllegalStateException("No AI profile available for session journal summaries");
+                    throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
                 try {
@@ -76,6 +90,22 @@ public final class SessionJournalAiSupport {
                 }
             }
         };
+    }
+
+    /**
+     * The <em>Text and translation</em> role profile from the AI manager, falling back to the
+     * default profile when that role carries no selection.
+     */
+    public static AiProfile resolveTextProfile(GlobalSettings settings) {
+        if (settings == null || settings.getAiProfiles() == null || settings.getAiProfiles().isEmpty()) {
+            return null;
+        }
+        return AiProfileSelectionSupport.workloadProfile(
+            settings.getAiProfiles(),
+            de.kortty.model.AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     /**

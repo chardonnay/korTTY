@@ -1,9 +1,11 @@
 package de.kortty.core;
 
 /**
- * Translates a journal note into a language the user picks, through the journal's own AI seam:
- * the journal profile (or the default one), with internet access disabled — a note may quote
- * anything the session touched and must not reach a search tool.
+ * Translates a journal note into a language the user picks. The caller supplies the invoker; in
+ * the application that is {@link SessionJournalAiSupport#textProfileInvoker()}, so the translation
+ * runs on the model assigned to the AI manager's <em>Text and translation</em> role. Internet
+ * access stays disabled either way — a note may quote anything the session touched and must not
+ * reach a search tool.
  *
  * <p>Deliberately not routed through the snippet translation action: that one extracts comments
  * and string literals out of source code and returns plain prose unchanged.

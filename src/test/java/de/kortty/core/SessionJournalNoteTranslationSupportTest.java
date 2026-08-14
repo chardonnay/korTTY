@@ -117,4 +117,33 @@ class SessionJournalNoteTranslationSupportTest {
 
         assertThat(invoker.systemPrompts.get(0)).contains("language code en");
     }
+
+    @Test
+    void translationFollowsTheTextAndTranslationRoleProfile() {
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        de.kortty.model.AiProfile textProfile = new de.kortty.model.AiProfile();
+        textProfile.setId("text-1");
+        textProfile.setName("Text model");
+        de.kortty.model.AiProfile defaultProfile = new de.kortty.model.AiProfile();
+        defaultProfile.setId("default-1");
+        defaultProfile.setName("Default model");
+        settings.setAiProfiles(java.util.List.of(textProfile, defaultProfile));
+        settings.setDefaultAiProfileId("default-1");
+
+        // Role unset: the default profile stands in.
+        assertThat(SessionJournalAiSupport.resolveTextProfile(settings).getId()).isEqualTo("default-1");
+
+        // Role set in the AI manager: that model wins, whatever the journal profile is.
+        settings.setTextAiProfileId("text-1");
+        settings.setSessionJournalAiProfileId("default-1");
+        assertThat(SessionJournalAiSupport.resolveTextProfile(settings).getId()).isEqualTo("text-1");
+        // The journal's own seam is unaffected and still follows the journal profile.
+        assertThat(SessionJournalAiSupport.resolveProfile(settings).getId()).isEqualTo("default-1");
+    }
+
+    @Test
+    void textProfileResolutionCopesWithoutProfiles() {
+        assertThat(SessionJournalAiSupport.resolveTextProfile(null)).isNull();
+        assertThat(SessionJournalAiSupport.resolveTextProfile(new de.kortty.model.GlobalSettings())).isNull();
+    }
 }
