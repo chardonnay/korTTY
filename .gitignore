@@ -26,9 +26,11 @@ __pycache__/
 # Temporary venv for icon generation
 .venv-icon/
 
-# Temporary venvs for translation / documentation tooling
+# Temporary venvs for translation / documentation tooling. No trailing slash on
+# .venv-docs: a worktree borrows it as a symlink from the main checkout, and a
+# slash-terminated pattern matches directories only, so the link slipped through.
 .venv_translate/
-.venv-docs/
+.venv-docs
 
 # Documentation incremental-translation cache
 app-docs/site/.docs-translate-cache
