@@ -2041,6 +2041,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#wenn-die-verbindung-endet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wenn die Verbindung endet
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2662,6 +2673,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#wenn-die-verbindung-endet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wenn die Verbindung endet
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3019,6 +3041,13 @@
 <li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.</li>
 <li><strong>Notiz</strong> öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.</li>
 </ul>
+<h3 id="wenn-die-verbindung-endet">Wenn die Verbindung endet<a class="headerlink" href="#wenn-die-verbindung-endet" title="Permanent link">&para;</a></h3>
+<p>Ein Journal gehört zu seinem Tab, nicht zu einer einzelnen Verbindung. Endet die Verbindung, während das Journal läuft – ein <code>reboot</code>, ein Netzwerkabbruch oder der Server beendet die Sitzung –, bleibt der Tab <strong>offen</strong> und statt eines stillen Tab-Schließens erscheint eine rote Entscheidungsleiste:</p>
+<ul>
+<li><strong>Neu verbinden</strong> stellt die Verbindung wieder her, und das Journal läuft einfach weiter – mit einem Reconnect-Vermerk im Capture-Log. Arbeiten, die nach einem Server-Neustart weitergehen, landen im selben Journal.</li>
+<li><strong>Journal beenden</strong> stoppt das Journal und schreibt seine abschließende Zusammenfassung (und, falls aktiviert, den KI-Titel) – genau wie der Stopp-Button der Journalleiste. Der Tab zeigt danach die einfache Reconnect-Leiste, erneutes Verbinden bleibt also möglich – ist das Journal für die Verbindung aktiviert, startet diese neue Sitzung ein frisches Journal.</li>
+</ul>
+<p>Auch das Schließen des Tabs beendet das Journal mit seiner abschließenden Zusammenfassung. Ohne laufendes Journal bleibt das Verhalten unverändert: Eine sauber beendete Verbindung schließt den Tab, bei einem Fehler bleibt er mit der Reconnect-Leiste offen (Doppelklick verbindet neu).</p>
 <h2 id="das-live-journal-panel">Das Live-Journal-Panel<a class="headerlink" href="#das-live-journal-panel" title="Permanent link">&para;</a></h2>
 <p><strong>Ansicht &gt; Live-Journal</strong> (oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) dockt die <strong>vollständige Journalseite</strong> des laufenden Journals an – dieselbe Seite wie die <a href="#die-journalseite">Zuschauer</a> zeigt – <strong>links oder rechts</strong> vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.</p>
 <p>Zwei Dinge werden während der Sitzung live aktualisiert:</p>
