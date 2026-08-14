@@ -44,6 +44,10 @@ The security-check profile is a dedicated AI profile for snippet **Security Chec
 
 ### Profile Settings (in Editor Grid)
 
+The same fields are edited in **AI > AI Manager > Profiles**, where the whole form is visible at once:
+
+![AI Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
+
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Profile name | text | — | AI Profile | (profile `name` field) |

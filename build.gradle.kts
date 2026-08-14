@@ -2799,6 +2799,14 @@ tasks.register<JavaExec>("generateAiSkillsTabScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateAiProfilesTabScreenshot") {
+    group = "build"
+    description = "Renders the AI Manager > Profiles screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiProfilesTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateSessionJournalScreenshots") {
     group = "build"
     description = "Renders the journal export-options and marker screenshots for the manual."

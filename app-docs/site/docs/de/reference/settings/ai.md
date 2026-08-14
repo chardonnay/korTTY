@@ -44,6 +44,10 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 
 ### Profileinstellungen (im Editor-Raster)
 
+Dieselben Felder bearbeiten Sie unter **KI > KI-Manager > Profile**, wo das ganze Formular auf einen Blick sichtbar ist:
+
+![Profile-Tab des KI-Managers](../../assets/screenshots/ai/ai-profiles.png)
+
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Profilname | Text | – | AI-Profil | (Profil `name`-Feld) |
