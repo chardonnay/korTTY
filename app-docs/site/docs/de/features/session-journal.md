@@ -43,6 +43,15 @@ Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen
 - **Screenshot** (++ctrl+alt+c++, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.
 - **Notiz** öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.
 
+### Wenn die Verbindung endet
+
+Ein Journal gehört zu seinem Tab, nicht zu einer einzelnen Verbindung. Endet die Verbindung, während das Journal läuft – ein `reboot`, ein Netzwerkabbruch oder der Server beendet die Sitzung –, bleibt der Tab **offen** und statt eines stillen Tab-Schließens erscheint eine rote Entscheidungsleiste:
+
+- **Neu verbinden** stellt die Verbindung wieder her, und das Journal läuft einfach weiter – mit einem Reconnect-Vermerk im Capture-Log. Arbeiten, die nach einem Server-Neustart weitergehen, landen im selben Journal.
+- **Journal beenden** stoppt das Journal und schreibt seine abschließende Zusammenfassung (und, falls aktiviert, den KI-Titel) – genau wie der Stopp-Button der Journalleiste. Der Tab zeigt danach die einfache Reconnect-Leiste, erneutes Verbinden bleibt also möglich – ist das Journal für die Verbindung aktiviert, startet diese neue Sitzung ein frisches Journal.
+
+Auch das Schließen des Tabs beendet das Journal mit seiner abschließenden Zusammenfassung. Ohne laufendes Journal bleibt das Verhalten unverändert: Eine sauber beendete Verbindung schließt den Tab, bei einem Fehler bleibt er mit der Reconnect-Leiste offen (Doppelklick verbindet neu).
+
 ## Das Live-Journal-Panel
 
 **Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt die **vollständige Journalseite** des laufenden Journals an – dieselbe Seite wie die [Zuschauer](#die-journalseite) zeigt – **links oder rechts** vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
