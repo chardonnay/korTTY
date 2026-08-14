@@ -52,6 +52,26 @@ class SessionJournalHtmlRendererTest {
         return entry;
     }
 
+    @Test
+    void linksUrlsInAUserNoteButNotInAnAiSummary() {
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setText("ticket https://tracker.test/42");
+        note.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 35, 0, 0, ZoneOffset.ofHours(2)));
+        SessionJournalEntry summary = summaryEntry();
+        // The AI quotes terminal output; a link there would be noise at best and a lure at worst.
+        summary.setText("Fetched https://malicious.test/payload from the log.");
+        summary.setUserNote("follow-up: https://tracker.test/43");
+        document.getEntries().addAll(List.of(note, summary));
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("href=\"https://tracker.test/42\"");
+        assertThat(html).contains("href=\"https://tracker.test/43\"");
+        assertThat(html).doesNotContain("href=\"https://malicious.test/payload\"");
+        assertThat(html).contains("a.ext{");
+    }
+
     private List<SessionJournalLogEntry> sampleLog() {
         OffsetDateTime base = OffsetDateTime.of(2026, 8, 3, 14, 15, 3, 0, ZoneOffset.ofHours(2));
         return List.of(

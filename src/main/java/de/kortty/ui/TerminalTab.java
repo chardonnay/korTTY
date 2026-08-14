@@ -589,42 +589,49 @@ public class TerminalTab extends Tab {
             showJournalError(I18n.get("terminal.journal.error.notActive"));
             return;
         }
-        javafx.scene.control.TextInputDialog dialog =
-            new javafx.scene.control.TextInputDialog(prefillText != null ? prefillText : "");
+        javafx.scene.control.Dialog<String> dialog = new javafx.scene.control.Dialog<>();
         DialogThemeHelper.applyTheme(dialog);
         dialog.setTitle(I18n.get("terminal.journal.note.title"));
         dialog.setHeaderText(I18n.get("terminal.journal.note.header"));
-        dialog.setContentText(I18n.get("terminal.journal.note.content"));
-        dialog.showAndWait().ifPresent(text -> {
-            if (text == null || text.isBlank()) {
-                return;
-            }
-            de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
-            if (session == null) {
-                return;
-            }
-            Thread saver = new Thread(() -> {
-                try {
-                    de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
-                    entry.setKind(de.kortty.model.SessionJournalEntryKind.USER_NOTE);
-                    entry.setText(text.strip());
-                    long seq = session.getLastSequence();
-                    if (seq > 0) {
-                        entry.setLogStartSeq(seq);
-                        entry.setLogEndSeq(seq);
-                    }
-                    KorTTYApplication.getInstance().getSessionJournalService()
-                        .appendEntry(session.getDirectory(), entry);
-                    // Timeline twin in the capture log so the live panel streams the note too.
-                    session.appendUserNote(text);
-                    Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.noteAdded")));
-                } catch (Exception e) {
-                    showJournalError(I18n.get("terminal.journal.error.note", e.getMessage()));
+        dialog.setResizable(true);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        SessionJournalNoteEditor editor = new SessionJournalNoteEditor();
+        editor.setPrefWidth(560);
+        editor.setText(prefillText);
+        dialog.getDialogPane().setContent(editor);
+        dialog.setResultConverter(button -> button == ButtonType.OK ? editor.getText() : null);
+        editor.focusText();
+        String noteText = dialog.showAndWait().orElse(null);
+        editor.cancelTranslation();
+        if (noteText == null || noteText.isBlank()) {
+            return;
+        }
+        final String text = noteText;
+        de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
+        if (session == null) {
+            return;
+        }
+        Thread saver = new Thread(() -> {
+            try {
+                de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
+                entry.setKind(de.kortty.model.SessionJournalEntryKind.USER_NOTE);
+                entry.setText(text.strip());
+                long seq = session.getLastSequence();
+                if (seq > 0) {
+                    entry.setLogStartSeq(seq);
+                    entry.setLogEndSeq(seq);
                 }
-            }, "SessionJournal-Note");
-            saver.setDaemon(true);
-            saver.start();
-        });
+                KorTTYApplication.getInstance().getSessionJournalService()
+                    .appendEntry(session.getDirectory(), entry);
+                // Timeline twin in the capture log so the live panel streams the note too.
+                session.appendUserNote(text);
+                Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.noteAdded")));
+            } catch (Exception e) {
+                showJournalError(I18n.get("terminal.journal.error.note", e.getMessage()));
+            }
+        }, "SessionJournal-Note");
+        saver.setDaemon(true);
+        saver.start();
     }
 
     /** Notified (on the FX thread) whenever the journal bar re-evaluates its state — the funnel all

@@ -85,7 +85,7 @@ public class SessionJournalViewerPane extends BorderPane {
     private SessionJournalDocument loadedDocument = new SessionJournalDocument();
     private final TextField titleField = new TextField();
     private final TextArea summaryArea = new TextArea();
-    private final TextArea noteArea = new TextArea();
+    private final SessionJournalNoteEditor noteEditor = new SessionJournalNoteEditor();
     private final Label editStatus = new Label();
     private final ToggleButton editToggle = new ToggleButton(I18n.get("journal.viewer.edit"));
     private final Consumer<Path> changeListener;
@@ -806,6 +806,14 @@ public class SessionJournalViewerPane extends BorderPane {
             }
         }
 
+        /** Opens a link the user typed into a note in the system browser. */
+        public void openExternalLink(String url) {
+            SessionJournalViewerPane pane = paneRef.get();
+            if (pane != null) {
+                Platform.runLater(() -> pane.openExternalLink(url));
+            }
+        }
+
         /** Saves the picture the user right-clicked to a file of their choosing. */
         public void requestSaveImage(String relativePath) {
             SessionJournalViewerPane pane = paneRef.get();
@@ -852,6 +860,29 @@ public class SessionJournalViewerPane extends BorderPane {
             if (pane != null) {
                 Platform.runLater(() -> pane.persistLiveTailHeight(heightVh));
             }
+        }
+    }
+
+    /**
+     * Opens a link from the page in the system browser. The scheme is re-checked here rather than
+     * trusted from the page: the renderer only ever writes http(s) hrefs, but this method is
+     * reachable from JavaScript, and handing an arbitrary string to the desktop's URL opener is
+     * exactly the kind of thing that must not depend on one layer getting it right.
+     */
+    private void openExternalLink(String url) {
+        if (url == null) {
+            return;
+        }
+        String trimmed = url.trim();
+        String scheme = trimmed.toLowerCase(java.util.Locale.ROOT);
+        if (!scheme.startsWith("http://") && !scheme.startsWith("https://")) {
+            logger.warn("Refusing to open a journal link that is not http(s)");
+            return;
+        }
+        try {
+            app.getHostServices().showDocument(trimmed);
+        } catch (Exception e) {
+            logger.warn("Could not open external link: {}", e.getMessage());
         }
     }
 
@@ -1256,7 +1287,7 @@ public class SessionJournalViewerPane extends BorderPane {
             : de.kortty.core.SessionJournalMarkers.byId("none", markerCombo.getItems()));
         titleField.setText(entry != null && entry.getTitle() != null ? entry.getTitle() : "");
         summaryArea.setText(entry != null && entry.getText() != null ? entry.getText() : "");
-        noteArea.setText(entry != null && entry.getUserNote() != null ? entry.getUserNote() : "");
+        noteEditor.setText(entry != null && entry.getUserNote() != null ? entry.getUserNote() : "");
     }
 
     private void toggleEditMode() {
@@ -1286,8 +1317,6 @@ public class SessionJournalViewerPane extends BorderPane {
         refreshMarkerRegistry();
         summaryArea.setPrefRowCount(4);
         summaryArea.setWrapText(true);
-        noteArea.setPrefRowCount(5);
-        noteArea.setWrapText(true);
 
         Button saveButton = new Button(I18n.get("journal.viewer.save"));
         saveButton.disableProperty().bind(entryTable.getSelectionModel().selectedItemProperty().isNull());
@@ -1308,7 +1337,7 @@ public class SessionJournalViewerPane extends BorderPane {
             new Label(I18n.get("journal.viewer.entryTitle")), titleField,
             new Label(I18n.get("journal.viewer.summary")), summaryArea,
             new Label(I18n.get("journal.viewer.marker")), markerRow(),
-            new Label(I18n.get("journal.viewer.note")), noteArea,
+            new Label(I18n.get("journal.viewer.note")), noteEditor,
             buttons);
         form.setPadding(new Insets(6));
 
@@ -1366,7 +1395,7 @@ public class SessionJournalViewerPane extends BorderPane {
         updated.setTitle(title != null && !title.isBlank() ? title.strip() : null);
         String summary = summaryArea.getText();
         updated.setText(summary != null && !summary.isBlank() ? summary.strip() : null);
-        String note = noteArea.getText();
+        String note = noteEditor.getText();
         updated.setUserNote(note != null && !note.isBlank() ? note.strip() : null);
         String anchorId = updated.getId();
         Path dir = journalDir;

@@ -86,4 +86,26 @@ class SessionJournalAiSupportTest {
         String longTitle = "x".repeat(200);
         assertThat(SessionJournalAiSupport.normalizeTitle(longTitle, "fb", 80).length()).isAtMost(80);
     }
+
+    @Test
+    void parsesATranslationReply() {
+        assertThat(SessionJournalAiSupport.parseTranslation(
+            "{\"translation\":\"Der Dienst l\u00e4uft.\"}")).isEqualTo("Der Dienst l\u00e4uft.");
+        assertThat(SessionJournalAiSupport.parseTranslation(
+            "```json\n{\"translation\":\"Hallo\"}\n```")).isEqualTo("Hallo");
+        assertThat(SessionJournalAiSupport.parseTranslation(
+            "<think>reasoning</think>{\"translation\":\"Hallo\"}")).isEqualTo("Hallo");
+    }
+
+    @Test
+    void acceptsAProseTranslationButRejectsAnEmptyOne() {
+        // A model that simply answers with the translated text is right, only differently shaped.
+        assertThat(SessionJournalAiSupport.parseTranslation("Hallo Welt")).isEqualTo("Hallo Welt");
+
+        assertThat(SessionJournalAiSupport.parseTranslation(null)).isNull();
+        assertThat(SessionJournalAiSupport.parseTranslation("   ")).isNull();
+        assertThat(SessionJournalAiSupport.parseTranslation("{\"translation\":\"\"}")).isNull();
+        // Valid JSON without the field is a wrong answer, not a differently shaped one.
+        assertThat(SessionJournalAiSupport.parseTranslation("{\"summary\":\"nope\"}")).isNull();
+    }
 }

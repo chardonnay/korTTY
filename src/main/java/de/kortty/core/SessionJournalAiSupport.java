@@ -178,6 +178,29 @@ public final class SessionJournalAiSupport {
         return new SummaryResult(title, sanitized.strip(), null);
     }
 
+    /**
+     * Parses a note-translation reply leniently: the {@code {"translation": …}} object first, then
+     * the sanitized reply itself — a model that just answers with the translated text is doing the
+     * right thing in the wrong shape. Returns {@code null} when nothing usable is left, so the
+     * caller can keep the user's original note rather than overwrite it with noise.
+     */
+    public static String parseTranslation(String content) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String translation = json.has("translation") && !json.get("translation").isJsonNull()
+                ? json.get("translation").getAsString() : null;
+            // Valid JSON without the field is a wrong answer, not a differently shaped one.
+            return translation != null && !translation.isBlank() ? translation.strip() : null;
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return candidate.isBlank() ? null : candidate;
+        }
+    }
+
     /** Normalizes an AI-produced title: strips markup characters, collapses whitespace, caps length. */
     public static String normalizeTitle(String title, String fallback, int maxLength) {
         if (title == null) {

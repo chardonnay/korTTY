@@ -625,7 +625,13 @@ public final class SessionJournalHtmlRenderer {
                 .append(escapeAttr(i18n("journal.html.screenshot", "Screenshot"))).append("\">\n");
         }
         if (entry.getText() != null && !entry.getText().isBlank()) {
-            html.append("<p class=\"summary\">").append(escapeHtml(entry.getText())).append("</p>\n");
+            // A user note carries the only entry text the user wrote themselves, so it is the only
+            // one whose bare URLs become links.
+            html.append("<p class=\"summary\">")
+                .append(entry.getKind() == SessionJournalEntryKind.USER_NOTE
+                    ? escapeHtmlWithLinks(entry.getText())
+                    : escapeHtml(entry.getText()))
+                .append("</p>\n");
         }
         if (!entry.getInputExcerpt().isEmpty() || !entry.getOutputExcerpt().isEmpty()) {
             html.append("<div class=\"excerpts\">\n");
@@ -646,7 +652,8 @@ public final class SessionJournalHtmlRenderer {
             html.append("</div>\n");
         }
         if (entry.getUserNote() != null && !entry.getUserNote().isBlank()) {
-            html.append("<p class=\"note\">").append(escapeHtml(entry.getUserNote())).append("</p>\n");
+            html.append("<p class=\"note\">")
+                .append(escapeHtmlWithLinks(entry.getUserNote())).append("</p>\n");
         }
         html.append("</div>\n</article>\n");
     }
@@ -1058,6 +1065,8 @@ public final class SessionJournalHtmlRenderer {
               .card-head{padding-right:64px}
             }
             .summary{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+            /* A link the user typed into a note; opens in the system browser, never in the page. */
+            a.ext{color:var(--accent);overflow-wrap:anywhere}
             .excerpts{margin-top:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
             /* Long excerpts scroll inside their own box instead of pushing the timeline apart. */
             .excerpt{margin:0;padding:8px 10px;border-radius:8px;background:var(--surface2);
@@ -1717,6 +1726,20 @@ public final class SessionJournalHtmlRenderer {
               callBridge("requestMarker",article.id.slice(6));
             });
 
+            /* ---- links inside notes -------------------------------------------------- */
+            document.addEventListener("click",function(event){
+              var link=event.target.closest?event.target.closest("a.ext"):null;
+              if(!link){return;}
+              /* The card opens the log panel on click; following a link must not also do that. */
+              event.stopPropagation();
+              /* Inside korTTY the bridge opens the system browser directly. Navigating instead
+                 would work too (the pane catches it), but it reloads the page and loses the
+                 reading position. A standalone page in a browser keeps the plain link. */
+              if(!appActions){return;}
+              event.preventDefault();
+              callBridge("openExternalLink",link.href);
+            });
+
             /* ---- copy buttons ------------------------------------------------------- */
             document.querySelectorAll(".card .copy-btn").forEach(function(button){
               button.addEventListener("click",function(event){
@@ -2033,6 +2056,67 @@ public final class SessionJournalHtmlRenderer {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;");
+    }
+
+    /** A bare URL; the trailing-punctuation trim below repairs the over-greedy end. */
+    private static final java.util.regex.Pattern URL_PATTERN = java.util.regex.Pattern.compile(
+        "https?://[^\\s<>\"']+", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Escapes text for HTML and turns bare URLs into links. Only {@code http} and {@code https}
+     * ever become one: the scheme is matched literally, so no {@code javascript:} or {@code data:}
+     * URL can reach an {@code href} however the text was written. Reserved for text the user
+     * typed — terminal excerpts and AI summaries stay literal, where a link would be noise at
+     * best and a lure at worst.
+     */
+    static String escapeHtmlWithLinks(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(value.length() + 32);
+        java.util.regex.Matcher matcher = URL_PATTERN.matcher(value);
+        int index = 0;
+        while (matcher.find()) {
+            String url = trimUrlPunctuation(matcher.group());
+            // Not a usable link: leave the text alone. Skipping without moving `index` keeps it
+            // in the plain-text stream, which the next append emits verbatim.
+            if (url.indexOf("://") + 3 >= url.length()) {
+                continue;
+            }
+            out.append(escapeHtml(value.substring(index, matcher.start())));
+            out.append("<a class=\"ext\" href=\"").append(escapeAttr(url))
+                .append("\" rel=\"noopener noreferrer\" target=\"_blank\">")
+                .append(escapeHtml(url)).append("</a>");
+            index = matcher.start() + url.length();
+        }
+        out.append(escapeHtml(value.substring(index)));
+        return out.toString();
+    }
+
+    /** Gives back the sentence punctuation and unbalanced brackets the pattern swallowed. */
+    private static String trimUrlPunctuation(String url) {
+        String trimmed = url;
+        while (!trimmed.isEmpty()) {
+            char last = trimmed.charAt(trimmed.length() - 1);
+            boolean drop = ".,;:!?".indexOf(last) >= 0
+                || (last == ')' && countChar(trimmed, '(') < countChar(trimmed, ')'))
+                || (last == ']' && countChar(trimmed, '[') < countChar(trimmed, ']'));
+            if (!drop) {
+                break;
+            }
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private static int countChar(String value, char needle) {
+        int count = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == needle) {
+                count++;
+            }
+        }
+        return count;
     }
 
     static String escapeAttr(String value) {

@@ -71,7 +71,7 @@ public final class SessionJournalScreenshotEditorDialog {
     private final ColorPicker colorPicker =
         new ColorPicker(Color.web(SessionJournalAnnotation.DEFAULT_COLOR));
     private final Slider strokeSlider = new Slider(2, 24, SessionJournalAnnotation.DEFAULT_STROKE_WIDTH);
-    private final TextArea noteArea = new TextArea();
+    private final SessionJournalNoteEditor noteEditor = new SessionJournalNoteEditor();
     private final ToggleGroup toolGroup = new ToggleGroup();
 
     private Tool tool = Tool.PEN;
@@ -82,7 +82,7 @@ public final class SessionJournalScreenshotEditorDialog {
         for (SessionJournalAnnotation annotation : entry.getAnnotations()) {
             annotations.add(new SessionJournalAnnotation(annotation));
         }
-        noteArea.setText(entry.getUserNote() != null ? entry.getUserNote() : "");
+        noteEditor.setText(entry.getUserNote() != null ? entry.getUserNote() : "");
     }
 
     /**
@@ -113,7 +113,7 @@ public final class SessionJournalScreenshotEditorDialog {
     static Capture buildForCapture(Image image, SessionJournalEntry entry) {
         SessionJournalScreenshotEditorDialog editor =
             new SessionJournalScreenshotEditorDialog(image, entry);
-        return new Capture(editor.buildDialog(null), editor.canvas, editor.noteArea);
+        return new Capture(editor.buildDialog(null), editor.canvas, editor.noteEditor.textArea());
     }
 
     private Dialog<ButtonType> buildDialog(Window owner) {
@@ -172,7 +172,7 @@ public final class SessionJournalScreenshotEditorDialog {
         if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
             return Optional.empty();
         }
-        String note = noteArea.getText();
+        String note = noteEditor.getText();
         return Optional.of(new Result(List.copyOf(annotations),
             note != null && !note.isBlank() ? note.strip() : null));
     }
@@ -220,10 +220,10 @@ public final class SessionJournalScreenshotEditorDialog {
         canvasHolder.widthProperty().addListener((obs, old, value) -> layoutCanvas(canvasHolder));
         canvasHolder.heightProperty().addListener((obs, old, value) -> layoutCanvas(canvasHolder));
 
+        TextArea noteArea = noteEditor.textArea();
         noteArea.setPrefRowCount(NOTE_ROWS);
         noteArea.setMinHeight(Region.USE_PREF_SIZE);
         noteArea.setMaxHeight(Region.USE_PREF_SIZE);
-        noteArea.setWrapText(true);
         noteArea.setPromptText(I18n.get("journal.screenshot.note.prompt"));
 
         Label hint = new Label(I18n.get("journal.screenshot.hint"));
@@ -231,7 +231,7 @@ public final class SessionJournalScreenshotEditorDialog {
         hint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
 
         VBox content = new VBox(10, tools, canvasHolder,
-            new Label(I18n.get("journal.screenshot.note")), noteArea, hint);
+            new Label(I18n.get("journal.screenshot.note")), noteEditor, hint);
         content.setPadding(new Insets(10));
         // Every spare pixel goes to the picture; the note keeps its five rows.
         VBox.setVgrow(canvasHolder, Priority.ALWAYS);

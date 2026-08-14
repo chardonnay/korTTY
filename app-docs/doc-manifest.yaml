@@ -383,7 +383,7 @@ pages:
       - journal/journal-viewer.png
       - journal/journal-export-options.png
       - journal/journal-markers.png
-    last_synced_ref: "ea25fb4d"
+    last_synced_ref: "e5e38b63"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]

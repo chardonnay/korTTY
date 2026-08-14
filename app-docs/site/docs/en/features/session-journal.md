@@ -41,7 +41,15 @@ Use **Tools > Start/Stop Session Journal** (++ctrl+alt+t++), the tab context men
 While a journal is available, a bar below the terminal shows its state (**Journal active since HH:MM**) and offers **Stop journal**, **Screenshot** and **Note**:
 
 - **Screenshot** (++ctrl+alt+c++, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
-- **Note** opens a small input for a free-text remark that appears as its own timeline entry at the current position.
+- **Note** opens the [note editor](#writing-notes) for a free-text remark that appears as its own timeline entry at the current position.
+
+### Writing notes
+
+Notes are written in the same editor everywhere they are edited — the journal bar's **Note** button, the live panel's, the entry form in the [viewer](#the-viewer-and-editing), and the [screenshot editor](#screenshot-notes-and-annotations):
+
+- The field holds **at least six lines** and the dialog can be resized, so a note can be a paragraph instead of a single line.
+- **Links are clickable.** Any `http://` or `https://` address in a note becomes a link on the journal page — click it and the address opens in your system browser, never inside the journal view. Only those two schemes ever become links, and only in text you wrote yourself: AI summaries and terminal excerpts stay literal.
+- **Translate** hands the note to the AI and replaces it with the translation in the language picked next to the button. The list offers the interface languages and any language korTTY has translations for, and it accepts a typed language it does not list. Your choice is remembered for the next note. The translation goes to the journal's AI profile with internet access disabled, exactly like the summaries; ++cmd+z++ / ++ctrl+z++ brings the original back. Without a usable AI profile the button is disabled and says so.
 
 ## The live journal panel
 
