@@ -98,6 +98,26 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
     }
 
     @Override
+    public boolean supportsVision() {
+        return true;
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        String effectiveSystem = skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt);
+        effectiveSystem = appendJsonDirective(effectiveSystem);
+        return send(effectiveSystem, userPrompt, images, requestTimeout);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        // Anthropic has no response_format parameter; the JSON directive is all there is either way.
+        return executeVisionJsonPrompt(systemPrompt, userPrompt, images);
+    }
+
+    @Override
     public boolean testConnection() {
         try {
             AiExecutionResult result = send(null, "ping", TEST_TIMEOUT, 16);
@@ -119,18 +139,30 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
     }
 
     private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout) throws Exception {
-        return send(systemPrompt, userPrompt, timeout, DEFAULT_MAX_TOKENS);
-    }
-
-    private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) throws Exception {
-        // Only request extended thinking for full-size requests; the tiny connection test (16 tokens)
-        // cannot fit the minimum thinking budget and must never enable it.
-        boolean allowThinking = thinkingBudgetTokens() > 0 && maxTokens >= DEFAULT_MAX_TOKENS;
-        return send(systemPrompt, userPrompt, timeout, maxTokens, allowThinking);
+        return send(systemPrompt, userPrompt, null, timeout, DEFAULT_MAX_TOKENS);
     }
 
     private AiExecutionResult send(
-        String systemPrompt, String userPrompt, Duration timeout, int maxTokens, boolean allowThinking) throws Exception {
+        String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout) throws Exception {
+        return send(systemPrompt, userPrompt, images, timeout, DEFAULT_MAX_TOKENS);
+    }
+
+    private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) throws Exception {
+        return send(systemPrompt, userPrompt, null, timeout, maxTokens);
+    }
+
+    private AiExecutionResult send(
+        String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout, int maxTokens)
+        throws Exception {
+        // Only request extended thinking for full-size requests; the tiny connection test (16 tokens)
+        // cannot fit the minimum thinking budget and must never enable it.
+        boolean allowThinking = thinkingBudgetTokens() > 0 && maxTokens >= DEFAULT_MAX_TOKENS;
+        return send(systemPrompt, userPrompt, images, timeout, maxTokens, allowThinking);
+    }
+
+    private AiExecutionResult send(
+        String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout, int maxTokens,
+        boolean allowThinking) throws Exception {
         if (model.isBlank()) {
             throw new IllegalStateException("AI model must be configured.");
         }
@@ -155,7 +187,27 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
         JsonArray messages = new JsonArray();
         JsonObject userMessage = new JsonObject();
         userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", userPrompt != null ? userPrompt : "");
+        if (images == null || images.isEmpty()) {
+            userMessage.addProperty("content", userPrompt != null ? userPrompt : "");
+        } else {
+            // Image blocks precede the text block, the order Anthropic recommends for vision.
+            JsonArray blocks = new JsonArray();
+            for (AiImageInput image : images) {
+                JsonObject source = new JsonObject();
+                source.addProperty("type", "base64");
+                source.addProperty("media_type", image.mediaType());
+                source.addProperty("data", image.toBase64());
+                JsonObject imageBlock = new JsonObject();
+                imageBlock.addProperty("type", "image");
+                imageBlock.add("source", source);
+                blocks.add(imageBlock);
+            }
+            JsonObject textBlock = new JsonObject();
+            textBlock.addProperty("type", "text");
+            textBlock.addProperty("text", userPrompt != null ? userPrompt : "");
+            blocks.add(textBlock);
+            userMessage.add("content", blocks);
+        }
         messages.add(userMessage);
         body.add("messages", messages);
 
@@ -180,7 +232,7 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             String error = extractError(responseBody);
             if (thinkingBudget > 0 && indicatesThinkingUnsupported(error)) {
                 logger.debug("Anthropic model rejected extended thinking, retrying without it: {}", error);
-                return send(systemPrompt, userPrompt, timeout, maxTokens, false);
+                return send(systemPrompt, userPrompt, images, timeout, maxTokens, false);
             }
             throw new IllegalStateException("Anthropic request failed (HTTP " + status + "): " + error);
         }

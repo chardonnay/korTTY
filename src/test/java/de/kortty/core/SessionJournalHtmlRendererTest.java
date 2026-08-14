@@ -85,6 +85,46 @@ class SessionJournalHtmlRendererTest {
                 "", false, false, "screenshots/shot-000004.png"));
     }
 
+    private SessionJournalEntry screenshotEntryWithoutAi() {
+        SessionJournalEntry entry = new SessionJournalEntry();
+        entry.setKind(SessionJournalEntryKind.SCREENSHOT);
+        entry.setScreenshotFile("screenshots/shot-000004.png");
+        entry.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 40, 0, 0, ZoneOffset.ofHours(2)));
+        entry.setLogStartSeq(4L);
+        entry.setLogEndSeq(4L);
+        return entry;
+    }
+
+    @Test
+    void rendersTheAiAnalysisColumnWithEscapedDescriptionAndTags() {
+        SessionJournalEntry shot = screenshotEntryWithoutAi();
+        shot.setAiDescription("Zeigt <b>nginx</b> & Status");
+        shot.setAiTags(List.of("nginx", "<script>alert(1)</script>"));
+        document.getEntries().add(shot);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<div class=\"shot-row\">");
+        assertThat(html).contains("class=\"shot-ai\"");
+        assertThat(html).contains("Zeigt &lt;b&gt;nginx&lt;/b&gt; &amp; Status");
+        assertThat(html).contains("class=\"ai-tag\"");
+        assertThat(html).doesNotContain("<script>alert(1)</script>");
+        assertThat(html).contains("&lt;script&gt;");
+        // The context menu offers the analysis entry (visibility is decided at runtime).
+        assertThat(html).contains("ctxAnalyzeAi");
+    }
+
+    @Test
+    void screenshotWithoutAiAnalysisKeepsThePlainImageMarkup() {
+        document.getEntries().add(screenshotEntryWithoutAi());
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("<div class=\"shot-row\">");
+        assertThat(html).doesNotContain("class=\"shot-ai\"");
+        assertThat(html).contains("<img class=\"thumb\"");
+    }
+
     @Test
     void rendersSelfContainedPageWithHeaderAndTimeline() {
         document.getEntries().add(summaryEntry());

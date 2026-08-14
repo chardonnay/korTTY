@@ -2199,6 +2199,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ki-screenshot-analyse-in-journalen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Screenshot-Analyse in Journalen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#live-journal-seitenbereich" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2369,6 +2380,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ki-screenshot-analyse-in-journalen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Screenshot-Analyse in Journalen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#live-journal-seitenbereich" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2441,6 +2463,13 @@
 <li><strong>Screenshots können <a href="../features/session-journal.html#screenshot-notizen-und-anmerkungen">kommentiert werden</a></strong> – Stift, Box, ein „Unleserlich“-Werkzeug, das einen Bereich in Blöcke vergröbert, und Textbeschriftungen sowie ein Notizfeld, das durch Rechtsklick auf einen Screenshot erreichbar ist. Markierungen werden als Daten gespeichert und bleiben wiederbearbeitbar; Die unberührte Aufnahme wird lokal als <code>.orig.png</code> gespeichert und nie in einen Export einbezogen. Dadurch wird ein Wert auf der gerenderten Seite verdeckt, nicht geschwärzt – verwenden Sie „Suchen &amp; ersetzen“ oder eine Richtlinien-Schwärzungsregel, um etwas endgültig aus einem Journal zu entfernen.</li>
 <li><strong>Das Auswählen eines Zeitbereichs ist einfacher geworden</strong> – in korTTY kann die Zeitleiste des Viewers in den Bereichsauswahlmodus umgeschaltet werden: Klicken Sie auf einen ersten und einen letzten Eintrag, um die Zeitspanne dazwischen hervorzuheben und ihn direkt an den Exportdialog zu übergeben, oder sammeln Sie vor dem Exportieren mehrere Fenster. Die gleiche Auswahl ist in der Eintragstabelle im Bearbeitungsmodus per Rechtsklick verfügbar.</li>
 <li><strong>Sie können einen Journaltitel direkt auf seiner Seite bearbeiten</strong> und eine Kopfzeilenschaltfläche springt von einem markierten Eintrag zum nächsten.</li>
+<li><strong>Eine verlorene Verbindung beendet das Journal nicht mehr</strong> – wenn die Verbindung abbricht oder der Server sie beendet (ein <code>reboot</code>!), während ein Journal läuft, <a href="../features/session-journal.html#wenn-die-verbindung-endet">bleibt der Tab jetzt offen</a> und eine Entscheidungsleiste bietet <strong>Neu verbinden</strong> – das Journal läuft an Ort und Stelle weiter, mit einem Reconnect-Vermerk – oder <strong>Journal beenden</strong>, das die abschließende Zusammenfassung genau wie der Stopp-Button schreibt. Zuvor schloss eine sauber beendete Verbindung den Tab stillschweigend und nahm das laufende Journal mit – ohne die abschließende Zusammenfassung.</li>
+<li><strong>Notizen haben einen echten Editor erhalten</strong> – die Schnellnotiz war eine einzeilige Eingabe; <a href="../features/session-journal.html#notizen-schreiben">eine Notiz zu schreiben</a> passiert jetzt in einem vergrößerbaren Feld mit mindestens sechs Zeilen – demselben, das auch das Eintragsformular des Viewers und der Screenshot-Editor verwenden. In eine Notiz eingegebene Webadressen werden zu <strong>anklickbaren Links</strong> auf der Journalseite und öffnen sich in Ihrem Systembrowser (nur <code>http</code>/<code>https</code> und nur in Text, den Sie geschrieben haben – KI-Zusammenfassungen und Terminalauszüge bleiben unverändert). Eine <strong>Übersetzen</strong>-Schaltfläche mit Sprachauswahl übergibt die Notiz an das Modell, das im KI-Manager unter <em>Profil für Text und Übersetzung</em> ausgewählt ist, und ersetzt sie durch die Übersetzung – das Original ist ein Rückgängig entfernt.</li>
+</ul>
+<h3 id="ki-screenshot-analyse-in-journalen">KI-Screenshot-Analyse in Journalen<a class="headerlink" href="#ki-screenshot-analyse-in-journalen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Journal-Screenshots können jetzt nach ihrem Inhalt durchsucht werden</strong> – wenn das KI-Profil des Journals Bilder akzeptiert, erhält jeder aufgenommene Screenshot eine <a href="../features/session-journal.html#ki-screenshot-analyse">KI-geschriebene Beschreibung und Tags</a>, die rechts neben dem Bild auf der Journalseite angezeigt werden. Bei den Tags handelt es sich um anklickbare Chips, die eine Journalsuche starten. Beschreibung und Tags werden von der Inhaltssuche des Managers, von Suchen &amp; ersetzen und den Richtlinien-Schwärzungsregeln sowie von Markdown- und PDF-Exporten abgedeckt. Wenn Sie mit der rechten Maustaste auf einen Screenshot klicken, wird <strong>Screenshot mit KI analysieren</strong> für früher aufgezeichnete Journale, für Wiederholungsversuche und für die erneute Ausführung der Analyse nach dem Bearbeiten angeboten – die Analyse liest immer das bearbeitete Bild, niemals das unberührte <code>.orig.png</code>. Die automatische Ausführung bei der Erfassung kann in den Journaloptionen ausgeschaltet werden, und eine Organisation kann die Aktivierung oder Deaktivierung der Analyse über den Richtlinienschlüssel <code>ai-screenshot-analysis</code> erzwingen (Aus deaktiviert auch die manuelle Ausführung).</li>
+<li><strong>KI-Profile wissen, ob ihr Modell Bilder akzeptiert</strong> – eine neue <a href="../reference/settings/ai.html#bild-eingabe-vision">Bild-Eingabe (Vision)</a>-Einstellung pro Profil steht standardmäßig auf automatischer Erkennung: LM-Studio-Modellmetadaten sind maßgeblich (gelesen während der Reasoning-Aktualisierung), der Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden an bekannten Vision-Modellnamen erkannt, mit einer Aktiviert/Deaktiviert-Übersteuerung für Modelle, die die Erkennung falsch einschätzt. LM-Studio-Vision-Modelle (<code>vlm</code>) erscheinen jetzt auch in der Modellauswahl, die sie zuvor ausblendete.</li>
 </ul>
 <h3 id="live-journal-seitenbereich">Live-Journal-Seitenbereich<a class="headerlink" href="#live-journal-seitenbereich" title="Permanent link">&para;</a></h3>
 <ul>

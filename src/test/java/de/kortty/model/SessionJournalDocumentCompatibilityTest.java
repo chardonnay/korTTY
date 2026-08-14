@@ -77,6 +77,61 @@ class SessionJournalDocumentCompatibilityTest {
     }
 
     @Test
+    void readsALegacyDocumentWithoutAiAnalysisFields() throws Exception {
+        SessionJournalEntry entry = unmarshal(LEGACY_DOCUMENT).getEntries().get(0);
+
+        assertThat(entry.getAiDescription()).isNull();
+        assertThat(entry.getAiTags()).isEmpty();
+        assertThat(entry.getAiAnalysisModel()).isNull();
+        assertThat(entry.hasAiAnalysis()).isFalse();
+    }
+
+    @Test
+    void reMarshallingALegacyDocumentAddsNoAiAnalysisElements() throws Exception {
+        SessionJournalDocument document = unmarshal(LEGACY_DOCUMENT);
+        // The lazy getter materializes an empty list; beforeMarshal must drop it again, or every
+        // legacy entry would grow a stray <aiTags/> wrapper on the next save.
+        assertThat(document.getEntries().get(0).getAiTags()).isEmpty();
+        String rewritten = marshal(document);
+
+        assertThat(rewritten).doesNotContain("aiTags");
+        assertThat(rewritten).doesNotContain("aiDescription");
+        assertThat(rewritten).doesNotContain("aiAnalysisModel");
+    }
+
+    @Test
+    void roundTripsAiAnalysisFieldsOnAScreenshotEntry() throws Exception {
+        SessionJournalDocument document = new SessionJournalDocument();
+        SessionJournalEntry entry = new SessionJournalEntry();
+        entry.setKind(SessionJournalEntryKind.SCREENSHOT);
+        entry.setScreenshotFile("screenshots/shot-000001.png");
+        entry.setAiDescription("Terminal zeigt den nginx-Status.");
+        entry.setAiTags(java.util.List.of("nginx", "status"));
+        entry.setAiAnalysisModel("qwen2.5-vl");
+        document.getEntries().add(entry);
+
+        SessionJournalEntry reread = unmarshal(marshal(document)).getEntries().get(0);
+
+        assertThat(reread.getAiDescription()).isEqualTo("Terminal zeigt den nginx-Status.");
+        assertThat(reread.getAiTags()).containsExactly("nginx", "status").inOrder();
+        assertThat(reread.getAiAnalysisModel()).isEqualTo("qwen2.5-vl");
+        assertThat(reread.hasAiAnalysis()).isTrue();
+    }
+
+    @Test
+    void copyConstructorDeepCopiesTheAiTags() {
+        SessionJournalEntry original = new SessionJournalEntry();
+        original.setAiDescription("desc");
+        original.setAiTags(java.util.List.of("one"));
+
+        SessionJournalEntry copy = new SessionJournalEntry(original);
+        copy.getAiTags().add("two");
+
+        assertThat(original.getAiTags()).containsExactly("one");
+        assertThat(copy.getAiDescription()).isEqualTo("desc");
+    }
+
+    @Test
     void aCustomMarkedEntryStillCarriesTheLegacyEnumValueForOlderReaders() throws Exception {
         SessionJournalDocument document = new SessionJournalDocument();
         SessionJournalMarkerDefinition deploy = new SessionJournalMarkerDefinition(

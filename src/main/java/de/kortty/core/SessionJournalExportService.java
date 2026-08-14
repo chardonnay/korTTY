@@ -391,6 +391,7 @@ public final class SessionJournalExportService {
             md.append("\n\n");
             if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
                 appendMarkdownScreenshot(md, entry, journalDir, assetDir, assetDirName, options);
+                appendMarkdownAiAnalysis(md, entry);
             }
             if (entry.getText() != null && !entry.getText().isBlank()) {
                 md.append(entry.getText()).append("\n\n");
@@ -436,6 +437,17 @@ public final class SessionJournalExportService {
                 .append(assetDirName).append('/').append(source.getFileName()).append(")\n\n");
         } catch (IOException e) {
             logger.warn("Could not copy screenshot for Markdown export: {}", e.getMessage());
+        }
+    }
+
+    private void appendMarkdownAiAnalysis(StringBuilder md, SessionJournalEntry entry) {
+        if (entry.getAiDescription() != null && !entry.getAiDescription().isBlank()) {
+            md.append("**").append(i18n("journal.md.aiDescription", "AI description")).append(":** ")
+                .append(entry.getAiDescription().replace('\n', ' ')).append("\n\n");
+        }
+        if (!entry.getAiTags().isEmpty()) {
+            md.append("**").append(i18n("journal.md.tags", "Tags")).append(":** ")
+                .append(String.join(", ", entry.getAiTags())).append("\n\n");
         }
     }
 
@@ -710,6 +722,18 @@ public final class SessionJournalExportService {
             && entry.getScreenshotFile() != null) {
             cursor = drawScreenshot(pdf, cursor, journalDir.resolve(entry.getScreenshotFile()), bodyX, bodyWidth);
         }
+        if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.hasAiAnalysis()) {
+            if (entry.getAiDescription() != null && !entry.getAiDescription().isBlank()) {
+                cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.8f, new Color(0x37, 0x41, 0x51),
+                    i18n("journal.pdf.aiDescription", "AI description") + ": " + entry.getAiDescription(),
+                    3f, bodyX, bodyWidth);
+            }
+            if (!entry.getAiTags().isEmpty()) {
+                cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.2f, new Color(0x6b, 0x72, 0x80),
+                    i18n("journal.pdf.tags", "Tags") + ": " + String.join(", ", entry.getAiTags()),
+                    3f, bodyX, bodyWidth);
+            }
+        }
         return cursor.withY(cursor.y() - 10f);
     }
 
@@ -751,17 +775,7 @@ public final class SessionJournalExportService {
         if (image == null) {
             return cursor;
         }
-        if (image.getWidth() > SCREENSHOT_MAX_PIXEL_WIDTH) {
-            int newHeight = (int) Math.round(
-                image.getHeight() * (SCREENSHOT_MAX_PIXEL_WIDTH / (double) image.getWidth()));
-            BufferedImage scaled = new BufferedImage(SCREENSHOT_MAX_PIXEL_WIDTH, newHeight, BufferedImage.TYPE_INT_RGB);
-            Graphics2D graphics = scaled.createGraphics();
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            graphics.drawImage(image, 0, 0, SCREENSHOT_MAX_PIXEL_WIDTH, newHeight, null);
-            graphics.dispose();
-            image = scaled;
-        }
+        image = SessionJournalImageSupport.downscaleToWidth(image, SCREENSHOT_MAX_PIXEL_WIDTH);
         float maxWidth = width / 2f;
         float scale = Math.min(Math.min(maxWidth / image.getWidth(), SCREENSHOT_MAX_HEIGHT_PT / image.getHeight()), 1f);
         float drawWidth = image.getWidth() * scale;

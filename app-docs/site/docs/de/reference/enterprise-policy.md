@@ -203,6 +203,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | `allow-delete` | boolean | `false` | Journale können im Manager nicht gelöscht werden |
 | `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Journaltitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
 | `ai-title` | Boolescher Wert | `true` | Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert |
+| `ai-screenshot-analysis` | boolean | `true` / `false` | `true` erzwingt die KI-Screenshot-Analyse, `false` verbietet sie – einschließlich der manuellen Ausführung pro Screenshot; die Journaloption ist in beiden Fällen gesperrt |
 
 ```toml
 [[rule]]
@@ -217,7 +218,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 ```
 
 !!! note
-    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, und die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt).
+    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, `ai-screenshot-analysis` zu „off“, wenn eine Regel es ausschaltet, und die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt).
 
 ### `[[rule.session-journal.replace]]`
 

@@ -616,6 +616,10 @@ public final class SessionJournalHtmlRenderer {
             // An edited screenshot keeps its file name, so without a token that changes with the
             // marks the browser would go on showing the copy it already cached.
             String version = de.kortty.model.SessionJournalAnnotation.versionToken(entry.getAnnotations());
+            boolean hasAiAnalysis = entry.hasAiAnalysis();
+            if (hasAiAnalysis) {
+                html.append("<div class=\"shot-row\">\n");
+            }
             html.append("<img class=\"thumb\" loading=\"lazy\" src=\"")
                 .append(escapeAttr(entry.getScreenshotFile()))
                 .append(version != null ? "?v=" + version : "")
@@ -623,6 +627,29 @@ public final class SessionJournalHtmlRenderer {
                 .append("\" data-rel=\"").append(escapeAttr(entry.getScreenshotFile()))
                 .append("\" alt=\"")
                 .append(escapeAttr(i18n("journal.html.screenshot", "Screenshot"))).append("\">\n");
+            if (hasAiAnalysis) {
+                html.append("<div class=\"shot-ai\">");
+                html.append("<span class=\"ai-label\">")
+                    .append(escapeHtml(i18n("journal.html.ai.analysis", "AI analysis")))
+                    .append("</span>");
+                if (notBlank(entry.getAiDescription())) {
+                    html.append("<p class=\"ai-desc\">")
+                        .append(escapeHtml(entry.getAiDescription())).append("</p>");
+                }
+                if (!entry.getAiTags().isEmpty()) {
+                    html.append("<div class=\"ai-tags\">");
+                    for (String tag : entry.getAiTags()) {
+                        if (tag == null || tag.isBlank()) {
+                            continue;
+                        }
+                        // A button, not a span: clicking a tag feeds the in-page search.
+                        html.append("<button type=\"button\" class=\"ai-tag\">")
+                            .append(escapeHtml(tag)).append("</button>");
+                    }
+                    html.append("</div>");
+                }
+                html.append("</div>\n</div>\n");
+            }
         }
         if (entry.getText() != null && !entry.getText().isBlank()) {
             // A user note carries the only entry text the user wrote themselves, so it is the only
@@ -718,6 +745,7 @@ public final class SessionJournalHtmlRenderer {
             // Only work inside korTTY, so the script hides them when the bridge does not answer.
             .append(ctxItem("ctxSetMarker", i18n("journal.html.marker.set", "Set marker…")))
             .append(ctxItem("ctxAnnotate", i18n("journal.html.screenshot.edit", "Edit screenshot…")))
+            .append(ctxItem("ctxAnalyzeAi", i18n("journal.html.screenshot.analyze", "Analyze screenshot with AI")))
             .append(ctxItem("ctxSaveImage", i18n("journal.html.screenshot.export", "Export screenshot…")))
             .append(ctxItem("ctxRename", i18n("journal.html.rename", "Rename journal…")))
             .append("</div>\n")
@@ -1081,6 +1109,18 @@ public final class SessionJournalHtmlRenderer {
             .thumb{width:auto;max-width:min(560px,100%);max-height:min(420px,42vh);
               border-radius:8px;border:1px solid var(--border);
               margin-top:8px;cursor:zoom-in;display:block}
+            .shot-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+            .shot-row .thumb{flex:0 1 auto;min-width:0}
+            .shot-ai{flex:1 1 240px;min-width:200px;margin-top:8px;display:flex;
+              flex-direction:column;gap:6px}
+            .ai-label{font-size:.73em;color:var(--muted);text-transform:uppercase;
+              letter-spacing:.06em}
+            .ai-desc{margin:0;font-size:.87em}
+            .ai-tags{display:flex;flex-wrap:wrap;gap:6px}
+            .ai-tag{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+              border-radius:999px;padding:3px 10px;cursor:pointer;font-size:.8em;
+              font-family:inherit}
+            .ai-tag:hover{background:var(--mark);color:#000}
             .empty{color:var(--muted);text-align:center;margin-top:48px}
             .page-foot{max-width:min(1200px,94vw);margin:0 auto;padding:0 clamp(10px,3vw,24px) 28px;
               color:var(--muted);font-size:.73em;text-align:center}
@@ -1548,6 +1588,9 @@ public final class SessionJournalHtmlRenderer {
               if(toastTimer){clearTimeout(toastTimer);}
               toastTimer=setTimeout(function(){toastEl.classList.remove("show");},1800);
             }
+            /* The app shows short status messages (e.g. "analysis started") through the page's
+               own toast instead of a modal dialog. */
+            window.korttyToast=toast;
             function legacyCopy(text){
               var area=document.createElement("textarea");
               area.value=text; area.setAttribute("readonly","");
@@ -1605,6 +1648,8 @@ public final class SessionJournalHtmlRenderer {
                   parts.push(pre.textContent.replace(/\\s+$/,""));});
                 var note=card.querySelector(".note");
                 if(note){parts.push(note.textContent);}
+                var aiDesc=card.querySelector(".ai-desc");
+                if(aiDesc){parts.push(aiDesc.textContent);}
               }
               return parts.join("\\n\\n");
             }
@@ -1623,6 +1668,7 @@ public final class SessionJournalHtmlRenderer {
               log:document.getElementById("ctxLog"),
               setMarker:document.getElementById("ctxSetMarker"),
               annotate:document.getElementById("ctxAnnotate"),
+              analyzeAi:document.getElementById("ctxAnalyzeAi"),
               saveImage:document.getElementById("ctxSaveImage"),
               rename:document.getElementById("ctxRename")};
             var ctxCard=null,ctxImage=null,ctxSelection="";
@@ -1635,6 +1681,10 @@ public final class SessionJournalHtmlRenderer {
               var h1=document.querySelector(".head-main h1");
               if(h1){h1.title=T.renameHint;}
             };
+            /* Separate from appActions: the app only enables it when AI screenshot analysis is
+               allowed by policy and an image-capable AI profile is configured. */
+            var aiAnalysisEnabled=false;
+            window.korttyEnableAiAnalysis=function(){aiAnalysisEnabled=true;};
             function hideMenu(){
               menu.classList.remove("open");
               ctxCard=null; ctxImage=null; ctxSelection="";
@@ -1660,6 +1710,7 @@ public final class SessionJournalHtmlRenderer {
               try{
                 show("setMarker",!!ctxCard&&appActions);
                 show("annotate",!!ctxImage&&appActions);
+                show("analyzeAi",!!ctxImage&&appActions&&aiAnalysisEnabled);
                 show("saveImage",!!ctxImage&&appActions);
                 show("rename",inHead&&appActions);
               }catch(err){}
@@ -1703,6 +1754,12 @@ public final class SessionJournalHtmlRenderer {
               var id=entryIdOf(img);
               if(!id){return;}
               callBridge("requestAnnotate",id);
+            });
+            items.analyzeAi.addEventListener("click",function(){
+              var img=ctxImage; hideMenu();
+              var id=entryIdOf(img);
+              if(!id){return;}
+              callBridge("requestAiAnalysis",id);
             });
             items.rename.addEventListener("click",function(){
               hideMenu(); callBridge("requestRename");
@@ -1860,6 +1917,17 @@ public final class SessionJournalHtmlRenderer {
               callBridge("requestReplace",journalSearch.value);
             });
             window.korttyEnableReplace=function(){journalReplace.hidden=false;};
+
+            /* ---- AI tag chips ------------------------------------------------------- */
+            document.querySelectorAll(".ai-tag").forEach(function(tag){
+              tag.addEventListener("click",function(event){
+                // The card itself opens the log panel on click; a chip click must only search.
+                event.stopPropagation();
+                toggleSearch(true);
+                journalSearch.value=tag.textContent;
+                runJournalSearch();
+              });
+            });
             document.getElementById("searchToggle").addEventListener("click",function(){
               toggleSearch(searchBar.hidden);});
             document.addEventListener("keydown",function(e){

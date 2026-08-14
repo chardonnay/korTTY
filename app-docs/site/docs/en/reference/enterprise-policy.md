@@ -203,6 +203,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 | `allow-delete` | boolean | `false` | Journals cannot be deleted in the manager |
 | `name-template` | string | template | Initial journal title, with `{connection}`, `{host}`, `{user}`, `{date}` and `{time}` placeholders |
 | `ai-title` | boolean | `true` | The closing AI title is generated regardless of the user setting |
+| `ai-screenshot-analysis` | boolean | `true` / `false` | `true` forces the AI screenshot analysis on, `false` forbids it — including the manual per-screenshot run; the journal option is locked either way |
 
 ```toml
 [[rule]]
@@ -217,7 +218,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 ```
 
 !!! note
-    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, and the line cap resolves to the tighter value (`0` counts as unlimited).
+    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, `ai-screenshot-analysis` to off if any rule switches it off, and the line cap resolves to the tighter value (`0` counts as unlimited).
 
 ### `[[rule.session-journal.replace]]`
 

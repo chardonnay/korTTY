@@ -29,6 +29,36 @@ class EffectivePolicyResolveTest {
             List.of(), List.of(), List.of(), List.of());
     }
 
+    private static PolicyRule.SessionJournalRule screenshotAnalysisRule(Boolean value) {
+        return new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, value, List.of());
+    }
+
+    @Test
+    void aiScreenshotAnalysisResolvesRestrictivelyWithinATierAndBySpecificityAcrossTiers() {
+        // Same-tier conflict: off wins — screenshots leaving the machine is the risk.
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().sessionJournal(screenshotAnalysisRule(true)).build(),
+            PolicyRule.builder().sessionJournal(screenshotAnalysisRule(false)).build());
+        assertThat(EffectivePolicy.resolve(conflicting, identity("anyone"))
+            .sessionJournal().aiScreenshotAnalysis()).isFalse();
+
+        // A more specific tier still overrides (GPO-style exception).
+        PolicyFile tiered = file(Map.of(),
+            PolicyRule.builder().sessionJournal(screenshotAnalysisRule(false)).build(),
+            PolicyRule.builder().users(Set.of("eve")).sessionJournal(screenshotAnalysisRule(true)).build());
+        assertThat(EffectivePolicy.resolve(tiered, identity("eve"))
+            .sessionJournal().aiScreenshotAnalysis()).isTrue();
+        assertThat(EffectivePolicy.resolve(tiered, identity("alice"))
+            .sessionJournal().aiScreenshotAnalysis()).isFalse();
+
+        // No rule sets it: the user decides.
+        PolicyFile unset = file(Map.of(),
+            PolicyRule.builder().sessionJournal(screenshotAnalysisRule(null)).build());
+        assertThat(EffectivePolicy.resolve(unset, identity("anyone"))
+            .sessionJournal().aiScreenshotAnalysis()).isNull();
+    }
+
     @Test
     void ruleWithoutScopeAppliesToEveryUser() {
         PolicyFile file = file(Map.of(), PolicyRule.builder()

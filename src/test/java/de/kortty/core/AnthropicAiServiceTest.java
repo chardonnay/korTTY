@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.model.AiReasoningEffort;
@@ -50,6 +51,49 @@ class AnthropicAiServiceTest {
         assertThat(thinking.get("type").getAsString()).isEqualTo("enabled");
         assertThat(thinking.get("budget_tokens").getAsInt()).isAtLeast(1024);
         assertThat(body.get("max_tokens").getAsInt()).isGreaterThan(thinking.get("budget_tokens").getAsInt());
+    }
+
+    @Test
+    void visionPromptSendsImageBlocksBeforeTheText() throws Exception {
+        StubStringHttpClient client = new StubStringHttpClient();
+        client.enqueue(200, anthropicText("done"));
+        AnthropicAiService service = new AnthropicAiService(
+            "https://api.anthropic.com/v1/messages", "claude-test", "key",
+            AiReasoningEffort.DISABLED, null, client);
+
+        byte[] imageBytes = {(byte) 0x89, 'P', 'N', 'G', 9, 8, 7};
+        service.executeVisionJsonPrompt("system", "describe", List.of(AiImageInput.png(imageBytes)));
+
+        JsonObject body = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        assertThat(body.get("system").getAsString()).contains("single valid JSON object");
+        JsonArray content = body.getAsJsonArray("messages").get(0).getAsJsonObject()
+            .getAsJsonArray("content");
+        JsonObject imageBlock = content.get(0).getAsJsonObject();
+        assertThat(imageBlock.get("type").getAsString()).isEqualTo("image");
+        JsonObject source = imageBlock.getAsJsonObject("source");
+        assertThat(source.get("type").getAsString()).isEqualTo("base64");
+        assertThat(source.get("media_type").getAsString()).isEqualTo("image/png");
+        assertThat(source.get("data").getAsString())
+            .isEqualTo(java.util.Base64.getEncoder().encodeToString(imageBytes));
+        JsonObject textBlock = content.get(1).getAsJsonObject();
+        assertThat(textBlock.get("type").getAsString()).isEqualTo("text");
+        assertThat(textBlock.get("text").getAsString()).isEqualTo("describe");
+        assertThat(service.supportsVision()).isTrue();
+    }
+
+    @Test
+    void textOnlyRequestsKeepThePlainStringContent() throws Exception {
+        StubStringHttpClient client = new StubStringHttpClient();
+        client.enqueue(200, anthropicText("done"));
+        AnthropicAiService service = new AnthropicAiService(
+            "https://api.anthropic.com/v1/messages", "claude-test", "key",
+            AiReasoningEffort.DISABLED, null, client);
+
+        service.executePrompt("system", "user");
+
+        JsonObject body = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        JsonObject message = body.getAsJsonArray("messages").get(0).getAsJsonObject();
+        assertThat(message.get("content").isJsonPrimitive()).isTrue();
     }
 
     @Test

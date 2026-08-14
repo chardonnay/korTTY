@@ -264,6 +264,23 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return executePromptWithClient(systemPrompt, userPrompt, httpClient, requestTimeout, false);
     }
 
+    @Override
+    public boolean supportsVision() {
+        return true;
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPrompt(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executePromptWithClient(systemPrompt, userPrompt, images, httpClient, requestTimeout, true, true);
+    }
+
+    @Override
+    public AiExecutionResult executeVisionJsonPromptWithoutResponseFormat(
+        String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+        return executePromptWithClient(systemPrompt, userPrompt, images, httpClient, requestTimeout, false, true);
+    }
+
     /**
      * @param requestTimeout the user-configured timeout, or {@code null} (the default) to let a
      *     request run to completion
@@ -503,13 +520,26 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         Duration timeout,
         boolean jsonResponseFormat,
         boolean includeAgentSkills) throws Exception {
+        return executePromptWithClient(
+            systemPrompt, userPrompt, null, client, timeout, jsonResponseFormat, includeAgentSkills);
+    }
+
+    private AiExecutionResult executePromptWithClient(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        HttpClient client,
+        Duration timeout,
+        boolean jsonResponseFormat,
+        boolean includeAgentSkills) throws Exception {
 
         String effectiveModel = resolveModelForRequest(client);
         AiSkillRelevanceClassifier skillClassifier = createSkillClassifier(client, effectiveModel);
         String effectiveSystemPrompt = includeAgentSkills
             ? skillPromptSupport.appendAgentSkills(systemPrompt, userPrompt, skillClassifier)
             : normalizePrompt(systemPrompt);
-        if (webSearchTool != null && AiInternetPromptSupport.isPromptInternetEligible(userPrompt)) {
+        boolean hasImages = images != null && !images.isEmpty();
+        if (!hasImages && webSearchTool != null && AiInternetPromptSupport.isPromptInternetEligible(userPrompt)) {
             return executeToolAwareMessages(
                 buildPromptMessages(AiInternetPromptSupport.appendRules(effectiveSystemPrompt), userPrompt),
                 client,
@@ -520,6 +550,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String requestBody = buildPromptRequestBody(
             effectiveSystemPrompt,
             userPrompt,
+            images,
             0.2,
             jsonResponseFormat,
             effectiveModel);
@@ -531,7 +562,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 throw e;
             }
             return executeRequestWithClient(
-                buildPromptRequestBody(effectiveSystemPrompt, userPrompt, 0.2, jsonResponseFormat, retryModel),
+                buildPromptRequestBody(effectiveSystemPrompt, userPrompt, images, 0.2, jsonResponseFormat, retryModel),
                 timeout,
                 client,
                 false);
@@ -1573,8 +1604,20 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         boolean jsonResponseFormat,
         String effectiveModel) {
 
+        return buildPromptRequestBody(
+            systemPrompt, userPrompt, null, temperature, jsonResponseFormat, effectiveModel);
+    }
+
+    private String buildPromptRequestBody(
+        String systemPrompt,
+        String userPrompt,
+        List<AiImageInput> images,
+        double temperature,
+        boolean jsonResponseFormat,
+        String effectiveModel) {
+
         return buildMessagesRequestBody(
-            buildPromptMessages(systemPrompt, userPrompt),
+            buildPromptMessages(systemPrompt, userPrompt, images),
             temperature,
             jsonResponseFormat,
             false,
@@ -1582,6 +1625,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     private JsonArray buildPromptMessages(String systemPrompt, String userPrompt) {
+        return buildPromptMessages(systemPrompt, userPrompt, null);
+    }
+
+    /**
+     * Without images the user {@code content} stays a plain JSON string — some OpenAI-compatible
+     * servers reject the array form, so text-only requests must keep the historical wire shape.
+     * With images it becomes the multimodal part array ({@code text} + {@code image_url} data URIs).
+     */
+    private JsonArray buildPromptMessages(String systemPrompt, String userPrompt, List<AiImageInput> images) {
         JsonArray messages = new JsonArray();
         JsonObject system = new JsonObject();
         system.addProperty("role", "system");
@@ -1590,7 +1642,24 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         JsonObject user = new JsonObject();
         user.addProperty("role", "user");
-        user.addProperty("content", userPrompt != null ? userPrompt : "");
+        if (images == null || images.isEmpty()) {
+            user.addProperty("content", userPrompt != null ? userPrompt : "");
+        } else {
+            JsonArray parts = new JsonArray();
+            JsonObject text = new JsonObject();
+            text.addProperty("type", "text");
+            text.addProperty("text", userPrompt != null ? userPrompt : "");
+            parts.add(text);
+            for (AiImageInput image : images) {
+                JsonObject imagePart = new JsonObject();
+                imagePart.addProperty("type", "image_url");
+                JsonObject imageUrl = new JsonObject();
+                imageUrl.addProperty("url", image.toDataUri());
+                imagePart.add("image_url", imageUrl);
+                parts.add(imagePart);
+            }
+            user.add("content", parts);
+        }
         messages.add(user);
         return messages;
     }

@@ -491,6 +491,7 @@ class PolicyLoaderTest {
               allow-delete = false
               name-template = "{connection} {date} {time} ({user})"
               ai-title = true
+              ai-screenshot-analysis = false
                 [[rule.session-journal.replace]]
                 pattern = "AKIA[0-9A-Z]{16}"
                 replacement = "***AWS-ACCESS-KEY***"
@@ -504,7 +505,33 @@ class PolicyLoaderTest {
         assertThat(result.errors()).isEmpty();
         PolicyRule.SessionJournalRule journal = result.file().rules().get(0).sessionJournal();
         assertThat(journal.enforced()).isTrue();
+        assertThat(journal.aiScreenshotAnalysis()).isFalse();
         assertThat(journal.replacements()).hasSize(2);
+    }
+
+    @Test
+    void parsesTheAiScreenshotAnalysisMandateInBothDirections() throws IOException {
+        PolicyLoadResult forced = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              ai-screenshot-analysis = true
+            """));
+        assertThat(forced.errors()).isEmpty();
+        assertThat(forced.file().rules().get(0).sessionJournal().aiScreenshotAnalysis()).isTrue();
+
+        PolicyLoadResult unset = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              enforced = true
+            """));
+        assertThat(unset.errors()).isEmpty();
+        assertThat(unset.file().rules().get(0).sessionJournal().aiScreenshotAnalysis()).isNull();
     }
 
     @Test
