@@ -2041,6 +2041,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#when-the-connection-ends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When the connection ends
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2662,6 +2673,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#when-the-connection-ends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When the connection ends
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3019,6 +3041,13 @@
 <li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.</li>
 <li><strong>Note</strong> opens a small input for a free-text remark that appears as its own timeline entry at the current position.</li>
 </ul>
+<h3 id="when-the-connection-ends">When the connection ends<a class="headerlink" href="#when-the-connection-ends" title="Permanent link">&para;</a></h3>
+<p>A journal is bound to its tab, not to a single connection. When the connection ends while the journal is running — a <code>reboot</code>, a dropped network, or the server closing the session — the tab <strong>stays open</strong> and a red decision bar appears instead of the tab closing silently:</p>
+<ul>
+<li><strong>Reconnect</strong> re-establishes the connection and the journal simply continues, with a reconnect marker in the capture log. Work that resumes after a server reboot lands in the same journal.</li>
+<li><strong>End journal</strong> stops the journal and writes its closing summary (and, if enabled, the AI title) exactly like the journal bar's stop button. The tab then shows the plain reconnect bar, so reconnecting is still possible — with journaling enabled for the connection, that new session starts a fresh journal.</li>
+</ul>
+<p>Closing the tab instead also ends the journal with its closing summary. Without a running journal the behavior is unchanged: a cleanly ended connection closes the tab, an error keeps it open with the reconnect bar (double-click to reconnect).</p>
 <h2 id="the-live-journal-panel">The live journal panel<a class="headerlink" href="#the-live-journal-panel" title="Permanent link">&para;</a></h2>
 <p><strong>View &gt; Live Journal</strong> (or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) docks the running journal's <strong>full journal page</strong> — the same page the <a href="#the-journal-page">viewer</a> shows — to the <strong>left or right</strong> of the terminal, kept up to date in real time. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.</p>
 <p>Two things update live while the session runs:</p>
