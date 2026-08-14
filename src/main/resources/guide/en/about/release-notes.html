@@ -2199,6 +2199,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI screenshot analysis in journals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#live-journal-side-panel" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2369,6 +2380,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI screenshot analysis in journals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#live-journal-side-panel" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2441,6 +2463,11 @@
 <li><strong>Screenshots can be <a href="../features/session-journal.html#screenshot-notes-and-annotations">annotated</a></strong> — pen, box, an "Unreadable" tool that coarsens a region into blocks, and text labels, plus a note field, reachable by right-clicking a screenshot. Marks are stored as data and stay re-editable; the untouched capture is kept locally as <code>.orig.png</code> and is never included in an export. This obscures a value in the rendered page, it does not redact it — use Search &amp; replace or a policy redaction rule to remove something from a journal for good.</li>
 <li><strong>Selecting a time range got easier</strong> — inside korTTY the viewer's timeline can be switched into range-selection mode: click a first and a last entry to highlight the span between them and hand it straight to the export dialog, or collect several windows before exporting. The same selection is available from the edit-mode entry table via right-click.</li>
 <li><strong>You can edit a journal title directly on its page</strong>, and a header button jumps from one marked entry to the next.</li>
+</ul>
+<h3 id="ai-screenshot-analysis-in-journals">AI screenshot analysis in journals<a class="headerlink" href="#ai-screenshot-analysis-in-journals" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Journal screenshots are now searchable by their content</strong> — when the journal's AI profile accepts images, every captured screenshot gets an <a href="../features/session-journal.html#ai-screenshot-analysis">AI-written description and tags</a>, shown to the right of the picture on the journal page. The tags are clickable chips that start a journal search, and description and tags are covered by the manager's content search, by Search &amp; replace and the policy redaction rules, and by the Markdown and PDF exports. Right-clicking a screenshot offers <strong>Analyze screenshot with AI</strong> for journals recorded earlier, for retries, and for re-running the analysis after annotating — the analysis always reads the annotated picture, never the untouched <code>.orig.png</code>. The automatic run on capture can be switched off in the journal options, and an organization can force the analysis on or off via the <code>ai-screenshot-analysis</code> policy key (off also disables the manual run).</li>
+<li><strong>AI profiles know whether their model accepts images</strong> — a new <a href="../reference/settings/ai.html#image-input-vision">Image input (vision)</a> setting per profile defaults to automatic detection: LM Studio model metadata is authoritative (read during the reasoning refresh), the Anthropic endpoint always qualifies, and other endpoints are recognized by well-known vision model names, with an Enabled/Disabled override for models the detection misjudges. LM Studio vision models (<code>vlm</code>) now also appear in the model dropdown, which previously hid them.</li>
 </ul>
 <h3 id="live-journal-side-panel">Live journal side panel<a class="headerlink" href="#live-journal-side-panel" title="Permanent link">&para;</a></h3>
 <ul>

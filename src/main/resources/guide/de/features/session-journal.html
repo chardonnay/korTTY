@@ -2086,6 +2086,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ki-screenshot-analyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Screenshot-Analyse
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#passwortschutz" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2707,6 +2718,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ki-screenshot-analyse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KI-Screenshot-Analyse
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#passwortschutz" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3068,6 +3090,11 @@
 <td>Journalmanager <strong>Optionen</strong> oder <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong></td>
 <td>Standardprofil</td>
 </tr>
+<tr>
+<td>Screenshots mit KI analysieren (Beschreibung und Tags)</td>
+<td>Journalmanager <strong>Optionen</strong></td>
+<td>auf</td>
+</tr>
 </tbody>
 </table>
 <p>Zusammenfassungen verwenden Ihr <strong>Standard-KI-Profil</strong>, es sei denn, Sie wählen ein spezielles Journalprofil aus. Diese Auswahl ist an drei gleichwertigen Stellen verfügbar: im Dialogfeld <strong>Optionen</strong> des Journalmanagers, <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong> und <strong>KI &gt; AI-Manager &gt; Lokale KI</strong> neben den Rollen Text und Codierung. Die Rollenprofile Text/Coding selbst werden bewusst nicht für das Journal verwendet.</p>
@@ -3080,6 +3107,17 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Das Journal funktioniert ohne KI: Wenn kein KI-Profil verfügbar ist, KI-Funktionen deaktiviert oder Zusammenfassungen ausgeschaltet sind, zeichnet die Zeitleiste stattdessen rohe Aktivitätseinträge auf. KI-Zusammenfassungsaufforderungen verwenden niemals Tools für den Internetzugang; Der Terminalauszug geht nur an das konfigurierte AI-Profil.</p>
+</div>
+<h2 id="ki-screenshot-analyse">KI-Screenshot-Analyse<a class="headerlink" href="#ki-screenshot-analyse" title="Permanent link">&para;</a></h2>
+<p>Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analysiert: Das Modell schreibt eine kurze <strong>Beschreibung</strong> (ein bis drei Sätze) und eine Handvoll kleingeschriebene <strong>Tags</strong>, die rechts neben dem Miniaturbild auf der Journalseite angezeigt werden. Tags sind anklickbare Chips – ein Klick startet eine <a href="#suche-im-journal">Journalsuche</a> nach diesem Tag – und beide Texte werden vom <strong>Inhalte durchsuchen</strong>-Scan des Managers gefunden, von <a href="#suchen-und-ersetzen">Suchen und Ersetzen</a> und den automatischen Schwärzungsregeln mit umgeschrieben und sind in den Markdown- und PDF-Exporten enthalten. Wie die Zusammenfassungen werden auch die Analyseantworten in der Sprache beantwortet, in der das Journal erstellt wurde.</p>
+<ul>
+<li><strong>Screenshots mit KI analysieren (Beschreibung und Tags)</strong> im Dialogfeld <strong>Optionen</strong> des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann; andernfalls wird der Screenshot einfach unanalysiert abgelegt.</li>
+<li><strong>Screenshot mit KI analysieren</strong> im Rechtsklick-Menü eines Screenshots analysiert ein Bild bei Bedarf – die Möglichkeit, Screenshots in zuvor aufgezeichneten Journalen zu analysieren, einen fehlgeschlagenen Lauf zu wiederholen oder die Analyse erneut auszuführen, nachdem etwas im <a href="#screenshot-notizen-und-anmerkungen">Anmerkungseditor</a> unleserlich gemacht wurde. Die Analyse liest immer das bearbeitete Bild, niemals die unberührte <code>.orig.png</code>-Aufnahme.</li>
+</ul>
+<p>Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: <strong>Bild-Eingabe (Vision)</strong> in den <a href="../reference/settings/ai.html">KI-Einstellungen</a> steht standardmäßig auf <strong>Auto</strong> – für einen lokalen LM-Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die auch die Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die gängigen vision-fähigen Modellnamen – und kann für Modelle, die die Erkennung falsch einschätzt, mit <strong>Aktiviert</strong>/<strong>Deaktiviert</strong> übersteuert werden.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme – bevor Sie die Möglichkeit haben, etwas unleserlich zu machen. Das Bild geht nur an das konfigurierte KI-Profil und niemals über Internet-Zugriffstools, aber für Sitzungen, deren Bildschirminhalt den Computer nicht verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über <a href="#unternehmensrichtlinie">Unternehmensrichtlinie</a> verbieten – die Richtlinienanweisung deaktiviert auch die manuelle Ausführung.</p>
 </div>
 <h2 id="passwortschutz">Passwortschutz<a class="headerlink" href="#passwortschutz" title="Permanent link">&para;</a></h2>
 <p>Getippte Eingaben werden nur als vollständige übermittelte Zeilen erfasst und mehrere Ebenen halten Passwörter aus dem Journal fern:</p>
@@ -3099,12 +3137,12 @@
 <li>Ein Sticky-Header zeigt an, wer mit welchem Server verbunden war, Startzeit, Dauer und Anzahl der Einträge, Befehle, Fehler und Screenshots sowie die Journalbeschreibung. Live-Journale weisen ein <strong>Live</strong>-Abzeichen auf. Die Zeile unter dem Titel enthält nur das, was der Titel nicht bereits sagt, sodass ein nach seinem Endpunkt benanntes Journal die Verbindung einmal statt dreimal angibt.</li>
 <li>Die Zeitleiste gruppiert Einträge nach Tag; Jeder Eintrag trägt seine Zeit, einen Markierungspunkt und ein Abzeichen in der Farbe, die Sie dieser Markierung gegeben haben, den AI-Titel und die Zusammenfassung sowie farbcodierte Eingabe- (grün) und Ausgabeauszüge (blau).</li>
 <li>Durch Klicken auf einen Eintrag wird von unten ein Protokollfenster mit dem genauen Capture-Logbereich hinter diesem Eintrag eingeblendet. Das Panel verfügt über eine eigene Bildlaufleiste, ein Suchfeld mit Trefferzähler und ▲/▼-Navigation (<span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> zyklisch auch Treffer, <span class="keys"><kbd class="key-escape">Esc</kbd></span> schließt) und färbt Eingabe- und Ausgabezeilen unterschiedlich ein.</li>
-<li>Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet.</li>
+<li>Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet. Wenn die <a href="#ki-screenshot-analyse">KI-Screenshot-Analyse</a> ausgeführt wurde, befinden sich die Beschreibungs- und Tag-Chips rechts neben dem Bild, und ein Chip-Klick durchsucht das Journal nach diesem Tag.</li>
 <li>Die Seite wird standardmäßig dunkel gerendert, folgt der Hell/Dunkel-Einstellung des Systems und verfügt über eine eigene Designumschaltung.</li>
 <li>Screenshots, Auszugsfenster, die Zeitleistenspalte und das Protokollfenster passen sich dem Fenster an, sodass die Seite sowohl in einem schmalen Viewer-Tab als auch im Vollbildmodus lesbar bleibt. Lange Ausschnitte scrollen in ihrem eigenen Rahmen, anstatt die Zeitleiste zu dehnen.</li>
 </ul>
 <h3 id="suche-im-journal">Suche im Journal<a class="headerlink" href="#suche-im-journal" title="Permanent link">&para;</a></h3>
-<p>Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, Eingabe- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Trefferzähler wird angezeigt; ▲ und ▼ oder <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> springen zwischen den Treffern, <span class="keys"><kbd class="key-escape">Esc</kbd></span> oder ✕ schließt die Leiste und löscht die Hervorhebung.</p>
+<p>Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, KI-Screenshot-Beschreibungen und Tags, Ein- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Übereinstimmungszähler angezeigt; ▲ und ▼ oder <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> springen zwischen den Treffern, <span class="keys"><kbd class="key-escape">Esc</kbd></span> oder ✕ schließt die Leiste und löscht die Hervorhebung.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Dadurch werden die Journaleinträge durchsucht. Das Roherfassungsprotokoll verfügt über eine eigene Suche im Protokollbereich, und der Journalmanager kann mit <strong>Inhalte durchsuchen</strong> in <em>allen</em> Journalen suchen.</p>
@@ -3193,7 +3231,7 @@
 <p><strong>Tools &gt; Sitzungsjournale…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) öffnet den Journalmanager: alle Journale in einer Tabelle, sortiert nach Startzeit (neueste zuerst) mit Dauer, Verbindung, Server, Titel und Eintragsanzahl. Laufende Journale sind markiert und können im laufenden Betrieb weder umbenannt noch gelöscht werden.</p>
 <p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
 <ul>
-<li>Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer und Beschreibung; Wenn Sie <strong>Inhalte durchsuchen</strong> aktivieren, werden zusätzlich die Journaleinträge gescannt und Protokolle aller Journale im Hintergrund erfasst.</li>
+<li>Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer und Beschreibung; Wenn Sie <strong>Inhalte durchsuchen</strong> aktivieren, werden zusätzlich die Journaleinträge gescannt – einschließlich AI-Screenshot-Beschreibungen und Tags – und Protokolle aller Journale werden im Hintergrund erfasst.</li>
 <li><strong>Öffnen</strong> (oder Doppelklick) öffnet den Journal-Viewer; <strong>Umbenennen</strong> ändert den Titel; <strong>Löschen</strong> fragt nach einer Bestätigung und entfernt dann dauerhaft den Journalordner einschließlich des Protokolls und aller Screenshots.</li>
 <li>Es können mehrere Journale gleichzeitig ausgewählt werden (Klick <span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span>), um sie in einem Schritt zu löschen oder zu exportieren. Laufende Journale können nicht umbenannt oder gelöscht werden.</li>
 <li>Der Bereich <strong>Beschreibung</strong> unterhalb der Tabelle speichert eine Freitextbeschreibung pro Journal; Es erscheint auf der Journalseite und in jedem Export und wird in die Inhaltssuche einbezogen.</li>
@@ -3218,12 +3256,16 @@
 <td>Öffnet den unten beschriebenen Editor</td>
 </tr>
 <tr>
+<td><strong>Screenshot mit KI analysieren</strong></td>
+<td>Führt die <a href="#ki-screenshot-analyse">KI-Screenshot-Analyse</a> für dieses Bild aus; wird angeboten, wenn ein bildfähiges KI-Profil konfiguriert ist und die Richtlinie die Analyse zulässt</td>
+</tr>
+<tr>
 <td><strong>Screenshot exportieren…</strong></td>
 <td>Speichert das Bild mit seinen Markierungen in einer von Ihnen ausgewählten Datei.</td>
 </tr>
 </tbody>
 </table>
-<p>Beide befinden sich auch im Kontextmenü der Eingabetabelle des Bearbeitungsmodus, und ein Doppelklick auf eine Screenshot-Zeile öffnet den Editor direkt. Sie erscheinen nur innerhalb von korTTY: Eine eigenständige Seite in einem Browser kann weder das Journal umschreiben noch einen Dateidialog erreichen.</p>
+<p>Bearbeiten und Exportieren finden Sie auch im Kontextmenü der Eingabetabelle des Bearbeitungsmodus, und ein Doppelklick auf eine Screenshot-Zeile öffnet den Editor direkt. Diese Aktionen erscheinen nur innerhalb von korTTY: Eine eigenständige Seite in einem Browser kann weder das Journal umschreiben noch einen Dateidialog erreichen.</p>
 <p>In korTTY kann der <strong>Titel</strong> des Journals auch von der Seite aus bearbeitet werden: Doppelklicken Sie darauf oder klicken Sie mit der rechten Maustaste darauf und wählen Sie <strong>Journal umbenennen…</strong> – die gleiche Umbenennung bietet der Manager an, unterliegt den gleichen Organisationsrichtlinien.</p>
 <p>Der Herausgeber selbst:</p>
 <table>
@@ -3399,7 +3441,7 @@
 <p>Standardmäßig enthält jedes exportierte Dokument eine Fußzeile, die angibt, dass es mit korTTY erstellt wurde, mit einem Link zum Projekt-Repository – unten auf jeder PDF-Seite, am Ende der Markdown-Datei und in der Fußzeile der Journalseite innerhalb des HTML-Pakets. PDFs können zusätzlich ein diagonales Wasserzeichen tragen, das <strong>standardmäßig deaktiviert</strong> ist.</p>
 <p>Beide werden unter <a href="../reference/settings/export.html"><strong>Konfiguration → Globale Einstellungen → Export</strong></a> konfiguriert, wo Sie den Fußzeilentext ändern, die Fußzeile ausschalten, das Wasserzeichen aktivieren und dessen Text und Farbe auswählen können. Die gleichen Einstellungen gelten für AI-Chat-Exporte.</p>
 <h2 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h2>
-<p>Administratoren können die Funktion verweigern (<code>session-journal</code> unter <code>[rule.features]</code>) oder ihr Verhalten über <code>[rule.session-journal]</code> festlegen: ein Journal für jede Verbindung erzwingen, das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis festlegen, das Umbenennen oder Löschen von Journalen verbieten, eine Benennungsvorlage vorschreiben und den abschließenden AI-Titel erzwingen. Die Schlüssel finden Sie unter <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a>.</p>
+<p>Administratoren können die Funktion verweigern (<code>session-journal</code> unter <code>[rule.features]</code>) oder ihr Verhalten über vorschreiben <code>[rule.session-journal]</code>: Erzwingen Sie ein Journal für jede Verbindung, korrigieren Sie das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis, verbieten Sie das Umbenennen oder Löschen von Journalen, schreiben Sie eine Benennungsvorlage vor, erzwingen Sie den abschließenden AI-Titel und und erzwingen oder verbieten Sie die <a href="#ki-screenshot-analyse">KI-Screenshot-Analyse</a> – ein erzwungenes <em>Aus</em> deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe <a href="../reference/enterprise-policy.html">Unternehmenspolitik</a> für die Schlüssel.</p>
 <h3 id="automatische-schwarzung">Automatische Schwärzung<a class="headerlink" href="#automatische-schwarzung" title="Permanent link">&para;</a></h3>
 <p>Eine <code>[[rule.session-journal.replace]]</code>-Liste sorgt dafür, dass korTTY das Suchen und Ersetzen automatisch anwendet, mit regulären Ausdrücken, wenn der Administrator dies wünscht – für Cloud-Zugriffsschlüssel, interne Hostnamen, Ticketnummern und alles, was niemals in einem Transkript landen darf:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[rule.session-journal.replace]]</span>
