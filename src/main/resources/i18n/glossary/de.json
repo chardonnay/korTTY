@@ -410,6 +410,56 @@
       "to": "Eingabe-Härtung"
     },
     {
+      "from": "AI-Screenshot-Analyse",
+      "to": "KI-Screenshot-Analyse",
+      "note": "Session journal feature name; MT sometimes leaves the AI- prefix untranslated in this compound."
+    },
+    {
+      "from": "AI-geschriebene",
+      "to": "KI-geschriebene",
+      "note": "Release-notes wording for the journal screenshot analysis feature."
+    },
+    {
+      "from": "AI > AI Manager",
+      "to": "KI > KI-Manager",
+      "note": "Menu path; menu.ai=KI, ai.manager.title=KI-Manager. Must precede the shorter 'AI Manager' row below."
+    },
+    {
+      "from": "im [AI-Manager]",
+      "to": "im [KI-Manager]",
+      "note": "Established term ai.manager.title=KI-Manager; MT sometimes leaves the English AI- prefix in a Markdown link."
+    },
+    {
+      "from": "[AI-Manager]",
+      "to": "[KI-Manager]",
+      "note": "Established term ai.manager.title=KI-Manager; MT sometimes leaves the English AI- prefix in a Markdown link."
+    },
+    {
+      "from": "AI-Manager",
+      "to": "KI-Manager",
+      "note": "Established term ai.manager.title=KI-Manager; MT sometimes leaves the English AI- prefix outside Markdown links too."
+    },
+    {
+      "from": "AI Manager",
+      "to": "KI-Manager",
+      "note": "Established term ai.manager.title=KI-Manager; MT sometimes leaves the two-word English form untranslated."
+    },
+    {
+      "from": "Note-Editor",
+      "to": "Notiz-Editor",
+      "note": "Session journal note editor; MT sometimes leaves the English 'Note' in this compound."
+    },
+    {
+      "from": "Journalesuche",
+      "to": "Journalsuche",
+      "note": "MT typo: inserts a stray 'e' into the compound Journalsuche."
+    },
+    {
+      "from": "[Zuschauer]",
+      "to": "[Viewer]",
+      "note": "The dialog is named 'Viewer' in the app (ai.manager.title-style established term); MT sometimes translates it literally as 'spectator'."
+    },
+    {
       "from": "AI-Anfrage-Timeout",
       "to": "Zeitlimit für KI-Anfragen",
       "note": "UI label settings.ai.timeout.global; the guide must name the control exactly as the AI Manager does."

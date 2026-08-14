@@ -113,6 +113,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 **Enthält:**
 - UI-Design- und Darstellungseinstellungen
 - Schriftfamilie und Standardgröße
+- UI-Schriftgröße (Prozent, 80–160 % oder automatisch von der Bildschirmauflösung abgeleitet) und die separate Textgröße der Anleitung (70–250 %)
 - Terminal-Farbkonfiguration
 - Fenstergeometrie und -status (Position, Größe, maximierter Status)
 - Dashboard-Sichtbarkeitsstatus
@@ -124,7 +125,8 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Übersetzungs-API-Einstellungen
 - Video-/Aufnahmeeinstellungen
 - Standardeinstellungen für die Terminalprotokollierung
-- Standardeinstellungen für das Sitzungsjournal (Speicherordner, Capture-Log-Format, KI-Zusammenfassungen mit Intervall und Profil, Zeilenfenster und Tokenbudget, Erscheinungsbild der Journalseite, benutzerdefinierte Markierungen und Markierungsregeln) und die gespeicherten Journalfenstergeometrien
+- Standardeinstellungen für das Sitzungsjournal (Speicherordner, Capture-Log-Format, KI-Zusammenfassungen mit Intervall und Profil, Umschalter für die KI-Screenshot-Analyse, Übersetzungssprache für Notizen, Zeilenfenster und Token-Budget, Erscheinungsbild der Journalseite, Endhöhe des Live-Protokolls, benutzerdefinierte Markierungen und Markierungsregeln) und die gespeicherten Geometrien des Journalfensters
+- Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe) und Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)
 - Master-Passwort-Auto-Login-Flag (`skipMasterPasswordPrompt`)
 - Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
@@ -431,7 +433,7 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 - Wenn eine `.xml`-Datei beschädigt ist, stellen Sie sie aus einer Sicherung wieder her oder löschen Sie die Datei. KorTTY wird es beim nächsten Speichern mit den Standardeinstellungen neu erstellen.
 
 **Wissensspeicher-Registrierung oder Snapshot kann nicht gelesen werden:**
-- Stellen Sie `rag/stores.json` aus einem Backup wieder her oder erstellen Sie den Wissensspeicher im AI Manager neu. Löschen Sie nur die betroffene regenerierbare Datei `index.hnsw` und wählen Sie dann **Jetzt aktualisieren**, um sie aus den konfigurierten Quelldateien neu zu erstellen.
+- Stellen Sie `rag/stores.json` aus einem Backup wieder her oder erstellen Sie den Wissensspeicher im KI-Manager neu. Löschen Sie nur die betroffene regenerierbare Datei `index.hnsw` und wählen Sie dann **Jetzt aktualisieren**, um sie aus den konfigurierten Quelldateien neu zu erstellen.
 
 **Interaktiver SSH-Hostschlüssel geändert:**
 - Stellen Sie keine erneute Verbindung her, bis Sie den neuen OpenSSH SHA-256-Fingerabdruck beim Serveradministrator überprüft und DNS-, Routing- oder Man-in-the-Middle-Probleme ausgeschlossen haben. KorTTY blockiert absichtlich die Nichtübereinstimmung, ohne es erneut zu versuchen oder die gespeicherte PIN zu ersetzen.

@@ -104,11 +104,11 @@ KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindu
 - **Lokale CLI**: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).
 - **Integrated llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell**. korTTY erwirbt dafür einen privaten Loopback-`llama-server`-Leasing; Die API-URL und der Profil-API-Schlüssel werden von korTTY verwaltet und können nicht bearbeitet werden.
 
-Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **AI > AI Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
+Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **KI > KI-Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
 
-Der AI Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Wenn Sie es erneut aufrufen, wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
+Der KI-Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Wenn Sie es erneut aufrufen, wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
 
-### Lokale AI-Manager-Einstellungen
+### Lokale KI-Manager-Einstellungen
 
 | Einstellung | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-E
 
 ### Bild-Eingabe (Vision)
 
-**Bild-Eingabe (Vision)** entscheidet, ob korTTY für dieses Profil Bilder an einen Prompt anhängen darf – genutzt von der [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** leitet die Fähigkeit vom Endpunkt ab: Für einen lokalen LM-Studio-Endpunkt sind die Modellmetadaten maßgeblich (ein `vlm`-Modell gilt als bildfähig; die Antwort wird während desselben **Reasoning-Optionen aktualisieren**-Aufrufs gelesen und mit ihm zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden an bekannten Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** übersteuern die Erkennung für Modelle, die sie falsch einschätzt. CLI- und integrierte (llama.cpp/MLX-)Profile können keine Bilder senden. Lokale LM-Studio-Vision-Modelle (`vlm`) erscheinen jetzt auch in der Modellauswahl.
+**Bildeingabe (Vision)** entscheidet, ob korTTY Bilder an eine Eingabeaufforderung für dieses Profil anhängen darf – verwendet von [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (ein `vlm`-Modell gilt als bildfähig; die Antwort wird während desselben **Reasoning-Optionen aktualisieren**-Aufrufs gelesen und damit zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) werden auch in der Modell-Dropdown-Liste angezeigt.
 
 ### Token-Kontingentverwaltung
 

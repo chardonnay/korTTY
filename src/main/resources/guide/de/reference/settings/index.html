@@ -33,7 +33,7 @@
     
     
       
-        <title>Referenz zu den Einstellungen - korTTY Anleitung</title>
+        <title>Einstellungsreferenz - korTTY Anleitung</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#referenz-zu-den-einstellungen" class="md-skip">
+        <a href="#einstellungsreferenz" class="md-skip">
           Zum Inhalt
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Referenz zu den Einstellungen
+              Einstellungsreferenz
             
           </span>
         </div>
@@ -2218,10 +2218,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#registerkarten-einstellungen" class="md-nav__link">
+  <a href="#einstellungsregisterkarten" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Registerkarten „Einstellungen“.
+        Einstellungsregisterkarten
       
     </span>
   </a>
@@ -2256,7 +2256,7 @@
 
 
 
-<h1 id="referenz-zu-den-einstellungen">Referenz zu den Einstellungen<a class="headerlink" href="#referenz-zu-den-einstellungen" title="Permanent link">&para;</a></h1>
+<h1 id="einstellungsreferenz">Einstellungsreferenz<a class="headerlink" href="#einstellungsreferenz" title="Permanent link">&para;</a></h1>
 <p>Die Einstellungen von korTTY sind unter <strong>Konfiguration → Globale Einstellungen…</strong> verfügbar. Sie werden in <code>~/.kortty/global-settings.xml</code> gespeichert. Diese Referenz dokumentiert <strong>jede</strong> Einstellung, geordnet nach Registerkarten.</p>
 <p>Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:</p>
 <table>
@@ -2272,15 +2272,15 @@
 <td>Die im Dialogfeld angezeigte Bezeichnung</td>
 </tr>
 <tr>
-<td>Geben Sie</td>
-<td>ein umschalten · Dropdown · Nummer · Text · Farbe · Pfad</td>
+<td>Typ</td>
+<td>Umschalten · Dropdown · Nummer · Text · Farbe · Pfad</td>
 </tr>
 <tr>
 <td>Werte</td>
 <td>Zulässige Werte/Bereich</td>
 </tr>
 <tr>
-<td>Standard</td>
+<td>Standardwert</td>
 <td>Standardwert</td>
 </tr>
 <tr>
@@ -2289,18 +2289,18 @@
 </tr>
 </tbody>
 </table>
-<h2 id="registerkarten-einstellungen">Registerkarten „Einstellungen“.<a class="headerlink" href="#registerkarten-einstellungen" title="Permanent link">&para;</a></h2>
+<h2 id="einstellungsregisterkarten">Einstellungsregisterkarten<a class="headerlink" href="#einstellungsregisterkarten" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Tab</th>
+<th>Registerkarte</th>
 <th>Was es steuert</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><a href="appearance.html">Aussehen, Themen und Schriftart</a></td>
-<td>App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe</td>
+<td>App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe, Schriftgröße der Benutzeroberfläche</td>
 </tr>
 <tr>
 <td><a href="colors.html">Farben</a></td>
@@ -2320,7 +2320,11 @@
 </tr>
 <tr>
 <td><a href="logging.html">Protokollierung</a></td>
-<td>Verzeichnis, Aufbewahrung und Format des Terminalprotokolls</td>
+<td>Verzeichnis und Aufbewahrung von Terminalprotokollen; Speicherung von Sitzungsjournalen, KI-Zusammenfassungen, Intervall und Profil</td>
+</tr>
+<tr>
+<td><a href="export.html">Export</a></td>
+<td>PDF-Wasserzeichen und Dokumentfußzeile für exportierte Sitzungsjournale und KI-Chats</td>
 </tr>
 <tr>
 <td><a href="backup.html">Sicherung</a></td>
@@ -2352,7 +2356,7 @@
 </tr>
 <tr>
 <td><a href="ai.html">KI</a></td>
-<td>KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Quote, Internet-Tools</td>
+<td>KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Bildeingabe (Vision), Quote, Internet-Tools</td>
 </tr>
 <tr>
 <td><a href="sftp.html">SFTP-Manager</a></td>
@@ -2368,7 +2372,7 @@
 </tr>
 </tbody>
 </table>
-<p>Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und das <a href="ai-skills.html">KI-Fähigkeiten</a> Bibliothek live in <strong>AI &gt; AI Manager</strong> und nicht im globalen Einstellungsfenster; sehen <a href="../../features/local-models.html">Lokale Modelle</a> Und <a href="../../features/rag.html">RAG-Wissensspeicher</a>.</p>
+<p>Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und die <a href="ai-skills.html">KI-Fähigkeiten</a>-Bibliothek befinden sich in <strong>KI &gt; KI-Manager</strong> statt im globalen Einstellungsfenster; siehe <a href="../../features/local-models.html">Lokale Modelle</a> und <a href="../../features/rag.html">RAG-Wissensspeicher</a>.</p>
 <div class="admonition info">
 <p class="admonition-title">Vollständigkeit</p>
 <p>Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.</p>

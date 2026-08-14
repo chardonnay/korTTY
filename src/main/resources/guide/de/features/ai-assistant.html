@@ -1934,10 +1934,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ai-manager" class="md-nav__link">
+  <a href="#ki-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        AI-Manager
+        KI-Manager
       
     </span>
   </a>
@@ -2773,10 +2773,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ai-manager" class="md-nav__link">
+  <a href="#ki-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        AI-Manager
+        KI-Manager
       
     </span>
   </a>
@@ -2967,12 +2967,12 @@
 <ol>
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
 <li>Gehe zu <strong>AI</strong>.</li>
-<li>Erstellen Sie ein oder mehrere AI-Profile unter <strong>Einstellungen &gt; AI</strong> oder <strong>AI &gt; AI Manager &gt; Profile</strong>. Wählen Sie <strong>HTTP API</strong>, <strong>Local CLI</strong> oder <strong>Integrated llama.cpp</strong> als Verbindungsmodus.</li>
-<li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus; korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>AI Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
+<li>Erstellen Sie ein oder mehrere AI-Profile unter <strong>Einstellungen &gt; AI</strong> oder <strong>KI &gt; KI-Manager &gt; Profile</strong>. Wählen Sie <strong>HTTP API</strong>, <strong>Local CLI</strong> oder <strong>Integrated llama.cpp</strong> als Verbindungsmodus.</li>
+<li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus; korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>KI-Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
 <li>Konfigurieren Sie optional <strong>Prompt-Optimierung</strong>, <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Die genauen nativen Funktionsmetadaten von LM Studio haben Vorrang vor Kompatibilitätsprüfungen, sodass ein stillschweigend konvertierter Aufwand nicht als unterstützt angezeigt wird. Profile ohne unterstützten expliziten Reasoning-Modus behalten das Standardverhalten des Anbieters bei.</li>
 <li>Legen Sie optional ein <strong>Zeitlimit für KI-Anfragen</strong> in Minuten fest. korTTY führt bei KI-Anfragen nicht automatisch zu einer Zeitüberschreitung, daher wird eine lange Aufgabe wie die <strong>Vollständige Codeanalyse</strong> des Snippet-Editors ausgeführt, bis das Modell antwortet. Der Wert auf der Seite <strong>Profile</strong> gilt für jedes Profil; <strong>Zeitlimit für dieses Profil</strong> überschreibt es für ein einzelnes Profil, und 0 bedeutet, dass das Profil nie abläuft. Siehe <a href="../reference/settings/ai.html">AI-Einstellungen</a>.</li>
 <li>Klicken Sie auf <strong>AI-Verbindung testen</strong>.</li>
-<li>Wählen Sie optional ein <strong>Standardprofil</strong> und weisen Sie dann unter <strong>AI-Manager &gt; Lokale KI</strong> separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.</li>
+<li>Wählen Sie optional ein <strong>Standardprofil</strong> und weisen Sie dann unter <strong>KI-Manager &gt; Lokale KI</strong> separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.</li>
 <li>Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.</li>
 <li>Konfigurieren Sie optional die Größe des Terminal-Agent-Eingabeverlaufs (Standard 20, Bereich 5–100), den Agent-Befehlsnamen, die Befehlsübereinstimmung ohne Berücksichtigung der Groß-/Kleinschreibung, das Ausführungsziel, die Verwendung des Prompt-Hooks, den Einrichtungsdialog pro Ausführung, die Debug-/Laufzeitsichtbarkeit und die Aktivitätsfenstereinstellungen für <strong>AI Agent</strong> und <strong>AI Planning</strong>.</li>
 <li>Deaktivieren Sie optional den Bestätigungsdialog für <strong>Zusammenfassen</strong> und <strong>Problem lösen</strong>, wenn Sie einen schnelleren Arbeitsablauf wünschen. <strong>Fragen</strong> öffnet immer den Eingabeaufforderungsdialog.</li>
@@ -2982,7 +2982,7 @@
 <p>So öffnen Sie den Assistenten:</p>
 <ul>
 <li><strong>Einstellungen &gt; AI</strong>, klicken Sie auf <strong>Profil hinzufügen</strong> oder <strong>Bearbeiten</strong> ein vorhandenes Profil.</li>
-<li><strong>Tools &gt; AI Manager &gt; Profile</strong>, klicken Sie auf <strong>Hinzufügen</strong>.</li>
+<li><strong>Tools &gt; KI-Manager &gt; Profile</strong>, klicken Sie auf <strong>Hinzufügen</strong>.</li>
 </ul>
 <p>Der Assistent führt Sie durch:</p>
 <ol>
@@ -2993,9 +2993,9 @@
 <li><strong>Profilname</strong> – Geben Sie einen Anzeigenamen für das Profil ein (z. B. „Claude Opus“, „Local LM Studio“).</li>
 </ol>
 <p>Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten.</p>
-<p>Für eine vollständig integrierte GGUF-Inferenz verwenden Sie den separaten Assistenten <strong>AI Manager &gt; Lokale Modelle &gt; Einrichtungsassistent</strong>. Es überprüft die Hardware, empfiehlt Text-/Codierungs-/Einbettungsmodelle, überprüft die Lizenz und die genaue Größe, verifiziert den unveränderlichen Download, erstellt ein eingebettetes Profil, weist die ausgewählte Rolle zu und führt einen echten lokalen Chat oder einen Einbettungsfunktionstest durch. Siehe <a href="local-models.html">Lokale Modelle mit llama.cpp</a>.</p>
+<p>Für eine vollständig integrierte GGUF-Inferenz verwenden Sie den separaten Assistenten <strong>KI-Manager &gt; Lokale Modelle &gt; Einrichtungsassistent</strong>. Es überprüft die Hardware, empfiehlt Text-/Codierungs-/Einbettungsmodelle, überprüft die Lizenz und die genaue Größe, verifiziert den unveränderlichen Download, erstellt ein eingebettetes Profil, weist die ausgewählte Rolle zu und führt einen echten lokalen Chat oder einen Einbettungsfunktionstest durch. Siehe <a href="local-models.html">Lokale Modelle mit llama.cpp</a>.</p>
 <h2 id="modellauswahl">Modellauswahl<a class="headerlink" href="#modellauswahl" title="Permanent link">&para;</a></h2>
-<p>Die Modellauswahl unter <strong>Einstellungen &gt; AI</strong> und <strong>Tools &gt; AI Manager &gt; Profile</strong> kann bearbeitet werden:</p>
+<p>Die Modellauswahl unter <strong>Einstellungen &gt; AI</strong> und <strong>Tools &gt; KI-Manager &gt; Profile</strong> kann bearbeitet werden:</p>
 <ul>
 <li>Bei bekannten Cloud-Anbietern ist das Dropdown-Menü mit allgemeinen Modellnamen für den konfigurierten Endpunkt vorgefüllt, sodass ein konkretes Modell ohne API-Schlüssel ausgewählt werden kann. Die Schaltfläche „Aktualisieren“ neben der Auswahl führt die Live-<code>/v1/models</code>-Liste des Endpunkts oben zusammen, wenn der API-Schlüssel gültig ist.</li>
 <li>Wenn Sie ein aufgelistetes Modell auswählen, wird es als manuelle Auswahl gespeichert.</li>
@@ -3061,7 +3061,7 @@
 </ul>
 <h2 id="ai-fahigkeiten">AI-Fähigkeiten<a class="headerlink" href="#ai-fahigkeiten" title="Permanent link">&para;</a></h2>
 <p>KI-Fähigkeiten sind wiederverwendbare lokale Anweisungsblöcke, die korTTY zu KI-Anfragen hinzufügen kann. Verwenden Sie sie für dauerhafte Präferenzen wie Codierungsstandards, Überprüfungsregeln, Betriebsrichtlinien oder sprachspezifische Stilrichtlinien.</p>
-<p>Öffnen Sie <strong>KI &gt; KI-Manager &gt; KI-Fähigkeiten</strong>. Die Bibliothek wurde aus dem globalen Einstellungsdialog hierher verschoben. <strong>Speichern</strong> schreibt es sofort und ausstehende Änderungen werden auch gespeichert, wenn der AI Manager geschlossen wird.</p>
+<p>Öffnen Sie <strong>KI &gt; KI-Manager &gt; KI-Fähigkeiten</strong>. Die Bibliothek wurde aus dem globalen Einstellungsdialog hierher verschoben. <strong>Speichern</strong> schreibt es sofort und ausstehende Änderungen werden auch gespeichert, wenn der KI-Manager geschlossen wird.</p>
 <h3 id="fertigkeitsfelder">Fertigkeitsfelder<a class="headerlink" href="#fertigkeitsfelder" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Skill-Name</strong> – Für Menschen lesbarer Name, der in der Skill-Liste und den Aktivitätsprotokollen angezeigt wird.</li>
@@ -3107,7 +3107,7 @@
 <li>Bestätigen Sie die Anfrage im Vorschaudialog. Sie können den ausgewählten Text vor dem Senden bearbeiten. Fügen Sie für <strong>Fragen</strong> Ihre eigene Eingabeaufforderung hinzu. Das Dialogfeld zeigt auch die geschätzten Anforderungstoken und das prognostizierte verbleibende Kontingent an.</li>
 <li>Die Antwort wird in einer temporären AI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.</li>
 <li>Verwenden Sie <strong>Speichern</strong> auf der Registerkarte „AI“, um die Konversation unter einem benutzerdefinierten Titel zu speichern.</li>
-<li>Öffnen Sie gespeicherte Konversationen später erneut über <strong>Tools &gt; AI Manager</strong> oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</li>
+<li>Öffnen Sie gespeicherte Konversationen später erneut über <strong>Tools &gt; KI-Manager</strong> oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</li>
 </ol>
 <h3 id="funktionen-der-ai-ergebnisregisterkarte">Funktionen der AI-Ergebnisregisterkarte<a class="headerlink" href="#funktionen-der-ai-ergebnisregisterkarte" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3123,7 +3123,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>Wenn ein gespeicherter Chat auf ein AI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.</li>
 </ul>
 <h3 id="gerenderte-bilder-diagramme-und-mathematik">gerenderte Bilder, Diagramme und Mathematik<a class="headerlink" href="#gerenderte-bilder-diagramme-und-mathematik" title="Permanent link">&para;</a></h3>
-<p>KI-Antworten, die Bilder, Diagramme oder mathematische Formeln enthalten, werden im Chat als Bilder gerendert, anstatt rohes Markup anzuzeigen. Dies gilt auch für gespeicherte Chats, die über den AI Manager erneut geöffnet werden.</p>
+<p>KI-Antworten, die Bilder, Diagramme oder mathematische Formeln enthalten, werden im Chat als Bilder gerendert, anstatt rohes Markup anzuzeigen. Dies gilt auch für gespeicherte Chats, die über den KI-Manager erneut geöffnet werden.</p>
 <table>
 <thead>
 <tr>
@@ -3176,10 +3176,10 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>Mermaid folgt der Hell/Dunkel-Palette des aktiven Chats; Andere gerenderte Bilder und Formeln behalten eine lesbare neutrale Leinwand.</li>
 </ul>
 </div>
-<h2 id="ai-manager">AI-Manager<a class="headerlink" href="#ai-manager" title="Permanent link">&para;</a></h2>
-<p>Öffnen Sie <strong>AI &gt; AI Manager</strong> oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</p>
-<p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
-<p>Der AI Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von <strong>AI Manager</strong> wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.</p>
+<h2 id="ki-manager">KI-Manager<a class="headerlink" href="#ki-manager" title="Permanent link">&para;</a></h2>
+<p>Öffnen Sie <strong>KI &gt; KI-Manager</strong> oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</p>
+<p><img alt="KI-Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
+<p>Der KI-Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von <strong>KI-Manager</strong> wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.</p>
 <p>Der Manager kombiniert Profil-, lokale Inferenz-, Abruf- und gespeicherte Chat-Verwaltung:</p>
 <ul>
 <li><strong>Profile</strong> – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.</li>
@@ -3188,9 +3188,9 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li><strong>Wissensspeicher</strong> – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.</li>
 <li><strong>Gespeicherte Chats</strong> – zuvor gespeicherte KI-Konversationen öffnen, umbenennen, aktualisieren oder löschen. Gespeicherte <a href="ai-swarm.html">AI Swarm</a>-Konversationen werden in einem eigenen Abschnitt <strong>Swarm-Chats</strong> angezeigt, einschließlich der Konversationen, die durch geplante Swarm-Jobs erstellt wurden.</li>
 </ul>
-<p>Verwenden Sie <strong>Einstellungen &gt; KI</strong> für globale Verhaltensänderungen und <strong>AI Manager</strong> für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.</p>
+<p>Verwenden Sie <strong>Einstellungen &gt; KI</strong> für globale Verhaltensänderungen und <strong>KI-Manager</strong> für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.</p>
 <h2 id="fragen-sie-nach-der-anleitung-ai-dokumentensuche">Fragen Sie nach der Anleitung (AI-Dokumentensuche)<a class="headerlink" href="#fragen-sie-nach-der-anleitung-ai-dokumentensuche" title="Permanent link">&para;</a></h2>
-<p>Die integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des manuellen Fensters ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
+<p>Die integrierte Anleitung (<strong>Hilfe &gt; Anleitung</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) enthält eine KI-gestützte Suche. Schalten Sie <strong>KI-Suche</strong> in der Symbolleiste des Fensters der Anleitung ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel <em>„Wie führe ich den KI-Agenten im Terminalfenster aus?“</em> – und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
 <p>So funktioniert es:</p>
 <ul>
 <li>korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr <strong>Standard-KI-Profil</strong>.</li>

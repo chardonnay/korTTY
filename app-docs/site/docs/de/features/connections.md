@@ -22,7 +22,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
-| Terminalprotokollierung | Schreibt die Terminalausgabe dieser Verbindung in eine Datei – Ordner, Format, tägliche Rotation, Komprimierung und Aufbewahrung. Sehen [Terminalprotokollierung](terminal.md#terminalprotokollierung). |
+| Terminalprotokollierung | Schreibt die Terminalausgabe dieser Verbindung in eine Datei – Ordner, Format, tägliche Rotation, Komprimierung und Aufbewahrung. Siehe [Terminalprotokollierung](terminal.md#terminalprotokollierung). |
 | Journal | Pro Verbindung [Sitzungsjournal](session-journal.md): Aktivieren Sie das Journaling für diese Verbindung und konfigurieren Sie das Capture-Log und die KI-Zusammenfassung |
 | Fenstergeometrie | Gespeicherte Größe/Position für diese Verbindung |
 | KI | KI-Standardeinstellungen pro Verbindung: die [KI-Profil](ai-assistant.md) und KI-Fähigkeiten, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden |

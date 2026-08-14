@@ -82,7 +82,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [AI Manager](ai-assistant.md#ai-manager)] angezeigt und können später wieder geöffnet werden.
+Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
@@ -128,14 +128,14 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 | **Schwarmparallelität** | Wie viele Server laufen gleichzeitig (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
-Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des AI Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
+Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des KI-Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
 
 !!! tip "Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen"
     Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.
 
 Typische Kombinationen von Schwarm + Scheduler:
 
-- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom AI-Manager an.
+- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.
 - **Erkennung von Konfigurationsdrifts** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
 - **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 

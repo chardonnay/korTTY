@@ -3143,6 +3143,7 @@
 <p><strong>Enthält:</strong>
 - UI-Design- und Darstellungseinstellungen
 - Schriftfamilie und Standardgröße
+- UI-Schriftgröße (Prozent, 80–160 % oder automatisch von der Bildschirmauflösung abgeleitet) und die separate Textgröße der Anleitung (70–250 %)
 - Terminal-Farbkonfiguration
 - Fenstergeometrie und -status (Position, Größe, maximierter Status)
 - Dashboard-Sichtbarkeitsstatus
@@ -3154,7 +3155,8 @@
 - Übersetzungs-API-Einstellungen
 - Video-/Aufnahmeeinstellungen
 - Standardeinstellungen für die Terminalprotokollierung
-- Standardeinstellungen für das Sitzungsjournal (Speicherordner, Capture-Log-Format, KI-Zusammenfassungen mit Intervall und Profil, Zeilenfenster und Tokenbudget, Erscheinungsbild der Journalseite, benutzerdefinierte Markierungen und Markierungsregeln) und die gespeicherten Journalfenstergeometrien
+- Standardeinstellungen für das Sitzungsjournal (Speicherordner, Capture-Log-Format, KI-Zusammenfassungen mit Intervall und Profil, Umschalter für die KI-Screenshot-Analyse, Übersetzungssprache für Notizen, Zeilenfenster und Token-Budget, Erscheinungsbild der Journalseite, Endhöhe des Live-Protokolls, benutzerdefinierte Markierungen und Markierungsregeln) und die gespeicherten Geometrien des Journalfensters
+- Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe) und Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)
 - Master-Passwort-Auto-Login-Flag (<code>skipMasterPasswordPrompt</code>)
 - Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
@@ -3433,7 +3435,7 @@
 <p><strong>Beschädigte XML-Dateien:</strong>
 - Wenn eine <code>.xml</code>-Datei beschädigt ist, stellen Sie sie aus einer Sicherung wieder her oder löschen Sie die Datei. KorTTY wird es beim nächsten Speichern mit den Standardeinstellungen neu erstellen.</p>
 <p><strong>Wissensspeicher-Registrierung oder Snapshot kann nicht gelesen werden:</strong>
-- Stellen Sie <code>rag/stores.json</code> aus einem Backup wieder her oder erstellen Sie den Wissensspeicher im AI Manager neu. Löschen Sie nur die betroffene regenerierbare Datei <code>index.hnsw</code> und wählen Sie dann <strong>Jetzt aktualisieren</strong>, um sie aus den konfigurierten Quelldateien neu zu erstellen.</p>
+- Stellen Sie <code>rag/stores.json</code> aus einem Backup wieder her oder erstellen Sie den Wissensspeicher im KI-Manager neu. Löschen Sie nur die betroffene regenerierbare Datei <code>index.hnsw</code> und wählen Sie dann <strong>Jetzt aktualisieren</strong>, um sie aus den konfigurierten Quelldateien neu zu erstellen.</p>
 <p><strong>Interaktiver SSH-Hostschlüssel geändert:</strong>
 - Stellen Sie keine erneute Verbindung her, bis Sie den neuen OpenSSH SHA-256-Fingerabdruck beim Serveradministrator überprüft und DNS-, Routing- oder Man-in-the-Middle-Probleme ausgeschlossen haben. KorTTY blockiert absichtlich die Nichtübereinstimmung, ohne es erneut zu versuchen oder die gespeicherte PIN zu ersetzen.</p>
 <p><strong>Probleme beim Laden des Plugins:</strong>

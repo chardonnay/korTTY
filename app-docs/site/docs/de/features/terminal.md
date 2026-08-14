@@ -81,7 +81,7 @@ Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten
 
 ## Sitzungsjournal
 
-Jede Terminal-Registerkarte kann eine behalten [Sitzungsjournal](session-journal.md): Serverausgaben und eingegebene Befehle werden in ein Capture-Log aufgenommen, eine KI komprimiert sie zu einer lesbaren Zeitleiste und Screenshots und Notizen können über die Journalleiste oder das Rechtsklickmenü des Terminals hinzugefügt werden. Journale starten automatisch für Verbindungen, die sie aktivieren, oder rückwirkend für eine laufende Sitzung über **Tools > Sitzungsjournal starten/stoppen** – der vorhandene Scrollback wird importiert. Sehen [Sitzungsjournal](session-journal.md).
+Jede Terminal-Registerkarte kann eine behalten [Sitzungsjournal](session-journal.md): Serverausgaben und eingegebene Befehle werden in ein Capture-Log aufgenommen, eine KI komprimiert sie zu einer lesbaren Zeitleiste und Screenshots und Notizen können über die Journalleiste oder das Rechtsklickmenü des Terminals hinzugefügt werden. Journale starten automatisch für Verbindungen, die sie aktivieren, oder rückwirkend für eine laufende Sitzung über **Tools > Sitzungsjournal starten/stoppen** – der vorhandene Scrollback wird importiert. Siehe [Sitzungsjournal](session-journal.md).
 
 ## Split-Screen mit Übertragung
 

@@ -78,15 +78,15 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 
 | Artikel | Beschreibung |
 | --- | --- |
-| AI Manager… | Verwalten Sie AI-Profile, integrierte GGUF-Modelle, RAG-Wissensspeicher, die AI Skills-Bibliothek und Text-/Codierungsrollen |
+| KI-Manager… | Verwalten Sie AI-Profile, integrierte GGUF-Modelle, RAG-Wissensspeicher, die AI Skills-Bibliothek und Text-/Codierungsrollen |
 | Gespeicherte Chats… | Öffnen Sie die gespeicherten AI-Chat-Konversationen direkt in einem eigenen Fenster; ein erneuter Aufruf bringt das vorhandene Fenster in den Vordergrund |
 | AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
 
-**AI Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Skills** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
+**KI-Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Skills** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
 
-![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
+![KI-Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
 
 ## Plugins
 

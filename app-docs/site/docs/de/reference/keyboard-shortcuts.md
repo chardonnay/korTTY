@@ -36,7 +36,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+alt+c++ | Fügen Sie dem Protokoll der laufenden Sitzung einen Screenshot hinzu |
 | ++ctrl+alt+l++ | Blenden Sie das Live-Journal-Panel auf der zuletzt verwendeten Seite ein/aus |
 | ++ctrl+shift+a++ | ASCII-Art |
-| ++ctrl+shift+y++ | Öffnen Sie AI Manager |
+| ++ctrl+shift+y++ | Öffnen Sie KI-Manager |
 | ++ctrl+alt+a++ | Öffnen Sie AI Agent |
 | ++ctrl+alt+p++ | Öffnen Sie KI-Planung |
 | ++ctrl+alt+s++ | Öffnen Sie den KI-Schwarm |

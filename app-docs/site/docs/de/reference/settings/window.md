@@ -12,7 +12,7 @@ Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehal
 | --- | --- | --- | --- | --- |
 | Fenstergeometrie merken | umschalten | — | Auf | `rememberWindowGeometry` |
 | Dashboard-Status merken | umschalten | — | Auf | `rememberDashboardState` |
-| Werkzeugfenster als Registerkarten öffnen | umschalten | – | Aus | `openToolWindowsAsTabs` |
+| Toolfenster als Registerkarten öffnen | umschalten | – | Aus | `openToolWindowsAsTabs` |
 | Feste Fenstergeometrie verwenden | umschalten | — | Aus | `useFixedWindowGeometry` |
 | Breite: | Nummer | 400–4000 | — | `fixedWindowGeometry.width` |
 | Höhe: | Nummer | 300–3000 | — | `fixedWindowGeometry.height` |
@@ -26,4 +26,4 @@ Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehal
     Die Einstellung **Dashboard-Status merken** behält bei, ob das Dashboard-Panel beim letzten Schließen der Anwendung geöffnet oder geschlossen war, und stellt diesen Status beim nächsten Start wieder her.
 
 !!! note
-    Wenn **Toolfenster als Registerkarten öffnen** aktiviert ist, werden Verwaltungstools (Snippets, JobScheduler, AI Manager, gespeicherte Chats, Verwaltung von Anmeldeinformationen/GPG/SSH-Schlüsseln, Videomanager, Teamwork-Einstellungen, Terminaleffekte) als Registerkarten im Hauptfenster und nicht in separaten Fenstern geöffnet. Die Registerkarte wird in dem Fenster geöffnet, dessen Menü Sie verwendet haben. Wenn also mehrere Hauptfenster geöffnet sind, verfügt jedes Fenster über eigene Werkzeugregisterkarten. Beim erneuten Öffnen eines Tools wird die vorhandene Registerkarte fokussiert. Der Snippet-Editor und die AI-Code-Analyse öffnen jedes Mal einen neuen Tab. Die Einstellung wird beim nächsten Öffnen eines Tools wirksam.
+    Wenn **Toolfenster als Registerkarten öffnen** aktiviert ist, werden Verwaltungstools (Snippets, JobScheduler, KI-Manager, gespeicherte Chats, Verwaltung von Anmeldeinformationen/GPG/SSH-Schlüsseln, Videomanager, Teamwork-Einstellungen, Terminaleffekte) als Registerkarten im Hauptfenster und nicht in separaten Fenstern geöffnet. Die Registerkarte wird in dem Fenster geöffnet, dessen Menü Sie verwendet haben. Wenn also mehrere Hauptfenster geöffnet sind, verfügt jedes Fenster über eigene Werkzeugregisterkarten. Beim erneuten Öffnen eines Tools wird die vorhandene Registerkarte fokussiert. Der Snippet-Editor und die AI-Code-Analyse öffnen jedes Mal einen neuen Tab. Die Einstellung wird beim nächsten Öffnen eines Tools wirksam.

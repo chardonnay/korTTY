@@ -1,4 +1,4 @@
-# Referenz zu den Einstellungen
+# Einstellungsreferenz
 
 Die Einstellungen von korTTY sind unter **Konfiguration → Globale Einstellungen…** verfügbar. Sie werden in `~/.kortty/global-settings.xml` gespeichert. Diese Referenz dokumentiert **jede** Einstellung, geordnet nach Registerkarten.
 
@@ -7,21 +7,22 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | Spalte | Bedeutung |
 | --- | --- |
 | Einstellung | Die im Dialogfeld angezeigte Bezeichnung |
-| Geben Sie | ein umschalten · Dropdown · Nummer · Text · Farbe · Pfad |
+| Typ | Umschalten · Dropdown · Nummer · Text · Farbe · Pfad |
 | Werte | Zulässige Werte/Bereich |
-| Standard | Standardwert |
+| Standardwert | Standardwert |
 | Gespeichert als | Das Feld in `global-settings.xml` |
 
-## Registerkarten „Einstellungen“.
+## Einstellungsregisterkarten
 
-| Tab | Was es steuert |
+| Registerkarte | Was es steuert |
 | --- | --- |
-| [Aussehen, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe |
+| [Aussehen, Themen und Schriftart](appearance.md) | App-Design (Standard, Matrix, Holografisch, Klingonisch, Elegant Dark), Terminal-Themen, Schriftfamilie und -größe, Schriftgröße der Benutzeroberfläche |
 | [Farben](colors.md) | Farbprofil, Text-/Hintergrund-/Cursor-/Auswahlfarben, Cursor-Blinken, die 16-Farben-ANSI-Palette |
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH-Keep-Alive, Überprüfung des SSH-Hostschlüssels, Verbindungswiederholungen, Drag-Drop, Zeitstempel |
 | [Fenster](window.md) | Wiederherstellung der Fenstergeometrie, feste Geometrie, Dashboard-Status, Menüleiste |
 | [Ressourcen](resources.md) | Opt-in-JVM-Heap/GC-Profil (Ausgeglichen/Hoch/Maximum) für größere Arbeitslasten |
-| [Protokollierung](logging.md) | Verzeichnis, Aufbewahrung und Format des Terminalprotokolls |
+| [Protokollierung](logging.md) | Verzeichnis und Aufbewahrung von Terminalprotokollen; Speicherung von Sitzungsjournalen, KI-Zusammenfassungen, Intervall und Profil |
+| [Export](export.md) | PDF-Wasserzeichen und Dokumentfußzeile für exportierte Sitzungsjournale und KI-Chats |
 | [Sicherung](backup.md) | Verschlüsselungstyp (ZIP-Passwort / GPG), maximale Backup-Anzahl |
 | [Aktualisierungen](updates.md) | Automatische Update-Überprüfung und -Intervall |
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
@@ -29,12 +30,12 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Sprache](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |
-| [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Quote, Internet-Tools |
+| [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Bildeingabe (Vision), Quote, Internet-Tools |
 | [SFTP-Manager](sftp.md) | Automatisches Schließen der SFTP-Registerkarte, Remote-ZIP-Standardeinstellungen, JobScheduler rsync-Binärdatei |
 | [Editor](editor.md) | Cursorstil und -farbe für Editor-Registerkarten |
 | [Snippet-Editor](snippet-editor.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
 
-Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und das [KI-Fähigkeiten](ai-skills.md) Bibliothek live in **AI > AI Manager** und nicht im globalen Einstellungsfenster; sehen [Lokale Modelle](../../features/local-models.md) Und [RAG-Wissensspeicher](../../features/rag.md).
+Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und die [KI-Fähigkeiten](ai-skills.md)-Bibliothek befinden sich in **KI > KI-Manager** statt im globalen Einstellungsfenster; siehe [Lokale Modelle](../../features/local-models.md) und [RAG-Wissensspeicher](../../features/rag.md).
 
 !!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.

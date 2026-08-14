@@ -16,7 +16,7 @@ Each per-tab page lists settings as a table:
 
 | Tab | What it controls |
 | --- | --- |
-| [Appearance, themes & font](appearance.md) | App design (Default, Matrix, Holographic, Klingon, Elegant Dark), terminal themes, font family & size |
+| [Appearance, themes & font](appearance.md) | App design (Default, Matrix, Holographic, Klingon, Elegant Dark), terminal themes, font family & size, UI font size |
 | [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
 | [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, SSH host key verification, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
@@ -30,7 +30,7 @@ Each per-tab page lists settings as a table:
 | [Language](language.md) | UI language selection (8 built-in) + auto-detect |
 | [Translation](translation.md) | External or local-AI translation provider, credentials, target language, generate language file |
 | [Video](video.md) | Terminal recording / `ffmpeg` video export |
-| [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, quota, internet tools |
+| [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, image input (vision), quota, internet tools |
 | [SFTP Manager](sftp.md) | SFTP tab auto-close, remote ZIP defaults, JobScheduler rsync binary |
 | [Editor](editor.md) | Cursor style and color for editor tabs |
 | [Snippet Editor](snippet-editor.md) | Font, color and cursor overrides for snippet windows |
