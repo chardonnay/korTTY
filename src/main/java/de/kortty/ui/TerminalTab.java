@@ -90,6 +90,10 @@ public class TerminalTab extends Tab {
     private boolean previousStatusBarManaged;
     private boolean previousDisconnectedStatusBarVisible;
     private boolean previousDisconnectedStatusBarManaged;
+    private javafx.scene.layout.HBox journalDecisionBar;
+    private Label journalDecisionLabel;
+    private boolean previousJournalDecisionBarVisible;
+    private boolean previousJournalDecisionBarManaged;
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
@@ -125,6 +129,7 @@ public class TerminalTab extends Tab {
         createStatusBar();
         // Create disconnected status bar (red bar, shown when server disconnects; double-click to reconnect)
         createDisconnectedStatusBar();
+        createJournalDecisionBar();
         createRecordingBar();
         createJournalBar();
         
@@ -144,6 +149,9 @@ public class TerminalTab extends Tab {
         }
         if (disconnectedStatusBar != null) {
             container.getChildren().add(disconnectedStatusBar);
+        }
+        if (journalDecisionBar != null) {
+            container.getChildren().add(journalDecisionBar);
         }
         javafx.scene.layout.VBox.setVgrow(terminalView, Priority.ALWAYS);
         
@@ -230,6 +238,58 @@ public class TerminalTab extends Tab {
         });
     }
 
+    /**
+     * Red decision bar shown when the connection ends while a journal is running: the user
+     * decides whether the session merely paused (reboot — reconnect and the journal continues)
+     * or is over (end the journal, which writes its closing summary). Without this bar a clean
+     * remote disconnect would silently close the tab and take the running journal with it.
+     */
+    private void createJournalDecisionBar() {
+        journalDecisionLabel = new Label();
+        journalDecisionLabel.setStyle("-fx-text-fill: white;");
+        Button reconnectButton = new Button(I18n.get("terminal.journal.disconnect.reconnect"));
+        reconnectButton.setOnAction(event -> triggerReconnect());
+        Button stopJournalButton = new Button(I18n.get("terminal.journal.disconnect.stop"));
+        stopJournalButton.setOnAction(event -> stopJournalAfterDisconnect());
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+        javafx.scene.layout.HBox.setHgrow(spacer, Priority.ALWAYS);
+        journalDecisionBar = new javafx.scene.layout.HBox(
+            10, journalDecisionLabel, spacer, reconnectButton, stopJournalButton);
+        journalDecisionBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        journalDecisionBar.setStyle("-fx-background-color: #8B0000; -fx-padding: 4 10;");
+        journalDecisionBar.setMaxWidth(Double.MAX_VALUE);
+        journalDecisionBar.setVisible(false);
+        journalDecisionBar.setManaged(false);
+    }
+
+    /** Shows the journal decision bar instead of the plain disconnected bar. */
+    private void showJournalDecisionBar() {
+        disconnectedAt = Instant.now();
+        String timeStr = DateTimeFormatter.ofPattern("HH:mm")
+            .format(disconnectedAt.atZone(ZoneId.systemDefault()));
+        if (journalDecisionLabel != null) {
+            journalDecisionLabel.setText(I18n.get("terminal.journal.disconnect.text", timeStr));
+        }
+        applyChromeAwareVisibility(journalDecisionBar, true, true);
+        if (statusBarLabel != null) {
+            applyChromeAwareVisibility(statusBarLabel, false, false);
+        }
+        refreshJournalUi();
+    }
+
+    /**
+     * The user chose to end the journal after a disconnect: stop it (the closing summary is
+     * written on its background pass) and fall back to the plain reconnect bar — the connection
+     * is still gone, only the journal decision is made.
+     */
+    private void stopJournalAfterDisconnect() {
+        stopJournal();
+        applyChromeAwareVisibility(journalDecisionBar, false, false);
+        Instant at = disconnectedAt != null ? disconnectedAt : Instant.now();
+        String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(at.atZone(ZoneId.systemDefault()));
+        showDisconnectedStatusBar(timeStr, false);
+    }
+
     private void createRecordingBar() {
         recordingToggleButton = new Button(I18n.get("terminal.recording.start"));
         setRecordingButtonIcon(false);
@@ -274,11 +334,14 @@ public class TerminalTab extends Tab {
             previousStatusBarManaged = statusBarLabel != null && statusBarLabel.isManaged();
             previousDisconnectedStatusBarVisible = disconnectedStatusBar != null && disconnectedStatusBar.isVisible();
             previousDisconnectedStatusBarManaged = disconnectedStatusBar != null && disconnectedStatusBar.isManaged();
+            previousJournalDecisionBarVisible = journalDecisionBar != null && journalDecisionBar.isVisible();
+            previousJournalDecisionBarManaged = journalDecisionBar != null && journalDecisionBar.isManaged();
             terminalChromeVisible = false;
             applyNodeVisibility(recordingBar, false, false);
             applyNodeVisibility(journalBar, false, false);
             applyNodeVisibility(statusBarLabel, false, false);
             applyNodeVisibility(disconnectedStatusBar, false, false);
+            applyNodeVisibility(journalDecisionBar, false, false);
             return;
         }
 
@@ -290,6 +353,10 @@ public class TerminalTab extends Tab {
             disconnectedStatusBar,
             previousDisconnectedStatusBarVisible,
             previousDisconnectedStatusBarManaged);
+        applyNodeVisibility(
+            journalDecisionBar,
+            previousJournalDecisionBarVisible,
+            previousJournalDecisionBarManaged);
     }
 
     public void refreshRecordingControlsVisibility() {
@@ -770,6 +837,9 @@ public class TerminalTab extends Tab {
         if (disconnectedStatusBar != null) {
             applyChromeAwareVisibility(disconnectedStatusBar, false, false);
         }
+        if (journalDecisionBar != null) {
+            applyChromeAwareVisibility(journalDecisionBar, false, false);
+        }
         if (statusBarLabel != null) {
             applyChromeAwareVisibility(statusBarLabel, true, true);
         }
@@ -789,6 +859,9 @@ public class TerminalTab extends Tab {
         } else if (node == disconnectedStatusBar) {
             previousDisconnectedStatusBarVisible = visible;
             previousDisconnectedStatusBarManaged = managed;
+        } else if (node == journalDecisionBar) {
+            previousJournalDecisionBarVisible = visible;
+            previousJournalDecisionBarManaged = managed;
         }
         node.setVisible(terminalChromeVisible && visible);
         node.setManaged(terminalChromeVisible && managed);
@@ -994,29 +1067,31 @@ public class TerminalTab extends Tab {
             // pane's shell exit must close only that pane, never the whole tab.
             boolean splitHasOtherPanes = terminalView.getTerminalPaneCount() > 1;
             Platform.runLater(() -> {
-                if (!wasError) {
-                    if (reconnectInProgress) {
-                        reconnectInProgress = false;
-                        return;
+                boolean isMoshSession = connection.getProtocol() == ConnectionProtocol.MOSH;
+                boolean isRemoteLogout = reason != null
+                        && reason.toLowerCase().contains("remote logout");
+                TerminalDisconnectSupport.Reaction reaction = TerminalDisconnectSupport.reactionFor(
+                    wasError, reconnectInProgress, isMoshSession, isRemoteLogout,
+                    splitHasOtherPanes, isJournalActive());
+                switch (reaction) {
+                    case IGNORE_RECONNECT_IN_PROGRESS -> reconnectInProgress = false;
+                    case PANE_CLOSED_ONLY -> {
+                        // The exiting pane is removed by the split's own auto-close; the tab lives on.
                     }
-                    boolean isMoshSession = connection.getProtocol() == ConnectionProtocol.MOSH;
-                    boolean isRemoteLogout = reason != null
-                            && reason.toLowerCase().contains("remote logout");
-                    if (!isMoshSession || isRemoteLogout) {
-                        // The exiting pane is removed by the split's own auto-close; only close the whole
-                        // tab when this was the last remaining pane.
-                        if (!splitHasOtherPanes) {
-                            closeTabSilently();
-                        }
-                        return;
+                    case CLOSE_TAB -> closeTabSilently();
+                    case KEEP_OPEN_JOURNAL_DECISION -> {
+                        isConnectionFailed = true;
+                        updateTabTitle(" (DISCONNECT)");
+                        setTabErrorColor();
+                        showJournalDecisionBar();
                     }
-                    // Transient mosh disconnect without hard error: keep tab open
-                    // and show reconnect/disconnect UI.
+                    case KEEP_OPEN_DISCONNECTED -> {
+                        isConnectionFailed = true;
+                        updateTabTitle(" (DISCONNECT)");
+                        setTabErrorColor();
+                        showDisconnectedStatusBar();
+                    }
                 }
-                isConnectionFailed = true;
-                updateTabTitle(" (DISCONNECT)");
-                setTabErrorColor();
-                showDisconnectedStatusBar();
             });
         });
         

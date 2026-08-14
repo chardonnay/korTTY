@@ -43,6 +43,15 @@ While a journal is available, a bar below the terminal shows its state (**Journa
 - **Screenshot** (++ctrl+alt+c++, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
 - **Note** opens a small input for a free-text remark that appears as its own timeline entry at the current position.
 
+### When the connection ends
+
+A journal is bound to its tab, not to a single connection. When the connection ends while the journal is running — a `reboot`, a dropped network, or the server closing the session — the tab **stays open** and a red decision bar appears instead of the tab closing silently:
+
+- **Reconnect** re-establishes the connection and the journal simply continues, with a reconnect marker in the capture log. Work that resumes after a server reboot lands in the same journal.
+- **End journal** stops the journal and writes its closing summary (and, if enabled, the AI title) exactly like the journal bar's stop button. The tab then shows the plain reconnect bar, so reconnecting is still possible — with journaling enabled for the connection, that new session starts a fresh journal.
+
+Closing the tab instead also ends the journal with its closing summary. Without a running journal the behavior is unchanged: a cleanly ended connection closes the tab, an error keeps it open with the reconnect bar (double-click to reconnect).
+
 ## The live journal panel
 
 **View > Live Journal** (or ++ctrl+alt+l++) docks the running journal's **full journal page** — the same page the [viewer](#the-journal-page) shows — to the **left or right** of the terminal, kept up to date in real time. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.
