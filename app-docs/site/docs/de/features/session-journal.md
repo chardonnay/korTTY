@@ -41,7 +41,15 @@ Verwenden Sie **Extras > Sitzungsjournal starten/stoppen** (++ctrl+alt+t++), das
 Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (**Journal aktiv seit HH:MM**) und bietet **Journal stoppen**, **Screenshot** und **Notiz**:
 
 - **Screenshot** (++ctrl+alt+c++, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.
-- **Notiz** öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.
+- **Notiz** öffnet den [Notiz-Editor](#notizen-schreiben) für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.
+
+### Notizen schreiben
+
+Notizen werden überall im selben Editor geschrieben – über die **Notiz**-Schaltfläche der Journalleiste, die des Live-Panels, das Eintragsformular im [Viewer](#der-viewer-und-die-bearbeitung) und den [Screenshot-Editor](#screenshot-notizen-und-anmerkungen):
+
+- Das Feld ist **mindestens sechs Zeilen** hoch und der Dialog lässt sich vergrößern – eine Notiz darf also ein Absatz sein und nicht nur eine Zeile.
+- **Links sind anklickbar.** Jede `http://`- oder `https://`-Adresse in einer Notiz wird zu einem Link auf der Journalseite – klicken Sie darauf und die Adresse wird in Ihrem Systembrowser geöffnet, niemals in der Journalansicht. Nur diese beiden Schemata werden überhaupt zu Links, und das nur in Text, den Sie selbst geschrieben haben: KI-Zusammenfassungen und Terminalauszüge bleiben unverändert.
+- **Übersetzen** übergibt die Notiz an die KI und ersetzt sie durch die Übersetzung in der neben der Schaltfläche ausgewählten Sprache. Die Liste enthält die Oberflächensprachen und jede Sprache, für die korTTY Übersetzungen mitbringt; eine nicht gelistete Sprache können Sie einfach eintippen. Ihre Auswahl wird für die nächste Notiz gemerkt. Die Übersetzung läuft auf dem Profil, das im [KI-Manager](../reference/settings/ai.md) unter **Profil für Text und Übersetzung** ausgewählt ist – derselben Rolle, die auch der Snippet-Editor zum Übersetzen nutzt; ist die Rolle leer, springt Ihr Standardprofil ein. Der Internetzugriff bleibt dabei deaktiviert, genau wie bei den Zusammenfassungen; ++cmd+z++ / ++ctrl+z++ holt das Original zurück. Ohne nutzbares KI-Profil ist die Schaltfläche deaktiviert und sagt warum.
 
 ### Wenn die Verbindung endet
 

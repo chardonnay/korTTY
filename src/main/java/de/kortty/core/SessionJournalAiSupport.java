@@ -57,6 +57,20 @@ public final class SessionJournalAiSupport {
 
     /** Production invoker bound to the running application; resolves profile fresh per call. */
     public static AiInvoker applicationInvoker() {
+        return invokerFor(SessionJournalAiSupport::resolveProfile, "session journal summaries");
+    }
+
+    /**
+     * Invoker bound to the AI manager's <em>Text and translation</em> role profile. Translating a
+     * note is a text-language job rather than a journal job, so it follows the model the user
+     * assigned to that role; only when the role is unset does the default profile step in.
+     */
+    public static AiInvoker textProfileInvoker() {
+        return invokerFor(SessionJournalAiSupport::resolveTextProfile, "text translation");
+    }
+
+    private static AiInvoker invokerFor(
+            java.util.function.Function<GlobalSettings, AiProfile> profileResolver, String purpose) {
         return new AiInvoker() {
             @Override
             public boolean isAvailable() {
@@ -68,7 +82,7 @@ public final class SessionJournalAiSupport {
                     if (app == null || app.getGlobalSettingsManager() == null) {
                         return false;
                     }
-                    return resolveProfile(app.getGlobalSettingsManager().getSettings()) != null;
+                    return profileResolver.apply(app.getGlobalSettingsManager().getSettings()) != null;
                 } catch (Exception e) {
                     return false;
                 }
@@ -81,9 +95,9 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("Application not available for AI execution");
                 }
                 GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-                AiProfile profile = resolveProfile(settings);
+                AiProfile profile = profileResolver.apply(settings);
                 if (profile == null) {
-                    throw new IllegalStateException("No AI profile available for session journal summaries");
+                    throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
                 try {
@@ -107,7 +121,7 @@ public final class SessionJournalAiSupport {
                     if (app == null || app.getGlobalSettingsManager() == null) {
                         return false;
                     }
-                    AiProfile profile = resolveProfile(app.getGlobalSettingsManager().getSettings());
+                    AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
                     return profile != null && AiVisionSupport.isVisionCapable(profile);
                 } catch (Exception e) {
                     return false;
@@ -122,9 +136,9 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("Application not available for AI execution");
                 }
                 GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-                AiProfile profile = resolveProfile(settings);
+                AiProfile profile = profileResolver.apply(settings);
                 if (profile == null) {
-                    throw new IllegalStateException("No AI profile available for screenshot analysis");
+                    throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
                 try {
@@ -146,7 +160,7 @@ public final class SessionJournalAiSupport {
                     if (app == null || app.getGlobalSettingsManager() == null) {
                         return null;
                     }
-                    AiProfile profile = resolveProfile(app.getGlobalSettingsManager().getSettings());
+                    AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
                     if (profile == null) {
                         return null;
                     }
@@ -157,6 +171,22 @@ public final class SessionJournalAiSupport {
                 }
             }
         };
+    }
+
+    /**
+     * The <em>Text and translation</em> role profile from the AI manager, falling back to the
+     * default profile when that role carries no selection.
+     */
+    public static AiProfile resolveTextProfile(GlobalSettings settings) {
+        if (settings == null || settings.getAiProfiles() == null || settings.getAiProfiles().isEmpty()) {
+            return null;
+        }
+        return AiProfileSelectionSupport.workloadProfile(
+            settings.getAiProfiles(),
+            de.kortty.model.AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     /**
@@ -257,6 +287,29 @@ public final class SessionJournalAiSupport {
         int cut = firstSentence.indexOf('.');
         String title = cut > 0 ? firstSentence.substring(0, Math.min(cut, 60)) : null;
         return new SummaryResult(title, sanitized.strip(), null);
+    }
+
+    /**
+     * Parses a note-translation reply leniently: the {@code {"translation": …}} object first, then
+     * the sanitized reply itself — a model that just answers with the translated text is doing the
+     * right thing in the wrong shape. Returns {@code null} when nothing usable is left, so the
+     * caller can keep the user's original note rather than overwrite it with noise.
+     */
+    public static String parseTranslation(String content) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String translation = json.has("translation") && !json.get("translation").isJsonNull()
+                ? json.get("translation").getAsString() : null;
+            // Valid JSON without the field is a wrong answer, not a differently shaped one.
+            return translation != null && !translation.isBlank() ? translation.strip() : null;
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return candidate.isBlank() ? null : candidate;
+        }
     }
 
     private static final int MAX_SCREENSHOT_TAGS = 8;

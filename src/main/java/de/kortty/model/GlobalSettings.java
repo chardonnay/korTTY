@@ -199,6 +199,10 @@ public class GlobalSettings {
     @XmlElement
     private boolean sessionJournalAiTitleEnabled = false; // Let the AI title the journal on close
 
+    /** Target language the note translation offers first; null = the interface language. */
+    @XmlElement
+    private String sessionJournalNoteTranslationLanguage;
+
     @XmlElement
     private boolean sessionJournalAiScreenshotAnalysisEnabled = true; // AI description + tags per screenshot
 
@@ -2098,6 +2102,18 @@ public class GlobalSettings {
         this.aiCodeTextDefaultLanguage =
             aiCodeTextDefaultLanguage != null && !aiCodeTextDefaultLanguage.isBlank()
                 ? aiCodeTextDefaultLanguage.trim()
+                : null;
+    }
+
+    /** Last target language of the journal note translation; remembered across dialogs. */
+    public String getSessionJournalNoteTranslationLanguage() {
+        return sessionJournalNoteTranslationLanguage;
+    }
+
+    public void setSessionJournalNoteTranslationLanguage(String sessionJournalNoteTranslationLanguage) {
+        this.sessionJournalNoteTranslationLanguage =
+            sessionJournalNoteTranslationLanguage != null && !sessionJournalNoteTranslationLanguage.isBlank()
+                ? sessionJournalNoteTranslationLanguage.trim()
                 : null;
     }
 
