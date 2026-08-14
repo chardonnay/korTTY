@@ -2041,6 +2041,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#notizen-schreiben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notizen schreiben
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2662,6 +2673,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#notizen-schreiben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notizen schreiben
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3017,7 +3039,14 @@
 <p>Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (<strong>Journal aktiv seit HH:MM</strong>) und bietet <strong>Journal stoppen</strong>, <strong>Screenshot</strong> und <strong>Notiz</strong>:</p>
 <ul>
 <li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.</li>
-<li><strong>Notiz</strong> öffnet eine kleine Eingabe für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.</li>
+<li><strong>Notiz</strong> öffnet den <a href="#notizen-schreiben">Notiz-Editor</a> für eine Freitext-Bemerkung, die als eigener Timeline-Eintrag an der aktuellen Position erscheint.</li>
+</ul>
+<h3 id="notizen-schreiben">Notizen schreiben<a class="headerlink" href="#notizen-schreiben" title="Permanent link">&para;</a></h3>
+<p>Notizen werden überall im selben Editor geschrieben – über die <strong>Notiz</strong>-Schaltfläche der Journalleiste, die des Live-Panels, das Eintragsformular im <a href="#der-viewer-und-die-bearbeitung">Viewer</a> und den <a href="#screenshot-notizen-und-anmerkungen">Screenshot-Editor</a>:</p>
+<ul>
+<li>Das Feld ist <strong>mindestens sechs Zeilen</strong> hoch und der Dialog lässt sich vergrößern – eine Notiz darf also ein Absatz sein und nicht nur eine Zeile.</li>
+<li><strong>Links sind anklickbar.</strong> Jede <code>http://</code>- oder <code>https://</code>-Adresse in einer Notiz wird zu einem Link auf der Journalseite – klicken Sie darauf und die Adresse wird in Ihrem Systembrowser geöffnet, niemals in der Journalansicht. Nur diese beiden Schemata werden überhaupt zu Links, und das nur in Text, den Sie selbst geschrieben haben: KI-Zusammenfassungen und Terminalauszüge bleiben unverändert.</li>
+<li><strong>Übersetzen</strong> übergibt die Notiz an die KI und ersetzt sie durch die Übersetzung in der neben der Schaltfläche ausgewählten Sprache. Die Liste enthält die Oberflächensprachen und jede Sprache, für die korTTY Übersetzungen mitbringt; eine nicht gelistete Sprache können Sie einfach eintippen. Ihre Auswahl wird für die nächste Notiz gemerkt. Die Übersetzung läuft auf dem Profil, das im <a href="../reference/settings/ai.html">KI-Manager</a> unter <strong>Profil für Text und Übersetzung</strong> ausgewählt ist – derselben Rolle, die auch der Snippet-Editor zum Übersetzen nutzt; ist die Rolle leer, springt Ihr Standardprofil ein. Der Internetzugriff bleibt dabei deaktiviert, genau wie bei den Zusammenfassungen; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-z">Z</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-z">Z</kbd></span> holt das Original zurück. Ohne nutzbares KI-Profil ist die Schaltfläche deaktiviert und sagt warum.</li>
 </ul>
 <h2 id="das-live-journal-panel">Das Live-Journal-Panel<a class="headerlink" href="#das-live-journal-panel" title="Permanent link">&para;</a></h2>
 <p><strong>Ansicht &gt; Live-Journal</strong> (oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) dockt die <strong>vollständige Journalseite</strong> des laufenden Journals an – dieselbe Seite wie die <a href="#die-journalseite">Zuschauer</a> zeigt – <strong>links oder rechts</strong> vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.</p>

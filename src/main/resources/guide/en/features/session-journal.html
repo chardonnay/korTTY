@@ -2041,6 +2041,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#writing-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing notes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2662,6 +2673,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#writing-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing notes
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3017,7 +3039,14 @@
 <p>While a journal is available, a bar below the terminal shows its state (<strong>Journal active since HH:MM</strong>) and offers <strong>Stop journal</strong>, <strong>Screenshot</strong> and <strong>Note</strong>:</p>
 <ul>
 <li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.</li>
-<li><strong>Note</strong> opens a small input for a free-text remark that appears as its own timeline entry at the current position.</li>
+<li><strong>Note</strong> opens the <a href="#writing-notes">note editor</a> for a free-text remark that appears as its own timeline entry at the current position.</li>
+</ul>
+<h3 id="writing-notes">Writing notes<a class="headerlink" href="#writing-notes" title="Permanent link">&para;</a></h3>
+<p>Notes are written in the same editor everywhere they are edited — the journal bar's <strong>Note</strong> button, the live panel's, the entry form in the <a href="#the-viewer-and-editing">viewer</a>, and the <a href="#screenshot-notes-and-annotations">screenshot editor</a>:</p>
+<ul>
+<li>The field holds <strong>at least six lines</strong> and the dialog can be resized, so a note can be a paragraph instead of a single line.</li>
+<li><strong>Links are clickable.</strong> Any <code>http://</code> or <code>https://</code> address in a note becomes a link on the journal page — click it and the address opens in your system browser, never inside the journal view. Only those two schemes ever become links, and only in text you wrote yourself: AI summaries and terminal excerpts stay literal.</li>
+<li><strong>Translate</strong> hands the note to the AI and replaces it with the translation in the language picked next to the button. The list offers the interface languages and any language korTTY has translations for, and it accepts a typed language it does not list. Your choice is remembered for the next note. The translation runs on the profile assigned to <strong>Text and translation profile</strong> in the <a href="../reference/settings/ai.html">AI manager</a> — the same role the snippet editor's translation uses — falling back to your default profile when that role is unset. Internet access stays disabled for it, exactly as for the summaries; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-z">Z</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-z">Z</kbd></span> brings the original back. Without a usable AI profile the button is disabled and says so.</li>
 </ul>
 <h2 id="the-live-journal-panel">The live journal panel<a class="headerlink" href="#the-live-journal-panel" title="Permanent link">&para;</a></h2>
 <p><strong>View &gt; Live Journal</strong> (or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) docks the running journal's <strong>full journal page</strong> — the same page the <a href="#the-journal-page">viewer</a> shows — to the <strong>left or right</strong> of the terminal, kept up to date in real time. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.</p>
