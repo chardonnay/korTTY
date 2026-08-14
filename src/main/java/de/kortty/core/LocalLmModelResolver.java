@@ -111,6 +111,38 @@ public final class LocalLmModelResolver {
         String apiKey,
         HttpClient httpClient) throws IOException, InterruptedException {
 
+        Optional<String> body = fetchLmStudioModelsBody(apiUrl, apiKey, httpClient);
+        if (body.isEmpty()) {
+            return Optional.empty();
+        }
+        return parseLmStudioReasoningEfforts(body.get(), configuredModel, selectionMode);
+    }
+
+    /** Reasoning and vision capabilities read from one LM Studio metadata GET. */
+    record LmStudioCapabilities(
+        Optional<List<AiReasoningEffort>> reasoningEfforts,
+        Optional<Boolean> visionCapable) {
+    }
+
+    static Optional<LmStudioCapabilities> loadLmStudioCapabilities(
+        String apiUrl,
+        String configuredModel,
+        AiModelSelectionMode selectionMode,
+        String apiKey,
+        HttpClient httpClient) throws IOException, InterruptedException {
+
+        Optional<String> body = fetchLmStudioModelsBody(apiUrl, apiKey, httpClient);
+        if (body.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new LmStudioCapabilities(
+            parseLmStudioReasoningEfforts(body.get(), configuredModel, selectionMode),
+            parseLmStudioVisionCapability(body.get(), configuredModel, selectionMode)));
+    }
+
+    private static Optional<String> fetchLmStudioModelsBody(String apiUrl, String apiKey, HttpClient httpClient)
+        throws IOException, InterruptedException {
+
         URI chatUri = parseUri(apiUrl);
         if (chatUri == null || !isHttpUri(chatUri) || !isSupportedChatEndpoint(chatUri.getPath())) {
             return Optional.empty();
@@ -136,7 +168,7 @@ public final class LocalLmModelResolver {
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             return Optional.empty();
         }
-        return parseLmStudioReasoningEfforts(response.body(), configuredModel, selectionMode);
+        return Optional.of(response.body());
     }
 
     static Optional<List<AiReasoningEffort>> loadLmStudioReasoningEfforts(
@@ -294,7 +326,7 @@ public final class LocalLmModelResolver {
                 continue;
             }
             JsonObject model = element.getAsJsonObject();
-            if (!"llm".equals(stringField(model, "type"))) {
+            if (!isChatModelType(stringField(model, "type"))) {
                 continue;
             }
             JsonArray loadedInstances = model.getAsJsonArray("loaded_instances");
@@ -367,54 +399,7 @@ public final class LocalLmModelResolver {
         if (models == null || models.isEmpty()) {
             return Optional.empty();
         }
-        AiModelSelectionMode effectiveMode = selectionMode != null
-            ? selectionMode
-            : AiModelSelectionMode.AUTO;
-        if (effectiveMode == AiModelSelectionMode.DEFAULT) {
-            // Omitting the model lets the provider choose its default; the metadata response does
-            // not identify which model that request will use, so active probes remain the safe path.
-            return Optional.empty();
-        }
-        String requestedModel = trimToNull(configuredModel);
-        List<JsonObject> llms = new ArrayList<>();
-        List<JsonObject> loadedLlms = new ArrayList<>();
-        for (JsonElement element : models) {
-            if (element == null || !element.isJsonObject()) {
-                continue;
-            }
-            JsonObject candidate = element.getAsJsonObject();
-            if (!"llm".equals(stringField(candidate, "type"))) {
-                continue;
-            }
-            llms.add(candidate);
-            JsonArray loadedInstances = arrayField(candidate, "loaded_instances");
-            if (loadedInstances != null && !loadedInstances.isEmpty()) {
-                loadedLlms.add(candidate);
-            }
-        }
-        JsonObject selected = null;
-        if (effectiveMode == AiModelSelectionMode.MANUAL) {
-            if (requestedModel == null) {
-                return Optional.empty();
-            }
-            for (JsonObject candidate : llms) {
-                if (matchesModelReference(candidate, requestedModel)) {
-                    selected = candidate;
-                    break;
-                }
-            }
-        } else if (loadedLlms.size() == 1) {
-            // AUTO uses the sole loaded LLM even when the persisted preference names an older,
-            // unloaded model. This mirrors selectAutoModel(), which resolves every real request.
-            selected = loadedLlms.get(0);
-        } else if (requestedModel != null) {
-            for (JsonObject candidate : loadedLlms) {
-                if (requestedModel.equals(stringField(candidate, "key"))) {
-                    selected = candidate;
-                    break;
-                }
-            }
-        }
+        JsonObject selected = selectLmStudioModel(models, configuredModel, selectionMode);
         if (selected == null) {
             return Optional.empty();
         }
@@ -442,6 +427,106 @@ public final class LocalLmModelResolver {
             }
         }
         return Optional.of(List.copyOf(efforts));
+    }
+
+    /**
+     * Vision capability of the selected model from a genuine LM Studio metadata answer. The same
+     * authority argument as for reasoning applies: once the model is identified, a missing vision
+     * marker is an authoritative "no image input", not an unknown. Empty means the model could not
+     * be identified (or the body is not LM Studio metadata) — name heuristics decide then.
+     */
+    static Optional<Boolean> parseLmStudioVisionCapability(
+        String responseBody,
+        String configuredModel,
+        AiModelSelectionMode selectionMode) {
+
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(responseBody).getAsJsonObject();
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+        JsonArray models = arrayField(root, "models");
+        if (models == null || models.isEmpty()) {
+            return Optional.empty();
+        }
+        JsonObject selected = selectLmStudioModel(models, configuredModel, selectionMode);
+        if (selected == null) {
+            return Optional.empty();
+        }
+        if ("vlm".equals(stringField(selected, "type"))) {
+            return Optional.of(Boolean.TRUE);
+        }
+        JsonObject capabilities = objectField(selected, "capabilities");
+        JsonElement vision = capabilities != null ? capabilities.get("vision") : null;
+        if (vision != null && vision.isJsonPrimitive() && vision.getAsJsonPrimitive().isBoolean()) {
+            return Optional.of(vision.getAsBoolean());
+        }
+        return Optional.of(Boolean.FALSE);
+    }
+
+    /**
+     * Identifies the model a request with the given selection mode would use. Returns {@code null}
+     * when the mode is DEFAULT (the metadata cannot tell which model the provider picks) or no
+     * model matches.
+     */
+    private static JsonObject selectLmStudioModel(
+        JsonArray models, String configuredModel, AiModelSelectionMode selectionMode) {
+
+        AiModelSelectionMode effectiveMode = selectionMode != null
+            ? selectionMode
+            : AiModelSelectionMode.AUTO;
+        if (effectiveMode == AiModelSelectionMode.DEFAULT) {
+            // Omitting the model lets the provider choose its default; the metadata response does
+            // not identify which model that request will use, so active probes remain the safe path.
+            return null;
+        }
+        String requestedModel = trimToNull(configuredModel);
+        List<JsonObject> llms = new ArrayList<>();
+        List<JsonObject> loadedLlms = new ArrayList<>();
+        for (JsonElement element : models) {
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            JsonObject candidate = element.getAsJsonObject();
+            if (!isChatModelType(stringField(candidate, "type"))) {
+                continue;
+            }
+            llms.add(candidate);
+            JsonArray loadedInstances = arrayField(candidate, "loaded_instances");
+            if (loadedInstances != null && !loadedInstances.isEmpty()) {
+                loadedLlms.add(candidate);
+            }
+        }
+        if (effectiveMode == AiModelSelectionMode.MANUAL) {
+            if (requestedModel == null) {
+                return null;
+            }
+            for (JsonObject candidate : llms) {
+                if (matchesModelReference(candidate, requestedModel)) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+        if (loadedLlms.size() == 1) {
+            // AUTO uses the sole loaded LLM even when the persisted preference names an older,
+            // unloaded model. This mirrors selectAutoModel(), which resolves every real request.
+            return loadedLlms.get(0);
+        }
+        if (requestedModel != null) {
+            for (JsonObject candidate : loadedLlms) {
+                if (requestedModel.equals(stringField(candidate, "key"))) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** LM Studio reports text models as {@code llm} and vision models as {@code vlm}. */
+    private static boolean isChatModelType(String type) {
+        return "llm".equals(type) || "vlm".equals(type);
     }
 
     private static boolean matchesModelReference(JsonObject model, String reference) {

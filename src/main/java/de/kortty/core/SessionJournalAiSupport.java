@@ -23,12 +23,33 @@ public final class SessionJournalAiSupport {
     public record SummaryResult(String title, String summary, String category) {
     }
 
+    /** Parsed screenshot-analysis reply; both parts optional but never both empty. */
+    public record ScreenshotAnalysis(String description, List<String> tags) {
+    }
+
     /** Abstraction the summarizer calls; tests supply a mock, production resolves per call. */
     public interface AiInvoker {
         /** True when an AI profile is resolvable and policy permits AI features. */
         boolean isAvailable();
 
         AiExecutionResult execute(String systemPrompt, String userPrompt) throws Exception;
+
+        /** True when the journal profile also accepts image input; see {@link AiVisionSupport}. */
+        default boolean isVisionAvailable() {
+            return false;
+        }
+
+        /** Executes a strict-JSON prompt with images; only called when {@link #isVisionAvailable()}. */
+        default AiExecutionResult executeVision(
+            String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+
+            throw new UnsupportedOperationException("Vision execution is not available");
+        }
+
+        /** Display label of the model behind {@link #executeVision}, for provenance; may be null. */
+        default String visionModelLabel() {
+            return null;
+        }
     }
 
     private SessionJournalAiSupport() {
@@ -73,6 +94,66 @@ public final class SessionJournalAiSupport {
                     }
                     return service.executeJsonPromptWithoutResponseFormat(
                         systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
+                }
+            }
+
+            @Override
+            public boolean isVisionAvailable() {
+                try {
+                    if (!de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                        return false;
+                    }
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null) {
+                        return false;
+                    }
+                    AiProfile profile = resolveProfile(app.getGlobalSettingsManager().getSettings());
+                    return profile != null && AiVisionSupport.isVisionCapable(profile);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public AiExecutionResult executeVision(
+                    String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
+                KorTTYApplication app = KorTTYApplication.getInstance();
+                if (app == null || app.getGlobalSettingsManager() == null) {
+                    throw new IllegalStateException("Application not available for AI execution");
+                }
+                GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+                AiProfile profile = resolveProfile(settings);
+                if (profile == null) {
+                    throw new IllegalStateException("No AI profile available for screenshot analysis");
+                }
+                AiPromptService service = createService(app, settings, profile);
+                try {
+                    return service.executeVisionJsonPrompt(
+                        systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
+                } catch (java.io.IOException e) {
+                    if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                        throw e;
+                    }
+                    return service.executeVisionJsonPromptWithoutResponseFormat(
+                        systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
+                }
+            }
+
+            @Override
+            public String visionModelLabel() {
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null) {
+                        return null;
+                    }
+                    AiProfile profile = resolveProfile(app.getGlobalSettingsManager().getSettings());
+                    if (profile == null) {
+                        return null;
+                    }
+                    String model = profile.getModel();
+                    return model != null && !model.isBlank() ? model.trim() : profile.getName();
+                } catch (Exception e) {
+                    return null;
                 }
             }
         };
@@ -176,6 +257,72 @@ public final class SessionJournalAiSupport {
         int cut = firstSentence.indexOf('.');
         String title = cut > 0 ? firstSentence.substring(0, Math.min(cut, 60)) : null;
         return new SummaryResult(title, sanitized.strip(), null);
+    }
+
+    private static final int MAX_SCREENSHOT_TAGS = 8;
+    private static final int MAX_SCREENSHOT_TAG_LENGTH = 40;
+
+    /**
+     * Parses the screenshot-analysis JSON reply leniently, mirroring {@link #parseSummaryResult}:
+     * think-blocks are stripped, a markdown fence is unwrapped, and unparsable content degrades to
+     * a description-only result. Tags are normalized (markup stripped, lowercased, deduplicated)
+     * and capped at {@value #MAX_SCREENSHOT_TAGS}. Returns {@code null} when nothing usable is
+     * left — the entry then simply stays unanalyzed.
+     */
+    public static ScreenshotAnalysis parseScreenshotAnalysis(String content) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String description = json.has("description") && !json.get("description").isJsonNull()
+                ? json.get("description").getAsString() : null;
+            List<String> tags = new java.util.ArrayList<>();
+            if (json.has("tags") && json.get("tags").isJsonArray()) {
+                for (com.google.gson.JsonElement element : json.getAsJsonArray("tags")) {
+                    if (tags.size() >= MAX_SCREENSHOT_TAGS) {
+                        break;
+                    }
+                    try {
+                        String tag = normalizeScreenshotTag(element.getAsString());
+                        if (tag != null && !tags.contains(tag)) {
+                            tags.add(tag);
+                        }
+                    } catch (RuntimeException ignored) {
+                        // A non-string element is a model slip, not a reason to discard the answer.
+                    }
+                }
+            }
+            description = description != null && !description.isBlank() ? description.strip() : null;
+            if (description != null || !tags.isEmpty()) {
+                return new ScreenshotAnalysis(description, List.copyOf(tags));
+            }
+            return null;
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            // Prose fallback: the whole reply is the description, there are no tags.
+            return new ScreenshotAnalysis(sanitized.strip(), List.of());
+        }
+    }
+
+    private static String normalizeScreenshotTag(String tag) {
+        if (tag == null) {
+            return null;
+        }
+        String normalized = tag
+            .replace("`", "")
+            .replace("\"", "")
+            .replace("#", "")
+            .replaceAll("\\s+", " ")
+            .strip();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.length() > MAX_SCREENSHOT_TAG_LENGTH) {
+            normalized = normalized.substring(0, MAX_SCREENSHOT_TAG_LENGTH).stripTrailing();
+        }
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     /** Normalizes an AI-produced title: strips markup characters, collapses whitespace, caps length. */

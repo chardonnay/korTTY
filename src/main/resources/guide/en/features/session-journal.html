@@ -2097,6 +2097,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-screenshot-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI screenshot analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#password-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2729,6 +2740,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ai-screenshot-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI screenshot analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#password-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3097,6 +3119,11 @@
 <td>Journal manager <strong>Options</strong> or <strong>Settings &gt; Logging &gt; Session Journal</strong></td>
 <td>Default profile</td>
 </tr>
+<tr>
+<td>Analyze screenshots with AI (description and tags)</td>
+<td>Journal manager <strong>Options</strong></td>
+<td>on</td>
+</tr>
 </tbody>
 </table>
 <p>Summaries use your <strong>default AI profile</strong> unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's <strong>Options</strong> dialog, <strong>Settings &gt; Logging &gt; Session Journal</strong>, and <strong>AI &gt; AI Manager &gt; Local AI</strong> next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.</p>
@@ -3109,6 +3136,17 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The journal works without AI: if no AI profile is available, AI features are disabled, or summaries are switched off, the timeline records raw activity entries instead. AI summary prompts never use internet-access tools; the terminal excerpt goes only to the configured AI profile.</p>
+</div>
+<h2 id="ai-screenshot-analysis">AI screenshot analysis<a class="headerlink" href="#ai-screenshot-analysis" title="Permanent link">&para;</a></h2>
+<p>When the journal's AI profile accepts images, screenshots are analyzed as well: the model writes a short <strong>description</strong> (one to three sentences) and a handful of lowercase <strong>tags</strong>, shown to the right of the thumbnail on the journal page. Tags are clickable chips — clicking one starts a <a href="#searching-the-journal">journal search</a> for that tag — and both texts are found by the manager's <strong>Search contents</strong> scan, rewritten by <a href="#search-and-replace">search and replace</a> and the automatic redaction rules, and included in the Markdown and PDF exports. Like the summaries, the analysis answers in the language the journal was created under.</p>
+<ul>
+<li><strong>Analyze screenshots with AI (description and tags)</strong> in the journal manager's <strong>Options</strong> dialog controls the automatic analysis on capture (on by default). It runs only when AI summaries are enabled for the connection and the profile can take images; otherwise the screenshot is simply filed unanalyzed.</li>
+<li><strong>Analyze screenshot with AI</strong> in the right-click menu of a screenshot analyzes one picture on demand — the way to analyze screenshots in journals recorded earlier, to retry a failed run, or to re-run the analysis after making something unreadable in the <a href="#screenshot-notes-and-annotations">annotation editor</a>. The analysis always reads the annotated picture, never the untouched <code>.orig.png</code> capture.</li>
+</ul>
+<p>Whether a profile can take images is a per-profile property: <strong>Image input (vision)</strong> in the <a href="../reference/settings/ai.html">AI settings</a> defaults to <strong>Auto</strong> — for a local LM Studio endpoint korTTY reads the answer from the model metadata (during the same refresh that discovers the reasoning options), for cloud endpoints it recognizes the common vision-capable model names — and can be overridden with <strong>Enabled</strong>/<strong>Disabled</strong> for models the detection misjudges.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The automatic analysis sends the screenshot at capture time — before you had a chance to make anything unreadable. The picture goes only to the configured AI profile and never through internet-access tools, but for sessions whose screen content must not leave the machine, switch the option off or have your administrator forbid the analysis via <a href="#enterprise-policy">enterprise policy</a> — the policy mandate also disables the manual run.</p>
 </div>
 <h2 id="password-protection">Password protection<a class="headerlink" href="#password-protection" title="Permanent link">&para;</a></h2>
 <p>Typed input is captured only as complete submitted lines, and several layers keep passwords out of the journal:</p>
@@ -3128,12 +3166,12 @@
 <li>A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a <strong>live</strong> badge. The line below the title only carries what the title does not already say, so a journal named after its endpoint states the connection once instead of three times.</li>
 <li>The timeline groups entries by day; each entry carries its time, a marker dot and badge in the colour you gave that marker, the AI title and summary, and color-coded input (green) and output (blue) excerpts.</li>
 <li>Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (<span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> also cycle matches, <span class="keys"><kbd class="key-escape">Esc</kbd></span> closes), and colors input and output lines differently.</li>
-<li>Screenshot entries show thumbnails; clicking one opens a full-size lightbox.</li>
+<li>Screenshot entries show thumbnails; clicking one opens a full-size lightbox. If the <a href="#ai-screenshot-analysis">AI screenshot analysis</a> ran, its description and tag chips sit to the right of the picture, and a chip click searches the journal for that tag.</li>
 <li>The page renders dark by default, follows the system light/dark preference and has its own theme toggle.</li>
 <li>Screenshots, excerpt panels, the timeline column and the log panel size themselves to the window, so the page stays readable in a narrow viewer tab as well as full screen. Long excerpts scroll inside their own box instead of stretching the timeline.</li>
 </ul>
 <h3 id="searching-the-journal">Searching the journal<a class="headerlink" href="#searching-the-journal" title="Permanent link">&para;</a></h3>
-<p>The magnifier in the header opens a search bar directly under the connection details (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> jump between the hits, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or ✕ closes the bar and clears the highlighting.</p>
+<p>The magnifier in the header opens a search bar directly under the connection details (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> jump between the hits, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or ✕ closes the bar and clears the highlighting.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across <em>all</em> journals with <strong>Search contents</strong>.</p>
@@ -3222,7 +3260,7 @@
 <p><strong>Tools &gt; Session Journals…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
 <p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
 <ul>
-<li>The filter field matches title, connection, host, user and description; enabling <strong>Search contents</strong> additionally scans the journal entries and capture logs of every journal in the background.</li>
+<li>The filter field matches title, connection, host, user and description; enabling <strong>Search contents</strong> additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background.</li>
 <li><strong>Open</strong> (or double-click) opens the journal viewer; <strong>Rename</strong> changes the title; <strong>Delete</strong> asks for confirmation and then permanently removes the journal folder including the log and all screenshots.</li>
 <li>Several journals can be selected at once (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span> click) to delete or export them in one step. Running journals cannot be renamed or deleted.</li>
 <li>The <strong>Description</strong> area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.</li>
@@ -3247,12 +3285,16 @@
 <td>Opens the editor described below</td>
 </tr>
 <tr>
+<td><strong>Analyze screenshot with AI</strong></td>
+<td>Runs the <a href="#ai-screenshot-analysis">AI screenshot analysis</a> for this picture; offered when an image-capable AI profile is configured and policy allows the analysis</td>
+</tr>
+<tr>
 <td><strong>Export screenshot…</strong></td>
 <td>Saves the picture, with its marks, to a file you choose</td>
 </tr>
 </tbody>
 </table>
-<p>Both also sit in the context menu of the edit mode's entry table, and double-clicking a screenshot row opens the editor directly. They only appear inside korTTY: a standalone page in a browser can neither rewrite the journal nor reach a file dialog.</p>
+<p>Edit and export also sit in the context menu of the edit mode's entry table, and double-clicking a screenshot row opens the editor directly. These actions only appear inside korTTY: a standalone page in a browser can neither rewrite the journal nor reach a file dialog.</p>
 <p>Inside korTTY the journal's <strong>title</strong> is editable from the page too: double-click it, or right-click it and choose <strong>Rename journal…</strong> — the same rename the manager offers, subject to the same organisation policy.</p>
 <p>The editor itself:</p>
 <table>
@@ -3428,7 +3470,7 @@
 <p>By default every exported document carries a footer stating that it was created with korTTY, with a link to the project repository — at the bottom of each PDF page, at the end of the Markdown file, and in the footer of the journal page inside the HTML bundle. PDFs can additionally carry a diagonal watermark, which is <strong>off by default</strong>.</p>
 <p>Both are configured under <a href="../reference/settings/export.html"><strong>Configuration → Global Settings → Export</strong></a>, where you can change the footer text, turn the footer off, enable the watermark and choose its text and colour. The same settings apply to AI chat exports.</p>
 <h2 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h2>
-<p>Administrators can deny the feature (<code>session-journal</code> under <code>[rule.features]</code>), or mandate its behavior via <code>[rule.session-journal]</code>: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template and enforce the closing AI title. See <a href="../reference/enterprise-policy.html">Enterprise policy</a> for the keys.</p>
+<p>Administrators can deny the feature (<code>session-journal</code> under <code>[rule.features]</code>), or mandate its behavior via <code>[rule.session-journal]</code>: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the <a href="#ai-screenshot-analysis">AI screenshot analysis</a> on or off — a forced <em>off</em> also disables the manual per-screenshot run. See <a href="../reference/enterprise-policy.html">Enterprise policy</a> for the keys.</p>
 <h3 id="automatic-redaction">Automatic redaction<a class="headerlink" href="#automatic-redaction" title="Permanent link">&para;</a></h3>
 <p>A <code>[[rule.session-journal.replace]]</code> list makes korTTY apply search-and-replace automatically, with regular expressions if the administrator wants them — for cloud access keys, internal hostnames, ticket numbers, anything that must never end up in a transcript:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[rule.session-journal.replace]]</span>

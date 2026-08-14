@@ -311,7 +311,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                     boolean match = service.loadDocument(dir).getEntries().stream().anyMatch(entry ->
                         containsIgnoreCase(entry.getTitle(), query)
                             || containsIgnoreCase(entry.getText(), query)
-                            || containsIgnoreCase(entry.getUserNote(), query));
+                            || containsIgnoreCase(entry.getUserNote(), query)
+                            || containsIgnoreCase(entry.getAiDescription(), query)
+                            || entry.getAiTags().stream().anyMatch(tag -> containsIgnoreCase(tag, query)));
                     if (!match) {
                         for (SessionJournalLogEntry logEntry : service.readLogAfter(dir, 0)) {
                             if (containsIgnoreCase(logEntry.text(), query)) {
@@ -590,6 +592,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         CheckBox aiTitleCheck = new CheckBox(I18n.get("journal.options.aiTitle"));
         aiTitleCheck.setSelected(settings.isSessionJournalAiTitleEnabled());
 
+        CheckBox aiScreenshotCheck = new CheckBox(I18n.get("journal.options.aiScreenshotAnalysis"));
+        aiScreenshotCheck.setSelected(settings.isSessionJournalAiScreenshotAnalysisEnabled());
+
         // Dedicated journal AI profile; empty = the user's default AI profile.
         ComboBox<de.kortty.model.AiProfile> aiProfileCombo = new ComboBox<>();
         aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
@@ -637,6 +642,12 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             aiTitleCheck.setDisable(true);
             anyManaged = true;
         }
+        if (journalPolicy.aiScreenshotAnalysis() != null) {
+            // Bidirectional, unlike ai-title: true forces the analysis on, false forbids it.
+            aiScreenshotCheck.setSelected(journalPolicy.aiScreenshotAnalysis());
+            aiScreenshotCheck.setDisable(true);
+            anyManaged = true;
+        }
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -657,6 +668,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         grid.add(chunkingCheck, 0, row++, 2, 1);
         grid.add(chunkingWarning, 0, row++, 2, 1);
         grid.add(aiTitleCheck, 0, row++, 2, 1);
+        grid.add(aiScreenshotCheck, 0, row++, 2, 1);
         if (anyManaged) {
             grid.add(managedHint, 0, row, 2, 1);
         }
@@ -675,6 +687,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         settings.setSessionJournalAiChunkingEnabled(chunkingCheck.isSelected());
         if (!aiTitleCheck.isDisabled()) {
             settings.setSessionJournalAiTitleEnabled(aiTitleCheck.isSelected());
+        }
+        if (!aiScreenshotCheck.isDisabled()) {
+            settings.setSessionJournalAiScreenshotAnalysisEnabled(aiScreenshotCheck.isSelected());
         }
         de.kortty.model.AiProfile selectedProfile = aiProfileCombo.getValue();
         settings.setSessionJournalAiProfileId(selectedProfile != null ? selectedProfile.getId() : null);

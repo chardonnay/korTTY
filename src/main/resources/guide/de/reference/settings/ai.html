@@ -1359,6 +1359,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#bild-eingabe-vision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bild-Eingabe (Vision)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#token-kontingentverwaltung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2548,6 +2559,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#bild-eingabe-vision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bild-Eingabe (Vision)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#token-kontingentverwaltung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2833,6 +2855,13 @@
 <td>(Profilfeld <code>reasoningEffort</code>)</td>
 </tr>
 <tr>
+<td>Bild-Eingabe (Vision)</td>
+<td>Dropdown-Liste</td>
+<td>Automatisch (erkennen), Aktiviert, Deaktiviert</td>
+<td>Automatisch (erkennen)</td>
+<td>(Profilfeld <code>visionSupport</code>)</td>
+</tr>
+<tr>
 <td>Internetzugang</td>
 <td>Dropdown-Liste</td>
 <td>Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack</td>
@@ -3092,6 +3121,8 @@
 </ul>
 <p>Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche <strong>Reasoning-Optionen aktualisieren</strong>, um verfügbare Ebenen für das aktuelle Profil und Modell zu ermitteln. Wenn LM Studio <code>capabilities.reasoning.allowed_options</code> über seine nativen Modellmetadaten veröffentlicht, verwendet korTTY genau diese Liste, anstatt einen stillschweigend konvertierten Wert als unterstützt zu behandeln. Bei einem binären <code>off</code>/<code>on</code>-Modell schaltet eine explizite <code>none</code>-Anfrage diese Funktion aus, während das Weglassen des Reasoning-Parameters den veröffentlichten Standardwert des Modells verwendet; Die nicht unterstützten Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ und „Extra hoch“ werden nicht angeboten. Ein Modell, dessen LM Studio-Metadaten überhaupt keine Reasoning-Fähigkeit veröffentlichen – einschließlich eines virtuellen Modells, das seine Reasoning-Metadaten auf „falsch“ überschreibt – bietet nur <strong>Deaktiviert</strong>: LM Studio überspringt einen nicht unterstützten Reasoning-Wert zur Anforderungszeit mit einer Protokollwarnung, anstatt die Anfrage abzulehnen, sodass eine aktive Prüfung jede Ebene als unterstützt verwechseln würde. Ebenen, die eine frühere korTTY-Version erkannt hat, werden nicht übernommen, da sie möglicherweise von genau dieser Sonde stammen: Bis Sie erneut auf <strong>Reasoning-Optionen aktualisieren</strong> klicken, greift ein HTTP- oder CLI-Profil auf die konservativen Standardeinstellungen für seinen Modellnamen zurück, und eine Ebene, die nicht mehr angeboten wird, wird aus der Anfrage gelöscht, wobei in einer Protokollzeile die tatsächlich verwendete Ebene genannt wird. Profile, die ein integriertes Modell verwenden, behalten ihre erkannten Werte bei. Andere kompatible Endpunkte verwenden weiterhin aktive Verbindungsprüfungen, wenn keine derartigen Metadaten verfügbar sind.</p>
 <p>Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene <strong>erweitertes Denken</strong> mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.</p>
+<h3 id="bild-eingabe-vision">Bild-Eingabe (Vision)<a class="headerlink" href="#bild-eingabe-vision" title="Permanent link">&para;</a></h3>
+<p><strong>Bild-Eingabe (Vision)</strong> entscheidet, ob korTTY für dieses Profil Bilder an einen Prompt anhängen darf – genutzt von der <a href="../../features/session-journal.html#ki-screenshot-analyse">KI-Screenshot-Analyse des Sitzungsjournals</a>. <strong>Automatisch (erkennen)</strong> leitet die Fähigkeit vom Endpunkt ab: Für einen lokalen LM-Studio-Endpunkt sind die Modellmetadaten maßgeblich (ein <code>vlm</code>-Modell gilt als bildfähig; die Antwort wird während desselben <strong>Reasoning-Optionen aktualisieren</strong>-Aufrufs gelesen und mit ihm zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden an bekannten Vision-Modellnamen erkannt (GPT-4o/4.&#8533;, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). <strong>Aktiviert</strong>/<strong>Deaktiviert</strong> übersteuern die Erkennung für Modelle, die sie falsch einschätzt. CLI- und integrierte (llama.cpp/MLX-)Profile können keine Bilder senden. Lokale LM-Studio-Vision-Modelle (<code>vlm</code>) erscheinen jetzt auch in der Modellauswahl.</p>
 <h3 id="token-kontingentverwaltung">Token-Kontingentverwaltung<a class="headerlink" href="#token-kontingentverwaltung" title="Permanent link">&para;</a></h3>
 <p>Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrollen:</p>
 <ul>

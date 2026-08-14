@@ -263,7 +263,7 @@ public final class SessionJournalScreenshotAnnotator {
     }
 
     /** Resolves a journal-relative path and refuses anything escaping the journal directory. */
-    private static Path resolveInside(Path journalDir, String relative) {
+    static Path resolveInside(Path journalDir, String relative) {
         if (relative == null || relative.isBlank()) {
             return null;
         }

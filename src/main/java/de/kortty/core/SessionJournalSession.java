@@ -331,9 +331,9 @@ public class SessionJournalSession implements AutoCloseable {
      * appends a SCREENSHOT entry to the journal document. Safe to call from any thread; the
      * image bytes are written on the caller's thread.
      *
-     * @return the sequence number assigned to the screenshot
+     * @return the appended SCREENSHOT entry; its log sequence is {@code getLogStartSeq()}
      */
-    public long attachScreenshot(byte[] pngBytes, String caption) throws IOException {
+    public SessionJournalEntry attachScreenshot(byte[] pngBytes, String caption) throws IOException {
         if (!running || closed) {
             throw new IOException("Session journal is not active");
         }
@@ -354,7 +354,7 @@ public class SessionJournalSession implements AutoCloseable {
         entry.setLogStartSeq(seq);
         entry.setLogEndSeq(seq);
         service.appendEntry(directory, entry);
-        return seq;
+        return entry;
     }
 
     /**

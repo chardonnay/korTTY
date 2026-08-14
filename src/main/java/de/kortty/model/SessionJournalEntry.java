@@ -108,6 +108,19 @@ public class SessionJournalEntry {
     @XmlElement(name = "annotation")
     private List<SessionJournalAnnotation> annotations;
 
+    /** AI-generated screenshot description; only on SCREENSHOT entries, null until analyzed. */
+    @XmlElement
+    private String aiDescription;
+
+    /** AI-generated free-form screenshot tags; only on SCREENSHOT entries. */
+    @XmlElementWrapper(name = "aiTags")
+    @XmlElement(name = "tag")
+    private List<String> aiTags;
+
+    /** Display text of the model that produced {@link #aiDescription}; null otherwise. */
+    @XmlElement
+    private String aiAnalysisModel;
+
     /** Display text of the LLM behind an AGENT entry's run (profile/model); null otherwise. */
     @XmlElement
     private String agentModel;
@@ -149,6 +162,9 @@ public class SessionJournalEntry {
                 this.annotations.add(new SessionJournalAnnotation(annotation));
             }
         }
+        this.aiDescription = other.aiDescription;
+        this.aiTags = other.aiTags != null ? new ArrayList<>(other.aiTags) : null;
+        this.aiAnalysisModel = other.aiAnalysisModel;
         this.agentModel = other.agentModel;
         this.agentDurationMillis = other.agentDurationMillis;
         this.agentTokens = other.agentTokens;
@@ -338,15 +354,51 @@ public class SessionJournalEntry {
         return annotations != null && !annotations.isEmpty();
     }
 
+    public String getAiDescription() {
+        return aiDescription;
+    }
+
+    public void setAiDescription(String aiDescription) {
+        this.aiDescription = aiDescription;
+    }
+
+    /** Live list; only analyzed SCREENSHOT entries ever carry tags. */
+    public List<String> getAiTags() {
+        if (aiTags == null) {
+            aiTags = new ArrayList<>();
+        }
+        return aiTags;
+    }
+
+    public void setAiTags(List<String> aiTags) {
+        this.aiTags = aiTags != null ? new ArrayList<>(aiTags) : null;
+    }
+
+    public boolean hasAiAnalysis() {
+        return (aiDescription != null && !aiDescription.isBlank())
+            || (aiTags != null && !aiTags.isEmpty());
+    }
+
+    public String getAiAnalysisModel() {
+        return aiAnalysisModel;
+    }
+
+    public void setAiAnalysisModel(String aiAnalysisModel) {
+        this.aiAnalysisModel = aiAnalysisModel;
+    }
+
     /**
-     * Drops the empty annotation list before marshalling. JAXB writes an
-     * {@code @XmlElementWrapper} even when the collection is empty, and every non-screenshot entry
-     * would otherwise grow a stray element. The getter recreates the list on demand.
+     * Drops empty lists before marshalling. JAXB writes an {@code @XmlElementWrapper} even when
+     * the collection is empty, and every non-screenshot entry would otherwise grow stray
+     * elements. The getters recreate the lists on demand.
      */
     @SuppressWarnings("unused")
     private void beforeMarshal(jakarta.xml.bind.Marshaller marshaller) {
         if (annotations != null && annotations.isEmpty()) {
             annotations = null;
+        }
+        if (aiTags != null && aiTags.isEmpty()) {
+            aiTags = null;
         }
     }
 }

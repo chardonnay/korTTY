@@ -59,6 +59,17 @@ public class AiProfile {
     private String reasoningDiscoveryKey;
 
     @XmlElement
+    private AiVisionMode visionSupport;
+
+    /**
+     * Vision capability read from LM Studio model metadata during the same discovery run that
+     * fills {@link #discoveredReasoningEfforts}; guarded by {@link #reasoningDiscoveryKey}.
+     * {@code null} means no discovery has determined it — heuristics decide then.
+     */
+    @XmlElement
+    private Boolean discoveredVisionCapable;
+
+    @XmlElement
     private AiInternetAccessMode internetAccessMode = AiInternetAccessMode.DISABLED;
 
     @XmlElement
@@ -150,6 +161,8 @@ public class AiProfile {
         this.reasoningEffort = source.getReasoningEffort();
         this.discoveredReasoningEfforts = copyReasoningEfforts(source.getDiscoveredReasoningEfforts());
         this.reasoningDiscoveryKey = source.reasoningDiscoveryKey;
+        this.visionSupport = source.visionSupport;
+        this.discoveredVisionCapable = source.discoveredVisionCapable;
         this.internetAccessMode = source.getInternetAccessMode();
         this.encryptedApiKey = source.encryptedApiKey;
         this.cliProviderId = source.cliProviderId;
@@ -287,6 +300,24 @@ public class AiProfile {
             discoveredReasoningEfforts = new ArrayList<>();
         }
         return discoveredReasoningEfforts;
+    }
+
+    /** Never {@code null}; a missing value reads as {@link AiVisionMode#AUTO} (older XML). */
+    public AiVisionMode getVisionSupport() {
+        return visionSupport != null ? visionSupport : AiVisionMode.AUTO;
+    }
+
+    public void setVisionSupport(AiVisionMode visionSupport) {
+        this.visionSupport = visionSupport;
+    }
+
+    /** Nullable: {@code null} means "not discovered", not "no vision". */
+    public Boolean getDiscoveredVisionCapable() {
+        return discoveredVisionCapable;
+    }
+
+    public void setDiscoveredVisionCapable(Boolean discoveredVisionCapable) {
+        this.discoveredVisionCapable = discoveredVisionCapable;
     }
 
     public void setDiscoveredReasoningEfforts(List<AiReasoningEffort> discoveredReasoningEfforts) {

@@ -1898,6 +1898,77 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     /** Test double for deterministic Tavily tool-call results. */
+    @Test
+    void executeVisionJsonPromptSendsMultimodalContentParts() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {"message": {"role": "assistant", "content": "{\\"description\\":\\"ok\\",\\"tags\\":[]}"}}
+              ]
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen2.5-vl",
+            null,
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            AiSkillPromptSupport.disabled());
+
+        byte[] imageBytes = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+        AiExecutionResult result = service.executeVisionJsonPrompt(
+            "Vision system.", "Describe the screenshot.", List.of(AiImageInput.png(imageBytes)));
+
+        assertThat(result.content()).contains("description");
+        assertThat(client.requestBodies()).hasSize(1);
+        JsonObject root = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        JsonObject user = root.getAsJsonArray("messages").get(1).getAsJsonObject();
+        assertThat(user.get("content").isJsonArray()).isTrue();
+        JsonArray parts = user.getAsJsonArray("content");
+        assertThat(parts.get(0).getAsJsonObject().get("type").getAsString()).isEqualTo("text");
+        assertThat(parts.get(0).getAsJsonObject().get("text").getAsString())
+            .isEqualTo("Describe the screenshot.");
+        JsonObject imagePart = parts.get(1).getAsJsonObject();
+        assertThat(imagePart.get("type").getAsString()).isEqualTo("image_url");
+        String url = imagePart.getAsJsonObject("image_url").get("url").getAsString();
+        assertThat(url).startsWith("data:image/png;base64,");
+        assertThat(url).endsWith(java.util.Base64.getEncoder().encodeToString(imageBytes));
+        assertThat(root.getAsJsonObject("response_format").get("type").getAsString())
+            .isEqualTo("json_object");
+    }
+
+    @Test
+    void textOnlyPromptsKeepThePlainStringContentWireShape() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {"choices": [{"message": {"role": "assistant", "content": "ok"}}]}
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "text-model",
+            null,
+            AiReasoningEffort.DISABLED,
+            client,
+            null,
+            AiSkillPromptSupport.disabled());
+
+        service.executePrompt("System.", "User.");
+
+        JsonObject root = JsonParser.parseString(client.requestBodies().get(0)).getAsJsonObject();
+        JsonObject user = root.getAsJsonArray("messages").get(1).getAsJsonObject();
+        // Some OpenAI-compatible servers reject content-part arrays, so text-only requests must
+        // keep the historical plain-string shape byte for byte.
+        assertThat(user.get("content").isJsonPrimitive()).isTrue();
+        assertThat(user.get("content").getAsString()).isEqualTo("User.");
+    }
+
+    @Test
+    void supportsVisionOnTheOpenAiCompatibleTransport() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions", "gpt-test", "key");
+        assertThat(service.supportsVision()).isTrue();
+    }
+
     private static final class TavilyToolTestDouble extends TavilyWebSearchTool {
         private final String result;
         private final List<String> queries = new ArrayList<>();

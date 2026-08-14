@@ -84,6 +84,7 @@ While the journal runs, the AI summarizer periodically reads the newest capture-
 | Token budget for context fill | Journal manager **Options**, visible when max lines is 0 | 130000 |
 | Split backlog into multiple prompts (chunking) | Journal manager **Options** | off |
 | AI profile for summaries | Journal manager **Options** or **Settings > Logging > Session Journal** | Default profile |
+| Analyze screenshots with AI (description and tags) | Journal manager **Options** | on |
 
 Summaries use your **default AI profile** unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's **Options** dialog, **Settings > Logging > Session Journal**, and **AI > AI Manager > Local AI** next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.
 
@@ -96,6 +97,18 @@ When the session ends, the summarizer writes a closing **session summary** entry
 
 !!! note
     The journal works without AI: if no AI profile is available, AI features are disabled, or summaries are switched off, the timeline records raw activity entries instead. AI summary prompts never use internet-access tools; the terminal excerpt goes only to the configured AI profile.
+
+## AI screenshot analysis
+
+When the journal's AI profile accepts images, screenshots are analyzed as well: the model writes a short **description** (one to three sentences) and a handful of lowercase **tags**, shown to the right of the thumbnail on the journal page. Tags are clickable chips — clicking one starts a [journal search](#searching-the-journal) for that tag — and both texts are found by the manager's **Search contents** scan, rewritten by [search and replace](#search-and-replace) and the automatic redaction rules, and included in the Markdown and PDF exports. Like the summaries, the analysis answers in the language the journal was created under.
+
+- **Analyze screenshots with AI (description and tags)** in the journal manager's **Options** dialog controls the automatic analysis on capture (on by default). It runs only when AI summaries are enabled for the connection and the profile can take images; otherwise the screenshot is simply filed unanalyzed.
+- **Analyze screenshot with AI** in the right-click menu of a screenshot analyzes one picture on demand — the way to analyze screenshots in journals recorded earlier, to retry a failed run, or to re-run the analysis after making something unreadable in the [annotation editor](#screenshot-notes-and-annotations). The analysis always reads the annotated picture, never the untouched `.orig.png` capture.
+
+Whether a profile can take images is a per-profile property: **Image input (vision)** in the [AI settings](../reference/settings/ai.md) defaults to **Auto** — for a local LM Studio endpoint korTTY reads the answer from the model metadata (during the same refresh that discovers the reasoning options), for cloud endpoints it recognizes the common vision-capable model names — and can be overridden with **Enabled**/**Disabled** for models the detection misjudges.
+
+!!! warning
+    The automatic analysis sends the screenshot at capture time — before you had a chance to make anything unreadable. The picture goes only to the configured AI profile and never through internet-access tools, but for sessions whose screen content must not leave the machine, switch the option off or have your administrator forbid the analysis via [enterprise policy](#enterprise-policy) — the policy mandate also disables the manual run.
 
 ## Password protection
 
@@ -117,13 +130,13 @@ If something slipped through anyway, the viewer's [search and replace](#search-a
 - A sticky header shows who was connected to which server, start time, duration, and counts for entries, commands, errors and screenshots, plus the journal description. Live journals show a **live** badge. The line below the title only carries what the title does not already say, so a journal named after its endpoint states the connection once instead of three times.
 - The timeline groups entries by day; each entry carries its time, a marker dot and badge in the colour you gave that marker, the AI title and summary, and color-coded input (green) and output (blue) excerpts.
 - Clicking an entry slides a log panel in from the bottom with the exact capture-log range behind that entry. The panel has its own scrollbar, a search field with a match counter and ▲/▼ navigation (++enter++ / ++shift+enter++ also cycle matches, ++esc++ closes), and colors input and output lines differently.
-- Screenshot entries show thumbnails; clicking one opens a full-size lightbox.
+- Screenshot entries show thumbnails; clicking one opens a full-size lightbox. If the [AI screenshot analysis](#ai-screenshot-analysis) ran, its description and tag chips sit to the right of the picture, and a chip click searches the journal for that tag.
 - The page renders dark by default, follows the system light/dark preference and has its own theme toggle.
 - Screenshots, excerpt panels, the timeline column and the log panel size themselves to the window, so the page stays readable in a narrow viewer tab as well as full screen. Long excerpts scroll inside their own box instead of stretching the timeline.
 
 ### Searching the journal
 
-The magnifier in the header opens a search bar directly under the connection details (++ctrl+f++ works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or ++enter++ / ++shift+enter++ jump between the hits, ++esc++ or ✕ closes the bar and clears the highlighting.
+The magnifier in the header opens a search bar directly under the connection details (++ctrl+f++ works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or ++enter++ / ++shift+enter++ jump between the hits, ++esc++ or ✕ closes the bar and clears the highlighting.
 
 !!! note
     This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across *all* journals with **Search contents**.
@@ -184,7 +197,7 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 
-- The filter field matches title, connection, host, user and description; enabling **Search contents** additionally scans the journal entries and capture logs of every journal in the background.
+- The filter field matches title, connection, host, user and description; enabling **Search contents** additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background.
 - **Open** (or double-click) opens the journal viewer; **Rename** changes the title; **Delete** asks for confirmation and then permanently removes the journal folder including the log and all screenshots.
 - Several journals can be selected at once (++ctrl++ / ++shift++ click) to delete or export them in one step. Running journals cannot be renamed or deleted.
 - The **Description** area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.
@@ -205,9 +218,10 @@ A screenshot on its own rarely says why it was taken. Right-clicking one — the
 | Action | What it does |
 |--------|--------------|
 | **Edit screenshot…** | Opens the editor described below |
+| **Analyze screenshot with AI** | Runs the [AI screenshot analysis](#ai-screenshot-analysis) for this picture; offered when an image-capable AI profile is configured and policy allows the analysis |
 | **Export screenshot…** | Saves the picture, with its marks, to a file you choose |
 
-Both also sit in the context menu of the edit mode's entry table, and double-clicking a screenshot row opens the editor directly. They only appear inside korTTY: a standalone page in a browser can neither rewrite the journal nor reach a file dialog.
+Edit and export also sit in the context menu of the edit mode's entry table, and double-clicking a screenshot row opens the editor directly. These actions only appear inside korTTY: a standalone page in a browser can neither rewrite the journal nor reach a file dialog.
 
 Inside korTTY the journal's **title** is editable from the page too: double-click it, or right-click it and choose **Rename journal…** — the same rename the manager offers, subject to the same organisation policy.
 
@@ -339,7 +353,7 @@ Both are configured under [**Configuration → Global Settings → Export**](../
 
 ## Enterprise policy
 
-Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template and enforce the closing AI title. See [Enterprise policy](../reference/enterprise-policy.md) for the keys.
+Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the [AI screenshot analysis](#ai-screenshot-analysis) on or off — a forced *off* also disables the manual per-screenshot run. See [Enterprise policy](../reference/enterprise-policy.md) for the keys.
 
 ### Automatic redaction
 

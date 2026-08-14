@@ -97,6 +97,9 @@ public final class PolicyClamp {
         if (Boolean.TRUE.equals(sessionJournal.aiTitle())) {
             settings.setSessionJournalAiTitleEnabled(true);
         }
+        if (sessionJournal.aiScreenshotAnalysis() != null) {
+            settings.setSessionJournalAiScreenshotAnalysisEnabled(sessionJournal.aiScreenshotAnalysis());
+        }
     }
 
     /**

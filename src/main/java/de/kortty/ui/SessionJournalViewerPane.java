@@ -515,6 +515,10 @@ public class SessionJournalViewerPane extends BorderPane {
                         "if(window.korttyEnableReplace){window.korttyEnableReplace();}"
                             + "if(window.korttyEnableRange){window.korttyEnableRange();}"
                             + "if(window.korttyEnableAppActions){window.korttyEnableAppActions();}");
+                    if (isAiScreenshotAnalysisAvailable()) {
+                        webView.getEngine().executeScript(
+                            "if(window.korttyEnableAiAnalysis){window.korttyEnableAiAnalysis();}");
+                    }
                     pageReady = true;
                     // Re-establish the live state the load reset: the tail (unless the user
                     // closed it), its height, the timeline scroll offset, and any batches that
@@ -806,6 +810,14 @@ public class SessionJournalViewerPane extends BorderPane {
             }
         }
 
+        /** Runs the AI screenshot analysis for the picture the user right-clicked. */
+        public void requestAiAnalysis(String entryId) {
+            SessionJournalViewerPane pane = paneRef.get();
+            if (pane != null) {
+                Platform.runLater(() -> pane.analyzeScreenshotById(entryId));
+            }
+        }
+
         /** Saves the picture the user right-clicked to a file of their choosing. */
         public void requestSaveImage(String relativePath) {
             SessionJournalViewerPane pane = paneRef.get();
@@ -1010,6 +1022,61 @@ public class SessionJournalViewerPane extends BorderPane {
     }
 
     /** Loads the entry behind an id off-thread and opens the screenshot editor for it. */
+    /** Availability of the manual AI screenshot analysis; decides the page's context-menu entry. */
+    private static boolean isAiScreenshotAnalysisAvailable() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            de.kortty.core.SessionJournalScreenshotAnalyzer analyzer =
+                app != null ? app.getSessionJournalScreenshotAnalyzer() : null;
+            return analyzer != null && analyzer.isManuallyAvailable();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Manual AI analysis of one screenshot entry, triggered from the page's context menu. The
+     * result appears through the normal change-listener reload; only failures need UI here.
+     */
+    private void analyzeScreenshotById(String entryId) {
+        if (disposed || entryId == null || entryId.isBlank()) {
+            return;
+        }
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        de.kortty.core.SessionJournalScreenshotAnalyzer analyzer =
+            app != null ? app.getSessionJournalScreenshotAnalyzer() : null;
+        Path dir = journalDir;
+        if (analyzer == null || dir == null) {
+            return;
+        }
+        runScript("if(window.korttyToast){window.korttyToast("
+            + jsQuote(I18n.get("journal.ai.screenshot.started")) + ");}");
+        analyzer.analyzeManually(dir, entryId).whenComplete((ignored, failure) -> {
+            if (failure == null) {
+                return;
+            }
+            Throwable cause = failure instanceof java.util.concurrent.CompletionException
+                && failure.getCause() != null ? failure.getCause() : failure;
+            Platform.runLater(() -> {
+                if (disposed || !dir.equals(journalDir)) {
+                    return;
+                }
+                if (cause instanceof de.kortty.core.SessionJournalScreenshotAnalyzer.VisionUnavailableException) {
+                    showError(I18n.get("journal.ai.screenshot.unavailable"));
+                } else {
+                    showError(I18n.get("journal.ai.screenshot.failed",
+                        cause.getMessage() != null ? cause.getMessage() : cause.toString()));
+                }
+            });
+        });
+    }
+
+    private static String jsQuote(String value) {
+        String safe = value != null ? value : "";
+        return "\"" + safe.replace("\\", "\\\\").replace("\"", "\\\"")
+            .replace("\n", " ").replace("\r", " ") + "\"";
+    }
+
     private void editScreenshotById(String entryId) {
         if (disposed || entryId == null || entryId.isBlank()) {
             return;
