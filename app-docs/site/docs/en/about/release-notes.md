@@ -2,7 +2,7 @@
 
 What changed in the current release. The version this guide was built for is shown in the footer.
 
-## v2.10.0
+## v2.11.0
 
 ### Terminal logging
 
