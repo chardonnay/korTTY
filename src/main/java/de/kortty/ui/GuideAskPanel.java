@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -43,6 +44,12 @@ import java.util.function.Consumer;
 final class GuideAskPanel extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(GuideAskPanel.class);
+
+    /** Unscaled edge of the busy spinner, in pixels — the size the panel used before it scaled. */
+    private static final double PROGRESS_INDICATOR_PX = 18;
+
+    /** Unscaled floor for the panel width; grows with the text size (see {@link #setFontScale}). */
+    private static final double MIN_WIDTH_PX = 260;
 
     private final KorTTYApplication app;
     private final GuideAskService service;
@@ -69,6 +76,7 @@ final class GuideAskPanel extends VBox {
     private String lastAnswerMarkdown;
     private int requestSequence;
     private boolean disposed;
+    private int fontScalePercent = GlobalSettings.GUIDE_FONT_SCALE_DEFAULT_PERCENT;
 
     GuideAskPanel(KorTTYApplication app, String guideLang, Consumer<String> locationNavigator) {
         this.app = app;
@@ -78,7 +86,7 @@ final class GuideAskPanel extends VBox {
 
         setSpacing(8);
         setPadding(new Insets(8));
-        setMinWidth(260);
+        setMinWidth(MIN_WIDTH_PX);
         getStyleClass().add("guide-ask-panel");
 
         questionField.setPromptText(I18n.get("guide.ask.placeholder"));
@@ -93,8 +101,16 @@ final class GuideAskPanel extends VBox {
         askButton.setOnAction(event -> ask());
         HBox questionRow = new HBox(6, questionField, clearButton, historyButton, askButton);
         HBox.setHgrow(questionField, Priority.ALWAYS);
+        // When the row runs out of width — a narrow panel, or a large guide text size — HBox
+        // shrinks every resizable child in proportion, which turns the button labels into an
+        // ellipsis. Pinning the buttons at their preferred width and letting the field shrink to
+        // nothing puts the whole squeeze on the field, where it costs only visible input width.
+        questionField.setMinWidth(0);
+        for (Region pinned : new Region[] {clearButton, historyButton, askButton}) {
+            pinned.setMinWidth(Region.USE_PREF_SIZE);
+        }
 
-        progress.setPrefSize(18, 18);
+        progress.setPrefSize(PROGRESS_INDICATOR_PX, PROGRESS_INDICATOR_PX);
         cancelButton.setOnAction(event -> cancel());
         statusRow.getChildren().addAll(progress, statusLabel, cancelButton);
         setBusy(false);
@@ -158,15 +174,39 @@ final class GuideAskPanel extends VBox {
         setBusy(false);
     }
 
-    /** Invalidates any in-flight request and drops the answer page. Called from the viewer. */
     /**
-     * Scales the answer page with the guide's text size, so the two halves of the help window are
+     * Scales the whole panel with the guide's text size, so the two halves of the help window are
      * never left reading at different sizes.
+     *
+     * <p>Two mechanisms, because the panel is two different things: the answer is a
+     * {@link WebView}, which JavaFX CSS does not reach and which therefore takes the same
+     * {@code setZoom} the guide page gets; everything around it is ordinary JavaFX chrome, which
+     * follows an inline base font size. Inline on this VBox rather than a stylesheet rule: font
+     * size is an inherited property, so one declaration on the panel root reaches the question
+     * field, the buttons, the status line and the source links in one step — and it composes with
+     * the app-wide UI scale, which is the base this multiplies.</p>
      */
-    void setContentZoom(double zoom) {
-        answerView.setZoom(zoom);
+    void setFontScale(int guidePercent) {
+        fontScalePercent = GlobalSettings.clampGuideFontScalePercent(guidePercent);
+        answerView.setZoom(fontScalePercent / 100.0);
+        setStyle(chromeFontStyle());
+        // The spinner is sized in pixels, not text, so it needs the factor applied by hand or it
+        // stays a dot next to a 250% status line.
+        double indicator = PROGRESS_INDICATOR_PX * fontScalePercent / 100.0;
+        progress.setPrefSize(indicator, indicator);
+        // The floor has to grow too: at 200% the question row needs twice the room, and a
+        // SplitPane divider left where it was would clip the buttons to their ellipsis.
+        setMinWidth(MIN_WIDTH_PX * fontScalePercent / 100.0);
     }
 
+    /** The scaled base for this panel: the app-wide UI size times the guide's own text size. */
+    private String chromeFontStyle() {
+        double base = UiFontScaleSupport.basePx(UiFontScaleSupport.effectivePercent())
+            * fontScalePercent / 100.0;
+        return String.format(Locale.ROOT, "-fx-font-size: %.2fpx;", base);
+    }
+
+    /** Invalidates any in-flight request and drops the answer page. Called from the viewer. */
     void dispose() {
         disposed = true;
         requestSequence++;
@@ -238,12 +278,17 @@ final class GuideAskPanel extends VBox {
         if (entries.isEmpty()) {
             MenuItem empty = new MenuItem(I18n.get("guide.ask.history.empty"));
             empty.setDisable(true);
+            empty.setStyle(chromeFontStyle());
             historyButton.getItems().add(empty);
             return;
         }
         for (String entry : entries) {
             String label = entry.length() > 60 ? entry.substring(0, 57) + "…" : entry;
             MenuItem item = new MenuItem(label);
+            // A menu lives in its own popup window and inherits nothing from the panel, so the
+            // scaled base has to be set on the item itself (the .context-menu lesson from
+            // UiFontScaleSupport, one level further in).
+            item.setStyle(chromeFontStyle());
             item.setOnAction(event -> {
                 questionField.setText(entry);
                 questionField.positionCaret(entry.length());

@@ -259,14 +259,17 @@ public final class GuideViewer {
     }
 
     /**
-     * Zooms the WebViews rather than injecting CSS: zoom lives on the node, so it survives every
+     * Zooms the WebView rather than injecting CSS: zoom lives on the node, so it survives every
      * navigation inside the guide, whereas injected styles would have to be re-applied on each
      * page load — and the guide is generated MkDocs output, not a template korTTY controls.
+     *
+     * <p>The AI panel gets the same scale, chrome included — the setting is the help window's text
+     * size, not the left half's.</p>
      */
     private void applyFontScale() {
         webView.setZoom(fontScalePercent / 100.0);
         if (askPanel != null) {
-            askPanel.setContentZoom(fontScalePercent / 100.0);
+            askPanel.setFontScale(fontScalePercent);
         }
         fontResetButton.setText(fontScalePercent + " %");
         fontSmallerButton.setDisable(fontScalePercent <= GlobalSettings.MIN_GUIDE_FONT_SCALE_PERCENT);

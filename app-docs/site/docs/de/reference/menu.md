@@ -127,7 +127,9 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe, und sie gilt für das ganze Fenster – die Seite und, wenn es geöffnet ist, das KI-Suchpanel daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+
+Screenshots und Diagramme lassen sich per Klick vergrößern: Das Bild öffnet sich über der Seite in der größten Darstellung, die das Fenster zulässt, mit den Schaltflächen **−** / **+** und einem Prozentwert, der wieder auf diese Fenstergröße zurücksetzt. Zoomen Sie weiter hinein, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Verschieben, und schließen Sie mit **×**, ++esc++ oder einem Klick neben das Bild. Auch ++ctrl++ und Mausrad zoomen. Im Online-Guide funktioniert das genauso.
 
 ## macOS Dock & Menüleiste
 

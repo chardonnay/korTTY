@@ -41,6 +41,10 @@ public final class GuideAskPanelSmoke {
     }
 
     public static void main(String[] args) throws Exception {
+        // Optional argument: the guide text size in percent. The panel has to grow WITH the
+        // guide page, chrome included — run it at 200 to see the question row, buttons, status
+        // line and source links scale, not just the answer WebView.
+        int fontScalePercent = args.length > 0 ? Integer.parseInt(args[0].trim()) : 100;
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
         Thread.setDefaultUncaughtExceptionHandler((t, e) ->
@@ -58,6 +62,8 @@ public final class GuideAskPanelSmoke {
                 }
 
                 GuideAskPanel panel = new GuideAskPanel(null, "en", location -> { });
+                panel.setFontScale(fontScalePercent);
+                guideView.setZoom(fontScalePercent / 100.0);
                 SplitPane split = new SplitPane(guideView, panel);
                 split.getStyleClass().add("guide-split");
                 split.setDividerPositions(0.62);
@@ -100,7 +106,9 @@ public final class GuideAskPanelSmoke {
                     try {
                         WritableImage image = scene.snapshot(null);
                         BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
-                        File out = new File("build/smoke/guide-ask-panel.png");
+                        File out = new File(fontScalePercent == 100
+                            ? "build/smoke/guide-ask-panel.png"
+                            : "build/smoke/guide-ask-panel-" + fontScalePercent + ".png");
                         out.getParentFile().mkdirs();
                         ImageIO.write(buffered, "png", out);
                         System.out.println("Snapshot written: " + out.getAbsolutePath());

@@ -58,15 +58,17 @@ Der Prozentsatz zwischen den Schaltflächen zeigt den aktuellen Wert an, von 50 
 
 ## Beispiel
 
-Der **Banner**-Stil mit dem Eingabetext „Hallo“:
+Der **Banner**-Stil mit dem Eingabetext „Nostromo“:
 
 ```
- _   _                 
-| | | | ___  _ __ ___ 
-| |_| |/ _ \| '__/ _ \
-|  _  | (_) | | | (_) |
-|_| |_|\___/|_|  \___/ 
-                       
+ #     #                                                 
+ ##    #  ####   ####  ##### #####   ####  #    #  ####  
+ # #   # #    # #        #   #    # #    # ##  ## #    # 
+ #  #  # #    #  ####    #   #    # #    # # ## # #    # 
+ #   # # #    #      #   #   #####  #    # #    # #    # 
+ #    ## #    # #    #   #   #   #  #    # #    # #    # 
+ #     #  ####   ####    #   #    #  ####  #    #  ####  
+                                                         
 ```
 
 ## Dialogstatus

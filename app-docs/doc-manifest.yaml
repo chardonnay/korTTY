@@ -211,7 +211,7 @@ pages:
     screenshots:
       - settings/editor.png
     last_synced_ref: "659b3bd9"
-  - path: app-docs/site/docs/en/reference/settings/snippet-editor.md
+  - path: app-docs/site/docs/en/reference/settings/snippet-editor/index.md
     owns_i18n: [settings.snippetEditor.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
     screenshots:

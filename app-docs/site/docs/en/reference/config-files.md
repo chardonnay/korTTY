@@ -110,34 +110,66 @@ Stores GPG key information for backup encryption.
 ### global-settings.xml
 Global application preferences and defaults.
 
-**Contains:**
+**Contains:** every preference of the [Global Settings](settings/index.md) dialog, grouped below by the area it belongs to.
+
+#### Appearance and fonts
+
 - UI theme and appearance settings
 - Font family and default size
 - UI font size (percent, 80–160%, or auto-derived from the display resolution) and the manual's separate text size (70–250%)
 - Terminal color configuration
+
+#### Window, menus and panels
+
 - Window geometry and state (position, size, maximized status)
-- Dashboard visibility state
 - Menu bar visibility preference
+- Dashboard visibility state
+- "Open tool windows as tabs" flag
+- Docked live session-journal panel: placement (hidden/left/right) and width
+- JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
+
+#### Terminal and connections
+
+- Terminal logging defaults
+- Terminal effect plugin defaults
+- SSH keep-alive settings
+- Connection timeout and retry defaults
+
+#### AI, models and knowledge stores
+
 - AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
 - RAG embedding model ID and llama.cpp preferred runtime backend/update policy
 - Optional encrypted Hugging Face token
-- Translation API settings
-- Video/recording preferences
-- Terminal logging defaults
-- Session journal defaults (storage folder, capture-log format, AI summaries with interval and profile, AI screenshot analysis toggle, note translation language, line window and token budget, journal page appearance, live-log tail height, custom markers and marker rules) and the remembered journal window geometries
-- Docked live session-journal panel: placement (hidden/left/right) and width
-- PDF export watermark (off by default; custom text and colour) and document export footer (on by default; custom text)
-- Master password auto-login flag (`skipMasterPasswordPrompt`)
 - AI request timeout in minutes (0 = no limit)
-- Snippet input-hardening defaults (enabled, options, max file size) and snippet translation target language
-- "Open tool windows as tabs" flag
-- SSH keep-alive settings
+
+#### Session journal
+
+- Storage folder and capture-log format
+- AI summaries (interval and profile) and the AI screenshot analysis toggle
+- Note translation language
+- AI line window and token budget
+- Journal page appearance and live-log tail height
+- Custom markers and marker rules
+- The remembered journal window geometries
+
+#### Snippets and translation
+
+- Snippet input-hardening defaults (enabled, options, max file size)
+- Snippet translation target language
+- Translation API settings
+
+#### Export and recording
+
+- PDF export watermark (off by default; custom text and colour)
+- Document export footer (on by default; custom text)
+- Video/recording preferences
+
+#### Security and backup
+
+- Master password auto-login flag (`skipMasterPasswordPrompt`)
 - SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
-- JobScheduler status display preference
-- Terminal effect plugin defaults
 - Backup encryption method and retention settings
-- Connection timeout and retry defaults
 
 ### llm/models.xml
 

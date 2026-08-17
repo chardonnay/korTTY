@@ -1,5 +1,5 @@
 ---
-title: Härtemöglichkeiten
+title: Härtungsoptionen
 ---
 
 # Härtungsoptionen
@@ -9,7 +9,7 @@ title: Härtemöglichkeiten
 Die gleichen elf Optionen werden überall dort verwendet, wo KorTTY ein Skript generiert oder verbessert, sodass sie sich unabhängig von der Ausgangsposition identisch verhalten.
 
 !!! note "Nicht dasselbe wie Eingabe-Härtung"
-    Härtungsoptionen beeinflussen die Art und Weise, wie das Skript geschrieben wird* (Struktur, Fehlerbehandlung, Protokollierung, CLI). Das separate Panel [Eingabe-Härtung](input-hardening.md) fordert die KI stattdessen auf, einen konkreten *Eingabevalidierungs-Schutzblock* in das Skript einzubauen, der Parameter und Eingabedateien zur Laufzeit überprüft. Beide erscheinen nebeneinander und können kombiniert werden.
+    Härtungsoptionen beeinflussen *die Art und Weise, wie das Skript geschrieben wird* (Struktur, Fehlerbehandlung, Protokollierung, CLI). Das separate Panel [Eingabe-Härtung](input-hardening.md) fordert die KI stattdessen auf, einen konkreten *Eingabevalidierungs-Schutzblock* in das Skript einzubauen, der Parameter und Eingabedateien zur Laufzeit überprüft. Beide erscheinen nebeneinander und können kombiniert werden.
 
 ## Wo sie erscheinen
 

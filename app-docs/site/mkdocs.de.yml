@@ -15,3 +15,72 @@ plugins:
   - search:
       lang: de # German stemmer/stopwords for correct offline search
   - offline
+
+# Same page list as the shared nav in mkdocs.yml, with the SECTION labels
+# translated. Page entries carry no label here — their titles come from the
+# translated Markdown — so only the group names live in this file. A page listed
+# in one nav and missing from the other fails the build (validation.nav in
+# mkdocs.yml), which is what keeps the two lists honest.
+nav:
+  - Startseite: index.md
+  - Erste Schritte:
+      - getting-started/installation.md
+      - getting-started/building-packages.md
+      - getting-started/first-launch.md
+      - getting-started/main-window.md
+  - Referenz:
+      - reference/menu.md
+      - reference/keyboard-shortcuts.md
+      - reference/architecture.md
+      - reference/config-files.md
+      - reference/enterprise-policy.md
+      - Einstellungen:
+          - reference/settings/index.md
+          - reference/settings/appearance.md
+          - reference/settings/colors.md
+          - reference/settings/terminal.md
+          - reference/settings/window.md
+          - reference/settings/resources.md
+          - reference/settings/logging.md
+          - reference/settings/export.md
+          - reference/settings/backup.md
+          - reference/settings/updates.md
+          - reference/settings/security.md
+          - reference/settings/language.md
+          - reference/settings/translation.md
+          - reference/settings/video.md
+          - reference/settings/ai.md
+          - reference/settings/ai-skills.md
+          - reference/settings/sftp.md
+          - reference/settings/editor.md
+          - Snippet-Editor:
+              - reference/settings/snippet-editor/index.md
+              - reference/hardening-options.md
+              - reference/input-hardening.md
+  - Funktionen:
+      - features/connections.md
+      - features/terminal.md
+      - features/tunnels.md
+      - features/jump-server.md
+      - features/sftp.md
+      - features/file-browser.md
+      - features/snippets.md
+      - features/jobscheduler.md
+      - features/projects.md
+      - features/teamwork.md
+      - features/ai-assistant.md
+      - features/local-models.md
+      - features/rag.md
+      - features/ai-tools.md
+      - features/ai-swarm.md
+      - features/security.md
+      - features/backup.md
+      - features/recording.md
+      - features/session-journal.md
+      - features/ascii-art.md
+      - features/terminal-effect-plugins.md
+      - features/i18n.md
+  - Über korTTY:
+      - about/release-notes.md
+      - about/feedback.md
+      - about/anonymous-data.md

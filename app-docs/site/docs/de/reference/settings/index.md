@@ -33,7 +33,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [KI](ai.md) | KI-Funktionen, Agentenausführung, HTTP/CLI/eingebettete Profile, Eingabeaufforderungsvoreinstellungen, Reasoning, Bildeingabe (Vision), Quote, Internet-Tools |
 | [SFTP-Manager](sftp.md) | Automatisches Schließen der SFTP-Registerkarte, Remote-ZIP-Standardeinstellungen, JobScheduler rsync-Binärdatei |
 | [Editor](editor.md) | Cursorstil und -farbe für Editor-Registerkarten |
-| [Snippet-Editor](snippet-editor.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
+| [Snippet-Editor](snippet-editor/index.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
 
 Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und die [KI-Fähigkeiten](ai-skills.md)-Bibliothek befinden sich in **KI > KI-Manager** statt im globalen Einstellungsfenster; siehe [Lokale Modelle](../../features/local-models.md) und [RAG-Wissensspeicher](../../features/rag.md).
 

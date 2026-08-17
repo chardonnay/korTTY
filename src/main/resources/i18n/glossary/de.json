@@ -410,6 +410,11 @@
       "to": "Eingabe-Härtung"
     },
     {
+      "from": "Härtemöglichkeiten",
+      "to": "Härtungsoptionen",
+      "note": "MT renders 'Hardening options' two ways; unify on the UI label ai.hardening.title, which the guide page heading also uses."
+    },
+    {
       "from": "AI-Screenshot-Analyse",
       "to": "KI-Screenshot-Analyse",
       "note": "Session journal feature name; MT sometimes leaves the AI- prefix untranslated in this compound."
@@ -547,6 +552,16 @@
     {
       "from": "Store",
       "to": "Wissensspeicher"
+    },
+    {
+      "from": "WissensspeicherdCredential",
+      "to": "StoredCredential",
+      "note": "Repairs the row above: 'Store' matches inside words, so the English 'Stored' in code blocks and identifiers comes out mangled. These two rows must stay AFTER it."
+    },
+    {
+      "from": "Wissensspeicherd ",
+      "to": "Stored ",
+      "note": "Same damage before a following word ('Stored credentials'). The trailing space is load-bearing — without it this would also hit the legitimate compound 'Wissensspeicherdokumente'."
     },
     {
       "from": "HNSW-Diagramm",

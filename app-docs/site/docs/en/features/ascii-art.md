@@ -58,15 +58,17 @@ The percentage between the buttons shows the current level, from 50 % to 333 %, 
 
 ## Example
 
-The **banner** style with the input text "Hello":
+The **banner** style with the input text "Nostromo":
 
 ```
- _   _                 
-| | | | ___  _ __ ___ 
-| |_| |/ _ \| '__/ _ \
-|  _  | (_) | | | (_) |
-|_| |_|\___/|_|  \___/ 
-                       
+ #     #                                                 
+ ##    #  ####   ####  ##### #####   ####  #    #  ####  
+ # #   # #    # #        #   #    # #    # ##  ## #    # 
+ #  #  # #    #  ####    #   #    # #    # # ## # #    # 
+ #   # # #    #      #   #   #####  #    # #    # #    # 
+ #    ## #    # #    #   #   #   #  #    # #    # #    # 
+ #     #  ####   ####    #   #    #  ####  #    #  ####  
+                                                         
 ```
 
 ## Dialog state

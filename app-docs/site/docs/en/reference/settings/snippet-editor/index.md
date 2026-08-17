@@ -6,7 +6,7 @@ title: Snippet Editor
 
 Font, color and cursor overrides for the Snippet Manager and the Snippet Edit dialog. Open via **Configuration → Global Settings → Snippet Editor**; stored in `~/.kortty/global-settings.xml`.
 
-![Snippet Editor settings tab](../../assets/screenshots/settings/snippet-editor.png)
+![Snippet Editor settings tab](../../../assets/screenshots/settings/snippet-editor.png)
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
@@ -18,6 +18,6 @@ Font, color and cursor overrides for the Snippet Manager and the Snippet Edit di
 | Cursor Color | color | — | inherit (picker shows `#FF0000`) | `snippetCursorColor` |
 
 !!! note "Inheriting instead of overriding"
-    These settings override the terminal/editor defaults for snippet windows only. Leave a field empty — or set the font size to `0` — to inherit the general setting from [Appearance](appearance.md), [Colors](colors.md) and [Editor](editor.md) instead.
+    These settings override the terminal/editor defaults for snippet windows only. Leave a field empty — or set the font size to `0` — to inherit the general setting from [Appearance](../appearance.md), [Colors](../colors.md) and [Editor](../editor.md) instead.
 
-The snippet editor itself, including its AI code actions and language fields, is described under [Snippets](../../features/snippets.md).
+The snippet editor itself, including its AI code actions and language fields, is described under [Snippets](../../../features/snippets.md).

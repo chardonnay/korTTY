@@ -11,7 +11,7 @@ title: Eingabe-Härtung
 
 ## Eingabe-Härtung vs. Härtungsoptionen
 
-Trotz des ähnlichen Namens handelt es sich hierbei um eine andere Funktion als [Hardening options](hardening-options.md). *Härtungsoptionen* sind allgemeine Techniken in Produktionsqualität (strikter Modus, Fehlerfallen, Protokollierung, `--help`, …), die beeinflussen, *wie das Skript geschrieben wird*. Bei der *Eingabe-Härtung* geht es darum, *was das Skript akzeptiert*: Es fügt einen konkreten Schutzblock hinzu, der Parameter und Eingabedateien zur Laufzeit validiert. Die beiden Panels erscheinen nebeneinander und sind frei kombinierbar.
+Trotz des ähnlichen Namens handelt es sich hierbei um eine andere Funktion als [Härtungsoptionen](hardening-options.md). *Härtungsoptionen* sind allgemeine Techniken in Produktionsqualität (strikter Modus, Fehlerfallen, Protokollierung, `--help`, …), die beeinflussen, *wie das Skript geschrieben wird*. Bei der *Eingabe-Härtung* geht es darum, *was das Skript akzeptiert*: Es fügt einen konkreten Schutzblock hinzu, der Parameter und Eingabedateien zur Laufzeit validiert. Die beiden Panels erscheinen nebeneinander und sind frei kombinierbar.
 
 ## Wo es erscheint
 

@@ -65,11 +65,11 @@ def stage_assets(lang: str) -> None:
         if dst.exists():
             shutil.rmtree(dst)
         shutil.copytree(SCREENSHOTS_SRC, dst)
-    # Generated languages mirror EN's committed assets (CSS, logo image + video,
-    # favicon) so they aren't duplicated in git — stage them from docs/en.
+    # Generated languages mirror EN's committed assets (CSS, JS, logo image +
+    # video, favicon) so they aren't duplicated in git — stage them from docs/en.
     if lang != "en":
         en_assets = SITE_DIR / "docs" / "en" / "assets"
-        for sub in ("stylesheets", "images"):
+        for sub in ("stylesheets", "javascripts", "images"):
             src = en_assets / sub
             if src.is_dir():
                 dst = docs_assets / sub

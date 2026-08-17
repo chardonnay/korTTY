@@ -17,4 +17,4 @@ Cursordarstellung für die Dateieditor-Registerkarten von korTTY. Öffnen über 
     **BLOCK** ist ein breiter Cursor (2 px), **LINE** eine dünne vertikale Linie (1 px), **UNDERSCORE** eine mittlere Breite (1,5 px).
 
 !!! note "Alles andere wird vererbt"
-    Der Editor verwendet dieselbe Schriftfamilie, Schriftgröße sowie dieselben Vordergrund- und Hintergrundfarben wie Terminals, sodass diese auf dem konfiguriert werden [Aussehen](appearance.md) Und [Farben](colors.md) Tabs statt hier. Der [Snippet-Editor](snippet-editor.md) Tab kann sie für Snippet-Fenster überschreiben.
+    Der Editor verwendet dieselbe Schriftfamilie, Schriftgröße sowie dieselben Vordergrund- und Hintergrundfarben wie Terminals, sodass diese auf dem konfiguriert werden [Aussehen](appearance.md) Und [Farben](colors.md) Tabs statt hier. Der [Snippet-Editor](snippet-editor/index.md) Tab kann sie für Snippet-Fenster überschreiben.

@@ -2704,9 +2704,19 @@ tasks.register<JavaExec>("i18nTranslationBench") {
 
 tasks.register<JavaExec>("guideAskPanelSmoke") {
     group = "verification"
-    description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png."
+    description = "Renders the guide AI-search panel with a sample answer and snapshots it to build/smoke/guide-ask-panel.png. " +
+        "Pass --args=\"200\" for the guide text size in percent (checks that the panel chrome scales too)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.GuideAskPanelSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("guideImageZoomSmoke") {
+    group = "verification"
+    description = "Clicks a screenshot in the BUNDLED guide inside a WebView and verifies the click-to-enlarge overlay opens and zooms. " +
+        "Run ./gradlew stageGuideIntoResources first so the bundled guide carries the current script."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.GuideImageZoomSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

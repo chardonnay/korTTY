@@ -24,6 +24,14 @@ use_directory_urls: false
 validation:
   links:
     anchors: warn
+  # The nav lives in this shared file, but mkdocs.de.yml overrides it with the
+  # translated section labels — two lists that must list the same pages. A page
+  # added to one and forgotten in the other is INFO by default, i.e. invisible;
+  # promoted so `mkdocs build --strict` fails instead of quietly dropping the
+  # page out of the German sidebar.
+  nav:
+    omitted_files: warn
+    not_found: warn
 
 theme:
   name: material
@@ -54,6 +62,12 @@ theme:
 
 extra_css:
   - assets/stylesheets/kortty.css
+
+# Click-to-enlarge for screenshots and diagrams. A file rather than an inline
+# block in overrides/main.html: inline would be copied into all 57 pages of both
+# language trees, and the segment extractor would have to learn to skip it.
+extra_javascript:
+  - assets/javascripts/kt-zoom.js
 
 extra:
   # Single source of truth = build.gradle.kts:12, injected at build time.
@@ -103,7 +117,10 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
-# Nav is shared: both docs/en and docs/de mirror the same file layout.
+# Nav is shared: both docs/en and docs/de mirror the same file layout. Only the
+# SECTION labels ("Reference", "Settings", …) come from this list rather than from
+# a page title, so mkdocs.de.yml repeats the nav with those labels translated —
+# keep the two lists in sync (guarded by validation.nav.omitted_files above).
 nav:
   - Home: index.md
   - Getting started:
@@ -117,8 +134,6 @@ nav:
       - reference/architecture.md
       - reference/config-files.md
       - reference/enterprise-policy.md
-      - reference/hardening-options.md
-      - reference/input-hardening.md
       - Settings:
           - reference/settings/index.md
           - reference/settings/appearance.md
@@ -138,7 +153,13 @@ nav:
           - reference/settings/ai-skills.md
           - reference/settings/sftp.md
           - reference/settings/editor.md
-          - reference/settings/snippet-editor.md
+          # Section index page (navigation.indexes): the label links to
+          # snippet-editor/index.md and carries the two hardening references,
+          # which document the AI panels of that editor.
+          - Snippet editor:
+              - reference/settings/snippet-editor/index.md
+              - reference/hardening-options.md
+              - reference/input-hardening.md
   - Features:
       - features/connections.md
       - features/terminal.md

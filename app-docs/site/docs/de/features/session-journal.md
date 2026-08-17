@@ -361,7 +361,7 @@ Beide werden unter [**Konfiguration → Globale Einstellungen → Export**](../r
 
 ## Unternehmensrichtlinie
 
-Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über `[rule.session-journal]` vorschreiben: ein Journal für jede Verbindung erzwingen, das Protokollformat, das KI-Zeilenfenster oder das Speicherverzeichnis festlegen, das Umbenennen oder Löschen von Journalen verbieten, eine Benennungsvorlage vorschreiben, den abschließenden KI-Titel erzwingen und die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein- oder ausschalten – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md) für die Schlüssel.
+Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über `[rule.session-journal]` vorschreiben: ein Journal für jede Verbindung erzwingen, das Protokollformat, das KI-Zeilenfenster oder das Speicherverzeichnis festlegen, das Umbenennen oder Löschen von Journalen verbieten, eine Benennungsvorlage vorschreiben, den abschließenden KI-Titel erzwingen und die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein- oder ausschalten – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md) für die Schlüssel.
 
 ### Automatische Schwärzung
 
@@ -375,4 +375,4 @@ regex = true
 label = "AWS access keys"
 ```
 
-Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Für jeden Schlüssel siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulesession-journalreplace).
+Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Für jeden Schlüssel siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md#rulesession-journalreplace).
