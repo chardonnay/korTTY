@@ -160,6 +160,96 @@ body,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+/* ---- Click-to-enlarge overlay (assets/javascripts/kt-zoom.js) ------------ */
+/* The framed pictures above are the zoomable ones — same selector, so the two
+   halves of the feature can never drift apart. */
+.md-typeset img[data-kt-zoomable] {
+  cursor: zoom-in;
+}
+.md-typeset img[data-kt-zoomable]:focus-visible {
+  outline: 2px solid var(--kt-primary);
+  outline-offset: 3px;
+}
+
+/* Locks the page behind the overlay so a wheel gesture pans the picture
+   instead of scrolling the article underneath it. */
+body.kt-zoom-open {
+  overflow: hidden;
+}
+
+.kt-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(4, 10, 17, 0.92);
+  backdrop-filter: blur(2px);
+}
+.kt-zoom[hidden] {
+  display: none;
+}
+.kt-zoom__bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+.kt-zoom__btn {
+  min-width: 2.2rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--kt-sans);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--kt-text);
+  background: var(--kt-surface-2);
+  border: 1px solid var(--kt-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.kt-zoom__btn:hover {
+  color: var(--kt-accent);
+  border-color: var(--kt-primary);
+}
+.kt-zoom__level {
+  min-width: 4rem;
+}
+.kt-zoom__close {
+  font-size: 1rem;
+}
+/* The stage owns the leftover height so "fit" really means "fits the window",
+   and it is the scroll container once the picture grows past it. */
+.kt-zoom__stage {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  min-height: 0;
+}
+.kt-zoom__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  background: var(--kt-bg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: zoom-in;
+}
+.kt-zoom__img--zoomed {
+  /* margin:auto keeps a picture smaller than the stage centred while scrolling. */
+  margin: auto;
+  cursor: grab;
+}
+.kt-zoom__caption {
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--kt-muted);
+}
+
 /* ---- Hero landing -------------------------------------------------------- */
 .kt-hero {
   text-align: center;
