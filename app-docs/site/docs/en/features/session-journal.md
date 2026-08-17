@@ -361,7 +361,7 @@ Both are configured under [**Configuration → Global Settings → Export**](../
 
 ## Enterprise policy
 
-Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the [AI screenshot analysis](#ai-screenshot-analysis) on or off — a forced *off* also disables the manual per-screenshot run. See [Enterprise policy](../reference/enterprise-policy.md) for the keys.
+Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the [AI screenshot analysis](#ai-screenshot-analysis) on or off — a forced *off* also disables the manual per-screenshot run. See [Policy configuration](../reference/enterprise-policy.md) for the keys.
 
 ### Automatic redaction
 
@@ -375,4 +375,4 @@ regex = true
 label = "AWS access keys"
 ```
 
-These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries and notes as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search & replace for those. See [Enterprise policy](../reference/enterprise-policy.md#rulesession-journalreplace) for every key.
+These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries and notes as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search & replace for those. See [Policy configuration](../reference/enterprise-policy.md#rulesession-journalreplace) for every key.

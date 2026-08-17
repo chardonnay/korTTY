@@ -1,8 +1,8 @@
 ---
-title: Unternehmenspolitik
+title: Richtlinienkonfiguration
 ---
 
-# Unternehmensrichtlinie
+# Richtlinienkonfiguration
 
 In verwalteten Umgebungen kann ein Administrator korTTY über eine einzige TOML-Datei, `kortty-policy.toml`, die im Installationsverzeichnis abgelegt wird, einschränken oder vorkonfigurieren. Benutzer können es nicht ändern oder umgehen: Die Datei wird nur aus dem vom Administrator beschreibbaren Installationsordner gelesen, gesperrte Einstellungen werden ausgegraut mit dem Hinweis „Von Ihrer Organisation verwaltet“ angezeigt und die manuelle Bearbeitung von `global-settings.xml` wird beim nächsten Laden rückgängig gemacht. In diesem Kapitel wird erläutert, wo sich die Datei befindet, wie Regeln auf Benutzer, Gruppen und Server abzielen und alle verfügbaren Parameter anhand von Beispielen dokumentiert werden.
 

@@ -6,7 +6,7 @@ title: Snippet-Editor
 
 Schriftart-, Farb- und Cursor-Überschreibungen für den Snippet-Manager und das Dialogfeld „Snippet bearbeiten“. Öffnen über **Konfiguration → Globale Einstellungen → Snippet-Editor**; in `~/.kortty/global-settings.xml` gespeichert.
 
-![Snippet Editor settings tab](../../assets/screenshots/settings/snippet-editor.png)
+![Snippet Editor settings tab](../../../assets/screenshots/settings/snippet-editor.png)
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
@@ -18,6 +18,6 @@ Schriftart-, Farb- und Cursor-Überschreibungen für den Snippet-Manager und das
 | Cursorfarbe | Farbe | – | erben (Auswahl zeigt `#FF0000`) | `snippetCursorColor` |
 
 !!! note "Erben statt Überschreiben"
-    Diese Einstellungen überschreiben die Terminal-/Editor-Standardeinstellungen nur für Snippet-Fenster. Lassen Sie ein Feld leer – oder stellen Sie die Schriftgröße auf ein `0` – um die allgemeine Einstellung zu erben [Aussehen](appearance.md), [Farben](colors.md) Und [Editor](editor.md) stattdessen.
+    Diese Einstellungen überschreiben die Terminal-/Editor-Standardeinstellungen nur für Snippet-Fenster. Lassen Sie ein Feld leer – oder stellen Sie die Schriftgröße auf ein `0` – um die allgemeine Einstellung zu erben [Aussehen](../appearance.md), [Farben](../colors.md) Und [Editor](../editor.md) stattdessen.
 
-Der Snippet-Editor selbst, einschließlich seiner AI-Code-Aktionen und Sprachfelder, wird unter [Snippets](../../features/snippets.md) beschrieben.
+Der Snippet-Editor selbst, einschließlich seiner AI-Code-Aktionen und Sprachfelder, wird unter [Snippets](../../../features/snippets.md) beschrieben.

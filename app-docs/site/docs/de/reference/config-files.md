@@ -11,7 +11,7 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ```
 ~/.kortty/
 ├── connections.xml                    # Saved SSH connections
-├── credentials.xml                    # Wissensspeicherd credentials (encrypted)
+├── credentials.xml                    # Stored credentials (encrypted)
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
@@ -110,34 +110,66 @@ Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.
 ### global-settings.xml
 Globale Anwendungseinstellungen und Standardeinstellungen.
 
-**Enthält:**
+**Enthält:** jede Einstellung des Dialogs [Globale Einstellungen](settings/index.md), im Folgenden nach Bereichen gruppiert.
+
+#### Aussehen und Schriftarten
+
 - UI-Design- und Darstellungseinstellungen
 - Schriftfamilie und Standardgröße
 - UI-Schriftgröße (Prozent, 80–160 % oder automatisch von der Bildschirmauflösung abgeleitet) und die separate Textgröße der Anleitung (70–250 %)
 - Terminal-Farbkonfiguration
+
+#### Fenster, Menüs und Panels
+
 - Fenstergeometrie und -status (Position, Größe, maximierter Status)
-- Dashboard-Sichtbarkeitsstatus
 - Präferenz für die Sichtbarkeit der Menüleiste
-- Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
-- AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
-- RAG-Einbettungsmodell-ID und bevorzugte Laufzeit-Backend-/Update-Richtlinie für llama.cpp
-- Optional verschlüsseltes Hugging Face-Token
-- Übersetzungs-API-Einstellungen
-- Video-/Aufnahmeeinstellungen
-- Standardeinstellungen für die Terminalprotokollierung
-- Standardeinstellungen für das Sitzungsjournal (Speicherordner, Capture-Log-Format, KI-Zusammenfassungen mit Intervall und Profil, Umschalter für die KI-Screenshot-Analyse, Übersetzungssprache für Notizen, Zeilenfenster und Token-Budget, Erscheinungsbild der Journalseite, Endhöhe des Live-Protokolls, benutzerdefinierte Markierungen und Markierungsregeln) und die gespeicherten Geometrien des Journalfensters
+- Dashboard-Sichtbarkeitsstatus
+- Flag „Toolfenster als Registerkarten öffnen“
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
-- PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe) und Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)
-- Master-Passwort-Auto-Login-Flag (`skipMasterPasswordPrompt`)
-- Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
-- Standardeinstellungen der Snippet-Eingabe-Härtung (aktiviert, Optionen, maximale Dateigröße) und Zielsprache der Snippet-Übersetzung
--  Flag „Toolfenster als Registerkarten öffnen“.
-- SSH Keep-Alive-Einstellungen
-- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Akzeptieren von Neu“ gelockert wird
 - JobScheduler-Statusanzeigeeinstellung
-- Standardeinstellungen für das Terminaleffekt-Plugin
-- Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
+- Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
+
+#### Terminal und Verbindungen
+
+- Standardeinstellungen für die Terminalprotokollierung
+- Standardeinstellungen für Terminaleffekt-Plugins
+- SSH-Keep-Alive-Einstellungen
 - Verbindungszeitlimit und Standardwerte für Wiederholungsversuche
+
+#### KI, Modelle und Wissensspeicher
+
+- KI-Profil-Standards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Prompt-Voreinstellungen und Wissensspeicher-Zuordnungen
+- RAG-Einbettungsmodell-ID und bevorzugtes Laufzeit-Backend sowie Update-Richtlinie für llama.cpp
+- Optional verschlüsseltes Hugging-Face-Token
+- Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
+
+#### Sitzungsjournal
+
+- Speicherordner und Capture-Log-Format
+- KI-Zusammenfassungen (Intervall und Profil) und der Umschalter für die KI-Screenshot-Analyse
+- Übersetzungssprache für Notizen
+- KI-Zeilenfenster und Token-Budget
+- Erscheinungsbild der Journalseite und Endhöhe des Live-Protokolls
+- Benutzerdefinierte Markierungen und Markierungsregeln
+- Die gespeicherten Geometrien der Journalfenster
+
+#### Snippets und Übersetzung
+
+- Standardeinstellungen der Snippet-Eingabe-Härtung (aktiviert, Optionen, maximale Dateigröße)
+- Zielsprache der Snippet-Übersetzung
+- Übersetzungs-API-Einstellungen
+
+#### Export und Aufzeichnung
+
+- PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe)
+- Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)
+- Video-/Aufnahmeeinstellungen
+
+#### Sicherheit und Backup
+
+- Master-Passwort-Auto-Login-Flag (`skipMasterPasswordPrompt`)
+- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Neue akzeptieren“ gelockert wird
+- Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
 
 ### llm/models.xml
 

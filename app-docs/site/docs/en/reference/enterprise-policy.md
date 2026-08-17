@@ -1,8 +1,8 @@
 ---
-title: Enterprise policy
+title: Policy configuration
 ---
 
-# Enterprise policy
+# Policy configuration
 
 In managed environments an administrator can restrict or preconfigure korTTY through a single TOML file, `kortty-policy.toml`, placed in the installation directory. Users cannot change or bypass it: the file is only read from the admin-writable installation folder, locked settings appear grayed out with a "Managed by your organization" hint, and hand-editing `global-settings.xml` is undone on the next load. This chapter explains where the file lives, how rules target users, groups and servers, and documents every available parameter with examples.
 

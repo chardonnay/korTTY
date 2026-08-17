@@ -29,7 +29,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswWissensspeicher`, `RagRuntimeService` |
 | **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
-| **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `WissensspeicherdCredential`, `Snippet`, `JobSchedule` |
+| **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
 | **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
 | **Sicherheit** | Master-Passwort, Verschlüsselung/Entschlüsselung, Passwort-Tresor | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
 | **Persistenz** | XML-Serialisierung, Datei-E/A, Repository-Muster | `XMLConnectionRepository`, `HistoryStorage` |
@@ -77,7 +77,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 ```
 ~/.kortty/
 ├── connections.xml              # Saved SSH/Mosh connections
-├── credentials.xml              # Wissensspeicherd usernames/passwords for env-specific targets
+├── credentials.xml              # Stored usernames/passwords for env-specific targets
 ├── ssh-keys.xml                 # SSH key references and encrypted passphrases
 ├── gpg-keys.xml                 # GPG key management for backup encryption
 ├── global-settings.xml          # Application-wide settings (theme, language, AI profiles)

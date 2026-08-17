@@ -33,7 +33,7 @@ Each per-tab page lists settings as a table:
 | [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, image input (vision), quota, internet tools |
 | [SFTP Manager](sftp.md) | SFTP tab auto-close, remote ZIP defaults, JobScheduler rsync binary |
 | [Editor](editor.md) | Cursor style and color for editor tabs |
-| [Snippet Editor](snippet-editor.md) | Font, color and cursor overrides for snippet windows |
+| [Snippet Editor](snippet-editor/index.md) | Font, color and cursor overrides for snippet windows |
 
 Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, knowledge-source synchronization, and the [AI Skills](ai-skills.md) library live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
 

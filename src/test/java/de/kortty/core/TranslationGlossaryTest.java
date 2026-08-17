@@ -75,6 +75,30 @@ class TranslationGlossaryTest {
             .apply("| Ermöglicht |")).isEqualTo("| Aktiviert |");
     }
 
+    /**
+     * The "Store" -> "Wissensspeicher" row matches inside words, so the English "Stored" that
+     * stays English on purpose — code-block comments, a Java identifier — came out as
+     * "Wissensspeicherd" in the German guide. Repair rows follow it; the legitimate German
+     * compound must survive them.
+     */
+    @Test
+    void englishStoredSurvivesTheKnowledgeStoreRow() {
+        TranslationGlossary glossary = german();
+        assertThat(glossary.apply("credentials.xml   # Stored credentials (encrypted)"))
+            .isEqualTo("credentials.xml   # Stored credentials (encrypted)");
+        assertThat(glossary.apply("StoredCredential")).isEqualTo("StoredCredential");
+        assertThat(glossary.apply("Wissensspeicherdokumente")).isEqualTo("Wissensspeicherdokumente");
+        // The row itself still does its job.
+        assertThat(glossary.apply("Knowledge Store anlegen")).isEqualTo("Wissensspeicher anlegen");
+    }
+
+    /** MT renders "Hardening options" two ways; the guide uses the UI label everywhere. */
+    @Test
+    void hardeningOptionsUseTheUiLabel() {
+        assertThat(german().apply("Härtemöglichkeiten sind Techniken"))
+            .isEqualTo("Härtungsoptionen sind Techniken");
+    }
+
     @Test
     void aLanguageWithoutAGlossaryIsEmptyAndLeavesTextAlone() {
         for (String language : List.of("fr", "xx", "", "  ")) {
