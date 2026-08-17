@@ -453,10 +453,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -1061,63 +1057,7 @@
   <span class="md-ellipsis">
     
   
-    Enterprise policy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="hardening-options.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hardening options
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="input-hardening.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Input hardening
+    Policy configuration
   
 
     
@@ -1190,7 +1130,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1212,14 +1152,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1713,15 +1653,83 @@
   
   
   
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="settings/snippet-editor/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Snippet editor
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6_19" id="__nav_3_6_19_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_6_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Snippet editor
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="settings/snippet-editor.html" class="md-nav__link">
+      <a href="hardening-options.html" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Snippet Editor
+    Hardening options
   
 
     
@@ -1730,6 +1738,42 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="input-hardening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -3140,34 +3184,66 @@
 - Import source (system keyring or manual entry)</p>
 <h3 id="global-settingsxml">global-settings.xml<a class="headerlink" href="#global-settingsxml" title="Permanent link">&para;</a></h3>
 <p>Global application preferences and defaults.</p>
-<p><strong>Contains:</strong>
-- UI theme and appearance settings
-- Font family and default size
-- UI font size (percent, 80–160%, or auto-derived from the display resolution) and the manual's separate text size (70–250%)
-- Terminal color configuration
-- Window geometry and state (position, size, maximized status)
-- Dashboard visibility state
-- Menu bar visibility preference
-- Last ASCII Art dialog preview zoom level
-- AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
-- RAG embedding model ID and llama.cpp preferred runtime backend/update policy
-- Optional encrypted Hugging Face token
-- Translation API settings
-- Video/recording preferences
-- Terminal logging defaults
-- Session journal defaults (storage folder, capture-log format, AI summaries with interval and profile, AI screenshot analysis toggle, note translation language, line window and token budget, journal page appearance, live-log tail height, custom markers and marker rules) and the remembered journal window geometries
-- Docked live session-journal panel: placement (hidden/left/right) and width
-- PDF export watermark (off by default; custom text and colour) and document export footer (on by default; custom text)
-- Master password auto-login flag (<code>skipMasterPasswordPrompt</code>)
-- AI request timeout in minutes (0 = no limit)
-- Snippet input-hardening defaults (enabled, options, max file size) and snippet translation target language
-- "Open tool windows as tabs" flag
-- SSH keep-alive settings
-- SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new
-- JobScheduler status display preference
-- Terminal effect plugin defaults
-- Backup encryption method and retention settings
-- Connection timeout and retry defaults</p>
+<p><strong>Contains:</strong> every preference of the <a href="settings/index.html">Global Settings</a> dialog, grouped below by the area it belongs to.</p>
+<h4 id="appearance-and-fonts">Appearance and fonts<a class="headerlink" href="#appearance-and-fonts" title="Permanent link">&para;</a></h4>
+<ul>
+<li>UI theme and appearance settings</li>
+<li>Font family and default size</li>
+<li>UI font size (percent, 80–160%, or auto-derived from the display resolution) and the manual's separate text size (70–250%)</li>
+<li>Terminal color configuration</li>
+</ul>
+<h4 id="window-menus-and-panels">Window, menus and panels<a class="headerlink" href="#window-menus-and-panels" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Window geometry and state (position, size, maximized status)</li>
+<li>Menu bar visibility preference</li>
+<li>Dashboard visibility state</li>
+<li>"Open tool windows as tabs" flag</li>
+<li>Docked live session-journal panel: placement (hidden/left/right) and width</li>
+<li>JobScheduler status display preference</li>
+<li>Last ASCII Art dialog preview zoom level</li>
+</ul>
+<h4 id="terminal-and-connections">Terminal and connections<a class="headerlink" href="#terminal-and-connections" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Terminal logging defaults</li>
+<li>Terminal effect plugin defaults</li>
+<li>SSH keep-alive settings</li>
+<li>Connection timeout and retry defaults</li>
+</ul>
+<h4 id="ai-models-and-knowledge-stores">AI, models and knowledge stores<a class="headerlink" href="#ai-models-and-knowledge-stores" title="Permanent link">&para;</a></h4>
+<ul>
+<li>AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations</li>
+<li>RAG embedding model ID and llama.cpp preferred runtime backend/update policy</li>
+<li>Optional encrypted Hugging Face token</li>
+<li>AI request timeout in minutes (0 = no limit)</li>
+</ul>
+<h4 id="session-journal">Session journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Storage folder and capture-log format</li>
+<li>AI summaries (interval and profile) and the AI screenshot analysis toggle</li>
+<li>Note translation language</li>
+<li>AI line window and token budget</li>
+<li>Journal page appearance and live-log tail height</li>
+<li>Custom markers and marker rules</li>
+<li>The remembered journal window geometries</li>
+</ul>
+<h4 id="snippets-and-translation">Snippets and translation<a class="headerlink" href="#snippets-and-translation" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Snippet input-hardening defaults (enabled, options, max file size)</li>
+<li>Snippet translation target language</li>
+<li>Translation API settings</li>
+</ul>
+<h4 id="export-and-recording">Export and recording<a class="headerlink" href="#export-and-recording" title="Permanent link">&para;</a></h4>
+<ul>
+<li>PDF export watermark (off by default; custom text and colour)</li>
+<li>Document export footer (on by default; custom text)</li>
+<li>Video/recording preferences</li>
+</ul>
+<h4 id="security-and-backup">Security and backup<a class="headerlink" href="#security-and-backup" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Master password auto-login flag (<code>skipMasterPasswordPrompt</code>)</li>
+<li>SSH host-key verification opt-out: the global flag and the list of connection groups whose checking is relaxed to accept-new</li>
+<li>Backup encryption method and retention settings</li>
+</ul>
 <h3 id="llmmodelsxml">llm/models.xml<a class="headerlink" href="#llmmodelsxml" title="Permanent link">&para;</a></h3>
 <p>The atomically written JAXB registry for locally installed or referenced GGUF models.</p>
 <p><strong>Contains:</strong></p>
