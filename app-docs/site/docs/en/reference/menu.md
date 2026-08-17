@@ -127,7 +127,9 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Manual | ++f1++ | Open this documentation inside korTTY |
 | About korTTY | | Version and project information |
 
-The manual has its own text-size buttons at the top left of its window: `A-`, the current percentage, and `A+`. Clicking the percentage resets it. The same three actions have keyboard shortcuts: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY remembers the size. See [Manual text size](settings/appearance.md#manual-text-size).
+The manual has its own text-size buttons at the top left of its window: `A-`, the current percentage, and `A+`. Clicking the percentage resets it. The same three actions have keyboard shortcuts: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY remembers the size, and the size covers the whole window — the page and, when it is open, the AI search panel beside it. See [Manual text size](settings/appearance.md#manual-text-size).
+
+Screenshots and diagrams enlarge on click: the picture opens over the page at the largest size the window allows, with **−** / **+** buttons and a percentage that returns it to that fitted size. Zoom further to read a single setting row, drag the picture to pan, and close with the **×**, ++esc++ or a click next to the picture. ++ctrl++ and the wheel zoom as well. The same works in the online guide.
 
 ## macOS Dock & menu bar
 

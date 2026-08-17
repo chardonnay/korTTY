@@ -63,6 +63,12 @@ theme:
 extra_css:
   - assets/stylesheets/kortty.css
 
+# Click-to-enlarge for screenshots and diagrams. A file rather than an inline
+# block in overrides/main.html: inline would be copied into all 57 pages of both
+# language trees, and the segment extractor would have to learn to skip it.
+extra_javascript:
+  - assets/javascripts/kt-zoom.js
+
 extra:
   # Single source of truth = build.gradle.kts:12, injected at build time.
   # Falls back to 'dev' for ad-hoc local builds. Rendered in the footer/hero
