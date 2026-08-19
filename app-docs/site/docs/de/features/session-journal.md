@@ -4,7 +4,7 @@ title: Sitzungsjournal
 
 # Sitzungsjournal
 
-Das Sitzungsjournal dokumentiert eine Terminalsitzung als lesbare Zeitleiste: Jede Ausgabezeile des Servers und jeder von Ihnen eingegebene Befehl werden in ein Capture-Log geschrieben, eine KI verdichtet die Aktivität regelmäßig in kurze Journal-Einträge und das Ergebnis wird als eigenständige HTML-Seite mit Verbindungsdetails, farbcodierten Auszügen, Screenshots und Ihren eigenen Notizen gerendert. Journale werden wie gespeicherte Chats verwaltet – in einem eigenen Managerfenster mit Suche, Bearbeitung und Export.
+Das Sitzungsjournal dokumentiert eine Terminalsitzung als lesbare Zeitleiste: Jede Ausgabezeile des Servers und jeder von Ihnen eingegebene Befehl werden in ein Capture-Log geschrieben, eine KI komprimiert die Aktivität regelmäßig in kurze Journal-Einträge und das Ergebnis wird als eigenständige HTML-Seite mit Verbindungsdetails, farbcodierten Auszügen, Screenshots und Ihren eigenen Notizen gerendert. Journale werden wie gespeicherte Chats verwaltet – in einem eigenen Managerfenster mit Suche, Bearbeitung und Export.
 
 ![Session journal flow](../assets/diagrams/session-journal-flow.svg)
 
@@ -16,11 +16,15 @@ Jedes Journal ist ein eigenständiges Verzeichnis unter `~/.kortty/journals` (ko
 |------|---------|
 | `journal.xml` | Das kuratierte Journaldokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen |
 | `session-log.json` / `.xml` / `.yaml` | Das Nur-Anhang-Capture-Log – zeitgestempelte Serverausgabe und typisierte Eingabezeilen mit Sequenz-IDs |
-| `session-log-2.json.gz`, … | Gedrehte Stammteile; Geschlossene Teile werden automatisch gzip-komprimiert, das Journal löscht niemals den Verlauf |
+| `session-log-2.json.zst`, … | Gedrehte Stammteile; Geschlossene Teile werden automatisch zstd-komprimiert, das Journal löscht niemals den Verlauf. Mit älteren Versionen aufgezeichnete Journale behalten ihre `.gz`-Teile und bleiben vollständig lesbar |
 | `journal.html` | Die generierte Timeline-Seite, die nach jeder Änderung automatisch neu generiert wird |
 | `screenshots/*.png` | Screenshots, die Sie während der Sitzung angehängt haben |
 
-Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausgewählt werden: **JSON** (JSON Lines, Standard), **XML** oder **YAML**. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. JSON ist die Standardeinstellung, weil die Protokolltools es lesen, ohne dass ein eigener Parser erforderlich ist – und nicht, weil es Platz spart. Die Größe trennt die drei kaum voneinander: Bei normaler Ausgabe ist XML etwa 9 Byte pro Eintrag kleiner, bei Ausgabe voller `<`, `>` und `&` ist JSON etwa 10 % kleiner (XML muss diese maskieren, JSON nicht), und sobald ein fertiger Teil gzip-komprimiert ist, liegen alle drei innerhalb von 2 % voneinander. YAML ist am größten, da es JSON-Zuordnungen mit dem Präfix `- ` schreibt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert. Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf `.gz`.
+Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausgewählt werden: **JSON** (JSON Lines, Standard), **XML** oder **YAML**. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. JSON ist die Standardeinstellung, weil die Protokolltools es lesen, ohne dass ein eigener Parser erforderlich ist – und nicht, weil es Platz spart. Die Größe trennt die drei kaum voneinander: Bei normaler Ausgabe ist XML etwa 9 Byte pro Eintrag kleiner, bei Ausgabe voller `<`, `>` und `&` ist JSON etwa 10 % kleiner (XML muss diese maskieren, JSON nicht), und sobald ein fertiger Teil komprimiert ist, liegen alle drei innerhalb von 2 % voneinander. YAML ist das größte, da es JSON-Zuordnungen mit dem Präfix `- ` schreibt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert. Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf `.zst` (zstd – Journale aus älteren Versionen behalten ihre `.gz`-Teile und öffnen sich genau wie zuvor).
+
+Zwei weitere Dinge halten lange, laute Sitzungen klein und vollständig. Aufeinanderfolgende identische Ausgabezeilen (Fortschrittsschleifen, `tail -f`-Wiederholungen) werden im Syslog-Stil zusammengeführt: Das erste Vorkommen wird sofort geschrieben, Folgezeilen werden gezählt und als ein Eintrag mit Wiederholungszählung gespeichert. Der Viewer zeigt einen solchen Lauf kompakt als `Zeile ×12` an, während beim Kopieren oder Exportieren des Protokolls die Originalzeilen vollständig reproduziert werden. Und wenn die Serverausgabe schneller ankommt, als das Protokoll sie speichern kann, erzeugt die Erfassung einen Gegendruck, anstatt Zeilen zu verwerfen – das Terminal kann bei extremer Überlastung kurzzeitig langsamer werden, das Journal bleibt jedoch vollständig.
+
+Die Rotation kann pro Verbindung auf der Registerkarte **Journal** konfiguriert werden: **Maximale Größe pro Log-Teil (MB)** (Standard 25) und **Maximale Anzahl rotierter Log-Teile** (Standard 20). Nach der konfigurierten Anzahl von Teilen stoppt die Ausgabeerfassung mit einer Notiz im Journal; Eingaben, Screenshots und Notizen werden fortgesetzt. Eine Unternehmensrichtlinie kann die Teileanzahl über `max-log-parts` begrenzen.
 
 ## Das Journal wird aktiviert
 
@@ -28,7 +32,7 @@ Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausge
 
 1. Öffnen Sie **Verbindungen > Verbindungen verwalten** und bearbeiten Sie eine Verbindung
 2. Aktivieren Sie auf der Registerkarte **Journal** die Option **Sitzungsjournal für diese Verbindung aktivieren**
-3. Passen Sie optional **Getippte Eingabezeilen erfassen**, **KI-Zusammenfassungen generieren** und das **Zusammenfassungsintervall pro Verbindung** an.
+3. Passen Sie optional **Typisierte Eingabezeilen erfassen**, **KI-Zusammenfassungen generieren**, das **Zusammenfassungsintervall pro Verbindung** und das Rotationspaar **Maximale Größe pro Log-Teil (MB)** und **Maximale Anzahl rotierter Log-Teile** an.
 
 Jede zukünftige Verbindung dieses Servers startet dann automatisch sein Journal. Das Journal übersteht erneute Verbindungen – ein Journal pro Tab-Lebensdauer, mit einer Wiederverbindungsmarkierung im Protokoll.
 
@@ -45,24 +49,24 @@ Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen
 
 ### Notizen schreiben
 
-Notizen werden überall im selben Editor geschrieben – über die **Notiz**-Schaltfläche der Journalleiste, die des Live-Panels, das Eintragsformular im [Viewer](#der-viewer-und-die-bearbeitung) und den [Screenshot-Editor](#screenshot-notizen-und-anmerkungen):
+Notizen werden überall dort, wo sie bearbeitet werden, im selben Editor geschrieben – über die Schaltfläche **Notiz** der Journalleiste, die Live-Panels, das Eingabeformular im [Viewer](#der-viewer-und-die-bearbeitung), und die [Screenshot-Editor](#screenshot-notizen-und-anmerkungen):
 
-- Das Feld ist **mindestens sechs Zeilen** hoch und der Dialog lässt sich vergrößern – eine Notiz darf also ein Absatz sein und nicht nur eine Zeile.
-- **Links sind anklickbar.** Jede `http://`- oder `https://`-Adresse in einer Notiz wird zu einem Link auf der Journalseite – klicken Sie darauf und die Adresse wird in Ihrem Systembrowser geöffnet, niemals in der Journalansicht. Nur diese beiden Schemata werden überhaupt zu Links, und das nur in Text, den Sie selbst geschrieben haben: KI-Zusammenfassungen und Terminalauszüge bleiben unverändert.
+- Das Feld enthält **mindestens sechs Zeilen** und die Größe des Dialogfelds kann geändert werden, sodass eine Notiz ein Absatz statt einer einzelnen Zeile sein kann.
+- **Links sind anklickbar.** Jede `http://`- oder `https://`-Adresse in einer Notiz wird zu einem Link auf der Journalseite – klicken Sie darauf und die Adresse wird in Ihrem Systembrowser geöffnet, niemals in der Journalansicht. Nur diese beiden Schemata werden jemals zu Links, und zwar nur in Texten, die Sie selbst geschrieben haben: KI-Zusammenfassungen und Terminalauszüge bleiben wörtlich.
 - **Übersetzen** übergibt die Notiz an die KI und ersetzt sie durch die Übersetzung in der neben der Schaltfläche ausgewählten Sprache. Die Liste bietet die Schnittstellensprachen und jede Sprache, für die korTTY Übersetzungen hat, und akzeptiert eine typisierte Sprache, die es nicht auflistet. Ihre Auswahl wird für die nächste Notiz gespeichert. Die Übersetzung wird auf dem Profil ausgeführt, das dem **Text- und Übersetzungsprofil** im [KI-Manager](../reference/settings/ai.md) zugewiesen ist – derselben Rolle, die auch die Übersetzung des Snippet-Editors verwendet – und fällt auf Ihr Standardprofil zurück, wenn diese Rolle nicht festgelegt ist. Der Internetzugang bleibt dabei, genau wie bei den Zusammenfassungen, deaktiviert; ++cmd+z++ / ++ctrl+z++ bringt das Original zurück. Ohne ein verwendbares KI-Profil ist die Schaltfläche deaktiviert und zeigt dies an.
 
 ### Wenn die Verbindung endet
 
-Ein Journal gehört zu seinem Tab, nicht zu einer einzelnen Verbindung. Endet die Verbindung, während das Journal läuft – ein `reboot`, ein Netzwerkabbruch oder der Server beendet die Sitzung –, bleibt der Tab **offen** und statt eines stillen Tab-Schließens erscheint eine rote Entscheidungsleiste:
+Ein Journal ist an seine Registerkarte gebunden, nicht an eine einzelne Verbindung. Wenn die Verbindung beendet wird, während das Journal ausgeführt wird – ein `reboot`, ein unterbrochenes Netzwerk oder der Server, der die Sitzung schließt –, bleibt die Registerkarte **offen** und eine rote Entscheidungsleiste wird angezeigt, anstatt dass sich die Registerkarte lautlos schließt:
 
-- **Neu verbinden** stellt die Verbindung wieder her, und das Journal läuft einfach weiter – mit einem Reconnect-Vermerk im Capture-Log. Arbeiten, die nach einem Server-Neustart weitergehen, landen im selben Journal.
-- **Journal beenden** stoppt das Journal und schreibt seine abschließende Zusammenfassung (und, falls aktiviert, den KI-Titel) – genau wie der Stopp-Button der Journalleiste. Der Tab zeigt danach die einfache Reconnect-Leiste, erneutes Verbinden bleibt also möglich – ist das Journal für die Verbindung aktiviert, startet diese neue Sitzung ein frisches Journal.
+- **Reconnect** stellt die Verbindung wieder her und das Journal wird einfach fortgesetzt, mit einer Wiederverbindungsmarkierung im Capture-Log. Arbeiten, die nach einem Serverneustart fortgesetzt werden, landen im selben Journal.
+- **Journal beenden** stoppt das Journal und schreibt seine abschließende Zusammenfassung (und, falls aktiviert, den AI-Titel) genau wie die Stopp-Schaltfläche der Journalleiste. Auf der Registerkarte wird dann die einfache Leiste zum erneuten Verbinden angezeigt, so dass eine erneute Verbindung weiterhin möglich ist – wenn das Journaling für die Verbindung aktiviert ist, startet diese neue Sitzung ein neues Journal.
 
-Auch das Schließen des Tabs beendet das Journal mit seiner abschließenden Zusammenfassung. Ohne laufendes Journal bleibt das Verhalten unverändert: Eine sauber beendete Verbindung schließt den Tab, bei einem Fehler bleibt er mit der Reconnect-Leiste offen (Doppelklick verbindet neu).
+Wenn Sie stattdessen die Registerkarte schließen, wird auch das Journal mit seiner abschließenden Zusammenfassung beendet. Ohne laufendes Journal ist das Verhalten unverändert: Bei einer sauber beendeten Verbindung wird der Tab geschlossen, bei einem Fehler bleibt er mit der Reconnect-Leiste geöffnet (Doppelklick zum erneuten Verbinden).
 
 ## Das Live-Journal-Panel
 
-**Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt die **vollständige Journalseite** des laufenden Journals an – dieselbe Seite wie der [Viewer](#die-journalseite) zeigt – **links oder rechts** vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
+**Ansicht > Live-Journal** (oder ++ctrl+alt+l++) dockt die **vollständige Journalseite** des laufenden Journals an – dieselbe Seite wie die [Viewer](#die-journalseite) zeigt – **links oder rechts** vom Terminal, in Echtzeit auf dem neuesten Stand gehalten. Durch Auswahl der markierten Seite im Menü wird das Bedienfeld wieder ausgeblendet. Die Trennlinie daneben passt die Breite an, und Seite und Breite werden bei jedem Neustart gespeichert.
 
 Zwei Dinge werden während der Sitzung live aktualisiert:
 
@@ -108,19 +112,19 @@ Wenn die Sitzung endet, schreibt die Zusammenfassung einen abschließenden **Sit
 
 ## KI-Screenshot-Analyse
 
-Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analysiert: Das Modell schreibt eine kurze **Beschreibung** (ein bis drei Sätze) und eine Handvoll kleingeschriebene **Tags**, die rechts neben dem Miniaturbild auf der Journalseite angezeigt werden. Tags sind anklickbare Chips – wenn man auf einen klickt, startet ein [Journalsuche](#suche-im-journal) für dieses Tag – und beide Texte werden durch den **Suchinhalt**-Scan des Managers gefunden, neu geschrieben von [suchen und ersetzen](#suchen-und-ersetzen) und die automatischen Schwärzungsregeln und sind in den Markdown- und PDF-Exporten enthalten. Wie die Zusammenfassungen werden auch die Analyseantworten in der Sprache beantwortet, in der das Journal erstellt wurde.
+Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analysiert: Das Modell schreibt eine kurze **Beschreibung** (ein bis drei Sätze) und eine Handvoll kleingeschriebene **Tags**, die rechts neben dem Miniaturbild auf der Journalseite angezeigt werden. Tags sind anklickbare Chips – das Klicken auf einen startet a [Journalesuche](#suche-im-journal) für dieses Tag – und beide Texte werden durch den **Suchinhalt**-Scan des Managers gefunden, neu geschrieben von [suchen und ersetzen](#suchen-und-ersetzen) und die automatischen Schwärzungsregeln und sind in den Markdown- und PDF-Exporten enthalten. Wie die Zusammenfassungen werden auch die Analyseantworten in der Sprache beantwortet, in der das Journal erstellt wurde.
 
-- **Screenshots mit KI analysieren (Beschreibung und Tags)** im Dialogfeld **Optionen** des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann; andernfalls wird der Screenshot einfach unanalysiert abgelegt.
+- **Screenshots mit KI analysieren (Beschreibung und Tags)** im Dialogfeld **Optionen** des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann. andernfalls wird der Screenshot einfach unanalysiert abgelegt.
 - **Screenshot mit KI analysieren** im Rechtsklick-Menü eines Screenshots analysiert ein Bild bei Bedarf – die Möglichkeit, Screenshots in zuvor aufgezeichneten Journalen zu analysieren, einen fehlgeschlagenen Lauf zu wiederholen oder die Analyse erneut auszuführen, nachdem etwas im [Anmerkungseditor](#screenshot-notizen-und-anmerkungen) unleserlich gemacht wurde. Die Analyse liest immer das kommentierte Bild, niemals die unberührte `.orig.png`-Aufnahme.
 
-Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bild-Eingabe (Vision)** in den [KI-Einstellungen](../reference/settings/ai.md) steht standardmäßig auf **Auto** – für einen lokalen LM-Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die auch Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die gängigen vision-fähigen Modellnamen – und kann für Modelle, die die Erkennung falsch einschätzt, mit **Aktiviert**/**Deaktiviert** übersteuert werden.
+Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [AI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die die Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
 
 !!! warning
     Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme – bevor Sie die Möglichkeit haben, etwas unleserlich zu machen. Das Bild geht nur an das konfigurierte KI-Profil und niemals über Internet-Zugriffstools, aber für Sitzungen, deren Bildschirminhalt den Computer nicht verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über [Unternehmensrichtlinie](#unternehmensrichtlinie) verbieten – die Richtlinienanweisung deaktiviert auch die manuelle Ausführung.
 
 ## Passwortschutz
 
-Getippte Eingaben werden nur als vollständige übermittelte Zeilen erfasst und mehrere Ebenen halten Passwörter aus dem Journal fern:
+Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und mehrere Ebenen halten Passwörter aus dem Journal fern:
 
 - Wenn die Serverausgabe mit einer Passwortabfrage endet (`password:`, `[sudo] password for …`, `passphrase`, `PIN` und lokalisierte Varianten), wird die nächste übermittelte Eingabezeile unterdrückt und als geschwärzter Platzhalter protokolliert – der eingegebene Text wird nie zwischengespeichert oder geschrieben.
 - Das eigene gespeicherte Passwort der Verbindung wird zusätzlich durch `***` ersetzt, wo immer es im erfassten Text erscheinen würde.
@@ -135,10 +139,10 @@ Wenn trotzdem etwas durchgerutscht ist, dann das des Viewers [suchen und ersetze
 
 `journal.html` ist vollständig eigenständig (keine externen Ressourcen) und funktioniert im integrierten Viewer, in jedem Browser und innerhalb des exportierten Bundles:
 
-- Ein Sticky-Header zeigt an, wer mit welchem Server verbunden war, Startzeit, Dauer und Anzahl der Einträge, Befehle, Fehler und Screenshots sowie die Journalbeschreibung. Live-Journale weisen ein **Live**-Abzeichen auf. Die Zeile unter dem Titel enthält nur das, was der Titel nicht bereits sagt, sodass ein nach seinem Endpunkt benanntes Journal die Verbindung einmal statt dreimal angibt.
+- Ein Sticky-Header zeigt an, wer mit welchem Server verbunden war, Startzeit, Dauer und Anzahl der Einträge, Befehle, Fehler und Screenshots sowie die Journalbeschreibung. Live-Journale weisen ein **Live**-Abzeichen auf. Die Zeile unter dem Titel enthält nur das, was der Titel nicht bereits sagt, sodass eine nach ihrem Endpunkt benannte Journal die Verbindung einmal statt dreimal angibt.
 - Die Zeitleiste gruppiert Einträge nach Tag; Jeder Eintrag trägt seine Zeit, einen Markierungspunkt und ein Abzeichen in der Farbe, die Sie dieser Markierung gegeben haben, den AI-Titel und die Zusammenfassung sowie farbcodierte Eingabe- (grün) und Ausgabeauszüge (blau).
 - Durch Klicken auf einen Eintrag wird von unten ein Protokollfenster mit dem genauen Capture-Logbereich hinter diesem Eintrag eingeblendet. Das Panel verfügt über eine eigene Bildlaufleiste, ein Suchfeld mit Trefferzähler und ▲/▼-Navigation (++enter++ / ++shift+enter++ zyklisch auch Treffer, ++esc++ schließt) und färbt Eingabe- und Ausgabezeilen unterschiedlich ein.
-- Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet. Wenn die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ausgeführt wurde, befinden sich die Beschreibungs- und Tag-Chips rechts neben dem Bild, und ein Chip-Klick durchsucht das Journal nach diesem Tag.
+- Screenshot-Einträge zeigen Miniaturansichten; Wenn Sie darauf klicken, wird ein Leuchtkasten in voller Größe geöffnet. Wenn die [KI-Screenshot-Analyse ](#ki-screenshot-analyse) ausgeführt wurde, befinden sich die Beschreibungs- und Tag-Chips rechts neben dem Bild, und ein Chip-Klick durchsucht das Journal nach diesem Tag.
 - Die Seite wird standardmäßig dunkel gerendert, folgt der Hell/Dunkel-Einstellung des Systems und verfügt über eine eigene Designumschaltung.
 - Screenshots, Auszugsfenster, die Zeitleistenspalte und das Protokollfenster passen sich dem Fenster an, sodass die Seite sowohl in einem schmalen Viewer-Tab als auch im Vollbildmodus lesbar bleibt. Lange Ausschnitte scrollen in ihrem eigenen Rahmen, anstatt die Zeitleiste zu dehnen.
 
@@ -160,7 +164,7 @@ Ein Journal ohne Markierungen enthält weder die Schaltfläche noch die Leiste, 
 In korTTY befindet sich im Header auch eine ⇥-Schaltfläche, die die Timeline in den Bereichsmodus schaltet. Klicken Sie auf den ersten Eintrag und dann auf den letzten – alles dazwischen wird hervorgehoben und die Leiste zeigt die Spanne und die Anzahl der abgedeckten Einträge an. Dabei spielt die Reihenfolge keine Rolle: Das Anklicken des späteren Eintrags funktioniert genauso gut.
 
 - **Ein weiteres Fenster hinzufügen** legt die aktuelle Auswahl beiseite und beginnt eine neue, sodass mehrere Fenster in einem Durchgang erfasst werden können.
-- **Für den Export verwenden** öffnet den Exportdialog mit bereits ausgefüllten Fenstern.
+- **Für Export verwenden** öffnet den Exportdialog mit bereits ausgefüllten Fenstern.
 - **Abbrechen** oder ++esc++ verlässt den Bereichsmodus.
 
 Wenn der Bereichsmodus aktiviert ist, wird durch Klicken auf einen Eintrag das Protokollfenster ausgewählt, anstatt es zu öffnen. In einem externen Browser fehlt die Schaltfläche, da zum Exportieren die App erforderlich ist.
@@ -169,7 +173,7 @@ In der Eingabetabelle des Bearbeitungsmodus ist das Gleiche auch ohne Zeitleiste
 
 ### Inhalt wird kopiert
 
-Jeder Eintrag trägt in der oberen rechten Ecke eine Schaltfläche zum Kopieren: Texteinträge kopieren den gesamten Eintrag, Screenshot-Einträge kopieren das Bild. Das Protokollfenster verfügt über dieselbe Schaltfläche für den Protokollabschnitt, den es gerade anzeigt.
+Jeder Eintrag verfügt über eine Schaltfläche zum Kopieren in der oberen rechten Ecke: Texteinträge kopieren den gesamten Eintrag, Screenshot-Einträge kopieren das Bild. Das Protokollfenster verfügt über dieselbe Schaltfläche für den Protokollabschnitt, den es gerade anzeigt.
 
 Wenn Sie mit der rechten Maustaste auf die Seite klicken, wird ein Kopiermenü mit gezielteren Aktionen geöffnet, je nachdem, was Sie angeklickt haben:
 
@@ -226,7 +230,7 @@ Ein Screenshot allein sagt selten aus, warum er aufgenommen wurde. Wenn Sie mit 
 | Aktion | Was es bewirkt |
 |--------|--------------|
 | **Screenshot bearbeiten…** | Öffnet den unten beschriebenen Editor |
-| **Screenshot mit KI analysieren** | Führt die [KI-Screenshot-Analyse](#ki-screenshot-analyse) für dieses Bild aus; wird angeboten, wenn ein bildfähiges KI-Profil konfiguriert ist und die Richtlinie die Analyse zulässt |
+| **Screenshot mit KI analysieren** | Läuft die [KI-Screenshot-Analyse](#ki-screenshot-analyse) für dieses Bild; Wird angeboten, wenn ein bildfähiges KI-Profil konfiguriert ist und die Richtlinie die Analyse zulässt |
 | **Screenshot exportieren…** | Speichert das Bild mit seinen Markierungen in einer von Ihnen ausgewählten Datei. |
 
 Bearbeiten und Exportieren finden Sie auch im Kontextmenü der Eingabetabelle des Bearbeitungsmodus, und ein Doppelklick auf eine Screenshot-Zeile öffnet den Editor direkt. Diese Aktionen erscheinen nur innerhalb von korTTY: Eine eigenständige Seite in einem Browser kann weder das Journal umschreiben noch einen Dateidialog erreichen.
@@ -274,7 +278,7 @@ Die untere Hälfte desselben Dialogs enthält Regeln, die selbst Markierungen se
 
 Die Regeln werden von oben nach unten überprüft und das erste Spiel gewinnt – verwenden Sie ▲/▼, um sie zu ordnen. Sie sehen sich den Titel, die Zusammenfassung, die Notiz und die Ein-/Ausgabeauszüge des Eintrags an, niemals das Roherfassungsprotokoll, und sie folgen den Schwärzungsregeln, sodass ein geschwärztes Geheimnis niemals eines auslösen kann.
 
-Eine von Ihnen manuell gesetzte Markierung wird niemals überschrieben; eine von der KI vorgeschlagene Markierung kann es werden. **Jetzt anwenden** führt die Regeln über das aktuell geöffnete Journal aus und meldet, wie viele Einträge sich geändert haben – das funktioniert auch, während die Sitzung noch läuft. Aktivieren Sie **Auch manuell gesetzte Markierungen überschreiben** nur dann, wenn Sie wirklich möchten, dass Ihre eigenen Auswahlen ersetzt werden.
+Eine von Ihnen manuell gesetzte Markierung wird niemals überschrieben; ein Marker, der von der KI vorgeschlagen wurde. **Jetzt anwenden** führt die Regeln über das aktuell geöffnete Journal aus und meldet, wie viele Einträge sich geändert haben – das funktioniert auch, während die Sitzung noch läuft. Aktivieren Sie **Auch manuell gesetzte Markierungen überschreiben** nur dann, wenn Sie wirklich möchten, dass Ihre eigenen Auswahlen ersetzt werden.
 
 ### Suchen und ersetzen
 
@@ -361,7 +365,7 @@ Beide werden unter [**Konfiguration → Globale Einstellungen → Export**](../r
 
 ## Unternehmensrichtlinie
 
-Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über `[rule.session-journal]` vorschreiben: ein Journal für jede Verbindung erzwingen, das Protokollformat, das KI-Zeilenfenster oder das Speicherverzeichnis festlegen, das Umbenennen oder Löschen von Journalen verbieten, eine Benennungsvorlage vorschreiben, den abschließenden KI-Titel erzwingen und die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein- oder ausschalten – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md) für die Schlüssel.
+Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über vorschreiben `[rule.session-journal]`: Erzwingen Sie ein Journal für jede Verbindung, korrigieren Sie das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis, verbieten Sie das Umbenennen oder Löschen von Journalen, schreiben Sie eine Benennungsvorlage vor, erzwingen Sie den abschließenden AI-Titel und erzwingen Sie die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein oder aus – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md) für die Schlüssel.
 
 ### Automatische Schwärzung
 
@@ -375,4 +379,4 @@ regex = true
 label = "AWS access keys"
 ```
 
-Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Für jeden Schlüssel siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md#rulesession-journalreplace).
+Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md#rulesession-journalreplace) für jeden Schlüssel.

@@ -3762,6 +3762,12 @@
 <td>XZ compression</td>
 </tr>
 <tr>
+<td></td>
+<td>zstd-jni</td>
+<td>1.5.7-15</td>
+<td>zstd compression for rotated session-journal parts</td>
+</tr>
+<tr>
 <td><strong>UI</strong></td>
 <td>JavaFX</td>
 <td>21</td>
@@ -3932,7 +3938,7 @@
 <ul>
 <li><strong>Session caching</strong>: Active SSH connections are cached to avoid reconnection overhead</li>
 <li><strong>Lazy loading</strong>: Connection details loaded on demand, not all at once</li>
-<li><strong>Compression</strong>: Terminal history and recordings use gzip compression</li>
+<li><strong>Compression</strong>: Terminal history and terminal logs use gzip; rotated session-journal parts use zstd (legacy <code>.gz</code> parts stay readable)</li>
 <li><strong>Throttling</strong>: Terminal rendering updates are batched to reduce UI thread load</li>
 <li><strong>Memory pooling</strong>: Large buffers for terminal text and SFTP file listing are reused</li>
 </ul>

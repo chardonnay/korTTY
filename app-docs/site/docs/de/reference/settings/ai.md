@@ -46,7 +46,7 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 
 Dieselben Felder bearbeiten Sie unter **KI > KI-Manager > Profile**, wo das ganze Formular auf einen Blick sichtbar ist:
 
-![Profile-Tab des KI-Managers](../../assets/screenshots/ai/ai-profiles.png)
+![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-E
 
 ### Bild-Eingabe (Vision)
 
-**Bildeingabe (Vision)** entscheidet, ob korTTY Bilder an eine Eingabeaufforderung für dieses Profil anhängen darf – verwendet von [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (ein `vlm`-Modell gilt als bildfähig; die Antwort wird während desselben **Reasoning-Optionen aktualisieren**-Aufrufs gelesen und damit zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) werden auch in der Modell-Dropdown-Liste angezeigt.
+**Bildeingabe (Vision)** entscheidet, ob korTTY Bilder an eine Eingabeaufforderung für dieses Profil anhängen darf – verwendet von [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (a `vlm` Modell gilt als bildfähig; die Antwort wird während desselben **Refresh-Reasoning-Optionen**-Aufrufs gelesen und damit zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) werden auch in der Modell-Dropdown-Liste angezeigt.
 
 ### Token-Kontingentverwaltung
 

@@ -1488,6 +1488,36 @@
       "to": "des Fensters der Anleitung",
       "scope": "markdown",
       "note": "Genitive variant of the manual-window misread; completes that rule family."
+    },
+    {
+      "from": "**Maximale Größe pro Protokollteil (MB)**",
+      "to": "**Maximale Größe pro Log-Teil (MB)**",
+      "scope": "markdown",
+      "note": "UI label connEdit.journal.maxSizeMB."
+    },
+    {
+      "from": "**Maximal gedrehte Protokollteile**",
+      "to": "**Maximale Anzahl rotierter Log-Teile**",
+      "scope": "markdown",
+      "note": "UI label connEdit.journal.maxParts."
+    },
+    {
+      "from": "XML muss diese entkommen",
+      "to": "XML muss diese maskieren",
+      "scope": "markdown",
+      "note": "MT renders 'escape' literally as 'entkommen' in the format-size comparison."
+    },
+    {
+      "from": "`line ×12`",
+      "to": "`Zeile ×12`",
+      "scope": "markdown",
+      "note": "Repeat-badge example in the session-journal page; MT leaves the code span English."
+    },
+    {
+      "from": "ist daran geklemmt",
+      "to": "ist darauf begrenzt",
+      "scope": "markdown",
+      "note": "MT renders 'clamped to it' as 'geklemmt' in the max-log-parts policy row."
     }
   ]
 }

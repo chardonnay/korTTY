@@ -11,7 +11,7 @@ KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen,
 ## Eigenschaften
 
 * **Verschlüsselte Backups** – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt
-* **Konfigurationssicherung** – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Metadaten der Wissensspeicherquelle
+* **Konfigurationssicherung** – Beinhaltet Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten
 * **Regenerierbare lokale KI-Daten ausgeschlossen** – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert
 * **Projektverzeichnis** – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten
 * **Automatische Rotation** – Alte Backups werden automatisch mit Zeitstempeln in ein `old-backups`-Unterverzeichnis verschoben
@@ -33,7 +33,7 @@ Das Backup umfasst:
 |------|---------|
 | Verbindungen | Alle gespeicherten SSH-Verbindungen und Gruppen |
 | Anmeldeinformationen | Gespeicherte Benutzernamen und Passwörter (verschlüsselt) |
-| SSH-Schlüssel | Zentral verwaltete private SSH-Schlüssel mit verschlüsselten Passphrasen |
+| SSH-Schlüssel | Schlüsselreferenzen mit verschlüsselten Passphrasen sowie die kopierten Schlüsseldateien in `~/.kortty/ssh-keys/` |
 | Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; der Vergängliche `.lock` Begleiter ist nicht im Lieferumfang enthalten |
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
 | Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile |
@@ -55,7 +55,7 @@ Das Backup umfasst:
 4. Optional **Maximale Backups** festlegen (0 = unbegrenzt)
 5. Speichern
 
-Passwortgeschützte Backups verwenden die Standard-ZIP-Verschlüsselung (`EncryptionMethod.ZIP_STANDARD`) über die zip4j-Bibliothek. Das Passwort der Anmeldeinformationen wird zum Verschlüsseln aller Dateien im Archiv verwendet.
+Passwortgeschützte Backups werden mit AES-256 verschlüsselt (über die zip4j-Bibliothek); Das Passwort der Anmeldeinformationen verschlüsselt alle Dateien im Archiv. Mit älteren korTTY-Versionen erstellte Backups verwendeten die veraltete ZIP-Verschlüsselung und können weiterhin importiert werden – die Entschlüsselungsmethode wird aus dem Archiv selbst gelesen. Beachten Sie, dass AES-verschlüsselte ZIPs ein AES-fähiges Tool (7-Zip, WinZip, `unzip` 6+) benötigen, wenn Sie jemals eines außerhalb von korTTY extrahieren.
 
 ### GPG-Verschlüsselung
 
@@ -91,6 +91,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `connections.xml` – Alle SSH-Verbindungen und -Gruppen
 * `credentials.xml` – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)
 * `ssh-keys.xml` – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen
+* `ssh-keys/` – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über **In Benutzerverzeichnis kopieren** dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Eigentümerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne **Überschreiben**, ersetzt
 * `ssh-host-keys.properties` – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (`ssh-host-keys.properties.lock` ist absichtlich ausgeschlossen)
 * `gpg-keys.xml` – öffentliche GPG-Schlüssel
 * `global-settings.xml` – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen
@@ -98,7 +99,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `snippets.xml` – Codeausschnitte und Vorlagen
 * `snippet-variables.xml` – Benutzerdefinierte Snippet-Variablen
 * `ai-chats.xml` – Gespeicherte KI-Gespräche
-* `master-password-hash` – Hash Ihres Master-Passworts (zur Überprüfung beim Import)
+* `master.key` – Hash Ihres Master-Passworts (zur Überprüfung beim Import)
 * `llm/models.xml` – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)
 * `rag/stores.json` – Wissensspeicher- und Quellkonfiguration (Vektor-Snapshots sind nicht enthalten)
 * `projects/` – Alle gespeicherten Projektarbeitsbereichsdateien (`.kortty`)
@@ -134,7 +135,7 @@ Um unbegrenzt alte Backups aufzubewahren, stellen Sie **Maximale Backups** unter
    * Lassen Sie **Überschreiben** deaktiviert, es sei denn, Sie möchten vorhandene Verbindungen ersetzen
    * KorTTY neu starten
 
-Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, interaktive Hostschlüssel-Vertrauensentscheidungen, Modellregistrierungen und Wissensquellendefinitionen sind auf Maschine B verfügbar. Wiederhergestellte Hostschlüssel werden weiterhin mit normalisiertem Hostnamen und Port abgeglichen, sodass ein geänderter Schlüssel nach der Migration blockiert bleibt. Lokale Modellgewichte, Laufzeitpakete, Quelldokumente und HNSW-Vektoren müssen separat wiederhergestellt oder neu generiert werden.
+Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, interaktive Hostschlüssel-Vertrauensentscheidungen, Modellregistrierungen und Wissensquellendefinitionen sind auf Maschine B verfügbar. Wiederhergestellte Hostschlüssel werden weiterhin mit dem normalisierten Hostnamen und Port abgeglichen, sodass ein geänderter Schlüssel nach der Migration blockiert bleibt. Lokale Modellgewichte, Laufzeitpakete, Quelldokumente und HNSW-Vektoren müssen separat wiederhergestellt oder neu generiert werden.
 
 ## Fehlerbehebung
 

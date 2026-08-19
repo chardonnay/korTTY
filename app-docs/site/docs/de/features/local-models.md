@@ -77,7 +77,7 @@ Ein MLX-Repository wird als ein vollständiges Verzeichnis heruntergeladen (Safe
 
 ## MLX-Modelle auf Apple Silicon
 
-Auf Apple Silicon Macs (macOS 14 oder neuer) läuft korTTY zusätzlich [MLX](https://github.com/ml-explore/mlx) models – Apples Array-Framework für maschinelles Lernen auf Apple-GPUs – durch den Beamten [mlx-lm](https://github.com/ml-explore/mlx-lm) Server. Der [mlx-Community](https://huggingface.co/mlx-community) Die Organisation Hugging Face veröffentlicht Tausende fertig konvertierter Modelle.
+Auf Apple Silicon Macs (macOS 14 oder neuer) läuft korTTY zusätzlich [MLX](https://github.com/ml-explore/mlx) models – Apples Array-Framework für maschinelles Lernen auf Apple-GPUs – durch den Beamten [mlx-lm](https://github.com/ml-explore/mlx-lm) Server. Der [mlx-Community](https://huggingface.co/mlx-community) Die Organisation auf Hugging Face veröffentlicht Tausende fertig konvertierter Modelle.
 
 - **Registrierung und Lebenszyklus** spiegeln GGUF-Modelle wider: Installierte MLX-Modelle werden in derselben Tabelle mit Backend **MLX** angezeigt, unterstützen **Auswahl starten**, **Auswahl stoppen**, **Entfernen** und **Konfigurieren** (Anzeigename und Entladen nach Leerlaufzeit) und melden dieselben Laufzeitzustände.
 - **Isolation** spiegelt llama.cpp wider: Jedes Modell läuft als sein eigener reiner Loopback-Sidecar mit einem zufälligen Port und einem pro Prozess generierten API-Schlüssel. korTTY verpackt `mlx_lm.server` – das über keine eigene Authentifizierung verfügt – in einen eigenen Launcher, der jede nicht authentifizierte Anfrage außer der lokalen Gesundheitsprüfung ablehnt, den Offline-Zugriff auf Hugging Face erzwingt, geerbte Python- und Token-Umgebungsüberschreibungen entfernt und nach der konfigurierten Leerlaufzeit beendet.

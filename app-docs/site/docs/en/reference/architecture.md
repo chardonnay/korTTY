@@ -247,6 +247,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | PDFBox | 3.0.8 | PDF export and RAG text extraction |
 | **Archive** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ support |
 | | Tukaani xz | 1.12 | XZ compression |
+| | zstd-jni | 1.5.7-15 | zstd compression for rotated session-journal parts |
 | **UI** | JavaFX | 21 | Application framework |
 | | Monaco Editor | 0.56.0 | Code editor component |
 | | Mermaid | 11.16.1 | Local diagram parsing, SVG rendering, and PNG rasterization |
@@ -379,7 +380,7 @@ Menu-bar status displays next runs / live countdown
 
 - **Session caching**: Active SSH connections are cached to avoid reconnection overhead
 - **Lazy loading**: Connection details loaded on demand, not all at once
-- **Compression**: Terminal history and recordings use gzip compression
+- **Compression**: Terminal history and terminal logs use gzip; rotated session-journal parts use zstd (legacy `.gz` parts stay readable)
 - **Throttling**: Terminal rendering updates are batched to reduce UI thread load
 - **Memory pooling**: Large buffers for terminal text and SFTP file listing are reused
 

@@ -3300,7 +3300,7 @@
 <tbody>
 <tr>
 <td><strong>Kern</strong></td>
-<td>SSH-Konnektivität, gemeinsamer interaktiver Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung</td>
+<td>SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung</td>
 <td><code>SSHSession</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
 </tr>
 <tr>
@@ -3386,7 +3386,7 @@
 <li>Klont SithTermFX am Tag <code>v1.2.1</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
 <li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.1-terminal-panel-bottom-row.patch</code> und <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
-<li>Installiert Artefakte im lokalen Maven-Repo (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen</li>
+<li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
 </ol>
 <p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
@@ -3710,8 +3710,8 @@
 <tr>
 <td></td>
 <td>pty4j (JetBrains)</td>
-<td>0.12.25</td>
-<td>PTY-Zuteilung für Mosh</td>
+<td>0,12,25</td>
+<td>PTY-Zuweisung für Mosh</td>
 </tr>
 <tr>
 <td><strong>Plattform</strong></td>
@@ -3762,6 +3762,12 @@
 <td>XZ-Komprimierung</td>
 </tr>
 <tr>
+<td></td>
+<td>zstd-jni</td>
+<td>1.5.7-15</td>
+<td>zstd-Komprimierung für gedrehte Sitzungsjournalteile</td>
+</tr>
+<tr>
 <td><strong>UI</strong></td>
 <td>JavaFX</td>
 <td>21</td>
@@ -3788,7 +3794,7 @@
 <tr>
 <td></td>
 <td>google-java-format</td>
-<td>1.35.0</td>
+<td>1.36.1</td>
 <td>Java-Codeformatierung</td>
 </tr>
 <tr>
@@ -3806,7 +3812,7 @@
 <tr>
 <td><strong>Protokollierung</strong></td>
 <td>SLF4J / Logback</td>
-<td>2.0.18 / 1.5.38</td>
+<td>2.0.18 / 1.6.1</td>
 <td>Strukturierte Protokollierung</td>
 </tr>
 <tr>
@@ -3838,9 +3844,9 @@
 <li><strong>Browser-Assets</strong>: Ein isoliertes, angeheftetes Node.js wird nur zur Erstellungszeit für Monaco und für die JavaFX-WebKit-Kompatibilitätsverarbeitung des SHA-256-angehefteten Mermaid-Bundles verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Mermaid und MathJax bleiben getrennte Lazy-Ressourcen; Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD Build läuft ohne Node zur Laufzeit.</li>
 <li><strong>Nutzlast des externen Formatierers</strong>: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.</li>
 <li><strong>Sauberes natives Staging</strong>: <code>prepareJpackage</code> verwendet einen endgültigen Gradle <code>Sync</code>, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.</li>
-<li><strong>Native Verpackung und Gates</strong>: Die ausgewählte Gradle JDK 25-Toolchain stellt <code>jpackage</code> für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. <code>scripts/package-size-report.py</code> gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.</li>
+<li><strong>Native Verpackung und Gates</strong>: Die ausgewählte Gradle JDK 25-Toolchain stellt <code>jpackage</code> für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. <code>scripts/package-size-report.py</code> gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Reduzierung des Installationsprogramms um mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.</li>
 <li><strong>llama.cpp-Laufzeitpaketierung</strong>: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur <code>llama-server</code> plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine <code>build.gradle.kts</code>-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte <code>llama-runtime-signing</code>-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von <code>main</code> aus.</li>
-<li><strong>Modell-/Prompt-Katalog-Werbung</strong>: Ein separater manueller Workflow nur für <code>main</code> validiert den kanonischen JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte <code>ai-catalog-signing</code>-Umgebung ohne Vorschaukanal.</li>
+<li><strong>Modell-/Prompt-Katalog-Werbung</strong>: Ein separater manueller Workflow, der nur für <code>main</code> gilt, validiert das kanonische JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte <code>ai-catalog-signing</code>-Umgebung ohne Vorschaukanal.</li>
 </ol>
 <h3 id="classpath-und-modulpfad">Classpath und Modulpfad<a class="headerlink" href="#classpath-und-modulpfad" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3912,7 +3918,7 @@
 <li><strong>RAG-Worker</strong>: Quellvorschauen, Extraktion, Einbettungsbatches und HNSW-Kandidaten-Builds werden außerhalb des JavaFX-Threads ausgeführt; Ein Daemon-WatchService-Thread entprellt automatische Quelländerungen. Der Bereich lässt nur einen aktiven Scan-/Indexvorgang zu und gibt die überprüfte Vorschau vor Konfigurations- oder Indexierungsänderungen an JavaFX zurück.</li>
 <li><strong>RAG-Koordinator</strong>: Ein serialisierter Worker und Watcher pro Speicher verhindert überlappende Schreibvorgänge, gleicht automatische Quellen während des Anwendungsstarts unabhängig vom Start von Anmeldeinformationen/JobScheduler ab, behält Quell-Hashes/Zählungen/Status bei und lädt den UI-Status nach Abschluss neu.</li>
 <li><strong>Datei-E/A-Threads</strong>: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen</li>
-<li><strong>Webformatter-Anfragen</strong>: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufrufen des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.</li>
+<li><strong>Webformatter-Anfragen</strong>: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufruf des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.</li>
 <li><strong>Mermaid-Rendering-Anfragen</strong>: Hintergrundaufrufer erhalten <code>CompletableFuture</code>-Ergebnisse, während der gesamte Zugriff auf den einzelnen Lazy-Renderer WebView im JavaFX-Anwendungsthread verbleibt. Anfragen werden serialisiert; Bei einem Abbruch, einem 30-Sekunden-Timeout oder einem WebEngine-Fehler wird die Engine-Generierung verworfen, und die Leerlaufbereinigung gibt die ausgeblendete WebView frei.</li>
 </ul>
 <h2 id="erweiterungspunkte">Erweiterungspunkte<a class="headerlink" href="#erweiterungspunkte" title="Permanent link">&para;</a></h2>
@@ -3932,7 +3938,7 @@
 <ul>
 <li><strong>Sitzungscaching</strong>: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden</li>
 <li><strong>Lazy Loading</strong>: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal</li>
-<li><strong>Komprimierung</strong>: Terminalverlauf und Aufzeichnungen verwenden die GZIP-Komprimierung</li>
+<li><strong>Komprimierung</strong>: Terminalverlauf und Terminalprotokolle verwenden gzip; Teile des gedrehten Sitzungsjournals verwenden zstd (ältere <code>.gz</code>-Teile bleiben lesbar)</li>
 <li><strong>Drosselung</strong>: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren</li>
 <li><strong>Speicherpooling</strong>: Große Puffer für Terminaltext und SFTP-Dateiauflistung werden wiederverwendet</li>
 </ul>

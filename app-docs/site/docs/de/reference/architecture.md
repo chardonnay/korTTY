@@ -25,7 +25,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 
 | **Modul** | **Zweck** | **Schlüsselklassen** |
 |---|---|---|
-| **Kern** | SSH-Konnektivität, gemeinsamer interaktiver Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswWissensspeicher`, `RagRuntimeService` |
 | **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
@@ -58,7 +58,7 @@ Der Build-Prozess automatisch:
 1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
 2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch` und `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt
 3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
-4. Installiert Artefakte im lokalen Maven-Repo (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
+4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
 Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.
@@ -238,7 +238,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA-Schlüsselunterstützung |
 | **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
-| | pty4j (JetBrains) | 0.12.25 | PTY-Zuteilung für Mosh |
+| | pty4j (JetBrains) | 0,12,25 | PTY-Zuweisung für Mosh |
 | **Plattform** | JNA (JNA, JNA-Plattform) | 5.19.1 | Native Desktop-Energieverwaltungsintegration |
 | **Daten** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB-Serialisierung |
 | | Gson | 2.14.0 | JSON-Analyse |
@@ -247,14 +247,15 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | | PDFBox | 3.0.8 | PDF-Export und RAG-Textextraktion |
 | **Archiv** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ-Unterstützung |
 | | Tukaani xz | 1.12 | XZ-Komprimierung |
+| | zstd-jni | 1.5.7-15 | zstd-Komprimierung für gedrehte Sitzungsjournalteile |
 | **UI** | JavaFX | 21 | Anwendungsframework |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
 | | Mermaid | 11.16.1 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
-| | google-java-format | 1.35.0 | Java-Codeformatierung |
+| | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
-| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.5.38 | Strukturierte Protokollierung |
+| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.6.1 | Strukturierte Protokollierung |
 | **Optional** | mosh4j | 2.0.2 | Mosh-Protokoll (dynamisch geladen) |
 | **Lokale KI** | llama.cpp `llama-server` | Quellfixiertes Laufzeitpaket | Lokaler GGUF-Chat-Vervollständigungs- und Einbettungs-Sidecar |
 
@@ -274,9 +275,9 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 2. **Browser-Assets**: Ein isoliertes, angeheftetes Node.js wird nur zur Erstellungszeit für Monaco und für die JavaFX-WebKit-Kompatibilitätsverarbeitung des SHA-256-angehefteten Mermaid-Bundles verwendet. Die Editor- und Diff-Seiten von Monaco teilen sich ein modusbewusstes IIFE/CSS-Paar, während alle fünf Worker und Sprachdienste beibehalten werden. Mermaid und MathJax bleiben getrennte Lazy-Ressourcen; Prettier Standalone mit fünf ausgewählten Plugins und dem SQL-Formatter UMD Build läuft ohne Node zur Laufzeit.
 3. **Nutzlast des externen Formatierers**: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.
 4. **Sauberes natives Staging**: `prepareJpackage` verwendet einen endgültigen Gradle `Sync`, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.
-5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Installationsprogrammreduzierung von mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
+5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Reduzierung des Installationsprogramms um mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
 6. **llama.cpp-Laufzeitpaketierung**: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur `llama-server` plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine `build.gradle.kts`-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte `llama-runtime-signing`-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von `main` aus.
-7. **Modell-/Prompt-Katalog-Werbung**: Ein separater manueller Workflow nur für `main` validiert den kanonischen JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte `ai-catalog-signing`-Umgebung ohne Vorschaukanal.
+7. **Modell-/Prompt-Katalog-Werbung**: Ein separater manueller Workflow, der nur für `main` gilt, validiert das kanonische JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte `ai-catalog-signing`-Umgebung ohne Vorschaukanal.
 
 ### Classpath und Modulpfad
 
@@ -358,7 +359,7 @@ Menu-bar status displays next runs / live countdown
 - **RAG-Worker**: Quellvorschauen, Extraktion, Einbettungsbatches und HNSW-Kandidaten-Builds werden außerhalb des JavaFX-Threads ausgeführt; Ein Daemon-WatchService-Thread entprellt automatische Quelländerungen. Der Bereich lässt nur einen aktiven Scan-/Indexvorgang zu und gibt die überprüfte Vorschau vor Konfigurations- oder Indexierungsänderungen an JavaFX zurück.
 - **RAG-Koordinator**: Ein serialisierter Worker und Watcher pro Speicher verhindert überlappende Schreibvorgänge, gleicht automatische Quellen während des Anwendungsstarts unabhängig vom Start von Anmeldeinformationen/JobScheduler ab, behält Quell-Hashes/Zählungen/Status bei und lädt den UI-Status nach Abschluss neu.
 - **Datei-E/A-Threads**: Asynchrone Schreibvorgänge für Verlauf, Journal und Aufzeichnungen
-- **Webformatter-Anfragen**: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufrufen des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.
+- **Webformatter-Anfragen**: Hintergrundaufrufer werden mit einer Gesamtzeitüberschreitung serialisiert; Erstellung, Laden und Aufruf des Lazy Prettier/SQL WebView bleiben auf den JavaFX-Anwendungsthread beschränkt, und bei Fehlern wird die Engine-Generierung verworfen.
 - **Mermaid-Rendering-Anfragen**: Hintergrundaufrufer erhalten `CompletableFuture`-Ergebnisse, während der gesamte Zugriff auf den einzelnen Lazy-Renderer WebView im JavaFX-Anwendungsthread verbleibt. Anfragen werden serialisiert; Bei einem Abbruch, einem 30-Sekunden-Timeout oder einem WebEngine-Fehler wird die Engine-Generierung verworfen, und die Leerlaufbereinigung gibt die ausgeblendete WebView frei.
 
 ## Erweiterungspunkte
@@ -379,7 +380,7 @@ Menu-bar status displays next runs / live countdown
 
 - **Sitzungscaching**: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden
 - **Lazy Loading**: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal
-- **Komprimierung**: Terminalverlauf und Aufzeichnungen verwenden die GZIP-Komprimierung
+- **Komprimierung**: Terminalverlauf und Terminalprotokolle verwenden gzip; Teile des gedrehten Sitzungsjournals verwenden zstd (ältere `.gz`-Teile bleiben lesbar)
 - **Drosselung**: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren
 - **Speicherpooling**: Große Puffer für Terminaltext und SFTP-Dateiauflistung werden wiederverwendet
 
