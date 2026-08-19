@@ -1,0 +1,383 @@
+package de.kortty.core;
+
+import de.kortty.model.SessionJournalMeta;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Path;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
+
+/**
+ * Answers questions across all stored journals. Two-stage by design: a deterministic BM25
+ * prefilter over the per-journal {@link SessionJournalSearchCard}s picks the top candidates —
+ * hundreds of journals never fit any model context — and only those cards go into one AI prompt
+ * that answers and selects the relevant journals by ordinal. Hits (curated entries and exact
+ * capture-log positions via {@link SessionJournalLogSearcher}) are materialized deterministically
+ * either way, so the hit list works even when the model is down.
+ *
+ * <p>Never throws: every failure degrades to the deterministic path with a localized warning
+ * (the {@link SessionJournalTopicSelector} doctrine).</p>
+ */
+public final class SessionJournalCrossSearchService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SessionJournalCrossSearchService.class);
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    static final int CLOUD_TOP_K = 12;
+    static final int LOCAL_TOP_K = 6;
+    static final int MAX_CARD_CHARS = 1_200;
+    static final int MAX_CARD_SECTIONS = 6;
+    static final int MAX_HITS_PER_JOURNAL = 50;
+    static final int MAX_TOTAL_LOG_HITS = 200;
+    static final long CALL_TIMEOUT_SECONDS = 120;
+
+    /** What a hit points at: a curated entry, or an exact capture-log position. */
+    public sealed interface HitTarget permits EntryTarget, LogTarget {
+    }
+
+    public record EntryTarget(String entryId) implements HitTarget {
+    }
+
+    public record LogTarget(int part, long seq) implements HitTarget {
+    }
+
+    /** {@code occurrences} counts coalesced repeats; 1 for curated-entry hits. */
+    public record Hit(HitTarget target, String snippet, OffsetDateTime timestamp, long occurrences) {
+    }
+
+    /**
+     * @param score          BM25 prefilter score (0 when only the AI selected the journal)
+     * @param aiReason       the model's one-sentence relevance reason, null on the fallback path
+     * @param hits           capped per journal; {@code totalLogMatches} stays exact
+     */
+    public record JournalHits(SessionJournalMeta meta, double score, String aiReason,
+                              List<Hit> hits, long totalLogMatches) {
+    }
+
+    /**
+     * @param answerMarkdown the AI's summary, null on the deterministic fallback
+     * @param totalHits      exact total across all journals (log occurrences + curated hits)
+     */
+    public record Result(String answerMarkdown, List<JournalHits> journals, long totalHits,
+                         boolean aiUsed, String warning) {
+    }
+
+    private final SessionJournalSearchCardIndex cardIndex;
+    private final SessionJournalAiSupport.AiInvoker invoker;
+    private final IntSupplier topK;
+
+    SessionJournalCrossSearchService(SessionJournalSearchCardIndex cardIndex,
+                                     SessionJournalAiSupport.AiInvoker invoker,
+                                     IntSupplier topK) {
+        this.cardIndex = cardIndex;
+        this.invoker = invoker;
+        this.topK = topK;
+    }
+
+    /** Production instance following the journal AI profile. */
+    public static SessionJournalCrossSearchService application(SessionJournalService service) {
+        return new SessionJournalCrossSearchService(
+            new SessionJournalSearchCardIndex(service),
+            SessionJournalAiSupport.applicationInvoker(),
+            SessionJournalCrossSearchService::applicationTopK);
+    }
+
+    /** True when policy permits journal Q&amp;A and an AI profile is resolvable. */
+    public boolean isAvailable() {
+        return de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()
+            && invoker != null && invoker.isAvailable();
+    }
+
+    /**
+     * Searches the given journals (the manager passes all listed journals, or the selection).
+     * Runs synchronously — call it from a background thread. Never throws.
+     */
+    public Result search(List<SessionJournalMeta> scope, String question,
+                         List<SessionJournalAskService.Exchange> transcript,
+                         String languageCode, BooleanSupplier cancelled) {
+        if (scope == null || scope.isEmpty() || question == null || question.isBlank()) {
+            return new Result(null, List.of(), 0, false, null);
+        }
+        boolean aiAvailable = isAvailable();
+        ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "SessionJournal-CrossSearch");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            // 1. Search terms: the model extracts literal identifiers; deterministic fallback.
+            List<String> terms = null;
+            if (aiAvailable) {
+                AiExecutionResult extraction = call(executor,
+                    SessionJournalPrompts.searchTermExtractionSystemPrompt(languageCode),
+                    SessionJournalPrompts.searchTermExtractionUserPrompt(question), cancelled);
+                terms = extraction != null
+                    ? SessionJournalAiSupport.parseSearchTerms(extraction.content()) : null;
+            }
+            if (terms == null) {
+                terms = SessionJournalAskService.deterministicTerms(question);
+            }
+            if (isCancelled(cancelled)) {
+                return new Result(null, List.of(), 0, false, null);
+            }
+
+            // 2. Prefilter: BM25 over all cards in scope.
+            Map<String, CardEntry> cardsByKey = new LinkedHashMap<>();
+            List<TextRelevanceScorer.Doc> docs = new ArrayList<>();
+            for (int i = 0; i < scope.size(); i++) {
+                SessionJournalMeta meta = scope.get(i);
+                if (meta.getDirectory() == null) {
+                    continue;
+                }
+                try {
+                    SessionJournalSearchCard card = cardIndex.card(meta);
+                    String key = String.valueOf(i);
+                    cardsByKey.put(key, new CardEntry(meta, card));
+                    docs.add(new TextRelevanceScorer.Doc(key,
+                        titleOf(meta), card.searchText()));
+                } catch (Exception e) {
+                    logger.debug("Cross search skipped journal {}: {}",
+                        meta.getDirectory().getFileName(), e.getMessage());
+                }
+                if (isCancelled(cancelled)) {
+                    return new Result(null, List.of(), 0, false, null);
+                }
+            }
+            String scoringQuery = terms.isEmpty() ? question : question + " " + String.join(" ", terms);
+            int limit = Math.max(1, topK.getAsInt());
+            List<TextRelevanceScorer.Scored> ranked =
+                TextRelevanceScorer.score(docs, scoringQuery, limit);
+
+            List<CardEntry> candidates = new ArrayList<>();
+            Map<Path, Double> scores = new java.util.HashMap<>();
+            for (TextRelevanceScorer.Scored scored : ranked) {
+                CardEntry entry = cardsByKey.get(scored.id());
+                if (entry != null) {
+                    candidates.add(entry);
+                    scores.put(normalize(entry.meta()), scored.score());
+                }
+            }
+
+            // 3. AI answer over the top candidates.
+            String answer = null;
+            Map<Path, String> aiReasons = new java.util.HashMap<>();
+            List<CardEntry> selected = candidates;
+            boolean aiUsed = false;
+            String warning = null;
+            if (!aiAvailable) {
+                warning = i18n("journal.search.warning.noAi",
+                    "AI is unavailable; the journals were searched as text instead.");
+            } else if (!candidates.isEmpty()) {
+                List<String> cardBlocks = new ArrayList<>(candidates.size());
+                for (int i = 0; i < candidates.size(); i++) {
+                    cardBlocks.add(cardBlock(i + 1, candidates.get(i), terms));
+                }
+                AiExecutionResult result = call(executor,
+                    SessionJournalPrompts.crossSearchSystemPrompt(languageCode),
+                    SessionJournalPrompts.crossSearchUserPrompt(question, cardBlocks,
+                        SessionJournalAskService.transcriptLines(transcript)), cancelled);
+                SessionJournalAiSupport.CrossSearchResult parsed = result != null
+                    ? SessionJournalAiSupport.parseCrossSearchResult(result.content(), candidates.size())
+                    : null;
+                if (parsed == null) {
+                    warning = i18n("journal.search.warning.failed",
+                        "The AI request failed; the journals were searched as text instead.");
+                } else {
+                    aiUsed = true;
+                    answer = parsed.answer();
+                    if (!parsed.selections().isEmpty()) {
+                        List<CardEntry> chosen = new ArrayList<>();
+                        for (SessionJournalAiSupport.CrossSearchSelection selection : parsed.selections()) {
+                            CardEntry entry = candidates.get(selection.ordinal() - 1);
+                            chosen.add(entry);
+                            if (selection.reason() != null && !selection.reason().isBlank()) {
+                                aiReasons.put(normalize(entry.meta()), selection.reason());
+                            }
+                        }
+                        selected = chosen;
+                    }
+                }
+            }
+
+            // 4. Hit materialization — deterministic, independent of the AI's success.
+            List<JournalHits> journals = new ArrayList<>();
+            long totalHits = 0;
+            int totalLogHits = 0;
+            for (CardEntry entry : selected) {
+                if (isCancelled(cancelled)) {
+                    break;
+                }
+                List<Hit> hits = new ArrayList<>();
+                long journalTotal = 0;
+                for (SessionJournalSearchCard.Section section : entry.card().sections()) {
+                    if (hits.size() >= MAX_HITS_PER_JOURNAL) {
+                        break;
+                    }
+                    if (section.entryId() != null && matchesAnyTerm(section, terms)) {
+                        hits.add(new Hit(new EntryTarget(section.entryId()),
+                            sectionSnippet(section), null, 1));
+                        journalTotal++;
+                    }
+                }
+                long totalLogMatches = 0;
+                if (!terms.isEmpty() && totalLogHits < MAX_TOTAL_LOG_HITS) {
+                    int remaining = Math.min(MAX_HITS_PER_JOURNAL - hits.size(),
+                        MAX_TOTAL_LOG_HITS - totalLogHits);
+                    SessionJournalLogSearcher.Result logResult = SessionJournalLogSearcher.search(
+                        entry.meta().getDirectory(),
+                        SessionJournalLogSearcher.Spec.ofLiteral(terms),
+                        Math.max(0, remaining), cancelled);
+                    totalLogMatches = logResult.totalMatches();
+                    journalTotal += totalLogMatches;
+                    for (SessionJournalLogSearcher.Hit hit : logResult.hits()) {
+                        hits.add(new Hit(new LogTarget(hit.part(), hit.seq()),
+                            hit.snippet(), hit.timestamp(), Math.max(1, hit.repeat())));
+                        totalLogHits++;
+                    }
+                }
+                String reason = aiReasons.get(normalize(entry.meta()));
+                if (hits.isEmpty() && reason == null) {
+                    continue; // neither the terms nor the model connect this journal to the question
+                }
+                totalHits += journalTotal;
+                journals.add(new JournalHits(entry.meta(),
+                    scores.getOrDefault(normalize(entry.meta()), 0.0), reason,
+                    List.copyOf(hits), totalLogMatches));
+            }
+            return new Result(answer, List.copyOf(journals), totalHits, aiUsed, warning);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private record CardEntry(SessionJournalMeta meta, SessionJournalSearchCard card) {
+    }
+
+    private static String titleOf(SessionJournalMeta meta) {
+        StringBuilder sb = new StringBuilder(64);
+        if (meta.getTitle() != null) {
+            sb.append(meta.getTitle());
+        }
+        if (meta.getConnectionName() != null) {
+            sb.append(' ').append(meta.getConnectionName());
+        }
+        return sb.toString().strip();
+    }
+
+    /** "J3: meta line" plus the best sections, term-matching sections first, ≤1200 chars. */
+    static String cardBlock(int ordinal, CardEntry entry, List<String> terms) {
+        StringBuilder sb = new StringBuilder(MAX_CARD_CHARS + 64);
+        sb.append('J').append(ordinal).append(": ").append(entry.card().metaText());
+        if (entry.meta().getStartedAt() != null) {
+            sb.append(" (").append(entry.meta().getStartedAt().format(DATE)).append(')');
+        }
+        List<SessionJournalSearchCard.Section> ordered =
+            new ArrayList<>(entry.card().sections());
+        ordered.sort((a, b) -> Boolean.compare(matchesAnyTerm(b, terms), matchesAnyTerm(a, terms)));
+        int added = 0;
+        for (SessionJournalSearchCard.Section section : ordered) {
+            if (added >= MAX_CARD_SECTIONS || sb.length() >= MAX_CARD_CHARS) {
+                break;
+            }
+            String line = "\n  [" + (section.kind() != null ? section.kind().name() : "ENTRY") + "] "
+                + section.searchText();
+            if (line.length() > 400) {
+                line = line.substring(0, 400) + "…";
+            }
+            if (sb.length() + line.length() > MAX_CARD_CHARS) {
+                break;
+            }
+            sb.append(line);
+            added++;
+        }
+        return sb.toString();
+    }
+
+    private static boolean matchesAnyTerm(SessionJournalSearchCard.Section section,
+                                          List<String> terms) {
+        if (terms.isEmpty()) {
+            return false;
+        }
+        String haystack = section.searchText().toLowerCase(Locale.ROOT);
+        for (String term : terms) {
+            if (haystack.contains(term.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String sectionSnippet(SessionJournalSearchCard.Section section) {
+        String text = section.searchText();
+        return text.length() > 200 ? text.substring(0, 200) + "…" : text;
+    }
+
+    /** One AI call with the timeout and cooperative cancellation; null on any failure. */
+    private AiExecutionResult call(ExecutorService executor, String system, String user,
+                                   BooleanSupplier cancelled) {
+        Future<AiExecutionResult> future = executor.submit(() -> invoker.execute(system, user));
+        long deadline = System.nanoTime() + CALL_TIMEOUT_SECONDS * 1_000_000_000L;
+        try {
+            while (true) {
+                try {
+                    return future.get(500, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException e) {
+                    if (isCancelled(cancelled) || System.nanoTime() > deadline) {
+                        future.cancel(true);
+                        return null;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            future.cancel(true);
+            logger.warn("Journal cross search AI call failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static boolean isCancelled(BooleanSupplier cancelled) {
+        return cancelled != null && cancelled.getAsBoolean();
+    }
+
+    private static Path normalize(SessionJournalMeta meta) {
+        return meta.getDirectory().toAbsolutePath().normalize();
+    }
+
+    private static int applicationTopK() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            de.kortty.model.GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings() : null;
+            de.kortty.model.AiProfile profile = SessionJournalAiSupport.resolveProfile(settings);
+            if (profile == null) {
+                return LOCAL_TOP_K;
+            }
+            boolean local = profile.getConnectionMode() == de.kortty.model.AiConnectionMode.LOCAL_CLI
+                || (profile.getConnectionMode() != null && profile.getConnectionMode().isEmbedded())
+                || (profile.getApiUrl() != null
+                    && (profile.getApiUrl().toLowerCase(Locale.ROOT).contains("localhost")
+                        || profile.getApiUrl().contains("127.0.0.1")));
+            return local ? LOCAL_TOP_K : CLOUD_TOP_K;
+        } catch (RuntimeException e) {
+            return LOCAL_TOP_K;
+        }
+    }
+
+    private static String i18n(String key, String fallback) {
+        String value = de.kortty.ui.I18n.get(key);
+        return value != null && !value.equals(key) ? value : fallback;
+    }
+}

@@ -498,6 +498,55 @@ public final class SessionJournalAiSupport {
         }
     }
 
+    /** One journal the cross-search model selected, by its ordinal in the prompt. */
+    public record CrossSearchSelection(int ordinal, String reason) {
+    }
+
+    /** Parsed cross-journal search reply. */
+    public record CrossSearchResult(String answer, List<CrossSearchSelection> selections) {
+    }
+
+    /**
+     * Parses the cross-journal search JSON reply leniently, in the {@link #parseAskAnswer}
+     * style: out-of-range or duplicate ordinals dropped, bare prose degrades to an answer with
+     * no selections (the caller then keeps its prefilter ranking). Null when nothing usable.
+     */
+    public static CrossSearchResult parseCrossSearchResult(String content, int maxOrdinal) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String answer = json.has("answer") && !json.get("answer").isJsonNull()
+                ? json.get("answer").getAsString() : null;
+            if (answer == null || answer.isBlank()) {
+                return null;
+            }
+            java.util.LinkedHashMap<Integer, CrossSearchSelection> selections = new java.util.LinkedHashMap<>();
+            if (json.has("journals") && json.get("journals").isJsonArray()) {
+                for (com.google.gson.JsonElement element : json.getAsJsonArray("journals")) {
+                    try {
+                        JsonObject selection = element.getAsJsonObject();
+                        int ordinal = selection.get("ordinal").getAsInt();
+                        if (ordinal < 1 || ordinal > maxOrdinal) {
+                            continue;
+                        }
+                        String reason = selection.has("reason") && !selection.get("reason").isJsonNull()
+                            ? selection.get("reason").getAsString().strip() : null;
+                        selections.putIfAbsent(ordinal, new CrossSearchSelection(ordinal, reason));
+                    } catch (RuntimeException ignored) {
+                        // A malformed element is a model slip, not a reason to discard the answer.
+                    }
+                }
+            }
+            return new CrossSearchResult(answer.strip(), List.copyOf(selections.values()));
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return new CrossSearchResult(sanitized.strip(), List.of());
+        }
+    }
+
     /** In-range, deduplicated ordinals from a JSON int array; empty when absent or malformed. */
     private static List<Integer> ordinals(JsonObject json, String field, int maxOrdinal) {
         if (!json.has(field) || !json.get(field).isJsonArray()) {

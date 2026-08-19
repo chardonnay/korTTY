@@ -82,6 +82,14 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     /** Directories matching the latest full-text scan; null = no content filter active. */
     private volatile Set<Path> fulltextMatches;
     private final AtomicInteger fulltextScanGeneration = new AtomicInteger();
+    private final javafx.scene.control.ToggleButton aiSearchToggle =
+        new javafx.scene.control.ToggleButton(I18n.get("journal.search.toggle"));
+    /** Holds the table alone, or a vertical split of table and AI search panel. */
+    private final VBox centerBox = new VBox();
+    private SessionJournalSearchPanel searchPanel;
+    /** AI-search hit counts per journal directory; null = no hit column/highlight shown. */
+    private volatile java.util.Map<Path, Long> aiHitCounts;
+    private TableColumn<SessionJournalMeta, Long> hitsColumn;
 
     public SessionJournalManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -97,7 +105,12 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().setMinSize(680, 460);
         restoreGeometry();
         setOnCloseRequest(event -> saveGeometry());
-        setOnHidden(event -> saveGeometry());
+        setOnHidden(event -> {
+            saveGeometry();
+            if (searchPanel != null) {
+                searchPanel.dispose();
+            }
+        });
 
         refresh();
     }
@@ -108,6 +121,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         fulltextCheck.selectedProperty().addListener((obs, old, value) -> onSearchChanged());
         HBox.setHgrow(searchField, Priority.ALWAYS);
         HBox searchBar = new HBox(8, searchField, fulltextCheck);
+        searchBar.setStyle("-fx-alignment: center-left;");
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()) {
+            aiSearchToggle.setOnAction(event -> toggleAiSearchPanel());
+            searchBar.getChildren().add(aiSearchToggle);
+        }
 
         Button openButton = new Button(I18n.get("journal.manager.open"));
         ButtonIcons.apply(openButton, ButtonIcons.OPEN);
@@ -175,10 +193,122 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         descriptionBar.setStyle("-fx-alignment: center-left;");
         VBox descriptionBox = new VBox(4, descriptionLabel, descriptionArea, descriptionBar);
 
-        VBox root = new VBox(10, searchBar, table, buttonBar, descriptionBox);
-        root.setPadding(new Insets(6));
+        centerBox.getChildren().setAll(table);
         VBox.setVgrow(table, Priority.ALWAYS);
+        VBox root = new VBox(10, searchBar, centerBox, buttonBar, descriptionBox);
+        root.setPadding(new Insets(6));
+        VBox.setVgrow(centerBox, Priority.ALWAYS);
         return root;
+    }
+
+    // ==== AI cross-journal search ====
+
+    private void toggleAiSearchPanel() {
+        if (searchPanel != null) {
+            hideAiSearchPanel();
+            return;
+        }
+        searchPanel = new SessionJournalSearchPanel(
+            de.kortty.core.SessionJournalCrossSearchService.application(service()),
+            new SessionJournalSearchPanel.Host() {
+                @Override
+                public List<SessionJournalMeta> allJournals() {
+                    return List.copyOf(journals);
+                }
+
+                @Override
+                public List<SessionJournalMeta> selectedJournals() {
+                    return SessionJournalManagerDialog.this.selectedJournals();
+                }
+
+                @Override
+                public void showHitCounts(java.util.Map<Path, Long> counts) {
+                    SessionJournalManagerDialog.this.showHitCounts(counts);
+                }
+
+                @Override
+                public void clearHitCounts() {
+                    SessionJournalManagerDialog.this.clearHitCounts();
+                }
+
+                @Override
+                public void openHit(SessionJournalMeta meta,
+                                    de.kortty.core.SessionJournalCrossSearchService.HitTarget target) {
+                    ownerWindow.openSessionJournal(meta, pane -> {
+                        if (target instanceof de.kortty.core.SessionJournalCrossSearchService.EntryTarget entry) {
+                            pane.jumpToEntry(entry.entryId());
+                        } else if (target instanceof de.kortty.core.SessionJournalCrossSearchService.LogTarget log) {
+                            pane.jumpToLogSeq(log.seq());
+                        }
+                    });
+                }
+            });
+        javafx.scene.control.SplitPane split = new javafx.scene.control.SplitPane(table, searchPanel);
+        split.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        split.setDividerPositions(0.55);
+        centerBox.getChildren().setAll(split);
+        VBox.setVgrow(split, Priority.ALWAYS);
+        aiSearchToggle.setSelected(true);
+        searchPanel.focusQuestionField();
+    }
+
+    private void hideAiSearchPanel() {
+        if (searchPanel == null) {
+            return;
+        }
+        searchPanel.dispose();
+        searchPanel = null;
+        clearHitCounts();
+        centerBox.getChildren().setAll(table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        aiSearchToggle.setSelected(false);
+    }
+
+    /** Adds the sorted "Hits" column and the row highlight; the table itself stays unfiltered. */
+    private void showHitCounts(java.util.Map<Path, Long> counts) {
+        aiHitCounts = counts;
+        if (hitsColumn == null) {
+            hitsColumn = new TableColumn<>(I18n.get("journal.search.hitsColumn"));
+            hitsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(hitCount(cell.getValue())));
+            hitsColumn.setCellFactory(column -> new TableCell<>() {
+                @Override
+                protected void updateItem(Long count, boolean empty) {
+                    super.updateItem(count, empty);
+                    setText(empty || count == null || count <= 0 ? "" : String.valueOf(count));
+                }
+            });
+            hitsColumn.setMinWidth(70);
+        }
+        if (!table.getColumns().contains(hitsColumn)) {
+            table.getColumns().add(hitsColumn);
+        }
+        hitsColumn.setSortType(TableColumn.SortType.DESCENDING);
+        table.getSortOrder().setAll(List.of(hitsColumn));
+        table.refresh();
+    }
+
+    private void clearHitCounts() {
+        aiHitCounts = null;
+        if (hitsColumn != null) {
+            table.getColumns().remove(hitsColumn);
+            if (table.getSortOrder().contains(hitsColumn)) {
+                table.getSortOrder().clear();
+                if (!table.getColumns().isEmpty()) {
+                    TableColumn<SessionJournalMeta, ?> started = table.getColumns().get(0);
+                    started.setSortType(TableColumn.SortType.DESCENDING);
+                    table.getSortOrder().add(started);
+                }
+            }
+        }
+        table.refresh();
+    }
+
+    private Long hitCount(SessionJournalMeta meta) {
+        java.util.Map<Path, Long> counts = aiHitCounts;
+        if (counts == null || meta == null || meta.getDirectory() == null) {
+            return null;
+        }
+        return counts.get(meta.getDirectory().toAbsolutePath().normalize());
     }
 
     private TableView<SessionJournalMeta> buildTable() {
@@ -241,7 +371,17 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         view.getSortOrder().add(startedColumn);
 
         view.setRowFactory(tableView -> {
-            TableRow<SessionJournalMeta> row = new TableRow<>();
+            TableRow<SessionJournalMeta> row = new TableRow<>() {
+                @Override
+                protected void updateItem(SessionJournalMeta meta, boolean empty) {
+                    super.updateItem(meta, empty);
+                    Long count = empty ? null : hitCount(meta);
+                    // Subtle accent wash on AI-search hits; low alpha works on both themes.
+                    setStyle(count != null && count > 0
+                        ? "-fx-background-color: rgba(120, 170, 255, 0.14);"
+                        : "");
+                }
+            };
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && !row.isEmpty()) {
                     ownerWindow.openSessionJournal(row.getItem());
