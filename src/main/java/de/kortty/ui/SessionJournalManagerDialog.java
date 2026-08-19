@@ -2,7 +2,6 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SessionJournalExportService;
-import de.kortty.core.SessionJournalLogEntry;
 import de.kortty.core.SessionJournalService;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalLogFormat;
@@ -315,12 +314,13 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                             || containsIgnoreCase(entry.getAiDescription(), query)
                             || entry.getAiTags().stream().anyMatch(tag -> containsIgnoreCase(tag, query)));
                     if (!match) {
-                        for (SessionJournalLogEntry logEntry : service.readLogAfter(dir, 0)) {
-                            if (containsIgnoreCase(logEntry.text(), query)) {
-                                match = true;
-                                break;
-                            }
-                        }
+                        // Streaming scan: parts are read line by line, never materialized whole.
+                        match = de.kortty.core.SessionJournalLogSearcher.search(
+                            dir,
+                            de.kortty.core.SessionJournalLogSearcher.Spec.ofLiteral(List.of(query)),
+                            1,
+                            () -> fulltextScanGeneration.get() != generation
+                        ).totalMatches() > 0;
                     }
                     if (match) {
                         matches.add(dir.toAbsolutePath().normalize());

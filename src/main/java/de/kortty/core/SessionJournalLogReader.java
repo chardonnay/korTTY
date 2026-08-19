@@ -304,10 +304,19 @@ public final class SessionJournalLogReader {
     }
 
     private static List<SessionJournalLogEntry> parseXmlStrict(String document) throws XMLStreamException {
+        return parseXmlStrict(document, secureXmlInputFactory());
+    }
+
+    private static XMLInputFactory secureXmlInputFactory() {
         XMLInputFactory factory = XMLInputFactory.newFactory();
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.IS_COALESCING, true);
+        return factory;
+    }
+
+    private static List<SessionJournalLogEntry> parseXmlStrict(String document, XMLInputFactory factory)
+            throws XMLStreamException {
         List<SessionJournalLogEntry> entries = new ArrayList<>();
         XMLStreamReader reader = factory.createXMLStreamReader(new StringReader(document));
         try {
@@ -340,44 +349,108 @@ public final class SessionJournalLogReader {
     private static List<SessionJournalLogEntry> parseJsonLines(String content, boolean yaml) {
         List<SessionJournalLogEntry> entries = new ArrayList<>();
         for (String rawLine : content.lines().toList()) {
-            String line = rawLine;
-            if (yaml) {
-                if (!line.startsWith(SessionJournalLogSerializer.Yaml.ENTRY_PREFIX)) {
-                    continue; // header keys, meta line, end marker
-                }
-                line = line.substring(SessionJournalLogSerializer.Yaml.ENTRY_PREFIX.length());
-            }
-            line = line.strip();
-            if (line.isEmpty() || !line.startsWith("{")) {
-                continue;
-            }
-            try {
-                JsonObject json = JsonParser.parseString(line).getAsJsonObject();
-                if (json.has("type")) {
-                    continue; // meta or end line
-                }
-                SessionJournalLogEntry.Kind kind = json.has("k")
-                    ? SessionJournalLogEntry.Kind.fromKey(json.get("k").getAsString())
-                    : null;
-                long seq = json.has("seq") ? json.get("seq").getAsLong() : -1;
-                OffsetDateTime timestamp = json.has("t") ? parseTimestamp(json.get("t").getAsString()) : null;
-                if (kind == null || seq < 0 || timestamp == null) {
-                    continue;
-                }
-                entries.add(new SessionJournalLogEntry(
-                    seq,
-                    timestamp,
-                    kind,
-                    json.has("x") ? json.get("x").getAsString() : "",
-                    json.has("redacted") && json.get("redacted").getAsBoolean(),
-                    json.has("partial") && json.get("partial").getAsBoolean(),
-                    json.has("file") ? json.get("file").getAsString() : null,
-                    json.has("repeat") ? json.get("repeat").getAsInt() : 1));
-            } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
-                // torn or foreign line — recovery contract is to skip it
+            SessionJournalLogEntry entry = parseJsonLine(rawLine, yaml);
+            if (entry != null) {
+                entries.add(entry);
             }
         }
         return entries;
+    }
+
+    private static SessionJournalLogEntry parseJsonLine(String rawLine, boolean yaml) {
+        String line = rawLine;
+        if (yaml) {
+            if (!line.startsWith(SessionJournalLogSerializer.Yaml.ENTRY_PREFIX)) {
+                return null; // header keys, meta line, end marker
+            }
+            line = line.substring(SessionJournalLogSerializer.Yaml.ENTRY_PREFIX.length());
+        }
+        line = line.strip();
+        if (line.isEmpty() || !line.startsWith("{")) {
+            return null;
+        }
+        try {
+            JsonObject json = JsonParser.parseString(line).getAsJsonObject();
+            if (json.has("type")) {
+                return null; // meta or end line
+            }
+            SessionJournalLogEntry.Kind kind = json.has("k")
+                ? SessionJournalLogEntry.Kind.fromKey(json.get("k").getAsString())
+                : null;
+            long seq = json.has("seq") ? json.get("seq").getAsLong() : -1;
+            OffsetDateTime timestamp = json.has("t") ? parseTimestamp(json.get("t").getAsString()) : null;
+            if (kind == null || seq < 0 || timestamp == null) {
+                return null;
+            }
+            return new SessionJournalLogEntry(
+                seq,
+                timestamp,
+                kind,
+                json.has("x") ? json.get("x").getAsString() : "",
+                json.has("redacted") && json.get("redacted").getAsBoolean(),
+                json.has("partial") && json.get("partial").getAsBoolean(),
+                json.has("file") ? json.get("file").getAsString() : null,
+                json.has("repeat") ? json.get("repeat").getAsInt() : 1);
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            // torn or foreign line — recovery contract is to skip it
+            return null;
+        }
+    }
+
+    /**
+     * Parses individual physical lines of a capture-log part — the streaming counterpart to
+     * {@link #readPart(Path)}. Every format keeps the one-entry-per-line invariant, so a scanner
+     * can consume a part line by line without materializing it; header, footer, meta and torn
+     * lines yield {@code null}.
+     */
+    public static final class LineParser {
+
+        private final SessionJournalLogFormat format;
+        private final XMLInputFactory xmlFactory;
+
+        private LineParser(SessionJournalLogFormat format) {
+            this.format = format;
+            this.xmlFactory = format == SessionJournalLogFormat.XML ? secureXmlInputFactory() : null;
+        }
+
+        /** Parser for the given part file; null when the file name is not a recognized log part. */
+        public static LineParser forPartFile(Path partFile) {
+            SessionJournalLogFormat format = formatOf(partFile);
+            return format != null ? new LineParser(format) : null;
+        }
+
+        /** The entry on this line, or null for header/footer/meta/torn lines. */
+        public SessionJournalLogEntry parse(String rawLine) {
+            if (rawLine == null || rawLine.isEmpty()) {
+                return null;
+            }
+            return switch (format) {
+                case JSON -> parseJsonLine(rawLine, false);
+                case YAML -> parseJsonLine(rawLine, true);
+                case XML -> parseXmlEntryLine(rawLine);
+            };
+        }
+
+        private SessionJournalLogEntry parseXmlEntryLine(String rawLine) {
+            String line = rawLine.strip();
+            if (line.length() < 3 || line.charAt(0) != '<' || line.charAt(1) == '?' || line.charAt(1) == '/') {
+                return null; // prolog, footer, or not an element at all
+            }
+            int nameEnd = 1;
+            while (nameEnd < line.length() && Character.isLetter(line.charAt(nameEnd))) {
+                nameEnd++;
+            }
+            if (SessionJournalLogEntry.Kind.fromKey(line.substring(1, nameEnd)) == null) {
+                return null; // root element or meta line
+            }
+            try {
+                // An entry line is a complete single-root document (text escapes '<' and '>').
+                List<SessionJournalLogEntry> parsed = parseXmlStrict(line, xmlFactory);
+                return parsed.isEmpty() ? null : parsed.get(0);
+            } catch (XMLStreamException e) {
+                return null; // torn line — recovery contract is to skip it
+            }
+        }
     }
 
     private static long parseLong(String value) {

@@ -112,6 +112,8 @@ public class SessionJournalViewerPane extends BorderPane {
     private boolean pageReady;
     /** Timeline scroll offset to restore after the next load (0 = leave at the top/anchor). */
     private double pendingScrollY;
+    /** Capture-log seq to jump to once the page is ready (queued by {@link #jumpToLogSeq}). */
+    private Long pendingJumpSeq;
     /** Live batches that arrived while the page was loading; bounded, oldest dropped. */
     private final java.util.ArrayDeque<SessionJournalLogEntry> pendingLive = new java.util.ArrayDeque<>();
     private static final int PENDING_LIVE_CAP = SessionJournalLiveFeed.DEFAULT_MAX_ENTRIES;
@@ -383,6 +385,82 @@ public class SessionJournalViewerPane extends BorderPane {
         renderAndLoad(null);
     }
 
+    /** Scrolls the timeline to the entry card in the loaded page; anchored reload while loading. */
+    public void jumpToEntry(String entryId) {
+        if (disposed || entryId == null || entryId.isBlank()) {
+            return;
+        }
+        if (!pageReady) {
+            renderAndLoad(entryId);
+            return;
+        }
+        runScript("(function(){var el=document.getElementById("
+            + de.kortty.core.AiChatRenderPageSupport.toJsStringLiteral("entry-" + entryId)
+            + ");if(el){el.scrollIntoView({block:\"center\"});}})();");
+    }
+
+    /**
+     * Opens the log panel scrolled to the capture-log entry with the given seq. Oversized
+     * journals embed only entry-referenced log ranges into the page, so when the seq is not
+     * embedded this falls back to the tightest timeline entry covering it. Queued while the
+     * page is still loading and applied once it is ready.
+     */
+    public void jumpToLogSeq(long seq) {
+        if (disposed) {
+            return;
+        }
+        if (!pageReady) {
+            pendingJumpSeq = seq;
+            return;
+        }
+        Object jumped = null;
+        try {
+            jumped = webView.getEngine().executeScript(
+                "window.korttyJumpToSeq ? window.korttyJumpToSeq(" + seq + ") : false");
+        } catch (Exception e) {
+            logger.debug("Journal seq jump script failed: {}", e.getMessage());
+        }
+        if (Boolean.TRUE.equals(jumped)) {
+            return;
+        }
+        jumpToCoveringEntry(seq);
+    }
+
+    /** Fallback for {@link #jumpToLogSeq(long)}: the tightest entry whose log range covers the seq. */
+    private void jumpToCoveringEntry(long seq) {
+        SessionJournalService service = service();
+        Path dir = journalDir;
+        if (service == null || dir == null) {
+            return;
+        }
+        Thread lookup = new Thread(() -> {
+            try {
+                SessionJournalDocument document = service.loadDocument(dir);
+                SessionJournalEntry best = null;
+                long bestSpan = Long.MAX_VALUE;
+                for (SessionJournalEntry entry : document.getEntries()) {
+                    if (entry.getLogStartSeq() == null || entry.getLogEndSeq() == null
+                        || seq < entry.getLogStartSeq() || seq > entry.getLogEndSeq()) {
+                        continue;
+                    }
+                    long span = entry.getLogEndSeq() - entry.getLogStartSeq();
+                    if (span < bestSpan) {
+                        bestSpan = span;
+                        best = entry;
+                    }
+                }
+                String entryId = best != null ? best.getId() : null;
+                if (entryId != null) {
+                    Platform.runLater(() -> jumpToEntry(entryId));
+                }
+            } catch (Exception e) {
+                logger.debug("Journal seq fallback lookup failed: {}", e.getMessage());
+            }
+        }, "SessionJournal-SeqJumpLookup");
+        lookup.setDaemon(true);
+        lookup.start();
+    }
+
     /** Opens the appearance popover anchored at a host-supplied control. */
     public void showAppearance(Node anchor) {
         GlobalSettings settings = settings();
@@ -533,6 +611,11 @@ public class SessionJournalViewerPane extends BorderPane {
                         pendingScrollY = 0;
                     }
                     flushPendingLiveEntries();
+                    if (pendingJumpSeq != null) {
+                        long seq = pendingJumpSeq;
+                        pendingJumpSeq = null;
+                        jumpToLogSeq(seq);
+                    }
                 } catch (Exception e) {
                     logger.warn("Could not install the session journal page bridge: {}", e.getMessage());
                 }

@@ -85,4 +85,9 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         return app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings() : null;
     }
+
+    /** The embedded viewer pane, for navigation targets (jump to entry/log seq) after opening. */
+    SessionJournalViewerPane getPane() {
+        return pane;
+    }
 }

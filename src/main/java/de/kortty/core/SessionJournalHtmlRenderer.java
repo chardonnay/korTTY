@@ -1163,6 +1163,8 @@ public final class SessionJournalHtmlRenderer {
             .l-rep{color:var(--muted);font-style:italic;user-select:none}
             mark{background:var(--mark);color:#000;border-radius:2px}
             mark.cur{background:var(--mark-cur)}
+            .l-line{transition:background .6s ease}
+            .l-line.jump-target{background:var(--mark);border-radius:3px}
             .ctx-menu{position:fixed;z-index:70;min-width:190px;max-width:80vw;padding:4px;display:none;
               background:var(--surface);border:1px solid var(--border);border-radius:10px;
               box-shadow:0 10px 30px rgba(0,0,0,.45)}
@@ -1325,6 +1327,49 @@ public final class SessionJournalHtmlRenderer {
               notifyTailState();
             };
             window.korttyCloseLiveTail=function(){liveMode=false;closePanel();};
+            /* Opens the log panel scrolled to the entry with the given seq; false when the seq
+               is not in the embedded LOG (oversized journals embed only referenced ranges), so
+               the app can fall back to the covering timeline entry. */
+            window.korttyJumpToSeq=function(seq){
+              var lo=0,hi=LOG.length-1,idx=-1;
+              while(lo<=hi){
+                var mid=(lo+hi)>>1;
+                if(LOG[mid].s===seq){idx=mid;break;}
+                if(LOG[mid].s<seq){lo=mid+1;}else{hi=mid-1;}
+              }
+              if(idx<0){return false;}
+              // Prefer the tightest timeline card covering the seq so the panel title has context.
+              var covering=null,coveringSpan=0;
+              document.querySelectorAll(".card[data-from]").forEach(function(card){
+                var f=parseInt(card.dataset.from,10),t=parseInt(card.dataset.to,10);
+                if(seq>=f&&seq<=t&&(covering===null||t-f<coveringSpan)){covering=card;coveringSpan=t-f;}
+              });
+              var from,to,label;
+              if(covering){
+                if(activeCard){activeCard.classList.remove("active");}
+                activeCard=covering;covering.classList.add("active");
+                var head=covering.querySelector("h3");
+                from=parseInt(covering.dataset.from,10);to=parseInt(covering.dataset.to,10);
+                label=head?head.textContent:"";
+                covering.scrollIntoView({block:"nearest",behavior:"smooth"});
+              }else{
+                var start=Math.max(0,idx-100),end=Math.min(LOG.length-1,idx+100);
+                from=LOG[start].s;to=LOG[end].s;label="seq "+seq;
+              }
+              openPanel(from,to,label);
+              for(var i=0;i<records.length;i++){
+                if(records[i].s!==seq){continue;}
+                var lines=body.querySelectorAll(".l-line");
+                var line=lines[i];
+                if(line){
+                  line.classList.add("jump-target");
+                  line.scrollIntoView({block:"center"});
+                  (function(el){setTimeout(function(){el.classList.remove("jump-target");},2400);})(line);
+                }
+                break;
+              }
+              return true;
+            };
             /* Tell the app when the tail opens or closes (host toggle stays in sync). */
             function notifyTailState(){callBridge("liveTailStateChanged",liveMode);}
             /* Height in vh, settable from the app and draggable via the grip; survives reloads
