@@ -18,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.testng.Assert.assertThrows;
@@ -100,10 +99,10 @@ class SessionJournalServiceTest {
         Path dir = session.getDirectory();
         Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
         assertThat(logFile).isNotNull();
-        assertThat(logFile.getFileName().toString()).endsWith(".gz");
+        assertThat(logFile.getFileName().toString()).endsWith(".zst");
 
         String rawContent;
-        try (InputStream in = new GZIPInputStream(Files.newInputStream(logFile))) {
+        try (InputStream in = SessionJournalLogCompressor.openInput(logFile)) {
             rawContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         assertThat(rawContent).doesNotContain("mySecretTyped123");
@@ -437,9 +436,9 @@ class SessionJournalServiceTest {
 
         Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
         assertThat(logFile).isNotNull();
-        assertThat(logFile.getFileName().toString()).endsWith(".gz");
+        assertThat(logFile.getFileName().toString()).endsWith(".zst");
         String rawContent;
-        try (InputStream in = new GZIPInputStream(Files.newInputStream(logFile))) {
+        try (InputStream in = SessionJournalLogCompressor.openInput(logFile)) {
             rawContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         assertThat(rawContent).doesNotContain("hunter2-leaked");
@@ -450,6 +449,44 @@ class SessionJournalServiceTest {
         List<SessionJournalLogEntry> entries = SessionJournalLogReader.readPart(logFile);
         assertThat(entries.stream().map(SessionJournalLogEntry::text).toList())
             .containsExactly("connecting", "mysql -u root -p***", "Welcome to MySQL").inOrder();
+    }
+
+    @Test
+    void redactKeepsALegacyGzipPartGzip() throws IOException {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-1234567890ab", settings, List.of(), false);
+        session.start();
+        session.appendOutputChunk("token hunter2-legacy visible\n");
+        session.close();
+        Path dir = session.getDirectory();
+
+        // Rewrite the closed part into the pre-zstd on-disk shape: a legacy gzip part.
+        Path zstPart = SessionJournalLogReader.findPartFile(dir, 1);
+        assertThat(zstPart.getFileName().toString()).endsWith(".zst");
+        byte[] content;
+        try (InputStream in = SessionJournalLogCompressor.openInput(zstPart)) {
+            content = in.readAllBytes();
+        }
+        String plainName = SessionJournalLogCompressor.stripCompressionSuffix(
+            zstPart.getFileName().toString());
+        Files.delete(zstPart);
+        Path gzPart = dir.resolve(plainName + SessionJournalLogCompressor.GZIP_SUFFIX);
+        try (java.io.OutputStream out = new java.util.zip.GZIPOutputStream(Files.newOutputStream(gzPart))) {
+            out.write(content);
+        }
+
+        SessionJournalService.RedactionResult result = service.redact(dir, "hunter2-legacy", "***");
+        assertThat(result.logHits()).isEqualTo(1);
+
+        // The rewrite recompresses in the part's own algorithm: the legacy part stays .gz.
+        Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
+        assertThat(logFile.getFileName().toString()).endsWith(".gz");
+        try (InputStream in = new java.util.zip.GZIPInputStream(Files.newInputStream(logFile))) {
+            assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8))
+                .doesNotContain("hunter2-legacy");
+        }
+        assertThat(SessionJournalLogReader.readPart(logFile).stream()
+            .map(SessionJournalLogEntry::text).toList()).contains("token *** visible");
     }
 
     @Test
@@ -485,7 +522,7 @@ class SessionJournalServiceTest {
             .doesNotContain("AKIA0123456789ABCDEF");
         Path logFile = SessionJournalLogReader.findPartFile(dir, 1);
         String rawContent;
-        try (InputStream in = new GZIPInputStream(Files.newInputStream(logFile))) {
+        try (InputStream in = SessionJournalLogCompressor.openInput(logFile)) {
             rawContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         assertThat(rawContent).doesNotContain("AKIA");

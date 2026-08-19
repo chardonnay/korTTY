@@ -141,7 +141,9 @@ class SessionJournalLogFilterTest {
             new SessionJournalLogEntry(3, at(9, 2), SessionJournalLogEntry.Kind.IN,
                 "", true, false, null),
             new SessionJournalLogEntry(4, at(9, 3), SessionJournalLogEntry.Kind.SCREENSHOT,
-                "", false, false, "screenshots/shot-000004.png"));
+                "", false, false, "screenshots/shot-000004.png"),
+            new SessionJournalLogEntry(5, at(9, 4), SessionJournalLogEntry.Kind.OUT,
+                "retrying connection", false, false, null, 7));
         String header = serializer.header("journal-id", 1, new de.kortty.model.SessionJournalMeta(), "tab-42");
 
         String rewritten = SessionJournalLogFilter.rewritePart(header, original, serializer);
@@ -159,6 +161,7 @@ class SessionJournalLogFilterTest {
             assertThat(actual.redacted()).isEqualTo(expected.redacted());
             assertThat(actual.partial()).isEqualTo(expected.partial());
             assertThat(actual.file()).isEqualTo(expected.file());
+            assertThat(actual.repeat()).isEqualTo(expected.repeat());
             assertThat(actual.timestamp().toInstant()).isEqualTo(expected.timestamp().toInstant());
         }
         // The header survives verbatim, which is the only way tabSessionId is preserved.

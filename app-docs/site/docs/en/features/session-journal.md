@@ -16,11 +16,15 @@ Each journal is one self-contained directory under `~/.kortty/journals` (configu
 |------|---------|
 | `journal.xml` | The curated journal document: metadata, AI summaries, markers, notes, screenshot references |
 | `session-log.json` / `.xml` / `.yaml` | The append-only capture log — timestamped server output and typed input lines with sequence ids |
-| `session-log-2.json.gz`, … | Rotated log parts; closed parts are gzip-compressed automatically, the journal never deletes history |
+| `session-log-2.json.zst`, … | Rotated log parts; closed parts are zstd-compressed automatically, the journal never deletes history. Journals recorded by older versions keep their `.gz` parts and remain fully readable |
 | `journal.html` | The generated timeline page, regenerated automatically after every change |
 | `screenshots/*.png` | Screenshots you attached during the session |
 
-The capture-log format is selectable in the journal manager's **Options** dialog: **JSON** (JSON Lines, the default), **XML** or **YAML**. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. JSON is the default because log tooling reads it without needing a parser of its own — not because it saves space. Size barely separates the three: for ordinary output XML is about 9 bytes per entry smaller, for output full of `<`, `>` and `&` JSON is roughly 10 % smaller (XML has to escape those, JSON does not), and once a finished part is gzipped all three land within 2 % of each other. YAML is the largest, since it writes JSON mappings with a `- ` prefix. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to `.gz`.
+The capture-log format is selectable in the journal manager's **Options** dialog: **JSON** (JSON Lines, the default), **XML** or **YAML**. All formats carry the same fields, and every entry is exactly one line, so a crash never corrupts more than the last line. JSON is the default because log tooling reads it without needing a parser of its own — not because it saves space. Size barely separates the three: for ordinary output XML is about 9 bytes per entry smaller, for output full of `<`, `>` and `&` JSON is roughly 10 % smaller (XML has to escape those, JSON does not), and once a finished part is compressed all three land within 2 % of each other. YAML is the largest, since it writes JSON mappings with a `- ` prefix. The active log part stays uncompressed for live reads; rotation (default 25 MB per part) and session end compress finished parts to `.zst` (zstd — journals from older versions keep their `.gz` parts and open exactly as before).
+
+Two more things keep long, noisy sessions small and complete. Consecutive identical output lines (progress loops, `tail -f` repeats) are coalesced syslog-style: the first occurrence is written immediately, follow-ups are counted and stored as one entry with a repeat count. The viewer shows such a run compactly as `line ×12`, while copying or exporting the log reproduces the original lines in full. And when server output arrives faster than the log can persist it, the capture applies backpressure instead of dropping lines — the terminal may briefly slow down under an extreme flood, but the journal stays complete.
+
+Rotation is configurable per connection on the **Journal** tab: **Maximum size per log part (MB)** (default 25) and **Maximum rotated log parts** (default 20). After the configured number of parts, output capture stops with a note in the journal; input, screenshots and notes continue. An enterprise policy can cap the part count via `max-log-parts`.
 
 ## Enabling the journal
 
@@ -28,7 +32,7 @@ The capture-log format is selectable in the journal manager's **Options** dialog
 
 1. Open **Connections > Manage Connections** and edit a connection
 2. On the **Journal** tab, enable **Enable session journal for this connection**
-3. Optionally adjust **Capture typed input lines**, **Generate AI summaries** and the per-connection **Summary interval**
+3. Optionally adjust **Capture typed input lines**, **Generate AI summaries**, the per-connection **Summary interval**, and the rotation pair **Maximum size per log part (MB)** and **Maximum rotated log parts**
 
 Every future connection of this server then starts its journal automatically. The journal survives reconnects — one journal per tab lifetime, with a reconnect marker in the log.
 

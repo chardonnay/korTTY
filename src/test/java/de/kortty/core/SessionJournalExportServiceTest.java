@@ -267,7 +267,7 @@ class SessionJournalExportServiceTest {
         List<String> names = zipEntryNames(target, null);
         assertThat(names.stream().anyMatch(n -> n.endsWith("Second_journal/journal.html"))).isTrue();
         assertThat(names.stream().filter(n -> n.endsWith("journal.html")).count()).isEqualTo(2);
-        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
+        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz") || n.endsWith(".zst"))).isTrue();
     }
 
     @Test
@@ -342,11 +342,11 @@ class SessionJournalExportServiceTest {
         }
         assertThat(names).contains("journal.html");
         assertThat(names).contains("journal.xml");
-        // The gzipped log part is stored decompressed under its plain name, whatever
+        // The compressed log part is stored decompressed under its plain name, whatever
         // format the journal was captured in.
         assertThat(names).contains(SessionJournalLogReader.BASE_FILE_NAME + "."
             + de.kortty.model.SessionJournalLogFormat.DEFAULT.getExtension());
-        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
+        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz") || n.endsWith(".zst"))).isTrue();
         assertThat(names.stream().anyMatch(n -> n.startsWith("screenshots/") && n.endsWith(".png"))).isTrue();
     }
 
@@ -565,7 +565,7 @@ class SessionJournalExportServiceTest {
         List<String> names = zipEntryNames(target, null);
         assertThat(names.stream().filter(n -> n.startsWith(SessionJournalLogReader.BASE_FILE_NAME)).count())
             .isEqualTo(1);
-        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz"))).isTrue();
+        assertThat(names.stream().noneMatch(n -> n.endsWith(".gz") || n.endsWith(".zst"))).isTrue();
     }
 
     @Test

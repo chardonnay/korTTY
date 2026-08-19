@@ -3359,6 +3359,12 @@
 <td><code>true</code> / <code>false</code></td>
 <td><code>true</code> forces the AI screenshot analysis on, <code>false</code> forbids it — including the manual per-screenshot run; the journal option is locked either way</td>
 </tr>
+<tr>
+<td><code>max-log-parts</code></td>
+<td>integer</td>
+<td>≥ 1</td>
+<td>Caps the number of rotated capture-log parts per journal; the effective limit is the minimum of this cap and the per-connection setting, and the connection editor's spinner is clamped to it</td>
+</tr>
 </tbody>
 </table>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
@@ -3373,7 +3379,7 @@
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code>enforced</code> mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, <code>enforced</code> and <code>ai-title</code> resolve to true if any rule sets them, <code>allow-rename</code>/<code>allow-delete</code> to false if any rule forbids them, <code>ai-screenshot-analysis</code> to off if any rule switches it off, and the line cap resolves to the tighter value (<code>0</code> counts as unlimited).</p>
+<p><code>enforced</code> mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, <code>enforced</code> and <code>ai-title</code> resolve to true if any rule sets them, <code>allow-rename</code>/<code>allow-delete</code> to false if any rule forbids them, <code>ai-screenshot-analysis</code> to off if any rule switches it off, the line cap resolves to the tighter value (<code>0</code> counts as unlimited), and <code>max-log-parts</code> resolves to the lower cap.</p>
 </div>
 <h3 id="rulesession-journalreplace"><code>[[rule.session-journal.replace]]</code><a class="headerlink" href="#rulesession-journalreplace" title="Permanent link">&para;</a></h3>
 <p>Automatic search-and-replace in every journal — the way to keep a whole category of secret out of the transcript, instead of relying on the user to notice it. Each entry is one rule, and a rule may use a regular expression.</p>

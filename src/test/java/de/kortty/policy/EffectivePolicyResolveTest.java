@@ -31,7 +31,28 @@ class EffectivePolicyResolveTest {
 
     private static PolicyRule.SessionJournalRule screenshotAnalysisRule(Boolean value) {
         return new PolicyRule.SessionJournalRule(
-            null, null, null, null, null, null, null, null, value, List.of());
+            null, null, null, null, null, null, null, null, value, null, List.of());
+    }
+
+    private static PolicyRule.SessionJournalRule maxLogPartsRule(Integer value) {
+        return new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, null, value, List.of());
+    }
+
+    @Test
+    void maxLogPartsResolvesToTheTighterCap() {
+        // Same-tier conflict: the lower cap wins — it is the more restrictive one.
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().sessionJournal(maxLogPartsRule(50)).build(),
+            PolicyRule.builder().sessionJournal(maxLogPartsRule(30)).build());
+        assertThat(EffectivePolicy.resolve(conflicting, identity("anyone"))
+            .sessionJournalMaxLogParts()).isEqualTo(30);
+
+        // No rule sets it: null, the connection's configured value applies alone.
+        PolicyFile unset = file(Map.of(),
+            PolicyRule.builder().sessionJournal(maxLogPartsRule(null)).build());
+        assertThat(EffectivePolicy.resolve(unset, identity("anyone"))
+            .sessionJournalMaxLogParts()).isNull();
     }
 
     @Test

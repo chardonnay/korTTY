@@ -22,7 +22,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
 
 /**
  * Reads session journal capture logs of any supported format, transparently handling gzipped
@@ -48,14 +47,23 @@ public final class SessionJournalLogReader {
         return part <= 1 ? BASE_FILE_NAME + "." + ext : BASE_FILE_NAME + "-" + part + "." + ext;
     }
 
-    /** Finds a part file in any format, compressed or not; null when the part does not exist. */
+    /**
+     * Finds a part file in any format, compressed or not; null when the part does not exist.
+     * Probes plain, then {@code .zst}, then legacy {@code .gz} — a journal that rotated across
+     * the compression switch legitimately mixes suffixes between parts.
+     */
     public static Path findPartFile(Path journalDir, int part) {
         for (SessionJournalLogFormat format : SessionJournalLogFormat.values()) {
-            Path plain = journalDir.resolve(partFileName(part, format));
+            String plainName = partFileName(part, format);
+            Path plain = journalDir.resolve(plainName);
             if (Files.isRegularFile(plain)) {
                 return plain;
             }
-            Path gz = journalDir.resolve(partFileName(part, format) + SessionJournalLogCompressor.GZIP_SUFFIX);
+            Path zst = journalDir.resolve(plainName + SessionJournalLogCompressor.ZSTD_SUFFIX);
+            if (Files.isRegularFile(zst)) {
+                return zst;
+            }
+            Path gz = journalDir.resolve(plainName + SessionJournalLogCompressor.GZIP_SUFFIX);
             if (Files.isRegularFile(gz)) {
                 return gz;
             }
@@ -77,16 +85,13 @@ public final class SessionJournalLogReader {
 
     /** Parses one part file (recovery semantics; never throws on torn content). */
     public static List<SessionJournalLogEntry> readPart(Path partFile) throws IOException {
-        String fileName = partFile.getFileName().toString();
-        boolean gzipped = fileName.endsWith(SessionJournalLogCompressor.GZIP_SUFFIX);
-        String plainName = gzipped
-            ? fileName.substring(0, fileName.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length())
-            : fileName;
+        String plainName = SessionJournalLogCompressor.stripCompressionSuffix(
+            partFile.getFileName().toString());
         SessionJournalLogFormat format = formatFromFileName(plainName);
         if (format == null) {
             return List.of();
         }
-        String content = readContent(partFile, gzipped);
+        String content = readContent(partFile);
         return switch (format) {
             case XML -> parseXml(content, partFile);
             case JSON -> parseJsonLines(content, false);
@@ -205,24 +210,20 @@ public final class SessionJournalLogReader {
         return kind == SessionJournalLogEntry.Kind.OUT || kind == SessionJournalLogEntry.Kind.SEED;
     }
 
-    /** True when the part file is gzip-compressed (a closed part). */
+    /** True when the part file is compressed (a closed part), by either codec. */
     public static boolean isCompressed(Path partFile) {
-        return partFile.getFileName().toString().endsWith(SessionJournalLogCompressor.GZIP_SUFFIX);
+        return SessionJournalLogCompressor.isCompressedName(partFile.getFileName().toString());
     }
 
     /** The on-disk format of a part file, derived from its extension; null when unrecognized. */
     public static SessionJournalLogFormat formatOf(Path partFile) {
-        String fileName = partFile.getFileName().toString();
-        if (isCompressed(partFile)) {
-            fileName = fileName.substring(
-                0, fileName.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length());
-        }
-        return formatFromFileName(fileName);
+        return formatFromFileName(
+            SessionJournalLogCompressor.stripCompressionSuffix(partFile.getFileName().toString()));
     }
 
     /** Raw file content, transparently decompressing a closed part. */
     public static String readRawContent(Path partFile) throws IOException {
-        return readContent(partFile, isCompressed(partFile));
+        return readContent(partFile);
     }
 
     /**
@@ -274,11 +275,8 @@ public final class SessionJournalLogReader {
         return SessionJournalLogFormat.fromKey(plainName.substring(dot + 1));
     }
 
-    private static String readContent(Path file, boolean gzipped) throws IOException {
-        if (!gzipped) {
-            return Files.readString(file, StandardCharsets.UTF_8);
-        }
-        try (InputStream in = new GZIPInputStream(Files.newInputStream(file))) {
+    private static String readContent(Path file) throws IOException {
+        try (InputStream in = SessionJournalLogCompressor.openInput(file)) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
@@ -326,9 +324,11 @@ public final class SessionJournalLogReader {
                 boolean redacted = "true".equals(reader.getAttributeValue(null, "redacted"));
                 boolean partial = "true".equals(reader.getAttributeValue(null, "partial"));
                 String file = reader.getAttributeValue(null, "file");
+                int repeat = (int) Math.max(1, parseLong(reader.getAttributeValue(null, "repeat")));
                 String text = reader.getElementText();
                 if (seq >= 0 && timestamp != null) {
-                    entries.add(new SessionJournalLogEntry(seq, timestamp, kind, text, redacted, partial, file));
+                    entries.add(new SessionJournalLogEntry(
+                        seq, timestamp, kind, text, redacted, partial, file, repeat));
                 }
             }
         } finally {
@@ -371,7 +371,8 @@ public final class SessionJournalLogReader {
                     json.has("x") ? json.get("x").getAsString() : "",
                     json.has("redacted") && json.get("redacted").getAsBoolean(),
                     json.has("partial") && json.get("partial").getAsBoolean(),
-                    json.has("file") ? json.get("file").getAsString() : null));
+                    json.has("file") ? json.get("file").getAsString() : null,
+                    json.has("repeat") ? json.get("repeat").getAsInt() : 1));
             } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
                 // torn or foreign line — recovery contract is to skip it
             }

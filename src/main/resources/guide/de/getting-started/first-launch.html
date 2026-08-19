@@ -2350,13 +2350,13 @@
 <ol>
 <li>Geben Sie ein Passwort ein (mindestens 6 Zeichen). Der Feldrand wird <strong>grün</strong>, wenn er lang genug ist, und <strong>rot</strong>, wenn er zu kurz ist; Ein Stärkeindikator bewertet die Qualität. Bei einem schwachen oder gebräuchlichen Passwort wird eine Warnung angezeigt, es kann jedoch weiterhin verwendet werden, wenn Sie es bestätigen.</li>
 <li>Bestätigen Sie das Passwort.</li>
-<li>Aktivieren Sie optional <strong>Anonyme Nutzungsstatistiken teilen</strong>, um korTTY zu verbessern. Dies ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit unter <strong>Einstellungen → Datenschutz</strong> geändert werden. Die Schaltfläche <strong>?</strong> öffnet <a href="../about/anonymous-data.html">Anonyme Daten zur Anwendungsoptimierung</a>.</li>
+<li>Wählen Sie optional <strong>Anonyme Nutzungsstatistiken teilen</strong> aus, um korTTY zu verbessern. Dies ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit unter <strong>Einstellungen → Datenschutz</strong> geändert werden. Die Schaltfläche <strong>?</strong> öffnet <a href="../about/anonymous-data.html">Anonyme Daten zur Anwendungsoptimierung</a>.</li>
 <li>Klicken Sie auf <strong>Setup</strong>.</li>
 </ol>
 <p>Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.</p>
 <div class="admonition warning">
 <p class="admonition-title">Deaktivieren der Eingabeaufforderung</p>
-<p>Sie können die Aufforderung zum Entsperren unter <strong>Einstellungen → Sicherheit</strong> deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
+<p><strong>Einstellungen → Sicherheit</strong> bietet zwei Möglichkeiten, die Eingabeaufforderung zu überspringen. Durch Deaktivieren von <strong>Beim Start Master-Passwort anfordern</strong> wird die Eingabeaufforderung ausgeblendet, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben. <strong>Deaktivieren Sie die Eingabeaufforderung für das Master-Passwort beim Start (automatische Anmeldung)</strong>. Stattdessen wird der Tresor automatisch über eine Kopie Ihres Master-Passworts entsperrt, die auf der Festplatte gespeichert ist – nur verschleiert, nicht verschlüsselt, also behalten Sie es für Wegwerf- oder Testumgebungen auf. Weitere Informationen finden Sie in den <a href="../reference/settings/security.html">-Sicherheitseinstellungen </a>, einschließlich unbeaufsichtigter Erststarts, bei denen der Einrichtungsdialog vollständig übersprungen wird.</p>
 </div>
 <h2 id="was-ist-verschlusselt">Was ist verschlüsselt?<a class="headerlink" href="#was-ist-verschlusselt" title="Permanent link">&para;</a></h2>
 <table>
@@ -2385,12 +2385,17 @@
 </tr>
 <tr>
 <td>Master-Passwort</td>
-<td><code>~/.kortty/master-password-hash</code></td>
-<td>gesalzener Hash (nur Verifizierung)</td>
+<td><code>~/.kortty/master.key</code></td>
+<td>Salted Hash (nur Verifizierung)</td>
+</tr>
+<tr>
+<td>Master-Passwort gespeichert (nur automatische Anmeldung)</td>
+<td><code>~/.kortty/master.autounlock</code></td>
+<td>nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen</td>
 </tr>
 </tbody>
 </table>
-<p>Das vollständige Verschlüsselungs- und Sicherungsmodell finden Sie in der <a href="../features/connections.html">Sicherheitsreferenz</a>].</p>
+<p>Das vollständige Verschlüsselungs- und Sicherungsmodell finden Sie in der <a href="../features/connections.html">-Sicherheitsreferenz </a>.</p>
 <p><a class="md-button" href="main-window.html">Weiter: Übersicht über das Hauptfenster →</a></p>
 
 

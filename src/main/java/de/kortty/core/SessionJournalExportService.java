@@ -42,7 +42,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.zip.GZIPInputStream;
 
 /**
  * Exports a session journal: a "simple journal" (entries, excerpts, embedded downscaled
@@ -529,12 +528,11 @@ public final class SessionJournalExportService {
                 continue;
             }
             String name = partFile.getFileName().toString();
-            if (name.endsWith(SessionJournalLogCompressor.GZIP_SUFFIX)) {
+            if (SessionJournalLogCompressor.isCompressedName(name)) {
                 // Store the logs decompressed: the archive compresses anyway and the unzipped
-                // bundle stays readable without an extra step.
-                String plainName = name.substring(
-                    0, name.length() - SessionJournalLogCompressor.GZIP_SUFFIX.length());
-                try (InputStream in = new GZIPInputStream(Files.newInputStream(partFile))) {
+                // bundle stays readable without an extra step. Works for .zst and legacy .gz.
+                String plainName = SessionJournalLogCompressor.stripCompressionSuffix(name);
+                try (InputStream in = SessionJournalLogCompressor.openInput(partFile)) {
                     Files.copy(in, targetDir.resolve(plainName), StandardCopyOption.REPLACE_EXISTING);
                 }
             } else {

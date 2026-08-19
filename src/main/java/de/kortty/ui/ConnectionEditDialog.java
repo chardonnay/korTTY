@@ -118,6 +118,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     // Session Journal
     private CheckBox enableJournalCheck;
     private CheckBox journalCaptureInputCheck;
+    private Spinner<Integer> journalMaxSizeMBSpinner;
+    private Spinner<Integer> journalMaxPartsSpinner;
     private CheckBox journalAiSummariesCheck;
     private Spinner<Integer> journalSummaryIntervalSpinner;
 
@@ -758,6 +760,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     }
                     if (journalSummaryIntervalSpinner != null) {
                         journalConfig.setSummaryIntervalMinutes(journalSummaryIntervalSpinner.getValue());
+                    }
+                    if (journalMaxSizeMBSpinner != null) {
+                        journalConfig.setMaxLogSizeMB(journalMaxSizeMBSpinner.getValue());
+                    }
+                    if (journalMaxPartsSpinner != null) {
+                        journalConfig.setMaxLogParts(journalMaxPartsSpinner.getValue());
                     }
                 }
 
@@ -1665,11 +1673,32 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         journalSummaryIntervalSpinner.disableProperty().bind(
             journalAiSummariesCheck.selectedProperty().not());
 
+        journalMaxSizeMBSpinner = new Spinner<>(1, 1000,
+            journalConfig != null ? journalConfig.getMaxLogSizeMB() : 25);
+        journalMaxSizeMBSpinner.setEditable(true);
+        journalMaxSizeMBSpinner.setPrefWidth(100);
+
+        // The rotated-part cap pairs with the part size: size × count = the total capture cap.
+        Integer policyPartsCap = policy.sessionJournalMaxLogParts();
+        int configuredParts = journalConfig != null ? journalConfig.getMaxLogParts() : 20;
+        int partsMax = policyPartsCap != null ? policyPartsCap : 500;
+        journalMaxPartsSpinner = new Spinner<>(1, partsMax, Math.min(configuredParts, partsMax));
+        journalMaxPartsSpinner.setEditable(true);
+        journalMaxPartsSpinner.setPrefWidth(100);
+
         int row = 0;
         grid.add(journalCaptureInputCheck, 0, row++, 2, 1);
         grid.add(journalAiSummariesCheck, 0, row++, 2, 1);
         grid.add(new Label(I18n.get("connEdit.journal.summaryInterval")), 0, row);
         grid.add(journalSummaryIntervalSpinner, 1, row++);
+        grid.add(new Label(I18n.get("connEdit.journal.maxSizeMB")), 0, row);
+        grid.add(journalMaxSizeMBSpinner, 1, row++);
+        grid.add(new Label(I18n.get("connEdit.journal.maxParts")), 0, row);
+        grid.add(journalMaxPartsSpinner, 1, row++);
+        Label maxPartsHint = new Label(I18n.get("connEdit.journal.maxParts.hint"));
+        maxPartsHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        maxPartsHint.setWrapText(true);
+        grid.add(maxPartsHint, 0, row++, 2, 1);
 
         enableJournalCheck.selectedProperty().addListener((obs, old, newVal) -> grid.setDisable(!newVal));
 
@@ -1684,6 +1713,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         } else if (enforced) {
             // Mandated journals: the enable switch is locked on.
             enableJournalCheck.setDisable(true);
+            Label managedLabel = new Label(I18n.get("journal.options.managed"));
+            managedLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+            managedLabel.setWrapText(true);
+            vbox.getChildren().add(managedLabel);
+        } else if (policyPartsCap != null) {
+            // Only the part cap is mandated: the spinner range is already clamped to it.
             Label managedLabel = new Label(I18n.get("journal.options.managed"));
             managedLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
             managedLabel.setWrapText(true);

@@ -430,7 +430,10 @@ public class SessionJournalSummarizer {
         if (entry.redacted()) {
             return HIDDEN_INPUT_MARKER;
         }
-        return capLine(entry.text() != null ? entry.text() : "", LINE_CHAR_CAP);
+        String line = capLine(entry.text() != null ? entry.text() : "", LINE_CHAR_CAP);
+        // A coalesced duplicate run: the repetition signal costs the model a few tokens instead
+        // of N duplicated lines.
+        return entry.repeat() > 1 ? line + " (×" + entry.repeat() + ")" : line;
     }
 
     private static String capLine(String line, int maxChars) {

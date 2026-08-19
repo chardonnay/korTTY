@@ -82,7 +82,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
+Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Bereich **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 

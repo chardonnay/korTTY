@@ -492,6 +492,7 @@ class PolicyLoaderTest {
               name-template = "{connection} {date} {time} ({user})"
               ai-title = true
               ai-screenshot-analysis = false
+              max-log-parts = 40
                 [[rule.session-journal.replace]]
                 pattern = "AKIA[0-9A-Z]{16}"
                 replacement = "***AWS-ACCESS-KEY***"
@@ -506,7 +507,33 @@ class PolicyLoaderTest {
         PolicyRule.SessionJournalRule journal = result.file().rules().get(0).sessionJournal();
         assertThat(journal.enforced()).isTrue();
         assertThat(journal.aiScreenshotAnalysis()).isFalse();
+        assertThat(journal.maxLogParts()).isEqualTo(40);
         assertThat(journal.replacements()).hasSize(2);
+    }
+
+    @Test
+    void maxLogPartsIsNullWhenUnsetAndRejectsZero() throws IOException {
+        PolicyLoadResult unset = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              enforced = true
+            """));
+        assertThat(unset.errors()).isEmpty();
+        assertThat(unset.file().rules().get(0).sessionJournal().maxLogParts()).isNull();
+
+        PolicyLoadResult zero = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              max-log-parts = 0
+            """));
+        assertThat(zero.errors()).hasSize(1);
+        assertThat(zero.errors().get(0)).contains("max-log-parts must be at least 1");
     }
 
     @Test

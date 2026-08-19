@@ -405,6 +405,13 @@ dependencies {
     // until the macOS signing step is taught to sign jar-internal natives.
     implementation("org.jetbrains.pty4j:pty4j:0.12.25")
 
+    // zstd for session-journal rotated-part compression (better ratio than gzip on repetitive
+    // terminal output, long-window mode spans a whole part). Ships one native libzstd-jni per
+    // OS/arch inside the jar; prepareSlimRuntimeJars strips foreign platforms and the retained
+    // macOS dylib is re-signed by signMacBundledNativeLibraries — an unsigned bundled .dylib
+    // fails Apple notarization (same story as the pty4j pin above).
+    implementation("com.github.luben:zstd-jni:1.5.7-15")
+
     // Native desktop power-management integration. pty4j already brings these transitively, but
     // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
     implementation("net.java.dev.jna:jna:5.19.1")
@@ -1428,9 +1435,76 @@ tasks.register("copyMosh4jBundled") {
     }
 }
 
+/** One multi-platform runtime jar whose foreign natives get stripped for the target platform. */
+data class SlimJarSpec(
+    val label: String,
+    val jarPattern: Regex,
+    /** Entry-path predicate: is this jar entry a native binary at all (any platform)? */
+    val isNative: (String) -> Boolean,
+    /** Target-platform prefix; native entries outside it are dropped. */
+    val keepPrefix: String,
+    /** Jar-relative path of a universal macOS dylib needing lipo-thin + ad-hoc re-sign. */
+    val macUniversalDylib: String? = null
+)
+
+// Single source of truth for prepareSlimRuntimeJars AND verifyJpackageStaging, so the strip
+// rules and the staging assertions can never drift apart.
+fun slimJarSpecs(arch: String): List<SlimJarSpec> {
+    val jnaPrefix = when {
+        isMac && arch == "arm64" -> "com/sun/jna/darwin-aarch64/"
+        isMac && arch == "x64" -> "com/sun/jna/darwin-x86-64/"
+        isLinux && arch == "arm64" -> "com/sun/jna/linux-aarch64/"
+        isLinux && arch == "x64" -> "com/sun/jna/linux-x86-64/"
+        isWindows && arch == "arm64" -> "com/sun/jna/win32-aarch64/"
+        isWindows && arch == "x64" -> "com/sun/jna/win32-x86-64/"
+        else -> throw GradleException("No JNA native mapping for $osName/$arch")
+    }
+    val ptyPrefix = when {
+        isMac -> "resources/com/pty4j/native/darwin/"
+        isLinux && arch == "arm64" -> "resources/com/pty4j/native/linux/aarch64/"
+        isLinux && arch == "x64" -> "resources/com/pty4j/native/linux/x86-64/"
+        isWindows && arch == "arm64" -> "resources/com/pty4j/native/win/aarch64/"
+        isWindows && arch == "x64" -> "resources/com/pty4j/native/win/x86-64/"
+        else -> throw GradleException("No pty4j native mapping for $osName/$arch")
+    }
+    // zstd-jni names architectures asymmetrically: darwin uses x86_64, linux/win use amd64.
+    val zstdPrefix = when {
+        isMac && arch == "arm64" -> "darwin/aarch64/"
+        isMac && arch == "x64" -> "darwin/x86_64/"
+        isLinux && arch == "arm64" -> "linux/aarch64/"
+        isLinux && arch == "x64" -> "linux/amd64/"
+        isWindows && arch == "arm64" -> "win/aarch64/"
+        isWindows && arch == "x64" -> "win/amd64/"
+        else -> throw GradleException("No zstd-jni native mapping for $osName/$arch")
+    }
+    return listOf(
+        SlimJarSpec(
+            "JNA",
+            Regex("jna-[0-9].*\\.jar"),
+            { path -> path.matches(Regex("com/sun/jna/[^/]+/(?:lib)?jnidispatch\\..+")) },
+            jnaPrefix
+        ),
+        SlimJarSpec(
+            "pty4j",
+            Regex("pty4j-[0-9].*\\.jar"),
+            { path -> path.startsWith("resources/com/pty4j/native/") },
+            ptyPrefix,
+            macUniversalDylib = "resources/com/pty4j/native/darwin/libpty.dylib"
+        ),
+        SlimJarSpec(
+            "zstd-jni",
+            Regex("zstd-jni-[0-9].*\\.jar"),
+            { path -> path.matches(Regex("(?:aix|darwin|freebsd|linux|win)/[^/]+/libzstd-jni-.+")) },
+            zstdPrefix
+            // zstd-jni ships single-arch dylibs — no lipo needed; the Developer-ID signature is
+            // applied later by signMacBundledNativeLibraries via macNativeJarPatterns.
+        )
+    )
+}
+
 tasks.register("prepareSlimRuntimeJars") {
     group = "build"
-    description = "Repackages JNA and pty4j with only the native binaries for the target OS/architecture."
+    description = "Repackages JNA, pty4j and zstd-jni with only the native binaries for the target OS/architecture."
     inputs.files(configurations.runtimeClasspath)
     inputs.property("targetOs", osName)
     inputs.property("targetArch", formatterArch())
@@ -1441,33 +1515,12 @@ tasks.register("prepareSlimRuntimeJars") {
         outputDir.mkdirs()
 
         val arch = formatterArch()
-        val jnaPrefix = when {
-            isMac && arch == "arm64" -> "com/sun/jna/darwin-aarch64/"
-            isMac && arch == "x64" -> "com/sun/jna/darwin-x86-64/"
-            isLinux && arch == "arm64" -> "com/sun/jna/linux-aarch64/"
-            isLinux && arch == "x64" -> "com/sun/jna/linux-x86-64/"
-            isWindows && arch == "arm64" -> "com/sun/jna/win32-aarch64/"
-            isWindows && arch == "x64" -> "com/sun/jna/win32-x86-64/"
-            else -> throw GradleException("No JNA native mapping for $osName/$arch")
-        }
-        val ptyPrefix = when {
-            isMac -> "resources/com/pty4j/native/darwin/"
-            isLinux && arch == "arm64" -> "resources/com/pty4j/native/linux/aarch64/"
-            isLinux && arch == "x64" -> "resources/com/pty4j/native/linux/x86-64/"
-            isWindows && arch == "arm64" -> "resources/com/pty4j/native/win/aarch64/"
-            isWindows && arch == "x64" -> "resources/com/pty4j/native/win/x86-64/"
-            else -> throw GradleException("No pty4j native mapping for $osName/$arch")
-        }
-
+        val specs = slimJarSpecs(arch)
         val runtimeJars = configurations.runtimeClasspath.get().files.filter { it.extension == "jar" }
-        val sources = listOf(
-            runtimeJars.singleOrNull { it.name.matches(Regex("jna-[0-9].*\\.jar")) }
-                ?: throw GradleException("Could not resolve the JNA runtime JAR"),
-            runtimeJars.singleOrNull { it.name.matches(Regex("pty4j-[0-9].*\\.jar")) }
-                ?: throw GradleException("Could not resolve the pty4j runtime JAR")
-        )
 
-        sources.forEach { sourceJar ->
+        specs.forEach { spec ->
+            val sourceJar = runtimeJars.singleOrNull { spec.jarPattern.matches(it.name) }
+                ?: throw GradleException("Could not resolve the ${spec.label} runtime JAR")
             val unpackDir = layout.buildDirectory.get().asFile.resolve("tmp/slim-runtime-jars/${sourceJar.nameWithoutExtension}")
             delete(unpackDir)
             unpackDir.mkdirs()
@@ -1476,29 +1529,20 @@ tasks.register("prepareSlimRuntimeJars") {
                 into(unpackDir)
                 includeEmptyDirs = false
                 eachFile {
-                    val resourcePath = path
-                    val remove = when {
-                        sourceJar.name.startsWith("jna-") -> {
-                            val isNative = resourcePath.matches(
-                                Regex("com/sun/jna/[^/]+/(?:lib)?jnidispatch\\..+")
-                            )
-                            isNative && !resourcePath.startsWith(jnaPrefix)
-                        }
-                        else -> resourcePath.startsWith("resources/com/pty4j/native/") &&
-                            !resourcePath.startsWith(ptyPrefix)
+                    if (spec.isNative(path) && !path.startsWith(spec.keepPrefix)) {
+                        exclude()
                     }
-                    if (remove) exclude()
                 }
             }
-            if (isMac && sourceJar.name.startsWith("pty4j-")) {
-                val universal = unpackDir.resolve("resources/com/pty4j/native/darwin/libpty.dylib")
-                val thinned = universal.resolveSibling("libpty.thin.dylib")
+            if (isMac && spec.macUniversalDylib != null) {
+                val universal = unpackDir.resolve(spec.macUniversalDylib)
+                val thinned = universal.resolveSibling(universal.nameWithoutExtension + ".thin.dylib")
                 val lipoArch = if (arch == "arm64") "arm64" else "x86_64"
                 val lipo = ProcessBuilder(
                     "lipo", universal.absolutePath, "-thin", lipoArch, "-output", thinned.absolutePath
                 ).directory(project.rootDir).inheritIO().start()
                 if (lipo.waitFor() != 0) {
-                    throw GradleException("Could not thin pty4j libpty.dylib to $lipoArch")
+                    throw GradleException("Could not thin ${spec.label} ${universal.name} to $lipoArch")
                 }
                 Files.move(
                     thinned.toPath(),
@@ -1508,14 +1552,13 @@ tasks.register("prepareSlimRuntimeJars") {
                 val adHocSign = ProcessBuilder("codesign", "--force", "--sign", "-", universal.absolutePath)
                     .directory(project.rootDir).inheritIO().start()
                 if (adHocSign.waitFor() != 0) {
-                    throw GradleException("Could not ad-hoc sign thinned pty4j libpty.dylib")
+                    throw GradleException("Could not ad-hoc sign thinned ${spec.label} ${universal.name}")
                 }
             }
             val nativeFiles = unpackDir.walkTopDown()
                 .filter { file ->
                     file.isFile && file.extension.lowercase() in setOf("dll", "exe", "so", "dylib", "jnilib") &&
-                        (file.invariantSeparatorsPath.contains("/com/sun/jna/") ||
-                            file.invariantSeparatorsPath.contains("/resources/com/pty4j/native/"))
+                        spec.isNative(file.relativeTo(unpackDir).invariantSeparatorsPath)
                 }
                 .toList()
             if (nativeFiles.isEmpty()) {
@@ -1529,15 +1572,12 @@ tasks.register("prepareSlimRuntimeJars") {
             delete(unpackDir)
         }
 
-        val jnaJar = outputDir.listFiles()?.singleOrNull { it.name.startsWith("jna-") }
-            ?: throw GradleException("Slim JNA JAR was not created")
-        val ptyJar = outputDir.listFiles()?.singleOrNull { it.name.startsWith("pty4j-") }
-            ?: throw GradleException("Slim pty4j JAR was not created")
-        if (!zipTree(jnaJar).matching { include("$jnaPrefix*") }.files.any()) {
-            throw GradleException("Slim JNA JAR does not contain $jnaPrefix")
-        }
-        if (!zipTree(ptyJar).matching { include("$ptyPrefix*") }.files.any()) {
-            throw GradleException("Slim pty4j JAR does not contain $ptyPrefix")
+        specs.forEach { spec ->
+            val slimJar = outputDir.listFiles()?.singleOrNull { spec.jarPattern.matches(it.name) }
+                ?: throw GradleException("Slim ${spec.label} JAR was not created")
+            if (!zipTree(slimJar).matching { include("${spec.keepPrefix}*") }.files.any()) {
+                throw GradleException("Slim ${spec.label} JAR does not contain ${spec.keepPrefix}")
+            }
         }
     }
 }
@@ -1557,7 +1597,8 @@ tasks.register<Sync>("prepareJpackage") {
     from(configurations.runtimeClasspath) {
         exclude { details ->
             details.file.name.matches(Regex("jna-[0-9].*\\.jar")) ||
-                details.file.name.matches(Regex("pty4j-[0-9].*\\.jar"))
+                details.file.name.matches(Regex("pty4j-[0-9].*\\.jar")) ||
+                details.file.name.matches(Regex("zstd-jni-[0-9].*\\.jar"))
         }
     }
     from(tasks.jar.map { it.archiveFile })
@@ -1644,45 +1685,17 @@ val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
         if (moshReleaseDirs.map { it.name } != listOf("release-$mosh4jVersion-${mosh4jArch()}")) {
             throw GradleException("jpackage staging contains unexpected mosh4j releases: $moshReleaseDirs")
         }
-        val slimJars = listOf(
-            libs.listFiles()?.singleOrNull { it.name.matches(Regex("jna-[0-9].*\\.jar")) },
-            libs.listFiles()?.singleOrNull { it.name.matches(Regex("pty4j-[0-9].*\\.jar")) }
-        )
-        if (slimJars.any { it == null }) {
-            throw GradleException("jpackage staging must contain exactly one slim JNA and pty4j JAR")
-        }
-        slimJars.filterNotNull().forEach { jar ->
+        slimJarSpecs(formatterArch()).forEach { spec ->
+            val jar = libs.listFiles()?.singleOrNull { spec.jarPattern.matches(it.name) }
+                ?: throw GradleException(
+                    "jpackage staging must contain exactly one slim ${spec.label} JAR")
             ZipFile(jar).use { archive ->
                 val nativeEntries = archive.entries().asSequence()
                     .filter { !it.isDirectory }
                     .map { it.name }
-                    .filter { name ->
-                        if (jar.name.startsWith("jna-")) {
-                            name.matches(Regex("com/sun/jna/[^/]+/(?:lib)?jnidispatch\\..+"))
-                        } else {
-                            name.startsWith("resources/com/pty4j/native/")
-                        }
-                    }
+                    .filter { name -> spec.isNative(name) }
                     .toList()
-                val expectedPrefix = if (jar.name.startsWith("jna-")) {
-                    when {
-                        isMac && formatterArch() == "arm64" -> "com/sun/jna/darwin-aarch64/"
-                        isMac -> "com/sun/jna/darwin-x86-64/"
-                        isLinux && formatterArch() == "arm64" -> "com/sun/jna/linux-aarch64/"
-                        isLinux -> "com/sun/jna/linux-x86-64/"
-                        isWindows && formatterArch() == "arm64" -> "com/sun/jna/win32-aarch64/"
-                        else -> "com/sun/jna/win32-x86-64/"
-                    }
-                } else {
-                    when {
-                        isMac -> "resources/com/pty4j/native/darwin/"
-                        isLinux && formatterArch() == "arm64" -> "resources/com/pty4j/native/linux/aarch64/"
-                        isLinux -> "resources/com/pty4j/native/linux/x86-64/"
-                        isWindows && formatterArch() == "arm64" -> "resources/com/pty4j/native/win/aarch64/"
-                        else -> "resources/com/pty4j/native/win/x86-64/"
-                    }
-                }
-                if (nativeEntries.isEmpty() || nativeEntries.any { !it.startsWith(expectedPrefix) }) {
+                if (nativeEntries.isEmpty() || nativeEntries.any { !it.startsWith(spec.keepPrefix) }) {
                     throw GradleException("${jar.name} contains foreign native entries: $nativeEntries")
                 }
             }
@@ -1753,7 +1766,10 @@ if (isMac) {
     val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
     val macNativeJarPatterns = listOf(
         Regex("""^jna-[\w.\-]+\.jar$"""),
-        Regex("""^pty4j-[\w.\-]+\.jar$""")
+        Regex("""^pty4j-[\w.\-]+\.jar$"""),
+        // zstd-jni bundles libzstd-jni-<ver>.dylib; without a Developer-ID signature the
+        // notarization of the DMG fails on the jar-internal dylib (same story as pty4j).
+        Regex("""^zstd-jni-[\w.\-]+\.jar$""")
         // Do NOT add javafx-*.jar here: this task signs with `--options runtime`, and the resulting
         // hardened-runtime flag on libjfxwebkit.dylib kills JavaScriptCore's JIT (WebView dies the
         // instant JS executes, no crash report). JavaFX 21.0.0's Gluon signatures notarize as-is.

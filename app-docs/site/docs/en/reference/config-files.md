@@ -324,7 +324,7 @@ Compressed terminal session history.
     Per-connection *Terminal Logging* does not write here: its generated log files go to the folder configured on the connection's Terminal Logging tab, or to `~/.kortty/terminal-logs/` when that folder is left empty.
 
 ### journals/
-Session journals — one self-contained directory per journal (location configurable in **Settings > Logging > Session Journal**). Each journal directory holds `journal.xml` (the curated document: metadata, AI summaries, markers, notes, screenshot references), the append-only capture log `session-log.json` / `.xml` / `.yaml` (JSON Lines by default) with gzip-compressed rotated parts (default 25 MB per part), the generated `journal.html` timeline page, and `screenshots/*.png`. See [Session journal](../features/session-journal.md).
+Session journals — one self-contained directory per journal (location configurable in **Settings > Logging > Session Journal**). Each journal directory holds `journal.xml` (the curated document: metadata, AI summaries, markers, notes, screenshot references), the append-only capture log `session-log.json` / `.xml` / `.yaml` (JSON Lines by default) with zstd-compressed rotated parts (part size and part count are configurable per connection on the Journal tab, defaults 25 MB and 20 parts; journals from older versions keep their gzip-compressed `.gz` parts), the generated `journal.html` timeline page, and `screenshots/*.png`. See [Session journal](../features/session-journal.md).
 
 ### terminal-logs/
 Default target folder for [per-connection terminal logs](../features/terminal.md#terminal-logging) when a connection's log folder field is left empty. File naming, daily rotation, compression and retention follow the connection's logging configuration.

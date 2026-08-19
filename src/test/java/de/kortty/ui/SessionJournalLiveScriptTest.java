@@ -49,6 +49,18 @@ class SessionJournalLiveScriptTest {
     }
 
     @Test
+    void repeatCountIsEmittedOnlyWhenCoalesced() {
+        String script = SessionJournalLiveScript.appendLogCall(List.of(
+            new SessionJournalLogEntry(10, BASE, SessionJournalLogEntry.Kind.OUT,
+                "retrying", false, false, null, 3),
+            entry(11, SessionJournalLogEntry.Kind.OUT, "single", false, null)),
+            UTC, "(hidden)", "Screenshot");
+        assertThat(script).contains("{s:10,t:\"12:00:01\",k:\"o\",x:\"retrying\",r:3}");
+        // The non-coalesced literal keeps its historical shape — no r key at repeat 1.
+        assertThat(script).contains("{s:11,t:\"12:00:01\",k:\"o\",x:\"single\"}");
+    }
+
+    @Test
     void redactedInputShowsThePlaceholderNeverTheText() {
         String script = SessionJournalLiveScript.appendLogCall(List.of(
             entry(7, SessionJournalLogEntry.Kind.IN, "", true, null)),

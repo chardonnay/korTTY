@@ -3090,11 +3090,15 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <li>Klicken Sie auf <strong>Setup</strong>.</li>
 </ol>
 <h3 id="at-rest-verschlusselung">At-Rest-Verschlüsselung<a class="headerlink" href="#at-rest-verschlusselung" title="Permanent link">&para;</a></h3>
-<p>Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und niemals im Klartext gespeichert. Das Salz und der Hash werden in <code>~/.kortty/master-password-hash</code> gespeichert.</p>
-<p>Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Sie können diese Eingabeaufforderung unter <strong>Einstellungen &gt; Sicherheit</strong> deaktivieren, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
+<p>Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und niemals im Klartext gespeichert. Das Salz und der Hash werden in <code>~/.kortty/master.key</code> gespeichert.</p>
+<p>Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Wenn Sie <strong>Master-Passwort beim Start anfordern</strong> in <strong>Einstellungen &gt; Sicherheit</strong> deaktivieren, wird diese Eingabeaufforderung ausgeblendet, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
+<div class="admonition danger">
+<p class="admonition-title">Optionale automatische Anmeldung schwächt den Schutz im Ruhezustand</p>
+<p>Die zweite Sicherheitsoption, <strong>Master-Passwort-Eingabeaufforderung beim Start deaktivieren (automatische Anmeldung)</strong>, entfernt die Eingabeaufforderung ebenfalls, hält den Tresor jedoch vollständig nutzbar: korTTY schreibt Ihr Master-Passwort in <code>~/.kortty/master.autounlock</code> – <strong>Nur verschleiert, nicht verschlüsselt</strong>, mit Dateiberechtigungen nur für den Besitzer – und wird bei jedem Start automatisch entsperrt. Der Verschleierungsschlüssel ist in die Anwendung eingebettet, sodass Dateiberechtigungen die einzige wirkliche Grenze darstellen; jeder, der lesen kann <code>~/.kortty</code> oder ein Backup kann alle gespeicherten Geheimnisse entschlüsseln. Bei einem brandneuen Profil führt die Option ein Standard-Master-Passwort ohne Dialog aus. korTTY fragt vor der Aktivierung nach einer Bestätigung, es ist für Wegwerf-/Testumgebungen gedacht und a <a href="../reference/enterprise-policy.html">Richtlinienkonfiguration</a> das ein Master-Passwort erfordert, deaktiviert es. Einzelheiten: <a href="../reference/settings/security.html">Sicherheitseinstellungen</a>.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie <code>master-password-hash</code> und <code>credentials.xml</code>, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.</p>
+<p>Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie <code>master.key</code> und <code>credentials.xml</code>, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.</p>
 </div>
 <h2 id="verschlusselungsmodell">Verschlüsselungsmodell<a class="headerlink" href="#verschlusselungsmodell" title="Permanent link">&para;</a></h2>
 <p>Alle vertraulichen Daten im Ruhezustand werden mit <strong>AES-256-GCM</strong> verschlüsselt:</p>
@@ -3153,7 +3157,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <ul>
 <li><strong>Zentralisierte Verwaltung</strong> – Verwalten Sie alle SSH-Schlüssel an einem Ort</li>
 <li><strong>Verschlüsselte Passphrasen</strong> – Schlüsselpassphrasen werden mit AES-256-GCM verschlüsselt gespeichert</li>
-<li><strong>Schlüsselkopie</strong> – Verwenden Sie <strong>In Benutzerverzeichnis kopieren</strong>, um Schlüssel nach <code>~/.kortty/ssh-keys/</code> zu kopieren (in Backups zur einfachen Migration enthalten)</li>
+<li><strong>Schlüsselkopie</strong> – Verwenden Sie <strong>In Benutzerverzeichnis kopieren</strong>, um Schlüssel nach <code>~/.kortty/ssh-keys/</code> zu kopieren; Kopierte Schlüssel werden in verschlüsselte Backups einbezogen und nur mit Eigentümerberechtigungen wiederhergestellt</li>
 <li><strong>Platzhaltersuche</strong> – Schnelle Suche nach Schlüsseln mithilfe von <code>*</code>-Mustern</li>
 <li><strong>Automatische Nutzung</strong> – Wählen Sie Schlüssel direkt in den Verbindungseinstellungen aus</li>
 </ul>
@@ -3171,7 +3175,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <h3 id="lockere-uberprufung-des-hostschlussels">Lockere Überprüfung des Hostschlüssels<a class="headerlink" href="#lockere-uberprufung-des-hostschlussels" title="Permanent link">&para;</a></h3>
 <p>Für Labor- oder Wegwerf-Hosts können Sie die Eingabeaufforderung bei der ersten Verwendung deaktivieren und korTTY veranlassen, einen unbekannten Schlüssel stillschweigend zu akzeptieren. Hierbei handelt es sich um eine <strong>Akzeptieren-Neu</strong>-Lockerung, nicht um blindes Vertrauen: Ein Schlüssel, der sich von dem unterscheidet, der bereits für diesen Host festgelegt wurde, ist immer noch hart blockiert, sodass ein Man-in-the-Middle auf einem Host, mit dem Sie sich zuvor verbunden haben, immer noch abgefangen wird. Es ist standardmäßig deaktiviert und kann in der Reihenfolge der Priorität auf drei Bereiche eingestellt werden:</p>
 <ol>
-<li><strong>Pro Verbindung</strong> – das Steuerelement <em>Host-Schlüsselüberprüfung</em> im Verbindungseditor des Verbindungsmanagers und in der Schnellverbindung mit drei Zuständen: <strong>Standard verwenden</strong> (übernehmen), <strong>Überprüfen</strong> (strikt erzwingen, auch wenn die Gruppen- oder globale Einstellung dies gelockert hat) und <strong>Nicht überprüfen</strong>.</li>
+<li><strong>Pro Verbindung</strong> – das Steuerelement <em>Hostschlüsselüberprüfung</em> im Verbindungseditor des Verbindungsmanagers und in der Schnellverbindung mit drei Zuständen: <strong>Standard verwenden</strong> (übernehmen), <strong>Überprüfen</strong> (strikt erzwingen, auch wenn die Gruppen- oder globale Einstellung dies gelockert hat) und <strong>Nicht überprüfen</strong>.</li>
 <li><strong>Pro Gruppe</strong> – Klicken Sie im Verbindungsmanager mit der rechten Maustaste auf eine Gruppe und aktivieren Sie <strong>Hostschlüsselüberprüfung deaktivieren</strong>; Es gilt für jede Verbindung in der Gruppe, die erbt.</li>
 <li><strong>Global</strong> – <strong>Einstellungen → Terminal → Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</strong>, der Basisstandard für jede Verbindung, die auf beiden oben genannten Ebenen erbt.</li>
 </ol>
@@ -3234,9 +3238,14 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <td>AES-256-GCM</td>
 </tr>
 <tr>
-<td><code>master-password-hash</code></td>
+<td><code>master.key</code></td>
 <td>Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt</td>
 <td>PBKDF2-Hash nur</td>
+</tr>
+<tr>
+<td><code>master.autounlock</code></td>
+<td>Gespeichertes Master-Passwort für die optionale automatische Anmeldung</td>
+<td>Nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen</td>
 </tr>
 <tr>
 <td><code>global-settings.xml</code></td>
@@ -3259,7 +3268,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <h3 id="ssh-schlussel">SSH-Schlüssel<a class="headerlink" href="#ssh-schlussel" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Schützen Sie private Schlüsseldateien mit einer Passphrase.</li>
-<li>Kopieren Sie Schlüssel nach <code>~/.kortty/ssh-keys/</code>, um sie in verschlüsselte Backups aufzunehmen.</li>
+<li>Schlüssel nach <code>~/.kortty/ssh-keys/</code> kopieren, um sie in verschlüsselte Backups aufzunehmen; Schlüssel, die an ihren ursprünglichen Speicherorten verbleiben, werden nur referenziert und müssen separat migriert werden.</li>
 <li>Schlüsseldateiberechtigungen einschränken (z. B. <code>chmod 600</code>).</li>
 <li>Überprüfen Sie den Fingerabdruck eines Hostschlüssels bei der ersten Verwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung bezüglich eines geänderten Schlüssels als einen möglichen Serverneuaufbau, einen DNS-Fehler oder einen Man-in-the-Middle-Angriff und untersuchen Sie ihn, anstatt die Verbindung wiederholt wiederherzustellen.</li>
 </ul>
@@ -3280,15 +3289,16 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <li>API-Schlüssel für KI-Endpunkte werden mit Ihrem Master-Passwort verschlüsselt.</li>
 <li>Das optionale Hugging Face-Token ist mit dem Master-Passwort verschlüsselt und wird nur für genehmigte Modellsuch-/Downloadanfragen an den vertrauenswürdigen Hugging Face-Host verwendet.</li>
 <li>Jeder integrierte <code>llama-server</code> bindet nur an <code>127.0.0.1</code> an einem zufälligen Port und erfordert einen generierten lokalen API-Schlüssel. Der Offline-Modus ist obligatorisch; Web-UI-, Agent-, UI-MCP-Proxy-, Slot-Endpunkt- und geerbte Serveroptionsüberschreibungen sind deaktiviert.</li>
-<li>GGUF-Downloads erfordern eine unveränderliche Repository-Revision und genaue SHA-256-Metadaten. Laufzeitindizes erfordern eine Ed25519-Signatur, und jede Laufzeit-ZIP-Datei wird vor der sicheren Extraktion anhand ihrer signierten Größe und SHA-256 überprüft. Offizielle Anwendungs-Builds betten nur das Vertrauensstammverzeichnis des öffentlichen Laufzeitkanals ein. Ein fehlender oder ungültiger Schlüssel schlägt fehl, bevor eine Aktualisierungsanforderung erfolgt, während der signierende private Schlüssel im vom Menschen gesendeten Promotion-Workflow isoliert bleibt.</li>
+<li>GGUF-Downloads erfordern eine unveränderliche Repository-Revision und genaue SHA-256-Metadaten. Laufzeitindizes erfordern eine Ed25519-Signatur, und jede Laufzeit-ZIP-Datei wird vor der sicheren Extraktion anhand ihrer signierten Größe und SHA-256 überprüft. Offizielle Anwendungs-Builds betten nur das Vertrauensstammverzeichnis des öffentlichen Laufzeitkanals ein; Ein fehlender oder ungültiger Schlüssel schlägt fehl, bevor eine Aktualisierungsanforderung erfolgt, während der signierende private Schlüssel im vom Menschen gesendeten Promotion-Workflow isoliert bleibt.</li>
 <li>Signierte Laufzeitabhebungen sind dauerhaft und werden nicht geschlossen. Ein verifizierter Index fügt zurückgezogene Laufzeit- und Installations-IDs zu <code>llm/runtime/revoked-v1</code> hinzu, markiert jedes installierte Paket, löscht einen passenden aktiven Zeiger, stoppt seine Sidecars, entfernt es aus dem fehlerfreien Rollback-Verlauf und stellt betroffene Modellbindungen unter Quarantäne. Sowohl das Installationsprogramm als auch der Prozessstarter lehnen diese Pakete ab, auch nach einem unterbrochenen Update. Überprüfungen, bei denen nur eine Benachrichtigung erfolgt, erzwingen eine Auszahlung, ohne dass der angebotene Ersatz stillschweigend installiert wird. <strong>Off</strong> stellt keine Indexanfrage und erfährt daher bis zu einer expliziten oder aktivierten Prüfung keine neue Entnahme.</li>
 <li>Eine neu aktivierte Laufzeit wird nicht in den fehlerfreien Verlauf hochgestuft, nur weil die begrenzte <code>--version</code>-Prüfung bestanden wurde. Es bleibt ausstehend, bis der erste echte GGUF-gestützte authentifizierte API-Start erfolgreich ist; Wenn dieser Start fehlschlägt, wird der Kandidat entfernt und das neueste fehlerfreie, nicht widerrufene Paket wiederhergestellt bzw. erneut gebunden, sofern eines vorhanden ist.</li>
-<li>-Modellempfehlungen und die automatische Erkennung von Eingabeaufforderungsfamilien können aus einem separaten Ed25519-signierten HTTPS-Katalog aktualisiert werden. Der letzte gültige Cache wird vor der Verwendung erneut überprüft, und eine monotone Sequenz lehnt signierte ältere Wiedergaben oder Versionskollisionen gleicher Sequenz vor einem atomaren Hochwasser-Update ab. Ohne den unabhängigen öffentlichen Katalogschlüssel vertraut korTTY weder Netzwerk- noch Cache-Daten und greift auf den integrierten Bootstrap zurück. Das Signieren von Produktionskatalogen und Laufzeiten ist auf die durch Prüfer geschützten GitHub-Umgebungen im Hauptzweig beschränkt. Anwendungsbuilds erhalten nur die öffentlichen Vertrauenswurzeln.
+<li>-Modellempfehlungen und die automatische Erkennung von Eingabeaufforderungsfamilien können aus einem separaten Ed25519-signierten HTTPS-Katalog aktualisiert werden. Der letzte gültige Cache wird vor der Verwendung erneut überprüft, und eine monotone Sequenz lehnt signierte ältere Wiederholungen oder Versionskollisionen mit gleicher Sequenz vor einem atomaren Hochwasser-Update ab. Ohne den unabhängigen öffentlichen Katalogschlüssel vertraut korTTY weder Netzwerk- noch Cache-Daten und greift auf den integrierten Bootstrap zurück. Das Signieren von Produktionskatalogen und Laufzeiten ist auf die durch Prüfer geschützten GitHub-Umgebungen im Hauptzweig beschränkt. Anwendungsbuilds erhalten nur die öffentlichen Vertrauenswurzeln.
 Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Terminalauswahl oder Eingabeaufforderung wird an den ausgewählten Dienst gesendet. Die eingebettete Inferenz bleibt auf diesem Computer.</li>
 <li>Wissensspeicher-Scanning folgt einer festen Text-Zulassungsliste, validiert Inhalte, lehnt symbolische Links ab und zeigt eine Vorschau an. Nur begrenzte abgerufene Auszüge, nicht der gesamte Wissensspeicher, werden in die Modellaufforderung eingegeben. Diese Auszüge bleiben für integrierte/Loopback-Profile lokal, verlassen jedoch den Computer, wenn ein explizit zugewiesenes Cloud-Profil die Anfrage verarbeitet. Wissensspeicherrollen und persistente Profilzuweisungen sind die Offenlegungsberechtigung des Benutzers.</li>
 <li>Remote-Qdrant-Wissensspeicher erfordern HTTPS; Einfaches HTTP wird nur für Loopback akzeptiert und der optionale API-Schlüssel bleibt durch den Tresor geschützt.</li>
 <li>Der Internetzugriff ist für AI-Profile standardmäßig deaktiviert. nur bei Bedarf aktivieren.</li>
 <li>Snippet-KI-Aktionen nutzen niemals den Internetzugang, selbst wenn dieser im Profil aktiviert ist.</li>
+<li>Die feste Snippet-/Workflow-<strong>Diagramm</strong>-Anfrage erhält nie Auszüge aus dem Wissensspeicher, selbst wenn an das Profil Speicher angehängt sind – die Diagramm-Eingabeaufforderung wird ausschließlich aus der Quelle erstellt.</li>
 </ul>
 <h2 id="sicherheitsubersicht">Sicherheitsübersicht<a class="headerlink" href="#sicherheitsubersicht" title="Permanent link">&para;</a></h2>
 <table>
@@ -3313,7 +3323,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 </tr>
 <tr>
 <td>Interaktive SSH/SFTP/Mosh-Hostschlüssel</td>
-<td>Gemeinsam genutzter normalisierter Host:Port-TOFU, Fingerabdruckbestätigung bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung</td>
+<td>Gemeinsam genutzter normalisierter Host:Port-TOFU, Bestätigung des Fingerabdrucks bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung</td>
 </tr>
 <tr>
 <td>AI-API-Schlüssel</td>
@@ -3321,7 +3331,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 </tr>
 <tr>
 <td>Eingebetteter llama.cpp</td>
-<td>Nur-Loopback-zufälliger Port, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing</td>
+<td>Nur-Loopback-Zufallsport, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing</td>
 </tr>
 <tr>
 <td>GGUF/Laufzeit-Lieferkette</td>
@@ -3340,8 +3350,12 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 <td>Feste Abrufgrenzen, stabile Quellmarkierungen, explizit nicht vertrauenswürdiger Wrapper, explizite profilbasierte lokale/Cloud-Offenlegung</td>
 </tr>
 <tr>
+<td>Optionale automatische Anmeldung</td>
+<td>Master-Passwort verschleiert gespeichert in <code>master.autounlock</code> mit Nur-Eigentümer-Berechtigungen; Standardmäßig deaktiviert, Bestätigung erforderlich, blockiert durch eine Richtlinie, die ein Master-Passwort erfordert</td>
+</tr>
+<tr>
 <td>Backup-Verschlüsselung</td>
-<td>Passwortgeschützte ZIP- oder GPG-Verschlüsselung</td>
+<td>AES-256 passwortgeschützt ZIP- oder GPG-verschlüsselt (ältere ZIP-verschlüsselte Backups bleiben importierbar)</td>
 </tr>
 <tr>
 <td>JobScheduler-Geheimnisse</td>
@@ -3364,27 +3378,28 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 <li>Klicken Sie auf <strong>Master-Passwort ändern</strong>.</li>
 <li>Geben Sie Ihr aktuelles (altes) Master-Passwort ein.</li>
 <li>Geben Sie das neue Master-Passwort zweimal ein.</li>
-<li>Alle gespeicherten Passwörter, Passphrasen und Anmeldeinformationen werden automatisch mit dem neuen Schlüssel neu verschlüsselt.</li>
+<li>Jedes Master-Passwort-geschützte Geheimnis wird automatisch mit dem neuen Schlüssel neu verschlüsselt: Verbindungs- und Jump-Server-Passwörter, SSH-Schlüssel-Passphrasen, gespeicherte Anmeldeinformationen, AI-Profil-API-Schlüssel und die globalen AI-/Übersetzungs-/Hugging-Face-Schlüssel, RAG-Wissensspeicher-Geheimnisse und JobScheduler-Sudo-/Archive-Passwörter. Die Änderung erfolgt stufenweise – das neue Passwort wird erst übernommen, wenn alle Filialen migriert wurden, sodass bei einem Fehler auf halbem Weg das alte Passwort in Kraft bleibt. Einzelne Geheimnisse, die nicht migriert werden können, bleiben unberührt, werden in der Ergebnisnachricht gezählt und im Protokoll vermerkt; Geben Sie diese manuell erneut ein.</li>
 </ol>
 <h2 id="konfigurationsdateien-referenz">Konfigurationsdateien-Referenz<a class="headerlink" href="#konfigurationsdateien-referenz" title="Permanent link">&para;</a></h2>
 <p>Alle KorTTY-Daten werden unter <code>~/.kortty/</code> gespeichert. Wichtige sicherheitsrelevante Dateien:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master-password-hash      # Master password hash and salt (PBKDF2)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── connections.xml          # Connection passwords and key passphrases
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── global-settings.xml      # AI API keys and other encrypted settings
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── rag/stores.json          # Knowledge-store/source configuration
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── kortty.log               # Application log
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>└── history/                 # Compressed terminal session history
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── connections.xml          # Connection passwords and key passphrases
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── kortty.log               # Application log
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── history/                 # Compressed terminal session history
 </span></code></pre></div>
 
 

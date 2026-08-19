@@ -122,6 +122,7 @@ public record PolicyRule(
         String nameTemplate,
         Boolean aiTitle,
         Boolean aiScreenshotAnalysis,
+        Integer maxLogParts,
         List<de.kortty.model.SessionJournalReplacement> replacements) {
 
         public SessionJournalRule {
@@ -131,7 +132,7 @@ public record PolicyRule(
         public boolean isEmpty() {
             return enforced == null && logFormat == null && aiMaxLines == null && storagePath == null
                 && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
-                && aiScreenshotAnalysis == null && replacements.isEmpty();
+                && aiScreenshotAnalysis == null && maxLogParts == null && replacements.isEmpty();
         }
     }
 

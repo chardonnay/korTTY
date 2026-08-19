@@ -2243,6 +2243,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal: complete under load, smaller on disk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2424,6 +2435,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal: complete under load, smaller on disk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2509,6 +2531,13 @@
 <li><strong>You can edit a journal title directly on its page</strong>, and a header button jumps from one marked entry to the next.</li>
 <li><strong>A lost connection no longer ends the journal</strong> — when the connection drops or the server ends it (a <code>reboot</code>!) while a journal is running, the tab now <a href="../features/session-journal.html#when-the-connection-ends">stays open</a> and a decision bar offers <strong>Reconnect</strong> — the journal continues in place, with a reconnect marker — or <strong>End journal</strong>, which writes the closing summary exactly like the stop button. Previously a cleanly ended connection closed the tab silently and took the running journal with it, without the closing summary.</li>
 <li><strong>Notes got a real editor</strong> — the quick note was a one-line input; <a href="../features/session-journal.html#writing-notes">writing a note</a> now happens in a resizable field of at least six lines, the same one the viewer's entry form and the screenshot editor use. Web addresses typed into a note become <strong>clickable links</strong> on the journal page and open in your system browser (only <code>http</code>/<code>https</code>, and only in text you wrote — AI summaries and terminal excerpts stay literal). A <strong>Translate</strong> button with a language drop-down hands the note to the model assigned to <em>Text and translation profile</em> in the AI manager and replaces it with the translation, with the original one undo away.</li>
+</ul>
+<h3 id="session-journal-complete-under-load-smaller-on-disk">Session journal: complete under load, smaller on disk<a class="headerlink" href="#session-journal-complete-under-load-smaller-on-disk" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>A server flood can no longer punch holes into the journal</strong> — when output arrived faster than the capture log could persist it, up to 10,000 queued lines were silently dropped with nothing in the journal to show for it. The capture now applies backpressure instead: the terminal may briefly slow down under an extreme flood, but every line lands in the log. The log writer also batches its disk writes, so it keeps up with far more output in the first place.</li>
+<li><strong>Repeated output lines are coalesced</strong> — progress loops, <code>tail -f</code> repeats and similar floods are stored syslog-style: the first occurrence immediately, follow-ups as one entry with a repeat count. The <a href="../features/session-journal.html#storage-and-formats">journal page</a> shows such a run compactly as <code>line ×12</code>; copying the log reproduces the original lines in full, and the AI summarizer sees the count instead of thousands of identical lines.</li>
+<li><strong>Rotated log parts are now zstd-compressed</strong> — finished capture-log parts compress to <code>.zst</code> instead of <code>.gz</code>, which is both faster and noticeably smaller on repetitive terminal output. Journals recorded by earlier versions keep their <code>.gz</code> parts and open, export and redact exactly as before — even mixed within one journal.</li>
+<li><strong>Log rotation is configurable per connection</strong> — the Journal tab gained <strong>Maximum size per log part (MB)</strong> (default 25) and <strong>Maximum rotated log parts</strong> (default 20). Previously both were fixed, and a long noisy session simply stopped recording output after 20 parts. An enterprise policy can cap the part count with the new <code>max-log-parts</code> key.</li>
 </ul>
 <h3 id="ai-screenshot-analysis-in-journals">AI screenshot analysis in journals<a class="headerlink" href="#ai-screenshot-analysis-in-journals" title="Permanent link">&para;</a></h3>
 <ul>
