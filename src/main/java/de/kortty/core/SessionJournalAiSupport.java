@@ -438,6 +438,107 @@ public final class SessionJournalAiSupport {
         }
     }
 
+    /** Parsed journal-Q&amp;A reply; {@code sources} are ordinals into the numbered context. */
+    public record AskAnswer(String answer, List<Integer> sources, List<String> logSearchTerms) {
+    }
+
+    private static final int MAX_LOG_SEARCH_TERMS = 4;
+    private static final int MAX_LOG_SEARCH_TERM_LENGTH = 120;
+
+    /**
+     * Parses the journal-Q&amp;A JSON reply leniently: think-blocks stripped, fences unwrapped,
+     * out-of-range source ordinals dropped, and bare prose degrades to an answer without sources
+     * or search terms — a model answering in the wrong shape is still answering. Returns
+     * {@code null} only when nothing usable is left.
+     */
+    public static AskAnswer parseAskAnswer(String content, int maxOrdinal) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String answer = json.has("answer") && !json.get("answer").isJsonNull()
+                ? json.get("answer").getAsString() : null;
+            if (answer == null || answer.isBlank()) {
+                return null;
+            }
+            return new AskAnswer(answer.strip(),
+                ordinals(json, "sources", maxOrdinal),
+                stringList(json, "logSearchTerms", MAX_LOG_SEARCH_TERMS, MAX_LOG_SEARCH_TERM_LENGTH));
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return new AskAnswer(sanitized.strip(), List.of(), List.of());
+        }
+    }
+
+    /**
+     * Parses a {@code {"terms":[...]}} reply. Returns {@code null} when the reply cannot be
+     * parsed at all — the caller then extracts terms deterministically instead; an empty list is
+     * the model's valid "nothing to search for".
+     */
+    public static List<String> parseSearchTerms(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(AiResponseSanitizer.sanitizeForDisplay(content).strip());
+        int start = candidate.indexOf('{');
+        int end = candidate.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        try {
+            JsonObject json = JsonParser.parseString(candidate.substring(start, end + 1)).getAsJsonObject();
+            if (!json.has("terms") || !json.get("terms").isJsonArray()) {
+                return null;
+            }
+            return stringList(json, "terms", MAX_LOG_SEARCH_TERMS, MAX_LOG_SEARCH_TERM_LENGTH);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** In-range, deduplicated ordinals from a JSON int array; empty when absent or malformed. */
+    private static List<Integer> ordinals(JsonObject json, String field, int maxOrdinal) {
+        if (!json.has(field) || !json.get(field).isJsonArray()) {
+            return List.of();
+        }
+        java.util.LinkedHashSet<Integer> values = new java.util.LinkedHashSet<>();
+        for (com.google.gson.JsonElement element : json.getAsJsonArray(field)) {
+            try {
+                int value = element.getAsInt();
+                if (value >= 1 && value <= maxOrdinal) {
+                    values.add(value);
+                }
+            } catch (RuntimeException ignored) {
+                // A non-numeric element is a model slip, not a reason to discard the answer.
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    /** Deduplicated, trimmed, capped strings from a JSON string array; empty when absent. */
+    private static List<String> stringList(JsonObject json, String field, int maxItems, int maxLength) {
+        if (!json.has(field) || !json.get(field).isJsonArray()) {
+            return List.of();
+        }
+        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+        for (com.google.gson.JsonElement element : json.getAsJsonArray(field)) {
+            if (values.size() >= maxItems) {
+                break;
+            }
+            try {
+                String value = element.getAsString().strip();
+                if (!value.isEmpty()) {
+                    values.add(value.length() > maxLength ? value.substring(0, maxLength) : value);
+                }
+            } catch (RuntimeException ignored) {
+                // A non-string element is a model slip, not a reason to discard the answer.
+            }
+        }
+        return List.copyOf(values);
+    }
+
     private static String stripJsonFence(String content) {
         String result = content;
         if (result.startsWith("```")) {

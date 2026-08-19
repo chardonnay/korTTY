@@ -161,4 +161,50 @@ class SessionJournalAiSupportTest {
         assertThat(SessionJournalAiSupport.parseScreenshotAnalysis(
             "{\"description\":\"\",\"tags\":[]}")).isNull();
     }
+
+    @Test
+    void parsesAskAnswerWithSourcesAndTerms() {
+        SessionJournalAiSupport.AskAnswer answer = SessionJournalAiSupport.parseAskAnswer(
+            "```json\n{\"answer\":\"It failed twice.\",\"sources\":[2,1,2,99],"
+                + "\"logSearchTerms\":[\"result_complex.pl\",\" \",\"error\"]}\n```", 5);
+        assertThat(answer.answer()).isEqualTo("It failed twice.");
+        assertThat(answer.sources()).containsExactly(2, 1).inOrder(); // deduped, 99 out of range
+        assertThat(answer.logSearchTerms()).containsExactly("result_complex.pl", "error").inOrder();
+    }
+
+    @Test
+    void askAnswerProseFallbackKeepsTheText() {
+        SessionJournalAiSupport.AskAnswer answer =
+            SessionJournalAiSupport.parseAskAnswer("The script never ran.", 3);
+        assertThat(answer.answer()).isEqualTo("The script never ran.");
+        assertThat(answer.sources()).isEmpty();
+        assertThat(answer.logSearchTerms()).isEmpty();
+    }
+
+    @Test
+    void unusableAskAnswerIsNull() {
+        assertThat(SessionJournalAiSupport.parseAskAnswer(null, 3)).isNull();
+        assertThat(SessionJournalAiSupport.parseAskAnswer("   ", 3)).isNull();
+        assertThat(SessionJournalAiSupport.parseAskAnswer(
+            "{\"answer\":\"\",\"sources\":[]}", 3)).isNull();
+    }
+
+    @Test
+    void askAnswerCapsSearchTerms() {
+        SessionJournalAiSupport.AskAnswer answer = SessionJournalAiSupport.parseAskAnswer(
+            "{\"answer\":\"a\",\"logSearchTerms\":[\"1\",\"2\",\"3\",\"4\",\"5\",\"6\"]}", 0);
+        assertThat(answer.logSearchTerms()).hasSize(4);
+    }
+
+    @Test
+    void parsesSearchTermsLeniently() {
+        assertThat(SessionJournalAiSupport.parseSearchTerms(
+            "Here you go:\n{\"terms\":[\"result_complex.pl\",\"died at\"]}"))
+            .containsExactly("result_complex.pl", "died at").inOrder();
+        assertThat(SessionJournalAiSupport.parseSearchTerms("{\"terms\":[]}")).isEmpty();
+        // Unparsable ≠ empty: the caller must fall back to deterministic tokens.
+        assertThat(SessionJournalAiSupport.parseSearchTerms("no json at all")).isNull();
+        assertThat(SessionJournalAiSupport.parseSearchTerms("{\"other\":1}")).isNull();
+        assertThat(SessionJournalAiSupport.parseSearchTerms(null)).isNull();
+    }
 }

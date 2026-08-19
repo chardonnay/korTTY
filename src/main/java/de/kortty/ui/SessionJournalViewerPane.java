@@ -88,6 +88,8 @@ public class SessionJournalViewerPane extends BorderPane {
     private final SessionJournalNoteEditor noteEditor = new SessionJournalNoteEditor();
     private final Label editStatus = new Label();
     private final ToggleButton editToggle = new ToggleButton(I18n.get("journal.viewer.edit"));
+    private final ToggleButton askToggle = new ToggleButton(I18n.get("journal.ask.toggle"));
+    private SessionJournalAskPanel askPanel;
     private final Consumer<Path> changeListener;
     /**
      * JavaFX binds objects handed to {@code JSObject.setMember} through WEAK references, so the
@@ -181,6 +183,7 @@ public class SessionJournalViewerPane extends BorderPane {
      * Must be called on the FX thread.
      */
     public void showJournal(Path dir) {
+        hideAskPanel(); // the conversation belongs to the previous journal
         detachLiveSession();
         documentReloadDelay.stop();
         pendingLive.clear();
@@ -506,8 +509,87 @@ public class SessionJournalViewerPane extends BorderPane {
 
         HBox toolbar = new HBox(8, openBrowserButton, exportButton, editToggle,
             appearanceButton, refreshButton);
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()) {
+            askToggle.setOnAction(event -> toggleAskPanel());
+            toolbar.getChildren().add(askToggle);
+        }
         toolbar.setPadding(new Insets(6));
         return toolbar;
+    }
+
+    // ==== AI Q&A panel ====
+
+    private void toggleAskPanel() {
+        if (askPanel != null) {
+            hideAskPanel();
+            return;
+        }
+        Path dir = journalDir;
+        SessionJournalService service = service();
+        if (dir == null || service == null) {
+            askToggle.setSelected(false);
+            return;
+        }
+        // The meta (host, user, journal id) lives in journal.xml — load it off the FX thread.
+        Thread loader = new Thread(() -> {
+            try {
+                de.kortty.model.SessionJournalMeta meta = service.loadDocument(dir).getMeta();
+                Platform.runLater(() -> {
+                    if (!disposed && dir.equals(journalDir) && askPanel == null
+                        && askToggle.isSelected()) {
+                        installAskPanel(meta);
+                    }
+                });
+            } catch (Exception e) {
+                logger.warn("Could not open the journal Q&A panel: {}", e.getMessage());
+                Platform.runLater(() -> askToggle.setSelected(false));
+            }
+        }, "SessionJournal-AskMeta");
+        loader.setDaemon(true);
+        loader.start();
+    }
+
+    private void installAskPanel(de.kortty.model.SessionJournalMeta meta) {
+        askPanel = new SessionJournalAskPanel(meta,
+            de.kortty.core.SessionJournalAskService.application(service()),
+            this::jumpToEntry, this::jumpToLogSeq, this::saveAskAnswerAsEntry);
+        SplitPane split = new SplitPane(centerPane, askPanel);
+        split.setDividerPositions(0.68);
+        setCenter(split);
+        askPanel.focusQuestionField();
+    }
+
+    private void hideAskPanel() {
+        if (askPanel == null) {
+            return;
+        }
+        askPanel.dispose();
+        askPanel = null;
+        setCenter(centerPane);
+        askToggle.setSelected(false);
+    }
+
+    /** Persists a Q&A answer as an AGENT entry; the change listener re-renders the timeline. */
+    private void saveAskAnswerAsEntry(String question, String answerMarkdown) {
+        Path dir = journalDir;
+        SessionJournalService service = service();
+        if (dir == null || service == null) {
+            return;
+        }
+        Thread saver = new Thread(() -> {
+            try {
+                SessionJournalEntry entry = new SessionJournalEntry();
+                entry.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
+                entry.setTitle(de.kortty.core.SessionJournalAiSupport.normalizeTitle(
+                    question, I18n.get("journal.ask.title"), 80));
+                entry.setText(answerMarkdown);
+                service.appendEntry(dir, entry);
+            } catch (Exception e) {
+                logger.warn("Could not save the Q&A answer as a journal entry: {}", e.getMessage());
+            }
+        }, "SessionJournal-AskNote");
+        saver.setDaemon(true);
+        saver.start();
     }
 
     // ==== page loading ====
@@ -1862,6 +1944,10 @@ public class SessionJournalViewerPane extends BorderPane {
             return;
         }
         disposed = true;
+        if (askPanel != null) {
+            askPanel.dispose();
+            askPanel = null;
+        }
         detachLiveSession();
         documentReloadDelay.stop();
         if (service() != null) {

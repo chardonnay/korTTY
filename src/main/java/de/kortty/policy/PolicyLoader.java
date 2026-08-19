@@ -50,7 +50,7 @@ public final class PolicyLoader {
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
         "ai-max-lines", "storage-path", "allow-rename", "allow-delete", "name-template", "ai-title",
-        "ai-screenshot-analysis", "max-log-parts", "replace");
+        "ai-screenshot-analysis", "ai-ask", "max-log-parts", "replace");
     private static final Set<String> SESSION_JOURNAL_REPLACE_KEYS = Set.of("pattern", "replacement",
         "regex", "ignore-case", "label");
     private static final Set<String> SESSION_JOURNAL_LOG_FORMATS = Set.of("xml", "json", "yaml");
@@ -397,6 +397,7 @@ public final class PolicyLoader {
         String nameTemplate = getString(table, "name-template", tableContext);
         Boolean aiTitle = getBoolean(table, "ai-title", tableContext);
         Boolean aiScreenshotAnalysis = getBoolean(table, "ai-screenshot-analysis", tableContext);
+        Boolean aiAsk = getBoolean(table, "ai-ask", tableContext);
         Integer maxLogParts = getNonNegativeInt(table, "max-log-parts", tableContext);
         if (maxLogParts != null && maxLogParts == 0) {
             errors.add(tableContext + ": max-log-parts must be at least 1");
@@ -406,7 +407,7 @@ public final class PolicyLoader {
             parseSessionJournalReplacements(table, tableContext);
         PolicyRule.SessionJournalRule sessionJournal = new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-            aiTitle, aiScreenshotAnalysis, maxLogParts, replacements);
+            aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements);
         if (!sessionJournal.isEmpty()) {
             builder.sessionJournal(sessionJournal);
         }

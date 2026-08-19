@@ -109,6 +109,8 @@ public record PolicyRule(
      * @param aiTitle       true forces the closing AI title regardless of the user setting
      * @param aiScreenshotAnalysis  true forces AI screenshot analysis on, false forbids it —
      *                      including manual per-screenshot runs; null leaves it to the user
+     * @param aiAsk         false forbids on-demand AI over journal content (the viewer's Q&amp;A
+     *                      panel and the manager's cross-journal AI search); null allows it
      * @param replacements  {@code [[rule.session-journal.replace]]} search-and-replace rules applied
      *                      to every captured line and every journal entry; never null, empty = none
      */
@@ -122,6 +124,7 @@ public record PolicyRule(
         String nameTemplate,
         Boolean aiTitle,
         Boolean aiScreenshotAnalysis,
+        Boolean aiAsk,
         Integer maxLogParts,
         List<de.kortty.model.SessionJournalReplacement> replacements) {
 
@@ -132,7 +135,8 @@ public record PolicyRule(
         public boolean isEmpty() {
             return enforced == null && logFormat == null && aiMaxLines == null && storagePath == null
                 && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
-                && aiScreenshotAnalysis == null && maxLogParts == null && replacements.isEmpty();
+                && aiScreenshotAnalysis == null && aiAsk == null && maxLogParts == null
+                && replacements.isEmpty();
         }
     }
 

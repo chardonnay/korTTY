@@ -27,7 +27,8 @@ public final class EffectivePolicy {
         new PolicyRule.LoggingRule(null, null, null, null, null, null);
 
     private static final PolicyRule.SessionJournalRule EMPTY_SESSION_JOURNAL =
-        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, null, null, List.of());
+        new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, null, null, null, List.of());
 
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
@@ -304,6 +305,15 @@ public final class EffectivePolicy {
         return sessionJournalAllowed() && aiAllowed();
     }
 
+    /**
+     * On-demand AI over journal content: the viewer's Q&amp;A panel and the manager's
+     * cross-journal AI search. Needs the journal feature and AI itself, and an admin can turn
+     * just this capability off ({@code ai-ask = false}) while keeping summaries.
+     */
+    public boolean sessionJournalAiAskAllowed() {
+        return sessionJournalAiSummariesAllowed() && !Boolean.FALSE.equals(sessionJournal.aiAsk());
+    }
+
     /** True when the admin mandates a journal for every connection (users cannot stop it). */
     public boolean sessionJournalEnforced() {
         return sessionJournalAllowed() && Boolean.TRUE.equals(sessionJournal.enforced());
@@ -523,6 +533,10 @@ public final class EffectivePolicy {
         Boolean aiScreenshotAnalysis = resolver.resolve(
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiScreenshotAnalysis() : null,
             (a, b) -> a && b);
+        // Journal text leaving the machine is the risk, so a same-tier conflict resolves to off.
+        Boolean aiAsk = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiAsk() : null,
+            (a, b) -> a && b);
         // The lower part cap is the more restrictive one; unlike aiMaxLines there is no
         // 0-means-unlimited sentinel (the loader rejects 0), so a plain min resolves it.
         Integer maxLogParts = resolver.resolve(
@@ -530,7 +544,8 @@ public final class EffectivePolicy {
             Math::min);
         return new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-            aiTitle, aiScreenshotAnalysis, maxLogParts, resolveSessionJournalReplacements(resolver));
+            aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts,
+            resolveSessionJournalReplacements(resolver));
     }
 
     /**
