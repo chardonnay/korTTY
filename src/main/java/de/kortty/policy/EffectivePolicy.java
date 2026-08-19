@@ -27,7 +27,7 @@ public final class EffectivePolicy {
         new PolicyRule.LoggingRule(null, null, null, null, null, null);
 
     private static final PolicyRule.SessionJournalRule EMPTY_SESSION_JOURNAL =
-        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, null, List.of());
+        new PolicyRule.SessionJournalRule(null, null, null, null, null, null, null, null, null, null, List.of());
 
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
@@ -317,6 +317,14 @@ public final class EffectivePolicy {
         return !Boolean.FALSE.equals(sessionJournal.allowDelete());
     }
 
+    /**
+     * The admin cap on rotated capture-log parts per journal, or null when no policy sets one.
+     * The effective limit is the minimum of this and the connection's configured value.
+     */
+    public Integer sessionJournalMaxLogParts() {
+        return sessionJournal.maxLogParts();
+    }
+
     /** The raw {@code [rule.session-journal]} mandates (fields null when not set). */
     public PolicyRule.SessionJournalRule sessionJournal() {
         return sessionJournal;
@@ -515,9 +523,14 @@ public final class EffectivePolicy {
         Boolean aiScreenshotAnalysis = resolver.resolve(
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().aiScreenshotAnalysis() : null,
             (a, b) -> a && b);
+        // The lower part cap is the more restrictive one; unlike aiMaxLines there is no
+        // 0-means-unlimited sentinel (the loader rejects 0), so a plain min resolves it.
+        Integer maxLogParts = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().maxLogParts() : null,
+            Math::min);
         return new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-            aiTitle, aiScreenshotAnalysis, resolveSessionJournalReplacements(resolver));
+            aiTitle, aiScreenshotAnalysis, maxLogParts, resolveSessionJournalReplacements(resolver));
     }
 
     /**

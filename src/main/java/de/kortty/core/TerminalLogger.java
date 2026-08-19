@@ -346,7 +346,7 @@ public class TerminalLogger {
         if (config.isCompress()) {
             // The compressor creates a new file, so the owner-only mode has to be re-applied;
             // otherwise the archive is world-readable while the plain file was not.
-            TerminalLogNaming.restrictArchiveToOwner(SessionJournalLogCompressor.compress(finished));
+            TerminalLogNaming.restrictArchiveToOwner(SessionJournalLogCompressor.compressGzip(finished));
         }
     }
 

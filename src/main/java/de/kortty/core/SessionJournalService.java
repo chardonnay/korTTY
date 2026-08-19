@@ -170,6 +170,7 @@ public class SessionJournalService {
             config.isAiSummariesEnabled(),
             config.getSummaryIntervalMinutes(),
             config.getMaxLogSizeBytes(),
+            effectiveMaxLogParts(config),
             redactor);
         liveSessions.put(normalize(directory), session);
         return session;
@@ -416,6 +417,23 @@ public class SessionJournalService {
         }
     }
 
+    /**
+     * The effective rotated-part limit: the connection's configured value, capped by the
+     * enterprise policy's {@code max-log-parts} when one is set (most restrictive wins).
+     */
+    private static int effectiveMaxLogParts(SessionJournalConfig config) {
+        int maxParts = config.getMaxLogParts();
+        try {
+            Integer policyCap = de.kortty.policy.PolicyManager.effective().sessionJournalMaxLogParts();
+            if (policyCap != null) {
+                maxParts = Math.min(maxParts, policyCap);
+            }
+        } catch (Exception e) {
+            // Policy not initialized (tests, tools) — no cap.
+        }
+        return maxParts;
+    }
+
     /** The organisation's automatic replacement rules, or empty when no policy is loaded. */
     public static List<de.kortty.model.SessionJournalReplacement> policyReplacements() {
         try {
@@ -510,7 +528,7 @@ public class SessionJournalService {
             if (changed(entry.text(), rewrittenText)) {
                 replacements.put(entry.seq(), serializer.entryLine(new SessionJournalLogEntry(
                     entry.seq(), entry.timestamp(), entry.kind(), rewrittenText,
-                    entry.redacted(), entry.partial(), entry.file())));
+                    entry.redacted(), entry.partial(), entry.file(), entry.repeat())));
             }
         }
         if (replacements.isEmpty() || dryRun) {
@@ -556,9 +574,11 @@ public class SessionJournalService {
             AtomicFileWriter.writeStringAtomically(partFile, content);
             return;
         }
-        Path temp = Files.createTempFile(partFile.getParent(), partFile.getFileName().toString(), ".tmp");
+        // The temp file keeps the part's own suffix so openOutput recompresses in the part's
+        // original algorithm — a legacy .gz part stays gzip, a .zst part stays zstd.
+        Path temp = Files.createTempFile(partFile.getParent(), "rewrite-", partFile.getFileName().toString());
         try {
-            try (java.io.OutputStream out = new java.util.zip.GZIPOutputStream(Files.newOutputStream(temp))) {
+            try (java.io.OutputStream out = SessionJournalLogCompressor.openOutput(temp)) {
                 out.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
             Files.move(temp, partFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);

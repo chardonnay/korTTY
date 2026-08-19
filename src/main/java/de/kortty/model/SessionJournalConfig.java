@@ -37,6 +37,13 @@ public class SessionJournalConfig {
     @XmlElement
     private int maxLogSizeMB = 25;
 
+    /**
+     * Number of rotated capture-log parts after which output capture stops (the safety valve;
+     * input, screenshots and notes continue). An enterprise policy can cap this further.
+     */
+    @XmlElement
+    private int maxLogParts = 20;
+
     public SessionJournalConfig() {
     }
 
@@ -47,6 +54,7 @@ public class SessionJournalConfig {
             this.aiSummariesEnabled = other.aiSummariesEnabled;
             this.summaryIntervalMinutes = other.summaryIntervalMinutes;
             this.maxLogSizeMB = other.maxLogSizeMB;
+            this.maxLogParts = other.maxLogParts;
         }
     }
 
@@ -92,5 +100,13 @@ public class SessionJournalConfig {
 
     public long getMaxLogSizeBytes() {
         return (long) getMaxLogSizeMB() * 1024 * 1024;
+    }
+
+    public int getMaxLogParts() {
+        return maxLogParts > 0 ? maxLogParts : 20;
+    }
+
+    public void setMaxLogParts(int maxLogParts) {
+        this.maxLogParts = maxLogParts;
     }
 }

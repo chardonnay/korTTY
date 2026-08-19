@@ -82,7 +82,9 @@ class SessionJournalHtmlRendererTest {
             new SessionJournalLogEntry(3, base.plusSeconds(2), SessionJournalLogEntry.Kind.IN,
                 "", true, false, null),
             new SessionJournalLogEntry(4, base.plusSeconds(3), SessionJournalLogEntry.Kind.SCREENSHOT,
-                "", false, false, "screenshots/shot-000004.png"));
+                "", false, false, "screenshots/shot-000004.png"),
+            new SessionJournalLogEntry(5, base.plusSeconds(4), SessionJournalLogEntry.Kind.OUT,
+                "retrying connection", false, false, null, 12));
     }
 
     private SessionJournalEntry screenshotEntryWithoutAi() {
@@ -252,6 +254,16 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("\\u003c/script\\u003e");
         assertThat(html).contains("k:\"i\"");
         assertThat(html).contains("(hidden input)");
+    }
+
+    @Test
+    void embedsRepeatCountsAndTheBadgeMachinery() {
+        String html = renderer.render(document, sampleLog());
+        // The coalesced entry carries its count into the embedded LOG array ...
+        assertThat(html).contains(",r:12}");
+        // ... the page renders it as a compact badge and expands it on copy.
+        assertThat(html).contains("l-rep");
+        assertThat(html).contains("for(var j=0;j<(r.r||1);j++)");
     }
 
     @Test

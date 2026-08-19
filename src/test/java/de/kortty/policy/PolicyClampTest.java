@@ -244,7 +244,7 @@ class PolicyClampTest {
     private static EffectivePolicy screenshotAnalysisPolicy(boolean value) {
         PolicyRule rule = PolicyRule.builder()
             .sessionJournal(new PolicyRule.SessionJournalRule(
-                null, null, null, null, null, null, null, null, value, List.of()))
+                null, null, null, null, null, null, null, null, value, null, List.of()))
             .build();
         PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(rule),
             List.of(), List.of(), List.of(), List.of());

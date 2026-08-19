@@ -867,11 +867,14 @@ public final class SessionJournalHtmlRenderer {
             : (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT
                 ? screenshotLabel + " " + nullSafe(entry.file())
                 : nullSafe(entry.text()));
+        // The repeat count is omitted at 1 (like the on-disk formats), so non-coalesced entries
+        // keep their historical literal shape.
         return "{s:" + entry.seq()
             + ",t:" + AiChatRenderPageSupport.toJsStringLiteral(
                 entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS))
             + ",k:\"" + kind + '"'
             + ",x:" + AiChatRenderPageSupport.toJsStringLiteral(text)
+            + (entry.repeat() > 1 ? ",r:" + entry.repeat() : "")
             + '}';
     }
 
@@ -1157,6 +1160,7 @@ public final class SessionJournalHtmlRenderer {
             .log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
             .l-in{color:var(--input)} .l-out{color:var(--output)} .l-meta{color:var(--muted)}
             .l-seq{color:var(--muted);user-select:none}
+            .l-rep{color:var(--muted);font-style:italic;user-select:none}
             mark{background:var(--mark);color:#000;border-radius:2px}
             mark.cur{background:var(--mark-cur)}
             .ctx-menu{position:fixed;z-index:70;min-width:190px;max-width:80vw;padding:4px;display:none;
@@ -1216,9 +1220,11 @@ public final class SessionJournalHtmlRenderer {
             function lineHtml(r,query){
               var text=textFor(r);
               var content=query?highlight(text,query):esc(text);
+              // Coalesced duplicate runs show compactly with a repeat badge; copying expands them.
+              var rep=(r.r||1)>1?"<span class=\\"l-rep\\"> \\u00d7"+r.r+"</span>":"";
               // One wrapper per line so the live tail can append and trim per DOM child.
               return "<span class=\\"l-line\\"><span class=\\"l-seq\\">"+r.t+" </span>"
-                +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>\\n</span>";
+                +"<span class=\\""+classFor(r.k)+"\\">"+content+"</span>"+rep+"\\n</span>";
             }
             function renderBody(query){
               var html="";
@@ -1654,8 +1660,15 @@ public final class SessionJournalHtmlRenderer {
               return parts.join("\\n\\n");
             }
             function logText(){
-              return records.map(function(r){
-                return r.t+" "+(r.k==="i"?"$ ":"")+r.x;}).join("\\n");
+              // Rehydration: a coalesced entry represents r.r occurrences — copying reproduces
+              // the original lines verbatim, each stamped with the entry's timestamp.
+              var out=[];
+              for(var i=0;i<records.length;i++){
+                var r=records[i];
+                var line=r.t+" "+(r.k==="i"?"$ ":"")+r.x;
+                for(var j=0;j<(r.r||1);j++){out.push(line);}
+              }
+              return out.join("\\n");
             }
 
             /* ---- context menu ------------------------------------------------------- */

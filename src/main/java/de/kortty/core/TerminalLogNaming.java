@@ -145,7 +145,7 @@ public final class TerminalLogNaming {
      * The date encoded in an archive's name, or {@code null} when it is not one of ours.
      *
      * <p>Retention reads the age from here rather than from the file's modification time:
-     * {@link SessionJournalLogCompressor#compress(Path)} writes a fresh {@code .gz} without
+     * {@link SessionJournalLogCompressor#compressGzip(Path)} writes a fresh {@code .gz} without
      * carrying the original timestamp over, so every archive would look brand new and nothing
      * would ever be swept.</p>
      */

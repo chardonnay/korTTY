@@ -78,6 +78,9 @@ public interface SessionJournalLogSerializer {
             if (entry.file() != null) {
                 sb.append(" file=\"").append(escapeAttr(entry.file())).append('"');
             }
+            if (entry.repeat() > 1) {
+                sb.append(" repeat=\"").append(entry.repeat()).append('"');
+            }
             String text = entry.text();
             if (text == null || text.isEmpty()) {
                 sb.append("/>\n");
@@ -181,6 +184,9 @@ public interface SessionJournalLogSerializer {
             }
             if (entry.file() != null) {
                 json.addProperty("file", entry.file());
+            }
+            if (entry.repeat() > 1) {
+                json.addProperty("repeat", entry.repeat());
             }
             return json;
         }

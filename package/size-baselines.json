@@ -6,7 +6,7 @@
   "artifacts": {
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
-      "verified_bytes": 141527956,
+      "verified_bytes": 143627956,
       "budget_bytes": 152043520
     },
     "macos-x86_64-dmg": {

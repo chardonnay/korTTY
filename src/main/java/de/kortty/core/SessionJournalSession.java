@@ -34,6 +34,14 @@ import java.util.function.Consumer;
  * <p>Password protection layers implemented here: an end-anchored prompt heuristic on the pending
  * output buffer suppresses the following input line (logged as a redacted placeholder), and every
  * captured line passes the known-secret {@link SessionJournalRedactor} before it is enqueued.</p>
+ *
+ * <p>Flow control: capture threads block when the queue is full (backpressure throttles the SSH
+ * read loop instead of losing journal lines); the shared idle-flush thread and FX-origin paths
+ * never block. Consecutive identical OUT lines are coalesced syslog-style via
+ * {@link SessionJournalOutputCoalescer} into a head entry plus one repeat-counted entry. The
+ * writer drains the queue in batches with one flush per batch, so the crash window is at most one
+ * batch ({@value #MAX_BATCH} entries) plus OS buffers — a quiet session still flushes effectively
+ * per entry, and the active part stays uncompressed with one entry per physical line.</p>
  */
 public class SessionJournalSession implements AutoCloseable {
 
@@ -63,8 +71,21 @@ public class SessionJournalSession implements AutoCloseable {
      */
     private static final long PROMPT_CONFIRM_MILLIS = 200;
     private static final long SUPPRESSION_TIMEOUT_MILLIS = 60_000;
-    private static final int MAX_PARTS = 20;
     private static final int QUEUE_CAPACITY = 10_000;
+    /** Writer drains up to this many entries per batch, with one flush at the batch end. */
+    private static final int MAX_BATCH = 512;
+    /**
+     * Blocking enqueue re-checks writer liveness in slices of this length, so a writer thread
+     * killed by an {@link Error} can never wedge the SSH reader forever.
+     */
+    private static final long BLOCKING_ENQUEUE_SLICE_MILLIS = 10_000;
+    /** Bounded wait for FX-origin entries (user note, screenshot) — a hiccup, never a hang. */
+    private static final long BOUNDED_ENQUEUE_TIMEOUT_MILLIS = 500;
+    /**
+     * A duplicate flood persists a repeat entry after this many suppressed lines, bounding crash
+     * loss and keeping the live panel's counter moving.
+     */
+    private static final int REPEAT_FLUSH_CAP = 1000;
 
     private final SessionJournalService service;
     private final Path directory;
@@ -77,9 +98,13 @@ public class SessionJournalSession implements AutoCloseable {
     private final boolean aiSummariesEnabled;
     private final int summaryIntervalMinutesOverride;
     private final long maxLogSizeBytes;
+    private final int maxLogParts;
     private final SessionJournalRedactor redactor;
     private final SessionJournalAnsiProcessor ansiProcessor;
     private final BlockingQueue<SessionJournalLogEntry> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
+    /** Non-blocking emitter runs inside the coalescer monitor — see its class javadoc. */
+    private final SessionJournalOutputCoalescer coalescer = new SessionJournalOutputCoalescer(
+        REPEAT_FLUSH_CAP, pending -> queue.offer(newRepeatEntry(pending)));
     private final Thread writerThread;
 
     private final AtomicLong sequence = new AtomicLong();
@@ -115,6 +140,7 @@ public class SessionJournalSession implements AutoCloseable {
             boolean aiSummariesEnabled,
             int summaryIntervalMinutesOverride,
             long maxLogSizeBytes,
+            int maxLogParts,
             SessionJournalRedactor redactor) {
         this.service = service;
         this.directory = directory;
@@ -127,6 +153,7 @@ public class SessionJournalSession implements AutoCloseable {
         this.aiSummariesEnabled = aiSummariesEnabled;
         this.summaryIntervalMinutesOverride = summaryIntervalMinutesOverride;
         this.maxLogSizeBytes = maxLogSizeBytes;
+        this.maxLogParts = Math.max(1, maxLogParts);
         this.redactor = redactor;
         this.ansiProcessor = new SessionJournalAnsiProcessor(this::handleEmittedOutputLine);
         this.writerThread = new Thread(this::writerLoop, "SessionJournal-Writer");
@@ -202,6 +229,9 @@ public class SessionJournalSession implements AutoCloseable {
         idleFlushTask = IDLE_FLUSHER.scheduleWithFixedDelay(
             () -> {
                 ansiProcessor.flushIdle(IDLE_FLUSH_MILLIS);
+                // An idle duplicate run flushes its counter non-blocking (this thread is shared
+                // by all sessions and must never wait on one session's queue).
+                coalescer.flushIfIdle(IDLE_FLUSH_MILLIS, System.currentTimeMillis());
                 // A genuine prompt that arrived as the very last output (nothing further comes,
                 // ever, until the user replies) can only be confirmed by time passing — there is
                 // no "next chunk" to re-check it against.
@@ -260,14 +290,18 @@ public class SessionJournalSession implements AutoCloseable {
             // One prompt swallows exactly one submission; the text is never touched or buffered.
             inputSuppressed = false;
             commandCount.incrementAndGet();
-            enqueue(SessionJournalLogEntry.Kind.IN, "", true, false, null);
+            flushPendingRepeatBlocking();
+            enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.IN, "", true, false, null));
             return;
         }
         if (line.isBlank()) {
             return; // an empty Enter at the prompt is noise, not a command
         }
         commandCount.incrementAndGet();
-        enqueue(SessionJournalLogEntry.Kind.IN, redactor.redact(line), false, false, null);
+        // Break any open duplicate run first, so a command typed between duplicates appears
+        // after the repeat entry that closes the run — the log keeps its causal order.
+        flushPendingRepeatBlocking();
+        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.IN, redactor.redact(line), false, false, null));
     }
 
     /** Cap so a retroactive seed can never wedge the queue or balloon the first log part. */
@@ -278,6 +312,7 @@ public class SessionJournalSession implements AutoCloseable {
         if (!running || closed || screenLines == null || screenLines.isEmpty()) {
             return;
         }
+        flushPendingRepeatBlocking();
         int skipped = Math.max(0, screenLines.size() - MAX_SEED_LINES);
         List<String> capped = skipped > 0
             ? screenLines.subList(skipped, screenLines.size())
@@ -302,7 +337,7 @@ public class SessionJournalSession implements AutoCloseable {
         String noteText = skipped > 0
             ? "journal enabled retroactively; " + capped.size() + " seed lines above (" + skipped + " older lines omitted)"
             : "journal enabled retroactively; " + capped.size() + " seed lines above";
-        enqueue(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null);
+        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null));
     }
 
     /**
@@ -315,7 +350,8 @@ public class SessionJournalSession implements AutoCloseable {
             return;
         }
         lastActivityMillis = System.currentTimeMillis();
-        enqueue(SessionJournalLogEntry.Kind.NOTE, redactor.redact(text.strip()), false, false, null);
+        coalescer.tryFlushPending();
+        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, redactor.redact(text.strip()), false, false, null));
     }
 
     /** Marks a reconnect of the tab's connection in the log. */
@@ -323,7 +359,8 @@ public class SessionJournalSession implements AutoCloseable {
         if (!running || closed) {
             return;
         }
-        enqueue(SessionJournalLogEntry.Kind.NOTE, "session reconnected", false, false, null);
+        coalescer.tryFlushPending();
+        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, "session reconnected", false, false, null));
     }
 
     /**
@@ -337,14 +374,17 @@ public class SessionJournalSession implements AutoCloseable {
         if (!running || closed) {
             throw new IOException("Session journal is not active");
         }
+        coalescer.tryFlushPending();
         long seq = sequence.incrementAndGet();
         String relativePath = String.format("%s/shot-%06d.png", SessionJournalService.SCREENSHOTS_DIR_NAME, seq);
         Path target = directory.resolve(relativePath);
         Files.createDirectories(target.getParent());
         Files.write(target, pngBytes);
         screenshotCount.incrementAndGet();
-        enqueuePreSequenced(new SessionJournalLogEntry(
-            seq, OffsetDateTime.now(), SessionJournalLogEntry.Kind.SCREENSHOT, "", false, false, relativePath));
+        if (!enqueueBounded(new SessionJournalLogEntry(
+            seq, OffsetDateTime.now(), SessionJournalLogEntry.Kind.SCREENSHOT, "", false, false, relativePath))) {
+            throw new IOException("Session journal queue congested; screenshot entry not recorded");
+        }
 
         SessionJournalEntry entry = new SessionJournalEntry();
         entry.setKind(SessionJournalEntryKind.SCREENSHOT);
@@ -372,6 +412,9 @@ public class SessionJournalSession implements AutoCloseable {
             return;
         }
         ansiProcessor.flushRemaining();
+        // Flush the counted tail of an open duplicate run before the writer drains: blocking is
+        // safe here, the writer thread is still running.
+        flushPendingRepeatBlocking();
         running = false;
         if (idleFlushTask != null) {
             idleFlushTask.cancel(false);
@@ -419,7 +462,39 @@ public class SessionJournalSession implements AutoCloseable {
             inputSuppressed = false;
         }
         releaseSuppressionIfExpired();
-        enqueue(SessionJournalLogEntry.Kind.OUT, redactor.redact(emitted.text()), false, emitted.partial(), null);
+        String text = redactor.redact(emitted.text());
+        if (emitted.partial()) {
+            // Partial lines originate on the shared idle-flush thread, which must never block on
+            // one session's queue; dropping one is harmless — it re-emits as a full line later.
+            // They bypass the coalescer entirely: the completed full line decides the run.
+            enqueueNonBlocking(newEntry(SessionJournalLogEntry.Kind.OUT, text, false, true, null));
+            return;
+        }
+        // Coalescing runs on the already-redacted text and BEFORE sequence assignment, so
+        // suppressed duplicates neither reach the queue nor burn sequence numbers.
+        SessionJournalOutputCoalescer.OnLine decision =
+            coalescer.onOutputLine(text, OffsetDateTime.now(), System.currentTimeMillis());
+        if (decision.flush() != null) {
+            enqueueBlocking(newRepeatEntry(decision.flush()));
+        }
+        if (!decision.suppressed()) {
+            enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.OUT, text, false, false, null));
+        }
+    }
+
+    /** The counted tail of a duplicate run as one entry; timestamped with the LAST occurrence. */
+    private SessionJournalLogEntry newRepeatEntry(SessionJournalOutputCoalescer.PendingRepeat pending) {
+        return new SessionJournalLogEntry(
+            sequence.incrementAndGet(), pending.lastOccurrence(), SessionJournalLogEntry.Kind.OUT,
+            pending.text(), false, false, null, pending.count());
+    }
+
+    /** Run break by a lossless path (input, seed, close): flush the counted tail blocking. */
+    private void flushPendingRepeatBlocking() {
+        SessionJournalOutputCoalescer.PendingRepeat pending = coalescer.takePending();
+        if (pending != null) {
+            enqueueBlocking(newRepeatEntry(pending));
+        }
     }
 
     private void releaseSuppressionIfExpired() {
@@ -428,12 +503,51 @@ public class SessionJournalSession implements AutoCloseable {
         }
     }
 
-    private void enqueue(SessionJournalLogEntry.Kind kind, String text, boolean redacted, boolean partial, String file) {
-        enqueuePreSequenced(new SessionJournalLogEntry(
-            sequence.incrementAndGet(), OffsetDateTime.now(), kind, text, redacted, partial, file));
+    private SessionJournalLogEntry newEntry(
+            SessionJournalLogEntry.Kind kind, String text, boolean redacted, boolean partial, String file) {
+        return new SessionJournalLogEntry(
+            sequence.incrementAndGet(), OffsetDateTime.now(), kind, text, redacted, partial, file);
     }
 
-    private void enqueuePreSequenced(SessionJournalLogEntry entry) {
+    /**
+     * Enqueues from a capture thread, waiting for queue space instead of dropping — the resulting
+     * backpressure throttles the SSH read loop, which is exactly the intended behavior under a
+     * server flood: the terminal slows down briefly, the journal stays complete. The wait
+     * re-checks writer liveness per slice so a dead writer degrades to drop-and-warn instead of
+     * wedging the reader forever.
+     */
+    private void enqueueBlocking(SessionJournalLogEntry entry) {
+        try {
+            while (!queue.offer(entry, BLOCKING_ENQUEUE_SLICE_MILLIS, TimeUnit.MILLISECONDS)) {
+                if (!writerThread.isAlive()) {
+                    logger.warn("Session journal writer dead for {}, dropping entry seq {}",
+                        directory.getFileName(), entry.seq());
+                    return;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Session journal enqueue interrupted for {}, dropping entry seq {}",
+                directory.getFileName(), entry.seq());
+        }
+    }
+
+    /** Bounded wait for FX-origin entries; returns whether the entry was accepted. */
+    private boolean enqueueBounded(SessionJournalLogEntry entry) {
+        try {
+            if (queue.offer(entry, BOUNDED_ENQUEUE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        logger.warn("Session journal queue congested for {}, dropping entry seq {}",
+            directory.getFileName(), entry.seq());
+        return false;
+    }
+
+    /** Non-blocking enqueue for the shared idle-flush thread; a drop is logged, never waited out. */
+    private void enqueueNonBlocking(SessionJournalLogEntry entry) {
         if (!queue.offer(entry)) {
             logger.warn("Session journal queue full for {}, dropping entry seq {}",
                 directory.getFileName(), entry.seq());
@@ -443,11 +557,26 @@ public class SessionJournalSession implements AutoCloseable {
     // --- writer thread ---
 
     private void writerLoop() {
+        List<SessionJournalLogEntry> batch = new java.util.ArrayList<>(MAX_BATCH);
         while (running || !queue.isEmpty()) {
             try {
-                SessionJournalLogEntry entry = queue.poll(100, TimeUnit.MILLISECONDS);
-                if (entry != null && writeEntry(entry)) {
-                    notifyLiveSinks(entry);
+                SessionJournalLogEntry first = queue.poll(100, TimeUnit.MILLISECONDS);
+                if (first == null) {
+                    continue;
+                }
+                batch.clear();
+                batch.add(first);
+                queue.drainTo(batch, MAX_BATCH - 1);
+                for (SessionJournalLogEntry entry : batch) {
+                    if (writeEntry(entry)) {
+                        notifyLiveSinks(entry);
+                    }
+                }
+                // One flush per batch instead of per entry — the main throughput lever. The crash
+                // window is at most one batch plus OS buffers; a quiet session drains batches of
+                // one, so light use still flushes effectively per entry.
+                if (writer != null) {
+                    writer.flush();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -471,7 +600,7 @@ public class SessionJournalSession implements AutoCloseable {
         String line = serializer.entryLine(entry);
         byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
         if (currentFileSize + bytes.length > maxLogSizeBytes) {
-            if (currentPart >= MAX_PARTS) {
+            if (currentPart >= maxLogParts) {
                 stopOutputCapture();
                 if (isOutput) {
                     return false;
@@ -480,8 +609,8 @@ public class SessionJournalSession implements AutoCloseable {
                 rotate();
             }
         }
+        // No flush here: the writer loop flushes once per drained batch.
         writer.write(line);
-        writer.flush();
         currentFileSize += bytes.length;
         writtenEntryCount.incrementAndGet();
         return true;
@@ -524,14 +653,14 @@ public class SessionJournalSession implements AutoCloseable {
         logger.info("Session journal log rotated to part {} in {}", currentPart, directory.getFileName());
     }
 
-    /** Safety valve: after MAX_PARTS the output stream stops; input, screenshots and notes continue. */
+    /** Safety valve: after maxLogParts the output stream stops; input, screenshots and notes continue. */
     private void stopOutputCapture() throws IOException {
         if (outputCaptureStopped) {
             return;
         }
         outputCaptureStopped = true;
         SessionJournalLogEntry stopNote = noteEntry(
-            "output capture stopped: size limit reached after " + MAX_PARTS + " log parts");
+            "output capture stopped: size limit reached after " + maxLogParts + " log parts");
         writer.write(serializer.entryLine(stopNote));
         writer.flush();
         notifyLiveSinks(stopNote);
@@ -544,7 +673,7 @@ public class SessionJournalSession implements AutoCloseable {
             }
         }
         logger.warn("Session journal output capture stopped in {} after {} parts",
-            directory.getFileName(), MAX_PARTS);
+            directory.getFileName(), maxLogParts);
     }
 
     private SessionJournalLogEntry noteEntry(String text) {

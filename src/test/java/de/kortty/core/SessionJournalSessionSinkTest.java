@@ -67,7 +67,7 @@ class SessionJournalSessionSinkTest {
         meta.setStartedAt(OffsetDateTime.now());
         return new SessionJournalSession(
             service, directory, "journal-sink-test", SessionJournalLogFormat.JSON, meta,
-            "tab-1234567890ab", true, false, 0, maxLogSizeBytes, new SessionJournalRedactor());
+            "tab-1234567890ab", true, false, 0, maxLogSizeBytes, 20, new SessionJournalRedactor());
     }
 
     @Test

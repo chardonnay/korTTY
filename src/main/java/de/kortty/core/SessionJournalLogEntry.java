@@ -12,6 +12,12 @@ import java.time.OffsetDateTime;
  * @param redacted  true for the placeholder written instead of suppressed (password) input
  * @param partial   true when an output line was flushed by the idle timer without a newline
  * @param file      journal-directory-relative screenshot path; only for SCREENSHOT entries
+ * @param repeat    number of occurrences this entry represents (coalesced duplicate OUT lines).
+ *                  A run of K identical lines is stored as the head entry (repeat 1, written
+ *                  immediately) plus one repeat entry with {@code repeat = K - 1} when the run
+ *                  breaks, so the sum of {@code repeat} over all entries equals the original
+ *                  line count. The head carries the first occurrence time, the repeat entry the
+ *                  last, so the pair brackets the run's duration.
  */
 public record SessionJournalLogEntry(
     long seq,
@@ -20,7 +26,26 @@ public record SessionJournalLogEntry(
     String text,
     boolean redacted,
     boolean partial,
-    String file) {
+    String file,
+    int repeat) {
+
+    public SessionJournalLogEntry {
+        if (repeat < 1) {
+            repeat = 1;
+        }
+    }
+
+    /** Single-occurrence entry ({@code repeat = 1}) — the shape every non-coalesced line has. */
+    public SessionJournalLogEntry(
+            long seq,
+            OffsetDateTime timestamp,
+            Kind kind,
+            String text,
+            boolean redacted,
+            boolean partial,
+            String file) {
+        this(seq, timestamp, kind, text, redacted, partial, file, 1);
+    }
 
     public enum Kind {
         /** Server output line. */

@@ -162,6 +162,23 @@ class SessionJournalSummarizerTest {
     }
 
     @Test
+    void repeatedOutputLinesReachThePromptAsOneCountedLine() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        for (int i = 0; i < 6; i++) {
+            session.appendOutputChunk("retrying connection\n");
+        }
+        session.appendInputLine("interrupt"); // breaks the run, flushing the repeat entry
+        waitForLogEntries(session.getDirectory(), 3); // head + repeat + IN
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        String prompt = invoker.userPrompts.get(0);
+        // The AI sees the repetition as a compact count, not five duplicated lines.
+        assertThat(prompt).contains("retrying connection (\u00d75)");
+        session.close();
+    }
+
+    @Test
     void chunkingProcessesWholeBacklogInMultipleWindows() throws Exception {
         settings.setSessionJournalAiMaxLines(2);
         settings.setSessionJournalAiChunkingEnabled(true);

@@ -79,7 +79,9 @@ class SessionJournalLogWriterReaderTest {
             new SessionJournalLogEntry(6, base.plusSeconds(5), SessionJournalLogEntry.Kind.SCREENSHOT,
                 "", false, false, "screenshots/shot-000006.png"),
             new SessionJournalLogEntry(7, base.plusSeconds(6), SessionJournalLogEntry.Kind.NOTE,
-                "session reconnected", false, false, null));
+                "session reconnected", false, false, null),
+            new SessionJournalLogEntry(8, base.plusSeconds(7), SessionJournalLogEntry.Kind.OUT,
+                "ping: no route to host", false, false, null, 5));
     }
 
     private Path writePart(SessionJournalLogFormat format, int part, List<SessionJournalLogEntry> entries,
@@ -121,7 +123,7 @@ class SessionJournalLogWriterReaderTest {
         // Simulate a crash mid-write: append an incomplete entry line without newline.
         SessionJournalLogSerializer serializer = SessionJournalLogSerializer.forFormat(format);
         SessionJournalLogEntry torn = new SessionJournalLogEntry(
-            8, OffsetDateTime.now(), SessionJournalLogEntry.Kind.OUT, "half written", false, false, null);
+            9, OffsetDateTime.now(), SessionJournalLogEntry.Kind.OUT, "half written", false, false, null);
         String tornLine = serializer.entryLine(torn);
         Files.writeString(file, tornLine.substring(0, tornLine.length() / 2), StandardCharsets.UTF_8,
             java.nio.file.StandardOpenOption.APPEND);
@@ -134,6 +136,19 @@ class SessionJournalLogWriterReaderTest {
         List<SessionJournalLogEntry> entries = sampleEntries();
         Path file = writePart(format, 1, entries, true);
         Path compressed = SessionJournalLogCompressor.compress(file);
+        assertThat(compressed.getFileName().toString()).endsWith(".zst");
+        assertThat(Files.exists(file)).isFalse();
+        List<SessionJournalLogEntry> read = SessionJournalLogReader.readPart(compressed);
+        assertThat(read).isEqualTo(entries);
+        assertThat(SessionJournalLogReader.findPartFile(tempDir, 1)).isEqualTo(compressed);
+    }
+
+    @Test(dataProvider = "formats")
+    void readsLegacyGzipParts(SessionJournalLogFormat format) throws IOException {
+        List<SessionJournalLogEntry> entries = sampleEntries();
+        Path file = writePart(format, 1, entries, true);
+        // Journals recorded before the zstd switch hold gzip parts; they must stay readable.
+        Path compressed = SessionJournalLogCompressor.compressGzip(file);
         assertThat(compressed.getFileName().toString()).endsWith(".gz");
         assertThat(Files.exists(file)).isFalse();
         List<SessionJournalLogEntry> read = SessionJournalLogReader.readPart(compressed);
@@ -150,15 +165,23 @@ class SessionJournalLogWriterReaderTest {
         List<SessionJournalLogEntry> part2 = List.of(
             new SessionJournalLogEntry(3, base, SessionJournalLogEntry.Kind.OUT, "three", false, false, null),
             new SessionJournalLogEntry(4, base, SessionJournalLogEntry.Kind.IN, "cmd-b", false, false, null));
+        List<SessionJournalLogEntry> part3 = List.of(
+            new SessionJournalLogEntry(5, base, SessionJournalLogEntry.Kind.OUT, "five", false, false, null));
+        // A journal that rotated across the compression switch mixes suffixes: legacy .gz,
+        // current .zst, and the still-open plain part.
         Path part1File = writePart(format, 1, part1, true);
-        writePart(format, 2, part2, false);
-        SessionJournalLogCompressor.compress(part1File);
+        Path part2File = writePart(format, 2, part2, true);
+        writePart(format, 3, part3, false);
+        SessionJournalLogCompressor.compressGzip(part1File);
+        SessionJournalLogCompressor.compress(part2File);
 
-        assertThat(SessionJournalLogReader.countParts(tempDir)).isEqualTo(2);
-        assertThat(SessionJournalLogReader.readAfter(tempDir, 0)).hasSize(4);
-        assertThat(SessionJournalLogReader.readAfter(tempDir, 2)).isEqualTo(part2);
+        assertThat(SessionJournalLogReader.countParts(tempDir)).isEqualTo(3);
+        assertThat(SessionJournalLogReader.readAfter(tempDir, 0)).hasSize(5);
+        assertThat(SessionJournalLogReader.readAfter(tempDir, 4)).isEqualTo(part3);
         assertThat(SessionJournalLogReader.readRange(tempDir, 2, 3).stream()
             .map(SessionJournalLogEntry::seq).toList()).containsExactly(2L, 3L).inOrder();
+        assertThat(SessionJournalLogReader.readRange(tempDir, 4, 5).stream()
+            .map(SessionJournalLogEntry::seq).toList()).containsExactly(4L, 5L).inOrder();
     }
 
     @Test
