@@ -198,8 +198,17 @@ final class SessionJournalSearchPanel extends VBox {
         for (SessionJournalCrossSearchService.JournalHits journal : result.journals()) {
             TreeItem<Object> journalItem = new TreeItem<>(journal);
             journalItem.setExpanded(result.journals().size() <= 3);
+            long shownLogHits = 0;
             for (SessionJournalCrossSearchService.Hit hit : journal.hits()) {
                 journalItem.getChildren().add(new TreeItem<>(new HitRow(journal.meta(), hit)));
+                if (hit.target() instanceof SessionJournalCrossSearchService.LogTarget) {
+                    shownLogHits++;
+                }
+            }
+            // The leaves are curated (deduplicated, capped); the exact remainder is one line.
+            if (journal.totalLogMatches() > shownLogHits) {
+                journalItem.getChildren().add(new TreeItem<>(I18n.get("journal.search.moreInLog",
+                    String.valueOf(journal.totalLogMatches() - shownLogHits))));
             }
             root.getChildren().add(journalItem);
             if (journal.meta().getDirectory() != null) {
@@ -318,6 +327,12 @@ final class SessionJournalSearchPanel extends VBox {
                 setTooltip(new Tooltip(journal.aiReason() != null && !journal.aiReason().isBlank()
                     ? journal.aiReason() + "\n" + openHint
                     : openHint));
+                return;
+            }
+            if (item instanceof String info) {
+                setText(info);
+                setStyle("-fx-opacity: 0.6; -fx-font-style: italic;");
+                setTooltip(null);
                 return;
             }
             if (item instanceof HitRow row) {

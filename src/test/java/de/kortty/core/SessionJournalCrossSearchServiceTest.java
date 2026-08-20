@@ -231,6 +231,41 @@ class SessionJournalCrossSearchServiceTest {
     }
 
     @Test
+    void curatesLogHitsForDisplay() {
+        java.util.List<SessionJournalLogSearcher.Hit> raw = new java.util.ArrayList<>();
+        // A directory-listing line repeating at three different times (ls / file-manager panels)…
+        for (int i = 0; i < 3; i++) {
+            raw.add(new SessionJournalLogSearcher.Hit(10 + i, 1, SessionJournalLogEntry.Kind.OUT,
+                BASE.plusSeconds(10 + i), "|*server_auslastung.pl   | 4464|03. Aug 11:17|", 1));
+        }
+        // …the typed execution, an error line, and a plain mention.
+        raw.add(new SessionJournalLogSearcher.Hit(20, 1, SessionJournalLogEntry.Kind.IN,
+            BASE.plusSeconds(20), "./server_auslastung.pl", 1));
+        raw.add(new SessionJournalLogSearcher.Hit(30, 1, SessionJournalLogEntry.Kind.OUT,
+            BASE.plusSeconds(30), "server_auslastung.pl: error at line 3", 1));
+
+        java.util.List<SessionJournalCrossSearchService.Hit> curated =
+            SessionJournalCrossSearchService.curateLogHits(raw);
+
+        // Command first, error second, the collapsed listing (occurrences summed) last.
+        assertThat(curated).hasSize(3);
+        assertThat(curated.get(0).snippet()).isEqualTo("./server_auslastung.pl");
+        assertThat(curated.get(1).snippet()).contains("error at line 3");
+        assertThat(curated.get(2).occurrences()).isEqualTo(3);
+    }
+
+    @Test
+    void curatedLogHitsAreCapped() {
+        java.util.List<SessionJournalLogSearcher.Hit> raw = new java.util.ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            raw.add(new SessionJournalLogSearcher.Hit(i, 1, SessionJournalLogEntry.Kind.OUT,
+                BASE.plusSeconds(i), "distinct line " + i + " server_auslastung.pl", 1));
+        }
+        assertThat(SessionJournalCrossSearchService.curateLogHits(raw))
+            .hasSize(SessionJournalCrossSearchService.MAX_SHOWN_LOG_HITS_PER_JOURNAL);
+    }
+
+    @Test
     void identifierTermsPickOnlyIdentifierShapedTokens() {
         List<String> terms = SessionJournalCrossSearchService.identifierTerms(
             "was script started?",

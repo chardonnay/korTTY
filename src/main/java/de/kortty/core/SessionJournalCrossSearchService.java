@@ -42,6 +42,8 @@ public final class SessionJournalCrossSearchService {
     static final int MAX_CARD_SECTIONS = 6;
     static final int MAX_HITS_PER_JOURNAL = 50;
     static final int MAX_TOTAL_LOG_HITS = 200;
+    /** Cap on log hits *shown* per journal after curation; the match count stays exact. */
+    static final int MAX_SHOWN_LOG_HITS_PER_JOURNAL = 10;
     static final long CALL_TIMEOUT_SECONDS = 120;
 
     /** What a hit points at: a curated entry, or an exact capture-log position. */
@@ -336,13 +338,61 @@ public final class SessionJournalCrossSearchService {
                 remaining, cancelled);
             totalLogMatches = logResult.totalMatches();
             journalTotal += totalLogMatches;
-            for (SessionJournalLogSearcher.Hit hit : logResult.hits()) {
-                hits.add(new Hit(new LogTarget(hit.part(), hit.seq()),
-                    hit.snippet(), hit.timestamp(), Math.max(1, hit.repeat())));
+            for (Hit hit : curateLogHits(logResult.hits())) {
+                hits.add(hit);
                 logHitCount++;
             }
         }
         return new Materialized(hits, totalLogMatches, journalTotal, logHitCount);
+    }
+
+    /** Output lines that read like a problem — the hits worth surfacing before plain matches. */
+    private static final java.util.regex.Pattern ERROR_MARKERS = java.util.regex.Pattern.compile(
+        "(?i)error|fail|fatal|denied|refused|exception|traceback|died|abort|panic|segfault"
+            + "|not found|no such|cannot|warn");
+
+    /**
+     * Turns raw log matches into the short list a person actually wants to see: a file name
+     * matches every {@code ls} listing and file-manager panel it appears in, so identical lines
+     * are collapsed (occurrences summed), typed commands — the execution itself — come first,
+     * then output that looks like an error, then the rest, capped at
+     * {@value #MAX_SHOWN_LOG_HITS_PER_JOURNAL}. The journal's total match count stays exact.
+     */
+    static List<Hit> curateLogHits(List<SessionJournalLogSearcher.Hit> raw) {
+        // Collapse repeats of the same line text; the first occurrence keeps the position.
+        Map<String, Hit> byText = new LinkedHashMap<>();
+        for (SessionJournalLogSearcher.Hit hit : raw) {
+            String key = hit.kind().name() + "|"
+                + hit.snippet().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").strip();
+            Hit existing = byText.get(key);
+            if (existing == null) {
+                byText.put(key, new Hit(new LogTarget(hit.part(), hit.seq()),
+                    hit.snippet(), hit.timestamp(), Math.max(1, hit.repeat())));
+            } else {
+                byText.put(key, new Hit(existing.target(), existing.snippet(),
+                    existing.timestamp(), existing.occurrences() + Math.max(1, hit.repeat())));
+            }
+        }
+        List<Hit> commands = new ArrayList<>();
+        List<Hit> errors = new ArrayList<>();
+        List<Hit> rest = new ArrayList<>();
+        for (Map.Entry<String, Hit> collapsed : byText.entrySet()) {
+            boolean typedCommand = collapsed.getKey().startsWith(
+                SessionJournalLogEntry.Kind.IN.name() + "|");
+            if (typedCommand) {
+                commands.add(collapsed.getValue());
+            } else if (ERROR_MARKERS.matcher(collapsed.getValue().snippet()).find()) {
+                errors.add(collapsed.getValue());
+            } else {
+                rest.add(collapsed.getValue());
+            }
+        }
+        List<Hit> curated = new ArrayList<>(commands);
+        curated.addAll(errors);
+        curated.addAll(rest);
+        return curated.size() > MAX_SHOWN_LOG_HITS_PER_JOURNAL
+            ? List.copyOf(curated.subList(0, MAX_SHOWN_LOG_HITS_PER_JOURNAL))
+            : List.copyOf(curated);
     }
 
     /**

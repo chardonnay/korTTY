@@ -120,6 +120,7 @@ class SessionJournalI18nCoverageTest {
         "journal.search.noHits",
         "journal.search.noExactHits",
         "journal.search.openHint",
+        "journal.search.moreInLog",
         "journal.search.warning.noAi",
         "journal.search.warning.failed",
         "journal.backfill.button",
