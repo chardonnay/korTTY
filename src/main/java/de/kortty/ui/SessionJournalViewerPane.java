@@ -88,6 +88,8 @@ public class SessionJournalViewerPane extends BorderPane {
     private final SessionJournalNoteEditor noteEditor = new SessionJournalNoteEditor();
     private final Label editStatus = new Label();
     private final ToggleButton editToggle = new ToggleButton(I18n.get("journal.viewer.edit"));
+    private final ToggleButton askToggle = new ToggleButton(I18n.get("journal.ask.toggle"));
+    private SessionJournalAskPanel askPanel;
     private final Consumer<Path> changeListener;
     /**
      * JavaFX binds objects handed to {@code JSObject.setMember} through WEAK references, so the
@@ -112,6 +114,8 @@ public class SessionJournalViewerPane extends BorderPane {
     private boolean pageReady;
     /** Timeline scroll offset to restore after the next load (0 = leave at the top/anchor). */
     private double pendingScrollY;
+    /** Capture-log seq to jump to once the page is ready (queued by {@link #jumpToLogSeq}). */
+    private Long pendingJumpSeq;
     /** Live batches that arrived while the page was loading; bounded, oldest dropped. */
     private final java.util.ArrayDeque<SessionJournalLogEntry> pendingLive = new java.util.ArrayDeque<>();
     private static final int PENDING_LIVE_CAP = SessionJournalLiveFeed.DEFAULT_MAX_ENTRIES;
@@ -179,6 +183,7 @@ public class SessionJournalViewerPane extends BorderPane {
      * Must be called on the FX thread.
      */
     public void showJournal(Path dir) {
+        hideAskPanel(); // the conversation belongs to the previous journal
         detachLiveSession();
         documentReloadDelay.stop();
         pendingLive.clear();
@@ -383,6 +388,82 @@ public class SessionJournalViewerPane extends BorderPane {
         renderAndLoad(null);
     }
 
+    /** Scrolls the timeline to the entry card in the loaded page; anchored reload while loading. */
+    public void jumpToEntry(String entryId) {
+        if (disposed || entryId == null || entryId.isBlank()) {
+            return;
+        }
+        if (!pageReady) {
+            renderAndLoad(entryId);
+            return;
+        }
+        runScript("(function(){var el=document.getElementById("
+            + de.kortty.core.AiChatRenderPageSupport.toJsStringLiteral("entry-" + entryId)
+            + ");if(el){el.scrollIntoView({block:\"center\"});}})();");
+    }
+
+    /**
+     * Opens the log panel scrolled to the capture-log entry with the given seq. Oversized
+     * journals embed only entry-referenced log ranges into the page, so when the seq is not
+     * embedded this falls back to the tightest timeline entry covering it. Queued while the
+     * page is still loading and applied once it is ready.
+     */
+    public void jumpToLogSeq(long seq) {
+        if (disposed) {
+            return;
+        }
+        if (!pageReady) {
+            pendingJumpSeq = seq;
+            return;
+        }
+        Object jumped = null;
+        try {
+            jumped = webView.getEngine().executeScript(
+                "window.korttyJumpToSeq ? window.korttyJumpToSeq(" + seq + ") : false");
+        } catch (Exception e) {
+            logger.debug("Journal seq jump script failed: {}", e.getMessage());
+        }
+        if (Boolean.TRUE.equals(jumped)) {
+            return;
+        }
+        jumpToCoveringEntry(seq);
+    }
+
+    /** Fallback for {@link #jumpToLogSeq(long)}: the tightest entry whose log range covers the seq. */
+    private void jumpToCoveringEntry(long seq) {
+        SessionJournalService service = service();
+        Path dir = journalDir;
+        if (service == null || dir == null) {
+            return;
+        }
+        Thread lookup = new Thread(() -> {
+            try {
+                SessionJournalDocument document = service.loadDocument(dir);
+                SessionJournalEntry best = null;
+                long bestSpan = Long.MAX_VALUE;
+                for (SessionJournalEntry entry : document.getEntries()) {
+                    if (entry.getLogStartSeq() == null || entry.getLogEndSeq() == null
+                        || seq < entry.getLogStartSeq() || seq > entry.getLogEndSeq()) {
+                        continue;
+                    }
+                    long span = entry.getLogEndSeq() - entry.getLogStartSeq();
+                    if (span < bestSpan) {
+                        bestSpan = span;
+                        best = entry;
+                    }
+                }
+                String entryId = best != null ? best.getId() : null;
+                if (entryId != null) {
+                    Platform.runLater(() -> jumpToEntry(entryId));
+                }
+            } catch (Exception e) {
+                logger.debug("Journal seq fallback lookup failed: {}", e.getMessage());
+            }
+        }, "SessionJournal-SeqJumpLookup");
+        lookup.setDaemon(true);
+        lookup.start();
+    }
+
     /** Opens the appearance popover anchored at a host-supplied control. */
     public void showAppearance(Node anchor) {
         GlobalSettings settings = settings();
@@ -428,8 +509,87 @@ public class SessionJournalViewerPane extends BorderPane {
 
         HBox toolbar = new HBox(8, openBrowserButton, exportButton, editToggle,
             appearanceButton, refreshButton);
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()) {
+            askToggle.setOnAction(event -> toggleAskPanel());
+            toolbar.getChildren().add(askToggle);
+        }
         toolbar.setPadding(new Insets(6));
         return toolbar;
+    }
+
+    // ==== AI Q&A panel ====
+
+    private void toggleAskPanel() {
+        if (askPanel != null) {
+            hideAskPanel();
+            return;
+        }
+        Path dir = journalDir;
+        SessionJournalService service = service();
+        if (dir == null || service == null) {
+            askToggle.setSelected(false);
+            return;
+        }
+        // The meta (host, user, journal id) lives in journal.xml — load it off the FX thread.
+        Thread loader = new Thread(() -> {
+            try {
+                de.kortty.model.SessionJournalMeta meta = service.loadDocument(dir).getMeta();
+                Platform.runLater(() -> {
+                    if (!disposed && dir.equals(journalDir) && askPanel == null
+                        && askToggle.isSelected()) {
+                        installAskPanel(meta);
+                    }
+                });
+            } catch (Exception e) {
+                logger.warn("Could not open the journal Q&A panel: {}", e.getMessage());
+                Platform.runLater(() -> askToggle.setSelected(false));
+            }
+        }, "SessionJournal-AskMeta");
+        loader.setDaemon(true);
+        loader.start();
+    }
+
+    private void installAskPanel(de.kortty.model.SessionJournalMeta meta) {
+        askPanel = new SessionJournalAskPanel(meta,
+            de.kortty.core.SessionJournalAskService.application(service()),
+            this::jumpToEntry, this::jumpToLogSeq, this::saveAskAnswerAsEntry);
+        SplitPane split = new SplitPane(centerPane, askPanel);
+        split.setDividerPositions(0.68);
+        setCenter(split);
+        askPanel.focusQuestionField();
+    }
+
+    private void hideAskPanel() {
+        if (askPanel == null) {
+            return;
+        }
+        askPanel.dispose();
+        askPanel = null;
+        setCenter(centerPane);
+        askToggle.setSelected(false);
+    }
+
+    /** Persists a Q&A answer as an AGENT entry; the change listener re-renders the timeline. */
+    private void saveAskAnswerAsEntry(String question, String answerMarkdown) {
+        Path dir = journalDir;
+        SessionJournalService service = service();
+        if (dir == null || service == null) {
+            return;
+        }
+        Thread saver = new Thread(() -> {
+            try {
+                SessionJournalEntry entry = new SessionJournalEntry();
+                entry.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
+                entry.setTitle(de.kortty.core.SessionJournalAiSupport.normalizeTitle(
+                    question, I18n.get("journal.ask.title"), 80));
+                entry.setText(answerMarkdown);
+                service.appendEntry(dir, entry);
+            } catch (Exception e) {
+                logger.warn("Could not save the Q&A answer as a journal entry: {}", e.getMessage());
+            }
+        }, "SessionJournal-AskNote");
+        saver.setDaemon(true);
+        saver.start();
     }
 
     // ==== page loading ====
@@ -533,6 +693,11 @@ public class SessionJournalViewerPane extends BorderPane {
                         pendingScrollY = 0;
                     }
                     flushPendingLiveEntries();
+                    if (pendingJumpSeq != null) {
+                        long seq = pendingJumpSeq;
+                        pendingJumpSeq = null;
+                        jumpToLogSeq(seq);
+                    }
                 } catch (Exception e) {
                     logger.warn("Could not install the session journal page bridge: {}", e.getMessage());
                 }
@@ -1779,6 +1944,10 @@ public class SessionJournalViewerPane extends BorderPane {
             return;
         }
         disposed = true;
+        if (askPanel != null) {
+            askPanel.dispose();
+            askPanel = null;
+        }
         detachLiveSession();
         documentReloadDelay.stop();
         if (service() != null) {

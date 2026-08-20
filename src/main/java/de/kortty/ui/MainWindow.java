@@ -8636,6 +8636,17 @@ public class MainWindow {
 
     /** Opens (or re-fronts) the viewer for one journal; several journals can be open side by side. */
     void openSessionJournal(de.kortty.model.SessionJournalMeta meta) {
+        openSessionJournal(meta, null);
+    }
+
+    /**
+     * Opens (or re-fronts) the viewer and hands the pane to {@code onReady} — the hook search
+     * results use to jump to their hit. The callback runs on the FX thread, for an already-open
+     * journal immediately and for a fresh one right after the viewer is created (the pane itself
+     * queues jumps until its page has loaded).
+     */
+    void openSessionJournal(de.kortty.model.SessionJournalMeta meta,
+                            java.util.function.Consumer<SessionJournalViewerPane> onReady) {
         if (meta == null || meta.getDirectory() == null) {
             return;
         }
@@ -8645,6 +8656,9 @@ public class MainWindow {
             if (existing != null) {
                 if (existing.isOpenAsDialogOrTab()) {
                     bringDialogToFront(existing);
+                    if (onReady != null) {
+                        onReady.accept(existing.getPane());
+                    }
                     return;
                 }
                 sessionJournalViewers.remove(key);
@@ -8653,11 +8667,14 @@ public class MainWindow {
             sessionJournalViewers.put(key, viewer);
             if (toolTabsEnabled()) {
                 hostMultiInstanceToolTab(viewer);
-                return;
+            } else {
+                viewer.initOwner(stage);
+                viewer.show();
+                bringDialogToFront(viewer);
             }
-            viewer.initOwner(stage);
-            viewer.show();
-            bringDialogToFront(viewer);
+            if (onReady != null) {
+                onReady.accept(viewer.getPane());
+            }
         } catch (Exception e) {
             sessionJournalViewers.remove(key);
             logger.error("Failed to open session journal viewer", e);

@@ -19,8 +19,19 @@ import java.util.Locale;
  */
 public final class SessionJournalAiSupport {
 
-    /** Parsed summarizer reply; {@code category} maps to a journal marker. */
-    public record SummaryResult(String title, String summary, String category) {
+    /**
+     * Parsed summarizer reply; {@code category} maps to a journal marker. {@code keywords} are
+     * only requested (and produced) by the closing session summary — empty everywhere else.
+     */
+    public record SummaryResult(String title, String summary, String category, List<String> keywords) {
+
+        public SummaryResult {
+            keywords = keywords == null ? List.of() : List.copyOf(keywords);
+        }
+
+        public SummaryResult(String title, String summary, String category) {
+            this(title, summary, category, List.of());
+        }
     }
 
     /** Parsed screenshot-analysis reply; both parts optional but never both empty. */
@@ -37,6 +48,22 @@ public final class SessionJournalAiSupport {
         /** True when the journal profile also accepts image input; see {@link AiVisionSupport}. */
         default boolean isVisionAvailable() {
             return false;
+        }
+
+        /**
+         * Quick, possibly optimistic answer for UI enablement: vision is known, or a live
+         * metadata probe ({@link AiVisionLiveCheck}) could still say yes. Never blocks.
+         */
+        default boolean isVisionPlausible() {
+            return isVisionAvailable();
+        }
+
+        /**
+         * Authoritative answer, allowed to query the endpoint's model metadata — call from
+         * worker threads only.
+         */
+        default boolean isVisionAvailableLive() {
+            return isVisionAvailable();
         }
 
         /** Executes a strict-JSON prompt with images; only called when {@link #isVisionAvailable()}. */
@@ -123,6 +150,55 @@ public final class SessionJournalAiSupport {
                     }
                     AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
                     return profile != null && AiVisionSupport.isVisionCapable(profile);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public boolean isVisionPlausible() {
+                if (isVisionAvailable()) {
+                    return true;
+                }
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null
+                        || !de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                        return false;
+                    }
+                    AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
+                    return AiVisionLiveCheck.probeEligible(profile);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public boolean isVisionAvailableLive() {
+                if (isVisionAvailable()) {
+                    return true;
+                }
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null
+                        || !de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                        return false;
+                    }
+                    GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+                    AiProfile profile = profileResolver.apply(settings);
+                    if (!AiVisionLiveCheck.probeEligible(profile)) {
+                        return false;
+                    }
+                    // A local LM Studio endpoint usually needs no key; a locked vault must not
+                    // block the metadata GET, so key resolution failures degrade to "no key".
+                    String apiKey = null;
+                    try {
+                        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+                        apiKey = policyKey != null ? policyKey : decryptApiKey(app, profile.getEncryptedApiKey());
+                    } catch (Exception ignored) {
+                        // proceed without a key
+                    }
+                    return AiVisionLiveCheck.isVisionCapable(profile, apiKey);
                 } catch (Exception e) {
                     return false;
                 }
@@ -278,7 +354,8 @@ public final class SessionJournalAiSupport {
             String category = json.has("category") && !json.get("category").isJsonNull()
                 ? json.get("category").getAsString() : null;
             if (summary != null && !summary.isBlank()) {
-                return new SummaryResult(title, summary, category);
+                return new SummaryResult(title, summary, category,
+                    stringList(json, "keywords", MAX_KEYWORDS, MAX_KEYWORD_LENGTH));
             }
         } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
             // fall through to the plain-text fallback below
@@ -314,6 +391,8 @@ public final class SessionJournalAiSupport {
 
     private static final int MAX_SCREENSHOT_TAGS = 8;
     private static final int MAX_SCREENSHOT_TAG_LENGTH = 40;
+    private static final int MAX_KEYWORDS = 12;
+    private static final int MAX_KEYWORD_LENGTH = 60;
 
     /**
      * Parses the screenshot-analysis JSON reply leniently, mirroring {@link #parseSummaryResult}:
@@ -436,6 +515,205 @@ public final class SessionJournalAiSupport {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /** Parsed journal-Q&amp;A reply; {@code sources} are ordinals into the numbered context. */
+    public record AskAnswer(String answer, List<Integer> sources, List<String> logSearchTerms) {
+    }
+
+    private static final int MAX_LOG_SEARCH_TERMS = 4;
+    private static final int MAX_LOG_SEARCH_TERM_LENGTH = 120;
+
+    /**
+     * Parses the journal-Q&amp;A JSON reply leniently: think-blocks stripped, fences unwrapped,
+     * out-of-range source ordinals dropped, and bare prose degrades to an answer without sources
+     * or search terms — a model answering in the wrong shape is still answering. Returns
+     * {@code null} only when nothing usable is left.
+     */
+    public static AskAnswer parseAskAnswer(String content, int maxOrdinal) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String answer = json.has("answer") && !json.get("answer").isJsonNull()
+                ? json.get("answer").getAsString() : null;
+            if (answer == null || answer.isBlank()) {
+                return null;
+            }
+            return new AskAnswer(answer.strip(),
+                ordinals(json, "sources", maxOrdinal),
+                stringList(json, "logSearchTerms", MAX_LOG_SEARCH_TERMS, MAX_LOG_SEARCH_TERM_LENGTH));
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return new AskAnswer(sanitized.strip(), List.of(), List.of());
+        }
+    }
+
+    /**
+     * Parses a {@code {"terms":[...]}} reply. Returns {@code null} when the reply cannot be
+     * parsed at all — the caller then extracts terms deterministically instead; an empty list is
+     * the model's valid "nothing to search for".
+     */
+    public static List<String> parseSearchTerms(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(AiResponseSanitizer.sanitizeForDisplay(content).strip());
+        int start = candidate.indexOf('{');
+        int end = candidate.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        try {
+            JsonObject json = JsonParser.parseString(candidate.substring(start, end + 1)).getAsJsonObject();
+            if (!json.has("terms") || !json.get("terms").isJsonArray()) {
+                return null;
+            }
+            return stringList(json, "terms", MAX_LOG_SEARCH_TERMS, MAX_LOG_SEARCH_TERM_LENGTH);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Reconciles AI-produced keywords with the journal text they were extracted from. Models —
+     * local ones in particular — mangle identifiers ("server_auslastung.pl" comes back as
+     * "serverauslastung.pl"), and a mangled identifier poisons every later search. Identifier-
+     * shaped keywords (containing {@code . _ / -}) must therefore occur verbatim in the corpus;
+     * a near-miss is repaired to the real token when one matches after stripping the separators,
+     * anything else is dropped. Plain-word keywords ("home directories") pass through — the
+     * verbatim rule would cost more thematic keywords than it protects.
+     */
+    public static List<String> reconcileKeywords(List<String> keywords, String corpus) {
+        if (keywords == null || keywords.isEmpty()) {
+            return List.of();
+        }
+        String haystack = corpus != null ? corpus.toLowerCase(Locale.ROOT) : "";
+        java.util.Map<String, String> corpusIdentifiers = null; // built lazily, separator-stripped → original
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        for (String keyword : keywords) {
+            if (keyword == null || keyword.isBlank()) {
+                continue;
+            }
+            String trimmed = keyword.strip();
+            boolean identifierShaped = trimmed.contains(".") || trimmed.contains("_")
+                || trimmed.contains("/") || trimmed.contains("-");
+            if (!identifierShaped || haystack.contains(trimmed.toLowerCase(Locale.ROOT))) {
+                result.add(trimmed);
+                continue;
+            }
+            if (corpusIdentifiers == null) {
+                corpusIdentifiers = new java.util.LinkedHashMap<>();
+                for (String raw : haystack.split("[^\\p{L}\\p{N}._/\\-]+")) {
+                    String token = raw.replaceAll("^[._/\\-]+|[._/\\-]+$", "");
+                    if (token.length() >= 4) {
+                        corpusIdentifiers.putIfAbsent(stripSeparators(token), token);
+                    }
+                }
+            }
+            String repaired = corpusIdentifiers.get(stripSeparators(trimmed.toLowerCase(Locale.ROOT)));
+            if (repaired != null) {
+                result.add(repaired);
+            }
+            // else: the identifier exists nowhere in the journal, in no spelling — drop it.
+        }
+        return List.copyOf(result);
+    }
+
+    private static String stripSeparators(String value) {
+        return value.replace(".", "").replace("_", "").replace("/", "").replace("-", "");
+    }
+
+    /** One journal the cross-search model selected, by its ordinal in the prompt. */
+    public record CrossSearchSelection(int ordinal, String reason) {
+    }
+
+    /** Parsed cross-journal search reply. */
+    public record CrossSearchResult(String answer, List<CrossSearchSelection> selections) {
+    }
+
+    /**
+     * Parses the cross-journal search JSON reply leniently, in the {@link #parseAskAnswer}
+     * style: out-of-range or duplicate ordinals dropped, bare prose degrades to an answer with
+     * no selections (the caller then keeps its prefilter ranking). Null when nothing usable.
+     */
+    public static CrossSearchResult parseCrossSearchResult(String content, int maxOrdinal) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(content);
+        if (sanitized == null || sanitized.isBlank()) {
+            return null;
+        }
+        String candidate = stripJsonFence(sanitized.strip());
+        try {
+            JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
+            String answer = json.has("answer") && !json.get("answer").isJsonNull()
+                ? json.get("answer").getAsString() : null;
+            if (answer == null || answer.isBlank()) {
+                return null;
+            }
+            java.util.LinkedHashMap<Integer, CrossSearchSelection> selections = new java.util.LinkedHashMap<>();
+            if (json.has("journals") && json.get("journals").isJsonArray()) {
+                for (com.google.gson.JsonElement element : json.getAsJsonArray("journals")) {
+                    try {
+                        JsonObject selection = element.getAsJsonObject();
+                        int ordinal = selection.get("ordinal").getAsInt();
+                        if (ordinal < 1 || ordinal > maxOrdinal) {
+                            continue;
+                        }
+                        String reason = selection.has("reason") && !selection.get("reason").isJsonNull()
+                            ? selection.get("reason").getAsString().strip() : null;
+                        selections.putIfAbsent(ordinal, new CrossSearchSelection(ordinal, reason));
+                    } catch (RuntimeException ignored) {
+                        // A malformed element is a model slip, not a reason to discard the answer.
+                    }
+                }
+            }
+            return new CrossSearchResult(answer.strip(), List.copyOf(selections.values()));
+        } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
+            return new CrossSearchResult(sanitized.strip(), List.of());
+        }
+    }
+
+    /** In-range, deduplicated ordinals from a JSON int array; empty when absent or malformed. */
+    private static List<Integer> ordinals(JsonObject json, String field, int maxOrdinal) {
+        if (!json.has(field) || !json.get(field).isJsonArray()) {
+            return List.of();
+        }
+        java.util.LinkedHashSet<Integer> values = new java.util.LinkedHashSet<>();
+        for (com.google.gson.JsonElement element : json.getAsJsonArray(field)) {
+            try {
+                int value = element.getAsInt();
+                if (value >= 1 && value <= maxOrdinal) {
+                    values.add(value);
+                }
+            } catch (RuntimeException ignored) {
+                // A non-numeric element is a model slip, not a reason to discard the answer.
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    /** Deduplicated, trimmed, capped strings from a JSON string array; empty when absent. */
+    private static List<String> stringList(JsonObject json, String field, int maxItems, int maxLength) {
+        if (!json.has(field) || !json.get(field).isJsonArray()) {
+            return List.of();
+        }
+        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+        for (com.google.gson.JsonElement element : json.getAsJsonArray(field)) {
+            if (values.size() >= maxItems) {
+                break;
+            }
+            try {
+                String value = element.getAsString().strip();
+                if (!value.isEmpty()) {
+                    values.add(value.length() > maxLength ? value.substring(0, maxLength) : value);
+                }
+            } catch (RuntimeException ignored) {
+                // A non-string element is a model slip, not a reason to discard the answer.
+            }
+        }
+        return List.copyOf(values);
     }
 
     private static String stripJsonFence(String content) {

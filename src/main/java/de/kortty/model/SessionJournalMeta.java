@@ -83,6 +83,15 @@ public class SessionJournalMeta {
     @XmlElement
     private long screenshotCount;
 
+    /**
+     * Search keywords the closing AI summary extracted (hostnames, script/file names, error
+     * classes, tools). Optional and additive: journals written before this field simply have
+     * none and rank on their summaries alone.
+     */
+    @jakarta.xml.bind.annotation.XmlElementWrapper(name = "aiKeywords")
+    @XmlElement(name = "keyword")
+    private java.util.List<String> aiKeywords;
+
     // --- transient (the keyword alone keeps JAXB away; combining it with @XmlTransient is an
     // IllegalAnnotationsException), populated by SessionJournalService for the management UI ---
 
@@ -115,6 +124,8 @@ public class SessionJournalMeta {
         this.commandCount = other.commandCount;
         this.errorCount = other.errorCount;
         this.screenshotCount = other.screenshotCount;
+        this.aiKeywords = other.aiKeywords != null
+            ? new java.util.ArrayList<>(other.aiKeywords) : null;
         this.directory = other.directory;
         this.live = other.live;
         this.journalId = other.journalId;
@@ -270,6 +281,16 @@ public class SessionJournalMeta {
 
     public void setScreenshotCount(long screenshotCount) {
         this.screenshotCount = screenshotCount;
+    }
+
+    /** Never null; empty for journals recorded before keyword extraction existed. */
+    public java.util.List<String> getAiKeywords() {
+        return aiKeywords != null ? aiKeywords : java.util.List.of();
+    }
+
+    public void setAiKeywords(java.util.List<String> aiKeywords) {
+        this.aiKeywords = aiKeywords != null && !aiKeywords.isEmpty()
+            ? new java.util.ArrayList<>(aiKeywords) : null;
     }
 
     public Path getDirectory() {

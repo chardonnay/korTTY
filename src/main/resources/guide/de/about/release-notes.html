@@ -2254,6 +2254,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal: KI-Suche und Fragen und Antworten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ki-screenshot-analyse-in-fachzeitschriften" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2446,6 +2457,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sitzungsjournal: KI-Suche und Fragen und Antworten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ki-screenshot-analyse-in-fachzeitschriften" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2538,6 +2560,15 @@
 <li><strong>Wiederholte Ausgabezeilen werden zusammengeführt</strong> – Fortschrittsschleifen, <code>tail -f</code>-Wiederholungen und ähnliche Überschwemmungen werden im Syslog-Stil gespeichert: das erste Vorkommen sofort, Folgevorgänge als ein Eintrag mit einer Wiederholungszählung. Die <a href="../features/session-journal.html#speicher-und-formate">-Journalseite </a> zeigt einen solchen Lauf kompakt als <code>Zeile ×12</code>; Durch das Kopieren des Protokolls werden die ursprünglichen Zeilen vollständig reproduziert, und der KI-Zusammenfassungsrechner sieht die Anzahl anstelle von Tausenden identischer Zeilen.</li>
 <li><strong>Gedrehte Protokollteile werden jetzt zstd-komprimiert</strong> – fertige Capture-Protokollteile werden auf <code>.zst</code> statt auf <code>.gz</code> komprimiert, was sowohl schneller als auch bei wiederholter Terminalausgabe deutlich kleiner ist. Mit früheren Versionen aufgezeichnete Journale behalten ihre <code>.gz</code>-Teile und können genau wie zuvor geöffnet, exportiert und geschwärzt werden – sogar gemischt innerhalb einer Journal.</li>
 <li><strong>Die Protokollrotation ist pro Verbindung konfigurierbar</strong> – die Registerkarte „Journal“ wurde um <strong>Maximale Größe pro Log-Teil (MB)</strong> (Standard 25) und <strong>Maximal rotierte Protokollteile</strong> (Standard 20) erweitert. Zuvor wurden beide Probleme behoben, und bei einer langen, lauten Sitzung wurde die Aufnahmeausgabe nach 20 Teilen einfach abgebrochen. Eine Unternehmensrichtlinie kann die Teileanzahl mit dem neuen Schlüssel <code>max-log-parts</code> begrenzen.</li>
+</ul>
+<h3 id="sitzungsjournal-ki-suche-und-fragen-und-antworten">Sitzungsjournal: KI-Suche und Fragen und Antworten<a class="headerlink" href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Fragen Sie die KI nach einer aufgezeichneten Sitzung</strong> – das neue <a href="../features/session-journal.html#die-ki-nach-einem-journal-fragen">AI Q&amp;A-Panel des Viewers.</a> beantwortet Fragen wie <em>„Wurden Screenshots gemacht, die Fehler aus diesem Skript zeigen?“</em> aus dem, was das Journal bereits gesammelt hat (Zusammenfassungen, Screenshot-Analysen, Notizen) – das Roherfassungsprotokoll wird nie an ein Modell gesendet. Wenn für eine Frage konkrete Beweise erforderlich sind, benennt das Modell wörtliche Suchzeichenfolgen, korTTYs eigene Streaming-Suche durchsucht das Protokoll und nur die Anzahl der Übereinstimmungen sowie einige Beispielzeilen werden für die endgültige Antwort zurückgegeben. Antworten geben ihre Quellen an: Wenn Sie auf eine Quelle klicken, wird die Zeitleiste zum Eintrag gescrollt. Wenn Sie auf eine Zeile mit Protokollbeweisen klicken, wird das Protokollfenster bis zur genauen Zeile gescrollt geöffnet. Folgefragen setzen das Gespräch fort und <strong>Als Notiz speichern</strong> fügt der Zeitleiste ein Frage-und-Antwort-Paar hinzu.</li>
+<li><strong>Eine Frage über alle Journale hinweg</strong> – die neue <a href="../features/session-journal.html#ai-suche-in-allen-journale">AI-Suche des Managers</a> beantwortet Fragen wie <em>„In welchen Journale wurde result_complex.pl mit einem Fehler beendet?“</em>: Ein schnelles lokales Ranking über die gesammelten Einträge der Journale wählt die Kandidaten aus, eine KI-Anfrage schreibt die Zusammenfassung und wählt die relevanten Journale aus, und die genauen Treffer werden durch die interne Suche materialisiert. Der Trefferbaum springt direkt zum Eintrag oder zur Protokollzeile, bereits geöffnete Treffer bleiben bei Suchvorgängen und Neustarts markiert, die Tabelle zeigt eine sortierte Spalte „Treffer“ mit Zeilenhervorhebung statt Filterung und „Nur Auswahl“ schränkt den Umfang ein. Ohne ein erreichbares Modell verkommt die Suche zur reinen Textsuche mit Hinweis. Die optionale <strong>Semantische Journalsuche</strong> fügt ein einbettungsbasiertes Ranking hinzu, wenn ein lokales Einbettungsmodell in den Wissensspeichern konfiguriert ist.</li>
+<li><strong>Journale tragen jetzt KI-Schlüsselwörter</strong> – die Zusammenfassung der Abschlusssitzung extrahiert bis zu zwölf wörtliche Suchbegriffe (Hostnamen, Skript- und Dateinamen, Fehlerklassen) in die Journalemetadaten; Der Filter des Managers gleicht sie ab und zeigt sie als anklickbare <strong>Keyword-Chips</strong> unter dem Filterfeld an.</li>
+<li><strong>Zusammenfassungen nachholen</strong> – Mit den Journaloptionen kann die Zusammenfassung jetzt einzeln hinter einem abbrechbaren Fortschrittsdialog über geschlossene Journale ausgeführt werden, die nie zusammengefasst wurden.</li>
+<li><strong>Die Inhaltssuche des Managers liest gestreamte Protokolle</strong> – <strong>Inhalte durchsuchen</strong> dekomprimiert nicht mehr ganze Capture-Loge in den Speicher; Teile werden Zeile für Zeile gescannt, sodass die Suche in vielen großen Journale einfach bleibt.</li>
+<li><strong>Neuer Richtlinienschlüssel <code>ai-ask</code></strong> – eine Organisation kann die On-Demand-KI für Journaleinhalte verbieten (Fragen-und-Antworten-Panel und zeitschriftenübergreifende KI-Suche) und gleichzeitig KI-Zusammenfassungen beibehalten.</li>
 </ul>
 <h3 id="ki-screenshot-analyse-in-fachzeitschriften">KI-Screenshot-Analyse in Fachzeitschriften<a class="headerlink" href="#ki-screenshot-analyse-in-fachzeitschriften" title="Permanent link">&para;</a></h3>
 <ul>

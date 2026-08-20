@@ -2,7 +2,6 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SessionJournalExportService;
-import de.kortty.core.SessionJournalLogEntry;
 import de.kortty.core.SessionJournalService;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalLogFormat;
@@ -83,6 +82,16 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     /** Directories matching the latest full-text scan; null = no content filter active. */
     private volatile Set<Path> fulltextMatches;
     private final AtomicInteger fulltextScanGeneration = new AtomicInteger();
+    private final javafx.scene.control.ToggleButton aiSearchToggle =
+        new javafx.scene.control.ToggleButton(I18n.get("journal.search.toggle"));
+    /** Holds the table alone, or a vertical split of table and AI search panel. */
+    private final VBox centerBox = new VBox();
+    private SessionJournalSearchPanel searchPanel;
+    /** Clickable AI-keyword chips under the filter field; hidden while no journal has keywords. */
+    private final javafx.scene.layout.FlowPane keywordChips = new javafx.scene.layout.FlowPane(6, 4);
+    /** AI-search hit counts per journal directory; null = no hit column/highlight shown. */
+    private volatile java.util.Map<Path, Long> aiHitCounts;
+    private TableColumn<SessionJournalMeta, Long> hitsColumn;
 
     public SessionJournalManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -98,7 +107,12 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().setMinSize(680, 460);
         restoreGeometry();
         setOnCloseRequest(event -> saveGeometry());
-        setOnHidden(event -> saveGeometry());
+        setOnHidden(event -> {
+            saveGeometry();
+            if (searchPanel != null) {
+                searchPanel.dispose();
+            }
+        });
 
         refresh();
     }
@@ -109,6 +123,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         fulltextCheck.selectedProperty().addListener((obs, old, value) -> onSearchChanged());
         HBox.setHgrow(searchField, Priority.ALWAYS);
         HBox searchBar = new HBox(8, searchField, fulltextCheck);
+        searchBar.setStyle("-fx-alignment: center-left;");
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()) {
+            aiSearchToggle.setOnAction(event -> toggleAiSearchPanel());
+            searchBar.getChildren().add(aiSearchToggle);
+        }
 
         Button openButton = new Button(I18n.get("journal.manager.open"));
         ButtonIcons.apply(openButton, ButtonIcons.OPEN);
@@ -176,10 +195,164 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         descriptionBar.setStyle("-fx-alignment: center-left;");
         VBox descriptionBox = new VBox(4, descriptionLabel, descriptionArea, descriptionBar);
 
-        VBox root = new VBox(10, searchBar, table, buttonBar, descriptionBox);
-        root.setPadding(new Insets(6));
+        keywordChips.setVisible(false);
+        keywordChips.setManaged(false);
+        // Exactly one selected journal shows its own keywords; otherwise the most common ones.
+        table.getSelectionModel().getSelectedItems().addListener(
+            (javafx.collections.ListChangeListener<SessionJournalMeta>) change -> rebuildKeywordChips());
+
+        centerBox.getChildren().setAll(table);
         VBox.setVgrow(table, Priority.ALWAYS);
+        VBox root = new VBox(10, searchBar, keywordChips, centerBox, buttonBar, descriptionBox);
+        root.setPadding(new Insets(6));
+        VBox.setVgrow(centerBox, Priority.ALWAYS);
         return root;
+    }
+
+    /** Top keywords across all listed journals, or the selected journal's own keywords. */
+    private void rebuildKeywordChips() {
+        List<SessionJournalMeta> selected = selectedJournals();
+        List<String> keywords;
+        if (selected.size() == 1 && !selected.get(0).getAiKeywords().isEmpty()) {
+            keywords = selected.get(0).getAiKeywords();
+        } else {
+            java.util.Map<String, Long> frequency = new java.util.LinkedHashMap<>();
+            for (SessionJournalMeta meta : journals) {
+                for (String keyword : meta.getAiKeywords()) {
+                    frequency.merge(keyword.toLowerCase(Locale.ROOT), 1L, Long::sum);
+                }
+            }
+            keywords = frequency.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(15)
+                .map(java.util.Map.Entry::getKey)
+                .toList();
+        }
+        keywordChips.getChildren().clear();
+        for (String keyword : keywords) {
+            Button chip = new Button(keyword);
+            chip.getStyleClass().add("journal-keyword-chip");
+            chip.setStyle("-fx-background-radius: 999; -fx-padding: 2 10 2 10; -fx-font-size: 0.85em;");
+            chip.setOnAction(event -> {
+                searchField.setText(keyword);
+                searchField.requestFocus();
+                searchField.positionCaret(keyword.length());
+            });
+            keywordChips.getChildren().add(chip);
+        }
+        boolean hasChips = !keywordChips.getChildren().isEmpty();
+        keywordChips.setVisible(hasChips);
+        keywordChips.setManaged(hasChips);
+    }
+
+    // ==== AI cross-journal search ====
+
+    private void toggleAiSearchPanel() {
+        if (searchPanel != null) {
+            hideAiSearchPanel();
+            return;
+        }
+        searchPanel = new SessionJournalSearchPanel(
+            de.kortty.core.SessionJournalCrossSearchService.application(service()),
+            new SessionJournalSearchPanel.Host() {
+                @Override
+                public List<SessionJournalMeta> allJournals() {
+                    return List.copyOf(journals);
+                }
+
+                @Override
+                public List<SessionJournalMeta> selectedJournals() {
+                    return SessionJournalManagerDialog.this.selectedJournals();
+                }
+
+                @Override
+                public void showHitCounts(java.util.Map<Path, Long> counts) {
+                    SessionJournalManagerDialog.this.showHitCounts(counts);
+                }
+
+                @Override
+                public void clearHitCounts() {
+                    SessionJournalManagerDialog.this.clearHitCounts();
+                }
+
+                @Override
+                public void openHit(SessionJournalMeta meta,
+                                    de.kortty.core.SessionJournalCrossSearchService.HitTarget target) {
+                    ownerWindow.openSessionJournal(meta, pane -> {
+                        if (target instanceof de.kortty.core.SessionJournalCrossSearchService.EntryTarget entry) {
+                            pane.jumpToEntry(entry.entryId());
+                        } else if (target instanceof de.kortty.core.SessionJournalCrossSearchService.LogTarget log) {
+                            pane.jumpToLogSeq(log.seq());
+                        }
+                    });
+                }
+            });
+        javafx.scene.control.SplitPane split = new javafx.scene.control.SplitPane(table, searchPanel);
+        split.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        split.setDividerPositions(0.55);
+        centerBox.getChildren().setAll(split);
+        VBox.setVgrow(split, Priority.ALWAYS);
+        aiSearchToggle.setSelected(true);
+        searchPanel.focusQuestionField();
+    }
+
+    private void hideAiSearchPanel() {
+        if (searchPanel == null) {
+            return;
+        }
+        searchPanel.dispose();
+        searchPanel = null;
+        clearHitCounts();
+        centerBox.getChildren().setAll(table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        aiSearchToggle.setSelected(false);
+    }
+
+    /** Adds the sorted "Hits" column and the row highlight; the table itself stays unfiltered. */
+    private void showHitCounts(java.util.Map<Path, Long> counts) {
+        aiHitCounts = counts;
+        if (hitsColumn == null) {
+            hitsColumn = new TableColumn<>(I18n.get("journal.search.hitsColumn"));
+            hitsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(hitCount(cell.getValue())));
+            hitsColumn.setCellFactory(column -> new TableCell<>() {
+                @Override
+                protected void updateItem(Long count, boolean empty) {
+                    super.updateItem(count, empty);
+                    setText(empty || count == null || count <= 0 ? "" : String.valueOf(count));
+                }
+            });
+            hitsColumn.setMinWidth(70);
+        }
+        if (!table.getColumns().contains(hitsColumn)) {
+            table.getColumns().add(hitsColumn);
+        }
+        hitsColumn.setSortType(TableColumn.SortType.DESCENDING);
+        table.getSortOrder().setAll(List.of(hitsColumn));
+        table.refresh();
+    }
+
+    private void clearHitCounts() {
+        aiHitCounts = null;
+        if (hitsColumn != null) {
+            table.getColumns().remove(hitsColumn);
+            if (table.getSortOrder().contains(hitsColumn)) {
+                table.getSortOrder().clear();
+                if (!table.getColumns().isEmpty()) {
+                    TableColumn<SessionJournalMeta, ?> started = table.getColumns().get(0);
+                    started.setSortType(TableColumn.SortType.DESCENDING);
+                    table.getSortOrder().add(started);
+                }
+            }
+        }
+        table.refresh();
+    }
+
+    private Long hitCount(SessionJournalMeta meta) {
+        java.util.Map<Path, Long> counts = aiHitCounts;
+        if (counts == null || meta == null || meta.getDirectory() == null) {
+            return null;
+        }
+        return counts.get(meta.getDirectory().toAbsolutePath().normalize());
     }
 
     private TableView<SessionJournalMeta> buildTable() {
@@ -242,7 +415,17 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         view.getSortOrder().add(startedColumn);
 
         view.setRowFactory(tableView -> {
-            TableRow<SessionJournalMeta> row = new TableRow<>();
+            TableRow<SessionJournalMeta> row = new TableRow<>() {
+                @Override
+                protected void updateItem(SessionJournalMeta meta, boolean empty) {
+                    super.updateItem(meta, empty);
+                    Long count = empty ? null : hitCount(meta);
+                    // Subtle accent wash on AI-search hits; low alpha works on both themes.
+                    setStyle(count != null && count > 0
+                        ? "-fx-background-color: rgba(120, 170, 255, 0.14);"
+                        : "");
+                }
+            };
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && !row.isEmpty()) {
                     ownerWindow.openSessionJournal(row.getItem());
@@ -285,7 +468,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             || containsIgnoreCase(meta.getConnectionName(), query)
             || containsIgnoreCase(meta.getHost(), query)
             || containsIgnoreCase(meta.getUsername(), query)
-            || containsIgnoreCase(meta.getDescription(), query);
+            || containsIgnoreCase(meta.getDescription(), query)
+            || meta.getAiKeywords().stream().anyMatch(keyword -> containsIgnoreCase(keyword, query));
     }
 
     private static boolean containsIgnoreCase(String value, String query) {
@@ -315,12 +499,13 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                             || containsIgnoreCase(entry.getAiDescription(), query)
                             || entry.getAiTags().stream().anyMatch(tag -> containsIgnoreCase(tag, query)));
                     if (!match) {
-                        for (SessionJournalLogEntry logEntry : service.readLogAfter(dir, 0)) {
-                            if (containsIgnoreCase(logEntry.text(), query)) {
-                                match = true;
-                                break;
-                            }
-                        }
+                        // Streaming scan: parts are read line by line, never materialized whole.
+                        match = de.kortty.core.SessionJournalLogSearcher.search(
+                            dir,
+                            de.kortty.core.SessionJournalLogSearcher.Spec.ofLiteral(List.of(query)),
+                            1,
+                            () -> fulltextScanGeneration.get() != generation
+                        ).totalMatches() > 0;
                     }
                     if (match) {
                         matches.add(dir.toAbsolutePath().normalize());
@@ -361,6 +546,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         } catch (Exception e) {
             logger.error("Could not list session journals: {}", e.getMessage());
         }
+        rebuildKeywordChips();
         onSearchChanged();
     }
 
@@ -595,6 +781,17 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         CheckBox aiScreenshotCheck = new CheckBox(I18n.get("journal.options.aiScreenshotAnalysis"));
         aiScreenshotCheck.setSelected(settings.isSessionJournalAiScreenshotAnalysisEnabled());
 
+        CheckBox semanticSearchCheck = new CheckBox(I18n.get("journal.options.semanticSearch"));
+        semanticSearchCheck.setSelected(settings.isSessionJournalSemanticSearchEnabled());
+        if (!de.kortty.core.SessionJournalSemanticIndex.embeddingModelConfigured()) {
+            semanticSearchCheck.setDisable(true);
+            semanticSearchCheck.setTooltip(new Tooltip(
+                I18n.get("journal.options.semanticSearch.needsModel")));
+        } else {
+            semanticSearchCheck.setTooltip(new Tooltip(
+                I18n.get("journal.options.semanticSearch.tooltip")));
+        }
+
         // Dedicated journal AI profile; empty = the user's default AI profile.
         ComboBox<de.kortty.model.AiProfile> aiProfileCombo = new ComboBox<>();
         aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
@@ -649,6 +846,23 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             anyManaged = true;
         }
 
+        // Opt-in catch-up summarization for journals recorded without AI summaries.
+        de.kortty.core.SessionJournalSummaryBackfill backfill =
+            new de.kortty.core.SessionJournalSummaryBackfill(
+                service(), app.getSessionJournalSummarizer());
+        List<SessionJournalMeta> backfillCandidates = backfill.findCandidates(settings);
+        Button backfillButton = new Button(
+            I18n.get("journal.backfill.button", String.valueOf(backfillCandidates.size())));
+        backfillButton.setTooltip(new Tooltip(I18n.get("journal.backfill.tooltip")));
+        boolean backfillPossible = !backfillCandidates.isEmpty()
+            && policy.sessionJournalAiSummariesAllowed()
+            && de.kortty.core.SessionJournalAiSupport.applicationInvoker().isAvailable();
+        backfillButton.setDisable(!backfillPossible);
+        backfillButton.setOnAction(event -> {
+            dialog.close();
+            runSummaryBackfill(backfill, backfillCandidates);
+        });
+
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -669,6 +883,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         grid.add(chunkingWarning, 0, row++, 2, 1);
         grid.add(aiTitleCheck, 0, row++, 2, 1);
         grid.add(aiScreenshotCheck, 0, row++, 2, 1);
+        grid.add(semanticSearchCheck, 0, row++, 2, 1);
+        grid.add(backfillButton, 0, row++, 2, 1);
         if (anyManaged) {
             grid.add(managedHint, 0, row, 2, 1);
         }
@@ -691,6 +907,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         if (!aiScreenshotCheck.isDisabled()) {
             settings.setSessionJournalAiScreenshotAnalysisEnabled(aiScreenshotCheck.isSelected());
         }
+        if (!semanticSearchCheck.isDisabled()) {
+            settings.setSessionJournalSemanticSearchEnabled(semanticSearchCheck.isSelected());
+        }
         de.kortty.model.AiProfile selectedProfile = aiProfileCombo.getValue();
         settings.setSessionJournalAiProfileId(selectedProfile != null ? selectedProfile.getId() : null);
         try {
@@ -698,6 +917,68 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         } catch (Exception e) {
             logger.error("Could not save session journal options: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Runs the summary backfill on a background thread behind a small non-modal progress
+     * dialog. Closing the dialog cancels after the journal currently being summarized —
+     * the summarizer's persisted progress makes a later re-run resume cleanly.
+     */
+    private void runSummaryBackfill(de.kortty.core.SessionJournalSummaryBackfill backfill,
+                                    List<SessionJournalMeta> candidates) {
+        Dialog<ButtonType> progressDialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(progressDialog);
+        progressDialog.initOwner(getDialogPane().getScene().getWindow());
+        progressDialog.initModality(Modality.NONE);
+        progressDialog.setTitle(I18n.get("journal.backfill.title"));
+        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+
+        javafx.scene.control.ProgressBar bar = new javafx.scene.control.ProgressBar(0);
+        bar.setPrefWidth(360);
+        Label statusLabel = new Label(I18n.get("journal.backfill.title"));
+        statusLabel.setWrapText(true);
+        statusLabel.setMaxWidth(360);
+        VBox content = new VBox(8, statusLabel, bar);
+        content.setPadding(new Insets(10));
+        progressDialog.getDialogPane().setContent(content);
+
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        progressDialog.setOnHidden(event -> cancelled.set(true));
+        progressDialog.show();
+
+        Thread worker = new Thread(() -> {
+            de.kortty.core.SessionJournalSummaryBackfill.Outcome outcome = backfill.run(
+                candidates,
+                progress -> Platform.runLater(() -> {
+                    if (progress.total() > 0) {
+                        bar.setProgress((double) progress.done() / progress.total());
+                    }
+                    if (progress.currentTitle() != null) {
+                        statusLabel.setText(I18n.get("journal.backfill.progress",
+                            String.valueOf(progress.done() + 1),
+                            String.valueOf(progress.total()),
+                            progress.currentTitle()));
+                    }
+                }),
+                cancelled::get);
+            Platform.runLater(() -> {
+                refresh();
+                if (!progressDialog.isShowing()) {
+                    return;
+                }
+                bar.setProgress(1);
+                String summary = I18n.get("journal.backfill.done", String.valueOf(outcome.processed()));
+                if (!outcome.failedTitles().isEmpty()) {
+                    summary += "\n" + I18n.get("journal.backfill.failed",
+                        String.valueOf(outcome.failedTitles().size()),
+                        String.join(", ", outcome.failedTitles()));
+                }
+                statusLabel.setText(summary);
+                progressDialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
+            });
+        }, "SessionJournal-SummaryBackfill");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     // ==== helpers ====

@@ -204,6 +204,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 | `name-template` | string | template | Initial journal title, with `{connection}`, `{host}`, `{user}`, `{date}` and `{time}` placeholders |
 | `ai-title` | boolean | `true` | The closing AI title is generated regardless of the user setting |
 | `ai-screenshot-analysis` | boolean | `true` / `false` | `true` forces the AI screenshot analysis on, `false` forbids it — including the manual per-screenshot run; the journal option is locked either way |
+| `ai-ask` | boolean | `false` | Forbids on-demand AI over journal content: the viewer's Q&A panel and the manager's cross-journal AI search disappear; AI summaries are unaffected |
 | `max-log-parts` | integer | ≥ 1 | Caps the number of rotated capture-log parts per journal; the effective limit is the minimum of this cap and the per-connection setting, and the connection editor's spinner is clamped to it |
 
 ```toml
@@ -219,7 +220,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 ```
 
 !!! note
-    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, `ai-screenshot-analysis` to off if any rule switches it off, the line cap resolves to the tighter value (`0` counts as unlimited), and `max-log-parts` resolves to the lower cap.
+    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, `ai-screenshot-analysis` and `ai-ask` to off if any rule switches them off, the line cap resolves to the tighter value (`0` counts as unlimited), and `max-log-parts` resolves to the lower cap.
 
 ### `[[rule.session-journal.replace]]`
 

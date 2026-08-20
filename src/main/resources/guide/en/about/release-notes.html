@@ -2254,6 +2254,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#session-journal-ai-search-and-qa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal: AI search and Q&amp;A
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2446,6 +2457,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#session-journal-ai-search-and-qa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session journal: AI search and Q&amp;A
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2538,6 +2560,15 @@
 <li><strong>Repeated output lines are coalesced</strong> — progress loops, <code>tail -f</code> repeats and similar floods are stored syslog-style: the first occurrence immediately, follow-ups as one entry with a repeat count. The <a href="../features/session-journal.html#storage-and-formats">journal page</a> shows such a run compactly as <code>line ×12</code>; copying the log reproduces the original lines in full, and the AI summarizer sees the count instead of thousands of identical lines.</li>
 <li><strong>Rotated log parts are now zstd-compressed</strong> — finished capture-log parts compress to <code>.zst</code> instead of <code>.gz</code>, which is both faster and noticeably smaller on repetitive terminal output. Journals recorded by earlier versions keep their <code>.gz</code> parts and open, export and redact exactly as before — even mixed within one journal.</li>
 <li><strong>Log rotation is configurable per connection</strong> — the Journal tab gained <strong>Maximum size per log part (MB)</strong> (default 25) and <strong>Maximum rotated log parts</strong> (default 20). Previously both were fixed, and a long noisy session simply stopped recording output after 20 parts. An enterprise policy can cap the part count with the new <code>max-log-parts</code> key.</li>
+</ul>
+<h3 id="session-journal-ai-search-and-qa">Session journal: AI search and Q&amp;A<a class="headerlink" href="#session-journal-ai-search-and-qa" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Ask the AI about a recorded session</strong> — the viewer's new <a href="../features/session-journal.html#asking-the-ai-about-a-journal">AI Q&amp;A panel</a> answers questions like <em>"Were screenshots taken that show errors from this script?"</em> from what the journal already collected (summaries, screenshot analyses, notes) — the raw capture log is never sent to a model. When a question needs hard evidence, the model names literal search strings, korTTY's own streaming search scans the log, and only match counts plus a few sample lines go back for the final answer. Answers cite their sources: clicking a source scrolls the timeline to the entry, clicking a log-evidence line opens the log panel scrolled to the very line. Follow-up questions continue the conversation, and <strong>Save as note</strong> appends a Q&amp;A pair to the timeline.</li>
+<li><strong>One question across all journals</strong> — the manager's new <a href="../features/session-journal.html#ai-search-across-all-journals">AI search</a> answers questions like <em>"In which journals did result_complex.pl exit with an error?"</em>: a fast local ranking over the journals' collected entries picks the candidates, one AI request writes the summary and selects the relevant journals, and the exact hits are materialized by the internal search. The hit tree jumps straight to the entry or log line, already-opened hits stay marked across searches and restarts, the table shows a sorted <strong>Hits</strong> column with a row highlight instead of filtering, and <strong>Selection only</strong> restricts the scope. Without a reachable model the search degrades to the pure text search with a notice. Optional <strong>Semantic journal search</strong> adds embedding-based ranking when a local embedding model is configured in the knowledge stores.</li>
+<li><strong>Journals now carry AI keywords</strong> — the closing session summary extracts up to twelve verbatim search terms (hostnames, script and file names, error classes) into the journal metadata; the manager's filter matches them and shows them as clickable <strong>keyword chips</strong> under the filter field.</li>
+<li><strong>Catch up summaries</strong> — the journal options can now run the summarizer over closed journals that were never summarized, one by one behind a cancellable progress dialog.</li>
+<li><strong>The manager's content search reads logs streaming</strong> — <strong>Search contents</strong> no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.</li>
+<li><strong>New policy key <code>ai-ask</code></strong> — an organization can forbid the on-demand AI over journal content (Q&amp;A panel and cross-journal AI search) while keeping AI summaries.</li>
 </ul>
 <h3 id="ai-screenshot-analysis-in-journals">AI screenshot analysis in journals<a class="headerlink" href="#ai-screenshot-analysis-in-journals" title="Permanent link">&para;</a></h3>
 <ul>

@@ -206,6 +206,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean sessionJournalAiScreenshotAnalysisEnabled = true; // AI description + tags per screenshot
 
+    /**
+     * Opt-in semantic (embedding-based) ranking for the cross-journal AI search. Needs a
+     * configured local embedding model (borrowed from the knowledge-store settings); BM25 stays
+     * the default and the silent fallback.
+     */
+    @XmlElement
+    private boolean sessionJournalSemanticSearchEnabled = false;
+
     @XmlElement
     private Integer sessionJournalFontScalePercent = 100; // Font size of the generated journal page
 
@@ -1408,6 +1416,14 @@ public class GlobalSettings {
 
     public void setSessionJournalAiTitleEnabled(boolean sessionJournalAiTitleEnabled) {
         this.sessionJournalAiTitleEnabled = sessionJournalAiTitleEnabled;
+    }
+
+    public boolean isSessionJournalSemanticSearchEnabled() {
+        return sessionJournalSemanticSearchEnabled;
+    }
+
+    public void setSessionJournalSemanticSearchEnabled(boolean sessionJournalSemanticSearchEnabled) {
+        this.sessionJournalSemanticSearchEnabled = sessionJournalSemanticSearchEnabled;
     }
 
     /** Gates only the automatic analysis on capture; the context-menu run is a deliberate action. */

@@ -3360,6 +3360,12 @@
 <td><code>true</code> erzwingt die KI-Screenshot-Analyse, <code>false</code> verbietet sie – einschließlich der manuellen Ausführung pro Screenshot; Die Journaloption ist in beide Richtungen gesperrt</td>
 </tr>
 <tr>
+<td><code>ai-ask</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Verbietet On-Demand-KI für Journalinhalte: Das Frage-und-Antwort-Panel des Viewers und die tagebuchübergreifende KI-Suche des Managers werden ausgeblendet. KI-Zusammenfassungen sind nicht betroffen</td>
+</tr>
+<tr>
 <td><code>max-log-parts</code></td>
 <td>Ganzzahl</td>
 <td>≥ 1</td>
@@ -3379,7 +3385,7 @@
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code>enforced</code>-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden <code>enforced</code> und <code>ai-title</code> zu „true“ aufgelöst, wenn eine Regel sie festlegt, <code>allow-rename</code>/<code>allow-delete</code> zu „false“, wenn eine Regel sie verbietet, <code>ai-screenshot-analysis</code> zu „off“, wenn eine Regel es ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (<code>0</code> gilt als unbegrenzt) und <code>max-log-parts</code> wird auf die niedrigere Obergrenze aufgelöst.</p>
+<p><code>enforced</code>-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden <code>enforced</code> und <code>ai-title</code> zu „true“ aufgelöst, wenn eine Regel sie festlegt, <code>allow-rename</code>/<code>allow-delete</code> zu „false“, wenn eine Regel sie verbietet, <code>ai-screenshot-analysis</code> und <code>ai-ask</code> zu „off“, wenn eine Regel sie ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (<code>0</code> gilt als unbegrenzt) und <code>max-log-parts</code> wird auf die niedrigere Obergrenze aufgelöst.</p>
 </div>
 <h3 id="rulesession-journalreplace"><code>[[rule.session-journal.replace]]</code><a class="headerlink" href="#rulesession-journalreplace" title="Permanent link">&para;</a></h3>
 <p>Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.</p>

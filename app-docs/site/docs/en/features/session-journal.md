@@ -97,6 +97,7 @@ While the journal runs, the AI summarizer periodically reads the newest capture-
 | Split backlog into multiple prompts (chunking) | Journal manager **Options** | off |
 | AI profile for summaries | Journal manager **Options** or **Settings > Logging > Session Journal** | Default profile |
 | Analyze screenshots with AI (description and tags) | Journal manager **Options** | on |
+| Semantic journal search (embeddings) | Journal manager **Options** | off |
 
 Summaries use your **default AI profile** unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's **Options** dialog, **Settings > Logging > Session Journal**, and **AI > AI Manager > Local AI** next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.
 
@@ -105,7 +106,7 @@ Setting **max lines to 0** switches to context filling: the summarizer packs as 
 !!! warning
     Chunking can take very long on large sessions and is not recommended for everyday use — it is intended for power users with capable hardware and a powerful LLM.
 
-When the session ends, the summarizer writes a closing **session summary** entry (what was accomplished, which errors occurred). Optionally — **Let the AI title the journal when the session ends** in the Options dialog — a final AI call names the journal, unless you renamed it manually.
+When the session ends, the summarizer writes a closing **session summary** entry (what was accomplished, which errors occurred) and extracts up to twelve verbatim **keywords** — hostnames, script and file names, error classes — into the journal metadata, where the manager's filter, keyword chips and [AI search](#ai-search-across-all-journals) pick them up. Optionally — **Let the AI title the journal when the session ends** in the Options dialog — a final AI call names the journal, unless you renamed it manually.
 
 !!! note
     The journal works without AI: if no AI profile is available, AI features are disabled, or summaries are switched off, the timeline records raw activity entries instead. AI summary prompts never use internet-access tools; the terminal excerpt goes only to the configured AI profile.
@@ -121,6 +122,20 @@ Whether a profile can take images is a per-profile property: **Image input (visi
 
 !!! warning
     The automatic analysis sends the screenshot at capture time — before you had a chance to make anything unreadable. The picture goes only to the configured AI profile and never through internet-access tools, but for sessions whose screen content must not leave the machine, switch the option off or have your administrator forbid the analysis via [enterprise policy](#enterprise-policy) — the policy mandate also disables the manual run.
+
+## Asking the AI about a journal
+
+**AI Q&A** in the viewer's toolbar opens a chat panel next to the journal page. Ask anything about this session — *"Were screenshots taken that show errors from result_complex.pl?"* — and the AI answers from what the journal already collected while the session ran: the AI summaries, screenshot descriptions and tags, and your notes. The raw capture log is never sent to the model.
+
+When a question needs hard evidence from the log — exact error lines, whether a script really failed, how often something occurred — the model names a few literal search strings, korTTY's own streaming search scans the capture log for them, and only the match counts plus a handful of sample lines go back to the model for the final answer. The panel shows both next to the answer:
+
+- **Sources** — the journal entries the answer cites; clicking one scrolls the timeline to that entry.
+- **Log evidence** — per search string the exact number of matching log lines, with clickable samples that open the log panel scrolled to the very line.
+
+Follow-up questions continue the conversation (the panel keeps the recent exchanges as context); **New conversation** starts over. **Save as note** appends a question-and-answer pair to the journal timeline as an entry, so a finding becomes part of the record.
+
+!!! note
+    If no AI profile is reachable or the request fails, the panel degrades instead of erroring out: it extracts the identifiers from your question, runs the internal text search, and shows the matching entries and log lines with a notice that no model was involved. The Q&A never uses internet-access tools, and administrators can forbid it entirely (`ai-ask` under [enterprise policy](#enterprise-policy)).
 
 ## Password protection
 
@@ -151,7 +166,7 @@ If something slipped through anyway, the viewer's [search and replace](#search-a
 The magnifier in the header opens a search bar directly under the connection details (++ctrl+f++ works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or ++enter++ / ++shift+enter++ jump between the hits, ++esc++ or ✕ closes the bar and clears the highlighting.
 
 !!! note
-    This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across *all* journals with **Search contents**.
+    This searches the journal entries. The raw capture log has its own search inside the log panel, the journal manager can search across *all* journals with **Search contents** or the [AI search](#ai-search-across-all-journals), and the viewer's [AI Q&A](#asking-the-ai-about-a-journal) answers questions about this journal.
 
 ### Jumping between marked entries
 
@@ -209,11 +224,27 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 
-- The filter field matches title, connection, host, user and description; enabling **Search contents** additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background.
+- The filter field matches title, connection, host, user, description and the AI keywords; enabling **Search contents** additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background (the logs are read streaming, part by part, so even huge journals do not load into memory).
+- Below the filter field, clickable **keyword chips** show the most common AI keywords across the listed journals — with exactly one journal selected, that journal's own keywords. Clicking a chip filters by it. The keywords come from the closing session summary, which extracts up to twelve verbatim search terms (hostnames, script and file names, error classes) into the journal metadata.
 - **Open** (or double-click) opens the journal viewer; **Rename** changes the title; **Delete** asks for confirmation and then permanently removes the journal folder including the log and all screenshots.
 - Several journals can be selected at once (++ctrl++ / ++shift++ click) to delete or export them in one step. Running journals cannot be renamed or deleted.
 - The **Description** area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.
-- **Options** holds the global capture and AI settings described above.
+- **Options** holds the global capture and AI settings described above, plus **Catch up summaries**: it counts the closed journals that were never summarized (recorded while summaries were off or no model was reachable) and, on demand, runs the regular summarizer over them one by one behind a progress dialog — cancellable between journals, and an interrupted run resumes where it stopped.
+
+### AI search across all journals
+
+**AI search** next to the filter field opens a search panel under the table. Ask a question across every stored journal — *"In which journals did result_complex.pl exit with an error?"* — and korTTY answers in two stages: a fast local ranking picks the most relevant journals from their metadata and collected entries, then a single AI request over those candidates writes the summary and selects the journals that actually answer the question. As with the [per-journal Q&A](#asking-the-ai-about-a-journal), the model only ever sees the collected entries, never the raw logs; exact log positions come from the internal streaming search.
+
+The result appears on both sides of the panel:
+
+- The **answer chat** on the left supports follow-up questions about the same results.
+- The **hit tree** on the right lists each matching journal with its total hit count (hovering shows the AI's one-sentence reason), and under it the individual hits — matching entries and exact log lines with timestamp and snippet. Clicking a hit opens the journal and jumps straight to that entry or log line. Hits you have already opened turn muted with a check mark, and that marking survives new searches and restarts — orientation for working through a long hit list.
+- The header shows the total: *n hits in m journals*. Repeated identical output lines are stored coalesced, and the count includes their repeat factors, so it reflects real occurrences.
+
+The table itself stays complete: journals with hits get a sorted **Hits** column and a row highlight instead of filtering everything else away. **Selection only** restricts the search to the journals selected in the table.
+
+!!! note
+    Without a reachable AI profile the search still works: the question's identifiers are matched against the journals and logs directly, only the AI summary and journal selection are skipped (a notice says so). Optionally, **Semantic journal search** in the Options dialog adds embedding-based ranking on top of the lexical one — it requires a local embedding model configured in the knowledge stores and falls back to the lexical ranking silently whenever embeddings are unavailable.
 
 ### The viewer and editing
 
@@ -365,7 +396,7 @@ Both are configured under [**Configuration → Global Settings → Export**](../
 
 ## Enterprise policy
 
-Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the [AI screenshot analysis](#ai-screenshot-analysis) on or off — a forced *off* also disables the manual per-screenshot run. See [Policy configuration](../reference/enterprise-policy.md) for the keys.
+Administrators can deny the feature (`session-journal` under `[rule.features]`), or mandate its behavior via `[rule.session-journal]`: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, force the [AI screenshot analysis](#ai-screenshot-analysis) on or off — a forced *off* also disables the manual per-screenshot run — and forbid the on-demand AI over journal content (`ai-ask = false` removes the viewer's [Q&A panel](#asking-the-ai-about-a-journal) and the manager's [AI search](#ai-search-across-all-journals) while leaving the summaries untouched). See [Policy configuration](../reference/enterprise-policy.md) for the keys.
 
 ### Automatic redaction
 

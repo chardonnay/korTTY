@@ -31,12 +31,17 @@ class EffectivePolicyResolveTest {
 
     private static PolicyRule.SessionJournalRule screenshotAnalysisRule(Boolean value) {
         return new PolicyRule.SessionJournalRule(
-            null, null, null, null, null, null, null, null, value, null, List.of());
+            null, null, null, null, null, null, null, null, value, null, null, List.of());
+    }
+
+    private static PolicyRule.SessionJournalRule aiAskRule(Boolean value) {
+        return new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, null, value, null, List.of());
     }
 
     private static PolicyRule.SessionJournalRule maxLogPartsRule(Integer value) {
         return new PolicyRule.SessionJournalRule(
-            null, null, null, null, null, null, null, null, null, value, List.of());
+            null, null, null, null, null, null, null, null, null, null, value, List.of());
     }
 
     @Test
@@ -78,6 +83,24 @@ class EffectivePolicyResolveTest {
             PolicyRule.builder().sessionJournal(screenshotAnalysisRule(null)).build());
         assertThat(EffectivePolicy.resolve(unset, identity("anyone"))
             .sessionJournal().aiScreenshotAnalysis()).isNull();
+    }
+
+    @Test
+    void aiAskResolvesRestrictivelyAndGatesTheAskCapability() {
+        // Same-tier conflict: off wins — journal text leaving the machine is the risk.
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().sessionJournal(aiAskRule(true)).build(),
+            PolicyRule.builder().sessionJournal(aiAskRule(false)).build());
+        EffectivePolicy denied = EffectivePolicy.resolve(conflicting, identity("anyone"));
+        assertThat(denied.sessionJournal().aiAsk()).isFalse();
+        assertThat(denied.sessionJournalAiAskAllowed()).isFalse();
+
+        // Unset: allowed as long as journal + AI features are allowed.
+        PolicyFile unset = file(Map.of(),
+            PolicyRule.builder().sessionJournal(aiAskRule(null)).build());
+        EffectivePolicy open = EffectivePolicy.resolve(unset, identity("anyone"));
+        assertThat(open.sessionJournal().aiAsk()).isNull();
+        assertThat(open.sessionJournalAiAskAllowed()).isTrue();
     }
 
     @Test

@@ -52,7 +52,7 @@ public final class AiChatRenderPageSupport {
      * additional {@code </} escape prevents a literal {@code </script>} inside the payload from
      * terminating the surrounding script element.
      */
-    static String toJsStringLiteral(String value) {
+    public static String toJsStringLiteral(String value) {
         return GSON.toJson(value != null ? value : "").replace("</", "<\\/");
     }
 }

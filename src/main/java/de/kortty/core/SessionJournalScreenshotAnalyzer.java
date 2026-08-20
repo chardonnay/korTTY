@@ -88,9 +88,13 @@ public class SessionJournalScreenshotAnalyzer {
             : null;
     }
 
-    /** True when a MANUAL analysis could run right now; drives the context-menu availability. */
+    /**
+     * True when a MANUAL analysis could plausibly run; drives the context-menu availability.
+     * Deliberately optimistic: a live metadata probe on the worker gives the final answer, so a
+     * vision model whose name the heuristics miss still gets its menu entry.
+     */
     public boolean isManuallyAvailable() {
-        return policyAllowsAnalysis() && aiInvoker.isVisionAvailable();
+        return policyAllowsAnalysis() && aiInvoker.isVisionPlausible();
     }
 
     /**
@@ -109,11 +113,13 @@ public class SessionJournalScreenshotAnalyzer {
         if (!policyAllowsAnalysis()) {
             return;
         }
-        if (!aiInvoker.isVisionAvailable()) {
+        if (!aiInvoker.isVisionPlausible()) {
             logger.debug("Skipping screenshot analysis for {}: no vision-capable AI profile",
                 journalDir.getFileName());
             return;
         }
+        // The authoritative vision check may query the endpoint's metadata — it runs on the
+        // worker inside runAnalysis, never on the capture path.
         submit(journalDir, entryId, Trigger.AUTO);
     }
 
@@ -130,7 +136,7 @@ public class SessionJournalScreenshotAnalyzer {
             return CompletableFuture.failedFuture(
                 new VisionUnavailableException("AI screenshot analysis is not permitted"));
         }
-        if (!aiInvoker.isVisionAvailable()) {
+        if (!aiInvoker.isVisionPlausible()) {
             return CompletableFuture.failedFuture(
                 new VisionUnavailableException("No image-capable AI profile is available"));
         }
@@ -193,6 +199,16 @@ public class SessionJournalScreenshotAnalyzer {
     }
 
     private void runAnalysis(Path journalDir, String entryId, Trigger trigger) throws Exception {
+        // Authoritative capability check — may ask the endpoint's model metadata (LM Studio),
+        // which is why it runs here on the worker and not on the capture or FX thread.
+        if (!aiInvoker.isVisionAvailableLive()) {
+            if (trigger == Trigger.MANUAL) {
+                throw new VisionUnavailableException("No image-capable AI profile is available");
+            }
+            logger.debug("Skipping screenshot analysis for {}: profile has no image input",
+                journalDir.getFileName());
+            return;
+        }
         SessionJournalEntry entry = findScreenshotEntry(service.loadDocument(journalDir), entryId);
         if (entry == null) {
             if (trigger == Trigger.MANUAL) {

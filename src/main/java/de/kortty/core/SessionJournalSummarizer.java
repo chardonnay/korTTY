@@ -153,6 +153,17 @@ public class SessionJournalSummarizer {
         return CompletableFuture.runAsync(() -> maybeProcess(session, state, true), workExecutor);
     }
 
+    /**
+     * Runs the full summarization (windows, wrap-up, optional AI title) for an already-closed
+     * journal — the backfill path for journals recorded while summaries were off or no model was
+     * reachable. A fresh state loads the persisted {@code lastSummarizedSeq}, so an interrupted
+     * backfill resumes instead of duplicating entries.
+     */
+    public CompletableFuture<Void> backfillClosedJournal(Path directory) {
+        return CompletableFuture.runAsync(
+            () -> runClosePass(directory, new SessionState(), true), workExecutor);
+    }
+
     /** Stops all executors on application shutdown. */
     public synchronized void stop() {
         sessions.clear();
@@ -651,8 +662,46 @@ public class SessionJournalSummarizer {
             entry.setText(parsed.summary());
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
             service.appendEntry(directory, entry);
+            if (!parsed.keywords().isEmpty()) {
+                // Identifiers must match the journal text exactly — a model-mangled script name
+                // ("serverauslastung.pl" for server_auslastung.pl) is repaired or dropped here.
+                // The loaded document predates the entry appended above, so the fresh wrap-up
+                // text joins the corpus explicitly — it may be the only place naming a keyword.
+                List<String> keywords = SessionJournalAiSupport.reconcileKeywords(
+                    parsed.keywords(), keywordCorpus(document) + "\n" + parsed.summary());
+                if (!keywords.isEmpty()) {
+                    service.updateAiKeywords(directory, keywords);
+                }
+            }
         } catch (Exception e) {
             logger.warn("Session journal wrap-up failed for {}: {}", directory.getFileName(), e.getMessage());
+        }
+    }
+
+    /** Everything the keyword extraction could legitimately quote from, as one text. */
+    private static String keywordCorpus(SessionJournalDocument document) {
+        StringBuilder corpus = new StringBuilder(4096);
+        for (SessionJournalEntry entry : document.getEntries()) {
+            appendCorpusPart(corpus, entry.getTitle());
+            appendCorpusPart(corpus, entry.getText());
+            appendCorpusPart(corpus, entry.getAiDescription());
+            appendCorpusPart(corpus, entry.getUserNote());
+            if (entry.getAiTags() != null) {
+                for (String tag : entry.getAiTags()) {
+                    appendCorpusPart(corpus, tag);
+                }
+            }
+        }
+        appendCorpusPart(corpus, document.getMeta().getTitle());
+        appendCorpusPart(corpus, document.getMeta().getDescription());
+        appendCorpusPart(corpus, document.getMeta().getHost());
+        appendCorpusPart(corpus, document.getMeta().getConnectionName());
+        return corpus.toString();
+    }
+
+    private static void appendCorpusPart(StringBuilder corpus, String value) {
+        if (value != null && !value.isBlank()) {
+            corpus.append(value).append('\n');
         }
     }
 

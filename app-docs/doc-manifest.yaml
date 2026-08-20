@@ -377,13 +377,24 @@ pages:
       - src/main/java/de/kortty/ui/SessionJournalLivePanelDockManager.java
       - src/main/java/de/kortty/ui/SessionJournalViewerPane.java
       - src/main/java/de/kortty/ui/SessionJournalLiveScript.java
+      - src/main/java/de/kortty/core/SessionJournalLogSearcher.java
+      - src/main/java/de/kortty/core/SessionJournalVisitedStore.java
+      - src/main/java/de/kortty/core/SessionJournalAskService.java
+      - src/main/java/de/kortty/core/SessionJournalCrossSearchService.java
+      - src/main/java/de/kortty/core/SessionJournalSearchCard.java
+      - src/main/java/de/kortty/core/SessionJournalSearchCardIndex.java
+      - src/main/java/de/kortty/core/SessionJournalSemanticIndex.java
+      - src/main/java/de/kortty/core/SessionJournalSummaryBackfill.java
+      - src/main/java/de/kortty/core/TextRelevanceScorer.java
+      - src/main/java/de/kortty/ui/SessionJournalAskPanel.java
+      - src/main/java/de/kortty/ui/SessionJournalSearchPanel.java
     diagrams: [session-journal-flow.svg]
     screenshots:
       - journal/journal-manager.png
       - journal/journal-viewer.png
       - journal/journal-export-options.png
       - journal/journal-markers.png
-    last_synced_ref: "caa6da16"
+    last_synced_ref: "f56db94e"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
@@ -417,7 +428,7 @@ pages:
     owns_code: [src/main/java/de/kortty/policy, package/policy]
     diagrams: []
     screenshots: []
-    last_synced_ref: "caa6da16"
+    last_synced_ref: "f56db94e"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]
