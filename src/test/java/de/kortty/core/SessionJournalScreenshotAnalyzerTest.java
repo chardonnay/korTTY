@@ -34,6 +34,8 @@ class SessionJournalScreenshotAnalyzerTest {
         final List<String> userPrompts = Collections.synchronizedList(new ArrayList<>());
         final List<byte[]> uploadedImages = Collections.synchronizedList(new ArrayList<>());
         volatile boolean visionAvailable = true;
+        /** Overrides the live/plausible answers when set; null delegates to visionAvailable. */
+        volatile Boolean visionLive;
         volatile boolean fail;
         volatile boolean truncated;
         volatile String reply = "{\"description\":\"Terminal zeigt den nginx-Status.\",\"tags\":[\"nginx\",\"status\"]}";
@@ -53,6 +55,16 @@ class SessionJournalScreenshotAnalyzerTest {
         @Override
         public boolean isVisionAvailable() {
             return visionAvailable;
+        }
+
+        @Override
+        public boolean isVisionPlausible() {
+            return visionLive != null ? visionAvailable || visionLive : visionAvailable;
+        }
+
+        @Override
+        public boolean isVisionAvailableLive() {
+            return visionLive != null ? visionLive : visionAvailable;
         }
 
         @Override
@@ -204,6 +216,38 @@ class SessionJournalScreenshotAnalyzerTest {
         // The auto path stays silent for the same condition.
         analyzer.analyzeAutomatically(session.getDirectory(), entry.getId(), true);
         assertThat(invoker.userPrompts).isEmpty();
+    }
+
+    @Test
+    void liveMetadataProbeRescuesModelsTheNameHeuristicMisses() throws Exception {
+        // "qwen3.8-27b": the static check says no vision, the endpoint's metadata says yes —
+        // the worker-side live check must let both triggers analyze anyway.
+        SessionJournalSession session = newLiveSession();
+        SessionJournalEntry entry = session.attachScreenshot(pngBytes(Color.RED), null);
+        invoker.visionAvailable = false;
+        invoker.visionLive = true;
+
+        analyzer.analyzeManually(session.getDirectory(), entry.getId()).get(5, TimeUnit.SECONDS);
+
+        assertThat(invoker.uploadedImages).hasSize(1);
+        assertThat(screenshotEntry(session.getDirectory()).getAiDescription()).isNotEmpty();
+    }
+
+    @Test
+    void liveCheckSayingNoSkipsAutoSilentlyAndFailsManualExplicitly() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        SessionJournalEntry entry = session.attachScreenshot(pngBytes(Color.RED), null);
+        invoker.visionAvailable = true; // plausible — but the authoritative live answer is no
+        invoker.visionLive = false;
+
+        // The auto run finishes silently without ever calling the model…
+        analyzer.analyzeAutomatically(session.getDirectory(), entry.getId(), true);
+        // …while the manual run reports the reason.
+        ExecutionException failure = expectThrows(ExecutionException.class,
+            () -> analyzer.analyzeManually(session.getDirectory(), entry.getId()).get(5, TimeUnit.SECONDS));
+        assertThat(failure.getCause())
+            .isInstanceOf(SessionJournalScreenshotAnalyzer.VisionUnavailableException.class);
+        assertThat(invoker.uploadedImages).isEmpty();
     }
 
     @Test

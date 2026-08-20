@@ -50,6 +50,22 @@ public final class SessionJournalAiSupport {
             return false;
         }
 
+        /**
+         * Quick, possibly optimistic answer for UI enablement: vision is known, or a live
+         * metadata probe ({@link AiVisionLiveCheck}) could still say yes. Never blocks.
+         */
+        default boolean isVisionPlausible() {
+            return isVisionAvailable();
+        }
+
+        /**
+         * Authoritative answer, allowed to query the endpoint's model metadata — call from
+         * worker threads only.
+         */
+        default boolean isVisionAvailableLive() {
+            return isVisionAvailable();
+        }
+
         /** Executes a strict-JSON prompt with images; only called when {@link #isVisionAvailable()}. */
         default AiExecutionResult executeVision(
             String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
@@ -134,6 +150,55 @@ public final class SessionJournalAiSupport {
                     }
                     AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
                     return profile != null && AiVisionSupport.isVisionCapable(profile);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public boolean isVisionPlausible() {
+                if (isVisionAvailable()) {
+                    return true;
+                }
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null
+                        || !de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                        return false;
+                    }
+                    AiProfile profile = profileResolver.apply(app.getGlobalSettingsManager().getSettings());
+                    return AiVisionLiveCheck.probeEligible(profile);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public boolean isVisionAvailableLive() {
+                if (isVisionAvailable()) {
+                    return true;
+                }
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null
+                        || !de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                        return false;
+                    }
+                    GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+                    AiProfile profile = profileResolver.apply(settings);
+                    if (!AiVisionLiveCheck.probeEligible(profile)) {
+                        return false;
+                    }
+                    // A local LM Studio endpoint usually needs no key; a locked vault must not
+                    // block the metadata GET, so key resolution failures degrade to "no key".
+                    String apiKey = null;
+                    try {
+                        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
+                        apiKey = policyKey != null ? policyKey : decryptApiKey(app, profile.getEncryptedApiKey());
+                    } catch (Exception ignored) {
+                        // proceed without a key
+                    }
+                    return AiVisionLiveCheck.isVisionCapable(profile, apiKey);
                 } catch (Exception e) {
                     return false;
                 }
