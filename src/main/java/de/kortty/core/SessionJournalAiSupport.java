@@ -19,8 +19,19 @@ import java.util.Locale;
  */
 public final class SessionJournalAiSupport {
 
-    /** Parsed summarizer reply; {@code category} maps to a journal marker. */
-    public record SummaryResult(String title, String summary, String category) {
+    /**
+     * Parsed summarizer reply; {@code category} maps to a journal marker. {@code keywords} are
+     * only requested (and produced) by the closing session summary — empty everywhere else.
+     */
+    public record SummaryResult(String title, String summary, String category, List<String> keywords) {
+
+        public SummaryResult {
+            keywords = keywords == null ? List.of() : List.copyOf(keywords);
+        }
+
+        public SummaryResult(String title, String summary, String category) {
+            this(title, summary, category, List.of());
+        }
     }
 
     /** Parsed screenshot-analysis reply; both parts optional but never both empty. */
@@ -278,7 +289,8 @@ public final class SessionJournalAiSupport {
             String category = json.has("category") && !json.get("category").isJsonNull()
                 ? json.get("category").getAsString() : null;
             if (summary != null && !summary.isBlank()) {
-                return new SummaryResult(title, summary, category);
+                return new SummaryResult(title, summary, category,
+                    stringList(json, "keywords", MAX_KEYWORDS, MAX_KEYWORD_LENGTH));
             }
         } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
             // fall through to the plain-text fallback below
@@ -314,6 +326,8 @@ public final class SessionJournalAiSupport {
 
     private static final int MAX_SCREENSHOT_TAGS = 8;
     private static final int MAX_SCREENSHOT_TAG_LENGTH = 40;
+    private static final int MAX_KEYWORDS = 12;
+    private static final int MAX_KEYWORD_LENGTH = 60;
 
     /**
      * Parses the screenshot-analysis JSON reply leniently, mirroring {@link #parseSummaryResult}:

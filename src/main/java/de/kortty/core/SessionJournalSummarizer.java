@@ -153,6 +153,17 @@ public class SessionJournalSummarizer {
         return CompletableFuture.runAsync(() -> maybeProcess(session, state, true), workExecutor);
     }
 
+    /**
+     * Runs the full summarization (windows, wrap-up, optional AI title) for an already-closed
+     * journal — the backfill path for journals recorded while summaries were off or no model was
+     * reachable. A fresh state loads the persisted {@code lastSummarizedSeq}, so an interrupted
+     * backfill resumes instead of duplicating entries.
+     */
+    public CompletableFuture<Void> backfillClosedJournal(Path directory) {
+        return CompletableFuture.runAsync(
+            () -> runClosePass(directory, new SessionState(), true), workExecutor);
+    }
+
     /** Stops all executors on application shutdown. */
     public synchronized void stop() {
         sessions.clear();
@@ -651,6 +662,9 @@ public class SessionJournalSummarizer {
             entry.setText(parsed.summary());
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
             service.appendEntry(directory, entry);
+            if (!parsed.keywords().isEmpty()) {
+                service.updateAiKeywords(directory, parsed.keywords());
+            }
         } catch (Exception e) {
             logger.warn("Session journal wrap-up failed for {}: {}", directory.getFileName(), e.getMessage());
         }

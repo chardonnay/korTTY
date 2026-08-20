@@ -645,6 +645,16 @@ public class SessionJournalService {
         notifyChanged(journalDir);
     }
 
+    /** Persists the closing summary's search keywords into the journal meta. */
+    public void updateAiKeywords(Path journalDir, java.util.List<String> keywords) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            document.getMeta().setAiKeywords(keywords);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
     /** Persists the summarizer's progress so restarts never re-summarize covered ranges. */
     public void updateLastSummarizedSeq(Path journalDir, long lastSummarizedSeq) throws IOException {
         synchronized (lockFor(journalDir)) {

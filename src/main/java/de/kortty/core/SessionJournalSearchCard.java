@@ -77,6 +77,9 @@ public record SessionJournalSearchCard(
         if (meta.getStartedAt() != null) {
             appendWord(metaText, meta.getStartedAt().format(DATE));
         }
+        if (!meta.getAiKeywords().isEmpty()) {
+            appendWord(metaText, String.join(" ", meta.getAiKeywords()));
+        }
         List<Section> sections = new ArrayList<>();
         if (entries != null) {
             for (SessionJournalEntry entry : entries) {

@@ -87,7 +87,11 @@ final class SessionJournalPrompts {
             Respond ONLY with a JSON object, no markdown fence, in this exact shape:
             {"title": "<max 60 chars, plain text>",
              "summary": "<2-6 sentences>",
-             "category": "<one of: none, info, important, error>"}
+             "category": "<one of: none, info, important, error>",
+             "keywords": ["<keyword>", "..."]}
+            Keywords: at most 12 short search terms that would find this session again later —
+            host names, script and file names, error classes, tools and services used. Take them
+            verbatim from the entries; never invent identifiers.
             """.formatted(languageCode != null && !languageCode.isBlank() ? languageCode : "en");
     }
 

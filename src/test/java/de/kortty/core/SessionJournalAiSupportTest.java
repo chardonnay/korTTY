@@ -163,6 +163,19 @@ class SessionJournalAiSupportTest {
     }
 
     @Test
+    void parsesSessionSummaryKeywords() {
+        SessionJournalAiSupport.SummaryResult parsed = SessionJournalAiSupport.parseSummaryResult(
+            "{\"title\":\"T\",\"summary\":\"S.\",\"category\":\"error\","
+                + "\"keywords\":[\"result_complex.pl\",\"nginx\",\"result_complex.pl\",\" \"]}");
+        assertThat(parsed.keywords()).containsExactly("result_complex.pl", "nginx").inOrder();
+
+        // Window summaries never request keywords — absent field stays an empty list.
+        SessionJournalAiSupport.SummaryResult plain = SessionJournalAiSupport.parseSummaryResult(
+            "{\"title\":\"T\",\"summary\":\"S.\"}");
+        assertThat(plain.keywords()).isEmpty();
+    }
+
+    @Test
     void parsesAskAnswerWithSourcesAndTerms() {
         SessionJournalAiSupport.AskAnswer answer = SessionJournalAiSupport.parseAskAnswer(
             "```json\n{\"answer\":\"It failed twice.\",\"sources\":[2,1,2,99],"
