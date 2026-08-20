@@ -204,6 +204,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | `name-template` | Zeichenfolge | Vorlage | Ursprünglicher Journaltitel mit den Platzhaltern `{connection}`, `{host}`, `{user}`, `{date}` und `{time}` |
 | `ai-title` | Boolescher Wert | `true` | Der abschließende KI-Titel wird unabhängig von der Benutzereinstellung generiert |
 | `ai-screenshot-analysis` | boolean | `true` / `false` | `true` erzwingt die KI-Screenshot-Analyse, `false` verbietet sie – einschließlich der manuellen Ausführung pro Screenshot; Die Journaloption ist in beide Richtungen gesperrt |
+| `ai-ask` | boolean | `false` | Verbietet On-Demand-KI für Journalinhalte: Das Frage-und-Antwort-Panel des Viewers und die tagebuchübergreifende KI-Suche des Managers werden ausgeblendet. KI-Zusammenfassungen sind nicht betroffen |
 | `max-log-parts` | Ganzzahl | ≥ 1 | Begrenzt die Anzahl der rotierten Capture-Logteile pro Journal; Der wirksame Grenzwert ist das Minimum dieser Obergrenze und der Einstellung pro Verbindung, und der Spinner des Verbindungseditors ist darauf begrenzt |
 
 ```toml
@@ -219,7 +220,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 ```
 
 !!! note
-    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, `ai-screenshot-analysis` zu „off“, wenn eine Regel es ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt) und `max-log-parts` wird auf die niedrigere Obergrenze aufgelöst.
+    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, `ai-screenshot-analysis` und `ai-ask` zu „off“, wenn eine Regel sie ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt) und `max-log-parts` wird auf die niedrigere Obergrenze aufgelöst.
 
 ### `[[rule.session-journal.replace]]`
 

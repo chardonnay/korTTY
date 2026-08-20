@@ -97,6 +97,7 @@ Während das Journal läuft, liest die KI-Zusammenfassung regelmäßig die neues
 | Rückstand auf mehrere Prompts aufteilen (Chunking) | Journalmanager **Optionen** | aus |
 | AI-Profil für Zusammenfassungen | Journalmanager **Optionen** oder **Einstellungen > Protokollierung > Sitzungsjournal** | Standardprofil |
 | Screenshots mit KI analysieren (Beschreibung und Tags) | Journalmanager **Optionen** | auf |
+| Semantische Journalsuche (Einbettungen) | Journalmanager **Optionen** | aus |
 
 Zusammenfassungen verwenden Ihr **Standard-KI-Profil**, es sei denn, Sie wählen ein spezielles Journalprofil aus. Diese Auswahl ist an drei gleichwertigen Stellen verfügbar: im Dialogfeld **Optionen** des Journalmanagers, **Einstellungen > Protokollierung > Sitzungsjournal** und **KI > KI-Manager > Lokale KI** neben den Rollen Text und Codierung. Die Rollenprofile Text/Coding selbst werden bewusst nicht für das Journal verwendet.
 
@@ -105,7 +106,7 @@ Wenn Sie **max Zeilen auf 0** setzen, wird auf Kontextfüllung umgeschaltet: Der
 !!! warning
     Chunking kann bei großen Sitzungen sehr lange dauern und wird nicht für den täglichen Gebrauch empfohlen – es ist für Power-User mit leistungsfähiger Hardware und einem leistungsstarken LLM gedacht.
 
-Wenn die Sitzung endet, schreibt die Zusammenfassung einen abschließenden **Sitzungszusammenfassungs-Eintrag** (was wurde erreicht, welche Fehler sind aufgetreten). Optional – **Lassen Sie die KI das Journal betiteln, wenn die Sitzung endet** im Dialogfeld „Optionen“ – ein abschließender KI-Aufruf benennt das Journal, es sei denn, Sie haben es manuell umbenannt.
+Wenn die Sitzung endet, schreibt der Zusammenfassende einen abschließenden **Sitzungszusammenfassung**-Eintrag (was wurde erreicht, welche Fehler sind aufgetreten) und extrahiert bis zu zwölf wörtliche **Schlüsselwörter** – Hostnamen, Skript- und Dateinamen, Fehlerklassen – in die Journalmetadaten, wo sie vom Filter, den Schlüsselwortchips und der [AI-Suche](#ai-suche-in-allen-journale) des Managers erfasst werden. Optional – **Lassen Sie die KI das Journal betiteln, wenn die Sitzung endet** im Dialogfeld „Optionen“ – ein abschließender KI-Aufruf benennt das Journal, es sei denn, Sie haben es manuell umbenannt.
 
 !!! note
     Das Journal funktioniert ohne KI: Wenn kein KI-Profil verfügbar ist, KI-Funktionen deaktiviert oder Zusammenfassungen ausgeschaltet sind, zeichnet die Zeitleiste stattdessen rohe Aktivitätseinträge auf. KI-Zusammenfassungsaufforderungen verwenden niemals Tools für den Internetzugang; Der Terminalauszug geht nur an das konfigurierte AI-Profil.
@@ -117,10 +118,24 @@ Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analy
 - **Screenshots mit KI analysieren (Beschreibung und Tags)** im Dialogfeld **Optionen** des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann. andernfalls wird der Screenshot einfach unanalysiert abgelegt.
 - **Screenshot mit KI analysieren** im Rechtsklick-Menü eines Screenshots analysiert ein Bild bei Bedarf – die Möglichkeit, Screenshots in zuvor aufgezeichneten Journalen zu analysieren, einen fehlgeschlagenen Lauf zu wiederholen oder die Analyse erneut auszuführen, nachdem etwas im [Anmerkungseditor](#screenshot-notizen-und-anmerkungen) unleserlich gemacht wurde. Die Analyse liest immer das kommentierte Bild, niemals die unberührte `.orig.png`-Aufnahme.
 
-Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [AI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die die Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
+Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [AI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
 
 !!! warning
     Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme – bevor Sie die Möglichkeit haben, etwas unleserlich zu machen. Das Bild geht nur an das konfigurierte KI-Profil und niemals über Internet-Zugriffstools, aber für Sitzungen, deren Bildschirminhalt den Computer nicht verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über [Unternehmensrichtlinie](#unternehmensrichtlinie) verbieten – die Richtlinienanweisung deaktiviert auch die manuelle Ausführung.
+
+## Die KI nach einem Journal fragen
+
+**KI-Fragen** in der Symbolleiste des Viewers öffnet ein Chat-Panel neben der Journalseite. Fragen Sie etwas zu dieser Sitzung – *„Wurden Screenshots gemacht, die Fehler von result_complex.pl zeigen?“* – und die KI antwortet aus dem, was das Journal bereits während der Sitzung gesammelt hat: die KI-Zusammenfassungen, Screenshot-Beschreibungen und -Tags sowie Ihre Notizen. Das Roherfassungsprotokoll wird niemals an das Modell gesendet.
+
+Wenn für eine Frage konkrete Beweise aus dem Protokoll benötigt werden – genaue Fehlerzeilen, ob ein Skript wirklich fehlgeschlagen ist, wie oft etwas passiert ist – benennt das Modell ein paar wörtliche Suchzeichenfolgen, korTTYs eigene Streaming-Suche durchsucht das Capture-Log nach ihnen, und nur die Übereinstimmungszahlen sowie eine Handvoll Beispielzeilen werden für die endgültige Antwort an das Modell zurückgesendet. Das Panel zeigt beides neben der Antwort:
+
+- **Quellen** – die in der Antwort zitierten Journal-Einträge; Wenn Sie auf einen Eintrag klicken, wird in der Zeitleiste zu diesem Eintrag gescrollt.
+- **Log-Belege** – pro Suchzeichenfolge die genaue Anzahl übereinstimmender Protokollzeilen, mit anklickbaren Beispielen, die das Protokollfenster öffnen und bis zur genauen Zeile scrollen.
+
+Anschlussfragen führen das Gespräch fort (das Panel behält die letzten Wortwechsel als Kontext); **Neue Unterhaltung** beginnt von vorne. **Als Notiz übernehmen** fügt ein Frage-Antwort-Paar als Eintrag an die Journalzeitleiste an, sodass ein Befund Teil der Aufzeichnung wird.
+
+!!! note
+    Wenn kein KI-Profil erreichbar ist oder die Anfrage fehlschlägt, wird das Panel heruntergefahren, anstatt einen Fehler auszulösen: Es extrahiert die Bezeichner aus Ihrer Frage, führt die interne Textsuche durch und zeigt die passenden Einträge und Protokollzeilen mit einem Hinweis an, dass kein Modell beteiligt war. Das Q&A verwendet niemals Tools für den Internetzugang und Administratoren können dies vollständig verbieten (`ai-ask` gemäß [Unternehmensrichtlinie](#unternehmensrichtlinie)).
 
 ## Passwortschutz
 
@@ -151,7 +166,7 @@ Wenn trotzdem etwas durchgerutscht ist, dann das des Viewers [suchen und ersetze
 Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (++ctrl+f++ funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, KI-Screenshot-Beschreibungen und Tags, Ein- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Übereinstimmungszähler angezeigt; ▲ und ▼ oder ++enter++ / ++shift+enter++ springen zwischen den Treffern, ++esc++ oder ✕ schließt die Leiste und löscht die Hervorhebung.
 
 !!! note
-    Dadurch werden die Journaleinträge durchsucht. Das Roherfassungsprotokoll verfügt über eine eigene Suche im Protokollbereich, und der Journalmanager kann mit **Inhalte durchsuchen** in *allen* Journalen suchen.
+    Dadurch werden die Journaleinträge durchsucht. Das Roherfassungsprotokoll verfügt über eine eigene Suche im Protokollbereich. Der Journalmanager kann *alle* Journale mit **Inhalte durchsuchen** oder durchsuchen [KI-Suche](#ai-suche-in-allen-journale)und des Viewers [KI-Fragen und Antworten](#die-ki-nach-einem-journal-fragen) beantwortet Fragen zu dieser Journal.
 
 ### Springen zwischen markierten Einträgen
 
@@ -209,11 +224,27 @@ Die Schaltfläche **Darstellung** des Viewers öffnet ein kleines Fenster mit de
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 
-- Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer und Beschreibung; Wenn Sie **Inhalte durchsuchen** aktivieren, werden zusätzlich die Journaleinträge gescannt – einschließlich AI-Screenshot-Beschreibungen und Tags – und Protokolle aller Journale werden im Hintergrund erfasst.
+- Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer, Beschreibung und den AI-Schlüsselwörtern. Wenn Sie **Inhalte durchsuchen** aktivieren, werden zusätzlich die Journaleinträge gescannt – einschließlich AI-Screenshot-Beschreibungen und Tags – und Protokolle jedes Journals werden im Hintergrund erfasst (die Protokolle werden Teil für Teil per Streaming gelesen, sodass selbst große Journale nicht in den Speicher geladen werden).
+- Unter dem Filterfeld zeigen anklickbare **Keyword-Chips** die häufigsten KI-Keywords in den aufgelisteten Journale an – wobei genau eine Journal ausgewählt ist, also die eigenen Keywords dieser Journal. Durch Klicken auf einen Chip wird nach ihm gefiltert. Die Schlüsselwörter stammen aus der Zusammenfassung der Abschlusssitzung, die bis zu zwölf wörtliche Suchbegriffe (Hostnamen, Skript- und Dateinamen, Fehlerklassen) in die Metadaten des Journals extrahiert.
 - **Öffnen** (oder Doppelklick) öffnet den Journal-Viewer; **Umbenennen** ändert den Titel; **Löschen** fragt nach einer Bestätigung und entfernt dann dauerhaft den Journalordner einschließlich des Protokolls und aller Screenshots.
 - Es können mehrere Journale gleichzeitig ausgewählt werden (Klick ++ctrl++ / ++shift++), um sie in einem Schritt zu löschen oder zu exportieren. Laufende Journale können nicht umbenannt oder gelöscht werden.
 - Der Bereich **Beschreibung** unterhalb der Tabelle speichert eine Freitextbeschreibung pro Journal; Es erscheint auf der Journalseite und in jedem Export und wird in die Inhaltssuche einbezogen.
-- **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen.
+- **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen sowie **Zusammenfassungen nachholen**: Es zählt die geschlossenen Journale, die nie zusammengefasst wurden (aufgezeichnet, während Zusammenfassungen deaktiviert waren oder kein Modell erreichbar war) und führt bei Bedarf die reguläre Zusammenfassung nacheinander hinter einem Fortschrittsdialog aus – zwischen Journalen abbrechbar, und ein unterbrochener Lauf wird an der Stelle fortgesetzt, an der er gestoppt wurde.
+
+### AI-Suche in allen Journale
+
+**KI-Suche** neben dem Filterfeld öffnet ein Suchfeld unter der Tabelle. Stellen Sie eine Frage zu jedem gespeicherten Journal – *„In welchen Journalen wurde result_complex.pl mit einem Fehler beendet?“* – und korTTY antwortet in zwei Schritten: Ein schnelles lokales Ranking wählt die relevantesten Journale aus ihren Metadaten und gesammelten Einträgen aus, dann schreibt eine einzige KI-Anfrage über diese Kandidaten die Zusammenfassung und wählt die Journale aus, die die Frage tatsächlich beantworten. Wie beim [per-Journal Q&A](#die-ki-nach-einem-journal-fragen) sieht das Modell immer nur die gesammelten Einträge, niemals die Capture-Loge; Die genauen Protokollpositionen stammen aus der internen Streaming-Suche.
+
+Das Ergebnis erscheint auf beiden Seiten des Panels:
+
+- Der **Antwort-Chat** auf der linken Seite unterstützt Folgefragen zu denselben Ergebnissen.
+- Der **Trefferbaum** auf der rechten Seite listet jedes übereinstimmende Journal mit seiner Gesamttrefferzahl auf (beim Schweben wird der Ein-Satz-Grund der KI angezeigt) und darunter die einzelnen Treffer – übereinstimmende Einträge und genaue Protokollzeilen mit Zeitstempel und Snippet. Ein Klick auf einen Treffer öffnet das Journal und springt direkt zu diesem Eintrag oder dieser Protokollzeile. Treffer, die Sie bereits geöffnet haben, werden mit einem Häkchen gedämpft, und diese Markierung übersteht neue Suchvorgänge und Neustarts – Orientierung für das Durcharbeiten einer langen Trefferliste.
+- In der Kopfzeile wird die Gesamtsumme angezeigt: *n Treffer in m Journale*. Wiederholte identische Ausgabezeilen werden zusammengeführt gespeichert und die Zählung umfasst ihre Wiederholungsfaktoren, sodass sie reale Vorkommnisse widerspiegelt.
+
+Die Tabelle selbst bleibt vollständig: Journale mit Treffern erhalten eine sortierte Spalte **Treffer** und eine Zeilenhervorhebung, anstatt alles andere wegzufiltern. **Nur Auswahl** beschränkt die Suche auf die in der Tabelle ausgewählten Journale.
+
+!!! note
+    Ohne ein erreichbares KI-Profil funktioniert die Suche weiterhin: Die Identifikatoren der Frage werden direkt mit den Journalen und Protokollen abgeglichen, nur die KI-Zusammenfassung und die Journalauswahl werden übersprungen (so steht es in einem Hinweis). Optional fügt die **Semantische Journalsuche** im Dialogfeld „Optionen“ ein einbettungsbasiertes Ranking zusätzlich zum lexikalischen hinzu – es erfordert ein lokales Einbettungsmodell, das in den Wissensspeichern konfiguriert ist, und greift stillschweigend auf das lexikalische Ranking zurück, wenn keine Einbettungen verfügbar sind.
 
 ### Der Viewer und die Bearbeitung
 
@@ -365,7 +396,7 @@ Beide werden unter [**Konfiguration → Globale Einstellungen → Export**](../r
 
 ## Unternehmensrichtlinie
 
-Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über vorschreiben `[rule.session-journal]`: Erzwingen Sie ein Journal für jede Verbindung, korrigieren Sie das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis, verbieten Sie das Umbenennen oder Löschen von Journalen, schreiben Sie eine Benennungsvorlage vor, erzwingen Sie den abschließenden AI-Titel und erzwingen Sie die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein oder aus – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md) für die Schlüssel.
+Administratoren können die Funktion verweigern (`session-journal` unter `[rule.features]`) oder ihr Verhalten über vorschreiben `[rule.session-journal]`: Erzwingen Sie ein Journal für jede Verbindung, korrigieren Sie das Protokollformat, das AI-Zeilenfenster oder das Speicherverzeichnis, verbieten Sie das Umbenennen oder Löschen von Journalen, schreiben Sie eine Benennungsvorlage vor, erzwingen Sie den abschließenden AI-Titel, erzwingen Sie die [KI-Screenshot-Analyse](#ki-screenshot-analyse) ein oder aus – ein erzwungenes *Aus* deaktiviert auch die manuelle Ausführung pro Screenshot – und verbietet die On-Demand-KI über Journalinhalte (`ai-ask = false` entfernt die des Viewers [Frage-und-Antwort-Runde](#die-ki-nach-einem-journal-fragen) und des Managers [KI-Suche](#ai-suche-in-allen-journale) wobei die Zusammenfassungen unberührt bleiben). Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md) für die Schlüssel.
 
 ### Automatische Schwärzung
 
