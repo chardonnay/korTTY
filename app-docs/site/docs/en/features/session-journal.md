@@ -127,6 +127,8 @@ Whether a profile can take images is a per-profile property: **Image input (visi
 
 **AI Q&A** in the viewer's toolbar opens a chat panel next to the journal page. Ask anything about this session — *"Were screenshots taken that show errors from result_complex.pl?"* — and the AI answers from what the journal already collected while the session ran: the AI summaries, screenshot descriptions and tags, and your notes. The raw capture log is never sent to the model.
 
+![Asking the AI about a journal](../assets/screenshots/journal/journal-ask-panel.png)
+
 When a question needs hard evidence from the log — exact error lines, whether a script really failed, how often something occurred — the model names a few literal search strings, korTTY's own streaming search scans the capture log for them, and only the match counts plus a handful of sample lines go back to the model for the final answer. The panel shows both next to the answer:
 
 - **Sources** — the journal entries the answer cites; clicking one scrolls the timeline to that entry.
@@ -234,6 +236,8 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 ### AI search across all journals
 
 **AI search** next to the filter field opens a search panel under the table. Ask a question across every stored journal — *"In which journals did result_complex.pl exit with an error?"* — and korTTY answers in two stages: a fast local ranking picks the most relevant journals from their metadata and collected entries, then a single AI request over those candidates writes the summary and selects the journals that actually answer the question. As with the [per-journal Q&A](#asking-the-ai-about-a-journal), the model only ever sees the collected entries, never the raw logs; exact log positions come from the internal streaming search.
+
+![AI search across all journals](../assets/screenshots/journal/journal-search-panel.png)
 
 The result appears on both sides of the panel:
 

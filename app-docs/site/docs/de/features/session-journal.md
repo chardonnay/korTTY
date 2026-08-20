@@ -118,7 +118,7 @@ Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analy
 - **Screenshots mit KI analysieren (Beschreibung und Tags)** im Dialogfeld **Optionen** des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann. andernfalls wird der Screenshot einfach unanalysiert abgelegt.
 - **Screenshot mit KI analysieren** im Rechtsklick-Menü eines Screenshots analysiert ein Bild bei Bedarf – die Möglichkeit, Screenshots in zuvor aufgezeichneten Journalen zu analysieren, einen fehlgeschlagenen Lauf zu wiederholen oder die Analyse erneut auszuführen, nachdem etwas im [Anmerkungseditor](#screenshot-notizen-und-anmerkungen) unleserlich gemacht wurde. Die Analyse liest immer das kommentierte Bild, niemals die unberührte `.orig.png`-Aufnahme.
 
-Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [AI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, die Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
+Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [AI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
 
 !!! warning
     Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme – bevor Sie die Möglichkeit haben, etwas unleserlich zu machen. Das Bild geht nur an das konfigurierte KI-Profil und niemals über Internet-Zugriffstools, aber für Sitzungen, deren Bildschirminhalt den Computer nicht verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über [Unternehmensrichtlinie](#unternehmensrichtlinie) verbieten – die Richtlinienanweisung deaktiviert auch die manuelle Ausführung.
@@ -126,6 +126,8 @@ Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **B
 ## Die KI nach einem Journal fragen
 
 **KI-Fragen** in der Symbolleiste des Viewers öffnet ein Chat-Panel neben der Journalseite. Fragen Sie etwas zu dieser Sitzung – *„Wurden Screenshots gemacht, die Fehler von result_complex.pl zeigen?“* – und die KI antwortet aus dem, was das Journal bereits während der Sitzung gesammelt hat: die KI-Zusammenfassungen, Screenshot-Beschreibungen und -Tags sowie Ihre Notizen. Das Roherfassungsprotokoll wird niemals an das Modell gesendet.
+
+![Asking the AI about a journal](../assets/screenshots/journal/journal-ask-panel.png)
 
 Wenn für eine Frage konkrete Beweise aus dem Protokoll benötigt werden – genaue Fehlerzeilen, ob ein Skript wirklich fehlgeschlagen ist, wie oft etwas passiert ist – benennt das Modell ein paar wörtliche Suchzeichenfolgen, korTTYs eigene Streaming-Suche durchsucht das Capture-Log nach ihnen, und nur die Übereinstimmungszahlen sowie eine Handvoll Beispielzeilen werden für die endgültige Antwort an das Modell zurückgesendet. Das Panel zeigt beides neben der Antwort:
 
@@ -234,6 +236,8 @@ Die Schaltfläche **Darstellung** des Viewers öffnet ein kleines Fenster mit de
 ### AI-Suche in allen Journale
 
 **KI-Suche** neben dem Filterfeld öffnet ein Suchfeld unter der Tabelle. Stellen Sie eine Frage zu jedem gespeicherten Journal – *„In welchen Journalen wurde result_complex.pl mit einem Fehler beendet?“* – und korTTY antwortet in zwei Schritten: Ein schnelles lokales Ranking wählt die relevantesten Journale aus ihren Metadaten und gesammelten Einträgen aus, dann schreibt eine einzige KI-Anfrage über diese Kandidaten die Zusammenfassung und wählt die Journale aus, die die Frage tatsächlich beantworten. Wie beim [per-Journal Q&A](#die-ki-nach-einem-journal-fragen) sieht das Modell immer nur die gesammelten Einträge, niemals die Capture-Loge; Die genauen Protokollpositionen stammen aus der internen Streaming-Suche.
+
+![AI search across all journals](../assets/screenshots/journal/journal-search-panel.png)
 
 Das Ergebnis erscheint auf beiden Seiten des Panels:
 

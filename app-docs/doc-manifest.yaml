@@ -394,6 +394,8 @@ pages:
       - journal/journal-viewer.png
       - journal/journal-export-options.png
       - journal/journal-markers.png
+      - journal/journal-ask-panel.png
+      - journal/journal-search-panel.png
     last_synced_ref: "f56db94e"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []

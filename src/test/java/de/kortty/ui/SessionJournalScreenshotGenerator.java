@@ -1,8 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.core.LanguageManager;
+import de.kortty.core.SessionJournalAskService;
+import de.kortty.core.SessionJournalCrossSearchService;
 import de.kortty.core.SessionJournalExportFilter;
 import de.kortty.core.SessionJournalExportService;
+import de.kortty.core.SessionJournalLogEntry;
+import de.kortty.core.SessionJournalLogSearcher;
 import de.kortty.core.SessionJournalMarkers;
 import de.kortty.core.SessionJournalService;
 import de.kortty.core.SessionJournalSession;
@@ -13,8 +17,11 @@ import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalMarker;
 import de.kortty.model.SessionJournalMarkerDefinition;
 import de.kortty.model.SessionJournalMarkerRule;
+import de.kortty.model.SessionJournalMeta;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
@@ -22,16 +29,22 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Transform;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,9 +64,15 @@ public final class SessionJournalScreenshotGenerator {
     private static final double EXPORT_HEIGHT = 672;
     private static final double MARKER_WIDTH = 760;
     private static final double MARKER_HEIGHT = 600;
+    private static final double ASK_PANEL_WIDTH = 440;
+    private static final double ASK_PANEL_HEIGHT = 430;
+    private static final double SEARCH_PANEL_WIDTH = 860;
+    private static final double SEARCH_PANEL_HEIGHT = 220;
 
     private static final String EXPORT_FILE = "app-docs/screenshots/journal/journal-export-options.png";
     private static final String MARKER_FILE = "app-docs/screenshots/journal/journal-markers.png";
+    private static final String ASK_PANEL_FILE = "app-docs/screenshots/journal/journal-ask-panel.png";
+    private static final String SEARCH_PANEL_FILE = "app-docs/screenshots/journal/journal-search-panel.png";
 
     private SessionJournalScreenshotGenerator() {
     }
@@ -83,6 +102,8 @@ public final class SessionJournalScreenshotGenerator {
                         verifyEditorGeometry(isolatedHome, settings);
                         capture(exportDialog, settings, EXPORT_WIDTH, EXPORT_HEIGHT, EXPORT_FILE);
                         writeMarkerShot(settings);
+                        writeAskPanelShot(settings);
+                        writeSearchPanelShot(settings);
                     } catch (Throwable t) {
                         failure.compareAndSet(null, stack(t));
                     } finally {
@@ -194,6 +215,126 @@ public final class SessionJournalScreenshotGenerator {
         Dialog<ButtonType> dialog = SessionJournalMarkerDialog.buildForCapture(settings);
         verifyButtonBarFits(dialog, "marker dialog");
         capture(dialog, settings, MARKER_WIDTH, MARKER_HEIGHT, MARKER_FILE);
+    }
+
+    private static final OffsetDateTime DEMO_TIME =
+        OffsetDateTime.of(2026, 8, 20, 11, 57, 34, 0, ZoneOffset.ofHours(2));
+
+    /**
+     * The viewer's AI Q&amp;A panel with a populated conversation — sources and log evidence
+     * included — so the manual shows what asking a question actually looks like. The real
+     * {@link SessionJournalAskService} never runs: the answer is built directly and fed through
+     * the panel's own private rendering methods via reflection, exactly the shape a real answer
+     * takes, without needing a live model.
+     */
+    private static void writeAskPanelShot(GlobalSettings settings) throws Exception {
+        SessionJournalMeta meta = new SessionJournalMeta();
+        meta.setTitle("Server load check in Dokumente");
+        meta.setConnectionName("Web01");
+        meta.setHost("192.168.1.50");
+        meta.setUsername("daniel");
+        meta.setStartedAt(DEMO_TIME.minusMinutes(12));
+        meta.setDirectory(Path.of(System.getProperty("user.home"), "journals", "web01-demo"));
+
+        SessionJournalAskService askService =
+            SessionJournalAskService.application(new SessionJournalService());
+        SessionJournalAskPanel panel = new SessionJournalAskPanel(meta, askService,
+            entryId -> { }, seq -> { }, (question, answer) -> { });
+
+        invokePrivate(panel, "appendUserMessage", new Class<?>[] {String.class},
+            "Were screenshots created in this session showing errors from server_auslastung.pl?");
+
+        SessionJournalAskService.Answer answer = new SessionJournalAskService.Answer(
+            "Yes — a screenshot at 11:57 shows the terminal right after server_auslastung.pl ran. "
+                + "The load table it displays shows low values with several fields marked N/A, and no "
+                + "errors appeared in the output. [1]",
+            List.of(new SessionJournalAskService.Source(1, "entry-1", "Server load check in Dokumente")),
+            List.of(new SessionJournalAskService.LogEvidence("server_auslastung.pl", 4, false, List.of(
+                new SessionJournalLogSearcher.Hit(12, 1, SessionJournalLogEntry.Kind.IN,
+                    DEMO_TIME.minusSeconds(37), "./server_auslastung.pl", 1),
+                new SessionJournalLogSearcher.Hit(15, 1, SessionJournalLogEntry.Kind.OUT,
+                    DEMO_TIME.minusSeconds(20), "server_auslastung.pl: load table generated", 1)))),
+            true, null);
+        invokePrivate(panel,
+            "showAnswer", new Class<?>[] {String.class, SessionJournalAskService.Answer.class},
+            "Were screenshots created in this session showing errors from server_auslastung.pl?", answer);
+
+        capturePanel(panel, settings, ASK_PANEL_WIDTH, ASK_PANEL_HEIGHT, ASK_PANEL_FILE);
+    }
+
+    /**
+     * The manager's cross-journal AI search panel with a populated result — answer, hit tree with
+     * a curated entry and log positions. Same reflection approach as {@link #writeAskPanelShot}:
+     * the real cross-search prompt never runs, only its result shape is exercised.
+     */
+    private static void writeSearchPanelShot(GlobalSettings settings) throws Exception {
+        SessionJournalMeta deployMeta = new SessionJournalMeta();
+        deployMeta.setTitle("Deploy Tuesday");
+        deployMeta.setConnectionName("deploy-01");
+        deployMeta.setHost("192.168.1.80");
+        deployMeta.setUsername("daniel");
+        deployMeta.setStartedAt(DEMO_TIME.minusHours(2));
+        deployMeta.setDirectory(Path.of(System.getProperty("user.home"), "journals", "deploy-demo"));
+
+        SessionJournalCrossSearchService.Hit entryHit = new SessionJournalCrossSearchService.Hit(
+            new SessionJournalCrossSearchService.EntryTarget("entry-1"),
+            "AI summary: result_complex.pl started and later failed with an error.", null, 1);
+        SessionJournalCrossSearchService.Hit dieHit = new SessionJournalCrossSearchService.Hit(
+            new SessionJournalCrossSearchService.LogTarget(1, 42),
+            "result_complex.pl: died at line 42", DEMO_TIME.minusHours(2).plusMinutes(3), 1);
+        SessionJournalCrossSearchService.Hit runHit = new SessionJournalCrossSearchService.Hit(
+            new SessionJournalCrossSearchService.LogTarget(1, 41),
+            "perl result_complex.pl --run", DEMO_TIME.minusHours(2).plusMinutes(2), 1);
+        SessionJournalCrossSearchService.JournalHits journalHits =
+            new SessionJournalCrossSearchService.JournalHits(deployMeta, 8.4,
+                "The script died there with an error.",
+                List.of(entryHit, dieHit, runHit), 2);
+
+        SessionJournalCrossSearchService.Result result = new SessionJournalCrossSearchService.Result(
+            "Only the Deploy Tuesday journal shows result_complex.pl failing — it died with "
+                + "an error at line 42 shortly after being started.",
+            List.of(journalHits), 3, true, null);
+
+        SessionJournalCrossSearchService searchService =
+            SessionJournalCrossSearchService.application(new SessionJournalService());
+        SessionJournalSearchPanel.Host host = new SessionJournalSearchPanel.Host() {
+            @Override
+            public List<SessionJournalMeta> allJournals() {
+                return List.of(deployMeta);
+            }
+
+            @Override
+            public List<SessionJournalMeta> selectedJournals() {
+                return List.of();
+            }
+
+            @Override
+            public void showHitCounts(Map<Path, Long> counts) {
+            }
+
+            @Override
+            public void clearHitCounts() {
+            }
+
+            @Override
+            public void openHit(SessionJournalMeta meta, SessionJournalCrossSearchService.HitTarget target) {
+            }
+        };
+        SessionJournalSearchPanel panel = new SessionJournalSearchPanel(searchService, host);
+
+        invokePrivate(panel,
+            "showResult", new Class<?>[] {String.class, SessionJournalCrossSearchService.Result.class},
+            "In which journals did result_complex.pl exit with an error?", result);
+
+        capturePanel(panel, settings, SEARCH_PANEL_WIDTH, SEARCH_PANEL_HEIGHT, SEARCH_PANEL_FILE);
+    }
+
+    /** Invokes a private instance method — the panels render only through their own methods. */
+    private static void invokePrivate(Object target, String name, Class<?>[] paramTypes, Object... args)
+            throws Exception {
+        Method method = target.getClass().getDeclaredMethod(name, paramTypes);
+        method.setAccessible(true);
+        method.invoke(target, args);
     }
 
     /**
@@ -426,6 +567,51 @@ public final class SessionJournalScreenshotGenerator {
             }
         }
         throw new IllegalStateException("button not found: " + text);
+    }
+
+    /**
+     * Same theming and snapshot recipe as {@link #capture}, for a plain {@link Parent} that has
+     * no {@link Dialog} of its own — the AI Q&amp;A / cross-search panels are docked side panels,
+     * not dialogs. A real {@link Stage} is needed (not just an unattached node) so control skins
+     * such as {@code TreeView} cells render correctly.
+     */
+    private static void capturePanel(Parent panel, GlobalSettings settings,
+                                     double width, double height, String outputFile) throws Exception {
+        var terminalCss = DialogThemeHelper.class.getResource("/styles/terminal.css");
+        if (terminalCss != null) {
+            panel.getStylesheets().add(terminalCss.toExternalForm());
+        }
+        String dynamicCss = ThemeCssSupport.getDynamicStylesheetUrl(
+            ThemeCssSupport.resolveThemeColors(settings, null));
+        if (dynamicCss != null) {
+            panel.getStylesheets().add(dynamicCss);
+        }
+        AppDesignStyleSupport.applyToParent(panel);
+
+        Stage stage = new Stage(StageStyle.UNDECORATED);
+        stage.setScene(new Scene(panel, width, height));
+        stage.setX(-4000);
+        stage.setY(-4000); // off-screen: no visible window flash during generation
+        stage.show();
+
+        panel.applyCss();
+        panel.layout();
+
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.web("#1e1e1e"));
+        params.setTransform(Transform.scale(2, 2));
+        WritableImage image = panel.snapshot(params, null);
+        stage.close();
+
+        BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
+        File outFile = new File(outputFile);
+        File parent = outFile.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IllegalStateException("Cannot create output dir: " + parent.getAbsolutePath());
+        }
+        ImageIO.write(buffered, "png", outFile);
+        System.out.println("Generated " + outFile.getAbsolutePath()
+            + " (" + buffered.getWidth() + "x" + buffered.getHeight() + ")");
     }
 
     private static void capture(Dialog<ButtonType> dialog, GlobalSettings settings,
