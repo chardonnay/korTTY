@@ -176,6 +176,35 @@ class SessionJournalAiSupportTest {
     }
 
     @Test
+    void reconcilesKeywordsAgainstTheJournalText() {
+        String corpus = "10:41 perl ./server_auslastung.pl started\n"
+            + "checked /var/log/messages and the home directories with du";
+
+        java.util.List<String> keywords = SessionJournalAiSupport.reconcileKeywords(
+            java.util.List.of(
+                "serverauslastung.pl",   // model dropped the underscore → repaired
+                "/var/log/messages",      // verbatim identifier → kept
+                "home directories",       // plain phrase → kept without the verbatim rule
+                "ghost_script.sh"),       // exists nowhere in any spelling → dropped
+            corpus);
+
+        assertThat(keywords).containsExactly(
+            "server_auslastung.pl", "/var/log/messages", "home directories").inOrder();
+    }
+
+    @Test
+    void keywordReconciliationHandlesEdgeCases() {
+        // Case-insensitive verbatim match keeps the model's spelling.
+        assertThat(SessionJournalAiSupport.reconcileKeywords(
+            java.util.List.of("Server_Auslastung.PL"), "ran server_auslastung.pl twice"))
+            .containsExactly("Server_Auslastung.PL");
+        // Empty inputs stay empty and never throw.
+        assertThat(SessionJournalAiSupport.reconcileKeywords(java.util.List.of(), "x")).isEmpty();
+        assertThat(SessionJournalAiSupport.reconcileKeywords(
+            java.util.List.of("a_b.sh"), null)).isEmpty();
+    }
+
+    @Test
     void parsesAskAnswerWithSourcesAndTerms() {
         SessionJournalAiSupport.AskAnswer answer = SessionJournalAiSupport.parseAskAnswer(
             "```json\n{\"answer\":\"It failed twice.\",\"sources\":[2,1,2,99],"

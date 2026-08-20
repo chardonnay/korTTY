@@ -512,6 +512,55 @@ public final class SessionJournalAiSupport {
         }
     }
 
+    /**
+     * Reconciles AI-produced keywords with the journal text they were extracted from. Models —
+     * local ones in particular — mangle identifiers ("server_auslastung.pl" comes back as
+     * "serverauslastung.pl"), and a mangled identifier poisons every later search. Identifier-
+     * shaped keywords (containing {@code . _ / -}) must therefore occur verbatim in the corpus;
+     * a near-miss is repaired to the real token when one matches after stripping the separators,
+     * anything else is dropped. Plain-word keywords ("home directories") pass through — the
+     * verbatim rule would cost more thematic keywords than it protects.
+     */
+    public static List<String> reconcileKeywords(List<String> keywords, String corpus) {
+        if (keywords == null || keywords.isEmpty()) {
+            return List.of();
+        }
+        String haystack = corpus != null ? corpus.toLowerCase(Locale.ROOT) : "";
+        java.util.Map<String, String> corpusIdentifiers = null; // built lazily, separator-stripped → original
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        for (String keyword : keywords) {
+            if (keyword == null || keyword.isBlank()) {
+                continue;
+            }
+            String trimmed = keyword.strip();
+            boolean identifierShaped = trimmed.contains(".") || trimmed.contains("_")
+                || trimmed.contains("/") || trimmed.contains("-");
+            if (!identifierShaped || haystack.contains(trimmed.toLowerCase(Locale.ROOT))) {
+                result.add(trimmed);
+                continue;
+            }
+            if (corpusIdentifiers == null) {
+                corpusIdentifiers = new java.util.LinkedHashMap<>();
+                for (String raw : haystack.split("[^\\p{L}\\p{N}._/\\-]+")) {
+                    String token = raw.replaceAll("^[._/\\-]+|[._/\\-]+$", "");
+                    if (token.length() >= 4) {
+                        corpusIdentifiers.putIfAbsent(stripSeparators(token), token);
+                    }
+                }
+            }
+            String repaired = corpusIdentifiers.get(stripSeparators(trimmed.toLowerCase(Locale.ROOT)));
+            if (repaired != null) {
+                result.add(repaired);
+            }
+            // else: the identifier exists nowhere in the journal, in no spelling — drop it.
+        }
+        return List.copyOf(result);
+    }
+
+    private static String stripSeparators(String value) {
+        return value.replace(".", "").replace("_", "").replace("/", "").replace("-", "");
+    }
+
     /** One journal the cross-search model selected, by its ordinal in the prompt. */
     public record CrossSearchSelection(int ordinal, String reason) {
     }
