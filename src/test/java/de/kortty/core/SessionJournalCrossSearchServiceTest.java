@@ -201,6 +201,50 @@ class SessionJournalCrossSearchServiceTest {
     }
 
     @Test
+    void vagueQuestionFallsBackToIdentifiersFromTheAnswer() {
+        // "was the script started?" carries no literal search string — the model's answer
+        // names the script, and those identifiers must still produce exact hits.
+        invoker.replies.add("{\"terms\":[]}");
+        invoker.replies.add("{\"answer\":\"Yes, result_complex.pl was started.\","
+            + "\"journals\":[{\"ordinal\":1,\"reason\":\"The script ran there.\"}]}");
+
+        SessionJournalCrossSearchService.Result result = searchService.search(
+            journals, "was the script started?", List.of(), "de", () -> false);
+
+        assertThat(result.journals()).hasSize(1);
+        assertThat(result.journals().get(0).totalLogMatches()).isEqualTo(2);
+        assertThat(result.totalHits()).isGreaterThan(0);
+    }
+
+    @Test
+    void selectedJournalWithoutAnyHitsStaysListedWithItsReason() {
+        invoker.replies.add("{\"terms\":[\"zeppelin\"]}");
+        invoker.replies.add("{\"answer\":\"Probably the quiet one.\","
+            + "\"journals\":[{\"ordinal\":1,\"reason\":\"Routine work only.\"}]}");
+
+        SessionJournalCrossSearchService.Result result = searchService.search(
+            journals, "was everything calm?", List.of(), "de", () -> false);
+
+        assertThat(result.journals()).hasSize(1);
+        assertThat(result.journals().get(0).hits()).isEmpty();
+        assertThat(result.journals().get(0).aiReason()).contains("Routine");
+    }
+
+    @Test
+    void identifierTermsPickOnlyIdentifierShapedTokens() {
+        List<String> terms = SessionJournalCrossSearchService.identifierTerms(
+            "was script started?",
+            "Yes, the script server_auslastung.pl was executed (started) during the session.",
+            List.of());
+        assertThat(terms).containsExactly("server_auslastung.pl");
+
+        // Already-covered identifiers and bare words never enter the fallback.
+        assertThat(SessionJournalCrossSearchService.identifierTerms(
+            "did result_complex.pl fail?", "result_complex.pl failed.",
+            List.of("result_complex.pl"))).isEmpty();
+    }
+
+    @Test
     void fusesLexicalAndSemanticRankingsReciprocally() {
         Path deployDir = journals.get(0).getDirectory().toAbsolutePath().normalize();
         Path quietDir = journals.get(1).getDirectory().toAbsolutePath().normalize();

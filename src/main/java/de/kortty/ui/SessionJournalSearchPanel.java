@@ -62,7 +62,7 @@ final class SessionJournalSearchPanel extends VBox {
         /** Removes the hit column and highlight again. */
         void clearHitCounts();
 
-        /** Opens the journal and jumps to the hit target. */
+        /** Opens the journal and jumps to the hit target; a null target just opens it. */
         void openHit(SessionJournalMeta meta, SessionJournalCrossSearchService.HitTarget target);
     }
 
@@ -284,6 +284,13 @@ final class SessionJournalSearchPanel extends VBox {
                     SessionJournalVisitedStore.shared().markVisited(row.visitedKey());
                     updateItem(getItem(), false); // repaint this cell as visited right away
                     host.openHit(row.meta(), row.hit().target());
+                    return;
+                }
+                // The journal node itself opens on double-click — the single click keeps
+                // doing what tree nodes do (select, expand via the arrow).
+                if (event.getClickCount() == 2
+                    && getItem() instanceof SessionJournalCrossSearchService.JournalHits journal) {
+                    host.openHit(journal.meta(), null);
                 }
             });
         }
@@ -300,11 +307,17 @@ final class SessionJournalSearchPanel extends VBox {
             if (item instanceof SessionJournalCrossSearchService.JournalHits journal) {
                 String title = journal.meta().getTitle() != null
                     ? journal.meta().getTitle() : String.valueOf(journal.meta().getConnectionName());
-                setText(title + " — " + I18n.get("journal.search.journalHits",
-                    String.valueOf(journalTotal(journal))));
+                long total = journalTotal(journal);
+                // "0 hits" would read like a bug — this journal is here because the AI relates
+                // it to the question, only no literal search string matched a position.
+                setText(title + " — " + (total > 0
+                    ? I18n.get("journal.search.journalHits", String.valueOf(total))
+                    : I18n.get("journal.search.noExactHits")));
                 setStyle("-fx-font-weight: bold;");
-                setTooltip(journal.aiReason() != null && !journal.aiReason().isBlank()
-                    ? new Tooltip(journal.aiReason()) : null);
+                String openHint = I18n.get("journal.search.openHint");
+                setTooltip(new Tooltip(journal.aiReason() != null && !journal.aiReason().isBlank()
+                    ? journal.aiReason() + "\n" + openHint
+                    : openHint));
                 return;
             }
             if (item instanceof HitRow row) {

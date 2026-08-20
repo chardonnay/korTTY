@@ -190,6 +190,23 @@ public final class SessionJournalCrossSearchService {
             if (orderedIds.size() > limit) {
                 orderedIds = orderedIds.subList(0, limit);
             }
+            if (orderedIds.isEmpty() && !cardsByKey.isEmpty()) {
+                // A vague question ("was everything okay?") can match nothing lexically. The
+                // model still answers well from the cards, so the newest journals stand in as
+                // candidates rather than returning nothing without ever asking.
+                orderedIds = cardsByKey.entrySet().stream()
+                    .sorted((a, b) -> {
+                        OffsetDateTime left = a.getValue().meta().getStartedAt();
+                        OffsetDateTime right = b.getValue().meta().getStartedAt();
+                        if (left == null || right == null) {
+                            return left == null ? (right == null ? 0 : 1) : -1;
+                        }
+                        return right.compareTo(left);
+                    })
+                    .limit(limit)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            }
 
             List<CardEntry> candidates = new ArrayList<>();
             Map<Path, Double> scores = new java.util.HashMap<>();
@@ -246,7 +263,11 @@ public final class SessionJournalCrossSearchService {
                 }
             }
 
-            // 4. Hit materialization — deterministic, independent of the AI's success.
+            // 4. Hit materialization — deterministic, independent of the AI's success. A vague
+            // question ("was the script started?") often carries no literal search string, but
+            // the model's answer names one — those identifiers are the fallback when the primary
+            // terms find nothing in a selected journal.
+            List<String> fallbackTerms = identifierTerms(question, answer, terms);
             List<JournalHits> journals = new ArrayList<>();
             long totalHits = 0;
             int totalLogHits = 0;
@@ -254,34 +275,15 @@ public final class SessionJournalCrossSearchService {
                 if (isCancelled(cancelled)) {
                     break;
                 }
-                List<Hit> hits = new ArrayList<>();
-                long journalTotal = 0;
-                for (SessionJournalSearchCard.Section section : entry.card().sections()) {
-                    if (hits.size() >= MAX_HITS_PER_JOURNAL) {
-                        break;
-                    }
-                    if (section.entryId() != null && matchesAnyTerm(section, terms)) {
-                        hits.add(new Hit(new EntryTarget(section.entryId()),
-                            sectionSnippet(section), null, 1));
-                        journalTotal++;
-                    }
+                int hitBudget = Math.min(MAX_HITS_PER_JOURNAL, MAX_TOTAL_LOG_HITS - totalLogHits);
+                Materialized materialized = materializeHits(entry, terms, hitBudget, cancelled);
+                if (materialized.isEmpty() && !fallbackTerms.isEmpty()) {
+                    materialized = materializeHits(entry, fallbackTerms, hitBudget, cancelled);
                 }
-                long totalLogMatches = 0;
-                if (!terms.isEmpty() && totalLogHits < MAX_TOTAL_LOG_HITS) {
-                    int remaining = Math.min(MAX_HITS_PER_JOURNAL - hits.size(),
-                        MAX_TOTAL_LOG_HITS - totalLogHits);
-                    SessionJournalLogSearcher.Result logResult = SessionJournalLogSearcher.search(
-                        entry.meta().getDirectory(),
-                        SessionJournalLogSearcher.Spec.ofLiteral(terms),
-                        Math.max(0, remaining), cancelled);
-                    totalLogMatches = logResult.totalMatches();
-                    journalTotal += totalLogMatches;
-                    for (SessionJournalLogSearcher.Hit hit : logResult.hits()) {
-                        hits.add(new Hit(new LogTarget(hit.part(), hit.seq()),
-                            hit.snippet(), hit.timestamp(), Math.max(1, hit.repeat())));
-                        totalLogHits++;
-                    }
-                }
+                List<Hit> hits = materialized.hits();
+                long totalLogMatches = materialized.totalLogMatches();
+                long journalTotal = materialized.journalTotal();
+                totalLogHits += materialized.logHitCount();
                 String reason = aiReasons.get(normalize(entry.meta()));
                 if (hits.isEmpty() && reason == null) {
                     continue; // neither the terms nor the model connect this journal to the question
@@ -298,6 +300,86 @@ public final class SessionJournalCrossSearchService {
     }
 
     private record CardEntry(SessionJournalMeta meta, SessionJournalSearchCard card) {
+    }
+
+    /** One journal's materialized hits; {@code journalTotal} counts curated hits + log occurrences. */
+    private record Materialized(List<Hit> hits, long totalLogMatches, long journalTotal,
+                                int logHitCount) {
+
+        boolean isEmpty() {
+            return hits.isEmpty() && totalLogMatches == 0;
+        }
+    }
+
+    /** Curated-entry hits by term match plus exact log positions for one journal. */
+    private static Materialized materializeHits(CardEntry entry, List<String> terms,
+                                                int hitBudget, BooleanSupplier cancelled) {
+        List<Hit> hits = new ArrayList<>();
+        long journalTotal = 0;
+        for (SessionJournalSearchCard.Section section : entry.card().sections()) {
+            if (hits.size() >= hitBudget) {
+                break;
+            }
+            if (section.entryId() != null && matchesAnyTerm(section, terms)) {
+                hits.add(new Hit(new EntryTarget(section.entryId()),
+                    sectionSnippet(section), null, 1));
+                journalTotal++;
+            }
+        }
+        long totalLogMatches = 0;
+        int logHitCount = 0;
+        int remaining = hitBudget - hits.size();
+        if (!terms.isEmpty() && remaining > 0) {
+            SessionJournalLogSearcher.Result logResult = SessionJournalLogSearcher.search(
+                entry.meta().getDirectory(),
+                SessionJournalLogSearcher.Spec.ofLiteral(terms),
+                remaining, cancelled);
+            totalLogMatches = logResult.totalMatches();
+            journalTotal += totalLogMatches;
+            for (SessionJournalLogSearcher.Hit hit : logResult.hits()) {
+                hits.add(new Hit(new LogTarget(hit.part(), hit.seq()),
+                    hit.snippet(), hit.timestamp(), Math.max(1, hit.repeat())));
+                logHitCount++;
+            }
+        }
+        return new Materialized(hits, totalLogMatches, journalTotal, logHitCount);
+    }
+
+    /**
+     * Identifier-shaped tokens (containing {@code . _ / -}) from the question and the AI's
+     * answer that the primary terms do not already cover — never bare words, which would turn
+     * the fallback into a noise generator.
+     */
+    static List<String> identifierTerms(String question, String answer, List<String> primaryTerms) {
+        java.util.LinkedHashSet<String> identifiers = new java.util.LinkedHashSet<>();
+        for (String text : new String[] {question, answer}) {
+            if (text == null) {
+                continue;
+            }
+            for (String raw : text.split("[^\\p{L}\\p{N}._/\\-]+")) {
+                // Sentence punctuation sticks to the token ("session." at a sentence end) —
+                // only separators between word characters make an identifier.
+                String token = raw.replaceAll("^[._/\\-]+|[._/\\-]+$", "");
+                boolean identifierShaped = token.length() >= 4
+                    && (token.contains(".") || token.contains("_") || token.contains("/"));
+                if (identifierShaped && !containsIgnoreCase(primaryTerms, token)) {
+                    identifiers.add(token);
+                }
+                if (identifiers.size() >= 4) {
+                    return List.copyOf(identifiers);
+                }
+            }
+        }
+        return List.copyOf(identifiers);
+    }
+
+    private static boolean containsIgnoreCase(List<String> values, String candidate) {
+        for (String value : values) {
+            if (value.equalsIgnoreCase(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
