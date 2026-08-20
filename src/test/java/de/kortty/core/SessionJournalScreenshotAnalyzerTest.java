@@ -236,15 +236,21 @@ class SessionJournalScreenshotAnalyzerTest {
     @Test
     void liveCheckSayingNoSkipsAutoSilentlyAndFailsManualExplicitly() throws Exception {
         SessionJournalSession session = newLiveSession();
-        SessionJournalEntry entry = session.attachScreenshot(pngBytes(Color.RED), null);
+        // Two distinct entries: analyzeAutomatically's async dispatch and analyzeManually's for
+        // the SAME entry share the analyzer's in-flight dedup key, and racing them back-to-back
+        // made this test's outcome depend on which submission's executor task ran first — it
+        // passed on macOS/Windows CI but flaked on Linux. Separate entries remove the race by
+        // construction while still exercising both trigger paths against the live-check "no".
+        SessionJournalEntry autoEntry = session.attachScreenshot(pngBytes(Color.RED), null);
+        SessionJournalEntry manualEntry = session.attachScreenshot(pngBytes(Color.BLUE), null);
         invoker.visionAvailable = true; // plausible — but the authoritative live answer is no
         invoker.visionLive = false;
 
         // The auto run finishes silently without ever calling the model…
-        analyzer.analyzeAutomatically(session.getDirectory(), entry.getId(), true);
+        analyzer.analyzeAutomatically(session.getDirectory(), autoEntry.getId(), true);
         // …while the manual run reports the reason.
         ExecutionException failure = expectThrows(ExecutionException.class,
-            () -> analyzer.analyzeManually(session.getDirectory(), entry.getId()).get(5, TimeUnit.SECONDS));
+            () -> analyzer.analyzeManually(session.getDirectory(), manualEntry.getId()).get(5, TimeUnit.SECONDS));
         assertThat(failure.getCause())
             .isInstanceOf(SessionJournalScreenshotAnalyzer.VisionUnavailableException.class);
         assertThat(invoker.uploadedImages).isEmpty();
