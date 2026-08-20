@@ -254,6 +254,41 @@ class SessionJournalCrossSearchServiceTest {
     }
 
     @Test
+    void screenshotEntriesWithoutAnyTextAreFoundByTheirKind() throws IOException {
+        // No AI analysis, no caption — the entry kind is the only trace of "screenshot".
+        SessionJournalEntry bare = new SessionJournalEntry();
+        bare.setKind(SessionJournalEntryKind.SCREENSHOT);
+        service.appendEntry(journals.get(0).getDirectory(), bare);
+
+        invoker.replies.add("{\"terms\":[]}");
+        invoker.replies.add("{\"answer\":\"Ja.\",\"journals\":[{\"ordinal\":1,\"reason\":\"Screenshots.\"}]}");
+
+        SessionJournalCrossSearchService.Result result = searchService.search(
+            journals, "gibt es screenshots?", List.of(), "de", () -> false);
+
+        assertThat(result.journals()).hasSize(1);
+        var entryHits = result.journals().get(0).hits().stream()
+            .filter(h -> h.target() instanceof SessionJournalCrossSearchService.EntryTarget)
+            .toList();
+        assertThat(entryHits).isNotEmpty();
+        assertThat(entryHits.get(0).snippet()).isNotEmpty(); // kind label, never a blank link
+    }
+
+    @Test
+    void kindAliasesMatchAcrossLanguagesAndPlurals() {
+        assertThat(SessionJournalCrossSearchService.kindMatchesAnyTerm(
+            SessionJournalEntryKind.SCREENSHOT, List.of("screenshots"))).isTrue();
+        assertThat(SessionJournalCrossSearchService.kindMatchesAnyTerm(
+            SessionJournalEntryKind.SCREENSHOT, List.of("Bildschirmfotos"))).isTrue();
+        assertThat(SessionJournalCrossSearchService.kindMatchesAnyTerm(
+            SessionJournalEntryKind.USER_NOTE, List.of("Notizen"))).isTrue();
+        assertThat(SessionJournalCrossSearchService.kindMatchesAnyTerm(
+            SessionJournalEntryKind.SCREENSHOT, List.of("nginx"))).isFalse();
+        assertThat(SessionJournalCrossSearchService.kindMatchesAnyTerm(
+            SessionJournalEntryKind.SYSTEM, List.of("screenshots"))).isFalse();
+    }
+
+    @Test
     void stemmedTermMatchingBridgesPluralsAndLanguages() {
         assertThat(SessionJournalCrossSearchService.textMatchesAnyTerm(
             "Screenshot shows the nginx status", List.of("screenshots"))).isTrue();

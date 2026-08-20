@@ -506,7 +506,51 @@ public final class SessionJournalCrossSearchService {
 
     private static boolean matchesAnyTerm(SessionJournalSearchCard.Section section,
                                           List<String> terms) {
-        return textMatchesAnyTerm(section.searchText(), terms);
+        return textMatchesAnyTerm(section.searchText(), terms)
+            || kindMatchesAnyTerm(section.kind(), terms);
+    }
+
+    /**
+     * "Are there screenshots?" must find the screenshot entries even when they carry no text at
+     * all (no AI analysis, no caption) — the entry KIND is the information then. Maps a few
+     * kind words per language onto the entry kinds, stemmed like every other term.
+     */
+    private static final Map<de.kortty.model.SessionJournalEntryKind, java.util.Set<String>>
+        KIND_ALIAS_STEMS = buildKindAliasStems();
+
+    private static Map<de.kortty.model.SessionJournalEntryKind, java.util.Set<String>> buildKindAliasStems() {
+        Map<de.kortty.model.SessionJournalEntryKind, List<String>> aliases = new java.util.EnumMap<>(
+            de.kortty.model.SessionJournalEntryKind.class);
+        aliases.put(de.kortty.model.SessionJournalEntryKind.SCREENSHOT,
+            List.of("screenshot", "bildschirmfoto", "captura", "capture", "schermata", "snimka"));
+        aliases.put(de.kortty.model.SessionJournalEntryKind.USER_NOTE,
+            List.of("note", "notiz", "nota", "notitie", "biljeska"));
+        List<String> summaryWords = List.of("summary", "zusammenfassung", "resumen", "resume",
+            "riassunto", "resumo", "samenvatting", "sazetak");
+        aliases.put(de.kortty.model.SessionJournalEntryKind.AI_SUMMARY, summaryWords);
+        aliases.put(de.kortty.model.SessionJournalEntryKind.SESSION_SUMMARY, summaryWords);
+        aliases.put(de.kortty.model.SessionJournalEntryKind.AGENT, List.of("agent"));
+        Map<de.kortty.model.SessionJournalEntryKind, java.util.Set<String>> stems =
+            new java.util.EnumMap<>(de.kortty.model.SessionJournalEntryKind.class);
+        aliases.forEach((kind, words) -> stems.put(kind, new java.util.HashSet<>(
+            GuideDocsRetriever.normalizeTokens(GuideDocsRetriever.rawTokens(String.join(" ", words))))));
+        return stems;
+    }
+
+    static boolean kindMatchesAnyTerm(de.kortty.model.SessionJournalEntryKind kind,
+                                      List<String> terms) {
+        java.util.Set<String> aliasStems = kind != null ? KIND_ALIAS_STEMS.get(kind) : null;
+        if (aliasStems == null || terms.isEmpty()) {
+            return false;
+        }
+        for (String term : terms) {
+            for (String stem : GuideDocsRetriever.normalizeTokens(GuideDocsRetriever.rawTokens(term))) {
+                if (aliasStems.contains(stem)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -539,6 +583,10 @@ public final class SessionJournalCrossSearchService {
 
     private static String sectionSnippet(SessionJournalSearchCard.Section section) {
         String text = section.searchText();
+        if (text.isBlank()) {
+            // A kind-matched entry without any text (unanalyzed screenshot) still needs a label.
+            return section.kind() != null ? section.kind().name() : "";
+        }
         return text.length() > 200 ? text.substring(0, 200) + "…" : text;
     }
 
