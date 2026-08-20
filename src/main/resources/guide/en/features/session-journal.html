@@ -2163,6 +2163,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#asking-the-ai-about-a-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking the AI about a journal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#password-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2256,6 +2267,17 @@
   
     <nav class="md-nav" aria-label="Managing journals">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ai-search-across-all-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI search across all journals
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#the-viewer-and-editing" class="md-nav__link">
@@ -2817,6 +2839,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#asking-the-ai-about-a-journal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking the AI about a journal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#password-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2910,6 +2943,17 @@
   
     <nav class="md-nav" aria-label="Managing journals">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ai-search-across-all-journals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI search across all journals
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#the-viewer-and-editing" class="md-nav__link">
@@ -3199,6 +3243,11 @@
 <td>Journal manager <strong>Options</strong></td>
 <td>on</td>
 </tr>
+<tr>
+<td>Semantic journal search (embeddings)</td>
+<td>Journal manager <strong>Options</strong></td>
+<td>off</td>
+</tr>
 </tbody>
 </table>
 <p>Summaries use your <strong>default AI profile</strong> unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's <strong>Options</strong> dialog, <strong>Settings &gt; Logging &gt; Session Journal</strong>, and <strong>AI &gt; AI Manager &gt; Local AI</strong> next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.</p>
@@ -3207,7 +3256,7 @@
 <p class="admonition-title">Warning</p>
 <p>Chunking can take very long on large sessions and is not recommended for everyday use — it is intended for power users with capable hardware and a powerful LLM.</p>
 </div>
-<p>When the session ends, the summarizer writes a closing <strong>session summary</strong> entry (what was accomplished, which errors occurred). Optionally — <strong>Let the AI title the journal when the session ends</strong> in the Options dialog — a final AI call names the journal, unless you renamed it manually.</p>
+<p>When the session ends, the summarizer writes a closing <strong>session summary</strong> entry (what was accomplished, which errors occurred) and extracts up to twelve verbatim <strong>keywords</strong> — hostnames, script and file names, error classes — into the journal metadata, where the manager's filter, keyword chips and <a href="#ai-search-across-all-journals">AI search</a> pick them up. Optionally — <strong>Let the AI title the journal when the session ends</strong> in the Options dialog — a final AI call names the journal, unless you renamed it manually.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The journal works without AI: if no AI profile is available, AI features are disabled, or summaries are switched off, the timeline records raw activity entries instead. AI summary prompts never use internet-access tools; the terminal excerpt goes only to the configured AI profile.</p>
@@ -3222,6 +3271,18 @@
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>The automatic analysis sends the screenshot at capture time — before you had a chance to make anything unreadable. The picture goes only to the configured AI profile and never through internet-access tools, but for sessions whose screen content must not leave the machine, switch the option off or have your administrator forbid the analysis via <a href="#enterprise-policy">enterprise policy</a> — the policy mandate also disables the manual run.</p>
+</div>
+<h2 id="asking-the-ai-about-a-journal">Asking the AI about a journal<a class="headerlink" href="#asking-the-ai-about-a-journal" title="Permanent link">&para;</a></h2>
+<p><strong>AI Q&amp;A</strong> in the viewer's toolbar opens a chat panel next to the journal page. Ask anything about this session — <em>"Were screenshots taken that show errors from result_complex.pl?"</em> — and the AI answers from what the journal already collected while the session ran: the AI summaries, screenshot descriptions and tags, and your notes. The raw capture log is never sent to the model.</p>
+<p>When a question needs hard evidence from the log — exact error lines, whether a script really failed, how often something occurred — the model names a few literal search strings, korTTY's own streaming search scans the capture log for them, and only the match counts plus a handful of sample lines go back to the model for the final answer. The panel shows both next to the answer:</p>
+<ul>
+<li><strong>Sources</strong> — the journal entries the answer cites; clicking one scrolls the timeline to that entry.</li>
+<li><strong>Log evidence</strong> — per search string the exact number of matching log lines, with clickable samples that open the log panel scrolled to the very line.</li>
+</ul>
+<p>Follow-up questions continue the conversation (the panel keeps the recent exchanges as context); <strong>New conversation</strong> starts over. <strong>Save as note</strong> appends a question-and-answer pair to the journal timeline as an entry, so a finding becomes part of the record.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If no AI profile is reachable or the request fails, the panel degrades instead of erroring out: it extracts the identifiers from your question, runs the internal text search, and shows the matching entries and log lines with a notice that no model was involved. The Q&amp;A never uses internet-access tools, and administrators can forbid it entirely (<code>ai-ask</code> under <a href="#enterprise-policy">enterprise policy</a>).</p>
 </div>
 <h2 id="password-protection">Password protection<a class="headerlink" href="#password-protection" title="Permanent link">&para;</a></h2>
 <p>Typed input is captured only as complete submitted lines, and several layers keep passwords out of the journal:</p>
@@ -3249,7 +3310,7 @@
 <p>The magnifier in the header opens a search bar directly under the connection details (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> jump between the hits, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or ✕ closes the bar and clears the highlighting.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This searches the journal entries. The raw capture log has its own search inside the log panel, and the journal manager can search across <em>all</em> journals with <strong>Search contents</strong>.</p>
+<p>This searches the journal entries. The raw capture log has its own search inside the log panel, the journal manager can search across <em>all</em> journals with <strong>Search contents</strong> or the <a href="#ai-search-across-all-journals">AI search</a>, and the viewer's <a href="#asking-the-ai-about-a-journal">AI Q&amp;A</a> answers questions about this journal.</p>
 </div>
 <h3 id="jumping-between-marked-entries">Jumping between marked entries<a class="headerlink" href="#jumping-between-marked-entries" title="Permanent link">&para;</a></h3>
 <p>When at least one entry carries a marker, the header gains a ◆ button that opens a marker bar. Pick <strong>All markers</strong> or a single one, then step through the matches with ▲ and ▼ — the list wraps around, and the current entry is scrolled into view and briefly outlined. <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> do the same without the mouse, and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-m">M</kbd></span> toggles the bar; <span class="keys"><kbd class="key-escape">Esc</kbd></span> closes it.</p>
@@ -3335,12 +3396,26 @@
 <p><strong>Tools &gt; Session Journals…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
 <p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
 <ul>
-<li>The filter field matches title, connection, host, user and description; enabling <strong>Search contents</strong> additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background.</li>
+<li>The filter field matches title, connection, host, user, description and the AI keywords; enabling <strong>Search contents</strong> additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background (the logs are read streaming, part by part, so even huge journals do not load into memory).</li>
+<li>Below the filter field, clickable <strong>keyword chips</strong> show the most common AI keywords across the listed journals — with exactly one journal selected, that journal's own keywords. Clicking a chip filters by it. The keywords come from the closing session summary, which extracts up to twelve verbatim search terms (hostnames, script and file names, error classes) into the journal metadata.</li>
 <li><strong>Open</strong> (or double-click) opens the journal viewer; <strong>Rename</strong> changes the title; <strong>Delete</strong> asks for confirmation and then permanently removes the journal folder including the log and all screenshots.</li>
 <li>Several journals can be selected at once (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd></span> click) to delete or export them in one step. Running journals cannot be renamed or deleted.</li>
 <li>The <strong>Description</strong> area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.</li>
-<li><strong>Options</strong> holds the global capture and AI settings described above.</li>
+<li><strong>Options</strong> holds the global capture and AI settings described above, plus <strong>Catch up summaries</strong>: it counts the closed journals that were never summarized (recorded while summaries were off or no model was reachable) and, on demand, runs the regular summarizer over them one by one behind a progress dialog — cancellable between journals, and an interrupted run resumes where it stopped.</li>
 </ul>
+<h3 id="ai-search-across-all-journals">AI search across all journals<a class="headerlink" href="#ai-search-across-all-journals" title="Permanent link">&para;</a></h3>
+<p><strong>AI search</strong> next to the filter field opens a search panel under the table. Ask a question across every stored journal — <em>"In which journals did result_complex.pl exit with an error?"</em> — and korTTY answers in two stages: a fast local ranking picks the most relevant journals from their metadata and collected entries, then a single AI request over those candidates writes the summary and selects the journals that actually answer the question. As with the <a href="#asking-the-ai-about-a-journal">per-journal Q&amp;A</a>, the model only ever sees the collected entries, never the raw logs; exact log positions come from the internal streaming search.</p>
+<p>The result appears on both sides of the panel:</p>
+<ul>
+<li>The <strong>answer chat</strong> on the left supports follow-up questions about the same results.</li>
+<li>The <strong>hit tree</strong> on the right lists each matching journal with its total hit count (hovering shows the AI's one-sentence reason), and under it the individual hits — matching entries and exact log lines with timestamp and snippet. Clicking a hit opens the journal and jumps straight to that entry or log line. Hits you have already opened turn muted with a check mark, and that marking survives new searches and restarts — orientation for working through a long hit list.</li>
+<li>The header shows the total: <em>n hits in m journals</em>. Repeated identical output lines are stored coalesced, and the count includes their repeat factors, so it reflects real occurrences.</li>
+</ul>
+<p>The table itself stays complete: journals with hits get a sorted <strong>Hits</strong> column and a row highlight instead of filtering everything else away. <strong>Selection only</strong> restricts the search to the journals selected in the table.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Without a reachable AI profile the search still works: the question's identifiers are matched against the journals and logs directly, only the AI summary and journal selection are skipped (a notice says so). Optionally, <strong>Semantic journal search</strong> in the Options dialog adds embedding-based ranking on top of the lexical one — it requires a local embedding model configured in the knowledge stores and falls back to the lexical ranking silently whenever embeddings are unavailable.</p>
+</div>
 <h3 id="the-viewer-and-editing">The viewer and editing<a class="headerlink" href="#the-viewer-and-editing" title="Permanent link">&para;</a></h3>
 <p><img alt="Session journal viewer" src="../assets/screenshots/journal/journal-viewer.png" /></p>
 <p>The viewer shows the journal page in an embedded browser and refreshes automatically while the journal is still being written. <strong>Open in browser</strong> hands the page to your system browser. <strong>Edit</strong> splits the view: an entry table next to a form with the entry's <strong>Title</strong>, <strong>Summary</strong>, a marker picker and a notes field. Editing lets you correct or categorize entries — flag failures, highlight important findings, or rewrite a summary. Saving regenerates the page at the edited entry's position; a marker you set manually is never overwritten by the AI or by a rule.</p>
@@ -3545,7 +3620,7 @@
 <p>By default every exported document carries a footer stating that it was created with korTTY, with a link to the project repository — at the bottom of each PDF page, at the end of the Markdown file, and in the footer of the journal page inside the HTML bundle. PDFs can additionally carry a diagonal watermark, which is <strong>off by default</strong>.</p>
 <p>Both are configured under <a href="../reference/settings/export.html"><strong>Configuration → Global Settings → Export</strong></a>, where you can change the footer text, turn the footer off, enable the watermark and choose its text and colour. The same settings apply to AI chat exports.</p>
 <h2 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h2>
-<p>Administrators can deny the feature (<code>session-journal</code> under <code>[rule.features]</code>), or mandate its behavior via <code>[rule.session-journal]</code>: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, and force the <a href="#ai-screenshot-analysis">AI screenshot analysis</a> on or off — a forced <em>off</em> also disables the manual per-screenshot run. See <a href="../reference/enterprise-policy.html">Policy configuration</a> for the keys.</p>
+<p>Administrators can deny the feature (<code>session-journal</code> under <code>[rule.features]</code>), or mandate its behavior via <code>[rule.session-journal]</code>: force a journal for every connection, fix the log format, AI line window or storage directory, forbid renaming or deleting journals, prescribe a naming template, enforce the closing AI title, force the <a href="#ai-screenshot-analysis">AI screenshot analysis</a> on or off — a forced <em>off</em> also disables the manual per-screenshot run — and forbid the on-demand AI over journal content (<code>ai-ask = false</code> removes the viewer's <a href="#asking-the-ai-about-a-journal">Q&amp;A panel</a> and the manager's <a href="#ai-search-across-all-journals">AI search</a> while leaving the summaries untouched). See <a href="../reference/enterprise-policy.html">Policy configuration</a> for the keys.</p>
 <h3 id="automatic-redaction">Automatic redaction<a class="headerlink" href="#automatic-redaction" title="Permanent link">&para;</a></h3>
 <p>A <code>[[rule.session-journal.replace]]</code> list makes korTTY apply search-and-replace automatically, with regular expressions if the administrator wants them — for cloud access keys, internal hostnames, ticket numbers, anything that must never end up in a transcript:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[rule.session-journal.replace]]</span>
