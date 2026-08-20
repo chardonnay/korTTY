@@ -781,6 +781,17 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         CheckBox aiScreenshotCheck = new CheckBox(I18n.get("journal.options.aiScreenshotAnalysis"));
         aiScreenshotCheck.setSelected(settings.isSessionJournalAiScreenshotAnalysisEnabled());
 
+        CheckBox semanticSearchCheck = new CheckBox(I18n.get("journal.options.semanticSearch"));
+        semanticSearchCheck.setSelected(settings.isSessionJournalSemanticSearchEnabled());
+        if (!de.kortty.core.SessionJournalSemanticIndex.embeddingModelConfigured()) {
+            semanticSearchCheck.setDisable(true);
+            semanticSearchCheck.setTooltip(new Tooltip(
+                I18n.get("journal.options.semanticSearch.needsModel")));
+        } else {
+            semanticSearchCheck.setTooltip(new Tooltip(
+                I18n.get("journal.options.semanticSearch.tooltip")));
+        }
+
         // Dedicated journal AI profile; empty = the user's default AI profile.
         ComboBox<de.kortty.model.AiProfile> aiProfileCombo = new ComboBox<>();
         aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
@@ -872,6 +883,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         grid.add(chunkingWarning, 0, row++, 2, 1);
         grid.add(aiTitleCheck, 0, row++, 2, 1);
         grid.add(aiScreenshotCheck, 0, row++, 2, 1);
+        grid.add(semanticSearchCheck, 0, row++, 2, 1);
         grid.add(backfillButton, 0, row++, 2, 1);
         if (anyManaged) {
             grid.add(managedHint, 0, row, 2, 1);
@@ -894,6 +906,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         }
         if (!aiScreenshotCheck.isDisabled()) {
             settings.setSessionJournalAiScreenshotAnalysisEnabled(aiScreenshotCheck.isSelected());
+        }
+        if (!semanticSearchCheck.isDisabled()) {
+            settings.setSessionJournalSemanticSearchEnabled(semanticSearchCheck.isSelected());
         }
         de.kortty.model.AiProfile selectedProfile = aiProfileCombo.getValue();
         settings.setSessionJournalAiProfileId(selectedProfile != null ? selectedProfile.getId() : null);

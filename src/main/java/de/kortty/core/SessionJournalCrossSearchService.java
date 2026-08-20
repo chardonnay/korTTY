@@ -78,21 +78,36 @@ public final class SessionJournalCrossSearchService {
     private final SessionJournalSearchCardIndex cardIndex;
     private final SessionJournalAiSupport.AiInvoker invoker;
     private final IntSupplier topK;
+    /** Optional embedding-based ranking, fused with BM25; null = lexical only. */
+    private final SessionJournalSemanticIndex semanticIndex;
 
     SessionJournalCrossSearchService(SessionJournalSearchCardIndex cardIndex,
                                      SessionJournalAiSupport.AiInvoker invoker,
                                      IntSupplier topK) {
+        this(cardIndex, invoker, topK, null);
+    }
+
+    SessionJournalCrossSearchService(SessionJournalSearchCardIndex cardIndex,
+                                     SessionJournalAiSupport.AiInvoker invoker,
+                                     IntSupplier topK,
+                                     SessionJournalSemanticIndex semanticIndex) {
         this.cardIndex = cardIndex;
         this.invoker = invoker;
         this.topK = topK;
+        this.semanticIndex = semanticIndex;
     }
 
     /** Production instance following the journal AI profile. */
     public static SessionJournalCrossSearchService application(SessionJournalService service) {
+        SessionJournalSearchCardIndex cards = new SessionJournalSearchCardIndex(service);
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        de.kortty.model.GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings() : null;
         return new SessionJournalCrossSearchService(
-            new SessionJournalSearchCardIndex(service),
+            cards,
             SessionJournalAiSupport.applicationInvoker(),
-            SessionJournalCrossSearchService::applicationTopK);
+            SessionJournalCrossSearchService::applicationTopK,
+            SessionJournalSemanticIndex.applicationOrNull(settings, cards));
     }
 
     /** True when policy permits journal Q&amp;A and an AI profile is resolvable. */
@@ -158,16 +173,35 @@ public final class SessionJournalCrossSearchService {
             }
             String scoringQuery = terms.isEmpty() ? question : question + " " + String.join(" ", terms);
             int limit = Math.max(1, topK.getAsInt());
-            List<TextRelevanceScorer.Scored> ranked =
-                TextRelevanceScorer.score(docs, scoringQuery, limit);
+            // A wider lexical candidate slate when fusion follows; the fused cut is the real K.
+            List<TextRelevanceScorer.Scored> ranked = TextRelevanceScorer.score(
+                docs, scoringQuery, semanticIndex != null ? limit * 2 : limit);
+
+            List<String> orderedIds = ranked.stream().map(TextRelevanceScorer.Scored::id).toList();
+            if (semanticIndex != null && !isCancelled(cancelled)) {
+                Map<Path, Double> semantic = semanticIndex.score(scoringQuery,
+                    cardsByKey.values().stream().map(CardEntry::meta).toList(), cancelled);
+                if (!semantic.isEmpty()) {
+                    Map<String, Path> directoryById = new java.util.HashMap<>();
+                    cardsByKey.forEach((id, entry) -> directoryById.put(id, normalize(entry.meta())));
+                    orderedIds = fuseRankings(orderedIds, semantic, directoryById, limit);
+                }
+            }
+            if (orderedIds.size() > limit) {
+                orderedIds = orderedIds.subList(0, limit);
+            }
 
             List<CardEntry> candidates = new ArrayList<>();
             Map<Path, Double> scores = new java.util.HashMap<>();
+            Map<String, Double> bm25ById = new java.util.HashMap<>();
             for (TextRelevanceScorer.Scored scored : ranked) {
-                CardEntry entry = cardsByKey.get(scored.id());
+                bm25ById.put(scored.id(), scored.score());
+            }
+            for (String id : orderedIds) {
+                CardEntry entry = cardsByKey.get(id);
                 if (entry != null) {
                     candidates.add(entry);
-                    scores.put(normalize(entry.meta()), scored.score());
+                    scores.put(normalize(entry.meta()), bm25ById.getOrDefault(id, 0.0));
                 }
             }
 
@@ -264,6 +298,36 @@ public final class SessionJournalCrossSearchService {
     }
 
     private record CardEntry(SessionJournalMeta meta, SessionJournalSearchCard card) {
+    }
+
+    /**
+     * Reciprocal-rank fusion (k = 60) of the lexical ranking and the semantic scores: robust to
+     * the two scorers' incomparable scales, and a journal only one side found still surfaces.
+     */
+    static List<String> fuseRankings(List<String> lexicalIds, Map<Path, Double> semanticScores,
+                                     Map<String, Path> directoryById, int limit) {
+        final double k = 60;
+        Map<String, Double> fused = new java.util.LinkedHashMap<>();
+        for (int rank = 0; rank < lexicalIds.size(); rank++) {
+            fused.merge(lexicalIds.get(rank), 1.0 / (k + rank + 1), Double::sum);
+        }
+        List<Map.Entry<Path, Double>> semanticRanked = new ArrayList<>(semanticScores.entrySet());
+        semanticRanked.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        Map<Path, String> idByDirectory = new java.util.HashMap<>();
+        for (Map.Entry<String, Path> entry : directoryById.entrySet()) {
+            idByDirectory.put(entry.getValue(), entry.getKey());
+        }
+        for (int rank = 0; rank < semanticRanked.size(); rank++) {
+            String id = idByDirectory.get(semanticRanked.get(rank).getKey());
+            if (id != null) {
+                fused.merge(id, 1.0 / (k + rank + 1), Double::sum);
+            }
+        }
+        return fused.entrySet().stream()
+            .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+            .limit(limit)
+            .map(Map.Entry::getKey)
+            .toList();
     }
 
     private static String titleOf(SessionJournalMeta meta) {

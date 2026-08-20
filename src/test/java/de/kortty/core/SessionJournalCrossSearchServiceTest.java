@@ -201,6 +201,32 @@ class SessionJournalCrossSearchServiceTest {
     }
 
     @Test
+    void fusesLexicalAndSemanticRankingsReciprocally() {
+        Path deployDir = journals.get(0).getDirectory().toAbsolutePath().normalize();
+        Path quietDir = journals.get(1).getDirectory().toAbsolutePath().normalize();
+        java.util.Map<String, Path> directoryById = java.util.Map.of(
+            "deploy", deployDir, "quiet", quietDir);
+
+        // Only the lexical side knows "deploy", only the semantic side knows "quiet" — both
+        // must surface; two agreeing votes would outrank either single vote.
+        java.util.List<String> fused = SessionJournalCrossSearchService.fuseRankings(
+            java.util.List.of("deploy"),
+            java.util.Map.of(quietDir, 0.9),
+            directoryById, 12);
+        assertThat(fused).containsExactly("deploy", "quiet");
+
+        java.util.List<String> agreeing = SessionJournalCrossSearchService.fuseRankings(
+            java.util.List.of("quiet", "deploy"),
+            java.util.Map.of(quietDir, 0.9, deployDir, 0.1),
+            directoryById, 12);
+        assertThat(agreeing).containsExactly("quiet", "deploy").inOrder();
+
+        assertThat(SessionJournalCrossSearchService.fuseRankings(
+            java.util.List.of("quiet", "deploy"), java.util.Map.of(), directoryById, 1))
+            .containsExactly("quiet");
+    }
+
+    @Test
     void parsesCrossSearchResultLeniently() {
         SessionJournalAiSupport.CrossSearchResult parsed =
             SessionJournalAiSupport.parseCrossSearchResult(
