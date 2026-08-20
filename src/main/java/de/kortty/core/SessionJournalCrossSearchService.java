@@ -144,7 +144,9 @@ public final class SessionJournalCrossSearchService {
                 terms = extraction != null
                     ? SessionJournalAiSupport.parseSearchTerms(extraction.content()) : null;
             }
-            if (terms == null) {
+            if (terms == null || terms.isEmpty()) {
+                // No extractable literal string ("are there screenshots?") — the question's own
+                // content words still find curated entries via the stemmed section match below.
                 terms = SessionJournalAskService.deterministicTerms(question);
             }
             if (isCancelled(cancelled)) {
@@ -504,13 +506,32 @@ public final class SessionJournalCrossSearchService {
 
     private static boolean matchesAnyTerm(SessionJournalSearchCard.Section section,
                                           List<String> terms) {
-        if (terms.isEmpty()) {
+        return textMatchesAnyTerm(section.searchText(), terms);
+    }
+
+    /**
+     * Substring match first, then a stemmed token match — "screenshots" must find a section
+     * saying "Screenshot shows …" and the German plural "Scripte" must find "script", which a
+     * plain substring cannot. Uses the guide retriever's stemmer so query and section normalize
+     * identically. Curated-entry matching only; the capture-log search stays literal.
+     */
+    static boolean textMatchesAnyTerm(String text, List<String> terms) {
+        if (terms.isEmpty() || text == null || text.isBlank()) {
             return false;
         }
-        String haystack = section.searchText().toLowerCase(Locale.ROOT);
+        String haystack = text.toLowerCase(Locale.ROOT);
         for (String term : terms) {
             if (haystack.contains(term.toLowerCase(Locale.ROOT))) {
                 return true;
+            }
+        }
+        java.util.Set<String> textStems = new java.util.HashSet<>(
+            GuideDocsRetriever.normalizeTokens(GuideDocsRetriever.rawTokens(text)));
+        for (String term : terms) {
+            for (String stem : GuideDocsRetriever.normalizeTokens(GuideDocsRetriever.rawTokens(term))) {
+                if (textStems.contains(stem)) {
+                    return true;
+                }
             }
         }
         return false;

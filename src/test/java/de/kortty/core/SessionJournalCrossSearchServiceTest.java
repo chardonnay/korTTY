@@ -231,6 +231,42 @@ class SessionJournalCrossSearchServiceTest {
     }
 
     @Test
+    void questionWordsMatchCuratedEntriesByStem() throws IOException {
+        // "gibt es screenshots?" has no literal log string — extraction validly returns nothing,
+        // the question's own words must still surface the screenshot entries as hits.
+        SessionJournalEntry screenshot = new SessionJournalEntry();
+        screenshot.setKind(SessionJournalEntryKind.SCREENSHOT);
+        screenshot.setTitle("Screenshot");
+        screenshot.setAiDescription("Screenshot shows the terminal after the run");
+        service.appendEntry(journals.get(0).getDirectory(), screenshot);
+
+        invoker.replies.add("{\"terms\":[]}");
+        invoker.replies.add("{\"answer\":\"Ja, es gibt Screenshots.\","
+            + "\"journals\":[{\"ordinal\":1,\"reason\":\"Enthält Screenshots.\"}]}");
+
+        SessionJournalCrossSearchService.Result result = searchService.search(
+            journals, "gibt es screenshots?", List.of(), "de", () -> false);
+
+        assertThat(result.journals()).hasSize(1);
+        assertThat(result.journals().get(0).hits().stream().anyMatch(
+            h -> h.target() instanceof SessionJournalCrossSearchService.EntryTarget)).isTrue();
+        assertThat(result.totalHits()).isGreaterThan(0);
+    }
+
+    @Test
+    void stemmedTermMatchingBridgesPluralsAndLanguages() {
+        assertThat(SessionJournalCrossSearchService.textMatchesAnyTerm(
+            "Screenshot shows the nginx status", List.of("screenshots"))).isTrue();
+        assertThat(SessionJournalCrossSearchService.textMatchesAnyTerm(
+            "ran the server load script twice", List.of("Scripte"))).isTrue();
+        assertThat(SessionJournalCrossSearchService.textMatchesAnyTerm(
+            "routine apt update", List.of("screenshots"))).isFalse();
+        // The literal path still matches identifiers exactly.
+        assertThat(SessionJournalCrossSearchService.textMatchesAnyTerm(
+            "perl server_auslastung.pl started", List.of("server_auslastung.pl"))).isTrue();
+    }
+
+    @Test
     void curatesLogHitsForDisplay() {
         java.util.List<SessionJournalLogSearcher.Hit> raw = new java.util.ArrayList<>();
         // A directory-listing line repeating at three different times (ls / file-manager panels)…
