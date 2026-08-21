@@ -312,6 +312,14 @@
     h1.innerHTML = '<span class="h1-stack"><span class="h1-ghost" aria-hidden="true">' + src +
       '</span><span class="h1-live"></span></span>';
     const live = h1.querySelector('.h1-live');
+    // the ghost reserves room for the cursor too, so the finished line never rewraps
+    const gl = h1.querySelectorAll('.h1-ghost .line');
+    if (gl.length) {
+      const gc = document.createElement('span');
+      gc.className = 'h1-cursor';
+      gc.style.animation = 'none';
+      gl[gl.length - 1].appendChild(gc);
+    }
     const cursor = document.createElement('span');
     cursor.className = 'h1-cursor';
     cursor.setAttribute('aria-hidden', 'true');
@@ -319,7 +327,21 @@
     let si = 0, ci = 0, span = null;
     const step = () => {
       if (token !== run) return; // superseded by a language change
-      if (si >= segs.length) { live.appendChild(cursor); return; }
+      if (si >= segs.length) {
+        // glue the cursor to the last word so it can't drop to its own line
+        const last = live.lastElementChild;
+        if (last) {
+          const words = last.textContent.split(' ');
+          const tail = words.pop();
+          last.textContent = words.length ? words.join(' ') + ' ' : '';
+          const nw = document.createElement('span');
+          nw.style.whiteSpace = 'nowrap';
+          nw.textContent = tail;
+          nw.appendChild(cursor);
+          last.appendChild(nw);
+        } else live.appendChild(cursor);
+        return;
+      }
       if (!span) {
         span = document.createElement('span');
         span.className = segs[si].cls;

@@ -602,7 +602,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <a href="#security" data-i18n="nav.security">Security</a>
   <a href="#download" data-i18n="nav.download">Download</a>
   <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="nav.guide">Guide</a>
-  <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option></select>
+  <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option><option value="ru">Русский</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="th">ไทย</option><option value="af">Afrikaans</option><option value="fil">Filipino</option></select>
   <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
 </nav>
 <div class="wrap">
@@ -900,7 +900,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Session Journal — Web Server — Checked and reloaded nginx</span></div>
-      <span class="shot-live" style="--pd:29s;--cd:18s;--cdel:-3s;--po:30% 35%;--px:-1.1%;--py:1.2%;--s1x:25%;--s1y:26%;--s2x:21%;--s2y:45%;--s3x:31%;--s3y:70%"><img src="screenshots/journal/journal-viewer.png" alt="korTTY session journal viewer: header with connection details and counts, one AI-summarised timeline entry marked Important, command and output excerpts" decoding="async" /><span class="shot-tip t1" data-i18n="tp.sj1">Header counts entries, commands, errors and screenshots</span><span class="shot-tip t2" data-i18n="tp.sj2">AI title, summary and the marker it suggested</span><span class="shot-tip t3" data-i18n="tp.sj3">Commands in green, output in blue — click for the raw log</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:29s;--cd:18s;--cdel:-3s;--po:30% 35%;--px:-1.1%;--py:1.2%;--s1x:25%;--s1y:26%;--s2x:21%;--s2y:45%;--s3x:31%;--s3y:70%"><img src="screenshots/journal/journal-viewer.png?v=3" alt="korTTY session journal viewer: header with connection details and counts, one AI-summarised timeline entry marked Important, command and output excerpts" decoding="async" /><span class="shot-tip t1" data-i18n="tp.sj1">Header counts entries, commands, errors and screenshots</span><span class="shot-tip t2" data-i18n="tp.sj2">AI title, summary and the marker it suggested</span><span class="shot-tip t3" data-i18n="tp.sj3">Commands in green, output in blue — click for the raw log</span><span class="shot-cursor"></span></span>
     </figure>
     <p class="figcap" data-i18n="sj.cap1">What this window shows: a 27-minute maintenance session on web01, condensed by the AI into one timeline entry it flagged <em>Important</em> — three commands against the nginx service (green) and the output excerpt that made it interesting (blue): a missing-file error in the error log. Clicking an entry slides in the exact capture-log range behind it, with its own search.</p>
     <div class="feature">
@@ -910,26 +910,36 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
     <div class="feature">
       <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="sj6t">Follow it live — and fix it live</h3>
+      <p class="f-copy" data-i18n="sj6c">View → Live Journal (<span class="kbd">Ctrl/Cmd+Alt+L</span>) docks the full journal page beside the terminal, updated in real time: new AI summaries, notes and screenshots appear moments after they happen, and the <em>Live Log</em> streams the capture log in follow mode — scroll up to pause, back down to resume. Because it is the real page, adjusting works right there: right-click an entry to set its marker, right-click a screenshot to annotate it, add notes and screenshots from the header. A finished AI-agent run files its own card with your prompt, the answer and the token count.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
       <h3 class="f-title" data-i18n="sj2t">An AI that keeps minutes</h3>
       <p class="f-copy" data-i18n="sj2c">Every five minutes — configurable globally and per connection — the summarizer reads the newest capture-log lines and appends a short entry: title, summary and a suggested marker (info, important, error). The end of the session adds a closing summary of what was accomplished and what failed, and optionally lets the AI name the journal. Without AI the timeline still records raw activity.</p>
     </div>
     <div class="feature">
-      <p class="f-num">03</p>
+      <p class="f-num">04</p>
       <h3 class="f-title" data-i18n="sj3t">One folder, nothing to install</h3>
-      <p class="f-copy" data-i18n="sj3c">Each journal is a self-contained directory under <span class="kbd">~/.kortty/journals</span>: the curated <span class="kbd">journal.xml</span>, the capture log as JSON Lines (XML or YAML on request), gzipped rotated parts — history is compressed, never deleted — your screenshots, and <span class="kbd">journal.html</span>. That page has no external resources: it opens in the viewer or any browser, scales 70–250 %, follows your light/dark preference, and searches the whole timeline.</p>
+      <p class="f-copy" data-i18n="sj3c">Each journal is a self-contained directory under <span class="kbd">~/.kortty/journals</span>: the curated <span class="kbd">journal.xml</span>, the capture log as JSON Lines (XML or YAML on request), rotated parts compressed to <span class="kbd">.zst</span> — history is compressed, never deleted, and older journals' <span class="kbd">.gz</span> parts open exactly as before — your screenshots, and <span class="kbd">journal.html</span>. That page has no external resources: it opens in the viewer or any browser, scales 70–250 %, follows your light/dark preference, and searches the whole timeline.</p>
     </div>
     <div class="feature">
-      <p class="f-num">04</p>
+      <p class="f-num">05</p>
+      <h3 class="f-title" data-i18n="sj7t">Logs that stay small</h3>
+      <p class="f-copy" data-i18n="sj7c">The capture log is built to shrink. Finished parts are compressed with zstd automatically, and consecutive identical output lines — progress loops, <span class="kbd">tail -f</span> repeats — are coalesced syslog-style into one entry with a repeat count: the viewer shows the run as <span class="kbd">line ×12</span>, while copying or exporting reproduces every original line. When output floods in faster than it can be persisted, the capture applies backpressure instead of dropping lines — the journal stays complete. Rotation is configurable per connection: size per part (default 25 MB) and part count (default 20).</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">06</p>
       <h3 class="f-title" data-i18n="sj4t">Manager, editing, redaction</h3>
       <p class="f-copy" data-i18n="sj4c">Tools → Session Journals (<span class="kbd">Ctrl/Cmd+Alt+J</span>) lists every journal with duration, connection, server, title and entry count; <em>Search contents</em> scans the entries and capture logs of all of them. In the viewer, <em>Edit</em> corrects titles, summaries and markers — a marker you set is never overwritten by the AI. If a secret slipped through anyway, <em>Search &amp; replace</em> rewrites the entries and every capture-log part including the compressed ones, with <em>Count matches</em> as a dry run first.</p>
     </div>
     <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
       <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Session Journals</span></div>
-      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-7s;--po:45% 60%;--px:1.2%;--py:-1.1%;--s1x:62%;--s1y:5%;--s2x:26%;--s2y:74%;--s3x:32%;--s3y:85%"><img src="screenshots/journal/journal-manager.png" alt="korTTY session journal manager: journals in a sortable table with duration, connection, server, AI title and entry count, plus description and export actions" decoding="async" /><span class="shot-tip t1 l" data-i18n="tp.sjm1">Filter by title, host or user — or search inside every journal</span><span class="shot-tip t2" data-i18n="tp.sjm2">Export as PDF, Markdown or a complete HTML bundle</span><span class="shot-tip t3 u" data-i18n="tp.sjm3">A description per journal, searchable and in every export</span><span class="shot-cursor"></span></span>
+      <span class="shot-live" style="--pd:26s;--cd:17s;--cdel:-7s;--po:45% 60%;--px:1.2%;--py:-1.1%;--s1x:62%;--s1y:5%;--s2x:26%;--s2y:74%;--s3x:32%;--s3y:85%"><img src="screenshots/journal/journal-manager.png?v=3" alt="korTTY session journal manager: journals in a sortable table with duration, connection, server, AI title and entry count, plus description and export actions" decoding="async" /><span class="shot-tip t1 l" data-i18n="tp.sjm1">Filter by title, host or user — or search inside every journal</span><span class="shot-tip t2" data-i18n="tp.sjm2">Export as PDF, Markdown or a complete HTML bundle</span><span class="shot-tip t3 u" data-i18n="tp.sjm3">A description per journal, searchable and in every export</span><span class="shot-cursor"></span></span>
     </figure>
     <p class="figcap" data-i18n="sj.cap2">The manager: three journals from one afternoon, newest first, with duration, connection, server, AI title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
     <div class="feature">
-      <p class="f-num">05</p>
+      <p class="f-num">07</p>
       <h3 class="f-title" data-i18n="sj5t">Exports that leave the building</h3>
       <p class="f-copy" data-i18n="sj5c">PDF with downscaled embedded screenshots, Markdown with a sibling files folder, or the complete HTML bundle as a zip — select several journals and each stays separate inside one archive, optionally AES-256 encrypted. Footer and an optional diagonal watermark are set once under Configuration → Global Settings → Export. Administrators can deny or mandate the whole feature, and a <span class="kbd">[[rule.session-journal.replace]]</span> policy list redacts patterns such as <span class="kbd">AKIA[0-9A-Z]{16}</span> on the capture thread — before a matching line is ever written.</p>
     </div>

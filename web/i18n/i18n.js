@@ -1,6 +1,6 @@
 // korTTY landing i18n: EN inline (fallback), other languages fetched from i18n/<lang>.json.
 (() => {
-  const LANGS = ['en','de','es','fr','hr','it','nl','pt'];
+  const LANGS = ['en','de','es','fr','hr','it','nl','pt','ru','zh','ja','ko','th','af','fil'];
   const KEY = 'kortty-lang';
   const orig = {};
   document.querySelectorAll('[data-i18n]').forEach(el => { orig[el.dataset.i18n] = el.innerHTML; });
@@ -50,7 +50,8 @@
   }
   let saved = null; try { saved = localStorage.getItem(KEY); } catch (_) {}
   const detected = (navigator.languages || [navigator.language || 'en'])
-    .map(l => String(l).slice(0, 2).toLowerCase()).find(l => LANGS.includes(l)) || 'en';
+    .map(l => { const s = String(l).toLowerCase(); if (s === 'fil' || s.startsWith('fil-') || s === 'tl' || s.startsWith('tl-')) return 'fil'; return s.slice(0, 2); })
+    .find(l => LANGS.includes(l)) || 'en';
   setLang(saved || detected, false);
   const sel = document.getElementById('lang-sel');
   if (sel) sel.addEventListener('change', e => setLang(e.target.value, true));
