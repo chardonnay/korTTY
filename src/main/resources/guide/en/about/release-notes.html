@@ -2221,28 +2221,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#terminal-logging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Terminal logging
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-filtered-export-named-markers-page-appearance-and-screenshot-editing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: filtered export, named markers, page appearance and screenshot editing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2265,43 +2243,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
+  <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       
-        AI screenshot analysis in journals
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#live-journal-side-panel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Live journal side panel
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#snippet-editor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Snippet editor
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#connections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Connections
+        Security
       
     </span>
   </a>
@@ -2424,28 +2369,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#terminal-logging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Terminal logging
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-filtered-export-named-markers-page-appearance-and-screenshot-editing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: filtered export, named markers, page appearance and screenshot editing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2468,43 +2391,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ai-screenshot-analysis-in-journals" class="md-nav__link">
+  <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       
-        AI screenshot analysis in journals
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#live-journal-side-panel" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Live journal side panel
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#snippet-editor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Snippet editor
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#connections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Connections
+        Security
       
     </span>
   </a>
@@ -2536,24 +2426,6 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
 <h2 id="v2120">v2.12.0<a class="headerlink" href="#v2120" title="Permanent link">&para;</a></h2>
-<h3 id="terminal-logging">Terminal logging<a class="headerlink" href="#terminal-logging" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Connection logging was rebuilt to actually be reliable</strong> — <a href="../features/terminal.html#terminal-logging">terminal logging</a> previously wrote every connection to one fixed path (so two connections open at once interleaved into the same file), had no compression, and rotated by <em>deleting</em> the file at the size limit. Files are now named <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, a fresh one starts every day (optional) and whenever the size limit is hit, nothing is ever overwritten or deleted by rotation, and each closed file is gzip-compressed. Old archives are swept by the date encoded in their name once the retention period (default 30 days, <code>0</code> keeps everything) expires, and only korTTY's own log files are ever touched, so it is safe to point the setting at a folder used for other things too.</li>
-<li><strong>The terminal log is now redacted</strong> — captured lines pass through the same redaction as the session journal before anything is written: the connection's own stored password and any replacement rules an organization's policy defines. Log files, and a log folder korTTY created itself, are set to owner-only permissions where the filesystem supports it.</li>
-<li><strong>Quick Connect gained a Terminal log section</strong> — configuring logging in the Connection Manager and then connecting from Quick Connect with a different authentication method previously dropped the setting silently; Quick Connect now carries its own folder, format and compression controls and applies them to the session it opens.</li>
-<li><strong>Fixed: XML and JSON logs had two document roots and never parsed</strong>, rotation wrote the closing footer twice, up to 10,000 queued lines from just before a disconnect could be silently dropped, and output was split on line endings in a way that destroyed indentation and turned every progress-bar frame into its own log entry. All four are fixed.</li>
-</ul>
-<h3 id="session-journal-filtered-export-named-markers-page-appearance-and-screenshot-editing">Session journal: filtered export, named markers, page appearance and screenshot editing<a class="headerlink" href="#session-journal-filtered-export-named-markers-page-appearance-and-screenshot-editing" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Exports can now be narrowed down</strong> — <a href="../features/session-journal.html#exporting-only-part-of-a-journal">Exporting only part of a journal</a> accepts any number of time windows (an entry only needs to fall into one of them), a topic filter as literal text, a regular expression, or handed to the AI to select by meaning, and a marker filter (all entries, only marked ones, or specific markers). Times are parsed leniently (<code>8</code>, <code>0800</code>, <code>8.30</code> all work) and widened by an adjustable tolerance (± 5 minutes by default), so an approximate window still catches the entry that actually straddles it. A filtered HTML bundle is rebuilt rather than copied — trimmed capture log, only the referenced screenshots — so a shared export cannot leak the rest of the session; every filtered PDF, Markdown file and bundle carries a banner naming the range so nobody mistakes it for the complete journal.</li>
-<li><strong>Markers are no longer a fixed four-value list</strong> — beyond the built-ins (None, Info, Important, Error) you can now define <a href="../features/session-journal.html#markers">custom markers</a>, give each one a name and colour, and map it to one of the built-ins for older journals and for the error/important counts. Optional rules apply a marker automatically as entries are captured, matching a literal term or a regular expression against the entry's title, summary, note and excerpts, with precedence <strong>your own choice &gt; a rule &gt; the AI's suggestion</strong> — a rule never overwrites a marker you set by hand.</li>
-<li><strong>The journal page has adjustable <a href="../features/session-journal.html#appearance">appearance</a></strong> — a colour scheme (six fixed palettes, the page's automatic light/dark pair, or a scheme derived live from your terminal's own colours), a text font and a monospace font, chosen from a toolbar popover and remembered for every journal korTTY renders afterwards.</li>
-<li><strong>Screenshots can be <a href="../features/session-journal.html#screenshot-notes-and-annotations">annotated</a></strong> — pen, box, an "Unreadable" tool that coarsens a region into blocks, and text labels, plus a note field, reachable by right-clicking a screenshot. Marks are stored as data and stay re-editable; the untouched capture is kept locally as <code>.orig.png</code> and is never included in an export. This obscures a value in the rendered page, it does not redact it — use Search &amp; replace or a policy redaction rule to remove something from a journal for good.</li>
-<li><strong>Selecting a time range got easier</strong> — inside korTTY the viewer's timeline can be switched into range-selection mode: click a first and a last entry to highlight the span between them and hand it straight to the export dialog, or collect several windows before exporting. The same selection is available from the edit-mode entry table via right-click.</li>
-<li><strong>You can edit a journal title directly on its page</strong>, and a header button jumps from one marked entry to the next.</li>
-<li><strong>A lost connection no longer ends the journal</strong> — when the connection drops or the server ends it (a <code>reboot</code>!) while a journal is running, the tab now <a href="../features/session-journal.html#when-the-connection-ends">stays open</a> and a decision bar offers <strong>Reconnect</strong> — the journal continues in place, with a reconnect marker — or <strong>End journal</strong>, which writes the closing summary exactly like the stop button. Previously a cleanly ended connection closed the tab silently and took the running journal with it, without the closing summary.</li>
-<li><strong>Notes got a real editor</strong> — the quick note was a one-line input; <a href="../features/session-journal.html#writing-notes">writing a note</a> now happens in a resizable field of at least six lines, the same one the viewer's entry form and the screenshot editor use. Web addresses typed into a note become <strong>clickable links</strong> on the journal page and open in your system browser (only <code>http</code>/<code>https</code>, and only in text you wrote — AI summaries and terminal excerpts stay literal). A <strong>Translate</strong> button with a language drop-down hands the note to the model assigned to <em>Text and translation profile</em> in the AI manager and replaces it with the translation, with the original one undo away.</li>
-</ul>
 <h3 id="session-journal-complete-under-load-smaller-on-disk">Session journal: complete under load, smaller on disk<a class="headerlink" href="#session-journal-complete-under-load-smaller-on-disk" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>A server flood can no longer punch holes into the journal</strong> — when output arrived faster than the capture log could persist it, up to 10,000 queued lines were silently dropped with nothing in the journal to show for it. The capture now applies backpressure instead: the terminal may briefly slow down under an extreme flood, but every line lands in the log. The log writer also batches its disk writes, so it keeps up with far more output in the first place.</li>
@@ -2570,56 +2442,10 @@
 <li><strong>The manager's content search reads logs streaming</strong> — <strong>Search contents</strong> no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.</li>
 <li><strong>New policy key <code>ai-ask</code></strong> — an organization can forbid the on-demand AI over journal content (Q&amp;A panel and cross-journal AI search) while keeping AI summaries.</li>
 </ul>
-<h3 id="ai-screenshot-analysis-in-journals">AI screenshot analysis in journals<a class="headerlink" href="#ai-screenshot-analysis-in-journals" title="Permanent link">&para;</a></h3>
+<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Journal screenshots are now searchable by their content</strong> — when the journal's AI profile accepts images, every captured screenshot gets an <a href="../features/session-journal.html#ai-screenshot-analysis">AI-written description and tags</a>, shown to the right of the picture on the journal page. The tags are clickable chips that start a journal search, and description and tags are covered by the manager's content search, by Search &amp; replace and the policy redaction rules, and by the Markdown and PDF exports. Right-clicking a screenshot offers <strong>Analyze screenshot with AI</strong> for journals recorded earlier, for retries, and for re-running the analysis after annotating — the analysis always reads the annotated picture, never the untouched <code>.orig.png</code>. The automatic run on capture can be switched off in the journal options, and an organization can force the analysis on or off via the <code>ai-screenshot-analysis</code> policy key (off also disables the manual run).</li>
-<li><strong>AI profiles know whether their model accepts images</strong> — a new <a href="../reference/settings/ai.html#image-input-vision">Image input (vision)</a> setting per profile defaults to automatic detection: LM Studio model metadata is authoritative (read during the reasoning refresh), the Anthropic endpoint always qualifies, and other endpoints are recognized by well-known vision model names, with an Enabled/Disabled override for models the detection misjudges. LM Studio vision models (<code>vlm</code>) now also appear in the model dropdown, which previously hid them.</li>
-</ul>
-<h3 id="live-journal-side-panel">Live journal side panel<a class="headerlink" href="#live-journal-side-panel" title="Permanent link">&para;</a></h3>
-<ul>
-<li>
-<p><strong>A running journal can now be watched — and worked with — in real time</strong> — <strong>View → Live Journal</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) docks the <a href="../features/session-journal.html#the-live-journal-panel">live journal panel</a> to the left or right of the terminal. It shows the journal's <strong>full page</strong>, the same one the viewer renders: the timeline with AI summaries, notes and screenshots, plus an on-demand <strong>Live Log</strong> view streaming the capture log as it is written — output lines, your typed commands, notes and screenshot markers. New timeline cards and edits appear moments after they happen without losing your scroll position; the live log starts hidden, a header button shows or hides it, its height is drag-adjustable and remembered, scrolling it up pauses following and scrolling back down resumes it, and a header menu switches the page between light and dark. Terminal AI-agent replies are captured into the journal's log, and every agent run writes its own <strong>AI agent</strong> timeline card — prompt as title, final answer as body, plus model, duration and token count — the moment it completes; long answers collapse to a click-to-expand preview. The timeline cards adapt to the panel width instead of clipping their text, the panel can be dragged considerably wider than before, and the page header's <strong>◷</strong> button jumps the timeline to a typed time (<code>19:00</code>, <code>1900</code> or <code>13.08. 19:00</code> all work).</p>
-</li>
-<li>
-<p><strong>Fixed: the window size was not always remembered</strong> — the geometry was only written when the window closed through its own handler, so quitting by a route that bypasses it lost the size and position you had just set. korTTY now records them shortly after you stop resizing or moving the window (never while minimized or in fullscreen, so the normal geometry survives those states). Because it is the real page, its actions work right in the panel: right-click a screenshot to annotate it (the edited picture appears on save), pick markers, search, and open entry log excerpts; the header adds <strong>Note</strong>, <strong>Screenshot</strong> and <strong>Open Viewer</strong>. The panel shows the journal of the current tab and only switches on a tab change when the new tab also has a running journal — otherwise it keeps the journal it shows, and a stopped journal or closed tab leaves the page in place with a badge. Side and width are remembered across restarts. Everything shown has already passed the journal's password protection, so suppressed input and redacted secrets never appear.</p>
-</li>
-<li>
-<p><strong>The interface font size can now be set, and optionally follows the display</strong> — a high-resolution monitor left korTTY's own text, the menu bar most of all, uncomfortably small, because every size in the interface was fixed in pixels. <a href="../reference/settings/appearance.html#ui-font-size">UI font size</a> on the Appearance tab now scales the whole interface between 80 % and 160 %: the menu bar and its dropdowns, dialogs, labels, buttons, tab titles, the dashboard, the file browser and the status bar. It applies the moment you save, to windows that are already open as well as new ones, and the main window's first-launch size and any remembered dialog sizes are re-measured to match. <strong>Match display resolution</strong> derives the value from the primary display's logical resolution instead, which leaves a Retina panel at 100 % — macOS has already scaled it — and raises a 4K display running at 100 % operating-system scaling to 125 %. Surfaces that already have their own size control are deliberately left alone, so nothing gains two competing settings: terminal sessions keep the Font tab and the zoom shortcuts, the editor keeps the Editor tab, and the AI chat, plan and activity panels keep their <code>A-</code> / <code>A+</code> buttons. Two parts stay fixed at every setting: the macOS application menu, which the operating system draws, and the AI swarm status strip, whose labels are painted onto a canvas alongside hand-computed positions.</p>
-</li>
-<li>
-<p><strong>The manual has its own text size</strong> — the manual window (<strong>Help → Manual</strong>, <span class="keys"><kbd class="key-f1">F1</kbd></span>) now has three buttons at its top left: <code>A-</code>, the current percentage, and <code>A+</code>. Clicking the percentage resets it to 100 %. The shortcuts <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-plus">+</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-minus">-</kbd></span> and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-0">0</kbd></span> do the same. The setting scales the whole page between 70 % and 250 %, applies to the AI search answers beside it, and survives both navigation and a restart. It is separate from the interface setting above, because the manual is a document you read at length, and the size that suits a dialog rarely suits a page of prose. See <a href="../reference/settings/appearance.html#manual-text-size">Manual text size</a>.</p>
-</li>
-</ul>
-<h3 id="snippet-editor">Snippet editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h3>
-<ul>
-<li>
-<p><strong>The change preview can be read one finding at a time</strong> — a <strong>Highlight</strong> picker below the diff narrows the review to a single improvement or hardening id (<code>SEC-1</code>, <code>HARDENING-05</code>, …): only that finding's places keep their marker and get a coloured line background, every other changed block is muted to a neutral tint, the window scrolls to the first place, and the explanation cards below shrink to match. <strong>◀</strong> / <strong>▶</strong> beside the picker walk the list one finding at a time, wrapping at the ends, so a report can be worked through without opening the dropdown for every step. <em>All changes</em> restores the full colouring. Muted blocks stay visible and keep their change markers, so this approval step never makes a real change invisible. The summary at the top now scrolls in its own pane above a draggable divider, so a staged apply's paragraph-per-stage summary no longer pushes the code out of view. The window also remembers the size and position you gave it, and the divider once you move it yourself.</p>
-</li>
-<li>
-<p><strong>Fixed incomplete Full code analysis replacements</strong> — every <strong>Apply selected</strong> stage asks for one full rewritten script, explicitly requires every unchanged section to be copied, and refuses omission markers such as <code>rest unchanged</code> before another stage or the review window can use the result.</p>
-</li>
-<li><strong>Fixed the snippet Text language scope</strong> — every AI action that returns code now requires all existing and new comments, every displayed message, every log message, and every help message in that returned scope to use the selected language. A Full code analysis replacement applies the rule to the entire script while its report and diagram labels continue to follow the interface language.</li>
-<li><strong>Reduced Full code analysis prompt and skill bloat</strong> — analysis and diagram requests now send one line-numbered script copy instead of repeating the same source as raw and numbered text. An explicit snippet-skill selection is used as an allowlist instead of being combined with another automatic relevance pass, and ordinary automatic matching keeps only its strongest candidates.</li>
-<li><strong>Optimized and hardened Mermaid diagram generation</strong> — diagram-only requests no longer carry configurable coding Skills, knowledge-store excerpts, a linear example that could anchor the model, or repeated copies of the Mermaid contract. A compact immutable Mermaid action skill is now always included instead: it asks for grouped runtime behavior, localized <strong>yes</strong>/<strong>no</strong> branches and loop exits, connected start-to-stop paths and exact source ranges. Fresh AI results with disconnected nodes, backward terminal paths, incomplete decisions, more than 12 action/decision nodes or incomplete source mappings are rejected and use the local fallback without an AI retry, while safe stored diagrams remain backward-compatible; built-in interface languages also get a local edge-label check. When the <code>none</code> <strong>Reasoning</strong> value is available and the profile has a fixed model selection, korTTY automatically uses it for the diagram request without changing the saved profile. An Auto profile is not overridden from previously discovered capabilities because its loaded model can change; an explicitly configured <code>none</code> value still applies. OpenAI-compatible HTTP, LM Studio native, and embedded llama.cpp/MLX transports cap the response at 8,192 tokens, while Anthropic retains its separate provider cap. For embedded llama.cpp/MLX, korTTY does not repeat a response that is empty or contains only the model's reasoning; replacing or closing a pending diagram also cancels the superseded client request.</li>
-<li><strong>Added output limits for code replacements</strong> — A finite output limit now applies to Full code analysis, security-fix, hardening and assistant replacements over OpenAI-compatible HTTP, LM Studio native, and embedded llama.cpp/MLX. It scales from 32,768 to 65,536 tokens with the source size; Anthropic retains its separate provider cap. When korTTY applies selected Full code analysis improvements or security fixes, it automatically requests <code>none</code> Reasoning only if that value is available and the profile has a fixed model selection. An Auto profile keeps its configured or provider-default Reasoning behavior unless <code>none</code> was explicitly configured. This prevents binary on/off reasoning models from spending the complete replacement budget before emitting the script. A provider-reported or malformed truncated response — including a reasoning-only answer with empty visible content — is recorded and rejected with the localized output-limit status and cannot change the editor or trigger an AI retry. Very large full-script replacements can therefore be refused rather than partially applied.</li>
-<li><strong>LM Studio reasoning-option detection was fixed</strong> — <strong>Refresh reasoning options</strong> now prefers the model's exact native <code>allowed_options</code> metadata. A binary <code>off</code>/<code>on</code> model no longer shows the Minimal, Low, Medium, High, or Extra high levels as supported merely because LM Studio silently converts an unsupported value to <code>on</code>; an explicit <code>none</code> request switches this feature off, while omitting the parameter uses the published provider default. A model that publishes no reasoning capability at all — a coder model, or a virtual model whose configuration overrides reasoning metadata to false — now offers only <strong>Disabled</strong> instead of every level: LM Studio skips an unsupported request-time reasoning value with a log warning instead of rejecting the request, so the active probe mistook every level for supported and korTTY kept sending an explicit <code>off</code>. Levels detected by an earlier version are no longer trusted, since they may have come from that probe: HTTP and CLI profiles fall back to the conservative defaults for their model name until <strong>Refresh reasoning options</strong> is pressed once more, so an affected profile stops sending the parameter without anyone having to know about the button. Nothing is deleted from the settings file, and profiles using an integrated model keep their detected levels.</li>
-<li><strong>Fixed the Input hardening file-size guard</strong> — generated scripts now use <code>MAX_FILE_SIZE</code>, check file metadata before reading any content, reject oversized files without reading them, and treat <code>0</code> as an unlimited size. The size field now accepts <code>0</code> accordingly.</li>
-<li><strong>Audited every Hardening and Input hardening option</strong> — leaving a classic option unselected no longer lets the same behaviour return through unconditional language-specific defaults, and each input sub-option now names only its own checks, helpers and exit-code cases. Global hardening selected in <strong>Improve robustness</strong> or <strong>Custom improvement</strong> now rewrites the complete snippet so prologue and epilogue rules can actually be applied.</li>
-<li><strong>Stopped partial hardening in Full code analysis</strong> — <strong>Apply selected</strong> assigns every selected classic and input-hardening rule a stable mandatory identifier, batches analysis items and dependencies into apply stages of at most three, processes the two hardening categories separately in batches of at most three mandatory requirements, and verifies the cumulative completed-identifier list without demanding one verbose change record per rule. Missing requirements reject the whole staged result, while explicit selected flags and guard literals such as <code>--dry-run</code>, <code>--yes</code>, <code>--help</code>, <code>--verbose</code>, <code>MAX_FILE_SIZE</code>, <code>FORCE</code>, <code>--force</code>, and <code>SECURITY:</code> must be present in the final script.</li>
-<li><strong>Made staged Apply selected requests survive a dropped connection</strong> — a stage whose response stream is cut off mid-answer by the connection is now retried once automatically and reported as an interrupted connection, instead of aborting the whole apply and misreporting it as the output-token limit. Long-running chat requests (Full code analysis, security fixes, hardening, the assistant) now stream over OpenAI-compatible HTTP so a slow generation keeps bytes flowing and survives gateway idle timeouts; a MiniMax profile with reasoning turned off now also disables MiniMax's own "thinking" budget instead of silently spending it anyway.</li>
-<li><strong>Fixed empty Full code analysis apply results from malformed local-model JSON</strong> — each stage now returns the complete script as a structured array with one source line per entry instead of one escape-sensitive JSON string. OpenAI-compatible requests enforce that shape and a conservative minimum line count through a strict JSON response schema, dropping the schema only when the endpoint explicitly rejects structured output. The compatibility parser still preserves source escapes such as <code>\s</code> where possible.</li>
-<li><strong>Made Full code analysis apply progress visible and atomic</strong> — the analysis report now stays open while a narrow AI-processing companion window docks beside it. Separate progress bars for improvements and code hardening, elapsed time and provider-reported cumulative token usage sit above a complete checklist. Improvement and dependency rows show their colour-coded category icon directly after the item ID rather than reserving a narrow right-hand column for category and severity text; hardening requirements rely on the <strong>Code hardening</strong> section heading. Checklist descriptions are capped at three lines with an ellipsis while the complete text remains visible in the adjacent analysis report. The active batch is visible, every completed item receives a green checkmark and a failed or retried step remains identifiable. Each stage builds on the previous full script, but intermediate results remain hidden and are never applied on their own. A stage gets at most one visible repair attempt after either a short non-truncated fragment or a complete response that omits a mandatory identifier or required literal. Requirement repair starts from the complete returned script and names the unresolved identifiers; a second failure reports those identifiers and discards the sequence. Exactly one final review preview opens only after cumulative validation succeeds.</li>
-<li><strong>A stage that undoes an earlier stage's hardening is now caught immediately</strong> — every <strong>Apply selected</strong> stage rewrites the whole script, so a later stage could silently drop work an earlier one had already delivered (for example the <code>--help</code> handling of a selected rule). Only the final validation noticed, after every stage had run and with no way to resume. Each stage is now also checked against the literals of the rules earlier stages delivered, so the offending stage fails right away, gets its one repair attempt naming exactly what to restore, and the run stays resumable if that attempt does not fix it.</li>
-<li><strong>An interrupted Apply selected can now be resumed or partially applied</strong> — when the staged run stops after at least one completed stage (an AI or connection failure, or the editor's cancel button), an <strong>Apply interrupted</strong> prompt offers three ways out: continue the remaining stages from the point of interruption while keeping the completed work, review the completed stages' combined rewrite in the usual before/after preview and apply it from there, or discard everything as before. Closing the analysis window or the snippet editor mid-run still discards silently, and a run that aborts before its first completed stage keeps the previous behavior.</li>
-<li><strong>Made unavailable input guards explicit</strong> — Input hardening is now disabled, and yields no effective saved configuration, for YAML/YML/Ansible targets in workflow, swarm, improvement and Full code analysis dialogs instead of accepting a selection that would later be ignored.</li>
-<li><strong>Fixed an Auto AI Complete popup during Full code analysis</strong> — starting the analysis now discards a pending completion timer and closes any visible ghost suggestion instead of allowing a stale completion popup to appear over the analysis flow.</li>
-<li><strong>Hardened the initial Full code analysis response</strong> — OpenAI-compatible HTTP now constrains the report to a strict JSON schema with the fields <code>summary</code>, <code>dependencies</code> and <code>improvements</code>. korTTY retries once without the schema only when the endpoint explicitly rejects structured output. Malformed model output is rejected without a retry loop.</li>
-<li><strong>Moved the Full code analysis selection checkbox</strong> — <strong>Select all improvements</strong> is now the first control at the far left of the analysis toolbar instead of being pushed to its right-hand control group, with extra spacing before the following <strong>Profile:</strong> indicator so the two groups remain visually distinct.</li>
-</ul>
-<h3 id="connections">Connections<a class="headerlink" href="#connections" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Connections can now be tagged</strong> — every saved connection takes one optional free-text <a href="../features/connections.html#tags">tag</a> (<code>prod</code>, <code>staging</code>, a customer name…), set on the connection editor's <em>Connection</em> tab or in bulk via the Connection Manager's new <strong>Assign Tag</strong> / <strong>Remove Tag</strong> context-menu entries, which work on a multi-selection and on whole folders including their subfolders. Tagged servers show a 🏷 badge in the manager tree and in Quick Connect's saved-connections list, and the connection searches — Connection Manager (local and Teamwork tabs) and Quick Connect — all match tags too.</li>
-<li><strong>Export by tag</strong> — the connection export dialog can now export <strong>all connections carrying chosen tags</strong> instead of the pre-selected list: pick one or more tags, the dialog's connection count follows the actual selection, and the export button stays disabled while nothing matches.</li>
+<li><strong>Removed <code>net.i2p.crypto:eddsa</code>, an abandoned dependency with an unpatched signature-malleability flaw</strong> (CVE-2020-36843) — Ed25519 SSH host keys and key-based authentication are now served by BouncyCastle, already part of korTTY, with no user-visible change in behavior.</li>
+<li><strong>A failed connection to a host on your local network now explains itself</strong> — since macOS 15, a missing Local Network permission makes any local connection fail exactly like a powered-off host (<code>No route to host</code>), with nothing pointing at the actual cause. korTTY now adds a hint naming the permission when the failure and the network shape match, without ruling out a genuine outage.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Earlier releases</p>
