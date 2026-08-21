@@ -234,8 +234,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **Kategorie** | **Bibliothek** | **Version** | **Zweck** |
 |---|---|---|---|
 | **SSH** | Apache SSHD (Core, Common, SFTP) | 2.19.0 | SSH-Protokollimplementierung |
-| | BouncyCastle (bcprov, bcpkix) | 1,85 | Kryptografieanbieter und SSH-Schlüsselanalyse |
-| | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0 | EdDSA-Schlüsselunterstützung |
+| | BouncyCastle (bcprov, bcpkix) | 1.85 | Kryptografieanbieter, SSH-Schlüsselanalyse und Ed25519/EdDSA-Schlüsselunterstützung |
 | **Terminal** | SithTermFX (Kern, UI) | 1.2.1 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0,12,25 | PTY-Zuweisung für Mosh |

@@ -341,10 +341,13 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
     // bcpkix has no 1.85.2 release; stay on 1.85 (it resolves bcprov up to 1.85.2 transitively).
     implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
-    
-    // ED25519 (EdDSA) key support for SSH
-    implementation("net.i2p.crypto:eddsa:0.3.0")
-    
+
+    // ED25519 (EdDSA) key support for SSH is supplied by BouncyCastle above, via MINA SSHD's
+    // BouncyCastleEdDSASupport backend. Do NOT add net.i2p.crypto:eddsa back: MINA prefers the
+    // registrar literally named "EdDSA" (that library's) over every other provider, so its mere
+    // presence on the classpath silently takes over Ed25519 again — and it is abandoned upstream
+    // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
+
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
     implementation("com.sithtermfx:sithtermfx-core:1.2.1") {
         // SithTermFX 1.2.1 accidentally publishes its JUnit API as a runtime dependency.

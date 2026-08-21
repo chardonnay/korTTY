@@ -229,7 +229,7 @@ image::app-docs/diagrams/modules-overview.svg[Modules overview,align=center]
 | Category | Module | Version
 | *Java Platform* | JavaFX (controls, graphics, media, swing, web) | 21
 | *SSH & Crypto* | Apache SSHD (core, common, sftp) | 2.12.0
-| | Ed25519 (net.i2p.crypto:eddsa) | 0.3.0
+| | BouncyCastle (bcprov, bcpkix) — also provides Ed25519/EdDSA | 1.85.2
 | *Terminal* | SithTermFX (core, ui) | 1.2.0
 | | Lanterna | 3.1.2
 | | pty4j (JetBrains) | 0.12.25

@@ -4874,12 +4874,24 @@ public class TerminalView extends BorderPane {
                                    connection.getDisplayName(), attempt, retryCount);
                         return; // Success!
                     } else {
-                        lastError = I18n.get("terminal.sshConnectionFailed");
-                        logger.warn("Connection attempt {}/{} failed for {}", 
+                        // Prefer the connector's own diagnosis: a failure that returns false rather
+                        // than throwing (e.g. "No route to host", which on macOS may really be a
+                        // denied Local Network permission) would otherwise reach the user as a bare
+                        // "SSH connection failed" with the actual cause buried in the log.
+                        String reason = ttyConnector instanceof SshTtyConnector failed
+                            ? failed.getLastFailureMessage().orElse(null)
+                            : null;
+                        lastError = reason != null
+                            ? I18n.get("terminal.sshConnectionFailed") + ": " + reason
+                            : I18n.get("terminal.sshConnectionFailed");
+                        logger.warn("Connection attempt {}/{} failed for {}",
                                    attempt, retryCount, connection.getDisplayName());
-                        
+
                         // Show failure message
                         showMessage(I18n.get("terminal.attemptFailed", attempt));
+                        if (reason != null) {
+                            showMessage(reason);
+                        }
                         
                         // Wait a bit before retry (except on last attempt)
                         if (attempt < retryCount) {
