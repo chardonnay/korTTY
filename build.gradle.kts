@@ -14,6 +14,7 @@ import java.security.KeyFactory
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipFile
 
 group = "de.kortty"
@@ -1631,6 +1632,106 @@ tasks.register<Sync>("prepareJpackage") {
     }
 }
 
+// macOS signing configuration. Read unconditionally (not just under `if (isMac)` below) so the
+// staging verification can tell a signed release build apart from a local adhoc one.
+val macSignEnabled = (findProperty("kortty.macos.sign") as String?)?.toBoolean() == true
+val macSigningIdentity = (findProperty("kortty.macos.signingIdentity") as String?)?.trim()
+val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
+
+// Guards the macOS signing trap documented at javaFxVersion: JavaFX ships its natives INSIDE the
+// jars, and korTTY must ship them exactly as Gluon signed them. Re-signing libjfxwebkit.dylib with
+// our Developer ID and `--options runtime` kills JavaScriptCore's JIT — the WebView boots, then the
+// process is SIGKILLed the instant JS executes, with no crash report (commit 269ac8ea).
+//
+// Note what is NOT the signal here: Gluon's own GA signatures already carry flags=0x10000(runtime)
+// and work fine, so the hardened-runtime bit alone proves nothing. The regression is korTTY
+// re-signing these dylibs at all (adding javafx-*.jar to macNativeJarPatterns), so that is what
+// this asserts — byte-identity with the resolved artifact, plus a codesign read that no bundled
+// JavaFX native carries our signature.
+fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
+    val javaFxJarPattern = Regex("""^javafx-[\w.\-]+\.jar$""")
+    val stagedJars = libsDir.listFiles()
+        ?.filter { it.isFile && javaFxJarPattern.matches(it.name) }
+        ?.sortedBy { it.name }
+        .orEmpty()
+    if (stagedJars.isEmpty()) {
+        throw GradleException("No bundled JavaFX JARs found in ${libsDir.absolutePath}.")
+    }
+
+    val resolvedArtifacts = configurations.runtimeClasspath.get().files.associateBy { it.name }
+    val workDir = layout.buildDirectory.get().asFile.resolve("verification/javafx-signatures")
+    delete(workDir)
+
+    val ourTeamId = macSigningIdentity?.let { Regex("""\(([A-Z0-9]{10})\)""").find(it)?.groupValues?.get(1) }
+
+    stagedJars.forEach { stagedJar ->
+        val resolvedJar = resolvedArtifacts[stagedJar.name]
+            ?: throw GradleException(
+                "Cannot verify ${stagedJar.name}: no artifact of that name on the runtime classpath.")
+        val resolvedCrcs = ZipFile(resolvedJar).use { archive ->
+            archive.entries().asSequence()
+                .filter { !it.isDirectory && it.name.endsWith(".dylib") }
+                .associate { it.name to it.crc }
+        }
+
+        ZipFile(stagedJar).use { archive ->
+            archive.entries().asSequence()
+                .filter { !it.isDirectory && it.name.endsWith(".dylib") }
+                .forEach { entry ->
+                    if (resolvedCrcs[entry.name] != entry.crc) {
+                        throw GradleException(
+                            "Bundled JavaFX native ${entry.name} in ${stagedJar.name} no longer matches " +
+                                "${resolvedJar.absolutePath}. JavaFX dylibs must ship with Gluon's original " +
+                                "signature: re-signing them with `--options runtime` kills JavaScriptCore's " +
+                                "JIT, so the WebView is SIGKILLed the instant JS runs. See javaFxVersion and " +
+                                "macNativeJarPatterns.")
+                    }
+
+                    val dylib = workDir.resolve(stagedJar.nameWithoutExtension).resolve(entry.name)
+                    dylib.parentFile.mkdirs()
+                    archive.getInputStream(entry).use { input ->
+                        Files.copy(input, dylib.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+
+                    val signature = readCodesignDescription(dylib)
+                        ?: throw GradleException(
+                            "Bundled JavaFX native ${entry.name} in ${stagedJar.name} carries no code " +
+                                "signature. It must keep Gluon's original Developer ID signature — an " +
+                                "unsigned or re-signed dylib either fails notarization or kills the " +
+                                "WebView's JIT. See javaFxVersion.")
+                    val authorities = Regex("""^Authority=(.*)$""", RegexOption.MULTILINE)
+                        .findAll(signature).map { it.groupValues[1].trim() }.toList()
+                    val teamId = Regex("""^TeamIdentifier=(.*)$""", RegexOption.MULTILINE)
+                        .find(signature)?.groupValues?.get(1)?.trim()
+                    val flags = Regex("""\bflags=(\S+)""").find(signature)?.groupValues?.get(1) ?: "unknown"
+
+                    if (authorities.any { it == macSigningIdentity } || (ourTeamId != null && teamId == ourTeamId)) {
+                        throw GradleException(
+                            "Bundled JavaFX native ${entry.name} in ${stagedJar.name} was re-signed with " +
+                                "korTTY's own signing identity (team $teamId, flags $flags). Re-signing " +
+                                "JavaFX with `--options runtime` kills JavaScriptCore's JIT: the WebView " +
+                                "boots and the app is SIGKILLed the instant JS executes, with no crash " +
+                                "report. Remove javafx-*.jar from macNativeJarPatterns. See javaFxVersion.")
+                    }
+
+                    println("JavaFX native ${entry.name} (${stagedJar.name}): upstream signature intact " +
+                        "(team ${teamId ?: "none"}, flags $flags).")
+                }
+        }
+    }
+
+    delete(workDir)
+}
+
+/** Returns `codesign -dvvv` output for a Mach-O file, or null when it carries no signature. */
+fun readCodesignDescription(file: File): String? {
+    val process = ProcessBuilder("codesign", "-dvvv", file.absolutePath)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().use { it.readText() }
+    return if (process.waitFor() == 0) output else null
+}
+
 val jpackageStagingVerificationNonce = layout.buildDirectory.file("verification/jpackage-staging-seed.txt")
 
 val seedStaleJpackageInput = tasks.register("seedStaleJpackageInput") {
@@ -1700,6 +1801,11 @@ val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
                 }
             }
         }
+        // macOS release builds only: local builds are adhoc-signed, so there is nothing to compare
+        // and codesign would only report the ad-hoc signature jpackage applies later anyway.
+        if (isMac && macSignEnabled) {
+            verifyBundledJavaFxNativeSignatures(libs)
+        }
     }
 }
 
@@ -1761,9 +1867,6 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
 
 // ==================== macOS ====================
 if (isMac) {
-    val macSignEnabled = (findProperty("kortty.macos.sign") as String?)?.toBoolean() == true
-    val macSigningIdentity = (findProperty("kortty.macos.signingIdentity") as String?)?.trim()
-    val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String?)?.trim()
     val macNativeJarPatterns = listOf(
         Regex("""^jna-[\w.\-]+\.jar$"""),
         Regex("""^pty4j-[\w.\-]+\.jar$"""),
@@ -1968,6 +2071,87 @@ if (isMac) {
                 throw GradleException("Could not replace ${dmgFile.name} with the LZMA-converted DMG")
             }
             println("DMG converted to ULMO (LZMA): ${dmgFile.length() / (1024 * 1024)} MB")
+        }
+    }
+
+    // verifyJpackageStaging carries the JavaFX-signature assertion, so on macOS it has to see the
+    // staging directory as jpackage will: after the native re-signing step, before packaging.
+    verifyJpackageStaging.configure { mustRunAfter("signMacBundledNativeLibraries") }
+    tasks.named("jpackage") { dependsOn(verifyJpackageStaging) }
+    tasks.named("jpackageDmg") { dependsOn(verifyJpackageStaging) }
+
+    // The other WebView smokes run on the Gradle test classpath, i.e. against unsigned JavaFX jars,
+    // so they structurally cannot see the signing trap at javaFxVersion — a hardened re-sign only
+    // kills JavaScriptCore's JIT once the dylib is actually signed that way. This runs the shipped
+    // launcher of the packaged (and in CI notarized/stapled) bundle instead, which is the only
+    // process that proves JavaScript still executes in what users will download.
+    tasks.register("packagedMacWebViewJitSmoke") {
+        group = "verification"
+        description = "Executes JIT-hot JavaScript in a WebView inside the packaged korTTY.app."
+
+        doLast {
+            val launcher = jpackageDir.get().asFile.resolve("korTTY.app/Contents/MacOS/korTTY")
+            if (!launcher.isFile || !launcher.canExecute()) {
+                throw GradleException(
+                    "Packaged macOS launcher not found or not executable: ${launcher.absolutePath}. " +
+                        "Run the jpackage task first.")
+            }
+
+            // JavaFX unpacks its in-jar dylibs into $user.home/.openjfx/cache/<version>, keyed by
+            // version only — a cache left behind by an earlier run would hide the bundle's own
+            // (possibly re-signed) libjfxwebkit.dylib. A throwaway home forces a fresh unpack and
+            // keeps the smoke out of the real ~/.kortty. The launcher bakes its JVM options into the
+            // signed bundle, so user.home has to arrive via _JAVA_OPTIONS.
+            val smokeHome = layout.buildDirectory.get().asFile.resolve("verification/webview-jit-smoke-home")
+            delete(smokeHome)
+            smokeHome.mkdirs()
+
+            // The launcher's own output has to reach the build log: a SIGKILLed WebView leaves no
+            // crash report, so this transcript is the only diagnosis a release engineer gets.
+            // inheritIO() would route it to the Gradle daemon's console instead of the CI log.
+            val smokeLog = layout.buildDirectory.get().asFile.resolve("verification/webview-jit-smoke.log")
+            smokeLog.parentFile.mkdirs()
+
+            val process = ProcessBuilder(launcher.absolutePath, "--webview-jit-smoke")
+                .directory(project.rootDir)
+                .redirectErrorStream(true)
+                .redirectOutput(smokeLog)
+                .apply {
+                    environment()["HOME"] = smokeHome.absolutePath
+                    environment()["_JAVA_OPTIONS"] = "-Duser.home=${smokeHome.absolutePath}"
+                }
+                .start()
+
+            val finished = process.waitFor(10, TimeUnit.MINUTES)
+            if (!finished) {
+                process.destroyForcibly()
+            }
+            val transcript = smokeLog.takeIf { it.isFile }?.readText().orEmpty().trim()
+            if (transcript.isNotEmpty()) {
+                println(transcript)
+            }
+
+            if (!finished) {
+                throw GradleException(
+                    "The packaged WebView JavaScript smoke timed out after 10 minutes: " +
+                        "${launcher.absolutePath} never returned a result.")
+            }
+
+            val exitCode = process.exitValue()
+            if (exitCode != 0) {
+                val signalHint = if (exitCode > 128) {
+                    " The launcher died from signal ${exitCode - 128} — that is the macOS signing " +
+                        "trap: a bundled JavaFX dylib carries a hardened-runtime re-signature, which " +
+                        "kills JavaScriptCore's JIT the instant JS executes (SIGKILL, no crash " +
+                        "report). Check macNativeJarPatterns and javaFxVersion."
+                } else {
+                    ""
+                }
+                throw GradleException(
+                    "The packaged WebView JavaScript smoke failed with exit code $exitCode.$signalHint")
+            }
+
+            delete(smokeHome)
         }
     }
 }
