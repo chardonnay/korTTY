@@ -488,6 +488,16 @@ jobs:
           xcrun stapler staple build/jpackage/korTTY.app
           xcrun stapler validate build/jpackage/korTTY.app
 
+      # mermaidRendererSmoke above runs pre-jpackage on the unsigned Gradle test classpath, so it
+      # cannot see the signing trap at javaFxVersion: a hardened re-sign of libjfxwebkit.dylib kills
+      # JavaScriptCore's JIT and the app is SIGKILLed the instant JS executes, with no crash report.
+      # This runs JIT-hot JavaScript in a WebView inside the notarized, stapled bundle instead — the
+      # same binary users download — so that regression fails the release instead of shipping.
+      - name: Verify WebView JavaScript in the signed macOS app
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: ${{ steps.gradle.outputs.cmd }} packagedMacWebViewJitSmoke
+
       - name: Notarize and staple macOS dmg
         if: matrix.platform == 'macos'
         shell: bash
