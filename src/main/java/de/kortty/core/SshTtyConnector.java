@@ -110,11 +110,43 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
     
     /**
+     * Why the last {@link #connect()} returned {@code false}, ready for display, or {@code null}.
+     *
+     * <p>A failure that returns {@code false} rather than throwing used to reach the log only, so
+     * the terminal showed a generic "SSH connection failed" no matter what went wrong. This carries
+     * the diagnosis across that boundary.
+     */
+    private volatile String lastFailureMessage;
+
+    /**
+     * Returns why the last {@link #connect()} call returned {@code false}, if a specific reason is
+     * known. Empty when the failure carried no message or the call never ran.
+     */
+    public java.util.Optional<String> getLastFailureMessage() {
+        String message = lastFailureMessage;
+        return (message == null || message.isBlank()) ? java.util.Optional.empty() : java.util.Optional.of(message);
+    }
+
+    /**
+     * Builds the user-facing text for a connection failure, appending the macOS Local Network
+     * permission hint when that could be the cause. See {@link LocalNetworkDiagnostics}.
+     */
+    private String describeFailure(Throwable failure) {
+        String base = failure.getMessage() != null && !failure.getMessage().isBlank()
+            ? failure.getMessage()
+            : failure.getClass().getSimpleName();
+        return LocalNetworkDiagnostics.hintKeyFor(failure, connection.getHost())
+            .map(key -> base + "\n\n" + I18n.get(key))
+            .orElse(base);
+    }
+
+    /**
      * Initializes the SSH connection.
      * This should be called before start() on the terminal widget.
      */
     public boolean connect() throws AuthenticationException {
         SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier = null;
+        lastFailureMessage = null;
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -357,6 +389,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
                 throw new AuthenticationException("Authentication failed: " + message, e);
             }
             logger.error("Failed to connect to {}: {}", connection.getDisplayName(), e.getMessage(), e);
+            lastFailureMessage = describeFailure(e);
             close();
             return false;
         } catch (Exception e) {
@@ -367,6 +400,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
                 throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
             }
             logger.error("Failed to connect to {}: {}", connection.getDisplayName(), e.getMessage(), e);
+            lastFailureMessage = describeFailure(e);
             close();
             return false;
         }
