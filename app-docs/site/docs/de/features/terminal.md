@@ -35,6 +35,16 @@ Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederh
 
 Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überprüfte Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird `TerminalTextBuffer` nicht mehr nach der nicht vorhandenen Zeile bei `line == height` gefragt.
 
+## Verbindungsverlust und automatisches Wiederverbinden
+
+Bricht eine **bestehende** SSH-Verbindung ab – Netzwerkausfall, VPN-Trennung, Server weg – schließt sich der Tab **nicht**. Er wechselt stattdessen in einen roten Getrennt-Zustand: Der Tab-Titel erhält den Zusatz `(DISCONNECT)`, der Tab färbt sich dunkelrot, eine rote Statusleiste zeigt den Zeitpunkt des Abbruchs, und der Terminal-Cursor hört auf zu blinken, damit eine tote Sitzung nicht mehr aktiv aussieht. Nur ein normaler Remote-Logout (Eingabe von `exit` oder ++ctrl+d++ am Prompt) schließt den Tab.
+
+KorTTY bemerkt einen stillen Verbindungstod innerhalb von etwa zehn Sekunden: Alle paar Sekunden sendet es eine SSH-Lebenszeichen-Prüfung (einen globalen Request, den der Server beantworten muss – dieselbe Technik wie OpenSSHs `ServerAliveInterval`) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust. Die Prüfung schaltet sich erst scharf, nachdem der Server einmal geantwortet hat, sodass Server, die solche Requests nie beantworten, ihre Sitzungen behalten. Sie ist unabhängig vom [SSH-Keep-Alive](#ssh-keep-alive)-Heartbeat, der inaktive Verbindungen offen hält, aber eine tote nicht erkennt.
+
+Um die Sitzung im selben Tab wieder aufzunehmen, doppelklicken Sie auf die rote Statusleiste oder den roten Tab, oder verwenden Sie **Neu verbinden** im Kontextmenü von Tab, Terminal oder Dashboard. In einem geteilten Tab schließen sich Panes, deren Verbindung abbrach, einzeln; das letzte verbleibende Pane hält den Tab offen und bietet das Wiederverbinden an.
+
+Mit aktivierter Option **Verlorene Verbindungen automatisch wiederherstellen** (**Einstellungen → Terminal**, standardmäßig ein) verbindet sich der Tab selbstständig neu: Versuche starten nach 3 Sekunden und steigern sich über 5, 10, 20 und 30 Sekunden bis zu einem Versuch pro Minute; die rote Statusleiste zählt zum nächsten Versuch herunter. Ein erfolgreiches Wiederverbinden, ein manuelles Wiederverbinden oder das Schließen des Tabs beendet die automatischen Versuche. Dauerhafte Fehler – Authentifizierung, Hostschlüssel-Überprüfung, Konfigurationsablehnungen – stoppen sie ebenfalls, sodass ein falsches Passwort nie wiederholt gegen den Server gehämmert wird. Solange ein [Sitzungsjournal](session-journal.md) läuft, hat dessen rote Entscheidungsleiste Vorrang und es startet kein automatischer Versuch – das Journal fragt, ob wiederverbunden und fortgesetzt oder mit der Abschlusszusammenfassung beendet werden soll. Die Einstellung finden Sie unter [Einstellungen → Terminal](../reference/settings/terminal.md).
+
 ## Multi-Window-Unterstützung
 
 Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:

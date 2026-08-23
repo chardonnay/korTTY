@@ -20,6 +20,12 @@ What changed in the current release. The version this guide was built for is sho
 - **The manager's content search reads logs streaming** — **Search contents** no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.
 - **New policy key `ai-ask`** — an organization can forbid the on-demand AI over journal content (Q&A panel and cross-journal AI search) while keeping AI summaries.
 
+### Connection loss and reconnect
+
+- **A lost connection no longer closes the tab** — when an established SSH connection drops (network outage, VPN cut, server gone), the tab now stays open in a red `(DISCONNECT)` state with a red status bar showing when the connection was lost, instead of silently closing as if you had typed `exit`. Reconnect in place with a double-click on the bar or tab, or via **Reconnect** in the context menus; a normal remote logout still closes the tab as before.
+- **Connection loss is detected within about ten seconds** — korTTY actively probes the server over the SSH connection (the same technique as OpenSSH's `ServerAliveInterval`) and treats two consecutive unanswered probes as a lost connection, instead of waiting minutes for a TCP timeout. The terminal cursor also stops blinking in a disconnected tab, so a dead session no longer looks alive.
+- **Automatic reconnect** — a new **Settings → Terminal → Automatically reconnect lost connections** option (on by default) reconnects a lost tab on its own, with delays growing from 3 seconds up to one attempt per minute and a countdown in the red status bar. Permanent failures such as a wrong password, a changed host key, or a configuration refusal are never retried automatically, and while a session journal is deciding how to continue, the journal's own reconnect choice takes precedence. See [Terminal sessions → Connection loss](../features/terminal.md#connection-loss-and-automatic-reconnect).
+
 ### Security
 
 - **Removed `net.i2p.crypto:eddsa`, an abandoned dependency with an unpatched signature-malleability flaw** (CVE-2020-36843) — Ed25519 SSH host keys and key-based authentication are now served by BouncyCastle, already part of korTTY, with no user-visible change in behavior.

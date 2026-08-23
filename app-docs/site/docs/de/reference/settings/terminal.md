@@ -23,6 +23,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | SSH Keep-Alive aktivieren | umschalten | – | Ein | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
 | Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
+| Verlorene Verbindungen automatisch wiederherstellen | umschalten | – | Ein | `autoReconnectEnabled` |
 | Hostschlüsselüberprüfung für alle Verbindungen deaktivieren | umschalten | – | Aus | `hostKeyCheckDisabledForAllConnections` |
 
 ## Hinweise
@@ -46,3 +47,6 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
     Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.
 
     Wiederholungsversuche decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit wird unabhängig von dieser Einstellung sofort abgelehnt.
+
+!!! note "Verlorene Verbindungen automatisch wiederherstellen"
+    Wenn aktiviert und eine **bestehende** SSH-Verbindung abbricht (Netzwerkausfall, Server weg), verbindet sich der Tab selbstständig neu, mit wachsenden Wartezeiten – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste verbindet weiterhin sofort, und ein erfolgreiches Wiederverbinden oder das Schließen des Tabs beendet die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie zustande kam, wird von dieser Einstellung ebenfalls nicht wiederholt – dafür ist *Verbindungswiederholungen aktivieren* zuständig. Siehe [Terminal-Sitzungen → Verbindungsverlust](../../features/terminal.md).

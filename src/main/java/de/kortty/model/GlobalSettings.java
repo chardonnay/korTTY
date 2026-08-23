@@ -673,7 +673,7 @@ public class GlobalSettings {
 
     // Automatically reconnect a tab whose established connection was lost (transport death)
     @XmlElement
-    private boolean autoReconnectEnabled = false;
+    private boolean autoReconnectEnabled = true;
     
     // History of access reasons for CyberArk (max 5 entries)
     @XmlElementWrapper(name = "accessReasonHistory")

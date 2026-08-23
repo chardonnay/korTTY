@@ -28,14 +28,14 @@ class TerminalTabAutoReconnectTest {
     }
 
     @Test
-    void autoReconnectIsOffByDefault() {
-        assertThat(new GlobalSettings().isAutoReconnectEnabled()).isFalse();
+    void autoReconnectIsOnByDefault() {
+        assertThat(new GlobalSettings().isAutoReconnectEnabled()).isTrue();
     }
 
     @Test
     void autoReconnectSettingRoundTrips() {
         GlobalSettings settings = new GlobalSettings();
-        settings.setAutoReconnectEnabled(true);
-        assertThat(settings.isAutoReconnectEnabled()).isTrue();
+        settings.setAutoReconnectEnabled(false);
+        assertThat(settings.isAutoReconnectEnabled()).isFalse();
     }
 }

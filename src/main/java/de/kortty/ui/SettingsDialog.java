@@ -753,7 +753,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         connectionRetriesEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.retriesEnabled.tooltip")));
 
         autoReconnectEnabledCheck = new CheckBox(I18n.get("settings.connection.autoReconnect"));
-        autoReconnectEnabledCheck.setSelected(globalSettings != null && globalSettings.isAutoReconnectEnabled());
+        autoReconnectEnabledCheck.setSelected(globalSettings != null ? globalSettings.isAutoReconnectEnabled() : true);
         autoReconnectEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.autoReconnect.tooltip")));
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
