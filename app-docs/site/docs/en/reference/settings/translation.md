@@ -43,9 +43,10 @@ LibreTranslate, a regional Azure endpoint, or a proxy.
 | Microsoft Translator | Azure AI Translator v3.0 | The Azure Translator resource subscription key | `https://api.cognitive.microsofttranslator.com` |
 | Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **service account API key**, sent as `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
 
-!!! warning "Yandex: the v1.5 API is gone"
-    Yandex retired the old Translate API v1.5 (`translate.yandex.net/api/v1.5`), so a key issued for
-    it no longer authenticates. Create a service account in the Yandex Cloud console, assign it the
+!!! warning "Yandex: the v1.5 API is no longer usable"
+    Yandex stopped issuing keys for the old Translate API v1.5 (`translate.yandex.net/api/v1.5`) and
+    switched off the free keys already in circulation. The host still answers, but no key you can
+    obtain authenticates against it. Create a service account in the Yandex Cloud console, assign it the
     `ai.translate.user` role, issue an API key for that account, and store that key here. Leave
     **API URL** empty: an address still pointing at the v1.5 host is ignored, and korTTY writes a
     warning to the log until you clear it. The folder is implied by the service account, so nothing
