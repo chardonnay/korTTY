@@ -2652,9 +2652,10 @@
 </table>
 <div class="admonition warning">
 <p class="admonition-title">Yandex keys stored by an earlier korTTY version</p>
-<p>The old Yandex Translate API v1.5 has been shut down by Yandex, and korTTY now talks to the
-Yandex Cloud Translate v2 endpoint instead. A v1.5 key stored in an earlier korTTY version no
-longer works: create a service account in the Yandex Cloud console, give it the
+<p>Yandex stopped issuing keys for the old Translate API v1.5 and switched off the free keys it
+had already issued, so no obtainable v1.5 key authenticates any more. korTTY now talks to the
+Yandex Cloud Translate v2 endpoint instead, and a v1.5 key stored in an earlier korTTY version
+will not work: create a service account in the Yandex Cloud console, give it the
 <code>ai.translate.user</code> role, issue an API key for it, and paste that key into
 <strong>Settings → Translation</strong>. If you also filled in the <strong>API URL</strong> field with the old
 <code>translate.yandex.net/api/v1.5/...</code> address, clear it — korTTY ignores that address and logs a
