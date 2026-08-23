@@ -83,6 +83,12 @@ public class TerminalTab extends Tab {
     private javafx.animation.PauseTransition journalStatusResetDelay;
     private Instant disconnectedAt;
     private volatile boolean reconnectInProgress = false;
+    /** True while this tab automatically retries a lost connection (global auto-reconnect setting). */
+    private boolean autoReconnectActive = false;
+    /** 0-based counter of automatic attempts since the loss; drives the backoff delay. */
+    private int autoReconnectAttempt = 0;
+    /** Pending scheduled automatic attempt, null when none. */
+    private Timeline autoReconnectTimer;
     private boolean terminalChromeVisible = true;
     private boolean previousRecordingBarVisible;
     private boolean previousRecordingBarManaged;
@@ -182,6 +188,7 @@ public class TerminalTab extends Tab {
                 }
             }
             closeRecordingResources();
+            cancelAutoReconnectTimer();
             terminalView.cleanup();
         stopStatusBarTimer();
         });
@@ -1023,6 +1030,7 @@ public class TerminalTab extends Tab {
      * Retries the connection.
      */
     public void retryConnection() {
+        cancelAutoReconnectTimer(); // a running attempt supersedes any pending automatic one
         isConnectionFailed = false;
         updateTabTitle();
         connect(); // connect() will set tab to yellow automatically
@@ -1058,6 +1066,95 @@ public class TerminalTab extends Tab {
             Platform.runLater(onReconnectRequested);
         }
     }
+
+    /**
+     * Delay in seconds before the given automatic reconnect attempt (0-based): a gentle backoff
+     * capped at one minute, so a long outage does not hammer the server.
+     */
+    static int autoReconnectDelaySeconds(int attempt) {
+        final int[] delays = {3, 5, 10, 20, 30, 60};
+        return delays[Math.min(Math.max(attempt, 0), delays.length - 1)];
+    }
+
+    private static boolean isAutoReconnectEnabled() {
+        try {
+            var app = KorTTYApplication.getInstance();
+            GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings()
+                : null;
+            return settings != null && settings.isAutoReconnectEnabled();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Arms or continues automatic reconnection after the disconnected UI was shown. It arms only
+     * when the global setting is on and an established connection was lost (never for failed
+     * first connects), and disarms when a reconnect failure is permanent (authentication,
+     * host key, configuration). Runs on the JavaFX thread.
+     */
+    private void maybeScheduleAutoReconnect() {
+        if (!isAutoReconnectEnabled()) {
+            autoReconnectActive = false;
+            return;
+        }
+        if (autoReconnectActive) {
+            if (terminalView.isLastConnectFailurePermanent()) {
+                autoReconnectActive = false;
+                return;
+            }
+            autoReconnectAttempt++;
+        } else {
+            if (!terminalView.wasConnectionLost()) {
+                return;
+            }
+            autoReconnectActive = true;
+            autoReconnectAttempt = 0;
+        }
+        scheduleAutoReconnectAttempt(autoReconnectDelaySeconds(autoReconnectAttempt));
+    }
+
+    /** Counts down in the red status bar, then fires the next automatic reconnect attempt. */
+    private void scheduleAutoReconnectAttempt(int delaySeconds) {
+        cancelAutoReconnectTimer();
+        final int[] remaining = {delaySeconds};
+        showAutoReconnectCountdown(remaining[0]);
+        autoReconnectTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            remaining[0]--;
+            if (remaining[0] > 0) {
+                showAutoReconnectCountdown(remaining[0]);
+                return;
+            }
+            cancelAutoReconnectTimer();
+            if (getTabPane() == null || !autoReconnectActive || !isConnectionFailed
+                    || !isAutoReconnectEnabled()) {
+                autoReconnectActive = false;
+                return;
+            }
+            retryConnection();
+        }));
+        autoReconnectTimer.setCycleCount(delaySeconds);
+        autoReconnectTimer.play();
+    }
+
+    private void showAutoReconnectCountdown(int secondsRemaining) {
+        if (disconnectedStatusBar == null) {
+            return;
+        }
+        String timeStr = disconnectedAt != null
+            ? DateTimeFormatter.ofPattern("HH:mm").format(disconnectedAt.atZone(ZoneId.systemDefault()))
+            : "";
+        disconnectedStatusBar.setText(
+            I18n.get("statusBar.autoReconnectCountdown", timeStr, secondsRemaining));
+    }
+
+    private void cancelAutoReconnectTimer() {
+        if (autoReconnectTimer != null) {
+            autoReconnectTimer.stop();
+            autoReconnectTimer = null;
+        }
+    }
     
     /**
      * Connects to the SSH server.
@@ -1091,12 +1188,24 @@ public class TerminalTab extends Tab {
                         updateTabTitle(" (DISCONNECT)");
                         setTabErrorColor();
                         showJournalDecisionBar();
+                        if (wasError) {
+                            // Make the dead session visibly inactive (no blinking cursor).
+                            terminalView.setAllCursorsVisible(false);
+                        }
+                        // No automatic reconnect here: the journal decision bar is asking the
+                        // user whether to reconnect (continuing the journal) or end it.
                     }
                     case KEEP_OPEN_DISCONNECTED -> {
                         isConnectionFailed = true;
                         updateTabTitle(" (DISCONNECT)");
                         setTabErrorColor();
                         showDisconnectedStatusBar();
+                        if (wasError) {
+                            // Make the dead session visibly inactive (no blinking cursor). Mosh
+                            // transient interruptions (!wasError) recover and keep their cursor.
+                            terminalView.setAllCursorsVisible(false);
+                        }
+                        maybeScheduleAutoReconnect();
                     }
                 }
             });
@@ -1106,6 +1215,9 @@ public class TerminalTab extends Tab {
         terminalView.setOnConnectedCallback(() -> {
             Platform.runLater(() -> {
                 reconnectInProgress = false;
+                autoReconnectActive = false;
+                autoReconnectAttempt = 0;
+                cancelAutoReconnectTimer();
                 updateTabTitle();
                 resetTabColor(); // Reset to default (green/normal)
                 hideDisconnectedStatusBar();
@@ -1117,7 +1229,13 @@ public class TerminalTab extends Tab {
         });
         
         // Let the terminal request closing this tab (e.g. Ctrl+D on a local cmd/PowerShell shell).
-        terminalView.setOnCloseTabRequest(() -> Platform.runLater(this::closeTabSilently));
+        terminalView.setOnCloseTabRequest(() -> Platform.runLater(() -> {
+            if (reconnectInProgress) {
+                // The old session's teardown during a reconnect must not close the tab.
+                return;
+            }
+            closeTabSilently();
+        }));
 
         terminalView.connect();
     }
@@ -1134,6 +1252,7 @@ public class TerminalTab extends Tab {
         if (tabPane != null) {
             closeRecordingResources();
             terminalView.stopSessionJournal();
+            cancelAutoReconnectTimer();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation
@@ -1152,6 +1271,7 @@ public class TerminalTab extends Tab {
             updateTabTitle(" (DISCONNECT)");
             setTabErrorColor();
             showDisconnectedStatusBar();
+            terminalView.setAllCursorsVisible(false);
         });
     }
     

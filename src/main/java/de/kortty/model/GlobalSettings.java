@@ -670,6 +670,10 @@ public class GlobalSettings {
     // Enable/disable connection retries globally
     @XmlElement
     private boolean connectionRetriesEnabled = true;
+
+    // Automatically reconnect a tab whose established connection was lost (transport death)
+    @XmlElement
+    private boolean autoReconnectEnabled = false;
     
     // History of access reasons for CyberArk (max 5 entries)
     @XmlElementWrapper(name = "accessReasonHistory")
@@ -2668,6 +2672,14 @@ public class GlobalSettings {
     
     public void setConnectionRetriesEnabled(boolean connectionRetriesEnabled) {
         this.connectionRetriesEnabled = connectionRetriesEnabled;
+    }
+
+    public boolean isAutoReconnectEnabled() {
+        return autoReconnectEnabled;
+    }
+
+    public void setAutoReconnectEnabled(boolean autoReconnectEnabled) {
+        this.autoReconnectEnabled = autoReconnectEnabled;
     }
     
     public boolean isHostKeyCheckDisabledForAllConnections() {

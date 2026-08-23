@@ -41,6 +41,15 @@ public interface ObservableTtyConnector extends TtyConnector {
     /** Sets the listener notified when the connection is torn down. */
     void setDisconnectListener(DisconnectListener listener);
 
+    /**
+     * Whether the session ended because the transport died (network drop, server gone) rather than
+     * through a normal remote exit. The UI keeps the tab open with a reconnect offer in that case
+     * instead of closing it. Connectors that cannot tell report {@code false}.
+     */
+    default boolean wasConnectionLost() {
+        return false;
+    }
+
     /** Replaces all data listeners with the given one (clears existing). Null clears them all. */
     void setDataListener(DataListener listener);
 

@@ -270,7 +270,10 @@ public class TerminalView extends BorderPane {
     private StackPane terminalContainer;
     private String terminalAgentBusyStylesheetUrl;
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
-    private TtyConnector ttyConnector;
+    // Written by the connect thread, read by disconnect/session-end callbacks on other threads.
+    private volatile TtyConnector ttyConnector;
+    // True when the last connect attempt failed permanently (auth/host-key/configuration).
+    private volatile boolean lastConnectFailurePermanent;
     // Single tab-wide font-size source. Every per-pane provider delegates its font-size reads/writes
     // here, so Cmd/Ctrl +/- zoom and reset stay global across all splits.
     private DynamicFontSizeSettingsProvider sharedFontSource;
@@ -448,6 +451,12 @@ public class TerminalView extends BorderPane {
         splitPane.setOnWidgetClosed(this::onPaneClosed); // Stop the pane's effect + release its provider/agent runs when its split closes
         splitPane.setOnWidgetSplitCreated(this::inheritEffectOnSplit); // New split panes inherit the source pane's effect
         splitPane.setOnLastWidgetSessionEnded(() -> { // Only the LAST pane's exit closes the tab (splits close just their pane)
+            if (wasConnectionLost()) {
+                // The session ended because the transport died, not through a remote exit:
+                // keep the tab open so the disconnect listener can show the reconnect UI.
+                logger.info("Last pane session ended after connection loss - keeping tab open for reconnect");
+                return;
+            }
             if (onCloseTabRequest != null) {
                 onCloseTabRequest.run();
             }
@@ -1683,6 +1692,24 @@ public class TerminalView extends BorderPane {
     /** Number of terminal panes (splits) in this tab; 1 when there is no split. */
     public int getTerminalPaneCount() {
         return splitPane != null ? splitPane.getWidgetCount() : 1;
+    }
+
+    /**
+     * Whether the current session's transport died (network drop, server gone) rather than ending
+     * through a normal remote exit. Drives keeping the tab open and the auto-reconnect trigger.
+     */
+    public boolean wasConnectionLost() {
+        TtyConnector connector = ttyConnector;
+        return connector instanceof de.kortty.core.ObservableTtyConnector observable
+            && observable.wasConnectionLost();
+    }
+
+    /**
+     * Whether the most recent connect attempt failed for a reason retrying cannot fix
+     * (authentication, host-key verification, configuration refusal). Auto-reconnect stops then.
+     */
+    public boolean isLastConnectFailurePermanent() {
+        return lastConnectFailurePermanent;
     }
 
     /**
@@ -4764,6 +4791,7 @@ public class TerminalView extends BorderPane {
     public void connect() {
         // Run connection in background thread to prevent UI blocking
         Thread connectThread = new Thread(() -> {
+            lastConnectFailurePermanent = false;
             // Check if retries are enabled globally
             boolean retriesEnabled = true;
             try {
@@ -4820,8 +4848,16 @@ public class TerminalView extends BorderPane {
                     // Create TtyConnector
                     ttyConnector = createConnectorForConnection(connection, password);
                     
-                    // Register disconnect listener
-                    setConnectorDisconnectListener(ttyConnector, (reason, wasError) -> {
+                    // Register disconnect listener. It captures the connector it was registered
+                    // for: a reconnect (or tab close) replaces/clears the connector, and the old
+                    // session's teardown events must not repaint the tab as disconnected.
+                    final TtyConnector monitoredConnector = ttyConnector;
+                    setConnectorDisconnectListener(monitoredConnector, (reason, wasError) -> {
+                        if (monitoredConnector != ttyConnector) {
+                            logger.info("Ignoring disconnect from replaced session: {} (wasError={})",
+                                reason, wasError);
+                            return;
+                        }
                         logger.info("Disconnect event: {} (wasError={})", reason, wasError);
 
                         // Stop logger if running
@@ -4980,6 +5016,8 @@ public class TerminalView extends BorderPane {
                 showMessage(finalError);
             }
             logger.error("All connection attempts failed for {}", connection.getDisplayName());
+            // Record permanence before notifying, so the listener's auto-reconnect check sees it.
+            lastConnectFailurePermanent = authenticationFailed || configurationRefused;
 
             // Notify disconnect listener about failure
             String errorMessage;

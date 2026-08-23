@@ -181,6 +181,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // Connection settings
     private final CheckBox connectionRetriesEnabledCheck;
+    private final CheckBox autoReconnectEnabledCheck;
     
     // Backup settings
     private final Spinner<Integer> maxBackupSpinner;
@@ -750,6 +751,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         connectionRetriesEnabledCheck = new CheckBox(I18n.get("settings.connection.retriesEnabled"));
         connectionRetriesEnabledCheck.setSelected(globalSettings != null ? globalSettings.isConnectionRetriesEnabled() : true);
         connectionRetriesEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.retriesEnabled.tooltip")));
+
+        autoReconnectEnabledCheck = new CheckBox(I18n.get("settings.connection.autoReconnect"));
+        autoReconnectEnabledCheck.setSelected(globalSettings != null && globalSettings.isAutoReconnectEnabled());
+        autoReconnectEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.autoReconnect.tooltip")));
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
@@ -792,7 +797,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         connectionHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(connectionHeader, 0, 19, 2, 1);
         terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
-        
+        terminalGrid.add(autoReconnectEnabledCheck, 0, 21, 2, 1);
+
         terminalTab.setContent(terminalGrid);
 
         // Video tab
@@ -2910,6 +2916,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Save connection settings to GlobalSettings
         if (globalSettings != null) {
             globalSettings.setConnectionRetriesEnabled(connectionRetriesEnabledCheck.isSelected());
+            globalSettings.setAutoReconnectEnabled(autoReconnectEnabledCheck.isSelected());
             globalSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
             globalSettings.setApplyThemeFonts(applyThemeFontsProperty.get());
             globalSettings.setAppDesign(appDesignCombo.getValue());

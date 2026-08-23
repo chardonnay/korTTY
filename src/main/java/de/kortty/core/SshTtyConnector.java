@@ -15,8 +15,10 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.CommonModuleProperties;
 import org.apache.sshd.common.channel.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.SshConstants;
 import org.apache.sshd.common.session.SessionHeartbeatController;
 import org.apache.sshd.common.signature.BuiltinSignatures;
+import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.core.CoreModuleProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +74,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
+    private Thread livenessProbeThread;
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<InputActivityListener> inputActivityListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
@@ -369,7 +372,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
             
             // Start monitoring thread to detect disconnection
             startConnectionMonitor();
-            
+            // Actively probe the server so a silent transport death (network drop, server gone)
+            // is detected within seconds instead of waiting for a TCP timeout.
+            startLivenessProbe();
+
             return true;
             
         } catch (org.apache.sshd.common.SshException e) {
@@ -453,29 +459,16 @@ public class SshTtyConnector implements ObservableTtyConnector {
                     );
                     
                     // Connection closed - check if it was normal or error
-                    Integer exitStatus = channel.getExitStatus();
-                    String exitSignal = channel.getExitSignal();
-                    
-                    final boolean wasError;
-                    final String reason;
-                    
-                    if (exitSignal != null && !exitSignal.isEmpty()) {
-                        wasError = true;
-                        reason = "Connection terminated with signal: " + exitSignal;
-                    } else if (exitStatus != null && exitStatus != 0) {
-                        wasError = true;
-                        reason = "Connection closed with exit code: " + exitStatus;
-                    } else {
-                        wasError = false;
-                        reason = "Normal exit";
-                    }
-                    
-                    logger.info("SSH connection ended: {} (wasError={})", reason, wasError);
-                    
+                    ChannelCloseClassification classification =
+                        classifyChannelClose(channel.getExitStatus(), channel.getExitSignal());
+
+                    logger.info("SSH connection ended: {} (wasError={})",
+                        classification.reason(), classification.wasError());
+
                     // Notify listener
                     if (disconnectListener != null) {
                         javafx.application.Platform.runLater(() -> {
-                            disconnectListener.onDisconnect(reason, wasError);
+                            disconnectListener.onDisconnect(classification.reason(), classification.wasError());
                         });
                     }
                 }
@@ -491,14 +484,148 @@ public class SshTtyConnector implements ObservableTtyConnector {
         connectionMonitorThread.setDaemon(true);
         connectionMonitorThread.start();
     }
-    
+
+    /**
+     * How quickly a dead transport is noticed: a probe runs every {@link #LIVENESS_PROBE_INTERVAL_MS}
+     * and a missing reply is confirmed by a second probe, so the worst case is
+     * interval + 2 * timeout. Both values are chosen so that stays within 10 seconds.
+     */
+    static final long LIVENESS_PROBE_INTERVAL_MS = 3_000;
+    static final long LIVENESS_PROBE_TIMEOUT_MS = 3_000;
+    /** Global request the server must answer (any reply, including failure, proves liveness). */
+    private static final String LIVENESS_REQUEST_NAME = "keepalive@kortty.de";
+
+    /**
+     * Periodically sends an SSH global request and waits for the reply, mirroring OpenSSH's
+     * {@code keepalive@openssh.com} liveness check. A dead network leaves the request unanswered,
+     * which is detected within seconds; TCP alone would take minutes to notice. On a confirmed
+     * death the transport is closed, which wakes the connection monitor and reports the loss.
+     *
+     * <p>The kill-switch only arms after the server answered one probe: a server that never
+     * replies to global requests (violating RFC 4254) must not have healthy sessions killed.</p>
+     */
+    private void startLivenessProbe() {
+        livenessProbeThread = new Thread(() -> {
+            boolean armed = false;
+            while (connected.get()) {
+                try {
+                    Thread.sleep(LIVENESS_PROBE_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                if (!connected.get()) {
+                    return;
+                }
+                ClientSession currentSession = session;
+                if (currentSession == null || !currentSession.isOpen()) {
+                    return; // already closing: the connection monitor reports it
+                }
+                if (probeServer(currentSession)) {
+                    armed = true;
+                    continue;
+                }
+                if (!armed || !connected.get()) {
+                    continue;
+                }
+                if (probeServer(currentSession)) {
+                    continue; // single missed reply: not yet a death
+                }
+                if (!connected.get()) {
+                    return;
+                }
+                logger.warn("SSH liveness probe got no reply twice for {} - treating connection as lost",
+                    connection.getDisplayName());
+                forceCloseDeadTransport(currentSession);
+                return;
+            }
+        }, "SSH-Liveness-" + connection.getDisplayName());
+        livenessProbeThread.setDaemon(true);
+        livenessProbeThread.start();
+    }
+
+    /** Sends one probe; true when the server replied (success or failure), false on timeout/error. */
+    private boolean probeServer(ClientSession currentSession) {
+        try {
+            Buffer buffer = currentSession.createBuffer(SshConstants.SSH_MSG_GLOBAL_REQUEST,
+                LIVENESS_REQUEST_NAME.length() + Byte.SIZE);
+            buffer.putString(LIVENESS_REQUEST_NAME);
+            buffer.putBoolean(true); // want-reply
+            // Returns the reply buffer on success and null on SSH_MSG_REQUEST_FAILURE - both prove
+            // the server is alive. Timeouts and transport errors surface as IOExceptions.
+            currentSession.request(LIVENESS_REQUEST_NAME, buffer, LIVENESS_PROBE_TIMEOUT_MS);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            logger.debug("SSH liveness probe got no reply for {}: {}",
+                connection.getDisplayName(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Closes channel and session of a dead transport immediately (no graceful close handshake -
+     * the peer is unreachable). Closing the channel wakes {@link #startConnectionMonitor()}'s
+     * waitFor, which classifies the missing exit status as "Connection lost".
+     */
+    private void forceCloseDeadTransport(ClientSession deadSession) {
+        try {
+            if (channel != null) {
+                channel.close(true);
+            }
+        } catch (Exception e) {
+            logger.debug("Error closing channel of dead transport: {}", e.getMessage());
+        }
+        try {
+            deadSession.close(true);
+        } catch (Exception e) {
+            logger.debug("Error closing dead session: {}", e.getMessage());
+        }
+    }
+
+    /** How a closed shell channel should be reported to the {@link DisconnectListener}. */
+    record ChannelCloseClassification(String reason, boolean wasError) {
+    }
+
+    /**
+     * Classifies a closed shell channel from its remote exit status/signal. A channel that closed
+     * without either means the remote shell never reported an exit: the transport itself died
+     * (network drop, server gone). That is reported as an error so the tab stays open and offers a
+     * reconnect instead of silently closing like a normal logout.
+     */
+    static ChannelCloseClassification classifyChannelClose(Integer exitStatus, String exitSignal) {
+        if (exitSignal != null && !exitSignal.isEmpty()) {
+            return new ChannelCloseClassification("Connection terminated with signal: " + exitSignal, true);
+        }
+        if (exitStatus != null && exitStatus != 0) {
+            return new ChannelCloseClassification("Connection closed with exit code: " + exitStatus, true);
+        }
+        if (exitStatus != null) {
+            return new ChannelCloseClassification("Normal exit", false);
+        }
+        return new ChannelCloseClassification("Connection lost", true);
+    }
+
+    @Override
+    public boolean wasConnectionLost() {
+        ChannelShell currentChannel = channel;
+        if (currentChannel == null || currentChannel.isOpen()) {
+            return false;
+        }
+        Integer exitStatus = currentChannel.getExitStatus();
+        String exitSignal = currentChannel.getExitSignal();
+        return exitStatus == null && (exitSignal == null || exitSignal.isEmpty());
+    }
+
     @Override
     public void close() {
         connected.set(false);
         
-        // Stop monitor thread
+        // Stop monitor threads
         if (connectionMonitorThread != null) {
             connectionMonitorThread.interrupt();
+        }
+        if (livenessProbeThread != null) {
+            livenessProbeThread.interrupt();
         }
         
         try {
