@@ -1115,6 +1115,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider-credentials-and-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider credentials and endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#local-translation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2370,6 +2381,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider-credentials-and-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider credentials and endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#local-translation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2497,6 +2519,13 @@
 <td><code>translationApiUrl</code></td>
 </tr>
 <tr>
+<td>Azure region (optional)</td>
+<td>text</td>
+<td>—</td>
+<td>— (null = global resource)</td>
+<td><code>translationApiRegion</code></td>
+</tr>
+<tr>
 <td>Test API Connection</td>
 <td>button</td>
 <td>—</td>
@@ -2547,6 +2576,77 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><strong>Generated languages:</strong> The "Generated languages" list displays language files that have been created via the Generate Language File button. Each generated file corresponds to a dynamically translated UI in that target language. Use the Delete button to remove a language file, or use Regenerate outdated to update files created with an older app version to include newly added translation keys.</p>
+</div>
+<h2 id="provider-credentials-and-endpoints">Provider credentials and endpoints<a class="headerlink" href="#provider-credentials-and-endpoints" title="Permanent link">&para;</a></h2>
+<p>Each keyed provider expects its own kind of credential in the <strong>API Key</strong> field. The <strong>API URL</strong>
+field stays empty unless you deliberately point korTTY at a different host — a self-hosted
+LibreTranslate, a regional Azure endpoint, or a proxy.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>API version korTTY calls</th>
+<th>What goes in <strong>API Key</strong></th>
+<th>Default endpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google Translate</td>
+<td>Cloud Translation v2 (Basic)</td>
+<td>A Google Cloud API key with the Cloud Translation API enabled</td>
+<td><code>https://translation.googleapis.com/language/translate/v2</code></td>
+</tr>
+<tr>
+<td>DeepL</td>
+<td>DeepL API v2</td>
+<td>Your DeepL auth key, sent as <code>DeepL-Auth-Key</code></td>
+<td><code>https://api.deepl.com/v2/translate</code>, or <code>https://api-free.deepl.com/v2/translate</code> for a free key</td>
+</tr>
+<tr>
+<td>LibreTranslate</td>
+<td>LibreTranslate <code>/translate</code></td>
+<td>Optional; required by public instances that enforce quotas</td>
+<td><code>https://libretranslate.com</code></td>
+</tr>
+<tr>
+<td>Microsoft Translator</td>
+<td>Azure AI Translator v3.0</td>
+<td>The Azure Translator resource subscription key</td>
+<td><code>https://api.cognitive.microsofttranslator.com</code></td>
+</tr>
+<tr>
+<td>Yandex</td>
+<td>Yandex Cloud Translate v2</td>
+<td>A Yandex Cloud <strong>service account API key</strong>, sent as <code>Api-Key</code></td>
+<td><code>https://translate.api.cloud.yandex.net/translate/v2</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Yandex: the v1.5 API is gone</p>
+<p>Yandex retired the old Translate API v1.5 (<code>translate.yandex.net/api/v1.5</code>), so a key issued for
+it no longer authenticates. Create a service account in the Yandex Cloud console, assign it the
+<code>ai.translate.user</code> role, issue an API key for that account, and store that key here. Leave
+<strong>API URL</strong> empty: an address still pointing at the v1.5 host is ignored, and korTTY writes a
+warning to the log until you clear it. The folder is implied by the service account, so nothing
+else has to be configured.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>DeepL Free vs Pro:</strong> korTTY guesses the endpoint from the key — historically only Free keys
+end in <code>:fx</code> — and corrects itself once if the other endpoint turns out to be the right one.
+Setting <strong>API URL</strong> explicitly pins the endpoint and disables that correction.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Regional Azure resources:</strong> the <strong>Azure region</strong> row appears only while <em>Microsoft Translator</em>
+is selected, because only that provider reads it. Leave it empty for a resource created in the
+<em>Global</em> region. A resource created in a specific region — or one with a custom domain or a
+virtual network — rejects any call that does not name its region, so enter the region shown on
+the resource's <em>Keys and Endpoint</em> page, for example <code>germanywestcentral</code>. A custom-domain
+resource also needs its full path in <strong>API URL</strong>:
+<code>https://&lt;resource&gt;.cognitiveservices.azure.com/translator/text/v3.0</code>.</p>
 </div>
 <h2 id="local-translation">Local translation<a class="headerlink" href="#local-translation" title="Permanent link">&para;</a></h2>
 <p>Choose <strong>Local AI text profile</strong> to translate through an AI profile instead of a translation API. API URL and API Key are disabled for this provider because the profile brings its own endpoint and credentials. The model must return one strict JSON <code>translations</code> array with the same number and order of input strings; a batch that comes back malformed is retried and split in half rather than aborting the run, and a string the model never returns in usable form keeps its English text.</p>
