@@ -18,9 +18,16 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * Translation service using Microsoft Azure Translator (Cognitive Services).
- * See: https://learn.microsoft.com/en-us/azure/ai-services/translator/
- * Key = Subscription key; optional URL field can hold region (e.g. "germanywestcentral") for Ocp-Apim-Subscription-Region header.
+ * Translation service using Azure AI Translator (Cognitive Services) REST API v3.0.
+ * See: https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/reference
+ *
+ * <p>Authenticates with the resource's subscription key. Azure only treats
+ * {@code Ocp-Apim-Subscription-Region} as optional for a <em>global</em> resource: a regional or
+ * custom-domain Translator resource refuses a request that does not name its region, so the region
+ * has to be carried through from the settings rather than assumed absent.
+ *
+ * <p>A custom-domain resource also moves the operation off the global host's root, so its base URL
+ * must include the path: {@code https://<resource>.cognitiveservices.azure.com/translator/text/v3.0}.
  */
 public class MicrosoftTranslationService implements TranslationService {
 
@@ -41,7 +48,8 @@ public class MicrosoftTranslationService implements TranslationService {
     /**
      * @param subscriptionKey Azure Translator subscription key (required)
      * @param customBaseUrl   optional custom endpoint URL
-     * @param regionOrUrl     optional region (e.g. "germanywestcentral") for Ocp-Apim-Subscription-Region, or null
+     * @param regionOrUrl     optional Azure region (e.g. "germanywestcentral") sent as
+     *                        Ocp-Apim-Subscription-Region; null only for a global resource
      */
     public MicrosoftTranslationService(String subscriptionKey, String customBaseUrl, String regionOrUrl) {
         this.subscriptionKey = subscriptionKey != null ? subscriptionKey.trim() : "";

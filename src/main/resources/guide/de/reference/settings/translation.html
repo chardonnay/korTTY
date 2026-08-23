@@ -1115,6 +1115,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#anmeldeinformationen-und-endpunkte-der-anbieter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldeinformationen und Endpunkte der Anbieter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lokale-ubersetzung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2370,6 +2381,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#anmeldeinformationen-und-endpunkte-der-anbieter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anmeldeinformationen und Endpunkte der Anbieter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lokale-ubersetzung" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2497,6 +2519,13 @@
 <td><code>translationApiUrl</code></td>
 </tr>
 <tr>
+<td>Azure-Region (optional)</td>
+<td>Text</td>
+<td>–</td>
+<td>– (null = globale Ressource)</td>
+<td><code>translationApiRegion</code></td>
+</tr>
+<tr>
 <td>API-Verbindung testen</td>
 <td>Schaltfläche</td>
 <td>–</td>
@@ -2547,6 +2576,80 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><strong>Generierte Sprachen:</strong> In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.</p>
+</div>
+<h2 id="anmeldeinformationen-und-endpunkte-der-anbieter">Anmeldeinformationen und Endpunkte der Anbieter<a class="headerlink" href="#anmeldeinformationen-und-endpunkte-der-anbieter" title="Permanent link">&para;</a></h2>
+<p>Jeder Anbieter mit Schlüssel erwartet eine eigene Art von Anmeldeinformation im Feld <strong>API-Schlüssel</strong>.
+Das Feld <strong>API-URL</strong> bleibt leer, sofern Sie korTTY nicht bewusst auf einen anderen Host richten —
+eine selbst gehostete LibreTranslate-Instanz, einen regionalen Azure-Endpunkt oder einen Proxy.</p>
+<table>
+<thead>
+<tr>
+<th>Anbieter</th>
+<th>Von korTTY aufgerufene API-Version</th>
+<th>Inhalt von <strong>API-Schlüssel</strong></th>
+<th>Standard-Endpunkt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google Translate</td>
+<td>Cloud Translation v2 (Basic)</td>
+<td>Ein Google-Cloud-API-Schlüssel mit aktivierter Cloud Translation API</td>
+<td><code>https://translation.googleapis.com/language/translate/v2</code></td>
+</tr>
+<tr>
+<td>DeepL</td>
+<td>DeepL API v2</td>
+<td>Ihr DeepL-Authentifizierungsschlüssel, gesendet als <code>DeepL-Auth-Key</code></td>
+<td><code>https://api.deepl.com/v2/translate</code>, bei einem Free-Schlüssel <code>https://api-free.deepl.com/v2/translate</code></td>
+</tr>
+<tr>
+<td>LibreTranslate</td>
+<td>LibreTranslate <code>/translate</code></td>
+<td>Optional; von öffentlichen Instanzen mit Kontingenten verlangt</td>
+<td><code>https://libretranslate.com</code></td>
+</tr>
+<tr>
+<td>Microsoft-Übersetzer</td>
+<td>Azure AI Translator v3.0</td>
+<td>Der Abonnementschlüssel der Azure-Translator-Ressource</td>
+<td><code>https://api.cognitive.microsofttranslator.com</code></td>
+</tr>
+<tr>
+<td>Yandex</td>
+<td>Yandex Cloud Translate v2</td>
+<td>Ein <strong>API-Schlüssel eines Dienstkontos</strong> aus Yandex Cloud, gesendet als <code>Api-Key</code></td>
+<td><code>https://translate.api.cloud.yandex.net/translate/v2</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Yandex: Die v1.5-API existiert nicht mehr</p>
+<p>Yandex hat die alte Translate API v1.5 (<code>translate.yandex.net/api/v1.5</code>) abgeschaltet; ein dafür
+ausgestellter Schlüssel authentifiziert nicht mehr. Legen Sie in der Yandex-Cloud-Konsole ein
+Dienstkonto an, weisen Sie ihm die Rolle <code>ai.translate.user</code> zu, erzeugen Sie dafür einen
+API-Schlüssel und hinterlegen Sie diesen hier. Lassen Sie <strong>API-URL</strong> leer: Eine Adresse, die
+weiterhin auf den v1.5-Host zeigt, wird ignoriert, und korTTY schreibt bis zum Leeren des Feldes
+eine Warnung ins Log. Der Ordner ergibt sich aus dem Dienstkonto, sonst ist nichts zu
+konfigurieren.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>DeepL Free und Pro:</strong> korTTY leitet den Endpunkt aus dem Schlüssel ab — historisch enden nur
+Free-Schlüssel auf <code>:fx</code> — und korrigiert sich einmalig, falls der andere Endpunkt der richtige
+ist. Ein ausdrücklich gesetztes Feld <strong>API-URL</strong> legt den Endpunkt fest und schaltet diese
+Korrektur ab.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Regionale Azure-Ressourcen:</strong> Die Zeile <strong>Azure-Region</strong> erscheint nur, solange
+<em>Microsoft-Übersetzer</em> ausgewählt ist, denn nur dieser Anbieter wertet sie aus. Lassen Sie sie
+für eine Ressource in der Region <em>Global</em> leer. Eine Ressource in einer bestimmten Region — oder
+eine mit eigener Domain bzw. mit virtuellem Netzwerk — weist jeden Aufruf ab, der ihre Region
+nicht nennt. Tragen Sie dann die Region ein, die auf der Seite <em>Schlüssel und Endpunkt</em> der
+Ressource steht, zum Beispiel <code>germanywestcentral</code>. Eine Ressource mit eigener Domain benötigt
+zusätzlich ihren vollständigen Pfad in <strong>API-URL</strong>:
+<code>https://&lt;ressource&gt;.cognitiveservices.azure.com/translator/text/v3.0</code>.</p>
 </div>
 <h2 id="lokale-ubersetzung">Lokale Übersetzung<a class="headerlink" href="#lokale-ubersetzung" title="Permanent link">&para;</a></h2>
 <p>Wählen Sie <strong>Lokales KI-Textprofil</strong>, um über ein KI-Profil statt über eine Übersetzungs-API zu übersetzen. API-URL und API-Schlüssel sind für diesen Anbieter deaktiviert, da das Profil seinen eigenen Endpunkt und seine eigenen Anmeldeinformationen mitbringt. Das Modell muss ein striktes JSON-<code>translations</code>-Array mit der gleichen Anzahl und Reihenfolge der Eingabezeichenfolgen zurückgeben. Ein Stapel, der fehlerhaft zurückkommt, wird erneut versucht und in zwei Hälften geteilt, anstatt den Lauf abzubrechen, und eine Zeichenfolge, die das Modell nie in verwendbarer Form zurückgibt, behält ihren englischen Text.</p>

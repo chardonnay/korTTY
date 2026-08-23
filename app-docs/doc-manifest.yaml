@@ -176,7 +176,10 @@ pages:
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/reference/settings/translation.md
     owns_i18n: [settings.translation., guide.translation.]
-    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/core/GuideTranslationGenerator.java, src/main/java/de/kortty/core/GuideTranslationJob.java, src/main/java/de/kortty/core/ReasoningModelHint.java, src/main/java/de/kortty/ui/GuideTranslationIndicator.java, src/main/java/de/kortty/ui/SettingsDialog.java]
+    # The provider services are owned here too: the page names each provider's API version,
+    # endpoint and credential, so a provider migration that skips this page is drift the
+    # coverage check has to see.
+    owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/core/GoogleTranslationService.java, src/main/java/de/kortty/core/DeepLTranslationService.java, src/main/java/de/kortty/core/LibreTranslateTranslationService.java, src/main/java/de/kortty/core/MicrosoftTranslationService.java, src/main/java/de/kortty/core/YandexTranslationService.java, src/main/java/de/kortty/core/GuideTranslationGenerator.java, src/main/java/de/kortty/core/GuideTranslationJob.java, src/main/java/de/kortty/core/ReasoningModelHint.java, src/main/java/de/kortty/ui/GuideTranslationIndicator.java, src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/translation.png
     last_synced_ref: "659b3bd9"
@@ -410,7 +413,9 @@ pages:
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
+    # TranslationService is owned here as well: the provider table on this page states which API
+    # each provider talks to, so a new or migrated provider must reach this page.
+    owns_code: [src/main/java/de/kortty/core/LanguageManager.java, src/main/java/de/kortty/core/TranslationService.java, src/main/java/de/kortty/model/TranslationApiProvider.java]
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/reference/architecture.md
     owns_i18n: []

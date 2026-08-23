@@ -227,6 +227,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<TranslationApiProvider> translationProviderCombo;
     private final PasswordField translationApiKeyField;
     private final TextField translationApiUrlField;
+    private final TextField translationApiRegionField;
     private final ComboBox<Locale> translationTargetLanguageCombo;
     private final ListView<Locale> translationGeneratedList;
     private final ProgressIndicator translationProgressIndicator;
@@ -1639,17 +1640,34 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             translationApiUrlField.setText(globalSettings.getTranslationApiUrl());
         }
         translationGrid.add(translationApiUrlField, 1, transRow++);
+        // Azure rejects a call to a regional or custom-domain Translator resource that does not name
+        // its region, so without this row those resources are simply unreachable. Only Microsoft
+        // reads it, hence the row disappears for every other provider instead of asking for
+        // something meaningless.
+        Label translationApiRegionLabel = new Label(I18n.get("settings.translation.apiRegion"));
+        translationGrid.add(translationApiRegionLabel, 0, transRow);
+        translationApiRegionField = new TextField();
+        translationApiRegionField.setPrefWidth(280);
+        translationApiRegionField.setPromptText(I18n.get("settings.translation.apiRegion.prompt"));
+        if (globalSettings != null && globalSettings.getTranslationApiRegion() != null) {
+            translationApiRegionField.setText(globalSettings.getTranslationApiRegion());
+        }
+        translationGrid.add(translationApiRegionField, 1, transRow++);
         translationProviderCombo.valueProperty().addListener((obs, oldProvider, newProvider) -> {
             boolean localAi = newProvider == TranslationApiProvider.LOCAL_AI_PROFILE;
             translationApiKeyField.setDisable(localAi);
             translationApiUrlField.setDisable(localAi);
             // Inverse of the key/url fields: the profile choice only means anything for the AI provider.
             interfaceAiProfileCombo.setDisable(!localAi);
+            setTranslationRegionRowVisible(
+                translationApiRegionLabel, newProvider == TranslationApiProvider.MICROSOFT);
         });
         boolean localAiTranslation = translationProviderCombo.getValue() == TranslationApiProvider.LOCAL_AI_PROFILE;
         translationApiKeyField.setDisable(localAiTranslation);
         translationApiUrlField.setDisable(localAiTranslation);
         interfaceAiProfileCombo.setDisable(!localAiTranslation);
+        setTranslationRegionRowVisible(translationApiRegionLabel,
+            translationProviderCombo.getValue() == TranslationApiProvider.MICROSOFT);
         refreshAiProfileCombo(interfaceAiProfileCombo);
         Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
         testConnectionButton.setOnAction(e -> testTranslationConnection());
@@ -2980,6 +2998,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTranslationApiProvider(translationProviderCombo.getValue());
             String apiUrl = translationApiUrlField.getText();
             globalSettings.setTranslationApiUrl(apiUrl != null && !apiUrl.trim().isEmpty() ? apiUrl.trim() : null);
+            String apiRegion = translationApiRegionField.getText();
+            globalSettings.setTranslationApiRegion(
+                apiRegion != null && !apiRegion.trim().isEmpty() ? apiRegion.trim() : null);
             String apiKeyPlain = translationApiKeyField.getText();
             if (apiKeyPlain != null && !apiKeyPlain.isEmpty()) {
                 char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
@@ -3155,6 +3176,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("translation", "provider", gs::getTranslationApiProvider, true));
             tracked.add(new TrackedSetting("translation", "api_url_set",
                 () -> gs.getTranslationApiUrl() != null && !gs.getTranslationApiUrl().isBlank(), true));
+            tracked.add(new TrackedSetting("translation", "api_region_customized",
+                () -> gs.getTranslationApiRegion() != null && !gs.getTranslationApiRegion().isBlank(), true));
             tracked.add(new TrackedSetting("ai", "features_enabled", gs::isAiFeaturesEnabled, true));
             tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
             tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
@@ -4101,6 +4124,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
     }
 
+    /**
+     * Shows or hides the Translator region row. Hidden rows are also unmanaged so the grid closes
+     * the gap rather than leaving a blank line where the field used to be.
+     */
+    private void setTranslationRegionRowVisible(Label label, boolean visible) {
+        label.setVisible(visible);
+        label.setManaged(visible);
+        translationApiRegionField.setVisible(visible);
+        translationApiRegionField.setManaged(visible);
+    }
+
     private TranslationService createTranslationService() {
         String key = getTranslationApiKeyPlain();
         TranslationApiProvider provider = translationProviderCombo.getValue();
@@ -4118,7 +4152,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 return new LibreTranslateTranslationService(key != null ? key : "", urlTrimmed);
             case MICROSOFT:
                 if (key == null || key.isEmpty()) return null;
-                return new MicrosoftTranslationService(key, urlTrimmed, null);
+                return new MicrosoftTranslationService(key, urlTrimmed, translationApiRegionField.getText());
             case YANDEX:
                 if (key == null || key.isEmpty()) return null;
                 return new YandexTranslationService(key, urlTrimmed);

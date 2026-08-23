@@ -13,7 +13,10 @@ on:
       - "build.gradle.kts"
       - "scripts/doc-*.py"
       - "scripts/sync-version.py"
+      - "scripts/external-api-check.py"
       - "scripts/validate-doc-svg.sh"
+      - "external-apis.yaml"
+      - "src/main/java/de/kortty/core/*TranslationService.java"
       - ".github/workflows/docs-validate.yml"
   pull_request:
     paths:
@@ -23,7 +26,10 @@ on:
       - "build.gradle.kts"
       - "scripts/doc-*.py"
       - "scripts/sync-version.py"
+      - "scripts/external-api-check.py"
       - "scripts/validate-doc-svg.sh"
+      - "external-apis.yaml"
+      - "src/main/java/de/kortty/core/*TranslationService.java"
   workflow_dispatch:
 
 permissions:
@@ -65,3 +71,9 @@ jobs:
       # settings reference pages were authored.
       - name: Settings/menu coverage (gate)
         run: python scripts/doc-coverage.py --strict
+
+      # Hard gate: the endpoint each API client actually calls must still match
+      # external-apis.yaml and the guide pages that tell users about it. Catches a
+      # provider migration that lands in code but never reaches the registry/docs.
+      - name: External API registry in sync (gate)
+        run: python scripts/external-api-check.py --strict

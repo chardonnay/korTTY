@@ -2613,6 +2613,7 @@
 <tr>
 <th>Provider</th>
 <th>API Key Required</th>
+<th>API used</th>
 <th>Notes</th>
 </tr>
 </thead>
@@ -2620,30 +2621,45 @@
 <tr>
 <td>Google Translate</td>
 <td>Yes</td>
-<td>Default, widely available</td>
+<td>Cloud Translation v2 (Basic)</td>
+<td>Default, widely available; a plain API key is enough</td>
 </tr>
 <tr>
 <td>DeepL</td>
 <td>Yes</td>
-<td>High-quality translations</td>
+<td>DeepL API v2</td>
+<td>High-quality translations; Free and Pro endpoints are picked automatically</td>
 </tr>
 <tr>
 <td>LibreTranslate</td>
 <td>Optional</td>
+<td>LibreTranslate <code>/translate</code></td>
 <td>Optional for public instances; self-hosted option available</td>
 </tr>
 <tr>
 <td>Microsoft Translator</td>
 <td>Yes</td>
+<td>Azure AI Translator v3.0</td>
 <td>Enterprise-grade translations</td>
 </tr>
 <tr>
 <td>Yandex</td>
 <td>Yes</td>
-<td>Uses deprecated v1.5 API; legacy API key required</td>
+<td>Yandex Cloud Translate v2</td>
+<td>Needs a <strong>service account API key</strong> from Yandex Cloud, not the retired v1.5 key</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition warning">
+<p class="admonition-title">Yandex keys stored by an earlier korTTY version</p>
+<p>The old Yandex Translate API v1.5 has been shut down by Yandex, and korTTY now talks to the
+Yandex Cloud Translate v2 endpoint instead. A v1.5 key stored in an earlier korTTY version no
+longer works: create a service account in the Yandex Cloud console, give it the
+<code>ai.translate.user</code> role, issue an API key for it, and paste that key into
+<strong>Settings → Translation</strong>. If you also filled in the <strong>API URL</strong> field with the old
+<code>translate.yandex.net/api/v1.5/...</code> address, clear it — korTTY ignores that address and logs a
+warning until you do.</p>
+</div>
 <h3 id="generating-a-translation">Generating a Translation<a class="headerlink" href="#generating-a-translation" title="Permanent link">&para;</a></h3>
 <p>To generate translations for a new language:</p>
 <ol>

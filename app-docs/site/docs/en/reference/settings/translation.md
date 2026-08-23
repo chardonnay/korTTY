@@ -15,6 +15,7 @@ Configure dynamic translation of korTTY's user interface using external translat
 | AI profile | dropdown | "Default (local text profile)" plus every configured AI profile | Default (local text profile) | — |
 | API Key | text | — | — | `encryptedTranslationApiKey` |
 | API URL (optional) | text | — | — (null = use provider default) | `translationApiUrl` |
+| Azure region (optional) | text | — | — (null = global resource) | `translationApiRegion` |
 | Test API Connection | button | — | — | — |
 | Target language | dropdown | System locale and available locales (Locale objects) | System locale | — |
 | Generate Language File | button | — | — | — |
@@ -27,6 +28,42 @@ Configure dynamic translation of korTTY's user interface using external translat
 
 !!! note
     **Generated languages:** The "Generated languages" list displays language files that have been created via the Generate Language File button. Each generated file corresponds to a dynamically translated UI in that target language. Use the Delete button to remove a language file, or use Regenerate outdated to update files created with an older app version to include newly added translation keys.
+
+## Provider credentials and endpoints
+
+Each keyed provider expects its own kind of credential in the **API Key** field. The **API URL**
+field stays empty unless you deliberately point korTTY at a different host — a self-hosted
+LibreTranslate, a regional Azure endpoint, or a proxy.
+
+| Provider | API version korTTY calls | What goes in **API Key** | Default endpoint |
+| --- | --- | --- | --- |
+| Google Translate | Cloud Translation v2 (Basic) | A Google Cloud API key with the Cloud Translation API enabled | `https://translation.googleapis.com/language/translate/v2` |
+| DeepL | DeepL API v2 | Your DeepL auth key, sent as `DeepL-Auth-Key` | `https://api.deepl.com/v2/translate`, or `https://api-free.deepl.com/v2/translate` for a free key |
+| LibreTranslate | LibreTranslate `/translate` | Optional; required by public instances that enforce quotas | `https://libretranslate.com` |
+| Microsoft Translator | Azure AI Translator v3.0 | The Azure Translator resource subscription key | `https://api.cognitive.microsofttranslator.com` |
+| Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **service account API key**, sent as `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
+
+!!! warning "Yandex: the v1.5 API is gone"
+    Yandex retired the old Translate API v1.5 (`translate.yandex.net/api/v1.5`), so a key issued for
+    it no longer authenticates. Create a service account in the Yandex Cloud console, assign it the
+    `ai.translate.user` role, issue an API key for that account, and store that key here. Leave
+    **API URL** empty: an address still pointing at the v1.5 host is ignored, and korTTY writes a
+    warning to the log until you clear it. The folder is implied by the service account, so nothing
+    else has to be configured.
+
+!!! note
+    **DeepL Free vs Pro:** korTTY guesses the endpoint from the key — historically only Free keys
+    end in `:fx` — and corrects itself once if the other endpoint turns out to be the right one.
+    Setting **API URL** explicitly pins the endpoint and disables that correction.
+
+!!! note
+    **Regional Azure resources:** the **Azure region** row appears only while *Microsoft Translator*
+    is selected, because only that provider reads it. Leave it empty for a resource created in the
+    *Global* region. A resource created in a specific region — or one with a custom domain or a
+    virtual network — rejects any call that does not name its region, so enter the region shown on
+    the resource's *Keys and Endpoint* page, for example `germanywestcentral`. A custom-domain
+    resource also needs its full path in **API URL**:
+    `https://<resource>.cognitiveservices.azure.com/translator/text/v3.0`.
 
 ## Local translation
 

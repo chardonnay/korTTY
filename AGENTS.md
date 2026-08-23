@@ -31,7 +31,7 @@ authored in **English Markdown** (`docs/en/**`, the source of truth). German
 | `app-docs/screenshots/<area>/*.png` | Live UI screenshots |
 | `app-docs/doc-manifest.yaml` | **The contract**: page ↔ code ↔ i18n ↔ visuals |
 | `scripts/build-docs-site.py` | Builds the offline bilingual site into `build/guide` |
-| `scripts/sync-version.py` · `doc-coverage.py` · `doc-links.py` | Validators |
+| `scripts/sync-version.py` · `doc-coverage.py` · `doc-links.py` · `external-api-check.py` | Validators |
 | `README.adoc` | Stays AsciiDoc — the GitHub repo landing page |
 
 The same built site is **bundled into the app** (`/guide/**`, opened via
@@ -84,15 +84,35 @@ from the i18n labels, refreshes diagrams/screenshots, and re-runs the validators
 ## CI gates (`.github/workflows/docs-validate.yml`)
 
 ```bash
-./scripts/validate-doc-svg.sh                          # SVG validity
-python3 scripts/sync-version.py --check                # version drift
-.venv-docs/bin/python scripts/doc-links.py             # manifest + asset integrity
-.venv-docs/bin/python scripts/doc-coverage.py --strict # every settings/menu key documented
+./scripts/validate-doc-svg.sh                                    # SVG validity
+python3 scripts/sync-version.py --check                          # version drift
+.venv-docs/bin/python scripts/doc-links.py                       # manifest + asset integrity
+.venv-docs/bin/python scripts/doc-coverage.py --strict           # every settings/menu key documented
+.venv-docs/bin/python scripts/external-api-check.py --strict     # API registry matches code + guide
 ```
 
 `.coderabbit.yaml` excludes `app-docs/**` and `README.adoc` from automated review,
 so these checks are the docs' only automated gate — keep `scripts/doc-*.py`
 outside `app-docs/` so they stay reviewed as code.
+
+## External HTTP APIs (`external-apis.yaml`)
+
+Every third-party HTTP API korTTY calls at runtime is registered in
+`external-apis.yaml` with the version it speaks, its endpoint, the client class,
+the vendor's docs URL, and a `review_after` date. A vendor retiring a REST
+version breaks no build and trips no dependency pin — it only starts failing on
+users' machines, which is how a client for the long-retired Yandex Translate API
+v1.5 survived in the tree. Two checks close that gap:
+
+* `scripts/external-api-check.py --strict` (docs-validate, every PR) — the
+  registered endpoint must still appear in its client class *and* in every guide
+  page listed under `documented_in`. Migrating a provider without updating the
+  registry and the guide fails CI.
+* `.github/workflows/external-api-review.yml` (quarterly) — entries past
+  `review_after` land in one tracking issue to be re-checked against the vendor's
+  docs, then either migrated or re-dated.
+
+Adding a provider or endpoint means adding an entry here in the same commit.
 
 ## Building & running the app
 
