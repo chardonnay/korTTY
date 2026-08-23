@@ -43,9 +43,11 @@ eine selbst gehostete LibreTranslate-Instanz, einen regionalen Azure-Endpunkt od
 | Microsoft-Übersetzer | Azure AI Translator v3.0 | Der Abonnementschlüssel der Azure-Translator-Ressource | `https://api.cognitive.microsofttranslator.com` |
 | Yandex | Yandex Cloud Translate v2 | Ein **API-Schlüssel eines Dienstkontos** aus Yandex Cloud, gesendet als `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
 
-!!! warning "Yandex: Die v1.5-API existiert nicht mehr"
-    Yandex hat die alte Translate API v1.5 (`translate.yandex.net/api/v1.5`) abgeschaltet; ein dafür
-    ausgestellter Schlüssel authentifiziert nicht mehr. Legen Sie in der Yandex-Cloud-Konsole ein
+!!! warning "Yandex: Die v1.5-API ist nicht mehr nutzbar"
+    Yandex stellt für die alte Translate API v1.5 (`translate.yandex.net/api/v1.5`) keine Schlüssel
+    mehr aus und hat die bereits im Umlauf befindlichen freien Schlüssel abgeschaltet. Der Host
+    antwortet zwar noch, aber kein beschaffbarer Schlüssel authentifiziert sich dort. Legen Sie in
+    der Yandex-Cloud-Konsole ein
     Dienstkonto an, weisen Sie ihm die Rolle `ai.translate.user` zu, erzeugen Sie dafür einen
     API-Schlüssel und hinterlegen Sie diesen hier. Lassen Sie **API-URL** leer: Eine Adresse, die
     weiterhin auf den v1.5-Host zeigt, wird ignoriert, und korTTY schreibt bis zum Leeren des Feldes

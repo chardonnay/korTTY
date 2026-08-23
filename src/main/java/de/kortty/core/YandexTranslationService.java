@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import java.net.http.HttpClient;
@@ -21,8 +22,9 @@ import java.net.http.HttpResponse;
  * See: https://yandex.cloud/en/docs/translate/api-ref/Translation/translate
  * Endpoint: https://translate.api.cloud.yandex.net/translate/v2/translate
  *
- * <p>Replaces the retired Yandex Translate API v1.5 (translate.yandex.net/api/v1.5), whose
- * form-encoded {@code key=} credential no longer exists. The credential is now either a service
+ * <p>Replaces the Yandex Translate API v1.5 (translate.yandex.net/api/v1.5), for which Yandex
+ * issues no keys any more and switched off the ones already in circulation — the host still
+ * answers, but no obtainable credential authenticates against it. The credential is now either a service
  * account API key ({@code Authorization: Api-Key ...}) or an IAM token
  * ({@code Authorization: Bearer ...}); which one is in use is derived from the credential itself,
  * because Yandex IAM tokens carry a fixed {@code t1.} prefix.
@@ -43,6 +45,8 @@ public class YandexTranslationService implements TranslationService {
     /** The API rejects a request whose texts exceed 10,000 characters in total; stay under it. */
     private static final int MAX_BATCH_CHARS = 9_000;
     private static final Gson GSON = new Gson();
+    /** Single-quoted span in a vendor error message — the place Yandex echoes the rejected key. */
+    private static final Pattern QUOTED_SPAN = Pattern.compile("'[^']*'");
 
     private final String credential;
     private final String folderId;
@@ -82,8 +86,9 @@ public class YandexTranslationService implements TranslationService {
         }
         String trimmed = customBaseUrl.trim().replaceAll("/$", "");
         if (trimmed.contains(LEGACY_URL_MARKER)) {
-            logger.warn("Ignoring the configured Yandex Translate v1.5 API URL; that API was retired. "
-                + "Using the Cloud Translate v2 endpoint instead. Clear the API URL field to silence this warning.");
+            logger.warn("Ignoring the configured Yandex Translate v1.5 API URL; that API no longer accepts "
+                + "any obtainable key. Using the Cloud Translate v2 endpoint instead. Clear the API URL field "
+                + "to silence this warning.");
             return DEFAULT_BASE_URL;
         }
         return trimmed;
@@ -200,18 +205,24 @@ public class YandexTranslationService implements TranslationService {
     /**
      * The human-readable part of a Yandex error body, so the log names the cause (bad key, missing
      * folder, quota) without echoing the request — which carries the credential.
+     *
+     * <p>Quoted spans are redacted because Yandex reflects the rejected credential back inside
+     * single quotes: {@code Unknown api key 'AQVN****xyz (B7D54BE1)'}. That masking is the
+     * vendor's, not ours, and it still puts the key's first and last characters plus a stable
+     * fingerprint into a log file that gets attached to bug reports.
      */
-    private static String errorMessage(String body) {
+    static String errorMessage(String body) {
         if (body == null || body.isEmpty()) return "";
+        String message = body;
         try {
             YandexError error = GSON.fromJson(body, YandexError.class);
             if (error != null && error.message != null && !error.message.isEmpty()) {
-                return error.message;
+                message = error.message;
             }
         } catch (Exception ignored) {
             // Not a JSON error envelope — fall through to the raw body.
         }
-        return body;
+        return QUOTED_SPAN.matcher(message).replaceAll("'<redacted>'");
     }
 
     @Override

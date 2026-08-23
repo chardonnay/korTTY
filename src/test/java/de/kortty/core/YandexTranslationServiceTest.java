@@ -127,6 +127,34 @@ class YandexTranslationServiceTest {
             .isEqualTo("https://proxy.example/translate/v2");
     }
 
+    /**
+     * Yandex reflects the rejected credential back in its 401 body. Verified against the live
+     * endpoint: an unknown key comes back as `Unknown api key 'AQVN****xyz (B7D54BE1)'` — the
+     * vendor's own masking, which still exposes the key's ends and a stable fingerprint to any log
+     * file attached to a bug report.
+     */
+    @Test
+    void redactsTheCredentialYandexEchoesBackInItsErrorMessage() {
+        String redacted = YandexTranslationService.errorMessage(
+            "{\"code\":16,\"message\":\"Unknown api key 'AQVNabc****wxyz (B7D54BE1)'\"}");
+
+        assertThat(redacted).isEqualTo("Unknown api key '<redacted>'");
+        assertThat(redacted).doesNotContain("AQVNabc");
+        assertThat(redacted).doesNotContain("B7D54BE1");
+    }
+
+    @Test
+    void keepsErrorMessagesThatCarryNoCredential() {
+        assertThat(YandexTranslationService.errorMessage(
+            "{\"code\":16,\"message\":\"IAM token or API key has to be passed in request\"}"))
+            .isEqualTo("IAM token or API key has to be passed in request");
+        // A body that is not the JSON error envelope still has to be redacted, not passed through raw.
+        assertThat(YandexTranslationService.errorMessage("<html>key 'secret' rejected</html>"))
+            .isEqualTo("<html>key '<redacted>' rejected</html>");
+        assertThat(YandexTranslationService.errorMessage("")).isEmpty();
+        assertThat(YandexTranslationService.errorMessage(null)).isEmpty();
+    }
+
     /** Local stub of POST {base}/translate that records what the service sent. */
     private static final class StubTranslate implements AutoCloseable {
         private final HttpServer server;
