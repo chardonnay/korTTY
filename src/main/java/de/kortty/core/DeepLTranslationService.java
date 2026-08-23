@@ -18,9 +18,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Translation service using the DeepL API.
+ * Translation service using the DeepL API v2.
  * Free API: https://api-free.deepl.com (key ends with :fx)
  * Pro API: https://api.deepl.com
+ *
+ * <p>Authenticates with the {@code DeepL-Auth-Key} header and POSTs a JSON body: DeepL retired
+ * query-parameter and request-body auth, and GET on {@code /translate}, in February 2026.
+ *
+ * <p>The {@code :fx} suffix only marks the older API Free keys, so the host derived from it is a
+ * guess; {@link #requestBatch} corrects it once if the other host is the right one.
  */
 public class DeepLTranslationService implements TranslationService {
 
@@ -31,8 +37,13 @@ public class DeepLTranslationService implements TranslationService {
     private static final Gson GSON = new Gson();
 
     private final String apiKey;
-    private final String baseUrl;
+    private final boolean baseUrlPinned;
     private final HttpClient httpClient;
+    /**
+     * Guessed from the key suffix and corrected on the first wrong-endpoint refusal, so it is not
+     * final. Only ever written from {@link #requestBatch}, which the batch loop calls serially.
+     */
+    private volatile String baseUrl;
 
     public DeepLTranslationService(String apiKey) {
         this(apiKey, null);
@@ -44,7 +55,8 @@ public class DeepLTranslationService implements TranslationService {
      */
     public DeepLTranslationService(String apiKey, String customBaseUrl) {
         this.apiKey = apiKey != null ? apiKey.trim() : "";
-        if (customBaseUrl != null && !customBaseUrl.isEmpty()) {
+        this.baseUrlPinned = customBaseUrl != null && !customBaseUrl.isEmpty();
+        if (this.baseUrlPinned) {
             this.baseUrl = customBaseUrl.replaceAll("/$", "");
         } else {
             this.baseUrl = this.apiKey.endsWith(":fx") ? FREE_BASE_URL : PRO_BASE_URL;
@@ -95,14 +107,20 @@ public class DeepLTranslationService implements TranslationService {
             req.source_lang = sourceLang;
             String body = GSON.toJson(req);
 
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl))
-                .header("Authorization", "DeepL-Auth-Key " + apiKey)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                .build();
+            HttpResponse<String> response = post(baseUrl, body);
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            // A key used against the wrong host is refused with 403, and the :fx suffix no longer
+            // identifies every free-tier key. Retry once on the other host rather than reporting an
+            // authorization failure the key is not actually guilty of.
+            if (response.statusCode() == 403 && !baseUrlPinned) {
+                String alternate = FREE_BASE_URL.equals(baseUrl) ? PRO_BASE_URL : FREE_BASE_URL;
+                logger.info("DeepL API refused the key at {}; retrying at {}", baseUrl, alternate);
+                HttpResponse<String> retry = post(alternate, body);
+                if (retry.statusCode() == 200) {
+                    baseUrl = alternate;
+                }
+                response = retry;
+            }
 
             if (response.statusCode() != 200) {
                 logger.error("DeepL API error: status={}, body={}", response.statusCode(), response.body());
@@ -123,6 +141,16 @@ public class DeepLTranslationService implements TranslationService {
         }
     }
 
+    private HttpResponse<String> post(String url, String body) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Authorization", "DeepL-Auth-Key " + apiKey)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+            .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
     /**
      * Maps a locale/language code to DeepL's format (uppercase, optional region).
      * Preserves region-specific codes supported by DeepL for better translation quality;
@@ -136,7 +164,7 @@ public class DeepLTranslationService implements TranslationService {
         "EN-US", "EN-GB", "PT-BR", "PT-PT"
     ));
 
-    private static String toDeepLLang(String lang) {
+    static String toDeepLLang(String lang) {
         if (lang == null || lang.isEmpty()) return null;
         String normalized = lang.trim();
         if (normalized.isEmpty()) return null;

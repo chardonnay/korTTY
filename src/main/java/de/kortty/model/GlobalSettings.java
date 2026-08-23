@@ -341,6 +341,14 @@ public class GlobalSettings {
     @XmlElement
     private String translationApiUrl;
 
+    /**
+     * Azure region of the Microsoft Translator resource (null = the global resource).
+     * A regional or custom-domain Translator resource rejects a request that does not carry its
+     * region, so this is the only way to reach one; other providers ignore it.
+     */
+    @XmlElement
+    private String translationApiRegion;
+
     /** OpenAI-compatible AI API URL used for terminal selection analysis. */
     @XmlElement
     private String aiApiUrl = DEFAULT_AI_API_URL;
@@ -1736,6 +1744,14 @@ public class GlobalSettings {
     
     public void setTranslationApiUrl(String translationApiUrl) {
         this.translationApiUrl = translationApiUrl;
+    }
+
+    public String getTranslationApiRegion() {
+        return translationApiRegion;
+    }
+
+    public void setTranslationApiRegion(String translationApiRegion) {
+        this.translationApiRegion = translationApiRegion;
     }
 
     public String getAiApiUrl() {

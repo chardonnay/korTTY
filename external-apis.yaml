@@ -1,0 +1,104 @@
+# korTTY external API registry — the machine-checkable record of every third-party
+# HTTP API korTTY calls, which version of it we speak, and when that choice was
+# last confirmed against the vendor's documentation.
+#
+# Why this file exists: the Yandex Translate API v1.5 was retired by the vendor
+# while korTTY still shipped a client for it. Nothing in the build could notice,
+# because a retired REST endpoint breaks no compile and no dependency pin — it
+# just starts returning errors on a user's machine. Dependabot and
+# .github/workflows/pinned-artifact-freshness.yml cover libraries and pinned
+# downloads; this file covers the wire protocols they cannot see.
+#
+# Checked by scripts/external-api-check.py, which CI runs two ways:
+#   * on every PR (offline): the endpoint/version literals below must still be
+#     present in the named source files, and the named docs pages must still
+#     state the same version. Changing an endpoint without updating this file
+#     and the guide fails the build.
+#   * weekly (scheduled): entries whose `review_after` date has passed are
+#     collected into one tracking issue for a human to re-check against
+#     `docs_url` and then re-date.
+#
+# Adding an API: add an entry here in the same shape. `review_after` is a
+# deliberate promise to look again, not a deprecation date — push it forward
+# only after actually re-reading the vendor docs.
+
+schema_version: 1
+
+apis:
+  - id: translate-google
+    name: Google Cloud Translation (Basic)
+    version: v2
+    endpoint: https://translation.googleapis.com/language/translate/v2
+    auth: API key in the query string
+    source: src/main/java/de/kortty/core/GoogleTranslationService.java
+    docs_url: https://cloud.google.com/translate/docs/reference/rest/v2/translate
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/translation.md
+      - app-docs/site/docs/de/reference/settings/translation.md
+    review_after: "2027-02-01"
+    # v3 ("Advanced") exists and is what Google recommends for new projects, but it
+    # drops API-key auth for OAuth service-account credentials, which this settings
+    # tab (one key field) cannot express. v2 is not deprecated; revisit if it is.
+    notes: Staying on v2 deliberately — v3 requires OAuth, not a pasteable API key.
+
+  - id: translate-deepl
+    name: DeepL
+    version: v2
+    endpoint: https://api.deepl.com/v2/translate
+    auth: DeepL-Auth-Key header
+    source: src/main/java/de/kortty/core/DeepLTranslationService.java
+    docs_url: https://developers.deepl.com/docs
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/translation.md
+      - app-docs/site/docs/de/reference/settings/translation.md
+    review_after: "2027-02-01"
+    # DeepL retired query-parameter/body auth and GET on /translate in Feb 2026;
+    # this client already POSTs with the header. /v2/languages is deprecated in
+    # favour of /v3/languages but korTTY does not call it.
+    notes: Header auth + POST, as required since February 2026.
+
+  - id: translate-libretranslate
+    name: LibreTranslate
+    version: "current"
+    endpoint: https://libretranslate.com
+    auth: optional api_key in the JSON body
+    source: src/main/java/de/kortty/core/LibreTranslateTranslationService.java
+    docs_url: https://libretranslate.com/docs/
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/translation.md
+      - app-docs/site/docs/de/reference/settings/translation.md
+    review_after: "2027-02-01"
+    # Unversioned API; the public host is only a default, self-hosted instances
+    # are the common case and are pinned by the user's API URL setting.
+    notes: Unversioned /translate endpoint; self-hosting is the normal deployment.
+
+  - id: translate-microsoft
+    name: Azure AI Translator (Text)
+    version: "3.0"
+    endpoint: https://api.cognitive.microsofttranslator.com
+    auth: Ocp-Apim-Subscription-Key header (+ Ocp-Apim-Subscription-Region for non-global resources)
+    source: src/main/java/de/kortty/core/MicrosoftTranslationService.java
+    docs_url: https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/reference
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/translation.md
+      - app-docs/site/docs/de/reference/settings/translation.md
+    review_after: "2027-02-01"
+    # Azure shipped api-version 2026-06-06 GA with a different request/response
+    # shape (inputs/value instead of the v3 arrays). v3.0 is still GA and not
+    # deprecated, so migrating is a deliberate future change, not a fix.
+    notes: v3.0 is still GA; api-version 2026-06-06 is the successor when we migrate.
+
+  - id: translate-yandex
+    name: Yandex Cloud Translate
+    version: v2
+    endpoint: https://translate.api.cloud.yandex.net/translate/v2
+    auth: Api-Key header (service account), or Bearer for an IAM token
+    source: src/main/java/de/kortty/core/YandexTranslationService.java
+    docs_url: https://yandex.cloud/en/docs/translate/api-ref/Translation/translate
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/translation.md
+      - app-docs/site/docs/de/reference/settings/translation.md
+    review_after: "2027-02-01"
+    # Migrated off the retired v1.5 API (translate.yandex.net/api/v1.5), whose
+    # form-encoded key= credential no longer authenticates at all.
+    notes: Replaces the retired Translate API v1.5; folderId is implied by the service account.

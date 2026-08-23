@@ -15,6 +15,7 @@ Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY
 | AI-Profil | Dropdown-Liste | „Standard (lokales Textprofil)“ plus jedes konfigurierte AI-Profil | Standard (lokales Textprofil) | – |
 | API-Schlüssel | Text | – | – | `encryptedTranslationApiKey` |
 | API-URL (optional) | Text | – | – (null = Anbieterstandard verwenden) | `translationApiUrl` |
+| Azure-Region (optional) | Text | – | – (null = globale Ressource) | `translationApiRegion` |
 | API-Verbindung testen | Schaltfläche | – | – | – |
 | Zielsprache | Dropdown-Liste | Systemgebietsschema und verfügbare Gebietsschemata (Gebietsschemaobjekte) | Systemgebietsschema | – |
 | Sprachdatei generieren | Schaltfläche | – | – | – |
@@ -27,6 +28,45 @@ Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY
 
 !!! note
     **Generierte Sprachen:** In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.
+
+## Anmeldeinformationen und Endpunkte der Anbieter
+
+Jeder Anbieter mit Schlüssel erwartet eine eigene Art von Anmeldeinformation im Feld **API-Schlüssel**.
+Das Feld **API-URL** bleibt leer, sofern Sie korTTY nicht bewusst auf einen anderen Host richten —
+eine selbst gehostete LibreTranslate-Instanz, einen regionalen Azure-Endpunkt oder einen Proxy.
+
+| Anbieter | Von korTTY aufgerufene API-Version | Inhalt von **API-Schlüssel** | Standard-Endpunkt |
+| --- | --- | --- | --- |
+| Google Translate | Cloud Translation v2 (Basic) | Ein Google-Cloud-API-Schlüssel mit aktivierter Cloud Translation API | `https://translation.googleapis.com/language/translate/v2` |
+| DeepL | DeepL API v2 | Ihr DeepL-Authentifizierungsschlüssel, gesendet als `DeepL-Auth-Key` | `https://api.deepl.com/v2/translate`, bei einem Free-Schlüssel `https://api-free.deepl.com/v2/translate` |
+| LibreTranslate | LibreTranslate `/translate` | Optional; von öffentlichen Instanzen mit Kontingenten verlangt | `https://libretranslate.com` |
+| Microsoft-Übersetzer | Azure AI Translator v3.0 | Der Abonnementschlüssel der Azure-Translator-Ressource | `https://api.cognitive.microsofttranslator.com` |
+| Yandex | Yandex Cloud Translate v2 | Ein **API-Schlüssel eines Dienstkontos** aus Yandex Cloud, gesendet als `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
+
+!!! warning "Yandex: Die v1.5-API existiert nicht mehr"
+    Yandex hat die alte Translate API v1.5 (`translate.yandex.net/api/v1.5`) abgeschaltet; ein dafür
+    ausgestellter Schlüssel authentifiziert nicht mehr. Legen Sie in der Yandex-Cloud-Konsole ein
+    Dienstkonto an, weisen Sie ihm die Rolle `ai.translate.user` zu, erzeugen Sie dafür einen
+    API-Schlüssel und hinterlegen Sie diesen hier. Lassen Sie **API-URL** leer: Eine Adresse, die
+    weiterhin auf den v1.5-Host zeigt, wird ignoriert, und korTTY schreibt bis zum Leeren des Feldes
+    eine Warnung ins Log. Der Ordner ergibt sich aus dem Dienstkonto, sonst ist nichts zu
+    konfigurieren.
+
+!!! note
+    **DeepL Free und Pro:** korTTY leitet den Endpunkt aus dem Schlüssel ab — historisch enden nur
+    Free-Schlüssel auf `:fx` — und korrigiert sich einmalig, falls der andere Endpunkt der richtige
+    ist. Ein ausdrücklich gesetztes Feld **API-URL** legt den Endpunkt fest und schaltet diese
+    Korrektur ab.
+
+!!! note
+    **Regionale Azure-Ressourcen:** Die Zeile **Azure-Region** erscheint nur, solange
+    *Microsoft-Übersetzer* ausgewählt ist, denn nur dieser Anbieter wertet sie aus. Lassen Sie sie
+    für eine Ressource in der Region *Global* leer. Eine Ressource in einer bestimmten Region — oder
+    eine mit eigener Domain bzw. mit virtuellem Netzwerk — weist jeden Aufruf ab, der ihre Region
+    nicht nennt. Tragen Sie dann die Region ein, die auf der Seite *Schlüssel und Endpunkt* der
+    Ressource steht, zum Beispiel `germanywestcentral`. Eine Ressource mit eigener Domain benötigt
+    zusätzlich ihren vollständigen Pfad in **API-URL**:
+    `https://<ressource>.cognitiveservices.azure.com/translator/text/v3.0`.
 
 ## Lokale Übersetzung
 
