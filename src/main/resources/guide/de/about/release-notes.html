@@ -2243,6 +2243,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungsabbruch und Wiederverbinden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sicherheit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2391,6 +2402,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungsabbruch und Wiederverbinden
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sicherheit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2441,6 +2463,12 @@
 <li><strong>Zusammenfassungen nachholen</strong> – Mit den Journaloptionen kann die Zusammenfassung jetzt einzeln hinter einem abbrechbaren Fortschrittsdialog über geschlossene Journale ausgeführt werden, die nie zusammengefasst wurden.</li>
 <li><strong>Die Inhaltssuche des Managers liest gestreamte Protokolle</strong> – <strong>Inhalte durchsuchen</strong> dekomprimiert nicht mehr ganze Capture-Loge in den Speicher; Teile werden Zeile für Zeile gescannt, sodass die Suche in vielen großen Journale einfach bleibt.</li>
 <li><strong>Neuer Richtlinienschlüssel <code>ai-ask</code></strong> – eine Organisation kann die On-Demand-KI für Journaleinhalte verbieten (Fragen-und-Antworten-Panel und zeitschriftenübergreifende KI-Suche) und gleichzeitig KI-Zusammenfassungen beibehalten.</li>
+</ul>
+<h3 id="verbindungsabbruch-und-wiederverbinden">Verbindungsabbruch und Wiederverbinden<a class="headerlink" href="#verbindungsabbruch-und-wiederverbinden" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Eine verlorene Verbindung schließt den Tab nicht mehr</strong> – bricht eine bestehende SSH-Verbindung ab (Netzwerkausfall, VPN-Trennung, Server weg), bleibt der Tab jetzt in einem roten <code>(DISCONNECT)</code>-Zustand offen, mit einer roten Statusleiste, die den Zeitpunkt des Abbruchs zeigt, statt sich still zu schließen, als hätten Sie <code>exit</code> eingegeben. Wiederverbinden im selben Tab per Doppelklick auf die Leiste oder den Tab oder über <strong>Neu verbinden</strong> in den Kontextmenüs; ein normaler Remote-Logout schließt den Tab weiterhin wie bisher.</li>
+<li><strong>Ein Verbindungsabbruch wird innerhalb von etwa zehn Sekunden erkannt</strong> – korTTY prüft den Server aktiv über die SSH-Verbindung (dieselbe Technik wie OpenSSHs <code>ServerAliveInterval</code>) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust, statt Minuten auf einen TCP-Timeout zu warten. In einem getrennten Tab hört außerdem der Terminal-Cursor auf zu blinken, sodass eine tote Sitzung nicht mehr aktiv aussieht.</li>
+<li><strong>Automatisches Wiederverbinden</strong> – eine neue Option <strong>Einstellungen → Terminal → Verlorene Verbindungen automatisch wiederherstellen</strong> (standardmäßig aktiviert) verbindet einen getrennten Tab selbstständig neu, mit Wartezeiten, die von 3 Sekunden bis zu einem Versuch pro Minute wachsen, und einem Countdown in der roten Statusleiste. Dauerhafte Fehler wie ein falsches Passwort, ein geänderter Hostschlüssel oder eine Konfigurationsablehnung werden nie automatisch wiederholt, und solange ein Sitzungsjournal über das weitere Vorgehen entscheidet, hat die Wiederverbinden-Wahl des Journals Vorrang. Siehe <a href="../features/terminal.html">Terminal-Sitzungen → Verbindungsverlust</a>.</li>
 </ul>
 <h3 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h3>
 <ul>

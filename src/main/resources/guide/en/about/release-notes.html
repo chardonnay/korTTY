@@ -2243,6 +2243,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#connection-loss-and-reconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection loss and reconnect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2391,6 +2402,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#connection-loss-and-reconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection loss and reconnect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#security" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2441,6 +2463,12 @@
 <li><strong>Catch up summaries</strong> — the journal options can now run the summarizer over closed journals that were never summarized, one by one behind a cancellable progress dialog.</li>
 <li><strong>The manager's content search reads logs streaming</strong> — <strong>Search contents</strong> no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.</li>
 <li><strong>New policy key <code>ai-ask</code></strong> — an organization can forbid the on-demand AI over journal content (Q&amp;A panel and cross-journal AI search) while keeping AI summaries.</li>
+</ul>
+<h3 id="connection-loss-and-reconnect">Connection loss and reconnect<a class="headerlink" href="#connection-loss-and-reconnect" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>A lost connection no longer closes the tab</strong> — when an established SSH connection drops (network outage, VPN cut, server gone), the tab now stays open in a red <code>(DISCONNECT)</code> state with a red status bar showing when the connection was lost, instead of silently closing as if you had typed <code>exit</code>. Reconnect in place with a double-click on the bar or tab, or via <strong>Reconnect</strong> in the context menus; a normal remote logout still closes the tab as before.</li>
+<li><strong>Connection loss is detected within about ten seconds</strong> — korTTY actively probes the server over the SSH connection (the same technique as OpenSSH's <code>ServerAliveInterval</code>) and treats two consecutive unanswered probes as a lost connection, instead of waiting minutes for a TCP timeout. The terminal cursor also stops blinking in a disconnected tab, so a dead session no longer looks alive.</li>
+<li><strong>Automatic reconnect</strong> — a new <strong>Settings → Terminal → Automatically reconnect lost connections</strong> option (on by default) reconnects a lost tab on its own, with delays growing from 3 seconds up to one attempt per minute and a countdown in the red status bar. Permanent failures such as a wrong password, a changed host key, or a configuration refusal are never retried automatically, and while a session journal is deciding how to continue, the journal's own reconnect choice takes precedence. See <a href="../features/terminal.html#connection-loss-and-automatic-reconnect">Terminal sessions → Connection loss</a>.</li>
 </ul>
 <h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>

@@ -2453,6 +2453,13 @@
 <td><code>connectionRetriesEnabled</code></td>
 </tr>
 <tr>
+<td>Automatically reconnect lost connections</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>autoReconnectEnabled</code></td>
+</tr>
+<tr>
 <td>Disable host key verification for all connections</td>
 <td>toggle</td>
 <td>—</td>
@@ -2486,6 +2493,10 @@
 <p class="admonition-title">Connection Retries</p>
 <p>When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.</p>
 <p>Retries only cover failures that a further attempt could resolve. A changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Automatically reconnect lost connections</p>
+<p>When enabled and an <strong>established</strong> SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what <em>Enable connection retries</em> covers. See <a href="../../features/terminal.html#connection-loss-and-automatic-reconnect">Terminal sessions → Connection loss</a>.</p>
 </div>
 
 
