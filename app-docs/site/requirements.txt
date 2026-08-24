@@ -1,13 +1,51 @@
 # Pinned toolchain for the korTTY documentation site and EN-to-DE generation.
 # Installed into the throwaway .venv-docs venv (see build.gradle.kts setupDocsVenv).
 # The `search` and `offline` plugins ship inside mkdocs-material — no extra deps needed.
+#
+# FULLY pinned, transitive dependencies included, because the built guide is COMMITTED under
+# src/main/resources/guide and docs-autocommit fails on main when a rebuild differs from it
+# ("src/main/resources/guide is stale"). Pinning only mkdocs and mkdocs-material left the
+# HTML-producing packages floating: Pygments renders every highlighted code block, and 2.21
+# escapes `"` inside code as `&quot;`, so pages nobody had touched (teamwork,
+# building-packages, enterprise-policy) differed on every rebuild once CI resolved a different
+# version than the machine that last staged the bundle. Markdown, pymdown-extensions and the
+# Jinja2 template stack shape that output just as directly.
+#
+# To upgrade: bump the pin(s), run `./gradlew stageGuideIntoResources`, and commit the
+# regenerated bundle together with the change — never separately.
+
+# Direct dependencies
 mkdocs==1.6.1
 mkdocs-material==9.7.6
 deep-translator==1.11.4
-# Pygments renders every highlighted code block, so its version is part of the guide's HTML
-# output — it must be pinned even though it only arrives as a transitive dependency. Left
-# unpinned, a new release silently changes the markup (2.21 escapes `"` inside code as
-# `&quot;`), every rebuild differs from the committed bundle, and docs-autocommit fails on main
-# with "src/main/resources/guide is stale" on any docs push. Bump this pin and regenerate with
-# `./gradlew stageGuideIntoResources` in one commit.
-pygments==2.21.0
+
+# Transitive, pinned for a reproducible build (resolved from the three above)
+babel==2.18.0
+backrefs==7.0
+certifi==2026.6.17
+charset-normalizer==3.4.8
+click==8.4.2
+colorama==0.4.6
+ghp-import==2.1.0
+idna==3.18
+Jinja2==3.1.6
+Markdown==3.10.2
+MarkupSafe==3.0.3
+mergedeep==1.3.4
+mkdocs-get-deps==0.2.2
+mkdocs-material-extensions==1.3.1
+packaging==26.2
+paginate==0.5.7
+pathspec==1.1.1
+pillow==12.3.0
+platformdirs==4.10.0
+Pygments==2.21.0
+pymdown-extensions==11.0.1
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+pyyaml_env_tag==1.1
+requests==2.34.2
+six==1.17.0
+typing_extensions==4.16.0
+urllib3==2.7.0
+watchdog==6.0.0
