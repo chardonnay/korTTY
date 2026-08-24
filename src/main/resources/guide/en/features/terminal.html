@@ -1587,6 +1587,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#connection-loss-and-automatic-reconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection loss and automatic reconnect
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multi-window-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2628,6 +2639,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#connection-loss-and-automatic-reconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection loss and automatic reconnect
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multi-window-support" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2945,6 +2967,11 @@
 <p>Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.</p>
 <p>Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See <a href="jump-server.html">Jump server</a> for the Mosh restriction.</p>
 <p>KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks <code>TerminalTextBuffer</code> for the non-existent row at <code>line == height</code>.</p>
+<h2 id="connection-loss-and-automatic-reconnect">Connection loss and automatic reconnect<a class="headerlink" href="#connection-loss-and-automatic-reconnect" title="Permanent link">&para;</a></h2>
+<p>When an <strong>established</strong> SSH connection is lost — network drop, VPN cut, server gone — the tab does <strong>not</strong> close. It switches to a red disconnected state instead: the tab title gets a <code>(DISCONNECT)</code> suffix, the tab turns dark red, a red status bar shows the time the connection was lost, and the terminal cursor stops blinking so a dead session no longer looks alive. Only a normal remote logout (typing <code>exit</code>, or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> at the prompt) closes the tab.</p>
+<p>KorTTY notices a silent transport death within about ten seconds: every few seconds it sends an SSH liveness probe (a global request the server must answer, the same technique as OpenSSH's <code>ServerAliveInterval</code>) and treats two consecutive unanswered probes as a lost connection. The probe only arms itself after the server has answered once, so servers that never reply to such requests keep their sessions untouched. This is independent of the <a href="#ssh-keep-alive">SSH keep-alive</a> heartbeat, which keeps idle connections open but does not detect a dead one.</p>
+<p>To pick the session back up in the same tab, double-click the red status bar or the red tab, or use <strong>Reconnect</strong> in the tab, terminal, or Dashboard context menu. In a split tab, panes whose connection died close individually; the last remaining pane keeps the tab open and carries the reconnect offer.</p>
+<p>With <strong>Automatically reconnect lost connections</strong> enabled (<strong>Settings → Terminal</strong>, on by default), the tab reconnects on its own: attempts start after 3 seconds and back off through 5, 10, 20 and 30 seconds up to one attempt per minute, and the red status bar counts down to the next attempt. A successful reconnect, a manual reconnect, or closing the tab ends the automatic attempts. Permanent failures — authentication, host-key verification, configuration refusals — stop them too, so a wrong password is never hammered against the server. While a <a href="session-journal.html">session journal</a> is running, its red decision bar takes precedence and no automatic attempt starts — the journal asks whether to reconnect and continue or to end with its closing summary. See <a href="../reference/settings/terminal.html">Settings → Terminal</a> for the setting.</p>
 <h2 id="multi-window-support">Multi-window support<a class="headerlink" href="#multi-window-support" title="Permanent link">&para;</a></h2>
 <p>Open additional windows to organize connections by project or environment:</p>
 <ul>

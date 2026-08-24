@@ -4,3 +4,10 @@
 mkdocs==1.6.1
 mkdocs-material==9.7.6
 deep-translator==1.11.4
+# Pygments renders every highlighted code block, so its version is part of the guide's HTML
+# output — it must be pinned even though it only arrives as a transitive dependency. Left
+# unpinned, a new release silently changes the markup (2.21 escapes `"` inside code as
+# `&quot;`), every rebuild differs from the committed bundle, and docs-autocommit fails on main
+# with "src/main/resources/guide is stale" on any docs push. Bump this pin and regenerate with
+# `./gradlew stageGuideIntoResources` in one commit.
+pygments==2.21.0
