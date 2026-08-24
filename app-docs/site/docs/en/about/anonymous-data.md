@@ -4,13 +4,13 @@ title: Anonymous data for application optimization
 
 # Anonymous data for application optimization
 
-korTTY can collect **anonymous usage statistics** to help decide which features are worth improving and to find crashes and frequent errors. This is entirely optional, switched **off by default**, and can be turned on or off at any time.
+korTTY can collect **anonymous usage statistics** to help decide which features are worth improving and to find crashes and frequent errors. This is entirely optional and can be turned on or off at any time. On a first launch the checkbox in the master-password setup comes **pre-selected**, so confirming that dialog as-is starts collection — clear it there, or switch it off later, and nothing is collected.
 
 ![Anonymous telemetry consent and data flow](../assets/diagrams/telemetry-consent-flow.svg)
 
 ## Overview
 
-* **Opt-in.** Nothing is collected unless you explicitly agree. You are asked once, together with the master-password setup on first launch; existing installations are asked once after unlocking.
+* **Your decision, once.** Nothing is collected before you confirm. You are asked once, together with the master-password setup on first launch, where the checkbox is pre-selected; existing installations are asked once after unlocking, with a dialog that counts every dismissal as "no".
 * **Anonymous.** No account, no login, and no persistent device identifier is transmitted.
 * **Revocable.** You can change your decision at any time under **Settings → Privacy**. Turning it off stops collection immediately and discards any data that has not yet been sent.
 
@@ -53,7 +53,7 @@ The goal is to make korTTY better with real, anonymous evidence instead of guess
 
 ## Your choices
 
-* **First launch:** the setup dialog for the master password includes an opt-in checkbox and this information.
+* **First launch:** the setup dialog for the master password includes the pre-selected checkbox and this information; clearing it before you click **Setup** declines.
 * **Any time:** open **Settings → Privacy** to enable or disable collection. The same page links back to this chapter.
 * **Turning it off** stops all collection immediately and discards data that has not yet been sent.
 

@@ -1216,19 +1216,53 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
-    void uiFontScaleAutoDefaultsFalseAndPersists() throws Exception {
+    void uiFontScaleAutoIsOnForAFreshInstallAndAnExplicitOffPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-ui-font-scale-auto");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            assertThat(manager.getSettings().isUiFontScaleAuto()).isFalse();
+            manager.load(); // No settings file in the config dir: a first installation.
 
-            manager.getSettings().setUiFontScaleAuto(true);
+            assertThat(manager.getSettings().isUiFontScaleAuto()).isTrue();
+
+            manager.getSettings().setUiFontScaleAuto(false);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
 
-            assertThat(reloaded.getSettings().isUiFontScaleAuto()).isTrue();
+            assertThat(reloaded.getSettings().isUiFontScaleAuto()).isFalse();
+
+            reloaded.getSettings().setUiFontScaleAuto(true);
+            reloaded.save();
+
+            GlobalSettingsManager reloadedAgain = new GlobalSettingsManager(dir);
+            reloadedAgain.load();
+
+            assertThat(reloadedAgain.getSettings().isUiFontScaleAuto()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void uiFontScaleAutoStaysOffForASettingsFileWrittenBeforeTheSettingExisted() throws Exception {
+        // The update case: an existing installation keeps the scaling it had, so the
+        // first-install default must not reach a config dir that already carries a settings file.
+        Path dir = Files.createTempDirectory("kortty-global-settings-ui-font-scale-auto-update");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <uiFontScalePercent>110</uiFontScalePercent>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.load();
+
+            assertThat(manager.getSettings().isUiFontScaleAuto()).isFalse();
+            assertThat(manager.getSettings().getUiFontScalePercent()).isEqualTo(110);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

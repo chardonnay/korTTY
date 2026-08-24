@@ -48,8 +48,10 @@ public class GlobalSettingsManager {
         Path settingsFile = settingsFile();
 
         if (!Files.exists(settingsFile)) {
-            logger.info("Settings file not found, using defaults");
-            this.settings = new GlobalSettings();
+            // No settings file at all: this is a first installation, not an update, so the
+            // first-install defaults apply (see GlobalSettings.forFreshInstall()).
+            logger.info("Settings file not found, using first-install defaults");
+            this.settings = GlobalSettings.forFreshInstall();
             this.loadedSettingsLastModifiedMillis = 0L;
             applyPolicyClamp();
             return;

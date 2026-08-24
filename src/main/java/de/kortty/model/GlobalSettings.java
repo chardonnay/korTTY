@@ -288,8 +288,13 @@ public class GlobalSettings {
     @XmlElement
     private Integer uiFontScalePercent = UI_FONT_SCALE_DEFAULT_PERCENT;
 
+    /**
+     * Derives the UI font size from the display resolution. The initializer is the value an
+     * existing settings file falls back to when it predates this setting — a fresh installation
+     * starts with it on, see {@link #forFreshInstall()}.
+     */
     @XmlElement
-    private boolean uiFontScaleAuto = false; // Derive the UI font size from the display resolution
+    private boolean uiFontScaleAuto = false;
 
     /**
      * Text size of the manual, in percent. Separate from the UI font scale: the guide is a
@@ -913,6 +918,24 @@ public class GlobalSettings {
     }
     
     public GlobalSettings() {}
+
+    /**
+     * Settings for a first installation — the state korTTY starts from when no
+     * {@code global-settings.xml} exists yet.
+     *
+     * <p>Deliberately separate from the constructor, because the constructor is also the
+     * deserialization target for an existing settings file: a field the file does not carry keeps
+     * its initializer value there, so turning a default "on" in the initializer would silently flip
+     * the setting for everyone who updates from a version that predates it. Defaults that should
+     * only greet new installations belong here.</p>
+     */
+    public static GlobalSettings forFreshInstall() {
+        GlobalSettings settings = new GlobalSettings();
+        // Fresh installs adapt the UI font size to the display; an existing installation keeps
+        // whatever it had (which, for files written before this setting existed, is off).
+        settings.setUiFontScaleAuto(true);
+        return settings;
+    }
 
     public String getLogDirectoryPath() {
         return logDirectoryPath;

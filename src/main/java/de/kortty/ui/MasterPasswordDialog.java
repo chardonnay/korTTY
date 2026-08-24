@@ -688,11 +688,19 @@ public class MasterPasswordDialog {
         HBox strengthBox = new HBox(10, strengthLabel, strengthBar);
         strengthBox.setAlignment(Pos.CENTER);
 
-        // Anonymous usage statistics: opt-in consent asked together with the password setup.
+        // Anonymous usage statistics: consent asked together with the password setup. The box is
+        // pre-selected, so sharing is the default and unchecking it right here is the opt-out; the
+        // decision stays visible next to the fields and Settings -> Privacy can flip it any time.
         telemetryConsentCheck = new CheckBox(I18n.get("masterPassword.telemetry.consent"));
         telemetryConsentCheck.setWrapText(true);
-        telemetryConsentCheck.setSelected(false);
+        telemetryConsentCheck.setSelected(true);
         telemetryConsentCheck.getStyleClass().add("field-label");
+        // An organization policy outranks the pre-selection: never offer a ticked box for something
+        // the policy clamp would switch off again behind the user's back.
+        if (de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                telemetryConsentCheck, de.kortty.policy.ManagedSetting.TELEMETRY)) {
+            telemetryConsentCheck.setSelected(de.kortty.policy.PolicyManager.effective().telemetryAllowed());
+        }
         if (!isCustomAppDesign()) {
             telemetryConsentCheck.setStyle("-fx-text-fill: #f1f5fb;");
         }

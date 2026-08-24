@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 620" role="img" aria-labelledby="title desc">
   <title id="title">Anonymous telemetry consent and data flow</title>
-  <desc id="desc">Opt-in consent gates an anonymous event pipeline with an in-memory queue, an offline spool that survives restarts, and delivery to Aptabase EU servers.</desc>
+  <desc id="desc">Consent gates an anonymous event pipeline with an in-memory queue, an offline spool that survives restarts, and delivery to Aptabase EU servers.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#08111f}.panel{fill:#0e1b2c;stroke:#29445f;stroke-width:2;rx:18}.box{fill:#14243a;stroke:#38bdf8;stroke-width:2;rx:10}.sec{stroke:#f59e0b}.store{stroke:#34d399}.remote{stroke:#fb7185}.title{font-size:28px;font-weight:700;fill:#f8fafc}.label{font-size:19px;font-weight:700;fill:#7dd3fc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
   <rect class="bg" width="1180" height="620"/>
   <text class="title" x="40" y="54">Anonymous Telemetry: Consent and Data Flow</text>
-  <text class="small" x="40" y="82">Strictly opt-in and anonymous — without consent nothing is created, queued, or sent.</text>
+  <text class="small" x="40" y="82">Consent-gated and anonymous — without consent nothing is created, queued, or sent.</text>
 
   <rect class="panel" x="50" y="120" width="330" height="410"/>
-  <text class="label" x="80" y="155">Consent (opt-in, off by default)</text>
+  <text class="label" x="80" y="155">Consent (asked once, revocable)</text>
   <rect class="box sec" x="80" y="185" width="270" height="62"/>
   <text x="120" y="211">First launch</text>
-  <text class="small" x="102" y="233">opt-in next to password setup</text>
+  <text class="small" x="92" y="233">pre-selected next to password setup</text>
   <rect class="box sec" x="80" y="267" width="270" height="62"/>
   <text x="120" y="293">Existing installation</text>
   <text class="small" x="105" y="315">one-time prompt after unlock</text>
@@ -23,7 +23,7 @@
   <path class="line" d="M215 411 V446"/>
 
   <rect class="panel" x="440" y="120" width="380" height="410"/>
-  <text class="label" x="470" y="155">Telemetry pipeline (after opt-in)</text>
+  <text class="label" x="470" y="155">Telemetry pipeline (after consent)</text>
   <rect class="box" x="475" y="185" width="310" height="62"/>
   <text x="560" y="211">Anonymous events</text>
   <text class="small" x="512" y="233">event names, counts, flags &#8212; never PII</text>
@@ -41,7 +41,7 @@
   <text class="small" x="692" y="428">next start</text>
 
   <path class="line" d="M380 340 H475"/>
-  <text class="small" x="395" y="330">opt-in</text>
+  <text class="small" x="393" y="330">consent</text>
 
   <rect class="box remote" x="880" y="290" width="272" height="80"/>
   <text x="972" y="325">Aptabase EU</text>

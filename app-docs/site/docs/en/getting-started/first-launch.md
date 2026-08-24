@@ -4,7 +4,7 @@ On first launch, korTTY asks you to create a **master password**. This password 
 
 1. Enter a password (minimum 6 characters). The field border turns **green** when long enough and **red** when too short; a strength indicator rates the quality. A weak or common password shows a warning but can still be used if you confirm.
 2. Confirm the password.
-3. Optionally tick **Share anonymous usage statistics** to help improve korTTY. This is off by default, fully anonymous and GDPR-compliant, and can be changed any time in **Settings → Privacy**. The **?** button opens [Anonymous data for application optimization](../about/anonymous-data.md).
+3. Leave **Share anonymous usage statistics** ticked to help improve korTTY, or clear the checkbox if you would rather share nothing. It is pre-selected, but the choice is yours before you confirm — what is collected is fully anonymous and GDPR-compliant, and the setting can be changed any time in **Settings → Privacy**. The **?** button opens [Anonymous data for application optimization](../about/anonymous-data.md). An organization policy that forbids telemetry locks the checkbox and leaves it clear.
 4. Click **Setup**.
 
 On subsequent launches you are prompted to enter the master password to unlock your encrypted data.

@@ -35,7 +35,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **Persistenz** | XML-Serialisierung, Datei-E/A, Repository-Muster | `XMLConnectionRepository`, `HistoryStorage` |
 | **Plugin** | Terminaleffekt-Plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
 | **Leistung** | Aktivitätsbewusstes Schlaf- und App-Nap-Management pro Plattform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
-| **Telemetrie** | Opt-in anonyme Nutzungsereignisse | `TelemetryService`, `Telemetry` |
+| **Telemetrie** | Anonyme Nutzungsereignisse nach Zustimmung | `TelemetryService`, `Telemetry` |
 | **Teamarbeit** | Funktionen für Zusammenarbeit und Fernzugriff | Teambasierte Sitzungsfreigabe und -koordination |
 | **jmx** | Überwachung der Java-Verwaltungserweiterungen | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **Update** | Versionsprüfung und Update-Benachrichtigungen | Update-Dienst und Versionsmetadaten |

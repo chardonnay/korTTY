@@ -17,7 +17,7 @@ Customize the application window and dialog visual style.
 | App Design | dropdown | Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | Default | `appDesign` |
 | Enable design animations | toggle | On, Off | On | `appDesignAnimationsEnabled` |
 | UI font size | number | 80–160 % in steps of 5 | 100 % | `uiFontScalePercent` |
-| Match display resolution | toggle | On, Off | Off | `uiFontScaleAuto` |
+| Match display resolution | toggle | On, Off | On (new installations) | `uiFontScaleAuto` |
 | Chat color profile | dropdown | Automatic (theme), Original, Paper, Midnight, Cyberpunk, Retrowave, Forest, Ocean, Terminal, GPT, Cute | Automatic (theme) | `chatColorProfileId` |
 
 The `◀` and `▶` buttons next to the dropdown step backward and forward through the designs (wrapping around at the ends). When a design other than **Default** is selected, a preview image of that design is shown below the controls; the **Default** design has no preview and shows a short note in its place.
@@ -45,7 +45,7 @@ It deliberately does **not** touch surfaces that already have their own size con
 
 Two further parts of the interface keep their size at every setting: the macOS application menu (the one in the system menu bar), because macOS draws it rather than korTTY, and the AI swarm status strip, whose labels are painted onto a canvas together with hand-computed positions.
 
-**Match display resolution** derives the size from the primary display instead, and disables the number field while it is on. The value comes from the display's *logical* height — the resolution the operating system reports after its own scaling:
+**Match display resolution** derives the size from the primary display instead, and disables the number field while it is on. A new installation starts with it **on**, so korTTY fits itself to the screen before anyone visits this tab; updating an existing installation never changes it — whatever you had stays. The value comes from the display's *logical* height — the resolution the operating system reports after its own scaling:
 
 | Logical screen height | UI font size |
 | --- | --- |

@@ -35,7 +35,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **persistence** | XML serialization, file I/O, repository pattern | `XMLConnectionRepository`, `HistoryStorage` |
 | **plugin** | Terminal effect plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
 | **power** | Activity-aware sleep and App Nap management per platform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
-| **telemetry** | Opt-in anonymous usage events | `TelemetryService`, `Telemetry` |
+| **telemetry** | Consent-gated anonymous usage events | `TelemetryService`, `Telemetry` |
 | **teamwork** | Collaboration and remote access features | Team-based session sharing and coordination |
 | **jmx** | Java Management Extensions monitoring | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **update** | Version checking and update notifications | Update service and version metadata |

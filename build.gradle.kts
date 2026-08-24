@@ -2984,6 +2984,14 @@ tasks.register<JavaExec>("quickConnectScrollSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("firstRunSetupDialogSmoke") {
+    group = "verification"
+    description = "Builds the real first-run master-password dialog and asserts the anonymous-statistics box is pre-selected; snapshots build/smoke/first-run-setup-dialog.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.FirstRunSetupDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     group = "verification"
     description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."

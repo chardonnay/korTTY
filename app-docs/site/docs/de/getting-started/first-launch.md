@@ -4,7 +4,7 @@ Beim ersten Start fordert korTTY Sie auf, ein **Master-Passwort** zu erstellen. 
 
 1. Geben Sie ein Passwort ein (mindestens 6 Zeichen). Der Feldrand wird **grün**, wenn er lang genug ist, und **rot**, wenn er zu kurz ist; Ein Stärkeindikator bewertet die Qualität. Bei einem schwachen oder gebräuchlichen Passwort wird eine Warnung angezeigt, es kann jedoch weiterhin verwendet werden, wenn Sie es bestätigen.
 2. Bestätigen Sie das Passwort.
-3. Wählen Sie optional **Anonyme Nutzungsstatistiken teilen** aus, um korTTY zu verbessern. Dies ist standardmäßig deaktiviert, vollständig anonym und DSGVO-konform und kann jederzeit unter **Einstellungen → Datenschutz** geändert werden. Die Schaltfläche **?** öffnet [Anonyme Daten zur Anwendungsoptimierung](../about/anonymous-data.md).
+3. Lassen Sie **Anonyme Nutzungsstatistiken teilen** aktiviert, um korTTY zu verbessern, oder entfernen Sie den Haken, wenn Sie nichts teilen möchten. Die Option ist vorausgewählt, die Entscheidung treffen Sie aber vor dem Bestätigen selbst – erfasst wird ausschließlich Anonymes, DSGVO-konform, und die Einstellung lässt sich jederzeit unter **Einstellungen → Datenschutz** ändern. Die Schaltfläche **?** öffnet [Anonyme Daten zur Anwendungsoptimierung](../about/anonymous-data.md). Verbietet eine Organisationsrichtlinie die Telemetrie, ist das Kontrollkästchen gesperrt und bleibt leer.
 4. Klicken Sie auf **Setup**.
 
 Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.

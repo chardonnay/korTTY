@@ -4,13 +4,13 @@ title: Anonyme Daten zur Applikationsoptimierung
 
 # Anonyme Daten zur Applikationsoptimierung
 
-korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche Funktionen es wert sind, verbessert zu werden, und um Abstürze und häufige Fehler zu finden. Dies ist völlig optional, **standardmäßig deaktiviert** und kann jederzeit aktiviert oder deaktiviert werden.
+korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche Funktionen es wert sind, verbessert zu werden, und um Abstürze und häufige Fehler zu finden. Dies ist völlig optional und kann jederzeit aktiviert oder deaktiviert werden. Beim ersten Start ist das Kontrollkästchen in der Master-Passwort-Einrichtung **vorausgewählt**: Wer diesen Dialog unverändert bestätigt, startet die Erfassung – wer den Haken dort entfernt oder die Option später abschaltet, bei dem wird nichts erfasst.
 
 ![Anonymous telemetry consent and data flow](../assets/diagrams/telemetry-consent-flow.svg)
 
 ## Übersicht
 
-* **Opt-in.** Es werden keine Daten erfasst, es sei denn, Sie stimmen ausdrücklich zu. Sie werden einmal gefragt, zusammen mit der Einrichtung des Master-Passworts beim ersten Start; Vorhandene Installationen werden nach der Freischaltung einmalig abgefragt.
+* **Ihre Entscheidung, einmalig.** Vor Ihrer Bestätigung wird nichts erfasst. Gefragt werden Sie einmal, zusammen mit der Einrichtung des Master-Passworts beim ersten Start – dort ist das Kontrollkästchen vorausgewählt. Vorhandene Installationen werden nach der Freischaltung einmalig abgefragt; dort gilt jedes Wegklicken als „Nein“.
 * **Anonym.** Es wird kein Konto, kein Login und keine dauerhafte Gerätekennung übertragen.
 * **Widerruflich.** Sie können Ihre Entscheidung jederzeit unter **Einstellungen → Datenschutz** ändern. Wenn Sie die Funktion deaktivieren, wird die Erfassung sofort gestoppt und alle noch nicht gesendeten Daten werden verworfen.
 
@@ -53,7 +53,7 @@ Das Ziel besteht darin, korTTY mit echten, anonymen Beweisen statt mit Vermutung
 
 ## Ihre Auswahl
 
-* **Erster Start:** Der Einrichtungsdialog für das Master-Passwort enthält ein Opt-in-Kontrollkästchen und diese Informationen.
+* **Erster Start:** Der Einrichtungsdialog für das Master-Passwort enthält das vorausgewählte Kontrollkästchen und diese Informationen; wer den Haken vor dem Klick auf **Einrichten** entfernt, lehnt ab.
 * **Jederzeit:** Öffnen Sie **Einstellungen → Datenschutz**, um die Erfassung zu aktivieren oder zu deaktivieren. Die gleiche Seite verweist auf dieses Kapitel.
 * **Durch Deaktivieren** wird die gesamte Erfassung sofort gestoppt und noch nicht gesendete Daten werden verworfen.
 

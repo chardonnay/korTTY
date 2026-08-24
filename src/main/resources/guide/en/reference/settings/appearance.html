@@ -2610,7 +2610,7 @@
 <td>Match display resolution</td>
 <td>toggle</td>
 <td>On, Off</td>
-<td>Off</td>
+<td>On (new installations)</td>
 <td><code>uiFontScaleAuto</code></td>
 </tr>
 <tr>
@@ -2663,7 +2663,7 @@
 </tbody>
 </table>
 <p>Two further parts of the interface keep their size at every setting: the macOS application menu (the one in the system menu bar), because macOS draws it rather than korTTY, and the AI swarm status strip, whose labels are painted onto a canvas together with hand-computed positions.</p>
-<p><strong>Match display resolution</strong> derives the size from the primary display instead, and disables the number field while it is on. The value comes from the display's <em>logical</em> height — the resolution the operating system reports after its own scaling:</p>
+<p><strong>Match display resolution</strong> derives the size from the primary display instead, and disables the number field while it is on. A new installation starts with it <strong>on</strong>, so korTTY fits itself to the screen before anyone visits this tab; updating an existing installation never changes it — whatever you had stays. The value comes from the display's <em>logical</em> height — the resolution the operating system reports after its own scaling:</p>
 <table>
 <thead>
 <tr>

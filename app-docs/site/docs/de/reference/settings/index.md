@@ -26,7 +26,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Sicherung](backup.md) | Verschlüsselungstyp (ZIP-Passwort / GPG), maximale Backup-Anzahl |
 | [Aktualisierungen](updates.md) | Automatische Update-Überprüfung und -Intervall |
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
-| [Privatsphäre](../../about/anonymous-data.md) | Opt-in für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
+| [Privatsphäre](../../about/anonymous-data.md) | Zustimmung zu anonymen Nutzungsstatistiken (Aptabase, EU/DSGVO) |
 | [Sprache](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |

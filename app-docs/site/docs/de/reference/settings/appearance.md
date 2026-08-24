@@ -17,7 +17,7 @@ Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.
 | App-Design | Dropdown-Liste | Standard, Matrix-Terminal, holografische Schnittstelle, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | Standard | `appDesign` |
 | Designanimationen aktivieren | umschalten | Ein, Aus | Ein | `appDesignAnimationsEnabled` |
 | UI-Schriftgröße | Zahl | 80–160 % in 5er-Schritten | 100 % | `uiFontScalePercent` |
-| An Bildschirmauflösung anpassen | umschalten | Ein, Aus | Aus | `uiFontScaleAuto` |
+| An Bildschirmauflösung anpassen | umschalten | Ein, Aus | Ein (Neuinstallation) | `uiFontScaleAuto` |
 | Chat-Farbprofil | Dropdown-Liste | Automatisch (Thema), Original, Papier, Mitternacht, Cyberpunk, Retrowave, Wald, Ozean, Terminal, GPT, Niedlich | Automatisch (Thema) | `chatColorProfileId` |
 
 Mit den Schaltflächen `◀` und `▶` neben dem Dropdown-Menü können Sie durch die Designs vor- und zurückblättern (an den Enden umlaufend). Wenn ein anderes Design als **Standard** ausgewählt wird, wird unterhalb der Steuerelemente ein Vorschaubild dieses Designs angezeigt. Das **Standarddesign** hat keine Vorschau und zeigt stattdessen eine kurze Notiz an.
@@ -45,7 +45,7 @@ Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größ
 
 Zwei weitere Teile der Benutzeroberfläche behalten bei jeder Einstellung ihre Größe: das macOS-Anwendungsmenü (das in der Systemmenüleiste), da macOS es anstelle von korTTY zeichnet, und der KI-Schwarm-Statusstreifen, dessen Beschriftungen zusammen mit handberechneten Positionen auf einen Canvas gezeichnet werden.
 
-**An Bildschirmauflösung anpassen** leitet die Größe stattdessen von der primären Anzeige ab und deaktiviert das Zahlenfeld, solange es aktiviert ist. Der Wert ergibt sich aus der *logischen* Höhe der Anzeige – der Auflösung, die das Betriebssystem nach seiner eigenen Skalierung meldet:
+**An Bildschirmauflösung anpassen** leitet die Größe stattdessen von der primären Anzeige ab und deaktiviert das Zahlenfeld, solange es aktiviert ist. Eine Neuinstallation startet mit **Ein**, damit sich korTTY an den Bildschirm anpasst, bevor jemand diese Registerkarte öffnet; eine Update-Installation ändert die Option nie – es bleibt bei Ihrer bisherigen Einstellung. Der Wert ergibt sich aus der *logischen* Höhe der Anzeige – der Auflösung, die das Betriebssystem nach seiner eigenen Skalierung meldet:
 
 | Logische Bildschirmhöhe | UI-Schriftgröße |
 | --- | --- |
