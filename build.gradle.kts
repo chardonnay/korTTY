@@ -2750,6 +2750,21 @@ tasks.register<JavaExec>("settingsTabScreenshotStage") {
     }
 }
 
+tasks.register<JavaExec>("mainWindowScreenshotStage") {
+    group = "documentation"
+    description = "Shows the main window (optionally with a menu open) for the docs screenshot " +
+        "capture (-Pkortty.mainWindowMenu=menu.ai opens that menu and reports its region)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MainWindowScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.mainWindowMenu", "kortty.mainWindowWidth", "kortty.mainWindowHeight",
+           "kortty.screenshotHome", "kortty.menuTriggerFlag",
+           "kortty.captureTriggerFlag").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("toolTabRenderSmoke") {
     group = "verification"
     description = "Hosts the snippet manager/editor as tabs, snapshots them and detects layout loops."
