@@ -1,22 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 600" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Terminal session lifecycle</title>
-  <desc id="desc">Lifecycle of a terminal tab from opening and connecting through split modes, fullscreen scrollbar hiding, effects, connection loss, reconnect, failure, and close.</desc>
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.state{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:24}.active{stroke:#34d399}.warn{stroke:#f59e0b}.err{stroke:#fb7185}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:14px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}.loop{stroke:#8b5cf6}</style></defs>
-  <rect class="bg" width="1080" height="600"/>
+  <desc id="desc">A terminal tab moves from new tab through connecting to connected, and from there either to close on a clean logout or into a connection-lost state that keeps the tab open. A failed connect and a lost connection both lead to reconnect, which returns through connection setup. Split panes, broadcast, terminal effects and fullscreen are grouped as modes of a connected session rather than lifecycle states of their own.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.state{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:16}.active{stroke:#34d399}.warn{stroke:#f59e0b}.err{stroke:#fb7185}.group{fill:#0c1a2b;stroke:#1e3a5f;stroke-width:2;stroke-dasharray:6 5;rx:16}.mode{fill:#13243a;stroke:#38bdf8;stroke-width:1.5;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:14px;fill:#b9c8da}.edge{font-size:13px;fill:#9fb3c8}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="bg" width="1280" height="720"/>
   <text class="title" x="40" y="54">Terminal Session Lifecycle</text>
-  <text class="small" x="40" y="82">Split panes, broadcast, terminal effects, and fullscreen scrollbar hiding are UI modes around the same session lifecycle.</text>
-  <rect class="state" x="60" y="250" width="150" height="56"/><text x="103" y="284">New tab</text>
-  <rect class="state warn" x="260" y="250" width="150" height="56"/><text x="295" y="284">Connecting</text>
-  <rect class="state active" x="460" y="250" width="150" height="56"/><text x="500" y="284">Connected</text>
-  <rect class="state err" x="260" y="390" width="150" height="56"/><text x="304" y="424">Failed</text>
-  <rect class="state" x="690" y="130" width="170" height="56"/><text x="735" y="164">Split pane</text>
-  <rect class="state active" x="690" y="250" width="170" height="56"/><text x="728" y="284">Broadcast</text>
-  <rect class="state" x="690" y="370" width="170" height="56"/><text x="716" y="404">Effect active</text>
-  <rect class="state" x="690" y="490" width="170" height="56"/><text x="715" y="516">Fullscreen UI</text><text class="small" x="716" y="534">hide scrollbars</text>
-  <rect class="state warn" x="460" y="440" width="170" height="56"/><text x="502" y="474">Reconnect</text>
-  <rect class="state err" x="60" y="440" width="190" height="56"/><text x="97" y="466">Connection lost</text><text class="small" x="110" y="484">tab stays open</text>
-  <rect class="state" x="920" y="250" width="110" height="56"/><text x="956" y="284">Close</text>
-  <path class="line" d="M210 278 H260"/><path class="line" d="M410 278 H460"/><path class="line" d="M335 306 V390"/><path class="line" d="M335 390 V318 H260"/><path class="line" d="M610 278 H690"/><path class="line" d="M610 278 C645 220 650 158 690 158"/><path class="line" d="M610 278 C645 335 650 398 690 398"/><path class="line" d="M610 278 C645 425 650 518 690 518"/><path class="line loop" d="M775 186 C775 215 745 226 690 250"/><path class="line loop" d="M775 306 C775 335 745 346 690 370"/><path class="line" d="M610 306 C610 370 580 410 545 440"/><path class="line" d="M545 440 C520 390 500 340 500 306"/><path class="line" d="M470 306 C420 340 300 400 230 440"/><path class="line" d="M250 468 H460"/><path class="line" d="M860 278 H920"/><path class="line" d="M860 398 C900 398 925 340 950 306"/><path class="line" d="M860 518 C910 500 940 360 950 306"/>
-  <text class="small" x="62" y="566">A lost connection keeps the tab open in a red disconnected state until a manual or automatic reconnect brings it back.</text>
-  <text class="small" x="62" y="584">Reconnect closes the current transport and returns through connection setup. Closing a tab stops effects and terminal resources.</text>
+  <text class="small" x="40" y="82">How one tab moves between connecting, connected, lost and closed. Split panes, broadcast and effects are modes of a connected session, not states of their own.</text>
+
+  <!-- Happy path: one straight line, left to right -->
+  <rect class="state" x="48" y="150" width="160" height="62"/>
+  <text x="128" y="187" text-anchor="middle">New tab</text>
+
+  <rect class="state warn" x="298" y="150" width="170" height="62"/>
+  <text x="383" y="187" text-anchor="middle">Connecting</text>
+
+  <rect class="state active" x="558" y="150" width="170" height="62"/>
+  <text x="643" y="187" text-anchor="middle">Connected</text>
+
+  <rect class="state" x="1080" y="150" width="140" height="62"/>
+  <text x="1150" y="187" text-anchor="middle">Close</text>
+
+  <!-- What goes wrong -->
+  <rect class="state err" x="298" y="310" width="170" height="82"/>
+  <text x="383" y="344" text-anchor="middle">Failed</text>
+  <text class="small" x="383" y="368" text-anchor="middle">no auto-reconnect</text>
+
+  <rect class="state err" x="558" y="310" width="200" height="82"/>
+  <text x="658" y="344" text-anchor="middle">Connection lost</text>
+  <text class="small" x="658" y="368" text-anchor="middle">tab stays open · cursor stops</text>
+
+  <!-- Recovery -->
+  <rect class="state warn" x="418" y="470" width="200" height="82"/>
+  <text x="518" y="504" text-anchor="middle">Reconnect</text>
+  <text class="small" x="518" y="528" text-anchor="middle">double-click · automatic</text>
+
+  <!-- Modes of a connected session: grouped, so one connector replaces nine -->
+  <rect class="group" x="790" y="290" width="440" height="358"/>
+  <text x="814" y="322">Modes of a connected session</text>
+  <text class="small" x="814" y="344">Toggled while connected; closing the tab works from any mode.</text>
+
+  <rect class="mode" x="818" y="368" width="384" height="52"/>
+  <text x="1010" y="399" text-anchor="middle">Split pane</text>
+
+  <rect class="mode" x="818" y="436" width="384" height="52"/>
+  <text x="1010" y="467" text-anchor="middle">Broadcast</text>
+
+  <rect class="mode" x="818" y="504" width="384" height="52"/>
+  <text x="1010" y="535" text-anchor="middle">Effect active</text>
+
+  <rect class="mode" x="818" y="572" width="384" height="52"/>
+  <text x="1010" y="603" text-anchor="middle">Fullscreen UI — scrollbars hidden</text>
+
+  <!-- Connectors: right-angled, no crossings -->
+  <path class="line" d="M208 181 H298"/>
+  <path class="line" d="M468 181 H558"/>
+  <path class="line" d="M728 181 H1080"/>
+  <text class="edge" x="904" y="171" text-anchor="middle">exit · logout · Ctrl+W</text>
+
+  <path class="line" d="M430 212 V310"/>
+  <path class="line" d="M600 212 V310"/>
+  <text class="edge" x="614" y="278">network drop · server gone</text>
+
+  <path class="line" d="M370 392 V430 H460 V470"/>
+  <path class="line" d="M680 392 V430 H576 V470"/>
+
+  <path class="line" d="M418 511 H253 V244 H330 V212"/>
+  <text class="edge" x="241" y="452" text-anchor="end">returns through</text>
+  <text class="edge" x="241" y="470" text-anchor="end">connection setup</text>
+
+  <path class="line" d="M700 212 V240 H1010 V290"/>
+
+  <text class="small" x="40" y="682">A lost connection keeps the tab open in the red disconnected state instead of closing it; a clean remote logout still closes the tab.</text>
+  <text class="small" x="40" y="702">Reconnect re-runs connection setup for the same connection. Closing a tab stops its effects, journal and terminal resources.</text>
 </svg>
