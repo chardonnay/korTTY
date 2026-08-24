@@ -15,10 +15,12 @@ This script guards the manifest itself:
   * every page `path` is unique;
   * every `diagrams:` entry exists under app-docs/diagrams/;
   * every `screenshots:` entry exists under app-docs/screenshots/;
+  * every screenshot embedded in an English page is registered by some page;
   * no two pages own the same `owns_i18n` prefix (ambiguous home);
   * every `owns_code` path exists on disk;
   * every `last_synced_ref` resolves to a commit in the current history;
-  * (warn) canonical diagrams that no page references (orphan asset).
+  * (warn) canonical diagrams that no page references (orphan asset);
+  * (warn) screenshots on disk that no page registers (orphan asset).
 
 The two drift-detection checks guard opposite failures, both silent. An `owns_code`
 path that does not exist makes `git diff -- <path>` return nothing, so the page reads
@@ -41,6 +43,7 @@ Requires PyYAML (run via .venv-docs/bin/python).
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -54,6 +57,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = REPO_ROOT / "app-docs" / "doc-manifest.yaml"
 DIAGRAMS_DIR = REPO_ROOT / "app-docs" / "diagrams"
 SCREENSHOTS_DIR = REPO_ROOT / "app-docs" / "screenshots"
+DOCS_EN_DIR = REPO_ROOT / "app-docs" / "site" / "docs" / "en"
+# Matches the catalog-relative part of any `assets/screenshots/<area>/<name>.png` reference,
+# whatever the page's `../` depth. German pages are generated, so only English is scanned.
+SCREENSHOT_REF = re.compile(r"assets/screenshots/([A-Za-z0-9][A-Za-z0-9._/-]*\.png)")
 
 
 def _git(*args: str) -> tuple[int, str]:
@@ -95,6 +102,7 @@ def main() -> int:
     seen_paths: set[str] = set()
     prefix_owner: dict[str, str] = {}
     referenced_diagrams: set[str] = set()
+    registered_screenshots: set[str] = set()
 
     for page in pages:
         path = page.get("path")
@@ -116,6 +124,7 @@ def main() -> int:
                 errors.append(f"{path}: diagram not found: app-docs/diagrams/{diagram}")
 
         for shot in page.get("screenshots") or []:
+            registered_screenshots.add(shot)
             if not (SCREENSHOTS_DIR / shot).exists():
                 errors.append(f"{path}: screenshot not found: app-docs/screenshots/{shot}")
 
@@ -158,11 +167,35 @@ def main() -> int:
                     f"— it exists only on an unmerged branch and will not survive there "
                     f"— used by {len(owners)} page(s): {shown}")
 
+    # A screenshot embedded in a page but registered by none is invisible to every staleness
+    # check: `update-docs` looks at the registering page's `screenshots:` list, so an
+    # unregistered image is never reviewed and quietly keeps showing an older UI. That is how
+    # ai/ai-profiles.png aged unnoticed while being embedded in reference/settings/ai.md.
+    if DOCS_EN_DIR.is_dir():
+        for md in sorted(DOCS_EN_DIR.rglob("*.md")):
+            page_rel = md.relative_to(REPO_ROOT)
+            for ref in sorted(set(SCREENSHOT_REF.findall(md.read_text(encoding="utf-8")))):
+                if not (SCREENSHOTS_DIR / ref).exists():
+                    errors.append(f"{page_rel}: embeds a missing screenshot: {ref}")
+                elif ref not in registered_screenshots:
+                    errors.append(
+                        f"{page_rel}: embeds {ref}, which no manifest page registers "
+                        f"— add it to a page's `screenshots:` list or it is never checked "
+                        f"for staleness")
+
     # Orphan diagrams (present on disk, referenced by no page) — a soft warning.
     if DIAGRAMS_DIR.is_dir():
         for svg in sorted(DIAGRAMS_DIR.glob("*.svg")):
             if svg.name not in referenced_diagrams:
                 warnings.append(f"diagram not referenced by any manifest page: {svg.name}")
+
+    # Orphan screenshots (on disk, registered by no page) — a soft warning: an unused capture
+    # still ships inside the guide bundle, and a used-but-unregistered one is the error above.
+    if SCREENSHOTS_DIR.is_dir():
+        for png in sorted(SCREENSHOTS_DIR.rglob("*.png")):
+            rel = png.relative_to(SCREENSHOTS_DIR).as_posix()
+            if rel not in registered_screenshots:
+                warnings.append(f"screenshot not registered by any manifest page: {rel}")
 
     if warnings:
         print(f"{len(warnings)} warning(s):")
