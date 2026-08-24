@@ -1221,6 +1221,12 @@ tasks.register("buildDocsSite") {
     inputs.file("app-docs/site/mkdocs.de.yml")
     inputs.dir("app-docs/diagrams")
     inputs.file("scripts/build-docs-site.py")
+    // The toolchain shapes the generated HTML (Pygments alone decides how a `"` inside a code
+    // block is written), so it belongs in the up-to-date check. Without it, upgrading a pinned
+    // package left this task "up to date" against unchanged Markdown, stageGuideIntoResources
+    // re-copied the previous build/guide, and docs-autocommit failed on main against a bundle
+    // that no rebuild could refresh.
+    inputs.file("app-docs/site/requirements.txt")
     inputs.property("version", project.version.toString())
     outputs.dir(guideSiteOutputDir)
     doLast {

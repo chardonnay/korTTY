@@ -21,9 +21,10 @@ deep-translator==1.11.4
 
 # Transitive, pinned for a reproducible build (resolved from the three above)
 babel==2.18.0
+beautifulsoup4==4.15.0
 backrefs==7.0
 certifi==2026.6.17
-charset-normalizer==3.4.8
+charset-normalizer==3.4.9
 click==8.4.2
 colorama==0.4.6
 ghp-import==2.1.0
@@ -46,6 +47,7 @@ PyYAML==6.0.3
 pyyaml_env_tag==1.1
 requests==2.34.2
 six==1.17.0
+soupsieve==2.9.2
 typing_extensions==4.16.0
 urllib3==2.7.0
 watchdog==6.0.0
