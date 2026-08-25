@@ -242,14 +242,22 @@ val jpackageExecutable = packagingJavaLauncher.map { launcher ->
         .asFile.absolutePath
 }
 
-// Pinned to bare "21" (GA 21.0.0). Do NOT bump without solving the macOS signing trap below:
-// JavaFX ships its native dylibs INSIDE the jars. Gluon's adhoc/linker signatures on patches >= 21.0.1
-// are rejected by Apple's notary, so they'd need re-signing with our Developer ID — BUT re-signing
-// libjfxwebkit.dylib with `codesign --options runtime` sets the hardened-runtime flag, which kills
-// JavaScriptCore's JIT at runtime (the WebView boots, then the app is SIGKILLed the instant JS runs,
-// with NO crash report). 21.0.0's Gluon signatures notarize as-is, so the GA stays un-re-signed and
-// WebKit keeps working. A future bump must re-sign the javafx dylibs WITHOUT `--options runtime`.
-val javaFxVersion = "21"
+// JavaFX ships its native dylibs INSIDE the jars, and korTTY ships them exactly as Gluon signed
+// them — never re-signed. Re-signing is not an escape hatch: `codesign --options runtime` on
+// libjfxwebkit.dylib kills JavaScriptCore's JIT, and the app is SIGKILLed the instant JS runs, with
+// NO crash report (commit 269ac8ea).
+//
+// The trap a bump has to clear is that Gluon's release signing is inconsistent per patch. 21.0.12
+// was checked in full (13/13 dylibs on both mac classifiers): every one carries "Developer ID
+// Application: Gluon Software BVBA" with a secure timestamp, which notarizes as-is. Spot-checking
+// one dylib per patch on mac-aarch64 shows 21.0.0, 21.0.1 and 21.0.3-21.0.10 in the same shape,
+// while 21.0.2 and 21.0.11 ship adhoc/linker-signed dylibs (flags=0x20002, no authority, no
+// timestamp) that Apple's notary rejects. That is a per-release lottery, not a cutoff: 21.0.2 was
+// simply the first patch tried, which is where the old "everything past the GA is broken" reading
+// came from. So the rule for a bump is to pick a patch whose dylibs are Developer-ID signed —
+// `./gradlew verifyJavaFxUpstreamSignatures` decides it in seconds against the resolved artifacts,
+// runs as part of `test` on macOS, and verifyJpackageStaging re-checks the staged jars at packaging.
+val javaFxVersion = "21.0.12"
 val javaFxJsObjectVersion = "25.0.2"
 val javaFxPlatform = when {
     isWindows -> "win"
@@ -1652,11 +1660,12 @@ val macSigningKeychain = (findProperty("kortty.macos.signingKeychain") as String
 // our Developer ID and `--options runtime` kills JavaScriptCore's JIT — the WebView boots, then the
 // process is SIGKILLed the instant JS executes, with no crash report (commit 269ac8ea).
 //
-// Note what is NOT the signal here: Gluon's own GA signatures already carry flags=0x10000(runtime)
+// Note what is NOT the signal here: Gluon's own signatures already carry flags=0x10000(runtime)
 // and work fine, so the hardened-runtime bit alone proves nothing. The regression is korTTY
 // re-signing these dylibs at all (adding javafx-*.jar to macNativeJarPatterns), so that is what
 // this asserts — byte-identity with the resolved artifact, plus a codesign read that no bundled
-// JavaFX native carries our signature.
+// JavaFX native carries our signature. It also rejects an upstream dylib that is merely adhoc-signed
+// (see assertGluonSignedJavaFxNative), which is what some Gluon patch releases ship.
 fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
     val javaFxJarPattern = Regex("""^javafx-[\w.\-]+\.jar$""")
     val stagedJars = libsDir.listFiles()
@@ -1702,12 +1711,7 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
                         Files.copy(input, dylib.toPath(), StandardCopyOption.REPLACE_EXISTING)
                     }
 
-                    val signature = readCodesignDescription(dylib)
-                        ?: throw GradleException(
-                            "Bundled JavaFX native ${entry.name} in ${stagedJar.name} carries no code " +
-                                "signature. It must keep Gluon's original Developer ID signature — an " +
-                                "unsigned or re-signed dylib either fails notarization or kills the " +
-                                "WebView's JIT. See javaFxVersion.")
+                    val signature = assertGluonSignedJavaFxNative(dylib, entry.name, stagedJar.name)
                     val authorities = Regex("""^Authority=(.*)$""", RegexOption.MULTILINE)
                         .findAll(signature).map { it.groupValues[1].trim() }.toList()
                     val teamId = Regex("""^TeamIdentifier=(.*)$""", RegexOption.MULTILINE)
@@ -1730,6 +1734,38 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
     }
 
     delete(workDir)
+}
+
+/**
+ * Asserts one JavaFX dylib still carries Gluon's upstream Developer-ID signature — a named authority
+ * plus a secure timestamp, never an adhoc/linker-signed one. korTTY ships these dylibs untouched
+ * (see javaFxVersion), so an adhoc patch release cannot be notarized and cannot be rescued by
+ * re-signing either: our own `--options runtime` signature kills JavaScriptCore's JIT.
+ * Returns the `codesign -dvvv` output so callers can assert further on it.
+ */
+fun assertGluonSignedJavaFxNative(dylib: File, entryName: String, where: String): String {
+    val signature = readCodesignDescription(dylib)
+        ?: throw GradleException(
+            "JavaFX native $entryName in $where carries no code signature at all. It must ship with " +
+                "Gluon's Developer ID signature — an unsigned dylib fails notarization, and re-signing " +
+                "it here would kill the WebView's JIT. See javaFxVersion.")
+    val flags = Regex("""\bflags=(\S+)""").find(signature)?.groupValues?.get(1) ?: "unknown"
+    val authorities = Regex("""^Authority=(.*)$""", RegexOption.MULTILINE)
+        .findAll(signature).map { it.groupValues[1].trim() }.toList()
+    val timestamp = Regex("""^Timestamp=(.*)$""", RegexOption.MULTILINE)
+        .find(signature)?.groupValues?.get(1)?.trim()
+
+    if (flags.contains("adhoc") || authorities.isEmpty() || timestamp.isNullOrEmpty()) {
+        throw GradleException(
+            "JavaFX native $entryName in $where is not Developer-ID signed by Gluon (flags=$flags, " +
+                "authority=${authorities.firstOrNull() ?: "none"}, timestamp=${timestamp ?: "none"}). " +
+                "Apple's notary rejects adhoc/linker-signed nested code, and re-signing it is not the " +
+                "way out — `--options runtime` on the JavaFX dylibs kills JavaScriptCore's JIT (SIGKILL " +
+                "on the first JS execution, no crash report). Gluon ships some patch releases this way " +
+                "(21.0.2, 21.0.11 at the time of writing): pick a JavaFX patch that is properly signed. " +
+                "See javaFxVersion.")
+    }
+    return signature
 }
 
 /** Returns `codesign -dvvv` output for a Mach-O file, or null when it carries no signature. */
@@ -1884,8 +1920,9 @@ if (isMac) {
         Regex("""^zstd-jni-[\w.\-]+\.jar$""")
         // Do NOT add javafx-*.jar here: this task signs with `--options runtime`, and the resulting
         // hardened-runtime flag on libjfxwebkit.dylib kills JavaScriptCore's JIT (WebView dies the
-        // instant JS executes, no crash report). JavaFX 21.0.0's Gluon signatures notarize as-is.
-        // If a JavaFX bump ever forces re-signing, do it WITHOUT `--options runtime`. See javaFxVersion.
+        // instant JS executes, no crash report). The answer to a JavaFX patch whose dylibs the notary
+        // rejects is a different patch, not re-signing — verifyJavaFxUpstreamSignatures picks that
+        // fight before a release build ever starts. See javaFxVersion.
     )
 
     // Icon-Funktion für macOS: Versuche .icns, sonst verwende PNG
@@ -1902,6 +1939,61 @@ if (isMac) {
             else -> throw GradleException("korTTY Icon nicht gefunden! Bitte erstelle src/main/resources/icon/kortty_icon.icns oder kortty_icon.png")
         }
     }
+
+    // Decides the javaFxVersion bump rule (see there) in seconds and without a release build: it
+    // reads the signatures off the RESOLVED artifacts, so it needs no signing identity, no
+    // notarization and no packaging — only macOS itself, for codesign. Wired into `test` below,
+    // which is what CI runs on macos-latest for every PR.
+    val verifyJavaFxUpstreamSignatures = tasks.register("verifyJavaFxUpstreamSignatures") {
+        group = "verification"
+        description = "Asserts the resolved JavaFX macOS dylibs carry Gluon's Developer ID signature (not adhoc), which is what korTTY ships unmodified and what Apple's notary accepts."
+
+        inputs.files(configurations.runtimeClasspath)
+        val marker = layout.buildDirectory.file("verification/javafx-upstream-signatures.txt")
+        outputs.file(marker)
+
+        doLast {
+            val javaFxJarPattern = Regex("""^javafx-[\w.\-]+\.jar$""")
+            val jars = configurations.runtimeClasspath.get().files
+                .filter { javaFxJarPattern.matches(it.name) }
+                .sortedBy { it.name }
+            if (jars.isEmpty()) {
+                throw GradleException("No JavaFX artifacts on the runtime classpath to verify.")
+            }
+
+            val workDir = layout.buildDirectory.get().asFile.resolve("verification/javafx-upstream-signatures")
+            delete(workDir)
+            val report = StringBuilder("JavaFX $javaFxVersion upstream macOS signatures\n")
+            var checked = 0
+
+            jars.forEach { jar ->
+                ZipFile(jar).use { archive ->
+                    archive.entries().asSequence()
+                        .filter { !it.isDirectory && it.name.endsWith(".dylib") }
+                        .forEach { entry ->
+                            val dylib = workDir.resolve(jar.nameWithoutExtension).resolve(entry.name)
+                            dylib.parentFile.mkdirs()
+                            archive.getInputStream(entry).use { input ->
+                                Files.copy(input, dylib.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                            }
+                            val signature = assertGluonSignedJavaFxNative(dylib, entry.name, jar.name)
+                            val flags = Regex("""\bflags=(\S+)""").find(signature)?.groupValues?.get(1)
+                            report.append("${jar.name}: ${entry.name} $flags\n")
+                            checked++
+                        }
+                }
+            }
+
+            delete(workDir)
+            marker.get().asFile.parentFile.mkdirs()
+            marker.get().asFile.writeText(report.toString())
+            println("JavaFX $javaFxVersion: $checked macOS dylib(s) carry Gluon's Developer ID signature with a timestamp.")
+        }
+    }
+
+    // A bad bump must fail here, not at notarization: `test` is what the Test workflow runs on
+    // macos-latest for every PR and every push to main.
+    tasks.named("test") { dependsOn(verifyJavaFxUpstreamSignatures) }
 
     tasks.register("signMacBundledNativeLibraries") {
         dependsOn("prepareJpackage")
@@ -2086,8 +2178,8 @@ if (isMac) {
     // verifyJpackageStaging carries the JavaFX-signature assertion, so on macOS it has to see the
     // staging directory as jpackage will: after the native re-signing step, before packaging.
     verifyJpackageStaging.configure { mustRunAfter("signMacBundledNativeLibraries") }
-    tasks.named("jpackage") { dependsOn(verifyJpackageStaging) }
-    tasks.named("jpackageDmg") { dependsOn(verifyJpackageStaging) }
+    tasks.named("jpackage") { dependsOn(verifyJpackageStaging, "verifyJavaFxUpstreamSignatures") }
+    tasks.named("jpackageDmg") { dependsOn(verifyJpackageStaging, "verifyJavaFxUpstreamSignatures") }
 
     // The other WebView smokes run on the Gradle test classpath, i.e. against unsigned JavaFX jars,
     // so they structurally cannot see the signing trap at javaFxVersion — a hardened re-sign only
