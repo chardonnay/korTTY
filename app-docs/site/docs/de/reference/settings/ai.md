@@ -174,3 +174,14 @@ Profilspezifische Internetzugriffsstrategie für KI-Anfragen. Jeder Modus erford
 - **LM Studio Toolpack**: Community-Websuchserver für LM Studio Toolpack (erfordert Plugin-ID im `mcp/<server_label>`-Format).
 
 Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie den Schalter **Löschen** neben jedem geheimen Feld, um gespeicherte Werte beim nächsten Speichern zu löschen.
+
+!!! warning "Eingebettete Profile unterstützen nur das KorTTY Tavily Tool"
+    Ein Profil mit dem Verbindungsmodus **Integriertes llama.cpp** oder **Integriertes MLX** kann
+    ausschließlich **KorTTY Tavily Tool** nutzen. Die fünf MCP-Modi leiten die Anfrage über die native
+    API von LM Studio, die ein eingebettetes Modell nie durchläuft – wird ein solcher Modus bei einem
+    eingebetteten Profil gewählt, scheitert die Anfrage mit einer ausdrücklichen Meldung, statt still
+    ohne Internetzugriff zu antworten. Lokale CLI-Profile haben überhaupt keine Internetmodi; die
+    Auswahlliste ist für sie deaktiviert.
+
+    Eine Organisation kann den Internetzugriff mit dem Richtlinienschlüssel `allow-internet`
+    vollständig verbieten – siehe [Unternehmensrichtlinie](../enterprise-policy.md).

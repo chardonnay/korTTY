@@ -3190,6 +3190,17 @@
 <li><strong>LM Studio Toolpack</strong>: Community-Websuchserver für LM Studio Toolpack (erfordert Plugin-ID im <code>mcp/&lt;server_label&gt;</code>-Format).</li>
 </ul>
 <p>Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie den Schalter <strong>Löschen</strong> neben jedem geheimen Feld, um gespeicherte Werte beim nächsten Speichern zu löschen.</p>
+<div class="admonition warning">
+<p class="admonition-title">Eingebettete Profile unterstützen nur das KorTTY Tavily Tool</p>
+<p>Ein Profil mit dem Verbindungsmodus <strong>Integriertes llama.cpp</strong> oder <strong>Integriertes MLX</strong> kann
+ausschließlich <strong>KorTTY Tavily Tool</strong> nutzen. Die fünf MCP-Modi leiten die Anfrage über die native
+API von LM Studio, die ein eingebettetes Modell nie durchläuft – wird ein solcher Modus bei einem
+eingebetteten Profil gewählt, scheitert die Anfrage mit einer ausdrücklichen Meldung, statt still
+ohne Internetzugriff zu antworten. Lokale CLI-Profile haben überhaupt keine Internetmodi; die
+Auswahlliste ist für sie deaktiviert.</p>
+<p>Eine Organisation kann den Internetzugriff mit dem Richtlinienschlüssel <code>allow-internet</code>
+vollständig verbieten – siehe <a href="../enterprise-policy.html">Unternehmensrichtlinie</a>.</p>
+</div>
 
 
 

@@ -329,10 +329,36 @@ class EffectivePolicyResolveTest {
         assertThat(policy.updatesEnabled()).isTrue();
         assertThat(policy.customScriptHeadersAllowed()).isTrue();
         assertThat(policy.aiProfileCreateAllowed()).isTrue();
+        assertThat(policy.aiInternetAllowed()).isTrue();
+        assertThat(policy.isManaged(ManagedSetting.AI_INTERNET)).isFalse();
         assertThat(policy.loadIntoSnippetEditor()).isEqualTo(LoadIntoEditorMode.ALLOW);
         assertThat(policy.isManaged(ManagedSetting.UPDATES)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.SCRIPT_HEADERS)).isFalse();
         assertThat(policy.isServerAllowed("anywhere.example.org", 22)).isTrue();
+    }
+
+    @Test
+    void forbiddenAiInternetIsResolvedAndMarkedManaged() {
+        PolicyFile file = file(Map.of(), PolicyRule.builder()
+            .aiProfileAllowInternet(false)
+            .build());
+
+        EffectivePolicy policy = EffectivePolicy.resolve(file, identity("u"));
+
+        assertThat(policy.aiInternetAllowed()).isFalse();
+        assertThat(policy.isManaged(ManagedSetting.AI_INTERNET)).isTrue();
+        // Forbidding web access must not spill into the neighbouring AI switches.
+        assertThat(policy.aiAllowed()).isTrue();
+        assertThat(policy.aiProfileCreateAllowed()).isTrue();
+        assertThat(policy.isManaged(ManagedSetting.AI_PROFILES)).isFalse();
+    }
+
+    @Test
+    void aiInternetIsForbiddenInLockdown() {
+        EffectivePolicy policy = EffectivePolicy.lockdown();
+
+        assertThat(policy.aiInternetAllowed()).isFalse();
+        assertThat(policy.isManaged(ManagedSetting.AI_INTERNET)).isTrue();
     }
 
     @Test

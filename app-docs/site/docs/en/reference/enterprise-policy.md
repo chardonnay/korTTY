@@ -140,6 +140,25 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `allow-custom-script-headers` | boolean | `false` | Users cannot create script headers; only `[[script-header]]` entries remain |
 | `allow-create` | boolean | `false` | Users cannot create AI profiles (buttons and wizard are locked) |
 | `allow-edit` | boolean | `false` | Users cannot edit their existing AI profiles either |
+| `allow-internet` | boolean | `false` | Forbids every AI internet-access mode — see below |
+
+!!! info "`allow-internet = false` cuts AI web access at three levels"
+    The [internet access](settings/ai.md#internet-access-modes) dropdown of an AI profile selects a
+    web-search or MCP browsing backend. Forbidding it is enforced in three places, because a single
+    one would leave a gap:
+
+    1. **Stored settings** — every profile's mode is reset to *Disabled* whenever the settings are
+       loaded or saved, so a value from before the policy arrived does not survive, and neither does
+       a hand-edit of `global-settings.xml`.
+    2. **The interface** — the dropdown is locked with the "managed by your organization" hint in
+       both the AI Manager and **Settings → AI**.
+    3. **Every AI request** — korTTY refuses to build a service for a profile whose mode is enabled,
+       which closes the window between two clamps. The request fails with a policy message rather
+       than quietly answering without the web tool the profile asked for.
+
+    This is about the search backends only. It does not stop a *cloud* AI profile from reaching its
+    own provider — for that, deny the `ai` feature or provision `[[ai-profile]]` entries that point
+    at an internal endpoint.
 
 ### `[rule.ai-runtime]`
 

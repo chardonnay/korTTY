@@ -549,6 +549,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         internetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
         internetAccessModeCombo.setPrefWidth(260);
         internetAccessModeCombo.setConverter(createInternetModeConverter());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            internetAccessModeCombo, de.kortty.policy.ManagedSetting.AI_INTERNET);
         internetAccessModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedProfile != null) {
                 selectedProfile.setInternetAccessMode(newValue);
@@ -1510,7 +1512,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField.setDisable(managedLocalMode);
         apiKeyField.setDisable(managedLocalMode);
         clearApiKeyCheck.setDisable(managedLocalMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
-        internetAccessModeCombo.setDisable(cliMode);
+        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
+        internetAccessModeCombo.setDisable(cliMode
+            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
         refreshModelsButton.setDisable(cliMode
             || (!embeddedMode && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
         refreshReasoningButton.setDisable(selectedProfile == null || profileTestRunning.get());

@@ -174,3 +174,13 @@ Per-profile internet access strategy for AI requests. Each mode requires differe
 - **LM Studio Toolpack**: Community LM Studio Toolpack web-search server (requires plugin ID in `mcp/<server_label>` format).
 
 Credentials are encrypted and stored securely. Use the **Clear** toggle adjacent to each secret field to erase stored values on the next save.
+
+!!! warning "Embedded profiles support only the KorTTY Tavily Tool"
+    A profile whose connection mode is **Integrated llama.cpp** or **Integrated MLX** can use
+    **KorTTY Tavily Tool** and nothing else. The five MCP modes route the request through LM Studio's
+    native API, which an embedded model never goes through — selecting one on an embedded profile
+    fails the request with an explicit message instead of silently answering without web access.
+    Local CLI profiles have no internet modes at all; the dropdown is disabled for them.
+
+    An organization can forbid web access entirely with the `allow-internet` policy key — see
+    [Enterprise policy](../enterprise-policy.md).

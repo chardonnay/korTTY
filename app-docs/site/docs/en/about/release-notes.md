@@ -24,5 +24,9 @@ What changed in the current release. The version this guide was built for is sho
 - **Microsoft Translator now reaches regional and custom-domain resources** — a new optional **Azure region** setting, shown only while Microsoft Translator is selected, is required by any Azure resource that is not global; such a resource previously could not be reached at all.
 - **DeepL now recovers from a wrong Free/Pro host guess** — the key suffix korTTY uses to pick a host is only reliable for older Free keys; a 403 response now retries once against the other host instead of failing outright.
 
+### Enterprise policy
+
+- **Administrators can forbid AI web access** — a new [`[rule.ai-profiles] allow-internet`](../reference/enterprise-policy.md) key switches off every internet-access mode an AI profile can select (Tavily, Bright Data, Brave, SearXNG, LM Studio Toolpack). It is enforced at three levels rather than one: stored profile modes are reset whenever settings are loaded or saved, the dropdown is locked in the AI Manager and in **Settings → AI**, and korTTY refuses to build a service for a profile whose mode is still enabled — so neither a hand-edited `global-settings.xml` nor the window between two clamps re-opens web access. Cloud profiles still reach their own provider; deny the `ai` feature for that.
+
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.

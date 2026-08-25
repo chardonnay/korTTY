@@ -17,6 +17,7 @@ public enum ManagedSetting {
     HOST_KEY_CHECK,
     SCRIPT_HEADERS,
     AI_PROFILES,
+    AI_INTERNET,
     AI_RUNTIME,
     LOAD_INTO_SNIPPET_EDITOR,
     SERVER_ACCESS,

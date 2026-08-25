@@ -44,6 +44,7 @@ class PolicyClampTest {
             .updatesEnabled(false)
             .allowTelemetry(false)
             .allowTerminalRecording(false)
+            .aiProfileAllowInternet(false)
             .requireMasterPassword(true)
             .enforceHostKeyCheck(true)
             .build();
@@ -352,5 +353,42 @@ class PolicyClampTest {
         // Stripping the managed profile for marshal must not null the default id (which it would
         // if the list were swapped through the normalizing setter).
         assertThat(manager.getSettings().getDefaultAiProfileId()).isEqualTo("policy-acme-llm");
+    }
+
+    @Test
+    void forbiddenAiInternetClampsEveryProfileModeAndSurvivesAHandEdit() throws Exception {
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(restrictiveClamp());
+        manager.load();
+
+        // A profile that was configured before the policy arrived, or by hand afterwards.
+        de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
+        profile.setId("web-profile");
+        profile.setName("Web profile");
+        profile.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.KORTTY_TAVILY_TOOL);
+        manager.getSettings().getAiProfiles().add(profile);
+
+        manager.save();
+
+        // Clamped in memory and in the persisted XML — the enabled mode never reaches disk.
+        assertThat(profile.getInternetAccessMode())
+            .isEqualTo(de.kortty.model.AiInternetAccessMode.DISABLED);
+        String xml = Files.readString(configDir.resolve("global-settings.xml"));
+        assertThat(xml).doesNotContain("korttyTavilyTool");
+        assertThat(xml).doesNotContain("KORTTY_TAVILY_TOOL");
+
+        // And a hand-edit that puts the mode back is undone on the next load.
+        Files.writeString(configDir.resolve("global-settings.xml"),
+            xml.replace("<internetAccessMode>DISABLED</internetAccessMode>",
+                "<internetAccessMode>BRAVE_SEARCH_MCP</internetAccessMode>"));
+        Files.setLastModifiedTime(configDir.resolve("global-settings.xml"),
+            FileTime.fromMillis(System.currentTimeMillis() + 5000));
+
+        assertThat(manager.reloadIfChanged()).isTrue();
+        assertThat(manager.getSettings().getAiProfiles()).isNotEmpty();
+        for (de.kortty.model.AiProfile reloaded : manager.getSettings().getAiProfiles()) {
+            assertThat(reloaded.getInternetAccessMode())
+                .isEqualTo(de.kortty.model.AiInternetAccessMode.DISABLED);
+        }
     }
 }

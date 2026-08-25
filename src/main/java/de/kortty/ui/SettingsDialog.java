@@ -1801,6 +1801,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 de.kortty.policy.ManagedSetting.AGENT_EXECUTION,
                 de.kortty.policy.ManagedSetting.AGENT_CONFIRM_MUTATING,
                 de.kortty.policy.ManagedSetting.AI_PROFILES,
+                de.kortty.policy.ManagedSetting.AI_INTERNET,
                 de.kortty.policy.ManagedSetting.AI_RUNTIME)) {
             aiRoot.getChildren().add(de.kortty.policy.PolicyUiSupport.managedTabBanner());
         }
@@ -2303,6 +2304,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiInternetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
         aiInternetAccessModeCombo.setPrefWidth(260);
         aiInternetAccessModeCombo.setConverter(createAiInternetModeConverter());
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            aiInternetAccessModeCombo, de.kortty.policy.ManagedSetting.AI_INTERNET);
         aiInternetAccessModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedAiProfile != null) {
                 selectedAiProfile.setInternetAccessMode(newValue);
@@ -4988,7 +4991,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiApiUrlField.setDisable(localMode);
         aiApiKeyField.setDisable(localMode);
         aiClearApiKeyCheck.setDisable(localMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
-        aiInternetAccessModeCombo.setDisable(localMode);
+        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
+        aiInternetAccessModeCombo.setDisable(localMode
+            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
         aiRefreshModelsButton.setDisable(localMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
         aiRefreshReasoningButton.setDisable(selectedAiProfile == null);
         aiCliProviderCombo.setDisable(!cliMode);

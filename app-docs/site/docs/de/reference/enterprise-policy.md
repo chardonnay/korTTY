@@ -140,6 +140,25 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `allow-custom-script-headers` | boolean | `false` | Benutzer können keine Skript-Header erstellen; Es verbleiben nur die Einträge `[[script-header]]` und |
 | `allow-create` | boolean | `false` | Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt) |
 | `allow-edit` | boolean | `false` | Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten |
+| `allow-internet` | boolean | `false` | Verbietet jeden Internetzugriffsmodus der KI – siehe unten |
+
+!!! info "`allow-internet = false` unterbindet den KI-Internetzugriff auf drei Ebenen"
+    Die Auswahlliste [Internetzugriff](settings/ai.md#internetzugriffsmodi) eines KI-Profils wählt ein
+    Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
+    einzelne eine Lücke ließe:
+
+    1. **Gespeicherte Einstellungen** – beim Laden und beim Speichern wird der Modus jedes Profils auf
+       *Deaktiviert* zurückgesetzt. So überlebt weder ein Wert aus der Zeit vor der Richtlinie noch
+       eine Handänderung an `global-settings.xml`.
+    2. **Die Oberfläche** – die Auswahlliste ist im KI-Manager und unter **Einstellungen → KI** mit dem
+       Hinweis „Von Ihrer Organisation verwaltet“ gesperrt.
+    3. **Jede KI-Anfrage** – korTTY verweigert den Dienstaufbau für ein Profil mit aktiviertem Modus
+       und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
+       Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.
+
+    Dies betrifft ausschließlich die Such-Backends. Ein *Cloud*-KI-Profil wird dadurch nicht daran
+    gehindert, seinen eigenen Anbieter zu erreichen – dafür verbieten Sie die Funktion `ai` oder
+    stellen `[[ai-profile]]`-Einträge bereit, die auf einen internen Endpunkt zeigen.
 
 ### `[rule.ai-runtime]`
 

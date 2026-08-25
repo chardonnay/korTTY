@@ -3153,8 +3153,33 @@
 <td><code>false</code></td>
 <td>Users cannot edit their existing AI profiles either</td>
 </tr>
+<tr>
+<td><code>allow-internet</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Forbids every AI internet-access mode — see below</td>
+</tr>
 </tbody>
 </table>
+<div class="admonition info">
+<p class="admonition-title"><code>allow-internet = false</code> cuts AI web access at three levels</p>
+<p>The <a href="settings/ai.html#internet-access-modes">internet access</a> dropdown of an AI profile selects a
+web-search or MCP browsing backend. Forbidding it is enforced in three places, because a single
+one would leave a gap:</p>
+<ol>
+<li><strong>Stored settings</strong> — every profile's mode is reset to <em>Disabled</em> whenever the settings are
+   loaded or saved, so a value from before the policy arrived does not survive, and neither does
+   a hand-edit of <code>global-settings.xml</code>.</li>
+<li><strong>The interface</strong> — the dropdown is locked with the "managed by your organization" hint in
+   both the AI Manager and <strong>Settings → AI</strong>.</li>
+<li><strong>Every AI request</strong> — korTTY refuses to build a service for a profile whose mode is enabled,
+   which closes the window between two clamps. The request fails with a policy message rather
+   than quietly answering without the web tool the profile asked for.</li>
+</ol>
+<p>This is about the search backends only. It does not stop a <em>cloud</em> AI profile from reaching its
+own provider — for that, deny the <code>ai</code> feature or provision <code>[[ai-profile]]</code> entries that point
+at an internal endpoint.</p>
+</div>
 <h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

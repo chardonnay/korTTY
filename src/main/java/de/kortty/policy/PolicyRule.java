@@ -25,6 +25,8 @@ import java.util.Set;
  * @param allowCustomScriptHeaders   false forbids creating own script headers
  * @param aiProfileAllowCreate       false forbids creating AI profiles
  * @param aiProfileAllowEdit         false forbids editing existing user AI profiles
+ * @param aiProfileAllowInternet     false forbids every AI internet-access mode, so AI requests
+ *                                   can never reach a web-search or MCP browsing backend
  * @param allowRuntimeDownloads      false forbids AI runtime downloads/updates
  * @param allowModelDownloads        false forbids LLM model downloads
  * @param allowUserModels            false restricts model selection to policy-provisioned models
@@ -50,6 +52,7 @@ public record PolicyRule(
     Boolean allowCustomScriptHeaders,
     Boolean aiProfileAllowCreate,
     Boolean aiProfileAllowEdit,
+    Boolean aiProfileAllowInternet,
     Boolean allowRuntimeDownloads,
     Boolean allowModelDownloads,
     Boolean allowUserModels,
@@ -161,6 +164,7 @@ public record PolicyRule(
         private Boolean allowCustomScriptHeaders;
         private Boolean aiProfileAllowCreate;
         private Boolean aiProfileAllowEdit;
+        private Boolean aiProfileAllowInternet;
         private Boolean allowRuntimeDownloads;
         private Boolean allowModelDownloads;
         private Boolean allowUserModels;
@@ -185,6 +189,7 @@ public record PolicyRule(
         public Builder allowCustomScriptHeaders(Boolean value) { this.allowCustomScriptHeaders = value; return this; }
         public Builder aiProfileAllowCreate(Boolean value) { this.aiProfileAllowCreate = value; return this; }
         public Builder aiProfileAllowEdit(Boolean value) { this.aiProfileAllowEdit = value; return this; }
+        public Builder aiProfileAllowInternet(Boolean value) { this.aiProfileAllowInternet = value; return this; }
         public Builder allowRuntimeDownloads(Boolean value) { this.allowRuntimeDownloads = value; return this; }
         public Builder allowModelDownloads(Boolean value) { this.allowModelDownloads = value; return this; }
         public Builder allowUserModels(Boolean value) { this.allowUserModels = value; return this; }
@@ -198,7 +203,7 @@ public record PolicyRule(
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
                 requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
                 allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
-                aiProfileAllowEdit, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
+                aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal);
         }
     }

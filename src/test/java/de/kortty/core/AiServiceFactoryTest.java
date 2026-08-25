@@ -6,8 +6,14 @@ import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
+import de.kortty.policy.PolicyLocator;
+import de.kortty.policy.PolicyManager;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
@@ -15,6 +21,36 @@ import static com.google.common.truth.Truth.assertThat;
 
 
 class AiServiceFactoryTest {
+
+    private Path policyFile;
+
+    @AfterMethod
+    void clearPolicy() throws IOException {
+        System.clearProperty(PolicyLocator.OVERRIDE_PROPERTY);
+        // resetForTests() is package-private to de.kortty.policy; re-initializing with no policy
+        // file in reach installs the unrestricted fallback, which is the same end state.
+        PolicyManager.initialize();
+        if (policyFile != null) {
+            Files.deleteIfExists(policyFile);
+            policyFile = null;
+        }
+    }
+
+    /** Activates a policy that forbids every AI internet mode. */
+    private void forbidAiInternet() throws IOException {
+        policyFile = Files.createTempFile("kortty-policy", ".toml");
+        Files.writeString(policyFile, """
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.ai-profiles]
+            allow-internet = false
+            """);
+        System.clearProperty("jpackage.app-path");
+        System.setProperty(PolicyLocator.OVERRIDE_PROPERTY, policyFile.toString());
+        PolicyManager.initialize();
+    }
 
     /** Sees through the outermost {@link LoggingAiService} decorator the factory now always applies. */
     private static AiService unwrap(AiService service) {
@@ -460,5 +496,44 @@ class AiServiceFactoryTest {
             return;
         }
         throw new AssertionError("Expected local CLI default model validation to fail for templates using {model}.");
+    }
+
+    @Test
+    void policyForbiddingAiInternetRefusesAnInternetEnabledProfile() throws IOException {
+        forbidAiInternet();
+
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.com/v1/chat/completions");
+        profile.setModel("gpt-4o-mini");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setInternetAccessMode(AiInternetAccessMode.KORTTY_TAVILY_TOOL);
+
+        // The clamp normally resets the stored mode; this is the case it cannot cover — a mode set
+        // between two clamps. The factory must refuse rather than quietly answer without the tool.
+        IllegalStateException failure = org.testng.Assert.expectThrows(IllegalStateException.class,
+            () -> AiServiceFactory.create(
+                profile,
+                "key",
+                new AiInternetAccessConfiguration(
+                    AiInternetAccessMode.KORTTY_TAVILY_TOOL, "tavily-key",
+                    null, null, null, null, null, null, null, null),
+                AiSkillPromptSupport.disabled()));
+        assertThat(failure).hasMessageThat().contains("policy");
+    }
+
+    @Test
+    void policyForbiddingAiInternetStillAllowsAProfileWithoutIt() throws IOException {
+        forbidAiInternet();
+
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("https://api.example.com/v1/chat/completions");
+        profile.setModel("gpt-4o-mini");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+
+        AiService service = AiServiceFactory.create(
+            profile, "key", AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
+
+        assertThat(unwrap(service)).isInstanceOf(OpenAiCompatibleAiService.class);
     }
 }

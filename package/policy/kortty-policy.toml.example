@@ -87,6 +87,7 @@
 #   [rule.ai-profiles]
 #   allow-create = false              # users cannot create AI profiles
 #   allow-edit = false                # users cannot edit their existing profiles either
+#   allow-internet = false            # no AI web search / MCP browsing, in any profile
 #
 #   [rule.ai-runtime]
 #   allow-runtime-downloads = false   # no llama.cpp/MLX runtime downloads or updates

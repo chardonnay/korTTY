@@ -51,6 +51,7 @@ class PolicyLoaderTest {
           [rule.ai-profiles]
           allow-create = false
           allow-edit = false
+          allow-internet = false
           [rule.ai-runtime]
           allow-runtime-downloads = false
           allow-model-downloads = false
@@ -150,6 +151,7 @@ class PolicyLoaderTest {
         assertThat(baseline.allowCustomScriptHeaders()).isFalse();
         assertThat(baseline.aiProfileAllowCreate()).isFalse();
         assertThat(baseline.aiProfileAllowEdit()).isFalse();
+        assertThat(baseline.aiProfileAllowInternet()).isFalse();
         assertThat(baseline.allowRuntimeDownloads()).isFalse();
         assertThat(baseline.updatesEnabled()).isFalse();
         assertThat(baseline.loadIntoSnippetEditor()).isEqualTo(LoadIntoEditorMode.READ_ONLY);

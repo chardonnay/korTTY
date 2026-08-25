@@ -2264,6 +2264,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#unternehmensrichtlinie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unternehmensrichtlinie
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2423,6 +2434,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#unternehmensrichtlinie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unternehmensrichtlinie
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2467,6 +2489,10 @@
 <li><strong>Yandex Translate funktioniert wieder</strong> – der Dienst sprach noch die abgeschaltete Translate-API v1.5, deren Zugangsdaten Yandex nicht mehr akzeptiert, sodass der Anbieter für jeden, der ihn auswählte, nicht mehr funktionierte. Er ruft jetzt Cloud Translate v2 mit der aktuellen <code>Api-Key</code>-/IAM-Token-Authentifizierung auf, fasst Anfragen gemäß den Grenzwerten der API zusammen und sendet keine übrig gebliebene v1.5-API-URL mehr an einen nicht mehr existierenden Host. Bruchstücke eines abgelehnten Schlüssels, die Yandex in seiner eigenen Fehlermeldung zurückspiegelt, werden jetzt geschwärzt, bevor sie in eine Protokolldatei gelangen.</li>
 <li><strong>Microsoft Translator erreicht jetzt regionale Ressourcen und Ressourcen mit eigener Domain</strong> – eine neue optionale Einstellung <strong>Azure-Region</strong>, die nur bei ausgewähltem Microsoft Translator angezeigt wird, wird von jeder nicht-globalen Azure-Ressource benötigt; eine solche Ressource war zuvor überhaupt nicht erreichbar.</li>
 <li><strong>DeepL erholt sich jetzt von einer falsch geratenen Free/Pro-Host-Zuordnung</strong> – das Schlüsselsuffix, anhand dessen korTTY den Host wählt, ist nur bei älteren Free-Schlüsseln zuverlässig; eine 403-Antwort löst jetzt einen erneuten Versuch beim jeweils anderen Host aus, statt fehlzuschlagen.</li>
+</ul>
+<h3 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Administratoren können den KI-Internetzugriff verbieten</strong> – ein neuer Schlüssel <a href="../reference/enterprise-policy.html"><code>[rule.ai-profiles] allow-internet</code></a> schaltet jeden Internetzugriffsmodus ab, den ein KI-Profil wählen kann (Tavily, Bright Data, Brave, SearXNG, LM Studio Toolpack). Durchgesetzt wird das auf drei Ebenen statt auf einer: gespeicherte Profilmodi werden bei jedem Laden und Speichern zurückgesetzt, die Auswahlliste ist im KI-Manager und unter <strong>Einstellungen → KI</strong> gesperrt, und korTTY verweigert den Dienstaufbau für ein Profil mit weiterhin aktiviertem Modus – so öffnet weder eine Handänderung an <code>global-settings.xml</code> noch das Zeitfenster zwischen zwei Klemmungen den Webzugriff erneut. Cloud-Profile erreichen weiterhin ihren eigenen Anbieter; dafür ist die Funktion <code>ai</code> zu verbieten.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Frühere Versionen</p>

@@ -24,5 +24,9 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Microsoft Translator erreicht jetzt regionale Ressourcen und Ressourcen mit eigener Domain** – eine neue optionale Einstellung **Azure-Region**, die nur bei ausgewähltem Microsoft Translator angezeigt wird, wird von jeder nicht-globalen Azure-Ressource benötigt; eine solche Ressource war zuvor überhaupt nicht erreichbar.
 - **DeepL erholt sich jetzt von einer falsch geratenen Free/Pro-Host-Zuordnung** – das Schlüsselsuffix, anhand dessen korTTY den Host wählt, ist nur bei älteren Free-Schlüsseln zuverlässig; eine 403-Antwort löst jetzt einen erneuten Versuch beim jeweils anderen Host aus, statt fehlzuschlagen.
 
+### Unternehmensrichtlinie
+
+- **Administratoren können den KI-Internetzugriff verbieten** – ein neuer Schlüssel [`[rule.ai-profiles] allow-internet`](../reference/enterprise-policy.md) schaltet jeden Internetzugriffsmodus ab, den ein KI-Profil wählen kann (Tavily, Bright Data, Brave, SearXNG, LM Studio Toolpack). Durchgesetzt wird das auf drei Ebenen statt auf einer: gespeicherte Profilmodi werden bei jedem Laden und Speichern zurückgesetzt, die Auswahlliste ist im KI-Manager und unter **Einstellungen → KI** gesperrt, und korTTY verweigert den Dienstaufbau für ein Profil mit weiterhin aktiviertem Modus – so öffnet weder eine Handänderung an `global-settings.xml` noch das Zeitfenster zwischen zwei Klemmungen den Webzugriff erneut. Cloud-Profile erreichen weiterhin ihren eigenen Anbieter; dafür ist die Funktion `ai` zu verbieten.
+
 !!! note "Frühere Versionen"
     Hier wird nur die aktuelle Version aufgeführt, daher bleibt der Anleitung in jeder Sprache, in die er übersetzt wurde, kurz. Jede Version ist auf der [GitHub-Release-Seite ](https://github.com/chardonnay/korTTY/releases); Die kuratierten Notizen für frühere Versionen werden im Repository in `app-docs/release-notes-archive.md` und `app-docs/RELEASE_NOTES.adoc` aufbewahrt.

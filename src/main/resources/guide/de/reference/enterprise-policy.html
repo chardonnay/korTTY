@@ -3153,8 +3153,33 @@
 <td><code>false</code></td>
 <td>Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten</td>
 </tr>
+<tr>
+<td><code>allow-internet</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Verbietet jeden Internetzugriffsmodus der KI – siehe unten</td>
+</tr>
 </tbody>
 </table>
+<div class="admonition info">
+<p class="admonition-title"><code>allow-internet = false</code> unterbindet den KI-Internetzugriff auf drei Ebenen</p>
+<p>Die Auswahlliste <a href="settings/ai.html#internetzugriffsmodi">Internetzugriff</a> eines KI-Profils wählt ein
+Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
+einzelne eine Lücke ließe:</p>
+<ol>
+<li><strong>Gespeicherte Einstellungen</strong> – beim Laden und beim Speichern wird der Modus jedes Profils auf
+   <em>Deaktiviert</em> zurückgesetzt. So überlebt weder ein Wert aus der Zeit vor der Richtlinie noch
+   eine Handänderung an <code>global-settings.xml</code>.</li>
+<li><strong>Die Oberfläche</strong> – die Auswahlliste ist im KI-Manager und unter <strong>Einstellungen → KI</strong> mit dem
+   Hinweis „Von Ihrer Organisation verwaltet“ gesperrt.</li>
+<li><strong>Jede KI-Anfrage</strong> – korTTY verweigert den Dienstaufbau für ein Profil mit aktiviertem Modus
+   und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
+   Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.</li>
+</ol>
+<p>Dies betrifft ausschließlich die Such-Backends. Ein <em>Cloud</em>-KI-Profil wird dadurch nicht daran
+gehindert, seinen eigenen Anbieter zu erreichen – dafür verbieten Sie die Funktion <code>ai</code> oder
+stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen Endpunkt zeigen.</p>
+</div>
 <h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

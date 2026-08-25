@@ -3190,6 +3190,16 @@
 <li><strong>LM Studio Toolpack</strong>: Community LM Studio Toolpack web-search server (requires plugin ID in <code>mcp/&lt;server_label&gt;</code> format).</li>
 </ul>
 <p>Credentials are encrypted and stored securely. Use the <strong>Clear</strong> toggle adjacent to each secret field to erase stored values on the next save.</p>
+<div class="admonition warning">
+<p class="admonition-title">Embedded profiles support only the KorTTY Tavily Tool</p>
+<p>A profile whose connection mode is <strong>Integrated llama.cpp</strong> or <strong>Integrated MLX</strong> can use
+<strong>KorTTY Tavily Tool</strong> and nothing else. The five MCP modes route the request through LM Studio's
+native API, which an embedded model never goes through — selecting one on an embedded profile
+fails the request with an explicit message instead of silently answering without web access.
+Local CLI profiles have no internet modes at all; the dropdown is disabled for them.</p>
+<p>An organization can forbid web access entirely with the <code>allow-internet</code> policy key — see
+<a href="../enterprise-policy.html">Enterprise policy</a>.</p>
+</div>
 
 
 

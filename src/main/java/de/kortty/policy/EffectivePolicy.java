@@ -34,7 +34,7 @@ public final class EffectivePolicy {
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
         ClipboardMode.SYSTEM, true, true,
-        true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
+        true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
@@ -52,6 +52,7 @@ public final class EffectivePolicy {
     private final boolean allowCustomScriptHeaders;
     private final boolean aiProfileCreateAllowed;
     private final boolean aiProfileEditAllowed;
+    private final boolean aiInternetAllowed;
     private final boolean allowRuntimeDownloads;
     private final boolean allowModelDownloads;
     private final boolean allowUserModels;
@@ -74,6 +75,7 @@ public final class EffectivePolicy {
                             boolean allowTelemetry, boolean allowTerminalRecording,
                             boolean allowCustomTeamworkSources, boolean allowCustomScriptHeaders,
                             boolean aiProfileCreateAllowed, boolean aiProfileEditAllowed,
+                            boolean aiInternetAllowed,
                             boolean allowRuntimeDownloads, boolean allowModelDownloads,
                             boolean allowUserModels, boolean updatesEnabled, String updateFeedUrl,
                             LoadIntoEditorMode loadIntoSnippetEditor,
@@ -99,6 +101,7 @@ public final class EffectivePolicy {
         this.allowCustomScriptHeaders = allowCustomScriptHeaders;
         this.aiProfileCreateAllowed = aiProfileCreateAllowed;
         this.aiProfileEditAllowed = aiProfileEditAllowed;
+        this.aiInternetAllowed = aiInternetAllowed;
         this.allowRuntimeDownloads = allowRuntimeDownloads;
         this.allowModelDownloads = allowModelDownloads;
         this.allowUserModels = allowUserModels;
@@ -130,7 +133,7 @@ public final class EffectivePolicy {
             denied.put(feature, PolicyDecision.DENY);
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
-            true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false,
+            true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
             false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
             List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
@@ -189,6 +192,7 @@ public final class EffectivePolicy {
         Boolean allowCustomScriptHeaders = resolver.resolveAllow(PolicyRule::allowCustomScriptHeaders);
         Boolean aiProfileAllowCreate = resolver.resolveAllow(PolicyRule::aiProfileAllowCreate);
         Boolean aiProfileAllowEdit = resolver.resolveAllow(PolicyRule::aiProfileAllowEdit);
+        Boolean aiProfileAllowInternet = resolver.resolveAllow(PolicyRule::aiProfileAllowInternet);
         Boolean allowRuntimeDownloads = resolver.resolveAllow(PolicyRule::allowRuntimeDownloads);
         Boolean allowModelDownloads = resolver.resolveAllow(PolicyRule::allowModelDownloads);
         Boolean allowUserModels = resolver.resolveAllow(PolicyRule::allowUserModels);
@@ -211,6 +215,7 @@ public final class EffectivePolicy {
         markManaged(managed, ManagedSetting.SCRIPT_HEADERS, allowCustomScriptHeaders);
         markManaged(managed, ManagedSetting.AI_PROFILES, aiProfileAllowCreate);
         markManaged(managed, ManagedSetting.AI_PROFILES, aiProfileAllowEdit);
+        markManaged(managed, ManagedSetting.AI_INTERNET, aiProfileAllowInternet);
         markManaged(managed, ManagedSetting.AI_RUNTIME, allowRuntimeDownloads);
         markManaged(managed, ManagedSetting.AI_RUNTIME, allowModelDownloads);
         markManaged(managed, ManagedSetting.AI_RUNTIME, allowUserModels);
@@ -244,6 +249,7 @@ public final class EffectivePolicy {
             orDefault(allowTelemetry, true), orDefault(allowTerminalRecording, true),
             orDefault(allowCustomTeamworkSources, true), orDefault(allowCustomScriptHeaders, true),
             orDefault(aiProfileAllowCreate, true), orDefault(aiProfileAllowEdit, true),
+            orDefault(aiProfileAllowInternet, true),
             orDefault(allowRuntimeDownloads, true), orDefault(allowModelDownloads, true),
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
@@ -390,6 +396,16 @@ public final class EffectivePolicy {
 
     public boolean aiProfileEditAllowed() {
         return aiProfileEditAllowed;
+    }
+
+    /**
+     * False forbids every AI internet-access mode. Enforced in three places, because one is not
+     * enough: {@link PolicyClamp} resets each profile's stored mode, the AI Manager and Settings
+     * lock the dropdown, and {@code AiServiceFactory} refuses to build an internet-enabled service
+     * — so a hand-edited {@code global-settings.xml} cannot re-enable web access either.
+     */
+    public boolean aiInternetAllowed() {
+        return aiInternetAllowed;
     }
 
     public boolean runtimeDownloadsAllowed() {

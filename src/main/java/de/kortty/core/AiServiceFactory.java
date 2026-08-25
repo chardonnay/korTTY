@@ -105,6 +105,7 @@ public final class AiServiceFactory {
             if (mode == null) {
                 throw new IllegalStateException("AI internet access mode must be configured.");
             }
+            requirePolicyAllowedInternetMode(mode);
             if (mode.usesLmStudioMcp()) {
                 throw new IllegalStateException("LM Studio MCP internet modes are not available for embedded llama.cpp profiles.");
             }
@@ -138,6 +139,7 @@ public final class AiServiceFactory {
             if (mode == null) {
                 throw new IllegalStateException("AI internet access mode must be configured.");
             }
+            requirePolicyAllowedInternetMode(mode);
             if (mode.usesLmStudioMcp()) {
                 throw new IllegalStateException("LM Studio MCP internet modes are not available for embedded MLX profiles.");
             }
@@ -207,6 +209,7 @@ public final class AiServiceFactory {
         if (mode == null) {
             throw new IllegalStateException("AI internet access mode must be configured.");
         }
+        requirePolicyAllowedInternetMode(mode);
         if (mode.usesLmStudioMcp()) {
             if (!apiUrl.matches("(?i).*/api/v1/chat/?$")) {
                 throw new IllegalStateException("LM Studio MCP internet modes require the LM Studio native API endpoint /api/v1/chat.");
@@ -424,6 +427,23 @@ public final class AiServiceFactory {
      * (id prefix {@code policy-}) may be loaded — enforced here, at the single backend choke point,
      * so no picker or hand-edited profile can bypass it.
      */
+    /**
+     * Last line of defence for the {@code [rule.ai-profiles] allow-internet = false} policy.
+     *
+     * <p>{@link de.kortty.policy.PolicyClamp} already resets stored modes and the UI locks the
+     * dropdown, but both operate on settings a determined user can hand-edit between two clamps.
+     * Every service creation passes through here, so a forbidden mode cannot reach a transport at
+     * all — the profile is refused rather than silently downgraded, because silently answering
+     * without the web tool the user selected would misrepresent what the model actually did.</p>
+     */
+    private static void requirePolicyAllowedInternetMode(AiInternetAccessMode mode) {
+        if (mode != null && mode.isEnabled()
+            && !de.kortty.policy.PolicyManager.effective().aiInternetAllowed()) {
+            throw new IllegalStateException(
+                "Internet access for AI profiles is disabled by your organization's policy.");
+        }
+    }
+
     private static void requirePolicyAllowedModel(String embeddedModelId) {
         if (!de.kortty.policy.PolicyManager.effective().userModelsAllowed()
             && !embeddedModelId.startsWith(

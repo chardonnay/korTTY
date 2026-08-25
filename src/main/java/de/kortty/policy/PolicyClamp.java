@@ -41,8 +41,33 @@ public final class PolicyClamp {
             return;
         }
         applyScalars(settings);
+        applyAiInternetMode(settings);
         applyManagedAiProfiles(settings);
         applyManagedTeamworkSources(settings);
+    }
+
+    /**
+     * Resets every profile's internet-access mode when the policy forbids AI web access.
+     *
+     * <p>Separate from {@link #applyScalars}: this reaches into the AI profiles rather than a
+     * settings scalar. Only the enum field of each profile is overwritten — the list itself is
+     * never touched, so a concurrent reader iterating {@code getAiProfiles()} is unaffected.
+     * Policy-provided profiles are clamped too: they never declare a mode, but a stale value from
+     * an earlier policy revision must not survive.</p>
+     */
+    private void applyAiInternetMode(GlobalSettings settings) {
+        if (policy.aiInternetAllowed()) {
+            return;
+        }
+        List<AiProfile> profiles = settings.getAiProfiles();
+        if (profiles == null) {
+            return;
+        }
+        for (AiProfile profile : profiles) {
+            if (profile != null && profile.getInternetAccessMode().isEnabled()) {
+                profile.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.DISABLED);
+            }
+        }
     }
 
     /** Forces every policy-controlled scalar value; never touches the managed-object lists. */
@@ -115,6 +140,7 @@ public final class PolicyClamp {
             return MarshalScope.NONE;
         }
         applyScalars(settings);
+        applyAiInternetMode(settings);
         List<AiProfile> savedProfiles = settings.exchangeAiProfilesForMarshal(
             withoutManaged(settings.getAiProfiles(),
                 profile -> profile != null && profile.isPolicyManaged()));

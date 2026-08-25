@@ -2264,6 +2264,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2423,6 +2434,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#enterprise-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise policy
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2467,6 +2489,10 @@
 <li><strong>Yandex Translate works again</strong> — it still spoke the retired Translate API v1.5, whose credentials Yandex stopped accepting, so the provider was dead for anyone who selected it. It now calls Cloud Translate v2 with the current <code>Api-Key</code>/IAM-token authentication, batches requests to the API's limits, and no longer sends a leftover v1.5 API URL to a host that is gone. A rejected key's fragments, which Yandex echoes back inside its own error message, are now redacted before anything reaches a log file.</li>
 <li><strong>Microsoft Translator now reaches regional and custom-domain resources</strong> — a new optional <strong>Azure region</strong> setting, shown only while Microsoft Translator is selected, is required by any Azure resource that is not global; such a resource previously could not be reached at all.</li>
 <li><strong>DeepL now recovers from a wrong Free/Pro host guess</strong> — the key suffix korTTY uses to pick a host is only reliable for older Free keys; a 403 response now retries once against the other host instead of failing outright.</li>
+</ul>
+<h3 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Administrators can forbid AI web access</strong> — a new <a href="../reference/enterprise-policy.html"><code>[rule.ai-profiles] allow-internet</code></a> key switches off every internet-access mode an AI profile can select (Tavily, Bright Data, Brave, SearXNG, LM Studio Toolpack). It is enforced at three levels rather than one: stored profile modes are reset whenever settings are loaded or saved, the dropdown is locked in the AI Manager and in <strong>Settings → AI</strong>, and korTTY refuses to build a service for a profile whose mode is still enabled — so neither a hand-edited <code>global-settings.xml</code> nor the window between two clamps re-opens web access. Cloud profiles still reach their own provider; deny the <code>ai</code> feature for that.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Earlier releases</p>

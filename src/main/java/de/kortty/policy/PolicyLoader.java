@@ -41,7 +41,8 @@ public final class PolicyLoader {
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
     private static final Set<String> RULE_TEAMWORK_KEYS = Set.of("allow-custom-sources");
     private static final Set<String> SNIPPETS_KEYS = Set.of("allow-custom-script-headers");
-    private static final Set<String> AI_PROFILES_KEYS = Set.of("allow-create", "allow-edit");
+    private static final Set<String> AI_PROFILES_KEYS =
+        Set.of("allow-create", "allow-edit", "allow-internet");
     private static final Set<String> RULE_AI_RUNTIME_KEYS =
         Set.of("allow-runtime-downloads", "allow-model-downloads", "allow-user-models");
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
@@ -296,6 +297,7 @@ public final class PolicyLoader {
         warnUnknownKeys(table, AI_PROFILES_KEYS, tableContext);
         builder.aiProfileAllowCreate(getBoolean(table, "allow-create", tableContext));
         builder.aiProfileAllowEdit(getBoolean(table, "allow-edit", tableContext));
+        builder.aiProfileAllowInternet(getBoolean(table, "allow-internet", tableContext));
     }
 
     private void parseRuleAiRuntime(TomlTable rule, String context, PolicyRule.Builder builder) {
