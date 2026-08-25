@@ -2209,38 +2209,16 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2120" class="md-nav__link">
+  <a href="#v2130" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.12.0
+        v2.13.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.12.0">
+    <nav class="md-nav" aria-label="v2.13.0">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#sitzungsjournal-unter-last-vollstandig-kleiner-auf-der-festplatte" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sitzungsjournal: unter Last vollständig, kleiner auf der Festplatte
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sitzungsjournal: KI-Suche und Fragen und Antworten
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
@@ -2254,10 +2232,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#sicherheit" class="md-nav__link">
+  <a href="#datenschutz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sicherheit
+        Datenschutz
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#darstellung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Darstellung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersetzung
       
     </span>
   </a>
@@ -2368,38 +2368,16 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2120" class="md-nav__link">
+  <a href="#v2130" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.12.0
+        v2.13.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.12.0">
+    <nav class="md-nav" aria-label="v2.13.0">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#sitzungsjournal-unter-last-vollstandig-kleiner-auf-der-festplatte" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sitzungsjournal: unter Last vollständig, kleiner auf der Festplatte
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sitzungsjournal: KI-Suche und Fragen und Antworten
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
@@ -2413,10 +2391,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#sicherheit" class="md-nav__link">
+  <a href="#datenschutz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sicherheit
+        Datenschutz
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#darstellung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Darstellung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ubersetzung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersetzung
       
     </span>
   </a>
@@ -2447,33 +2447,26 @@
 
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
-<h2 id="v2120">v2.12.0<a class="headerlink" href="#v2120" title="Permanent link">&para;</a></h2>
-<h3 id="sitzungsjournal-unter-last-vollstandig-kleiner-auf-der-festplatte">Sitzungsjournal: unter Last vollständig, kleiner auf der Festplatte<a class="headerlink" href="#sitzungsjournal-unter-last-vollstandig-kleiner-auf-der-festplatte" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Eine Serverflut kann keine Löcher mehr in das Journal schlagen</strong> – wenn die Ausgabe schneller eintraf, als das Capture-Log sie speichern konnte, wurden bis zu 10.000 Zeilen in der Warteschlange stillschweigend gelöscht, ohne dass im Journal etwas dafür erkennbar war. Die Erfassung wendet nun stattdessen Gegendruck an: Das Terminal kann bei extremer Überschwemmung kurzzeitig langsamer werden, aber jede Zeile landet im Protokoll. Der Protokollschreiber stapelt auch seine Schreibvorgänge auf die Festplatte, sodass er von vornherein mit deutlich mehr Ausgaben Schritt halten kann.</li>
-<li><strong>Wiederholte Ausgabezeilen werden zusammengeführt</strong> – Fortschrittsschleifen, <code>tail -f</code>-Wiederholungen und ähnliche Überschwemmungen werden im Syslog-Stil gespeichert: das erste Vorkommen sofort, Folgevorgänge als ein Eintrag mit einer Wiederholungszählung. Die <a href="../features/session-journal.html#speicher-und-formate">-Journalseite </a> zeigt einen solchen Lauf kompakt als <code>Zeile ×12</code>; Durch das Kopieren des Protokolls werden die ursprünglichen Zeilen vollständig reproduziert, und der KI-Zusammenfassungsrechner sieht die Anzahl anstelle von Tausenden identischer Zeilen.</li>
-<li><strong>Gedrehte Protokollteile werden jetzt zstd-komprimiert</strong> – fertige Capture-Protokollteile werden auf <code>.zst</code> statt auf <code>.gz</code> komprimiert, was sowohl schneller als auch bei wiederholter Terminalausgabe deutlich kleiner ist. Mit früheren Versionen aufgezeichnete Journale behalten ihre <code>.gz</code>-Teile und können genau wie zuvor geöffnet, exportiert und geschwärzt werden – sogar gemischt innerhalb einer Journal.</li>
-<li><strong>Die Protokollrotation ist pro Verbindung konfigurierbar</strong> – die Registerkarte „Journal“ wurde um <strong>Maximale Größe pro Log-Teil (MB)</strong> (Standard 25) und <strong>Maximal rotierte Protokollteile</strong> (Standard 20) erweitert. Zuvor wurden beide Probleme behoben, und bei einer langen, lauten Sitzung wurde die Aufnahmeausgabe nach 20 Teilen einfach abgebrochen. Eine Unternehmensrichtlinie kann die Teileanzahl mit dem neuen Schlüssel <code>max-log-parts</code> begrenzen.</li>
-</ul>
-<h3 id="sitzungsjournal-ki-suche-und-fragen-und-antworten">Sitzungsjournal: KI-Suche und Fragen und Antworten<a class="headerlink" href="#sitzungsjournal-ki-suche-und-fragen-und-antworten" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Fragen Sie die KI nach einer aufgezeichneten Sitzung</strong> – das neue <a href="../features/session-journal.html#die-ki-nach-einem-journal-fragen">AI Q&amp;A-Panel des Viewers.</a> beantwortet Fragen wie <em>„Wurden Screenshots gemacht, die Fehler aus diesem Skript zeigen?“</em> aus dem, was das Journal bereits gesammelt hat (Zusammenfassungen, Screenshot-Analysen, Notizen) – das Roherfassungsprotokoll wird nie an ein Modell gesendet. Wenn für eine Frage konkrete Beweise erforderlich sind, benennt das Modell wörtliche Suchzeichenfolgen, korTTYs eigene Streaming-Suche durchsucht das Protokoll und nur die Anzahl der Übereinstimmungen sowie einige Beispielzeilen werden für die endgültige Antwort zurückgegeben. Antworten geben ihre Quellen an: Wenn Sie auf eine Quelle klicken, wird die Zeitleiste zum Eintrag gescrollt. Wenn Sie auf eine Zeile mit Protokollbeweisen klicken, wird das Protokollfenster bis zur genauen Zeile gescrollt geöffnet. Folgefragen setzen das Gespräch fort und <strong>Als Notiz speichern</strong> fügt der Zeitleiste ein Frage-und-Antwort-Paar hinzu.</li>
-<li><strong>Eine Frage über alle Journale hinweg</strong> – die neue <a href="../features/session-journal.html#ai-suche-in-allen-journale">AI-Suche des Managers</a> beantwortet Fragen wie <em>„In welchen Journale wurde result_complex.pl mit einem Fehler beendet?“</em>: Ein schnelles lokales Ranking über die gesammelten Einträge der Journale wählt die Kandidaten aus, eine KI-Anfrage schreibt die Zusammenfassung und wählt die relevanten Journale aus, und die genauen Treffer werden durch die interne Suche materialisiert. Der Trefferbaum springt direkt zum Eintrag oder zur Protokollzeile, bereits geöffnete Treffer bleiben bei Suchvorgängen und Neustarts markiert, die Tabelle zeigt eine sortierte Spalte „Treffer“ mit Zeilenhervorhebung statt Filterung und „Nur Auswahl“ schränkt den Umfang ein. Ohne ein erreichbares Modell verkommt die Suche zur reinen Textsuche mit Hinweis. Die optionale <strong>Semantische Journalsuche</strong> fügt ein einbettungsbasiertes Ranking hinzu, wenn ein lokales Einbettungsmodell in den Wissensspeichern konfiguriert ist.</li>
-<li><strong>Journale tragen jetzt KI-Schlüsselwörter</strong> – die Zusammenfassung der Abschlusssitzung extrahiert bis zu zwölf wörtliche Suchbegriffe (Hostnamen, Skript- und Dateinamen, Fehlerklassen) in die Journalemetadaten; Der Filter des Managers gleicht sie ab und zeigt sie als anklickbare <strong>Keyword-Chips</strong> unter dem Filterfeld an.</li>
-<li><strong>Zusammenfassungen nachholen</strong> – Mit den Journaloptionen kann die Zusammenfassung jetzt einzeln hinter einem abbrechbaren Fortschrittsdialog über geschlossene Journale ausgeführt werden, die nie zusammengefasst wurden.</li>
-<li><strong>Die Inhaltssuche des Managers liest gestreamte Protokolle</strong> – <strong>Inhalte durchsuchen</strong> dekomprimiert nicht mehr ganze Capture-Loge in den Speicher; Teile werden Zeile für Zeile gescannt, sodass die Suche in vielen großen Journale einfach bleibt.</li>
-<li><strong>Neuer Richtlinienschlüssel <code>ai-ask</code></strong> – eine Organisation kann die On-Demand-KI für Journaleinhalte verbieten (Fragen-und-Antworten-Panel und zeitschriftenübergreifende KI-Suche) und gleichzeitig KI-Zusammenfassungen beibehalten.</li>
-</ul>
+<h2 id="v2130">v2.13.0<a class="headerlink" href="#v2130" title="Permanent link">&para;</a></h2>
 <h3 id="verbindungsabbruch-und-wiederverbinden">Verbindungsabbruch und Wiederverbinden<a class="headerlink" href="#verbindungsabbruch-und-wiederverbinden" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Eine verlorene Verbindung schließt den Tab nicht mehr</strong> – bricht eine bestehende SSH-Verbindung ab (Netzwerkausfall, VPN-Trennung, Server weg), bleibt der Tab jetzt in einem roten <code>(DISCONNECT)</code>-Zustand offen, mit einer roten Statusleiste, die den Zeitpunkt des Abbruchs zeigt, statt sich still zu schließen, als hätten Sie <code>exit</code> eingegeben. Wiederverbinden im selben Tab per Doppelklick auf die Leiste oder den Tab oder über <strong>Neu verbinden</strong> in den Kontextmenüs; ein normaler Remote-Logout schließt den Tab weiterhin wie bisher.</li>
 <li><strong>Ein Verbindungsabbruch wird innerhalb von etwa zehn Sekunden erkannt</strong> – korTTY prüft den Server aktiv über die SSH-Verbindung (dieselbe Technik wie OpenSSHs <code>ServerAliveInterval</code>) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust, statt Minuten auf einen TCP-Timeout zu warten. In einem getrennten Tab hört außerdem der Terminal-Cursor auf zu blinken, sodass eine tote Sitzung nicht mehr aktiv aussieht.</li>
 <li><strong>Automatisches Wiederverbinden</strong> – eine neue Option <strong>Einstellungen → Terminal → Verlorene Verbindungen automatisch wiederherstellen</strong> (standardmäßig aktiviert) verbindet einen getrennten Tab selbstständig neu, mit Wartezeiten, die von 3 Sekunden bis zu einem Versuch pro Minute wachsen, und einem Countdown in der roten Statusleiste. Dauerhafte Fehler wie ein falsches Passwort, ein geänderter Hostschlüssel oder eine Konfigurationsablehnung werden nie automatisch wiederholt, und solange ein Sitzungsjournal über das weitere Vorgehen entscheidet, hat die Wiederverbinden-Wahl des Journals Vorrang. Siehe <a href="../features/terminal.html">Terminal-Sitzungen → Verbindungsverlust</a>.</li>
 </ul>
-<h3 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h3>
+<h3 id="datenschutz">Datenschutz<a class="headerlink" href="#datenschutz" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>net.i2p.crypto:eddsa</code> entfernt – eine verwaiste Abhängigkeit mit einer ungepatchten Signatur-Schwachstelle</strong> (CVE-2020-36843) – Ed25519-SSH-Hostschlüssel und schlüsselbasierte Authentifizierung laufen jetzt über BouncyCastle, das bereits zuvor Teil von korTTY war; am Verhalten ändert sich für Sie nichts.</li>
-<li><strong>Eine fehlgeschlagene Verbindung zu einem Host im lokalen Netzwerk erklärt sich jetzt selbst</strong> – seit macOS 15 lässt eine fehlende Berechtigung für das lokale Netzwerk jede lokale Verbindung genauso scheitern wie ein ausgeschalteter Host („No route to host“), ohne dass etwas auf die eigentliche Ursache hinweist. korTTY zeigt nun einen Hinweis auf die Berechtigung, wenn Fehler und Netzwerkform dazu passen, ohne einen tatsächlichen Ausfall auszuschließen.</li>
+<li><strong>Anonyme Nutzungsstatistiken sind bei der Ersteinrichtung jetzt vorausgewählt</strong> – das Kontrollkästchen neben der Master-Passwort-Einrichtung (<a href="anonymous-data.html">Anonyme Daten zur Anwendungsoptimierung</a>) ist standardmäßig aktiviert, sodass das Teilen die Voreinstellung ist und das Entfernen des Hakens vor der Bestätigung den Opt-out darstellt. Eine Organisationsrichtlinie, die Telemetrie verbietet, sperrt das Kontrollkästchen stattdessen auf den erzwungenen Zustand. An der Erfassung selbst ändert sich nichts: freiwillig, anonym, EU-Server, jederzeit änderbar unter <strong>Einstellungen → Datenschutz</strong>.</li>
+</ul>
+<h3 id="darstellung">Darstellung<a class="headerlink" href="#darstellung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Eine Neuinstallation startet jetzt mit aktivierter Option <a href="../reference/settings/appearance.html#ui-schriftgroe">An Bildschirmauflösung anpassen</a></strong> – korTTY passt die UI-Schriftgröße von Anfang an an den Bildschirm an, statt erst, wenn jemand die Einstellung findet. Bei einer Update-Installation ändert sich daran nichts: Es bleibt bei der bisherigen Einstellung.</li>
+</ul>
+<h3 id="ubersetzung">Übersetzung<a class="headerlink" href="#ubersetzung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Yandex Translate funktioniert wieder</strong> – der Dienst sprach noch die abgeschaltete Translate-API v1.5, deren Zugangsdaten Yandex nicht mehr akzeptiert, sodass der Anbieter für jeden, der ihn auswählte, nicht mehr funktionierte. Er ruft jetzt Cloud Translate v2 mit der aktuellen <code>Api-Key</code>-/IAM-Token-Authentifizierung auf, fasst Anfragen gemäß den Grenzwerten der API zusammen und sendet keine übrig gebliebene v1.5-API-URL mehr an einen nicht mehr existierenden Host. Bruchstücke eines abgelehnten Schlüssels, die Yandex in seiner eigenen Fehlermeldung zurückspiegelt, werden jetzt geschwärzt, bevor sie in eine Protokolldatei gelangen.</li>
+<li><strong>Microsoft Translator erreicht jetzt regionale Ressourcen und Ressourcen mit eigener Domain</strong> – eine neue optionale Einstellung <strong>Azure-Region</strong>, die nur bei ausgewähltem Microsoft Translator angezeigt wird, wird von jeder nicht-globalen Azure-Ressource benötigt; eine solche Ressource war zuvor überhaupt nicht erreichbar.</li>
+<li><strong>DeepL erholt sich jetzt von einer falsch geratenen Free/Pro-Host-Zuordnung</strong> – das Schlüsselsuffix, anhand dessen korTTY den Host wählt, ist nur bei älteren Free-Schlüsseln zuverlässig; eine 403-Antwort löst jetzt einen erneuten Versuch beim jeweils anderen Host aus, statt fehlzuschlagen.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Frühere Versionen</p>
@@ -2519,7 +2512,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.12.0</strong>
+    korTTY <strong>v2.13.0</strong>
   </div>
 </div>
       

@@ -2209,38 +2209,16 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2120" class="md-nav__link">
+  <a href="#v2130" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.12.0
+        v2.13.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.12.0">
+    <nav class="md-nav" aria-label="v2.13.0">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: complete under load, smaller on disk
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-ai-search-and-qa" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: AI search and Q&amp;A
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#connection-loss-and-reconnect" class="md-nav__link">
@@ -2254,10 +2232,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
+  <a href="#privacy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Security
+        Privacy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Translation
       
     </span>
   </a>
@@ -2368,38 +2368,16 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2120" class="md-nav__link">
+  <a href="#v2130" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.12.0
+        v2.13.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.12.0">
+    <nav class="md-nav" aria-label="v2.13.0">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-complete-under-load-smaller-on-disk" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: complete under load, smaller on disk
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#session-journal-ai-search-and-qa" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Session journal: AI search and Q&amp;A
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#connection-loss-and-reconnect" class="md-nav__link">
@@ -2413,10 +2391,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
+  <a href="#privacy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Security
+        Privacy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#appearance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appearance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Translation
       
     </span>
   </a>
@@ -2447,33 +2447,26 @@
 
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2120">v2.12.0<a class="headerlink" href="#v2120" title="Permanent link">&para;</a></h2>
-<h3 id="session-journal-complete-under-load-smaller-on-disk">Session journal: complete under load, smaller on disk<a class="headerlink" href="#session-journal-complete-under-load-smaller-on-disk" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>A server flood can no longer punch holes into the journal</strong> — when output arrived faster than the capture log could persist it, up to 10,000 queued lines were silently dropped with nothing in the journal to show for it. The capture now applies backpressure instead: the terminal may briefly slow down under an extreme flood, but every line lands in the log. The log writer also batches its disk writes, so it keeps up with far more output in the first place.</li>
-<li><strong>Repeated output lines are coalesced</strong> — progress loops, <code>tail -f</code> repeats and similar floods are stored syslog-style: the first occurrence immediately, follow-ups as one entry with a repeat count. The <a href="../features/session-journal.html#storage-and-formats">journal page</a> shows such a run compactly as <code>line ×12</code>; copying the log reproduces the original lines in full, and the AI summarizer sees the count instead of thousands of identical lines.</li>
-<li><strong>Rotated log parts are now zstd-compressed</strong> — finished capture-log parts compress to <code>.zst</code> instead of <code>.gz</code>, which is both faster and noticeably smaller on repetitive terminal output. Journals recorded by earlier versions keep their <code>.gz</code> parts and open, export and redact exactly as before — even mixed within one journal.</li>
-<li><strong>Log rotation is configurable per connection</strong> — the Journal tab gained <strong>Maximum size per log part (MB)</strong> (default 25) and <strong>Maximum rotated log parts</strong> (default 20). Previously both were fixed, and a long noisy session simply stopped recording output after 20 parts. An enterprise policy can cap the part count with the new <code>max-log-parts</code> key.</li>
-</ul>
-<h3 id="session-journal-ai-search-and-qa">Session journal: AI search and Q&amp;A<a class="headerlink" href="#session-journal-ai-search-and-qa" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Ask the AI about a recorded session</strong> — the viewer's new <a href="../features/session-journal.html#asking-the-ai-about-a-journal">AI Q&amp;A panel</a> answers questions like <em>"Were screenshots taken that show errors from this script?"</em> from what the journal already collected (summaries, screenshot analyses, notes) — the raw capture log is never sent to a model. When a question needs hard evidence, the model names literal search strings, korTTY's own streaming search scans the log, and only match counts plus a few sample lines go back for the final answer. Answers cite their sources: clicking a source scrolls the timeline to the entry, clicking a log-evidence line opens the log panel scrolled to the very line. Follow-up questions continue the conversation, and <strong>Save as note</strong> appends a Q&amp;A pair to the timeline.</li>
-<li><strong>One question across all journals</strong> — the manager's new <a href="../features/session-journal.html#ai-search-across-all-journals">AI search</a> answers questions like <em>"In which journals did result_complex.pl exit with an error?"</em>: a fast local ranking over the journals' collected entries picks the candidates, one AI request writes the summary and selects the relevant journals, and the exact hits are materialized by the internal search. The hit tree jumps straight to the entry or log line, already-opened hits stay marked across searches and restarts, the table shows a sorted <strong>Hits</strong> column with a row highlight instead of filtering, and <strong>Selection only</strong> restricts the scope. Without a reachable model the search degrades to the pure text search with a notice. Optional <strong>Semantic journal search</strong> adds embedding-based ranking when a local embedding model is configured in the knowledge stores.</li>
-<li><strong>Journals now carry AI keywords</strong> — the closing session summary extracts up to twelve verbatim search terms (hostnames, script and file names, error classes) into the journal metadata; the manager's filter matches them and shows them as clickable <strong>keyword chips</strong> under the filter field.</li>
-<li><strong>Catch up summaries</strong> — the journal options can now run the summarizer over closed journals that were never summarized, one by one behind a cancellable progress dialog.</li>
-<li><strong>The manager's content search reads logs streaming</strong> — <strong>Search contents</strong> no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.</li>
-<li><strong>New policy key <code>ai-ask</code></strong> — an organization can forbid the on-demand AI over journal content (Q&amp;A panel and cross-journal AI search) while keeping AI summaries.</li>
-</ul>
+<h2 id="v2130">v2.13.0<a class="headerlink" href="#v2130" title="Permanent link">&para;</a></h2>
 <h3 id="connection-loss-and-reconnect">Connection loss and reconnect<a class="headerlink" href="#connection-loss-and-reconnect" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>A lost connection no longer closes the tab</strong> — when an established SSH connection drops (network outage, VPN cut, server gone), the tab now stays open in a red <code>(DISCONNECT)</code> state with a red status bar showing when the connection was lost, instead of silently closing as if you had typed <code>exit</code>. Reconnect in place with a double-click on the bar or tab, or via <strong>Reconnect</strong> in the context menus; a normal remote logout still closes the tab as before.</li>
 <li><strong>Connection loss is detected within about ten seconds</strong> — korTTY actively probes the server over the SSH connection (the same technique as OpenSSH's <code>ServerAliveInterval</code>) and treats two consecutive unanswered probes as a lost connection, instead of waiting minutes for a TCP timeout. The terminal cursor also stops blinking in a disconnected tab, so a dead session no longer looks alive.</li>
 <li><strong>Automatic reconnect</strong> — a new <strong>Settings → Terminal → Automatically reconnect lost connections</strong> option (on by default) reconnects a lost tab on its own, with delays growing from 3 seconds up to one attempt per minute and a countdown in the red status bar. Permanent failures such as a wrong password, a changed host key, or a configuration refusal are never retried automatically, and while a session journal is deciding how to continue, the journal's own reconnect choice takes precedence. See <a href="../features/terminal.html#connection-loss-and-automatic-reconnect">Terminal sessions → Connection loss</a>.</li>
 </ul>
-<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
+<h3 id="privacy">Privacy<a class="headerlink" href="#privacy" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Removed <code>net.i2p.crypto:eddsa</code>, an abandoned dependency with an unpatched signature-malleability flaw</strong> (CVE-2020-36843) — Ed25519 SSH host keys and key-based authentication are now served by BouncyCastle, already part of korTTY, with no user-visible change in behavior.</li>
-<li><strong>A failed connection to a host on your local network now explains itself</strong> — since macOS 15, a missing Local Network permission makes any local connection fail exactly like a powered-off host (<code>No route to host</code>), with nothing pointing at the actual cause. korTTY now adds a hint naming the permission when the failure and the network shape match, without ruling out a genuine outage.</li>
+<li><strong>Anonymous usage statistics are now pre-selected during first-run setup</strong> — the checkbox next to the master-password setup (<a href="anonymous-data.html">Anonymous data for application optimization</a>) starts ticked, so sharing is the default and clearing it before you confirm is the opt-out. An organization policy that forbids telemetry locks the checkbox to the enforced state instead. What is collected is unchanged: voluntary, anonymous, EU servers, and changeable any time in <strong>Settings → Privacy</strong>.</li>
+</ul>
+<h3 id="appearance">Appearance<a class="headerlink" href="#appearance" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>A first installation now starts with <a href="../reference/settings/appearance.html#ui-font-size">Match display resolution</a> on</strong> — korTTY scales its UI font size to the screen from the very first launch instead of only after someone finds the setting. Updating an existing installation never changes it: whatever it had stays.</li>
+</ul>
+<h3 id="translation">Translation<a class="headerlink" href="#translation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Yandex Translate works again</strong> — it still spoke the retired Translate API v1.5, whose credentials Yandex stopped accepting, so the provider was dead for anyone who selected it. It now calls Cloud Translate v2 with the current <code>Api-Key</code>/IAM-token authentication, batches requests to the API's limits, and no longer sends a leftover v1.5 API URL to a host that is gone. A rejected key's fragments, which Yandex echoes back inside its own error message, are now redacted before anything reaches a log file.</li>
+<li><strong>Microsoft Translator now reaches regional and custom-domain resources</strong> — a new optional <strong>Azure region</strong> setting, shown only while Microsoft Translator is selected, is required by any Azure resource that is not global; such a resource previously could not be reached at all.</li>
+<li><strong>DeepL now recovers from a wrong Free/Pro host guess</strong> — the key suffix korTTY uses to pick a host is only reliable for older Free keys; a 403 response now retries once against the other host instead of failing outright.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Earlier releases</p>
@@ -2519,7 +2512,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.12.0</strong>
+    korTTY <strong>v2.13.0</strong>
   </div>
 </div>
       

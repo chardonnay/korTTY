@@ -2,23 +2,7 @@
 
 What changed in the current release. The version this guide was built for is shown in the footer.
 
-## v2.12.0
-
-### Session journal: complete under load, smaller on disk
-
-- **A server flood can no longer punch holes into the journal** — when output arrived faster than the capture log could persist it, up to 10,000 queued lines were silently dropped with nothing in the journal to show for it. The capture now applies backpressure instead: the terminal may briefly slow down under an extreme flood, but every line lands in the log. The log writer also batches its disk writes, so it keeps up with far more output in the first place.
-- **Repeated output lines are coalesced** — progress loops, `tail -f` repeats and similar floods are stored syslog-style: the first occurrence immediately, follow-ups as one entry with a repeat count. The [journal page](../features/session-journal.md#storage-and-formats) shows such a run compactly as `line ×12`; copying the log reproduces the original lines in full, and the AI summarizer sees the count instead of thousands of identical lines.
-- **Rotated log parts are now zstd-compressed** — finished capture-log parts compress to `.zst` instead of `.gz`, which is both faster and noticeably smaller on repetitive terminal output. Journals recorded by earlier versions keep their `.gz` parts and open, export and redact exactly as before — even mixed within one journal.
-- **Log rotation is configurable per connection** — the Journal tab gained **Maximum size per log part (MB)** (default 25) and **Maximum rotated log parts** (default 20). Previously both were fixed, and a long noisy session simply stopped recording output after 20 parts. An enterprise policy can cap the part count with the new `max-log-parts` key.
-
-### Session journal: AI search and Q&A
-
-- **Ask the AI about a recorded session** — the viewer's new [AI Q&A panel](../features/session-journal.md#asking-the-ai-about-a-journal) answers questions like *"Were screenshots taken that show errors from this script?"* from what the journal already collected (summaries, screenshot analyses, notes) — the raw capture log is never sent to a model. When a question needs hard evidence, the model names literal search strings, korTTY's own streaming search scans the log, and only match counts plus a few sample lines go back for the final answer. Answers cite their sources: clicking a source scrolls the timeline to the entry, clicking a log-evidence line opens the log panel scrolled to the very line. Follow-up questions continue the conversation, and **Save as note** appends a Q&A pair to the timeline.
-- **One question across all journals** — the manager's new [AI search](../features/session-journal.md#ai-search-across-all-journals) answers questions like *"In which journals did result_complex.pl exit with an error?"*: a fast local ranking over the journals' collected entries picks the candidates, one AI request writes the summary and selects the relevant journals, and the exact hits are materialized by the internal search. The hit tree jumps straight to the entry or log line, already-opened hits stay marked across searches and restarts, the table shows a sorted **Hits** column with a row highlight instead of filtering, and **Selection only** restricts the scope. Without a reachable model the search degrades to the pure text search with a notice. Optional **Semantic journal search** adds embedding-based ranking when a local embedding model is configured in the knowledge stores.
-- **Journals now carry AI keywords** — the closing session summary extracts up to twelve verbatim search terms (hostnames, script and file names, error classes) into the journal metadata; the manager's filter matches them and shows them as clickable **keyword chips** under the filter field.
-- **Catch up summaries** — the journal options can now run the summarizer over closed journals that were never summarized, one by one behind a cancellable progress dialog.
-- **The manager's content search reads logs streaming** — **Search contents** no longer decompresses whole capture logs into memory; parts are scanned line by line, so searching across many large journals stays lightweight.
-- **New policy key `ai-ask`** — an organization can forbid the on-demand AI over journal content (Q&A panel and cross-journal AI search) while keeping AI summaries.
+## v2.13.0
 
 ### Connection loss and reconnect
 
@@ -26,10 +10,19 @@ What changed in the current release. The version this guide was built for is sho
 - **Connection loss is detected within about ten seconds** — korTTY actively probes the server over the SSH connection (the same technique as OpenSSH's `ServerAliveInterval`) and treats two consecutive unanswered probes as a lost connection, instead of waiting minutes for a TCP timeout. The terminal cursor also stops blinking in a disconnected tab, so a dead session no longer looks alive.
 - **Automatic reconnect** — a new **Settings → Terminal → Automatically reconnect lost connections** option (on by default) reconnects a lost tab on its own, with delays growing from 3 seconds up to one attempt per minute and a countdown in the red status bar. Permanent failures such as a wrong password, a changed host key, or a configuration refusal are never retried automatically, and while a session journal is deciding how to continue, the journal's own reconnect choice takes precedence. See [Terminal sessions → Connection loss](../features/terminal.md#connection-loss-and-automatic-reconnect).
 
-### Security
+### Privacy
 
-- **Removed `net.i2p.crypto:eddsa`, an abandoned dependency with an unpatched signature-malleability flaw** (CVE-2020-36843) — Ed25519 SSH host keys and key-based authentication are now served by BouncyCastle, already part of korTTY, with no user-visible change in behavior.
-- **A failed connection to a host on your local network now explains itself** — since macOS 15, a missing Local Network permission makes any local connection fail exactly like a powered-off host (`No route to host`), with nothing pointing at the actual cause. korTTY now adds a hint naming the permission when the failure and the network shape match, without ruling out a genuine outage.
+- **Anonymous usage statistics are now pre-selected during first-run setup** — the checkbox next to the master-password setup ([Anonymous data for application optimization](../about/anonymous-data.md)) starts ticked, so sharing is the default and clearing it before you confirm is the opt-out. An organization policy that forbids telemetry locks the checkbox to the enforced state instead. What is collected is unchanged: voluntary, anonymous, EU servers, and changeable any time in **Settings → Privacy**.
+
+### Appearance
+
+- **A first installation now starts with [Match display resolution](../reference/settings/appearance.md#ui-font-size) on** — korTTY scales its UI font size to the screen from the very first launch instead of only after someone finds the setting. Updating an existing installation never changes it: whatever it had stays.
+
+### Translation
+
+- **Yandex Translate works again** — it still spoke the retired Translate API v1.5, whose credentials Yandex stopped accepting, so the provider was dead for anyone who selected it. It now calls Cloud Translate v2 with the current `Api-Key`/IAM-token authentication, batches requests to the API's limits, and no longer sends a leftover v1.5 API URL to a host that is gone. A rejected key's fragments, which Yandex echoes back inside its own error message, are now redacted before anything reaches a log file.
+- **Microsoft Translator now reaches regional and custom-domain resources** — a new optional **Azure region** setting, shown only while Microsoft Translator is selected, is required by any Azure resource that is not global; such a resource previously could not be reached at all.
+- **DeepL now recovers from a wrong Free/Pro host guess** — the key suffix korTTY uses to pick a host is only reliable for older Free keys; a 403 response now retries once against the other host instead of failing outright.
 
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.
