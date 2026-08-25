@@ -249,7 +249,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | zstd-jni | 1.5.7-15 | zstd compression for rotated session-journal parts |
 | **UI** | JavaFX | 21 | Application framework |
 | | Monaco Editor | 0.56.0 | Code editor component |
-| | Mermaid | 11.16.1 | Local diagram parsing, SVG rendering, and PNG rasterization |
+| | Mermaid | 11.17.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |
 | | google-java-format | 1.36.1 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |

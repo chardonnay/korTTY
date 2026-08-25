@@ -28,7 +28,7 @@ public class Mosh4jReleaseIntegrationTest {
     private static final String EXPECTED_VERSION = "2.0.2";
     private static final String EXPECTED_RELEASE_TAG = "v2.0.2";
     private static final String EXPECTED_BCPROV_VERSION = "1.84";
-    private static final String EXPECTED_PROTOBUF_VERSION = "4.35.1";
+    private static final String EXPECTED_PROTOBUF_VERSION = "4.36.0";
     private static final String[] MODULES = {"protocol", "crypto", "transport", "terminal", "core"};
 
     @Test
@@ -45,9 +45,10 @@ public class Mosh4jReleaseIntegrationTest {
         assertThat(readStaticString("DEP_BCPROV_VERSION")).isEqualTo(EXPECTED_BCPROV_VERSION);
         assertThat(readStaticString("DEP_BCPROV_URL")).contains("/" + EXPECTED_BCPROV_VERSION + "/");
 
-        // mosh4j 2.0.2's generated protobuf DTOs require protobuf-java 4.35.1 (they reference
-        // com.google.protobuf.GeneratedFile, absent in 4.28.2). Guards against the classpath
-        // regression that caused a runtime NoClassDefFoundError on the first Mosh connect.
+        // mosh4j 2.0.2's generated protobuf DTOs need protobuf-java 4.35.1 or a newer runtime of the
+        // same major (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). Guards
+        // against the classpath regression that caused a runtime NoClassDefFoundError on the first
+        // Mosh connect, and keeps this constant tied to the version the packages actually bundle.
         assertThat(readStaticString("DEP_PROTOBUF_VERSION")).isEqualTo(EXPECTED_PROTOBUF_VERSION);
         assertThat(readStaticString("DEP_PROTOBUF_URL")).contains("/" + EXPECTED_PROTOBUF_VERSION + "/");
     }
@@ -71,6 +72,7 @@ public class Mosh4jReleaseIntegrationTest {
             }
         }
         Path protobufJar = depsDir.resolve("protobuf-java-" + EXPECTED_PROTOBUF_VERSION + ".jar");
+        requireBundledProtobufVersion(depsDir, protobufJar);
         requireOrSkip(protobufJar);
         classpath.add(protobufJar);
 
@@ -122,6 +124,32 @@ public class Mosh4jReleaseIntegrationTest {
                             + " / bcprov " + EXPECTED_BCPROV_VERSION + ". Root cause: " + t, t);
                 }
             }
+        }
+    }
+
+    /**
+     * Fails, rather than skipping, when the bundle carries a protobuf other than the expected one.
+     *
+     * <p>Without this the whole reflection contract quietly stopped running the moment the bundled
+     * pin moved: the expected file name no longer existed, so {@link #requireOrSkip} treated a
+     * version mismatch like "artifacts not built yet". A missing bundle is a legitimate skip; a
+     * present bundle with the wrong protobuf is the exact regression this test exists to catch.</p>
+     */
+    private static void requireBundledProtobufVersion(Path depsDir, Path expectedJar) throws Exception {
+        if (Files.isRegularFile(expectedJar) || !Files.isDirectory(depsDir)) {
+            return;
+        }
+        List<String> present = new ArrayList<>();
+        try (java.util.stream.Stream<Path> entries = Files.list(depsDir)) {
+            entries.map(entry -> entry.getFileName().toString())
+                    .filter(name -> name.startsWith("protobuf-java-"))
+                    .forEach(present::add);
+        }
+        if (!present.isEmpty()) {
+            throw new AssertionError("Bundled protobuf " + present + " does not match the expected "
+                    + EXPECTED_PROTOBUF_VERSION + ". Update EXPECTED_PROTOBUF_VERSION together with "
+                    + "mosh4jProtobufVersion in build.gradle.kts and DEP_PROTOBUF_VERSION in "
+                    + "Mosh4jTtyConnector, so all three stay one pin.");
         }
     }
 

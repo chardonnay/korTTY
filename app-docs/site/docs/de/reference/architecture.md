@@ -249,7 +249,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | | zstd-jni | 1.5.7-15 | zstd-Komprimierung für gedrehte Sitzungsjournalteile |
 | **UI** | JavaFX | 21 | Anwendungsframework |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
-| | Mermaid | 11.16.1 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
+| | Mermaid | 11.17.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |

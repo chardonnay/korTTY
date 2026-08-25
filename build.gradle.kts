@@ -1078,8 +1078,8 @@ tasks.named<ProcessResources>("processResources") {
 // Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
 // remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
 // WebView extracts only the library it needs.
-val mermaidVersion = "11.16.1"
-val mermaidSha256 = "ebd9885111092c78cefc79a76f6c1dc34ed5b834b02ae8f338227ce79c003de4"
+val mermaidVersion = "11.17.0"
+val mermaidSha256 = "d72c77f9ff0c37145a2839096eb365a17052db761bb953abd073707167bc10be"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
@@ -1384,8 +1384,11 @@ val mosh4jVersion = "2.0.2"
 val mosh4jReleaseTag = "v$mosh4jVersion"
 val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$mosh4jReleaseTag"
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
-val mosh4jProtobufJar = "protobuf-java-4.35.1.jar"
-val mosh4jProtobufSha256 = "a4345ba2aa009912ff6f90467fea2d104605256b72c50840d75f13256638a472"
+// The protobuf runtime that ships next to the mosh4j jars. Kept as one version value: the download
+// URL and the file name are built from it, so a bump cannot leave them disagreeing.
+val mosh4jProtobufVersion = "4.36.0"
+val mosh4jProtobufJar = "protobuf-java-$mosh4jProtobufVersion.jar"
+val mosh4jProtobufSha256 = "06515776b10bfed334b610273ffdd8884098a9333cb816314b4e4876bfcd2041"
 val mosh4jSha256 = mapOf(
     "amd64" to mapOf(
         "core" to "c84e0a370417b9e6aea02506d8328458e4645926791765d87993e0848618f0f8",
@@ -1436,7 +1439,7 @@ tasks.register("copyMosh4jBundled") {
         // bcprov is already a top-level application dependency. Mosh's parent-first classloader
         // reuses it, avoiding an otherwise byte-identical 8.5 MiB copy in every native package.
         artifacts.add(Triple(
-            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/4.35.1/$mosh4jProtobufJar",
+            "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$mosh4jProtobufVersion/$mosh4jProtobufJar",
             depsDir.resolve(mosh4jProtobufJar),
             mosh4jProtobufSha256
         ))

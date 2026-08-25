@@ -60,9 +60,11 @@ public class Mosh4jTtyConnector implements TtyConnector {
             "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/"
                     + DEP_BCPROV_VERSION + "/" + DEP_BCPROV_JAR;
     // mosh4j 2.0.2's mosh4j-protocol generated DTOs are compiled against protobuf-java 4.35.1
-    // (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). Must match the
-    // <protobuf.version> in mosh4j's mosh4j-protocol pom for the artifact version being loaded.
-    private static final String DEP_PROTOBUF_VERSION = "4.35.1";
+    // (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). The runtime loaded here
+    // must be at least that version and share its major: protobuf's generated code checks the pair
+    // on class initialization and accepts a runtime NEWER than the gencode, never an older one. So
+    // this may lead mosh4j's own <protobuf.version> — it must never trail it.
+    private static final String DEP_PROTOBUF_VERSION = "4.36.0";
     private static final String DEP_PROTOBUF_JAR = "protobuf-java-" + DEP_PROTOBUF_VERSION + ".jar";
     private static final String DEP_PROTOBUF_URL =
             "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/"

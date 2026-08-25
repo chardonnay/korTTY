@@ -206,7 +206,7 @@ $$a^2 + b^2 = c^2$$
 
 !!! note "Rendering details and requirements"
     * SVG and rendered Mermaid output is displayed with JavaScript disabled and scripts/event handlers stripped from the document.
-    * Mermaid 11.16.1 runs with its `strict` security level from a SHA-256-pinned local bundle; LaTeX is typeset by a separately loaded local MathJax bundle. Neither needs internet access.
+    * Mermaid 11.17.0 runs with its `strict` security level from a SHA-256-pinned local bundle; LaTeX is typeset by a separately loaded local MathJax bundle. Neither needs internet access.
     * Chat Mermaid retains the full bundled diagram support, including flowchart, sequence, class, state, ER, mindmap, and architecture diagrams. Frontmatter, directives, network/file/data/JavaScript URLs, external images/icons, links, and click callbacks are rejected; source, edge-count, raster-size, and timeout limits protect the renderer.
     * Full LaTeX documents (`\documentclass`) intentionally stay code blocks; only formulas are typeset.
     * Mermaid follows the active chat's light/dark palette; other rendered images and formulas retain a readable neutral canvas.
