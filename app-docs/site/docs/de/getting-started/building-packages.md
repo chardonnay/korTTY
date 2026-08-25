@@ -76,7 +76,7 @@ Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klo
 
 ### Berichte und Budgets in Paketgröße
 
-Der plattformunabhängige Größenreporter trennt das App-Image, die Laufzeit, Formatierer-/Mosh-Nutzlasten, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen und schreibt dann JSON und Markdown. Es versteht die von `jpackage` erstellten macOS-Layouts `Contents/app` und `Contents/runtime`, Windows `app` und `runtime` sowie Linux `lib/app` und `lib/runtime`. CI vergleicht native Installationsprogramme mit der festgeschriebenen Release-Baseline, erfordert eine Reduzierung um mindestens 15 %, wendet die 180-MiB-App-Image- und 145-MiB-DMG-Grenzwerte an und verwendet eine Regressionstoleranz von 2 %, sobald eine neue Plattformgröße überprüft wurde:
+Der plattformunabhängige Größenreporter trennt das App-Image, die Laufzeit, Formatierer-/Mosh-Nutzlasten, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen und schreibt dann JSON und Markdown. Es versteht die von `jpackage` erstellten macOS-Layouts `Contents/app` und `Contents/runtime`, Windows `app` und `runtime` sowie Linux `lib/app` und `lib/runtime`. CI vergleicht native Installationsprogramme mit der festgeschriebenen Release-Baseline, erfordert eine Reduzierung um mindestens 15 %, wendet die 190-MiB-App-Image- und 150-MiB-DMG-Grenzwerte an und verwendet eine Regressionstoleranz von 2 %, sobald eine neue Plattformgröße überprüft wurde:
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
@@ -85,7 +85,7 @@ python3 scripts/package-size-report.py \
   --artifact "macos-aarch64-dmg=$DMG" \
   --baselines package/size-baselines.json \
   --min-app-bytes 104857600 \
-  --max-app-bytes 188743680 \
+  --max-app-bytes 199229440 \
   --fail-on-budget \
   --output-json build/package-size/local.json \
   --output-markdown build/package-size/local.md

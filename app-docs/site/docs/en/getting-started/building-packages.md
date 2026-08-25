@@ -76,7 +76,7 @@ The first wrapper invocation downloads Gradle. A clean application build also cl
 
 ### Package-size reports and budgets
 
-The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 180 MiB app-image and 145 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
+The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 190 MiB app-image and 150 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
@@ -85,7 +85,7 @@ python3 scripts/package-size-report.py \
   --artifact "macos-aarch64-dmg=$DMG" \
   --baselines package/size-baselines.json \
   --min-app-bytes 104857600 \
-  --max-app-bytes 188743680 \
+  --max-app-bytes 199229440 \
   --fail-on-budget \
   --output-json build/package-size/local.json \
   --output-markdown build/package-size/local.md

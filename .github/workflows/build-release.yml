@@ -703,12 +703,15 @@ jobs:
           mkdir -p "$REPORT_DIR"
           args=(--baselines package/size-baselines.json --fail-on-budget --min-app-bytes 104857600)
           case "$PLATFORM:$ARCH" in
+            # 190 MiB, raised from 180 with the JavaFX 21.0.12 bump: two years of WebKit patches
+            # grew javafx-web from 29.9 to 38.7 MB, which put the Intel app image at 183.7 MiB.
+            # The DMG side of the same growth is in package/size-baselines.json.
             macos:aarch64)
-              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 188743680)
+              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 199229440)
               args+=(--artifact "macos-aarch64-dmg=build/jpackage/korTTY-macOS-${VERSION}-${ARCH}.dmg")
               ;;
             macos:x86_64)
-              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 188743680)
+              args+=(--app-image build/jpackage/korTTY.app --max-app-bytes 199229440)
               args+=(--artifact "macos-x86_64-dmg=build/jpackage/korTTY-macOS-${VERSION}-${ARCH}.dmg")
               ;;
             windows:*)

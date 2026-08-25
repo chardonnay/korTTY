@@ -6,12 +6,13 @@
   "artifacts": {
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
-      "verified_bytes": 143627956,
-      "budget_bytes": 152043520
+      "verified_bytes": 150520792,
+      "budget_bytes": 157286400
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
-      "budget_bytes": 152043520
+      "verified_bytes": 153446688,
+      "budget_bytes": 157286400
     },
     "windows-x86_64-msi": {
       "baseline_bytes": 194954284,
