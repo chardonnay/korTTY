@@ -3276,9 +3276,11 @@
 </tr>
 </tbody>
 </table>
+<p><code>jpackageDmg</code> packages the app image <code>jpackage</code> produced — it does not build a second one — so run the two in that order; the task fails with an explicit message when <code>build/jpackage/korTTY.app</code> is missing. Before the DMG is finished, the app inside it is mounted and checked: its signature must verify, its payload must match the app image on disk, and its signing authority must be the same one. jpackage always re-signs the copy it places in the DMG (it swaps <code>Contents/app/.jpackage.xml</code> for a <code>.package</code> marker, which breaks the seal), and without an identity it falls back to an ad-hoc signature that Apple's notary rejects — this check is what catches that, and any other signature defect, before a notarization submit rather than minutes into one.</p>
 <p>Open the app image for a local smoke test and verify the DMG container:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>open<span class="w"> </span>build/jpackage/korTTY.app
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>hdiutil<span class="w"> </span>verify<span class="w"> </span>build/jpackage/korTTY-*.dmg
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>./gradlew<span class="w"> </span>verifyMacDmgAppImage
 </span></code></pre></div>
 <h3 id="build-macos-for-intel-x86_64">Build macOS for Intel (<code>x86_64</code>)<a class="headerlink" href="#build-macos-for-intel-x86_64" title="Permanent link">&para;</a></h3>
 <p>The reliable paths are an Intel Mac with an x86_64 JDK 25 or the repository's GitHub Actions job on <code>macos-15-intel</code>. <code>jpackage</code> does not cross-compile, so an ARM JDK running natively on Apple Silicon creates an ARM app even if the desired filename says <code>x86_64</code>.</p>

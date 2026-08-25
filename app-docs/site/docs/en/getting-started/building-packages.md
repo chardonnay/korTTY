@@ -205,11 +205,14 @@ ditto -c -k --keepParent build/jpackage/korTTY.app "build/jpackage/korTTY-macOS-
 | Portable archive | `build/jpackage/korTTY-macOS-local-<architecture>.zip` |
 | Disk image | `build/jpackage/korTTY-<version>.dmg` |
 
+`jpackageDmg` packages the app image `jpackage` produced — it does not build a second one — so run the two in that order; the task fails with an explicit message when `build/jpackage/korTTY.app` is missing. Before the DMG is finished, the app inside it is mounted and checked: its signature must verify, its payload must match the app image on disk, and its signing authority must be the same one. jpackage always re-signs the copy it places in the DMG (it swaps `Contents/app/.jpackage.xml` for a `.package` marker, which breaks the seal), and without an identity it falls back to an ad-hoc signature that Apple's notary rejects — this check is what catches that, and any other signature defect, before a notarization submit rather than minutes into one.
+
 Open the app image for a local smoke test and verify the DMG container:
 
 ```bash
 open build/jpackage/korTTY.app
 hdiutil verify build/jpackage/korTTY-*.dmg
+./gradlew verifyMacDmgAppImage
 ```
 
 ### Build macOS for Intel (`x86_64`)

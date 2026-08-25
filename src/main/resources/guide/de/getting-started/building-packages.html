@@ -3276,9 +3276,11 @@
 </tr>
 </tbody>
 </table>
+<p><code>jpackageDmg</code> verpackt das von <code>jpackage</code> erzeugte App-Image – es baut kein zweites – führen Sie die beiden also in dieser Reihenfolge aus; fehlt <code>build/jpackage/korTTY.app</code>, bricht die Aufgabe mit einer klaren Meldung ab. Bevor das DMG fertig ist, wird die App darin gemountet und geprüft: ihre Signatur muss verifizieren, ihre Nutzlast dem App-Image auf der Platte entsprechen und ihre Signaturinstanz dieselbe sein. jpackage signiert die Kopie im DMG immer neu (es ersetzt <code>Contents/app/.jpackage.xml</code> durch eine <code>.package</code>-Markierung, was das Siegel bricht), und ohne Identität fällt es auf eine Ad-hoc-Signatur zurück, die Apples Notary ablehnt – genau das fängt diese Prüfung ab, samt jedem anderen Signaturdefekt, und zwar vor einer Notarisierung statt mitten darin.</p>
 <p>Öffnen Sie das App-Image für einen lokalen Rauchtest und überprüfen Sie den DMG-Container:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>open<span class="w"> </span>build/jpackage/korTTY.app
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>hdiutil<span class="w"> </span>verify<span class="w"> </span>build/jpackage/korTTY-*.dmg
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>./gradlew<span class="w"> </span>verifyMacDmgAppImage
 </span></code></pre></div>
 <h3 id="build-macos-fur-intel-x86_64">Build macOS für Intel (<code>x86_64</code>)<a class="headerlink" href="#build-macos-fur-intel-x86_64" title="Permanent link">&para;</a></h3>
 <p>Die zuverlässigen Pfade sind ein Intel Mac mit einem x86_64 JDK 25 oder der GitHub Actions-Job des Repositorys auf <code>macos-15-intel</code>. <code>jpackage</code> führt keine Cross-Kompilierung durch, daher erstellt ein ARM-JDK, das nativ auf Apple Silicon ausgeführt wird, eine ARM-App, selbst wenn der gewünschte Dateiname <code>x86_64</code> lautet.</p>

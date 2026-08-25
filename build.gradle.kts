@@ -1737,6 +1737,114 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
 }
 
 /**
+ * Proves the app inside a built DMG is the very image that was verified outside it — the gap that
+ * let a broken signature reach Apple's notary as the last step of a release (issue #245).
+ *
+ * <p>Mounts the DMG read-only, verifies the bundle's signature, and compares its code-directory
+ * hash with the source app image. The CDHash is the seal over the whole bundle, so an equal hash
+ * means the notarized app and the shipped app are the same code — which is also why stapling
+ * survives: the ticket is not part of the seal.</p>
+ */
+fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
+    val mountPoint = layout.buildDirectory.get().asFile.resolve("verification/dmg-mount")
+    delete(mountPoint)
+    mountPoint.mkdirs()
+
+    val attach = ProcessBuilder(
+        "hdiutil", "attach", dmgFile.absolutePath,
+        "-nobrowse", "-readonly", "-mountpoint", mountPoint.absolutePath
+    ).redirectErrorStream(true).start()
+    val attachOutput = attach.inputStream.bufferedReader().use { it.readText() }
+    if (attach.waitFor() != 0) {
+        throw GradleException("Could not mount ${dmgFile.name} for verification:\n$attachOutput")
+    }
+
+    try {
+        val app = mountPoint.resolve(sourceAppImage.name)
+        if (!app.isDirectory) {
+            throw GradleException(
+                "${dmgFile.name} does not contain ${sourceAppImage.name}: " +
+                    "${mountPoint.list()?.joinToString().orEmpty()}")
+        }
+
+        val verify = ProcessBuilder("codesign", "--verify", "--deep", "--strict", "--verbose=2", app.absolutePath)
+            .redirectErrorStream(true).start()
+        val verifyOutput = verify.inputStream.bufferedReader().use { it.readText() }
+        if (verify.waitFor() != 0) {
+            throw GradleException(
+                "The app inside ${dmgFile.name} fails signature verification — this is exactly what " +
+                    "Apple's notary rejects, caught here instead of minutes later:\n$verifyOutput")
+        }
+
+        val shippedPayload = bundlePayloadHash(app)
+        val verifiedPayload = bundlePayloadHash(sourceAppImage)
+        if (shippedPayload != verifiedPayload) {
+            throw GradleException(
+                "The payload inside ${dmgFile.name} differs from ${sourceAppImage.absolutePath} " +
+                    "($shippedPayload vs $verifiedPayload). The DMG must carry the app image that was " +
+                    "built and verified, not a second build of it.")
+        }
+
+        // The signature itself is fresh (jpackage re-signs its copy), so assert it is ours rather
+        // than the ad-hoc fallback — an ad-hoc signature is what the notary rejects outright.
+        val shippedSignature = readCodesignDescription(app).orEmpty()
+        val sourceSignature = readCodesignDescription(sourceAppImage).orEmpty()
+        val authorityOf = { text: String ->
+            Regex("""^Authority=(.*)$""", RegexOption.MULTILINE).find(text)?.groupValues?.get(1)?.trim()
+        }
+        val shippedAuthority = authorityOf(shippedSignature)
+        if (shippedAuthority != authorityOf(sourceSignature)) {
+            throw GradleException(
+                "The app inside ${dmgFile.name} is signed by \"${shippedAuthority ?: "nobody"}\" while the " +
+                    "verified image carries \"${authorityOf(sourceSignature) ?: "nobody"}\". jpackage falls back " +
+                    "to an ad-hoc signature when it gets no identity, and the notary rejects that.")
+        }
+
+        val staple = ProcessBuilder("xcrun", "stapler", "validate", app.absolutePath)
+            .redirectErrorStream(true).start()
+        staple.inputStream.bufferedReader().use { it.readText() }
+        val stapled = staple.waitFor() == 0
+        println("DMG check: ${sourceAppImage.name} inside ${dmgFile.name} verifies, payload matches " +
+            "the built image ($shippedPayload), signed by ${shippedAuthority ?: "ad-hoc"}" +
+            (if (stapled) ", notarization ticket stapled." else "."))
+    } finally {
+        ProcessBuilder("hdiutil", "detach", mountPoint.absolutePath, "-quiet")
+            .redirectErrorStream(true).start().waitFor()
+        delete(mountPoint)
+    }
+}
+
+/**
+ * A hash over everything in an app bundle except its signature and jpackage's own bookkeeping.
+ *
+ * <p>The CDHash cannot serve here: jpackage rewrites {@code Contents/app/.jpackage.xml} into a
+ * {@code .package} marker when it packages an image into a DMG, and re-signs afterwards, so the
+ * seal necessarily differs. What must not differ is the payload — every class, native library and
+ * resource the user runs.</p>
+ */
+fun bundlePayloadHash(bundle: File): String {
+    val ignored = setOf("Contents/app/.jpackage.xml", "Contents/app/.package", "Contents/MacOS/korTTY")
+    val digest = MessageDigest.getInstance("SHA-256")
+    bundle.walkTopDown()
+        .filter { it.isFile && !Files.isSymbolicLink(it.toPath()) }
+        .map { bundle.toPath().relativize(it.toPath()).toString() to it }
+        .filter { (relative, _) -> relative !in ignored && !relative.startsWith("Contents/_CodeSignature/") }
+        .sortedBy { (relative, _) -> relative }
+        .forEach { (relative, file) ->
+            digest.update(relative.toByteArray())
+            file.inputStream().use { stream ->
+                val buffer = ByteArray(1 shl 16)
+                while (true) {
+                    val read = stream.read(buffer)
+                    if (read <= 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+        }
+    return digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }.take(16)
+}
+
+/**
  * Asserts one JavaFX dylib still carries Gluon's upstream Developer-ID signature — a named authority
  * plus a secure timestamp, never an adhoc/linker-signed one. korTTY ships these dylibs untouched
  * (see javaFxVersion), so an adhoc patch release cannot be notarized and cannot be rescued by
@@ -2112,30 +2220,54 @@ if (isMac) {
     }
     
     // jpackage Task für macOS .dmg Installer
+    // Packages the app image the `jpackage` task already produced, rather than building a second
+    // one from --input. That second image used to be signed independently and was submitted to the
+    // notary sight-unseen: the app that gets notarized, stapled and JIT-smoked is the standalone
+    // korTTY.app, so a bad signature in the DMG's own copy only surfaced as a rejected submission
+    // at the very end of a release build (issue #245). One image now, verified before it is sent.
+    //
+    // Deliberately NOT dependsOn("jpackage"): the release workflow runs the two in separate Gradle
+    // invocations with notarization and stapling in between, and `jpackage` has no up-to-date check,
+    // so a task dependency would rebuild and re-sign the app image and throw the stapled ticket away.
     tasks.register<Exec>("jpackageDmg") {
-        dependsOn("signMacBundledNativeLibraries")
-        
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
-        val mainJar = tasks.jar.get().archiveFileName.get()
-        val inputDir = jpackageInput.get().asFile.absolutePath + "/libs"
         val outputDir = jpackageDir.get().asFile.absolutePath
+        val appImage = jpackageDir.get().asFile.resolve("$appName.app")
         val dmgFile = jpackageDir.get().asFile.resolve("$appName-$appVersion.dmg")
         val iconFile = getMacIcon()
-        
+
         doFirst {
+            if (!appImage.isDirectory) {
+                throw GradleException(
+                    "No app image at ${appImage.absolutePath}. jpackageDmg packages the image the " +
+                        "jpackage task builds (and that CI notarizes and staples in between), so run " +
+                        "`./gradlew jpackage` first — with the same signing properties.")
+            }
             file(outputDir).mkdirs()
             if (dmgFile.exists()) {
                 delete(dmgFile)
             }
         }
-        
-        val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
-        args.addAll(listOf(
+
+        val args = mutableListOf(
+            jpackageExecutable.get(),
             "--type", "dmg",
+            "--app-image", appImage.absolutePath,
+            "--name", appName,
+            "--app-version", appVersion,
+            "--vendor", "korTTY",
+            "--description", "SSH Client",
+            "--dest", outputDir,
             "--mac-package-name", appName,
             "--icon", iconFile.absolutePath
-        ))
+        )
+        // --mac-sign stays: jpackage re-signs the app image it copies into the DMG no matter what,
+        // because it swaps Contents/app/.jpackage.xml for a .package marker and that breaks the
+        // seal. Without an identity it would fall back to an ad-hoc signature, which the notary
+        // rejects outright. The point of --app-image is that the PAYLOAD is now the image that was
+        // built and verified once; verifyDmgAppImage proves that and checks the fresh signature
+        // before the DMG is ever submitted.
         if (macSignEnabled) {
             if (macSigningIdentity.isNullOrEmpty()) {
                 throw GradleException("macOS signing is enabled but property 'kortty.macos.signingIdentity' is missing.")
@@ -2172,6 +2304,39 @@ if (isMac) {
                 throw GradleException("Could not replace ${dmgFile.name} with the LZMA-converted DMG")
             }
             println("DMG converted to ULMO (LZMA): ${dmgFile.length() / (1024 * 1024)} MB")
+
+            // The container's own signature has to be applied after the conversion, which rewrites
+            // the file: jpackage signed the pre-conversion DMG, and that signature does not survive.
+            if (macSignEnabled) {
+                val codesignCommand = listOf(
+                    "codesign", "--force", "--sign", macSigningIdentity!!, "--timestamp"
+                ) + (if (!macSigningKeychain.isNullOrEmpty()) listOf("--keychain", macSigningKeychain) else emptyList()) +
+                    listOf(dmgFile.absolutePath)
+                val signProcess = ProcessBuilder(codesignCommand).inheritIO().start()
+                if (signProcess.waitFor() != 0) {
+                    throw GradleException("codesign failed for ${dmgFile.absolutePath}")
+                }
+            }
+
+            verifyDmgAppImage(dmgFile, appImage)
+        }
+    }
+
+    // Standalone form of the check jpackageDmg runs at the end of its own build, for a DMG that
+    // already exists — e.g. re-checking a downloaded release artifact against the local app image.
+    tasks.register("verifyMacDmgAppImage") {
+        group = "verification"
+        description = "Verifies the app inside build/jpackage's DMG and proves it is the same image as build/jpackage/korTTY.app."
+
+        doLast {
+            val appImage = jpackageDir.get().asFile.resolve("korTTY.app")
+            val dmgFile = jpackageDir.get().asFile.listFiles()
+                ?.firstOrNull { it.isFile && it.name.startsWith("korTTY-") && it.extension == "dmg" }
+                ?: throw GradleException("No korTTY-*.dmg in ${jpackageDir.get().asFile.absolutePath}.")
+            if (!appImage.isDirectory) {
+                throw GradleException("No app image at ${appImage.absolutePath} to compare against.")
+            }
+            verifyDmgAppImage(dmgFile, appImage)
         }
     }
 
