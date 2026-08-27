@@ -304,20 +304,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         String effectiveModel = resolveModelForRequest(client);
         AiSkillRelevanceClassifier skillClassifier = createSkillClassifier(client, effectiveModel);
         if (webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request)) {
-            try {
-                return executeToolAwareMessages(
-                    buildRequestMessages(request, true, skillClassifier),
-                    client,
-                    timeout,
-                    false,
-                    effectiveModel);
-            } catch (EmptyResponseException e) {
-                AiExecutionResult salvaged = salvageAnswerFromReasoning(request, e);
-                if (salvaged == null) {
-                    throw e;
-                }
-                return salvaged;
-            }
+            return executeToolAwareMessages(
+                buildRequestMessages(request, true, skillClassifier),
+                client,
+                timeout,
+                false,
+                effectiveModel);
         }
         try {
             return executeAiRequestWithStructuredOutputFallback(
@@ -343,26 +335,6 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         try {
             result = executeAiRequestWithTokenParameterFallback(
                 request, client, timeout, skillClassifier, effectiveModel, true, false);
-        } catch (EmptyResponseException e) {
-            AiExecutionResult salvaged = salvageAnswerFromReasoning(request, e);
-            if (salvaged != null) {
-                return salvaged;
-            }
-            if (!usesStructuredJsonSchema(request)) {
-                throw e;
-            }
-            // The schema itself is the prime suspect for a reply that carried no content at all,
-            // so the plain-JSON retry that already covers an unusable answer covers a missing one
-            // too. Without it the action fails outright on an endpoint whose grammar and reasoning
-            // parser disagree.
-            logger.info(
-                "AI endpoint returned no content for action={} with a json_schema response format; "
-                    + "retrying once without the schema.",
-                request.action());
-            return withCarriedOverUsage(
-                e.partialResult(),
-                executeAiRequestWithTokenParameterFallback(
-                    request, client, timeout, skillClassifier, effectiveModel, false, true));
         } catch (AiApiException e) {
             if (!usesStructuredJsonSchema(request) || !isUnsupportedStructuredOutputError(e)) {
                 throw e;
@@ -434,41 +406,6 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return SnippetAiResponseSupport.parseScriptAnalysis(content).isUsable();
         }
         return SnippetAiResponseSupport.parseSecurityFix(content).isUsable();
-    }
-
-    /**
-     * Recovers an answer that the endpoint delivered in its reasoning channel instead of in
-     * {@code content}. LM Studio does exactly that for a thinking model as soon as a
-     * {@code json_schema} response format is in play: the grammar constrains the whole generation,
-     * the model therefore never emits its end-of-thinking marker, and the complete
-     * schema-conforming object arrives as {@code reasoning_content} — with an empty content field
-     * and {@code finish_reason=stop}, which is indistinguishable from a model that said nothing.
-     *
-     * <p>Only the structured-output actions are salvaged, and only when the very parser that will
-     * consume the reply accepts the text. For every other action the reasoning is genuine
-     * chain-of-thought and must never be promoted to the answer.</p>
-     *
-     * @return the answer moved into {@code content}, or {@code null} when nothing is salvageable.
-     */
-    private static AiExecutionResult salvageAnswerFromReasoning(AiRequest request, EmptyResponseException e) {
-        if (!usesStructuredJsonSchema(request)) {
-            return null;
-        }
-        AiExecutionResult partial = e.partialResult();
-        String reasoning = partial != null ? partial.reasoning() : null;
-        if (reasoning == null || reasoning.isBlank() || !consumerCanUseResponse(request, reasoning)) {
-            return null;
-        }
-        logger.info(
-            "AI endpoint returned the answer for action={} in its reasoning channel with no content; "
-                + "using the reasoning as the reply.",
-            request.action());
-        return new AiExecutionResult(
-            reasoning.trim(),
-            partial.usage(),
-            null,
-            partial.outputTruncated(),
-            partial.streamInterrupted());
     }
 
     /**
@@ -760,7 +697,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (returnTruncatedResult && result != null && result.outputTruncated()) {
                 return result;
             }
-            throw new EmptyResponseException(result);
+            throw new EmptyResponseException();
         }
         return new AiExecutionResult(
             content.trim(),
@@ -919,7 +856,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 AiExecutionResult parsed = parseResponseBody(responseBody);
                 String content = parsed != null ? parsed.content() : null;
                 if (content == null || content.isBlank()) {
-                    throw new EmptyResponseException(parsed);
+                    throw new EmptyResponseException();
                 }
                 if (parsed != null && parsed.usage() != null) {
                     usageEntries.add(parsed.usage());
@@ -964,7 +901,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             AiExecutionResult parsed = parseJsonResponseBody(root);
             String content = parsed != null ? parsed.content() : null;
             if (content == null || content.isBlank()) {
-                throw new EmptyResponseException(parsed);
+                throw new EmptyResponseException();
             }
             return new AiExecutionResult(
                 content.trim(),
@@ -1205,23 +1142,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * stochastically, so the embedded services treat it as retryable.
      */
     public static final class EmptyResponseException extends IOException {
-        private final transient AiExecutionResult partialResult;
-
         EmptyResponseException() {
-            this(null);
-        }
-
-        EmptyResponseException(AiExecutionResult partialResult) {
             super("AI API returned an empty response.");
-            this.partialResult = partialResult;
-        }
-
-        /**
-         * @return the parsed reply whose content was empty — it still carries the model's
-         *     reasoning and the billed usage — or {@code null} when nothing could be parsed.
-         */
-        public AiExecutionResult partialResult() {
-            return partialResult;
         }
     }
 
@@ -2024,11 +1946,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         boolean outputTruncated = "length".equals(stringField(firstChoice, "finish_reason", ""));
         if (content == null || content.isJsonNull()) {
             // Reasoning-only local replies commonly encode the absent final answer as JSON null.
-            // Keep the reasoning and the billed usage instead of discarding the whole reply: a
-            // provider-reported length stop lets bounded snippet workflows fail closed with their
-            // output-limit handling, and an ordinary stop lets the empty-response path see whether
-            // the answer itself arrived in the reasoning channel.
-            return new AiExecutionResult("", parseUsage(root), reasoning, outputTruncated);
+            // Preserve a provider-reported length stop so bounded snippet workflows can fail closed
+            // with their output-limit handling instead of misclassifying it as an ordinary empty reply.
+            if (outputTruncated) {
+                return new AiExecutionResult("", parseUsage(root), reasoning, true);
+            }
+            return null;
         }
         if (content.isJsonPrimitive()) {
             return new AiExecutionResult(content.getAsString(), parseUsage(root), reasoning, outputTruncated);
