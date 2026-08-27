@@ -111,6 +111,15 @@ public class SshTtyConnector implements ObservableTtyConnector {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
     }
+
+    /**
+     * Shares the owning tab's answered access reasons, so a split does not ask the user again for
+     * something they already answered when the tab was opened. Left unset the dialog is shown for
+     * every authentication, which is the behaviour outside a terminal tab.
+     */
+    public void setAccessReasonMemory(AccessReasonMemory accessReasonMemory) {
+        this.accessReasonMemory = accessReasonMemory;
+    }
     
     /**
      * Why the last {@link #connect()} returned {@code false}, ready for display, or {@code null}.
@@ -120,6 +129,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * the diagnosis across that boundary.
      */
     private volatile String lastFailureMessage;
+
+    /** The owning tab's answered access reasons, or {@code null} outside a terminal tab. */
+    private AccessReasonMemory accessReasonMemory;
+
+    /** Prompts this attempt answered from {@link #accessReasonMemory} rather than by asking. */
+    private final java.util.List<String> replayedAccessReasonPrompts = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
      * Returns why the last {@link #connect()} call returned {@code false}, if a specific reason is
@@ -150,6 +165,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     public boolean connect() throws AuthenticationException {
         SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier = null;
         lastFailureMessage = null;
+        replayedAccessReasonPrompts.clear();
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -207,8 +223,11 @@ public class SshTtyConnector implements ObservableTtyConnector {
                                 boolean isAccessReasonPrompt = prompt[i].toLowerCase().contains("reason");
                                 
                                 if (isAccessReasonPrompt) {
-                                    // Use custom dialog with ComboBox for access reason history
-                                    finalResponses[i] = showAccessReasonDialog(instruction, prompt[i]);
+                                    // Answered once per tab; a split replays the answer instead of
+                                    // asking again. The reply is still sent — a server that asks
+                                    // for a reason closes the connection on an empty one.
+                                    final String reasonPrompt = prompt[i];
+                                    finalResponses[i] = resolveAccessReason(instruction, reasonPrompt);
                                 } else {
                                     // If a temporary SSH key is used, never fall back to passwords
                                     if (isTemporaryKeyAuthActive() && isPasswordPrompt(prompt[i])) {
@@ -390,6 +409,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             if (message != null && (message.contains("authentication") || 
                                     message.contains("No more authentication methods"))) {
                 logger.error("Authentication failed for {}: {}", connection.getDisplayName(), message);
+                // The refused reason may be exactly what failed here, so the tab must be able to
+                // ask for a fresh one.
+                forgetReplayedAccessReasons();
                 close();
                 // Throw a specific exception for auth failures - these should NOT be retried
                 throw new AuthenticationException("Authentication failed: " + message, e);
@@ -1720,6 +1742,44 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * Shows a dialog for entering the access reason with history from previous entries.
      * Uses a ComboBox that allows both selection from history and text input.
      */
+    /**
+     * Answers an access-reason prompt from the owning tab's memory when it already holds one, and
+     * otherwise by asking the user with {@link #showAccessReasonDialog}.
+     */
+    String resolveAccessReason(String instruction, String promptText) {
+        if (accessReasonMemory == null) {
+            return showAccessReasonDialog(instruction, promptText);
+        }
+        String target = accessReasonTarget();
+        if (accessReasonMemory.remembers(target, promptText)) {
+            replayedAccessReasonPrompts.add(promptText);
+        }
+        return accessReasonMemory.answer(
+            target, promptText, () -> showAccessReasonDialog(instruction, promptText));
+    }
+
+    /**
+     * Drops the answers this attempt replayed, so the next one asks again. Only an authentication
+     * failure gets here: a reason can go stale while its tab stays open, but a dropped network is
+     * not the reason's fault, and forgetting one there would put the dialog back in front of every
+     * automatic reconnect.
+     */
+    private void forgetReplayedAccessReasons() {
+        if (accessReasonMemory == null || replayedAccessReasonPrompts.isEmpty()) {
+            return;
+        }
+        String target = accessReasonTarget();
+        for (String prompt : replayedAccessReasonPrompts) {
+            accessReasonMemory.forget(target, prompt);
+        }
+        replayedAccessReasonPrompts.clear();
+    }
+
+    /** @return the prompt's connection as {@code user@host:port}, the memory's per-target key. */
+    String accessReasonTarget() {
+        return connection.getUsername() + "@" + connection.getHost() + ":" + connection.getPort();
+    }
+
     private String showAccessReasonDialog(String instruction, String promptText) {
         // Create custom dialog
         javafx.scene.control.Dialog<String> dialog = new javafx.scene.control.Dialog<>();

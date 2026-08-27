@@ -3032,6 +3032,7 @@
 <li><strong>Split Pane</strong>: Create horizontal or vertical splits within a tab via the context menu or keyboard shortcuts.</li>
 <li><strong>Independent Sessions</strong>: Each pane can show a different SSH connection.</li>
 <li><strong>Resizable Panes</strong>: Drag dividers to adjust pane sizes.</li>
+<li><strong>Access reason asked once per tab</strong>: when a server asks for a reason for the connection, as a CyberArk-style jump host does, a split does not ask again. korTTY sends the reason that was given when the tab was opened, because a server that asks for one closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, for example because a ticket number has expired in the meantime, korTTY drops it and asks again on the next attempt.</li>
 <li><strong>Move Panes</strong>: Hold <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> (Windows/Linux) or <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-option">Option</kbd></span> (macOS) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.</li>
 </ul>
 <h3 id="broadcast-mode">Broadcast mode<a class="headerlink" href="#broadcast-mode" title="Permanent link">&para;</a></h3>

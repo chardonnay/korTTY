@@ -8,7 +8,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 - **Eine verlorene Verbindung schließt den Tab nicht mehr** – bricht eine bestehende SSH-Verbindung ab (Netzwerkausfall, VPN-Trennung, Server weg), bleibt der Tab jetzt in einem roten `(DISCONNECT)`-Zustand offen, mit einer roten Statusleiste, die den Zeitpunkt des Abbruchs zeigt, statt sich still zu schließen, als hätten Sie `exit` eingegeben. Wiederverbinden im selben Tab per Doppelklick auf die Leiste oder den Tab oder über **Neu verbinden** in den Kontextmenüs; ein normaler Remote-Logout schließt den Tab weiterhin wie bisher.
 - **Ein Verbindungsabbruch wird innerhalb von etwa zehn Sekunden erkannt** – korTTY prüft den Server aktiv über die SSH-Verbindung (dieselbe Technik wie OpenSSHs `ServerAliveInterval`) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust, statt Minuten auf einen TCP-Timeout zu warten. In einem getrennten Tab hört außerdem der Terminal-Cursor auf zu blinken, sodass eine tote Sitzung nicht mehr aktiv aussieht.
-- **Automatisches Wiederverbinden** – eine neue Option **Einstellungen → Terminal → Verlorene Verbindungen automatisch wiederherstellen** (standardmäßig aktiviert) verbindet einen getrennten Tab selbstständig neu, mit Wartezeiten, die von 3 Sekunden bis zu einem Versuch pro Minute wachsen, und einem Countdown in der roten Statusleiste. Dauerhafte Fehler wie ein falsches Passwort, ein geänderter Hostschlüssel oder eine Konfigurationsablehnung werden nie automatisch wiederholt, und solange ein Sitzungsjournal über das weitere Vorgehen entscheidet, hat die Wiederverbinden-Wahl des Journals Vorrang. Siehe [Terminal-Sitzungen → Verbindungsverlust](../features/terminal.md).
+- **Automatische Wiederverbindung** – eine neue Option **Einstellungen → Terminal → Verlorene Verbindungen automatisch wiederherstellen** (standardmäßig aktiviert) stellt die Verbindung eines verlorenen Tabs selbstständig wieder her, wobei die Verzögerungen von 3 Sekunden auf einen Versuch pro Minute ansteigen und ein Countdown in der roten Statusleiste angezeigt wird. Permanente Fehler wie ein falsches Passwort, ein geänderter Hostschlüssel oder eine Konfigurationsverweigerung werden nie automatisch wiederholt, und während ein Sitzungsjournal entscheidet, wie fortgefahren werden soll, hat die eigene Wahl der Wiederverbindung des Journals Vorrang. Siehe [Terminalsitzungen → Verbindungsverlust](../features/terminal.md#verbindungsverlust-und-automatisches-wiederverbinden).
 
 ### Datenschutz
 
@@ -16,7 +16,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ### Darstellung
 
-- **Eine Neuinstallation startet jetzt mit aktivierter Option [An Bildschirmauflösung anpassen](../reference/settings/appearance.md#ui-schriftgroe)** – korTTY passt die UI-Schriftgröße von Anfang an an den Bildschirm an, statt erst, wenn jemand die Einstellung findet. Bei einer Update-Installation ändert sich daran nichts: Es bleibt bei der bisherigen Einstellung.
+- **Eine erste Installation beginnt jetzt mit [Anpassung der Bildschirmauflösung](../reference/settings/appearance.md#ui-schriftgroe) an** – korTTY skaliert die Schriftgröße der Benutzeroberfläche beim ersten Start an den Bildschirm und nicht erst, nachdem jemand die Einstellung gefunden hat. Durch die Aktualisierung einer vorhandenen Installation wird diese nie verändert: Alles, was vorhanden ist, bleibt bestehen.
 
 ### Übersetzung
 

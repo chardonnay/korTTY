@@ -102,6 +102,7 @@ Split the terminal view to display multiple connections side by side, and option
 - **Split Pane**: Create horizontal or vertical splits within a tab via the context menu or keyboard shortcuts.
 - **Independent Sessions**: Each pane can show a different SSH connection.
 - **Resizable Panes**: Drag dividers to adjust pane sizes.
+- **Access reason asked once per tab**: when a server asks for a reason for the connection, as a CyberArk-style jump host does, a split does not ask again. korTTY sends the reason that was given when the tab was opened, because a server that asks for one closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, for example because a ticket number has expired in the meantime, korTTY drops it and asks again on the next attempt.
 - **Move Panes**: Hold ++shift+alt++ (Windows/Linux) or ++shift+option++ (macOS) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 
 ### Broadcast mode

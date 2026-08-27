@@ -351,6 +351,11 @@ public class TerminalView extends BorderPane {
     private double defaultEffectAnimationSpeed = TerminalEffectAnimationSpeed.DEFAULT;
     // One active effect per pane (widget). Absent key = no effect on that pane.
     private final Map<SithTermFxWidget, PaneEffect> paneEffects = new ConcurrentHashMap<>();
+    // Access reasons answered in this tab. A CyberArk-style host asks again on every
+    // authentication, so a split would re-open a dialog the user already answered for this tab;
+    // every connector this view builds replays that answer instead.
+    private final de.kortty.core.AccessReasonMemory accessReasonMemory =
+        new de.kortty.core.AccessReasonMemory();
     private volatile TerminalRecordingSession terminalRecordingSession;
     private volatile TerminalRecordingScope terminalRecordingScope = TerminalRecordingScope.ACTIVE_SPLIT;
     private volatile List<SithTermFxWidget> terminalRecordingTargetWidgets = List.of();
@@ -2528,6 +2533,7 @@ public class TerminalView extends BorderPane {
                             app.getMasterPasswordManager().getMasterPassword()
                     );
                 }
+                mosh4jConnector.setAccessReasonMemory(accessReasonMemory);
                 connector = mosh4jConnector;
                 return connector;
             }
@@ -2545,6 +2551,7 @@ public class TerminalView extends BorderPane {
                         app.getMasterPasswordManager().getMasterPassword()
                 );
             }
+            nativeMosh.setAccessReasonMemory(accessReasonMemory);
             connector = nativeMosh;
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             connector = new LocalShellTtyConnector(targetConnection);
@@ -2559,6 +2566,7 @@ public class TerminalView extends BorderPane {
                     );
                 }
             }
+            sshConnector.setAccessReasonMemory(accessReasonMemory);
             connector = sshConnector;
         }
         return connector;
