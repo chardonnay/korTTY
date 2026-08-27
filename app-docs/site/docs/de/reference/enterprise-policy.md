@@ -143,7 +143,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `allow-internet` | boolean | `false` | Verbietet jeden Internetzugriffsmodus der KI – siehe unten |
 
 !!! info "`allow-internet = false` unterbindet den KI-Internetzugriff auf drei Ebenen"
-    Die Auswahlliste [Internetzugriff](settings/ai.md#internetzugriffsmodi) eines KI-Profils wählt ein
+    Im Dropdown-Menü [internet access](settings/ai.md#internetzugriffsmodi) eines AI-Profils wird ein ausgewählt
     Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
     einzelne eine Lücke ließe:
 
@@ -157,7 +157,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
        Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.
 
     Dies betrifft ausschließlich die Such-Backends. Ein *Cloud*-KI-Profil wird dadurch nicht daran
-    gehindert, seinen eigenen Anbieter zu erreichen – dafür verbieten Sie die Funktion `ai` oder
+    eigener Anbieter – verweigern Sie dazu die `ai`-Funktion oder stellen Sie an dieser Stelle `[[ai-profile]]`-Einträge bereit
     stellen `[[ai-profile]]`-Einträge bereit, die auf einen internen Endpunkt zeigen.
 
 ### `[rule.ai-runtime]`

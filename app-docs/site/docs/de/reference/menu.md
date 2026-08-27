@@ -108,7 +108,7 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |
 | Hintergrundtransparenz | | Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt. |
 | Vollbild | ++f12++ | Fenster-Vollbild umschalten |
-| Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigen Sie das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, sodass der Desktop und andere Fenster ausgeblendet werden |
+| Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigt das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
 | Live Journal ▸ Links andocken / Rechts andocken | | Docken Sie an [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Wenn Sie die aktive Seite auswählen, wird sie ausgeblendet |
@@ -127,9 +127,9 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe, und sie gilt für das ganze Fenster – die Seite und, wenn es geöffnet ist, das KI-Suchpanel daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe und die Größe deckt das gesamte Fenster ab – die Seite und, wenn es geöffnet ist, das KI-Suchfeld daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
 
-Screenshots und Diagramme lassen sich per Klick vergrößern: Das Bild öffnet sich über der Seite in der größten Darstellung, die das Fenster zulässt, mit den Schaltflächen **−** / **+** und einem Prozentwert, der wieder auf diese Fenstergröße zurücksetzt. Zoomen Sie weiter hinein, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Verschieben, und schließen Sie mit **×**, ++esc++ oder einem Klick neben das Bild. Auch ++ctrl++ und Mausrad zoomen. Im Online-Guide funktioniert das genauso.
+Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über der Seite in der größtmöglichen Größe geöffnet, die das Fenster zulässt, mit den Schaltflächen **−** / ***+** und einem Prozentsatz, der es auf die angepasste Größe zurücksetzt. Zoomen Sie weiter, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Schwenken und schließen Sie es mit *×**, ++esc++ oder einem Klick neben dem Bild. ++ctrl++ und der Radzoom ebenfalls. Dasselbe funktioniert auch im Online-Ratgeber.
 
 ## macOS Dock & Menüleiste
 
