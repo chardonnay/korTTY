@@ -24,7 +24,7 @@ Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die g
 | Verwenden Sie OSC 133-Eingabeaufforderungsmarkierungen, wenn die Shell sie bereits bereitstellt. | umschalten | – | Ein | `defaultPromptHookEnabled` |
 | Agent-Debug-Meldungen anzeigen | umschalten | – | Aus | `terminalAgentShowDebugMessages` |
 | Agent-Laufzeitmeldungen anzeigen | umschalten | – | Aus | `terminalAgentShowRuntimeMessages` |
-| Terminal-Agent-Setup-Dialog vor jeder Ausführung anzeigen | umschalten | – | Ein | `terminalAgentShowRunDialog` |
+| Terminal-Agent-Setup-Dialogfeld vor jeder Ausführung anzeigen | umschalten | – | Ein | `terminalAgentShowRunDialog` |
 | Agentenbefehlsname | Text | – | Agent | `terminalAgentCommandName` |
 | Agentenbefehlsnamen ohne Berücksichtigung der Groß- und Kleinschreibung abgleichen | umschalten | – | Aus | `terminalAgentCommandNameCaseInsensitive` |
 | AI-Agent-Aufgabenziel | Dropdown-Liste | Terminalfenster, neues Chat-Fenster | Terminalfenster | `terminalAgentExecutionTarget` |
@@ -44,7 +44,7 @@ Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-*
 
 ### Profileinstellungen (im Editor-Raster)
 
-Dieselben Felder bearbeiten Sie unter **KI > KI-Manager > Profile**, wo das ganze Formular auf einen Blick sichtbar ist:
+Die gleichen Felder werden unter **KI > KI-Manager > Profiles** bearbeitet, wo das gesamte Formular auf einmal sichtbar ist:
 
 ![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 
@@ -61,11 +61,11 @@ Dieselben Felder bearbeiten Sie unter **KI > KI-Manager > Profile**, wo das ganz
 | Benutzerdefiniertes Modell | Text | – | – | (Profilfeld `cliCustomModel`) |
 | Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
-| Bild-Eingabe (Vision) | Dropdown-Liste | Automatisch (erkennen), Aktiviert, Deaktiviert | Automatisch (erkennen) | (Profilfeld `visionSupport`) |
+| Bildeingabe (Vision) | Dropdown-Liste | Automatisch (Erkennung), Aktiviert, Deaktiviert | Automatisch (Erkennung) | (Profilfeld `visionSupport`) |
 | Internetzugang | Dropdown-Liste | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
 | API-Schlüssel (optional) | Text | (Passwortfeld) | – | (Profil `encryptedApiKey`-Feld) |
 | Max. Zeichen | Nummer | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
-| Zeitlimit für dieses Profil | Kontrollkästchen + Nummer | Eigenes Zeitlimit aus = globales Timeout befolgen; Ein: 0–1440 Minuten (0 = nie Zeitüberschreitung) | Aus | (Feld `requestTimeoutMinutes` des Profils) |
+| Zeitlimit für dieses Profil | Kontrollkästchen + Nummer | Eigenes Zeitlimit aus = globales Timeout befolgen; Ein: 0–1440 Minuten (0 = nie Zeitüberschreitung) | Aus | (Profilfeld `requestTimeoutMinutes`) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
 | Max. Token | Anzahl + Einheit | (Betrag: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profilfelder `tokenLimitAmount`, `tokenLimitUnit`) |
 | Warnschwellen | Zahlenpaar | Gelb %: 0–100, Rot %: 0–100 | 75 %, 90 % | (Profilfelder `tokenWarningYellowPercent`, `tokenWarningRedPercent`) |
@@ -124,7 +124,7 @@ Der KI-Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das
 
 Der **Lokale Modelle > Setup-Assistent** stellt optionale Text-, Codierungs- und RAG-Einbettungsslots bereit. Es überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe, bevor es mit der asynchronen Laufzeit-/Modellinstallation beginnt, führt einen echten Chat- oder Einbettungstest für jeden installierten GGUF durch und speichert die resultierenden Rollenzuweisungen erst, nachdem alle Tests erfolgreich waren. Die Text- und Codierungsslots können ein gemeinsames Modell haben. **Configure** weigert sich, die persistenten Laufzeiteinstellungen eines Modells zu ersetzen, während dieses Modell eine aktive Anfrage bedient.
 
-Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, daher ist die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
+Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, sodass die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung darstellt. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
 
 ### Prompt-Optimierungsvoreinstellungen
 
@@ -146,7 +146,7 @@ Nicht alle Modelle unterstützen alle Ebenen. Verwenden Sie die Schaltfläche **
 
 Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
 
-### Bild-Eingabe (Vision)
+### Bildeingabe (Vision)
 
 **Bildeingabe (Vision)** entscheidet, ob korTTY Bilder an eine Eingabeaufforderung für dieses Profil anhängen darf – verwendet von [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (a `vlm` Modell gilt als bildfähig; die Antwort wird während desselben **Refresh-Reasoning-Optionen**-Aufrufs gelesen und damit zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) werden auch in der Modell-Dropdown-Liste angezeigt.
 
@@ -176,12 +176,11 @@ Profilspezifische Internetzugriffsstrategie für KI-Anfragen. Jeder Modus erford
 Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie den Schalter **Löschen** neben jedem geheimen Feld, um gespeicherte Werte beim nächsten Speichern zu löschen.
 
 !!! warning "Eingebettete Profile unterstützen nur das KorTTY Tavily Tool"
-    Ein Profil mit dem Verbindungsmodus **Integriertes llama.cpp** oder **Integriertes MLX** kann
-    ausschließlich **KorTTY Tavily Tool** nutzen. Die fünf MCP-Modi leiten die Anfrage über die native
-    API von LM Studio, die ein eingebettetes Modell nie durchläuft – wird ein solcher Modus bei einem
-    eingebetteten Profil gewählt, scheitert die Anfrage mit einer ausdrücklichen Meldung, statt still
-    ohne Internetzugriff zu antworten. Lokale CLI-Profile haben überhaupt keine Internetmodi; die
-    Auswahlliste ist für sie deaktiviert.
+    Es kann ein Profil verwendet werden, dessen Verbindungsmodus **Integrated llama.cpp** oder **Integrated MLX** ist
+    **KorTTY Tavily Tool** und sonst nichts. Die fünf MCP-Modi leiten die Anfrage über LM Studios weiter
+    native API, die ein eingebettetes Modell nie durchläuft – Auswahl einer in einem eingebetteten Profil
+    schlägt die Anfrage mit einer expliziten Nachricht fehl, anstatt stillschweigend und ohne Webzugriff zu antworten.
+    Lokale CLI-Profile haben überhaupt keine Internetmodi; Das Dropdown-Menü ist für sie deaktiviert.
 
-    Eine Organisation kann den Internetzugriff mit dem Richtlinienschlüssel `allow-internet`
-    vollständig verbieten – siehe [Unternehmensrichtlinie](../enterprise-policy.md).
+    Eine Organisation kann den Webzugriff mit dem Richtlinienschlüssel `allow-internet` vollständig verbieten – siehe
+    [Unternehmensrichtlinie](../enterprise-policy.md).

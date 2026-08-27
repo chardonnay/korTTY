@@ -26,7 +26,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Sicherung](backup.md) | Verschlüsselungstyp (ZIP-Passwort / GPG), maximale Backup-Anzahl |
 | [Aktualisierungen](updates.md) | Automatische Update-Überprüfung und -Intervall |
 | [Sicherheit](security.md) | Master-Passwort-Abfrage, Master-Passwort ändern, temporäre SSH-Schlüssel |
-| [Privatsphäre](../../about/anonymous-data.md) | Zustimmung zu anonymen Nutzungsstatistiken (Aptabase, EU/DSGVO) |
+| [Privatsphäre](../../about/anonymous-data.md) | Einwilligung für anonyme Nutzungsstatistiken (Aptabase, EU/DSGVO) |
 | [Sprache](language.md) | Auswahl der UI-Sprache (8 integriert) + automatische Erkennung |
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Anmeldeinformationen, Zielsprache, Sprachdatei generieren |
 | [Video](video.md) | Terminalaufzeichnung / `ffmpeg` Videoexport |
@@ -35,7 +35,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Editor](editor.md) | Cursorstil und -farbe für Editor-Registerkarten |
 | [Snippet-Editor](snippet-editor/index.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
 
-Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und die [KI-Fähigkeiten](ai-skills.md)-Bibliothek befinden sich in **KI > KI-Manager** statt im globalen Einstellungsfenster; siehe [Lokale Modelle](../../features/local-models.md) und [RAG-Wissensspeicher](../../features/rag.md).
+Lokale Modell-Downloads, Text-/Coding-Rollenrouting, Einbettungsauswahl, llama.cpp-Laufzeitrichtlinie, Wissensquellensynchronisierung und das [KI-Fähigkeiten](ai-skills.md) Bibliothek live in **KI > KI-Manager** und nicht im globalen Einstellungsfenster; siehe [Lokale Modelle](../../features/local-models.md) Und [RAG-Wissensspeicher](../../features/rag.md).
 
 !!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.

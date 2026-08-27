@@ -2209,22 +2209,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2130" class="md-nav__link">
+  <a href="#v2131" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.13.0
+        v2.13.1
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.13.0">
+    <nav class="md-nav" aria-label="v2.13.1">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
+  <a href="#ai-assistent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verbindungsabbruch und Wiederverbinden
+        AI-Assistent
       
     </span>
   </a>
@@ -2232,43 +2232,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#datenschutz" class="md-nav__link">
+  <a href="#terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Datenschutz
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#darstellung" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Darstellung
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ubersetzung" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Übersetzung
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unternehmensrichtlinie" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unternehmensrichtlinie
+        Terminal
       
     </span>
   </a>
@@ -2379,22 +2346,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2130" class="md-nav__link">
+  <a href="#v2131" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.13.0
+        v2.13.1
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.13.0">
+    <nav class="md-nav" aria-label="v2.13.1">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#verbindungsabbruch-und-wiederverbinden" class="md-nav__link">
+  <a href="#ai-assistent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verbindungsabbruch und Wiederverbinden
+        AI-Assistent
       
     </span>
   </a>
@@ -2402,43 +2369,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#datenschutz" class="md-nav__link">
+  <a href="#terminal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Datenschutz
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#darstellung" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Darstellung
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ubersetzung" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Übersetzung
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unternehmensrichtlinie" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unternehmensrichtlinie
+        Terminal
       
     </span>
   </a>
@@ -2469,30 +2403,14 @@
 
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
-<h2 id="v2130">v2.13.0<a class="headerlink" href="#v2130" title="Permanent link">&para;</a></h2>
-<h3 id="verbindungsabbruch-und-wiederverbinden">Verbindungsabbruch und Wiederverbinden<a class="headerlink" href="#verbindungsabbruch-und-wiederverbinden" title="Permanent link">&para;</a></h3>
+<h2 id="v2131">v2.13.1<a class="headerlink" href="#v2131" title="Permanent link">&para;</a></h2>
+<h3 id="ai-assistent">AI-Assistent<a class="headerlink" href="#ai-assistent" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Eine verlorene Verbindung schließt den Tab nicht mehr</strong> – bricht eine bestehende SSH-Verbindung ab (Netzwerkausfall, VPN-Trennung, Server weg), bleibt der Tab jetzt in einem roten <code>(DISCONNECT)</code>-Zustand offen, mit einer roten Statusleiste, die den Zeitpunkt des Abbruchs zeigt, statt sich still zu schließen, als hätten Sie <code>exit</code> eingegeben. Wiederverbinden im selben Tab per Doppelklick auf die Leiste oder den Tab oder über <strong>Neu verbinden</strong> in den Kontextmenüs; ein normaler Remote-Logout schließt den Tab weiterhin wie bisher.</li>
-<li><strong>Ein Verbindungsabbruch wird innerhalb von etwa zehn Sekunden erkannt</strong> – korTTY prüft den Server aktiv über die SSH-Verbindung (dieselbe Technik wie OpenSSHs <code>ServerAliveInterval</code>) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust, statt Minuten auf einen TCP-Timeout zu warten. In einem getrennten Tab hört außerdem der Terminal-Cursor auf zu blinken, sodass eine tote Sitzung nicht mehr aktiv aussieht.</li>
-<li><strong>Automatische Wiederverbindung</strong> – eine neue Option <strong>Einstellungen → Terminal → Verlorene Verbindungen automatisch wiederherstellen</strong> (standardmäßig aktiviert) stellt die Verbindung eines verlorenen Tabs selbstständig wieder her, wobei die Verzögerungen von 3 Sekunden auf einen Versuch pro Minute ansteigen und ein Countdown in der roten Statusleiste angezeigt wird. Permanente Fehler wie ein falsches Passwort, ein geänderter Hostschlüssel oder eine Konfigurationsverweigerung werden nie automatisch wiederholt, und während ein Sitzungsjournal entscheidet, wie fortgefahren werden soll, hat die eigene Wahl der Wiederverbindung des Journals Vorrang. Siehe <a href="../features/terminal.html#verbindungsverlust-und-automatisches-wiederverbinden">Terminalsitzungen → Verbindungsverlust</a>.</li>
+<li><strong><a href="../features/snippets.html#ai-codeaktionen">Vollständige Codeanalyse</a> schlägt bei einigen lokalen Reasoning-Modellen nicht mehr fehl</strong> – wenn korTTY ein streng strukturiertes Ergebnis von einem lokalen Server anfordert, geben bestimmte Reasoning-Modelle ihre vollständige Antwort im Reasoning-Kanal zurück und lassen die eigentliche Antwort leer. korTTY betrachtete dies als leere Antwort und verwarf eine fertige Analyse nach minutenlanger Arbeit. korTTY erkennt nun eine solche Antwort und nutzt die bereits enthaltene Analyse. Nur wenn dieser Text unbrauchbar ist, wird ein zweites Mal gefragt, ohne das strikte Format. Dies wurde bei den neueren Qwen-Reasoning-Modellen in LM Studio beobachtet und wirkte sich auf <strong>Vollständige Codeanalyse</strong> und <strong>Auswahl übernehmen</strong> im Snippet-Editor aus. Modelle, die eine normale Antwort zurückgeben, sind davon nicht betroffen.</li>
 </ul>
-<h3 id="datenschutz">Datenschutz<a class="headerlink" href="#datenschutz" title="Permanent link">&para;</a></h3>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Anonyme Nutzungsstatistiken sind bei der Ersteinrichtung jetzt vorausgewählt</strong> – das Kontrollkästchen neben der Master-Passwort-Einrichtung (<a href="anonymous-data.html">Anonyme Daten zur Anwendungsoptimierung</a>) ist standardmäßig aktiviert, sodass das Teilen die Voreinstellung ist und das Entfernen des Hakens vor der Bestätigung den Opt-out darstellt. Eine Organisationsrichtlinie, die Telemetrie verbietet, sperrt das Kontrollkästchen stattdessen auf den erzwungenen Zustand. An der Erfassung selbst ändert sich nichts: freiwillig, anonym, EU-Server, jederzeit änderbar unter <strong>Einstellungen → Datenschutz</strong>.</li>
-</ul>
-<h3 id="darstellung">Darstellung<a class="headerlink" href="#darstellung" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Eine erste Installation beginnt jetzt mit <a href="../reference/settings/appearance.html#ui-schriftgroe">Anpassung der Bildschirmauflösung</a> an</strong> – korTTY skaliert die Schriftgröße der Benutzeroberfläche beim ersten Start an den Bildschirm und nicht erst, nachdem jemand die Einstellung gefunden hat. Durch die Aktualisierung einer vorhandenen Installation wird diese nie verändert: Alles, was vorhanden ist, bleibt bestehen.</li>
-</ul>
-<h3 id="ubersetzung">Übersetzung<a class="headerlink" href="#ubersetzung" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Yandex Translate funktioniert wieder</strong> – der Dienst sprach noch die abgeschaltete Translate-API v1.5, deren Zugangsdaten Yandex nicht mehr akzeptiert, sodass der Anbieter für jeden, der ihn auswählte, nicht mehr funktionierte. Er ruft jetzt Cloud Translate v2 mit der aktuellen <code>Api-Key</code>-/IAM-Token-Authentifizierung auf, fasst Anfragen gemäß den Grenzwerten der API zusammen und sendet keine übrig gebliebene v1.5-API-URL mehr an einen nicht mehr existierenden Host. Bruchstücke eines abgelehnten Schlüssels, die Yandex in seiner eigenen Fehlermeldung zurückspiegelt, werden jetzt geschwärzt, bevor sie in eine Protokolldatei gelangen.</li>
-<li><strong>Microsoft Translator erreicht jetzt regionale Ressourcen und Ressourcen mit eigener Domain</strong> – eine neue optionale Einstellung <strong>Azure-Region</strong>, die nur bei ausgewähltem Microsoft Translator angezeigt wird, wird von jeder nicht-globalen Azure-Ressource benötigt; eine solche Ressource war zuvor überhaupt nicht erreichbar.</li>
-<li><strong>DeepL erholt sich jetzt von einer falsch geratenen Free/Pro-Host-Zuordnung</strong> – das Schlüsselsuffix, anhand dessen korTTY den Host wählt, ist nur bei älteren Free-Schlüsseln zuverlässig; eine 403-Antwort löst jetzt einen erneuten Versuch beim jeweils anderen Host aus, statt fehlzuschlagen.</li>
-</ul>
-<h3 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Administratoren können den KI-Internetzugriff verbieten</strong> – ein neuer Schlüssel <a href="../reference/enterprise-policy.html"><code>[rule.ai-profiles] allow-internet</code></a> schaltet jeden Internetzugriffsmodus ab, den ein KI-Profil wählen kann (Tavily, Bright Data, Brave, SearXNG, LM Studio Toolpack). Durchgesetzt wird das auf drei Ebenen statt auf einer: gespeicherte Profilmodi werden bei jedem Laden und Speichern zurückgesetzt, die Auswahlliste ist im KI-Manager und unter <strong>Einstellungen → KI</strong> gesperrt, und korTTY verweigert den Dienstaufbau für ein Profil mit weiterhin aktiviertem Modus – so öffnet weder eine Handänderung an <code>global-settings.xml</code> noch das Zeitfenster zwischen zwei Klemmungen den Webzugriff erneut. Cloud-Profile erreichen weiterhin ihren eigenen Anbieter; dafür ist die Funktion <code>ai</code> zu verbieten.</li>
+<li><strong>Ein Split fragt nicht mehr erneut nach dem Grund der Verbindung</strong> – wenn ein Server einen Grund für den Vorgang wünscht, wie es ein Jump-Host im CyberArk-Stil tut, öffnete jeder Split eines Tabs diesen Dialog erneut, obwohl der Grund beim Öffnen des Tabs angegeben wurde. korTTY sendet nun die bereits in diesem Tab angegebene Antwort. Es wird trotzdem gesendet und nicht übersprungen, da ein Server, der nach einem Grund fragt, eine Sitzung schließt, die mit nichts antwortet. Bei einer Aufteilung auf einen anderen Server oder bei einem Server, der etwas anderes fragt, wird ebenfalls einmal gefragt, und ein neuer Tab beginnt immer mit der Frage. Verweigert der Server die Begründung, weil beispielsweise eine Ticketnummer inzwischen abgelaufen ist, verwirft korTTY diese und fragt erneut nach. Siehe <a href="../features/terminal.html#vorgange-aufteilen">Split-Screen mit Broadcast</a>.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Frühere Versionen</p>
@@ -2538,7 +2456,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.13.0</strong>
+    korTTY <strong>v2.13.1</strong>
   </div>
 </div>
       
