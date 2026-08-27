@@ -39,6 +39,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
     private final AtomicBoolean connected = new AtomicBoolean(false);
 
     private SSHKeyManager sshKeyManager;
+    private AccessReasonMemory accessReasonMemory;
     private char[] masterPassword;
     private DisconnectListener disconnectListener;
 
@@ -60,6 +61,11 @@ public class NativeMoshTtyConnector implements TtyConnector {
     public void setSSHKeyManager(SSHKeyManager sshKeyManager, char[] masterPassword) {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
+    }
+
+    /** Shares the owning tab's answered access reasons with the SSH bootstrap session. */
+    public void setAccessReasonMemory(AccessReasonMemory accessReasonMemory) {
+        this.accessReasonMemory = accessReasonMemory;
     }
 
     public void setDisconnectListener(DisconnectListener disconnectListener) {
@@ -114,6 +120,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
         if (bootstrapConnection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
             bootstrap.setSSHKeyManager(sshKeyManager, masterPassword);
         }
+        bootstrap.setAccessReasonMemory(accessReasonMemory);
         try {
             if (!bootstrap.connect()) {
                 throw new IOException(i18n("mosh.error.sshBootstrapFailed"));
