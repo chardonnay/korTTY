@@ -842,6 +842,18 @@ public class GlobalSettings {
     @XmlElement
     private Double aiDiffDialogSummaryDividerPosition;
 
+    /**
+     * Width the reviewer gave the change-review window while it was docked beside the Full-code
+     * analysis window. Kept apart from {@link #aiDiffDialogGeometry} because a docked window's
+     * position and height belong to the dock, not to the reviewer.
+     */
+    @XmlElement
+    private Double aiDiffDialogDockedWidth;
+
+    /** Width the reviewer gave the AI-processing window while it was docked. */
+    @XmlElement
+    private Double aiApplyProgressDockedWidth;
+
     /** Last window geometry of the Generate Workflow Script dialog. */
     @XmlElement
     private WindowGeometry workflowScriptDialogGeometry;
@@ -3260,6 +3272,16 @@ public class GlobalSettings {
     public Double getAiDiffDialogSummaryDividerPosition() { return aiDiffDialogSummaryDividerPosition; }
     public void setAiDiffDialogSummaryDividerPosition(Double aiDiffDialogSummaryDividerPosition) {
         this.aiDiffDialogSummaryDividerPosition = aiDiffDialogSummaryDividerPosition;
+    }
+
+    public Double getAiDiffDialogDockedWidth() { return aiDiffDialogDockedWidth; }
+    public void setAiDiffDialogDockedWidth(Double aiDiffDialogDockedWidth) {
+        this.aiDiffDialogDockedWidth = aiDiffDialogDockedWidth;
+    }
+
+    public Double getAiApplyProgressDockedWidth() { return aiApplyProgressDockedWidth; }
+    public void setAiApplyProgressDockedWidth(Double aiApplyProgressDockedWidth) {
+        this.aiApplyProgressDockedWidth = aiApplyProgressDockedWidth;
     }
 
     public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }

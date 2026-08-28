@@ -2,7 +2,9 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsage;
+import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.model.GlobalSettings;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -12,6 +14,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
@@ -23,6 +26,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.FillRule;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
@@ -37,18 +41,25 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Narrow companion window for the staged Full-code-analysis apply workflow. It stays docked beside
- * the analysis window and renders only provider-reported token usage; missing usage is never guessed.
+ * Narrow companion window for the staged Full-code-analysis apply workflow. A
+ * {@link WindowDockGroup} keeps it beside the analysis window; this class only reports progress.
+ *
+ * <p>Token usage is rendered exactly as the provider reported it and never guessed — a run against
+ * a backend that reports nothing says so rather than showing an estimate that looks like a fact.</p>
+ *
+ * <p>When the run ends the window does not close itself. It turns into a summary of what was done,
+ * how long it took and what it cost, which is only useful if it is still on screen while the
+ * reviewer reads the diff next to it.</p>
  */
 final class SnippetAiApplyProgressWindow {
 
     private static final double DEFAULT_WIDTH = 360;
     private static final double MIN_HEIGHT = 420;
-    private static final double DOCK_GAP = 8;
+    /** Below this a stored width is junk rather than a deliberately tiny window. */
+    private static final double MIN_USABLE_WIDTH = 200;
     private static final int MAX_DESCRIPTION_LINES = 3;
     private static final double DESCRIPTION_LINE_HEIGHT_FACTOR = 1.35;
 
-    private final Window anchor;
     private final Stage stage = new Stage();
     private final ProgressBar improvementsProgressBar = new ProgressBar(0);
     private final Label improvementsProgressLabel = new Label();
@@ -65,15 +76,31 @@ final class SnippetAiApplyProgressWindow {
     private final Label hardeningHeading = sectionHeading("snippets.ai.analysis.progress.hardening");
     private final Map<WorkKey, WorkRow> rows = new LinkedHashMap<>();
     private final Timeline elapsedTimeline;
-    private final ChangeListener<Number> dockListener = (observable, oldValue, newValue) -> positionDocked();
+    private final String profileName;
+    private final VBox summaryBox = new VBox(3);
+    private final Label summaryTitle = new Label();
+    private final Label summaryDuration = new Label();
+    private final Label summaryTokens = new Label();
+    private final Label summaryProfile = new Label();
+    private final Label summaryItems = new Label();
+    private final Label summaryRetries = new Label();
+    private final Button reopenPreviewButton = new Button(I18n.get("snippets.ai.analysis.progress.reopenPreview"));
+    private final Button tileButton = new Button(I18n.get("snippets.ai.analysis.progress.dock.tile"));
+    private final Button copySummaryButton = new Button(I18n.get("snippets.ai.analysis.progress.summary.copy"));
+    private final HBox actionBar = new HBox(6);
 
     private long startedNanos;
+    private long finishedSeconds = -1L;
+    private AiTokenUsage lastUsage;
+    private int retries;
+    private String lastStatusKey;
     private boolean disposed;
 
     SnippetAiApplyProgressWindow(
             Window anchor,
-            List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan) {
-        this.anchor = anchor;
+            List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan,
+            String profileName) {
+        this.profileName = profileName;
 
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> safePlan = plan != null ? plan : List.of();
         for (SnippetAiWorkflowSupport.ImprovementApplyProgress progress : safePlan) {
@@ -114,13 +141,18 @@ final class SnippetAiApplyProgressWindow {
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
+        configureSummary();
+        buildActionBar();
+
         VBox root = new VBox(8,
             improvementsProgressGroup,
             hardeningProgressGroup,
             metrics,
             currentStepLabel,
+            summaryBox,
             new Separator(),
-            scroll);
+            scroll,
+            actionBar);
         root.setPadding(new Insets(12));
 
         Scene scene = new Scene(root, DEFAULT_WIDTH, MIN_HEIGHT);
@@ -132,7 +164,6 @@ final class SnippetAiApplyProgressWindow {
         stage.initModality(Modality.NONE);
         if (anchor != null) {
             stage.initOwner(anchor);
-            installDockListeners();
         }
         stage.setOnHidden(event -> dispose());
 
@@ -151,7 +182,11 @@ final class SnippetAiApplyProgressWindow {
         startedNanos = System.nanoTime();
         elapsedTimeline.playFromStart();
         stage.show();
-        positionDocked();
+    }
+
+    /** The window itself, so the host can hand it to a {@link WindowDockGroup}. */
+    Stage stage() {
+        return stage;
     }
 
     void accept(SnippetAiWorkflowSupport.ImprovementApplyProgress progress) {
@@ -172,6 +207,9 @@ final class SnippetAiApplyProgressWindow {
         }
         refreshProgress();
         refreshTokens(progress.cumulativeUsage());
+        if (progress.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING) {
+            retries++;
+        }
         if (progress.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RUNNING
                 || progress.state() == SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING) {
             String step = progress.detail().isBlank()
@@ -192,17 +230,19 @@ final class SnippetAiApplyProgressWindow {
             rows.values().forEach(row -> row.setState(
                 SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED));
             refreshProgress();
-            refreshElapsed();
+            freezeElapsed();
             currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.complete"));
+            showSummary("snippets.ai.analysis.progress.complete");
         });
     }
 
     void markFailed() {
         runOnFx(() -> {
             elapsedTimeline.stop();
-            refreshElapsed();
-            currentStepLabel.setText(I18n.get(failedStatusKey(
-                rows.values().stream().map(WorkRow::state).toList())));
+            freezeElapsed();
+            String key = failedStatusKey(rows.values().stream().map(WorkRow::state).toList());
+            currentStepLabel.setText(I18n.get(key));
+            showSummary(key);
         });
     }
 
@@ -226,8 +266,9 @@ final class SnippetAiApplyProgressWindow {
     void markCancelled() {
         runOnFx(() -> {
             elapsedTimeline.stop();
-            refreshElapsed();
+            freezeElapsed();
             currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.cancelled"));
+            showSummary("snippets.ai.analysis.progress.cancelled");
         });
     }
 
@@ -240,6 +281,145 @@ final class SnippetAiApplyProgressWindow {
                 dispose();
             }
         });
+    }
+
+    /**
+     * Re-opens the change preview after it was closed. The button only appears when the host offers
+     * one — closing the preview by accident should not mean re-running the whole analysis.
+     */
+    void setReopenPreviewHandler(Runnable handler) {
+        runOnFx(() -> {
+            reopenPreviewButton.setOnAction(handler == null ? null : event -> handler.run());
+            setVisibleManaged(reopenPreviewButton, handler != null);
+            refreshActionBar();
+        });
+    }
+
+    /** Enables the "arrange windows" action, which re-tiles the docked trio. */
+    void setTileHandler(Runnable handler) {
+        runOnFx(() -> {
+            tileButton.setOnAction(handler == null ? null : event -> handler.run());
+            setVisibleManaged(tileButton, handler != null);
+            refreshActionBar();
+        });
+    }
+
+    private void configureSummary() {
+        summaryTitle.setStyle("-fx-font-weight: bold; -fx-padding: 4 0 2 0;");
+        summaryTitle.setWrapText(true);
+        for (Label detail : List.of(summaryDuration, summaryTokens, summaryProfile,
+                summaryItems, summaryRetries)) {
+            detail.setStyle("-fx-font-size: 0.9231em; -fx-opacity: 0.85;");
+            detail.setWrapText(true);
+        }
+        summaryBox.getChildren().setAll(
+            summaryTitle, summaryDuration, summaryTokens, summaryProfile, summaryItems, summaryRetries);
+        summaryBox.setStyle("-fx-border-color: rgba(128,128,128,0.28); -fx-border-radius: 6;"
+            + " -fx-background-radius: 6; -fx-padding: 8 10 9 10;");
+        setVisibleManaged(summaryBox, false);
+    }
+
+    private void buildActionBar() {
+        copySummaryButton.setOnAction(event -> copySummary());
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        actionBar.getChildren().setAll(tileButton, spacer, reopenPreviewButton, copySummaryButton);
+        actionBar.setAlignment(Pos.CENTER_LEFT);
+        setVisibleManaged(reopenPreviewButton, false);
+        setVisibleManaged(tileButton, false);
+        setVisibleManaged(copySummaryButton, false);
+        refreshActionBar();
+    }
+
+    /** Keeps the bar out of the layout entirely while it holds nothing, rather than as a blank strip. */
+    private void refreshActionBar() {
+        setVisibleManaged(actionBar,
+            tileButton.isManaged() || reopenPreviewButton.isManaged() || copySummaryButton.isManaged());
+    }
+
+    /** Swaps the live "current step" line for the finished run's numbers. */
+    private void showSummary(String statusKey) {
+        lastStatusKey = statusKey;
+        RunSummary summary = currentSummary(statusKey);
+        summaryTitle.setText(I18n.get("snippets.ai.analysis.progress.summary.title"));
+        summaryDuration.setText(I18n.get(
+            "snippets.ai.analysis.progress.summary.duration", formatDuration(summary.elapsedSeconds())));
+        summaryTokens.setText(tokenSummaryText(summary.usage()));
+        setVisibleManaged(summaryProfile, summary.profileName() != null && !summary.profileName().isBlank());
+        summaryProfile.setText(I18n.get(
+            "snippets.ai.analysis.progress.summary.profile", String.valueOf(summary.profileName())));
+        summaryItems.setText(I18n.get("snippets.ai.analysis.progress.summary.items",
+            summary.completedItems(), summary.totalItems()));
+        setVisibleManaged(summaryRetries, summary.retries() > 0);
+        summaryRetries.setText(I18n.get("snippets.ai.analysis.progress.summary.retries", summary.retries()));
+        setVisibleManaged(summaryBox, true);
+        setVisibleManaged(copySummaryButton, true);
+        refreshActionBar();
+    }
+
+    private RunSummary currentSummary(String statusKey) {
+        List<WorkRow> all = List.copyOf(rows.values());
+        return new RunSummary(
+            statusKey,
+            elapsedSeconds(),
+            lastUsage,
+            profileName,
+            (int) all.stream().filter(WorkRow::isCompleted).count(),
+            all.size(),
+            retries);
+    }
+
+    private void copySummary() {
+        de.kortty.core.KorttyClipboard.setText(summaryText(currentSummary(lastStatusKey)));
+        currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.summary.copied"));
+    }
+
+    /** "Tokens: 1,204 prompt / 388 completion / 1,592 total", or the honest "not reported". */
+    static String tokenSummaryText(AiTokenUsage usage) {
+        if (usage == null) {
+            return I18n.get("snippets.ai.analysis.progress.tokens",
+                I18n.get("snippets.ai.analysis.progress.tokensUnavailable"));
+        }
+        NumberFormat format = NumberFormat.getIntegerInstance();
+        return I18n.get("snippets.ai.analysis.progress.summary.tokens",
+            format.format(usage.promptTokens()),
+            format.format(usage.completionTokens()),
+            format.format(usage.totalTokens()));
+    }
+
+    /**
+     * The finished run as plain text for the clipboard — the same numbers the window shows, in the
+     * order it shows them, so a pasted summary matches what the reviewer was looking at.
+     */
+    static String summaryText(RunSummary summary) {
+        List<String> lines = new java.util.ArrayList<>();
+        lines.add(I18n.get("snippets.ai.analysis.progress.summary.title"));
+        lines.add(I18n.get(summary.statusKey() != null
+            ? summary.statusKey()
+            : "snippets.ai.analysis.progress.complete"));
+        lines.add(I18n.get("snippets.ai.analysis.progress.summary.duration",
+            formatDuration(summary.elapsedSeconds())));
+        lines.add(tokenSummaryText(summary.usage()));
+        if (summary.profileName() != null && !summary.profileName().isBlank()) {
+            lines.add(I18n.get("snippets.ai.analysis.progress.summary.profile", summary.profileName()));
+        }
+        lines.add(I18n.get("snippets.ai.analysis.progress.summary.items",
+            summary.completedItems(), summary.totalItems()));
+        if (summary.retries() > 0) {
+            lines.add(I18n.get("snippets.ai.analysis.progress.summary.retries", summary.retries()));
+        }
+        return String.join(System.lineSeparator(), lines);
+    }
+
+    /** What one finished apply run cost and achieved. */
+    record RunSummary(
+        String statusKey,
+        long elapsedSeconds,
+        AiTokenUsage usage,
+        String profileName,
+        int completedItems,
+        int totalItems,
+        int retries) {
     }
 
     private void registerRows(SnippetAiWorkflowSupport.ImprovementApplyProgress progress) {
@@ -301,57 +481,44 @@ final class SnippetAiApplyProgressWindow {
     }
 
     private void refreshElapsed() {
-        long seconds = startedNanos > 0L
+        elapsedLabel.setText(
+            I18n.get("snippets.ai.analysis.progress.elapsed", formatDuration(elapsedSeconds())));
+    }
+
+    /** Stops the clock at its final value, so the summary keeps reporting the run, not the wait. */
+    private void freezeElapsed() {
+        finishedSeconds = elapsedSeconds();
+        refreshElapsed();
+    }
+
+    private long elapsedSeconds() {
+        if (finishedSeconds >= 0L) {
+            return finishedSeconds;
+        }
+        return startedNanos > 0L
             ? Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000_000L)
             : 0L;
-        long hours = seconds / 3_600L;
-        long minutes = (seconds % 3_600L) / 60L;
-        long remaining = seconds % 60L;
-        String formatted = hours > 0
+    }
+
+    /** {@code mm:ss}, growing to {@code h:mm:ss} only once the run actually passed an hour. */
+    static String formatDuration(long seconds) {
+        long safe = Math.max(0L, seconds);
+        long hours = safe / 3_600L;
+        long minutes = (safe % 3_600L) / 60L;
+        long remaining = safe % 60L;
+        return hours > 0
             ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, remaining)
             : String.format(Locale.ROOT, "%02d:%02d", minutes, remaining);
-        elapsedLabel.setText(I18n.get("snippets.ai.analysis.progress.elapsed", formatted));
     }
 
     private void refreshTokens(AiTokenUsage usage) {
+        if (usage != null) {
+            lastUsage = usage;
+        }
         String value = usage != null
             ? NumberFormat.getIntegerInstance().format(usage.totalTokens())
             : I18n.get("snippets.ai.analysis.progress.tokensUnavailable");
         tokenLabel.setText(I18n.get("snippets.ai.analysis.progress.tokens", value));
-    }
-
-    private void installDockListeners() {
-        anchor.xProperty().addListener(dockListener);
-        anchor.yProperty().addListener(dockListener);
-        anchor.widthProperty().addListener(dockListener);
-        anchor.heightProperty().addListener(dockListener);
-    }
-
-    private void positionDocked() {
-        if (disposed || anchor == null || !stage.isShowing()) {
-            return;
-        }
-        Rectangle2D bounds = Screen.getScreensForRectangle(
-                anchor.getX(), anchor.getY(), Math.max(1, anchor.getWidth()), Math.max(1, anchor.getHeight()))
-            .stream()
-            .findFirst()
-            .orElse(Screen.getPrimary())
-            .getVisualBounds();
-        double desiredHeight = Math.max(MIN_HEIGHT, Math.min(anchor.getHeight(), bounds.getHeight()));
-        stage.setHeight(desiredHeight);
-        double y = clamp(anchor.getY(), bounds.getMinY(), bounds.getMaxY() - desiredHeight);
-        double rightX = anchor.getX() + anchor.getWidth() + DOCK_GAP;
-        double leftX = anchor.getX() - stage.getWidth() - DOCK_GAP;
-        double x;
-        if (rightX + stage.getWidth() <= bounds.getMaxX()) {
-            x = rightX;
-        } else if (leftX >= bounds.getMinX()) {
-            x = leftX;
-        } else {
-            x = bounds.getMaxX() - stage.getWidth();
-        }
-        stage.setX(clamp(x, bounds.getMinX(), bounds.getMaxX() - stage.getWidth()));
-        stage.setY(y);
     }
 
     private void dispose() {
@@ -360,11 +527,28 @@ final class SnippetAiApplyProgressWindow {
         }
         disposed = true;
         elapsedTimeline.stop();
-        if (anchor != null) {
-            anchor.xProperty().removeListener(dockListener);
-            anchor.yProperty().removeListener(dockListener);
-            anchor.widthProperty().removeListener(dockListener);
-            anchor.heightProperty().removeListener(dockListener);
+        persistDockedWidth();
+    }
+
+    /**
+     * Remembers how wide the user made this window, so the next apply run opens it at that width
+     * instead of the designed default. Position and height belong to the dock, not to the user.
+     */
+    private void persistDockedWidth() {
+        double width = stage.getWidth();
+        if (Double.isNaN(width) || width < MIN_USABLE_WIDTH) {
+            return;
+        }
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setAiApplyProgressDockedWidth(width);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+            // No application instance (isolated JavaFX tests) or an unwritable profile: the width is
+            // a convenience, never worth failing a window close over.
         }
     }
 
@@ -451,6 +635,9 @@ final class SnippetAiApplyProgressWindow {
         }
         SVGPath icon = new SVGPath();
         icon.setContent(SnippetAiDialogSupport.sectionIconPath(category));
+        // The glyphs carry cut-outs (the padlock's keyhole, the module hexagon's centre) as nested
+        // subpaths; without even-odd they fill solid and the cut-out disappears.
+        icon.setFillRule(FillRule.EVEN_ODD);
         icon.setFill(Color.web(SnippetAiDialogSupport.sectionColor(category)));
         icon.setAccessibleText(localizedCategory(item, phase));
         icon.setUserData(item.id());

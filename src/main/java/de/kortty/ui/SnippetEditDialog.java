@@ -163,6 +163,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Task<String> descriptionCorrectionTask;
     private Task<?> snippetAiActionTask;
     private SnippetAiApplyProgressWindow improvementApplyProgressWindow;
+    private WindowDockGroup improvementApplyDockGroup;
     // Editor teardown cancels AI tasks; the abort-recovery dialog must not pop over a closing editor.
     private boolean improvementApplyRecoverySuppressed;
     private boolean programmaticNameUpdate;
@@ -3835,10 +3836,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             improvementApplyProgressWindow.close();
         }
         Window progressAnchor = analysisDialog != null ? analysisDialog.displayWindow() : resolveAlertOwner();
-        SnippetAiApplyProgressWindow progressWindow =
-            new SnippetAiApplyProgressWindow(progressAnchor, applyPlan);
+        SnippetAiApplyProgressWindow progressWindow = new SnippetAiApplyProgressWindow(
+            progressAnchor,
+            applyPlan,
+            analysisDialog != null
+                ? SnippetAiDialogSupport.resolveProfileDisplayName(analysisDialog.activeProfileId())
+                : null);
         improvementApplyProgressWindow = progressWindow;
         progressWindow.show();
+        WindowDockGroup dockGroup = openImprovementApplyDockGroup(progressAnchor, analysisDialog);
+        if (dockGroup != null) {
+            dockGroup.dock(progressWindow.stage(), WindowDockGroup.Side.RIGHT,
+                storedDockWidth(GlobalSettings::getAiApplyProgressDockedWidth, 360));
+            progressWindow.setTileHandler(dockGroup::tile);
+        }
         // Worker thread writes after each completed stage, FX thread reads after an abort. Pre-seeding
         // with the resume checkpoint keeps recovery available when a resumed run aborts again before
         // completing any further stage.
@@ -3885,6 +3896,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 if (improvementApplyProgressWindow == progressWindow) {
                     improvementApplyProgressWindow = null;
                 }
+                closeImprovementApplyDockGroup();
             });
         }
         task.messageProperty().addListener((observable, oldMessage, message) -> {
@@ -3930,33 +3942,30 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             progressWindow.markSucceeded();
             // Prepend the chosen script header (if any) to the AI-fixed script before review/apply.
             String replacement = injectSelectedHeader(selection, fix.replacement());
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                analysisDialog != null ? analysisDialog.displayWindow()
-                    : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
+            // Closing the preview by accident should not cost a whole analysis run.
+            progressWindow.setReopenPreviewHandler(() -> showDockedImprovementPreview(
+                analysisDialog,
                 I18n.get("snippets.ai.analysis.diff.title"),
                 fix.summary(),
+                fix.changes(),
                 originalContent,
-                replacement,
-                languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setChangeExplanations(fix.changes());
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, originalContent.length(), replacement,
-                    I18n.get("snippets.ai.toggle.action.improve"));
+                replacement));
+            if (showDockedImprovementPreview(
+                    analysisDialog,
+                    I18n.get("snippets.ai.analysis.diff.title"),
+                    fix.summary(),
+                    fix.changes(),
+                    originalContent,
+                    replacement)) {
                 setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
             }
-            // On macOS, closing an owned Stage synchronously while showAndWait() is still unwinding
-            // can crash JavaFX/WebKit in native window disposal. Defer owner/companion cleanup by one
-            // FX pulse so the modal diff has completely left its nested event loop first.
+            // The analysis window and the docked run summary deliberately stay open: what the run
+            // cost and achieved is only useful while it can still be read. Closing the analysis
+            // window is what tears the group down. The deferral survives from the macOS crash
+            // workaround below — see showDockedImprovementPreview.
             Platform.runLater(() -> {
-                progressWindow.close();
-                if (improvementApplyProgressWindow == progressWindow) {
-                    improvementApplyProgressWindow = null;
-                }
                 if (analysisDialog != null) {
                     analysisDialog.setApplyProcessing(false);
-                    analysisDialog.closeAfterApply();
                 }
             });
         });
@@ -3981,6 +3990,139 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-improvement-fix");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /**
+     * Starts a fresh dock group around the analysis window, so the run summary and the change
+     * preview attach to opposite edges of it instead of piling up on top of each other.
+     *
+     * <p>Returns {@code null} when there is nothing sensible to dock to. The anchor may only be
+     * narrowed when it is the analysis window's own stage — in tab mode the anchor is the main
+     * window, and squeezing the user's terminals aside is not this feature's business.</p>
+     */
+    private WindowDockGroup openImprovementApplyDockGroup(
+            Window anchor, SnippetCodeAnalysisDialog analysisDialog) {
+        closeImprovementApplyDockGroup();
+        if (anchor == null) {
+            return null;
+        }
+        boolean ownWindow = analysisDialog != null && !analysisDialog.isHostedInTab();
+        improvementApplyDockGroup = new WindowDockGroup(anchor, ownWindow);
+        return improvementApplyDockGroup;
+    }
+
+    private void closeImprovementApplyDockGroup() {
+        if (improvementApplyDockGroup != null) {
+            improvementApplyDockGroup.dispose();
+            improvementApplyDockGroup = null;
+        }
+    }
+
+    /** A width the user gave a docked window before, or {@code fallback} on the first run. */
+    private static double storedDockWidth(
+            java.util.function.Function<GlobalSettings, Double> getter, double fallback) {
+        try {
+            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            Double stored = settings != null ? getter.apply(settings) : null;
+            return stored != null && stored > 0 ? stored : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Shows the change preview docked to the free edge of the analysis window and applies the
+     * result when the reviewer accepts it.
+     *
+     * <p>The preview is non-modal, so the terminals — and the run summary docked opposite — stay
+     * usable while it is open. That is also why {@link #contentUnchangedSince} exists: the snippet
+     * itself can now be edited during the review, and a full replacement computed from stale text
+     * would silently drop whatever was typed.</p>
+     *
+     * @return whether the snippet was replaced
+     */
+    private boolean showDockedImprovementPreview(
+            SnippetCodeAnalysisDialog analysisDialog,
+            String title,
+            String summary,
+            List<SnippetAiResponseSupport.SecurityChange> changes,
+            String originalContent,
+            String replacement) {
+
+        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+            analysisDialog != null ? analysisDialog.displayWindow()
+                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
+            title,
+            summary,
+            originalContent,
+            replacement,
+            languageCombo.getValue(),
+            editorSettings,
+            editorProfile);
+        if (changes != null && !changes.isEmpty()) {
+            diffDialog.setChangeExplanations(changes);
+        }
+        WindowDockGroup dockGroup = improvementApplyDockGroup;
+        if (dockGroup != null) {
+            diffDialog.setDockedWidthOnly(true);
+            diffDialog.addEventHandler(DialogEvent.DIALOG_SHOWN, shown -> {
+                if (diffDialog.getDialogPane().getScene() != null
+                        && diffDialog.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
+                    dockGroup.dock(stage, WindowDockGroup.Side.LEFT,
+                        storedDockWidth(GlobalSettings::getAiDiffDialogDockedWidth, 720));
+                }
+            });
+        }
+        if (!diffDialog.showAndWait().orElse(false)) {
+            return false;
+        }
+        if (!contentUnchangedSince(originalContent)) {
+            showAiFlowAlert(I18n.get("snippets.ai.contentChanged"), Alert.AlertType.WARNING, analysisDialog);
+            return false;
+        }
+        applyAiContentChange(0, originalContent.length(), replacement,
+            I18n.get("snippets.ai.toggle.action.improve"));
+        return true;
+    }
+
+    /**
+     * Whether the editor still holds exactly the text the AI worked from. Guards every full
+     * replacement now that the review no longer freezes the rest of the application.
+     */
+    private boolean contentUnchangedSince(String originalContent) {
+        String current = contentArea.getText() != null ? contentArea.getText() : "";
+        return current.equals(originalContent != null ? originalContent : "");
+    }
+
+    /**
+     * The window an alert raised by the AI apply flow may block — never the main window. The
+     * terminals live there, and the whole point of this flow being non-modal is that they keep
+     * working while the AI runs and while its result is reviewed.
+     */
+    private Window aiFlowAlertOwner(SnippetCodeAnalysisDialog analysisDialog) {
+        if (analysisDialog != null && !analysisDialog.isHostedInTab()
+                && analysisDialog.displayWindow() != null) {
+            return analysisDialog.displayWindow();
+        }
+        javafx.scene.Scene scene = getDialogPane().getScene();
+        Window own = scene != null ? scene.getWindow() : null;
+        return own != null ? own : resolveAlertOwner();
+    }
+
+    /** An alert scoped to the snippet tool, so it never freezes a terminal session. */
+    private void showAiFlowAlert(
+            String message, Alert.AlertType type, SnippetCodeAnalysisDialog analysisDialog) {
+        Alert alert = new Alert(type);
+        alert.setTitle(I18n.get("snippets.editTitle"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        Window owner = aiFlowAlertOwner(analysisDialog);
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.initModality(Modality.WINDOW_MODAL);
+        DialogThemeHelper.applyTheme(alert);
+        alert.showAndWait();
     }
 
     /** Offers resume / partial preview / discard after an aborted staged apply left completed work behind. */
@@ -4046,12 +4188,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         } else {
             alert.getButtonTypes().setAll(partialButtonType, discardButtonType);
         }
-        Window owner = analysisDialog != null && analysisDialog.displayWindow() != null
-            ? analysisDialog.displayWindow()
-            : resolveAlertOwner();
+        Window owner = aiFlowAlertOwner(analysisDialog);
         if (owner != null) {
             alert.initOwner(owner);
         }
+        // This choice can sit unanswered for as long as the user needs. Application-modal it would
+        // freeze every terminal session in the meantime.
+        alert.initModality(Modality.WINDOW_MODAL);
         DialogThemeHelper.applyTheme(alert);
 
         Optional<ButtonType> response = alert.showAndWait();
@@ -4083,35 +4226,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         String replacement = injectSelectedHeader(selection, partial.replacement());
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            analysisDialog != null ? analysisDialog.displayWindow()
-                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
-            I18n.get("snippets.ai.analysis.diff.partialTitle"),
-            partial.summary(),
-            originalContent,
-            replacement,
-            languageCombo.getValue(),
-            editorSettings,
-            editorProfile);
-        diffDialog.setChangeExplanations(partial.changes());
-        if (!diffDialog.showAndWait().orElse(false)) {
-            return;
+        if (showDockedImprovementPreview(
+                analysisDialog,
+                I18n.get("snippets.ai.analysis.diff.partialTitle"),
+                partial.summary(),
+                partial.changes(),
+                originalContent,
+                replacement)) {
+            setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
+                checkpoint.completedStages(), checkpoint.totalStages()));
         }
-        applyAiContentChange(0, originalContent.length(), replacement,
-            I18n.get("snippets.ai.toggle.action.improve"));
-        setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
-            checkpoint.completedStages(), checkpoint.totalStages()));
-        // Same deferred cleanup as the full-success path: closing owned stages synchronously while
-        // showAndWait() is still unwinding can crash JavaFX/WebKit in native window disposal on macOS.
-        Platform.runLater(() -> {
-            if (improvementApplyProgressWindow != null) {
-                improvementApplyProgressWindow.close();
-                improvementApplyProgressWindow = null;
-            }
-            if (analysisDialog != null) {
-                analysisDialog.closeAfterApply();
-            }
-        });
     }
 
     private enum ImprovementApplyAbortChoice {
@@ -5378,6 +5502,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             improvementApplyProgressWindow.close();
             improvementApplyProgressWindow = null;
         }
+        closeImprovementApplyDockGroup();
     }
 
     private void cancelMetadataTask() {

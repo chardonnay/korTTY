@@ -32,6 +32,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -78,6 +79,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
     private Button nextFindingButton;
     private String activeFindingFilter;
     private Double appliedSummaryDivider;
+    private boolean dockedWidthOnly;
     private final String originalText;
     private final String replacementText;
     private final EditorSettingsHelper.Settings previewSettings;
@@ -107,6 +109,10 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
 
         setTitle(title != null && !title.isBlank() ? title : I18n.get("snippets.ai.diff.title"));
         setResizable(true);
+        // Explicitly non-modal. A Dialog with an owner defaults to APPLICATION_MODAL, which froze
+        // every terminal tab — and the AI-processing window next to it — for the whole review.
+        // showAndWait() still works here; it blocks this call, not the other windows.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }
@@ -246,11 +252,26 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         }
         Double moved = movedSummaryDividerPosition();
         DialogGeometrySupport.persist(this, (settings, geometry) -> {
-            settings.setAiDiffDialogGeometry(geometry);
+            // While docked, position and height belong to the dock, not to the reviewer — storing
+            // them as the free geometry would teleport the next undocked review to the anchor's
+            // edge. Only the width is theirs, and it comes back on the next docked run.
+            if (dockedWidthOnly) {
+                settings.setAiDiffDialogDockedWidth(geometry.getWidth());
+            } else {
+                settings.setAiDiffDialogGeometry(geometry);
+            }
             if (moved != null) {
                 settings.setAiDiffDialogSummaryDividerPosition(moved);
             }
         });
+    }
+
+    /**
+     * Marks this preview as docked: it keeps following its dock group's position and height, and on
+     * close it remembers only the width the reviewer gave it.
+     */
+    public void setDockedWidthOnly(boolean dockedWidthOnly) {
+        this.dockedWidthOnly = dockedWidthOnly;
     }
 
     private Double movedSummaryDividerPosition() {

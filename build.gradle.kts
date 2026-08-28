@@ -3346,6 +3346,23 @@ tasks.register<JavaExec>("snippetCodeAnalysisDialogSizingSmoke") {
     environment("TEST_MODE_KORTTY", "1")
 }
 
+tasks.register<JavaExec>("analysisCategoryIconRender") {
+    group = "verification"
+    description = "Renders the Full-code-analysis category glyphs through JavaFX SVGPath to build/smoke/analysis-category-icons.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AnalysisCategoryIconRender")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("snippetAnalysisDockSmoke") {
+    group = "verification"
+    description = "Docks the AI-processing and change-preview windows to a Full-code-analysis anchor and verifies they take opposite sides, follow it, stay on screen and undock when dragged away."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetAnalysisDockSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    environment("TEST_MODE_KORTTY", "1")
+}
+
 tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     group = "verification"
     description = "Builds the unified snippet AI dialogs (review, describe, alternatives, diff) with the profile picker and re-run enabled and snapshots each to build/smoke/snippet-ai-*.png."
