@@ -113,4 +113,31 @@ public interface ObservableTtyConnector extends TtyConnector {
     default void updateCurrentWorkingDirectoryHint(String directory) {
         updateCurrentRemoteDirectoryHint(directory);
     }
+
+    /**
+     * Whether the interactive session is suspected to no longer run as the tab's original identity
+     * (e.g. after {@code su}, {@code ssh} or a shell-opening {@code sudo} typed into the terminal).
+     * Features that resolve file paths against the original identity must back off while this is
+     * {@code true}. Connectors without tracking report {@code false}.
+     */
+    default boolean isForeignSessionSuspected() {
+        return false;
+    }
+
+    /**
+     * Notifies the connector that the visible prompt positively confirmed the tab's original
+     * identity again, clearing any session-change suspicion. No-op for connectors without tracking.
+     */
+    default void confirmNativeSessionIdentity() {
+    }
+
+    /** The user name the session started as, or {@code null} when unknown. */
+    default String getExpectedSessionUser() {
+        return null;
+    }
+
+    /** The host the session started on, or {@code null} when unknown. */
+    default String getExpectedSessionHost() {
+        return null;
+    }
 }

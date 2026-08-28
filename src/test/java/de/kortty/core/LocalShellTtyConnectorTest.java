@@ -11,6 +11,35 @@ import static com.google.common.truth.Truth.assertThat;
 class LocalShellTtyConnectorTest {
 
     @Test
+    void launchesRemoteClientRecognizesRemoteLoginCommands() {
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("ssh user@host"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("sshpass -p secret ssh host"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("/usr/bin/mosh host"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("plink.exe -ssh host"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("telnet 10.0.0.1"))).isTrue();
+    }
+
+    @Test
+    void launchesRemoteClientIgnoresLocalShells() {
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("/bin/zsh -l"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand(
+                "\"C:\\Program Files\\Git\\bin\\bash.exe\" --login -i"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("wsl.exe -d Ubuntu"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(
+            LocalShellTtyConnector.resolveShellCommand("sshfs host:/data /mnt"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(null)).isFalse();
+        assertThat(LocalShellTtyConnector.launchesRemoteClient(List.of())).isFalse();
+    }
+
+    @Test
     void resolveShellCommandUsesConfiguredCommandWhenPresent() {
         assertThat(LocalShellTtyConnector.resolveShellCommand("powershell.exe"))
             .containsExactly("powershell.exe");

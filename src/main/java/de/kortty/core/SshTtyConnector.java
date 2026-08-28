@@ -85,6 +85,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private volatile String previousRemoteDirectory = "~";
     private final Deque<String> directoryStack = new ArrayDeque<>();
     private final StringBuilder inputLineBuffer = new StringBuilder();
+    private final ShellSessionChangeTracker sessionChangeTracker = new ShellSessionChangeTracker();
     private final StringBuilder osc7Buffer = new StringBuilder();
     private final StringBuilder agentOscBuffer = new StringBuilder();
     private final Object directoryLock = new Object();
@@ -166,6 +167,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
         SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier = null;
         lastFailureMessage = null;
         replayedAccessReasonPrompts.clear();
+        sessionChangeTracker.reset();
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -1008,6 +1010,26 @@ public class SshTtyConnector implements ObservableTtyConnector {
         }
     }
 
+    @Override
+    public boolean isForeignSessionSuspected() {
+        return sessionChangeTracker.isForeignSessionSuspected();
+    }
+
+    @Override
+    public void confirmNativeSessionIdentity() {
+        sessionChangeTracker.confirmNativeIdentity();
+    }
+
+    @Override
+    public String getExpectedSessionUser() {
+        return connection.getUsername();
+    }
+
+    @Override
+    public String getExpectedSessionHost() {
+        return connection.getHost();
+    }
+
     public void updateHomeRemoteDirectoryHint(String directory) {
         String resolved = resolveRemoteDirectoryHint(directory, null);
         if (resolved == null) {
@@ -1145,6 +1167,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
                         inputLineBuffer.deleteCharAt(inputLineBuffer.length() - 1);
                     }
                     tabCompletionPending = false;
+                } else if (ch == 0x04) { // Ctrl-D on an empty line ends the innermost shell
+                    if (inputLineBuffer.length() == 0) {
+                        sessionChangeTracker.onEndOfFileOnEmptyLine();
+                    }
                 } else if (!Character.isISOControl(ch)) {
                     inputLineBuffer.append(ch);
                     tabCompletionPending = false;
@@ -1264,6 +1290,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     private void processInputLine(String inputLine) {
+        sessionChangeTracker.onSubmittedLine(inputLine);
         String segment = firstCommandSegment(inputLine);
         if (segment.isEmpty()) {
             return;

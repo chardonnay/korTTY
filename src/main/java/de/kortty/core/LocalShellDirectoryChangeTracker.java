@@ -9,6 +9,13 @@ import java.util.Locale;
  */
 final class LocalShellDirectoryChangeTracker {
 
+    /** Observes the assembled input lines the tracker already reconstructs from raw PTY input. */
+    interface SubmittedLineListener {
+        void onSubmittedLine(String line);
+
+        void onEndOfFileOnEmptyLine();
+    }
+
     private static final int MAX_LINE_LENGTH = 8192;
     private static final String BRACKETED_PASTE_START = "\u001b[200~";
     private static final String BRACKETED_PASTE_END = "\u001b[201~";
@@ -17,6 +24,11 @@ final class LocalShellDirectoryChangeTracker {
     private final StringBuilder escapeSequence = new StringBuilder();
     private boolean bracketedPaste;
     private boolean carriageReturnSubmitted;
+    private SubmittedLineListener submittedLineListener;
+
+    synchronized void setSubmittedLineListener(SubmittedLineListener listener) {
+        this.submittedLineListener = listener;
+    }
 
     synchronized boolean accept(byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
@@ -47,10 +59,19 @@ final class LocalShellDirectoryChangeTracker {
             }
             if (ch == '\r' || ch == '\n') {
                 if (!(ch == '\n' && carriageReturnSubmitted)) {
-                    changed |= mayChangeWorkingDirectory(inputLine.toString());
+                    String submitted = inputLine.toString();
+                    changed |= mayChangeWorkingDirectory(submitted);
+                    if (submittedLineListener != null) {
+                        submittedLineListener.onSubmittedLine(submitted);
+                    }
                     inputLine.setLength(0);
                 }
                 carriageReturnSubmitted = ch == '\r';
+            } else if (unsigned == 0x04) { // Ctrl-D on an empty line ends the innermost shell
+                if (inputLine.length() == 0 && submittedLineListener != null) {
+                    submittedLineListener.onEndOfFileOnEmptyLine();
+                }
+                carriageReturnSubmitted = false;
             } else if (ch == '\b' || unsigned == 0x7f) {
                 if (inputLine.length() > 0) {
                     inputLine.deleteCharAt(inputLine.length() - 1);
