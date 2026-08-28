@@ -78,6 +78,19 @@ jobs:
         with:
           path: build/site
 
+      # Ordinary (non-Pages) copy of the same build/site output, so the
+      # publish-website-repo job below can consume it. actions/upload-pages-artifact
+      # produces a special Pages-only artifact format that only
+      # actions/deploy-pages can read — this is a separate, normal
+      # artifact for that job's own use.
+      - name: Upload site content for the korTTY_website publish job
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site-artifact
+          path: build/site
+          include-hidden-files: true # keeps .nojekyll and any other dotfiles
+          retention-days: 1 # transient, only needed within this run
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -91,3 +104,55 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  publish-website-repo:
+    name: Publish to korTTY_website (kortty.app)
+    needs: build
+    runs-on: ubuntu-latest
+    # Independent of deploy: this job carries the kortty.app custom domain to
+    # a separate repository, while `deploy` is korTTY's own Pages instance
+    # (the *.github.io fallback once its custom domain setting is removed).
+    # Both depend only on `build`, not on each other, so a failure in one
+    # never blocks or delays the other.
+    permissions:
+      contents: read
+    # Separate group from the workflow-level `pages` concurrency group: that
+    # group holds a slot for this whole run (build+deploy+publish-website-repo)
+    # until every job finishes, so reusing it here would self-deadlock.
+    concurrency:
+      group: korTTY-website-publish
+      cancel-in-progress: false
+    steps:
+      - name: Download site content
+        uses: actions/download-artifact@v8
+        with:
+          name: docs-site-artifact
+          path: site
+
+      - name: Add Pages custom-domain + Jekyll-bypass markers
+        run: |
+          echo "kortty.app" > site/CNAME
+          touch site/.nojekyll
+
+      - name: Push to korTTY_website's gh-pages branch
+        env:
+          KORTTY_WEBSITE_TOKEN: ${{ secrets.KORTTY_WEBSITE_TOKEN }}
+        run: |
+          set -uo pipefail
+          cd site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish korTTY website: ${GITHUB_SHA}"
+
+          # Non-fatal by design: if korTTY_website has been deleted, renamed,
+          # or the PAT has expired/lost access, this must not fail the run or
+          # block the sibling `deploy` job (korTTY's own fallback Pages) — it
+          # should just surface a visible warning and move on.
+          if git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$KORTTY_WEBSITE_TOKEN" | base64 -w0)" \
+               push --force https://github.com/chardonnay/korTTY_website.git HEAD:gh-pages; then
+            echo "Publish to korTTY_website succeeded."
+          else
+            echo "::warning title=korTTY_website publish failed::Could not push to chardonnay/korTTY_website (gh-pages). The repo may have been deleted/renamed, or KORTTY_WEBSITE_TOKEN may be missing/expired/lacking access. kortty.app was NOT updated this run — the fallback deployment at chardonnay.github.io/korTTY is unaffected."
+          fi
