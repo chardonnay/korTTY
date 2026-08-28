@@ -1587,10 +1587,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verbindungsverlust-und-automatisches-wiederverbinden" class="md-nav__link">
+  <a href="#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verbindungsverlust und automatisches Wiederverbinden
+        Verbindungsverlust und automatische Wiederherstellung der Verbindung
       
     </span>
   </a>
@@ -1765,10 +1765,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rotation-komprimierung-und-aufbewahrung" class="md-nav__link">
+  <a href="#rotation-komprimierung-und-retention" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rotation, Komprimierung und Aufbewahrung
+        Rotation, Komprimierung und Retention
       
     </span>
   </a>
@@ -2639,10 +2639,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verbindungsverlust-und-automatisches-wiederverbinden" class="md-nav__link">
+  <a href="#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verbindungsverlust und automatisches Wiederverbinden
+        Verbindungsverlust und automatische Wiederherstellung der Verbindung
       
     </span>
   </a>
@@ -2817,10 +2817,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rotation-komprimierung-und-aufbewahrung" class="md-nav__link">
+  <a href="#rotation-komprimierung-und-retention" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rotation, Komprimierung und Aufbewahrung
+        Rotation, Komprimierung und Retention
       
     </span>
   </a>
@@ -2967,10 +2967,10 @@
 <p>Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.</p>
 <p>Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederholung des Versuchs das Ergebnis nicht ändern kann – ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit. Das Terminal löscht den Vorgang und zeigt sofort den Grund an, anstatt die Anzahl der Wiederholungsversuche durchzugehen. Informationen zur Mosh-Einschränkung finden Sie unter <a href="jump-server.html">Jump server</a>.</p>
 <p>Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überprüfte Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird <code>TerminalTextBuffer</code> nicht mehr nach der nicht vorhandenen Zeile bei <code>line == height</code> gefragt.</p>
-<h2 id="verbindungsverlust-und-automatisches-wiederverbinden">Verbindungsverlust und automatisches Wiederverbinden<a class="headerlink" href="#verbindungsverlust-und-automatisches-wiederverbinden" title="Permanent link">&para;</a></h2>
+<h2 id="verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Verbindungsverlust und automatische Wiederherstellung der Verbindung<a class="headerlink" href="#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung" title="Permanent link">&para;</a></h2>
 <p>Wenn eine <strong>hergestellte</strong> SSH-Verbindung verloren geht – Netzwerkausfall, VPN-Unterbrechung, Server weg – wird die Registerkarte <strong>nicht</strong> geschlossen. Stattdessen wechselt es in einen roten, getrennten Status: Der Tab-Titel erhält das Suffix <code>(DISCONNECT)</code>, der Tab wird dunkelrot, eine rote Statusleiste zeigt den Zeitpunkt des Verbindungsverlusts an und der Terminal-Cursor hört auf zu blinken, sodass eine tote Sitzung nicht mehr lebendig aussieht. Nur eine normale Remote-Abmeldung (Eingabe von <code>exit</code> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> an der Eingabeaufforderung) schließt die Registerkarte.</p>
-<p>KorTTY bemerkt einen stillen Verbindungstod innerhalb von etwa zehn Sekunden: Alle paar Sekunden sendet es eine SSH-Lebenszeichen-Prüfung (einen globalen Request, den der Server beantworten muss – dieselbe Technik wie OpenSSHs <code>ServerAliveInterval</code>) und wertet zwei aufeinanderfolgende unbeantwortete Prüfungen als Verbindungsverlust. Die Prüfung schaltet sich erst scharf, nachdem der Server einmal geantwortet hat, sodass Server, die solche Requests nie beantworten, ihre Sitzungen behalten. Sie ist unabhängig vom <a href="#ssh-keep-alive">SSH-Keep-Alive</a>-Heartbeat, der inaktive Verbindungen offen hält, aber eine tote nicht erkennt.</p>
-<p>Um die Sitzung im selben Tab wieder aufzunehmen, doppelklicken Sie auf die rote Statusleiste oder den roten Tab, oder verwenden Sie <strong>Neu verbinden</strong> im Kontextmenü von Tab, Terminal oder Dashboard. In einem geteilten Tab schließen sich Panes, deren Verbindung abbrach, einzeln; das letzte verbleibende Pane hält den Tab offen und bietet das Wiederverbinden an.</p>
+<p>KorTTY bemerkt einen stillen Transporttod innerhalb von etwa zehn Sekunden: Alle paar Sekunden sendet es eine SSH-Liveness-Prüfung (eine globale Anfrage, die der Server beantworten muss, dieselbe Technik wie <code>ServerAliveInterval</code> von OpenSSH) und behandelt zwei aufeinanderfolgende unbeantwortete Prüfungen als verlorene Verbindung. Das Probe aktiviert sich erst, nachdem der Server einmal geantwortet hat, sodass Server, die nie auf solche Anfragen antworten, ihre Sitzungen unberührt lassen. Dies ist unabhängig vom Keep-Alive-Heartbeat <a href="#ssh-keep-alive">SSH </a>, der inaktive Verbindungen offen hält, eine unterbrochene Verbindung jedoch nicht erkennt.</p>
+<p>Um die Sitzung wieder in derselben Registerkarte aufzunehmen, doppelklicken Sie auf die rote Statusleiste oder die rote Registerkarte oder verwenden Sie <strong>Erneut verbinden</strong> im Registerkarten-, Terminal- oder Dashboard-Kontextmenü. In einer geteilten Registerkarte werden die Bereiche, deren Verbindung unterbrochen wurde, einzeln geschlossen. Im letzten verbleibenden Bereich bleibt die Registerkarte geöffnet und es wird das Angebot zur erneuten Verbindung angezeigt.</p>
 <p>Wenn <strong>Verlorene Verbindungen automatisch wiederherstellen</strong> aktiviert ist (<strong>Einstellungen → Terminal</strong>, standardmäßig aktiviert), stellt die Registerkarte die Verbindung von selbst wieder her: Versuche beginnen nach 3 Sekunden und werden nach 5, 10, 20 und 30 Sekunden unterbrochen, bis zu einem Versuch pro Minute, und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Eine erfolgreiche erneute Verbindung, eine manuelle erneute Verbindung oder das Schließen der Registerkarte beendet die automatischen Versuche. Permanente Fehler – Authentifizierung, Host-Schlüssel-Überprüfung, Konfigurationsverweigerungen – stoppen sie ebenfalls, sodass niemals ein falsches Passwort gegen den Server gehämmert wird. Während a <a href="session-journal.html">Sitzungsjournal</a> läuft, hat der rote Entscheidungsbalken Vorrang und es wird kein automatischer Versuch gestartet – das Journal fragt, ob die Verbindung wiederhergestellt und fortgefahren oder mit der abschließenden Zusammenfassung beendet werden soll. Siehe <a href="../reference/settings/terminal.html">Einstellungen → Terminal</a> für die Einstellung.</p>
 <h2 id="multi-window-unterstutzung">Multi-Window-Unterstützung<a class="headerlink" href="#multi-window-unterstutzung" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:</p>
@@ -3021,6 +3021,7 @@
 <li><strong><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.</strong> Diese Windows-Shells werden bei EOF nicht beendet, sodass <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.</li>
 <li><strong>Bestätigung schließen</strong> verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.</li>
 <li><strong>Das aktuelle Verzeichnis folgt der interaktiven Shell.</strong> Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach <code>cd</code>, <code>pushd</code>, <code>popd</code> oder <code>Set-Location</code> löst <strong>Im Snippet-Editor öffnen</strong> einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.</li>
+<li><strong>Nach einem Identitätswechsel ist „Im Snippet-Editor öffnen“ ausgegraut.</strong> Wenn die Sitzung nicht mehr mit der Identität ausgeführt wird, mit der die Registerkarte geöffnet wurde – nach <code>su</code>, einer inneren <code>ssh</code> oder einer Shell-Öffnung <code>sudo</code> – ist der Kontextmenüeintrag sowohl in SSH-Registerkarten als auch in lokalen Shell-Registerkarten deaktiviert: Die verfolgten Verzeichnisse und der Dateizugriff der Registerkarte gehören weiterhin zum ursprünglichen Login und würden den falschen Pfad auflösen. Der Eintrag wird von selbst wieder aktiviert, sobald die Eingabeaufforderung wieder den ursprünglichen Benutzer anzeigt (normalerweise nach <code>exit</code>). Bei einer lokalen Shell-Registerkarte, deren konfigurierter Shell-Befehl selbst ein Remote-Client wie <code>ssh</code> oder <code>mosh</code> ist, bleibt der Eintrag für die gesamte Registerkarte deaktiviert. Wenn der Ladevorgang trotzdem ausgelöst wird, stoppt korTTY mit einem Fehler, anstatt den falschen Pfad aufzulösen.</li>
 <li><strong>Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.</strong> Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der <code>agent ...</code>-Anfrage bleibt und Enter ihn genau einmal versendet.</li>
 </ul>
 <h2 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h2>
@@ -3071,35 +3072,35 @@
 <p>Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.</p>
 </div>
 <h2 id="terminalprotokollierung">Terminalprotokollierung<a class="headerlink" href="#terminalprotokollierung" title="Permanent link">&para;</a></h2>
-<p>Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in eine Datei. Dies ist unabhängig vom <a href="session-journal.html">Sitzungsjournal</a>: Es handelt sich um ein einfaches Transkript ohne Zusammenfassungen, Markierungen oder Screenshots, und beide können gleichzeitig ausgeführt werden.</p>
-<p>An einer der beiden Stellen einstellbar:</p>
+<p>Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in eine Datei. Dies ist unabhängig vom <a href="session-journal.html">Session Journal</a>: Es handelt sich um ein einfaches Transkript ohne Zusammenfassungen, Markierungen oder Screenshots, und beide können gleichzeitig ausgeführt werden.</p>
+<p>Konfigurieren Sie es an einer beliebigen Stelle:</p>
 <ul>
-<li><strong>Verbindungsmanager &gt; Verbindung bearbeiten &gt; Terminal-Logging</strong> für eine gespeicherte Verbindung.</li>
+<li><strong>Verbindungsmanager &gt; Verbindung bearbeiten &gt; Protokollierung</strong> für eine gespeicherte Verbindung.</li>
 <li>
 <p><strong>Schnellverbindung &gt; Terminalprotokoll</strong> für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.</p>
 </li>
 <li>
 <p>Protokollierung aktivieren.</p>
 </li>
-<li>Wählen Sie einen <strong>Protokollordner</strong>. Bleibt es leer, verwendet KorTTY <code>~/.kortty/terminal-logs</code>. Den Ordner wählst du, die Dateinamen vergibt korTTY.</li>
+<li>Wählen Sie einen <strong>Protokollordner</strong>. Bleibt es leer, verwendet KorTTY <code>~/.kortty/terminal-logs</code>. Sie wählen den Ordner aus; Die Dateinamen sind KorTTYs.</li>
 <li>Wählen Sie ein Protokollformat:</li>
-<li><strong>Plain Text</strong> – Eine Zeile pro Ausgabezeile, mit Zeitstempel.</li>
+<li><strong>Einfacher Text</strong> – Eine zeitgestempelte Zeile pro Ausgabezeile.</li>
 <li><strong>XML</strong> – Strukturiertes XML mit Zeitstempeln.</li>
 <li><strong>JSON</strong> – Strukturiertes JSON mit Zeitstempeln.</li>
 <li>Passen Sie optional die <strong>maximale Dateigröße</strong> (Standard: 10 MB) und den <strong>Aufbewahrungszeitraum</strong> (Standard: 30 Tage) an und deaktivieren Sie <strong>Jeden Tag eine neue Datei starten</strong> oder <strong>Geschlossene Dateien komprimieren (gzip)</strong> – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ der Schnellverbindung behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.</li>
 </ul>
 <h3 id="dateinamen">Dateinamen<a class="headerlink" href="#dateinamen" title="Permanent link">&para;</a></h3>
 <p>Jede Datei trägt den Namen <code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;</code>, zum Beispiel <code>2026-08-04-14-30-12-web01_1.log.gz</code>. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten <code>_1</code> und <code>_2</code> und schreiben niemals in die Datei des anderen.</p>
-<h3 id="rotation-komprimierung-und-aufbewahrung">Rotation, Komprimierung und Aufbewahrung<a class="headerlink" href="#rotation-komprimierung-und-aufbewahrung" title="Permanent link">&para;</a></h3>
+<h3 id="rotation-komprimierung-und-retention">Rotation, Komprimierung und Retention<a class="headerlink" href="#rotation-komprimierung-und-retention" title="Permanent link">&para;</a></h3>
 <p>Standardmäßig wird <strong>jeden Tag</strong> eine neue Datei gestartet und immer wieder, wenn die maximale Größe erreicht ist (diese Teile sind mit <code>.p2</code>, <code>.p3</code>, … nummeriert); Die tägliche Rotation kann ausgeschaltet werden, um nur nach Größe zu rollen. Durch die Rotation wird nie etwas überschrieben oder gelöscht.</p>
 <p>Geschlossene Dateien werden standardmäßig komprimiert. Die aktuell geschriebene Datei bleibt immer unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann. Deaktivieren Sie <strong>Geschlossene Dateien komprimieren (gzip)</strong>, um fertige Dateien stattdessen als einfachen Text beizubehalten. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.</p>
-<p>Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf <code>0</code> ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt unangetastet. Der Ordner darf also auch für anderes genutzt werden.</p>
+<p>Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf <code>0</code> ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt in Ruhe, daher ist es sicher, die Einstellung auf einen Ordner zu verweisen, den Sie auch für andere Dinge verwenden.</p>
 <h3 id="was-vor-dem-schreiben-entfernt-wird">Was vor dem Schreiben entfernt wird<a class="headerlink" href="#was-vor-dem-schreiben-entfernt-wird" title="Permanent link">&para;</a></h3>
-<p>Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das <a href="session-journal.html">Sitzungsjournal</a> im Erfassungsthread, bevor irgendetwas gepuffert oder geschrieben wird: das eigene Passwort der Verbindung und alle Ersetzungsregeln, die in der Richtlinie Ihrer Organisation definiert sind. Das Geheimnis gelangt nie in die Datei, sodass hinterher nichts bereinigt werden muss.</p>
+<p>Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das <a href="session-journal.html">Session Journal</a> im Erfassungsthread, bevor irgendetwas gepuffert oder geschrieben wird: das eigene Passwort der Verbindung und alle Ersetzungsregeln, die in der Richtlinie Ihrer Organisation definiert sind. Das Geheimnis gelangt nie in die Datei, sodass hinterher nichts bereinigt werden muss.</p>
 <p>Protokolldateien und ein Protokollordner, den KorTTY selbst erstellt hat, sind auf Besitzerrechte eingestellt, sofern das Dateisystem dies unterstützt. Ein Ordner, den Sie selbst ausgewählt haben, behält die von Ihnen erteilten Berechtigungen.</p>
 <div class="admonition warning">
-<p class="admonition-title">Die Schwärzung deckt nur ab, was korTTY kennt</p>
-<p>Ein Passwort, das KorTTY für die Verbindung speichert, wird geschwärzt. Ein Geheimnis, das du selbst in einen Befehl eintippst oder das ein Programm ausgibt, wird nicht geschwärzt – korTTY kann es nicht erkennen. Behandle den Protokollordner als vertraulich und nutze für wiederkehrende Muster die Ersetzungsregeln der Richtlinie.</p>
+<p class="admonition-title">Redaction deckt nur das ab, was KorTTY weiß</p>
+<p>Ein Passwort, das KorTTY für die Verbindung speichert, wird geschwärzt. Ein Geheimnis, das Sie selbst in einen Befehl eingeben oder das ein Programm ausgibt, ist kein Geheimnis – KorTTY hat keine Möglichkeit, es zu erkennen. Behandeln Sie den Protokollordner als vertraulich und verwenden Sie Richtlinienersetzungsregeln für wiederkehrende Muster.</p>
 </div>
 <h2 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h2>
 <p>Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten <code>.korttyrec.jsonl.gz</code>-Datei pro Terminal-Tab-Sitzung auf. Ältere <code>.korttyrec.jsonl</code>-Wiedergabedateien bleiben lesbar.</p>
