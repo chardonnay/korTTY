@@ -43,6 +43,16 @@ public final class LocalLmModelResolver {
         return uri != null && isLoopbackHttpUri(uri) && isSupportedChatEndpoint(uri.getPath());
     }
 
+    /**
+     * True when {@code apiUrl} is shaped like a chat endpoint whose host can also be asked for
+     * LM Studio's native model metadata. This is the precondition of every metadata read below;
+     * exposing it lets callers avoid a pointless request for endpoints that cannot answer.
+     */
+    public static boolean canReadLmStudioMetadata(String apiUrl) {
+        URI uri = parseUri(apiUrl);
+        return uri != null && isHttpUri(uri) && isSupportedChatEndpoint(uri.getPath());
+    }
+
     public static boolean canListModels(String apiUrl) {
         URI uri = parseUri(apiUrl);
         if (uri == null) {

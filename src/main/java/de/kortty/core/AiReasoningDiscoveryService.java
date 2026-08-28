@@ -71,6 +71,54 @@ public final class AiReasoningDiscoveryService {
             visionCapable);
     }
 
+    /**
+     * Reads the profile's reasoning levels from its endpoint's model metadata alone — one GET, no
+     * chat completion and no probing. Returns empty whenever the levels cannot be established that
+     * way (not an LM Studio-style endpoint, model not identifiable, endpoint unreachable), which is
+     * the signal to leave the stored result alone rather than to record "no reasoning".
+     *
+     * <p>This is what keeps the picker in step with the profile. The manual refresh is a deliberate
+     * user action that may cost a request, so it cannot run on every edit; changing the model in the
+     * editor would otherwise drop the discovered levels and leave only the model-name defaults,
+     * which know nothing about locally served models.
+     */
+    public static Optional<AiCapabilityDiscovery> discoverFromMetadata(AiProfile profile, String apiKey) {
+        if (!canDiscoverFromMetadata(profile)) {
+            return Optional.empty();
+        }
+        Optional<LocalLmModelResolver.LmStudioCapabilities> lmStudio;
+        try {
+            lmStudio = LocalLmModelResolver.loadLmStudioCapabilities(
+                profile.getApiUrl(),
+                profile.getModel(),
+                profile.getModelSelectionMode(),
+                apiKey,
+                null);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        } catch (java.io.IOException | RuntimeException ex) {
+            return Optional.empty();
+        }
+        Optional<List<AiReasoningEffort>> efforts =
+            lmStudio.flatMap(LocalLmModelResolver.LmStudioCapabilities::reasoningEfforts);
+        if (efforts.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new AiCapabilityDiscovery(
+            AiReasoningSupport.normalizeOptions(efforts.get()),
+            lmStudio.flatMap(LocalLmModelResolver.LmStudioCapabilities::visionCapable).orElse(null)));
+    }
+
+    /**
+     * True when {@link #discoverFromMetadata} could return a result for this profile, so callers can
+     * skip the background call for profiles it can never answer for.
+     */
+    public static boolean canDiscoverFromMetadata(AiProfile profile) {
+        return usesExactLmStudioMetadata(profile)
+            && LocalLmModelResolver.canReadLmStudioMetadata(profile.getApiUrl());
+    }
+
     static boolean usesExactLmStudioMetadata(AiProfile profile) {
         return profile != null
             && profile.getConnectionMode() == AiConnectionMode.HTTP_API

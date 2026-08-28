@@ -57,4 +57,38 @@ class AiReasoningDiscoveryServiceTest {
         profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
         assertThat(AiReasoningDiscoveryService.usesExactLmStudioMetadata(profile)).isFalse();
     }
+
+    @Test
+    void automaticMetadataLookupNeedsAnHttpProfileWithAChatEndpoint() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel("qwen/qwen3.8-27b");
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(profile)).isTrue();
+
+        // A LAN LM Studio is just as readable as a loopback one.
+        profile.setApiUrl("http://192.168.178.100:1234/v1");
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(profile)).isTrue();
+
+        // Nothing to ask: no URL, a non-chat path, or a mode whose model cannot be identified.
+        profile.setApiUrl(null);
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(profile)).isFalse();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/embeddings");
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(profile)).isFalse();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModelSelectionMode(AiModelSelectionMode.DEFAULT);
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(profile)).isFalse();
+
+        assertThat(AiReasoningDiscoveryService.canDiscoverFromMetadata(null)).isFalse();
+    }
+
+    @Test
+    void automaticMetadataLookupReturnsNothingForAProfileItCannotRead() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("codex-cli");
+
+        assertThat(AiReasoningDiscoveryService.discoverFromMetadata(profile, null)).isEmpty();
+    }
 }

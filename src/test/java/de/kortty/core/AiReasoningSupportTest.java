@@ -121,6 +121,65 @@ class AiReasoningSupportTest {
     }
 
     @Test
+    void httpProfileKeepsDiscoveredLevelsWhenUnusedCliFieldsChange() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel("qwen/qwen3.8-27b");
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.LOW,
+            AiReasoningEffort.MEDIUM, AiReasoningEffort.XHIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        // The profile editor fills the CLI provider and its argument template for every profile,
+        // whatever its connection mode. None of that changes which endpoint or model this HTTP
+        // profile talks to, so the discovered levels must survive it.
+        profile.setCliProviderId("codex-cli");
+        profile.setCliExecutablePath("/usr/local/bin/codex");
+        profile.setCliArgumentsTemplate("exec\n--sandbox\nread-only\n-\n{stdinPrompt}");
+
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .containsExactly(
+                AiReasoningEffort.DISABLED, AiReasoningEffort.NONE, AiReasoningEffort.LOW,
+                AiReasoningEffort.MEDIUM, AiReasoningEffort.XHIGH)
+            .inOrder();
+    }
+
+    @Test
+    void httpProfileDropsDiscoveredLevelsWhenTheModelChanges() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.HTTP_API);
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel("qwen/qwen3.8-27b");
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.LOW, AiReasoningEffort.XHIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        profile.setModel("qwen/qwen3-coder-30b");
+
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .isEqualTo(List.of(AiReasoningEffort.DISABLED));
+    }
+
+    @Test
+    void cliProfileKeepsDiscoveredLevelsWhenTheUnusedApiUrlChanges() {
+        AiProfile profile = new AiProfile();
+        profile.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+        profile.setCliProviderId("codex-cli");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setModel("GPT-5.6-terra");
+        profile.setDiscoveredReasoningEfforts(List.of(AiReasoningEffort.LOW, AiReasoningEffort.HIGH));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+
+        profile.setApiUrl("https://api.changed.example.test/v1/chat/completions");
+
+        assertThat(AiReasoningSupport.availableEfforts(profile))
+            .containsExactly(AiReasoningEffort.DISABLED, AiReasoningEffort.LOW, AiReasoningEffort.HIGH)
+            .inOrder();
+    }
+
+    @Test
     void discoveryKeyHandlesProfileWithoutStoredModelSelectionMode() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("https://api.example.test/v1/chat/completions");

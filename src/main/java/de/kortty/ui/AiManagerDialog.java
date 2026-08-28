@@ -30,6 +30,7 @@ import de.kortty.model.AiTokenLimitUnit;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
 import de.kortty.security.EncryptionService;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -62,6 +63,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -141,6 +143,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private boolean updatingDefaultProfileSelection;
     /** Set while the editor form is being populated; suppresses form-driven writes back into the profile. */
     private boolean loadingProfile;
+    /** Discovery key of the automatic metadata lookup that is scheduled or running, or {@code null}. */
+    private String pendingReasoningDiscoveryKey;
+    /** Keys already looked up automatically, so an endpoint that cannot answer is asked only once. */
+    private final java.util.Set<String> attemptedReasoningDiscoveryKeys = new java.util.HashSet<>();
+    /**
+     * Holds the automatic lookup back until the editor settles. The model field rebuilds the picker
+     * on every keystroke, and each half-typed model name is a key of its own — without this, typing
+     * one name would send a request per character.
+     */
+    private final PauseTransition reasoningDiscoveryDelay = new PauseTransition(Duration.millis(400));
+    /** Set while {@link #refreshReasoningOptions} repopulates the picker; its own select() is not a user pick. */
+    private boolean rebuildingReasoningOptions;
 
     public AiManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -364,11 +378,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
         });
 
+        reasoningDiscoveryDelay.setOnFinished(event -> runPendingReasoningDiscovery());
         reasoningCombo.setConverter(createReasoningConverter());
         reasoningCombo.setPrefWidth(220);
         reasoningCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
-            // Rebuilding the item list transiently nulls the value; only a real user pick counts.
-            if (selectedProfile != null && !loadingProfile && newValue != null) {
+            // Rebuilding the item list transiently nulls the value and then re-selects a normalized
+            // one; only a real user pick counts. refreshReasoningOptions writes its own result back.
+            if (selectedProfile != null && !loadingProfile && !rebuildingReasoningOptions && newValue != null) {
                 selectedProfile.setReasoningEffort(newValue);
             }
         });
@@ -1244,15 +1260,88 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private void refreshReasoningOptions(AiReasoningEffort requestedEffort) {
         AiProfile editorProfile = buildReasoningEditorProfile();
+        boolean discoveryPending = startReasoningDiscoveryIfStale(editorProfile);
         List<AiReasoningEffort> options = editorProfile != null
             ? AiReasoningSupport.availableEfforts(editorProfile)
             : List.of(AiReasoningEffort.DISABLED);
         AiReasoningEffort selected = AiReasoningSupport.normalize(requestedEffort, options);
-        reasoningCombo.getItems().setAll(options);
-        reasoningCombo.getSelectionModel().select(selected);
-        if (selectedProfile != null && !loadingProfile) {
+        rebuildingReasoningOptions = true;
+        try {
+            reasoningCombo.getItems().setAll(options);
+            reasoningCombo.getSelectionModel().select(selected);
+        } finally {
+            rebuildingReasoningOptions = false;
+        }
+        // While the endpoint is still being asked, the list above is only the model-name fallback.
+        // Showing it is fine, writing it into the profile is not: it would replace the stored level
+        // with Disabled a moment before the answer restores the levels that level belongs to.
+        if (selectedProfile != null && !loadingProfile && !discoveryPending) {
             selectedProfile.setReasoningEffort(selected);
         }
+    }
+
+    /**
+     * Asks the endpoint for the reasoning levels of the model now in the editor when the stored
+     * result belongs to a different endpoint or model. Without this the picker falls back to the
+     * model-name defaults on every model change — and those know nothing about locally served
+     * models, so the list collapses to Disabled until the user presses the refresh button again.
+     *
+     * @return {@code true} while a lookup for the editor's current key is in flight
+     */
+    private boolean startReasoningDiscoveryIfStale(AiProfile editorProfile) {
+        if (editorProfile == null || !AiReasoningDiscoveryService.canDiscoverFromMetadata(editorProfile)) {
+            return false;
+        }
+        String key = AiReasoningSupport.discoveryKey(editorProfile);
+        if (key.equals(editorProfile.getReasoningDiscoveryKey())) {
+            return false;
+        }
+        if (attemptedReasoningDiscoveryKeys.contains(key)) {
+            // Asked before and the endpoint could not identify that model; the refresh button stays
+            // available for a deliberate retry.
+            return false;
+        }
+        if (key.equals(pendingReasoningDiscoveryKey)) {
+            return true;
+        }
+        pendingReasoningDiscoveryKey = key;
+        reasoningDiscoveryDelay.playFromStart();
+        return true;
+    }
+
+    /** Runs the delayed lookup for whatever the editor settled on. */
+    private void runPendingReasoningDiscovery() {
+        String key = pendingReasoningDiscoveryKey;
+        AiProfile editorProfile = buildReasoningEditorProfile();
+        if (key == null || editorProfile == null
+            || !key.equals(AiReasoningSupport.discoveryKey(editorProfile))) {
+            pendingReasoningDiscoveryKey = null;
+            return;
+        }
+        attemptedReasoningDiscoveryKeys.add(key);
+        AiProfile snapshot = new AiProfile(editorProfile);
+        String profileId = selectedProfile != null ? selectedProfile.getId() : null;
+        String apiKey = selectedProfile != null ? getPlainApiKey(selectedProfile) : null;
+        CompletableFuture
+            .supplyAsync(() -> AiReasoningDiscoveryService.discoverFromMetadata(snapshot, apiKey))
+            .whenComplete((result, throwable) -> Platform.runLater(() -> {
+                if (!key.equals(pendingReasoningDiscoveryKey)) {
+                    return;
+                }
+                pendingReasoningDiscoveryKey = null;
+                if (throwable != null || result == null || result.isEmpty()) {
+                    return;
+                }
+                if (selectedProfile == null
+                    || (profileId != null && !profileId.equals(selectedProfile.getId()))
+                    || !key.equals(AiReasoningSupport.discoveryKey(buildReasoningEditorProfile()))) {
+                    return;
+                }
+                selectedProfile.setReasoningDiscoveryKey(key);
+                selectedProfile.setDiscoveredReasoningEfforts(result.get().reasoningEfforts());
+                selectedProfile.setDiscoveredVisionCapable(result.get().visionCapable());
+                refreshReasoningOptions(selectedProfile.getReasoningEffort());
+            }));
     }
 
     private AiProfile buildReasoningEditorProfile() {
@@ -1563,9 +1652,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setCliExecutablePath(trimToNull(cliExecutableField.getText()));
         selectedProfile.setCliArgumentsTemplate(trimToNull(cliArgumentsTemplateArea.getText()));
         snapshotModelSelection(selectedProfile);
-        selectedProfile.setReasoningEffort(AiReasoningSupport.normalize(
-            reasoningCombo.getValue(),
-            AiReasoningSupport.availableEfforts(selectedProfile)));
+        // While the endpoint is still being asked, the picker only shows the model-name fallback;
+        // normalizing against it here would persist Disabled over a level the answer still covers.
+        if (pendingReasoningDiscoveryKey == null) {
+            selectedProfile.setReasoningEffort(AiReasoningSupport.normalize(
+                reasoningCombo.getValue(),
+                AiReasoningSupport.availableEfforts(selectedProfile)));
+        }
         if (visionCombo.getValue() != null) {
             selectedProfile.setVisionSupport(visionCombo.getValue());
         }

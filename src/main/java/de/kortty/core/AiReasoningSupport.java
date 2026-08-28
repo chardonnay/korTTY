@@ -55,8 +55,14 @@ public final class AiReasoningSupport {
      * logs that it skipped it. A model without any reasoning capability therefore ended up with the
      * complete level list, and picking one of those levels made korTTY send a parameter the model
      * ignores. Until the profile is re-discovered, the conservative model-name defaults apply.
+     *
+     * <p>v3: the key mixed every connection mode's fields into one string, so an HTTP profile's
+     * result was thrown away when its unused CLI provider or argument template changed, and a CLI
+     * profile's result when its unused API URL changed. Both happen on their own — the editor fills
+     * those fields with defaults for whichever mode is not in use. {@link #discoveryKey} now covers
+     * only the fields that actually select the endpoint and model for the profile's own mode.
      */
-    private static final String DISCOVERY_SCHEMA = "v2";
+    private static final String DISCOVERY_SCHEMA = "v3";
 
     private AiReasoningSupport() {
     }
@@ -145,21 +151,40 @@ public final class AiReasoningSupport {
         return availableEfforts(profile.getApiUrl(), profile.getModel());
     }
 
+    /**
+     * Identifies the endpoint-and-model combination a discovery result belongs to. Only the fields
+     * that select that combination for the profile's own connection mode take part: a profile keeps
+     * fields for the modes it does not use (the editor fills them with defaults), and letting those
+     * into the key silently invalidated a perfectly good result.
+     */
     public static String discoveryKey(AiProfile profile) {
         if (profile == null) {
             return "";
         }
         AiConnectionMode connectionMode = profile.getConnectionMode();
         AiModelSelectionMode modelSelectionMode = profile.getModelSelectionMode();
+        String mode = connectionMode != null ? connectionMode.name() : "";
+        if (connectionMode != null && connectionMode.isEmbedded()) {
+            // An embedded profile is pinned to one bundled model; its apiUrl/model/CLI fields are
+            // unused placeholders.
+            return String.join("|", DISCOVERY_SCHEMA, mode, normalize(profile.getEmbeddedModelId()));
+        }
+        if (connectionMode == AiConnectionMode.LOCAL_CLI) {
+            return String.join("|",
+                DISCOVERY_SCHEMA,
+                mode,
+                normalize(modelSelectionMode != null ? modelSelectionMode.name() : ""),
+                normalize(profile.getModel()),
+                normalize(profile.getCliProviderId()),
+                normalize(profile.getCliExecutablePath()),
+                normalize(profile.getCliArgumentsTemplate()));
+        }
         return String.join("|",
             DISCOVERY_SCHEMA,
-            normalize(connectionMode != null ? connectionMode.name() : ""),
+            mode,
             normalize(profile.getApiUrl()),
             normalize(modelSelectionMode != null ? modelSelectionMode.name() : ""),
-            normalize(profile.getModel()),
-            normalize(profile.getCliProviderId()),
-            normalize(profile.getCliExecutablePath()),
-            normalize(profile.getCliArgumentsTemplate()));
+            normalize(profile.getModel()));
     }
 
     public static AiReasoningEffort normalizeForProfile(
@@ -185,12 +210,11 @@ public final class AiReasoningSupport {
     private static List<AiReasoningEffort> discoveredEfforts(AiProfile profile) {
         AiConnectionMode connectionMode = profile.getConnectionMode();
         if (connectionMode != null && connectionMode.isEmbedded()) {
-            // An embedded profile is pinned to one embedded model, so its discovered efforts stay valid
-            // as long as a discovery ran. The connection key that HTTP/CLI profiles rely on is
-            // meaningless here: an embedded profile's apiUrl/model/CLI fields are unused placeholders
-            // whose stray values flip the key between save and reload and would otherwise silently
-            // reset the user's chosen reasoning level. The embedded model itself never changes without
-            // a fresh discovery.
+            // An embedded profile is pinned to one embedded model, so its discovered efforts stay
+            // valid as long as a discovery ran at all. Any recorded key counts, including the
+            // pre-v3 keys built from the unused apiUrl/model/CLI placeholders: comparing those
+            // flipped between save and reload and silently reset the user's chosen level, and
+            // re-checking them now would only throw away results that are still correct.
             String discoveryKey = profile.getReasoningDiscoveryKey();
             return discoveryKey != null && !discoveryKey.isBlank()
                 ? normalizeOptions(profile.getDiscoveredReasoningEfforts())
