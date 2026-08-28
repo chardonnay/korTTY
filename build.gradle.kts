@@ -1977,6 +1977,74 @@ val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
     }
 }
 
+// ---- jlink runtime image ------------------------------------------------------
+// Keep a complete base runtime for classpath apps and include extended locale data.
+// Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
+// jdk.jsobject provides netscape.javascript.JSObject, which JavaFX WebView's native WebKit
+// resolves via FindClass to marshal JS->Java. The compile-time jdk-jsobject artifact does NOT
+// bundle it, and jlink drops it by default, so without this every Monaco editor that returns
+// a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
+// jdk.management provides com.sun.management.OperatingSystemMXBean, which the JVM-resource
+// relaunch (Launcher/JvmRelauncher) uses to size the heap from physical RAM.
+val runtimeModules = "java.base,java.desktop,java.logging,java.management,java.naming," +
+    "java.net.http,java.prefs,java.rmi,java.security.jgss,java.sql,java.xml,jdk.compiler," +
+    "jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported"
+// Shrink the jlink runtime image. When jpackage runs jlink itself, --jlink-options REPLACES its
+// defaults (--strip-native-commands --strip-debug --no-man-pages --no-header-files), so they are
+// re-stated before the additions. zip-6 roughly halves lib/modules; --include-locales keeps
+// exactly the app's UI locales (LanguageManager.SUPPORTED_LOCALES) instead of all of
+// jdk.localedata — other OS locales fall back to English date/number formats.
+val runtimeJlinkOptions = listOf(
+    "--strip-native-commands", "--strip-debug", "--no-man-pages", "--no-header-files",
+    "--compress=zip-6", "--include-locales=en,de,it,es,pt,fr,hr,nl")
+
+// Building the runtime image ourselves (instead of letting each jpackage invocation run jlink)
+// exists for exactly one reason: jdk.compiler drags javac's historical-API database lib/ct.sym
+// (~10.4 MiB) into the image, it is never read at runtime, and jlink has no flag to exclude it.
+// jpackage rejects --runtime-image combined with --add-modules/--jlink-options, so the two code
+// paths below are fed from the same runtimeModules/runtimeJlinkOptions and cannot drift.
+// Rollback switch (e.g. for a CI dispatch): -Pkortty.packaging.externalRuntimeImage=false
+val externalRuntimeImage =
+    (findProperty("kortty.packaging.externalRuntimeImage") as String?)?.toBoolean() ?: true
+val jlinkExecutable = packagingJavaLauncher.map { launcher ->
+    launcher.metadata.installationPath
+        .file(if (isWindows) "bin/jlink.exe" else "bin/jlink")
+        .asFile.absolutePath
+}
+val runtimeImageDir = layout.buildDirectory.dir("runtime-image")
+
+val prepareRuntimeImage = tasks.register("prepareRuntimeImage") {
+    group = "build"
+    description = "Builds the jlink runtime image for jpackage and strips dead weight (lib/ct.sym)."
+    inputs.property("modules", runtimeModules)
+    inputs.property("jlinkOptions", runtimeJlinkOptions)
+    inputs.property("jlinkPath", jlinkExecutable)
+    outputs.dir(runtimeImageDir)
+    doLast {
+        val outDir = runtimeImageDir.get().asFile
+        // jlink refuses an existing output directory; deleting first also guarantees a
+        // half-written image from an aborted run can never be consumed.
+        outDir.deleteRecursively()
+        val command = mutableListOf(jlinkExecutable.get(), "--add-modules", runtimeModules)
+        command.addAll(runtimeJlinkOptions)
+        command.addAll(listOf("--output", outDir.absolutePath))
+        val process = ProcessBuilder(command).inheritIO().start()
+        if (process.waitFor() != 0) {
+            throw GradleException("jlink failed for the packaging runtime image")
+        }
+        // ct.sym is a zip of javac API signatures, not code — deleting it before jpackage
+        // copies and signs the bundle is safe. Fail loudly if a future JDK stops shipping it
+        // so this deletion (and the whole external-image detour) can be retired.
+        val ctSym = outDir.resolve("lib/ct.sym")
+        if (!ctSym.isFile) {
+            throw GradleException("Expected lib/ct.sym in the jlink image at $ctSym")
+        }
+        if (!ctSym.delete()) {
+            throw GradleException("Could not delete $ctSym")
+        }
+    }
+}
+
 // Gemeinsame jpackage Parameter
 fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, inputDir: String, outputDir: String): MutableList<String> {
     val args = mutableListOf(
@@ -1989,23 +2057,6 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--main-jar", mainJar,
         "--main-class", "de.kortty.Launcher",
         "--dest", outputDir,
-        // Keep a complete base runtime for classpath apps and include extended locale data.
-        // Without java.xml, logback initialization can fail at startup (org.xml.sax.InputSource).
-        // jdk.jsobject provides netscape.javascript.JSObject, which JavaFX WebView's native WebKit
-        // resolves via FindClass to marshal JS->Java. The compile-time jdk-jsobject artifact does NOT
-        // bundle it, and jlink drops it by default, so without this every Monaco editor that returns
-        // a JSObject crashes the JVM in JNI get_method_id (NULL class / NoClassDefFoundError) on macOS.
-        // jdk.management provides com.sun.management.OperatingSystemMXBean, which the JVM-resource
-        // relaunch (Launcher/JvmRelauncher) uses to size the heap from physical RAM.
-        "--add-modules", "java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.security.jgss,java.sql,java.xml,jdk.compiler,jdk.crypto.ec,jdk.jsobject,jdk.localedata,jdk.management,jdk.unsupported",
-        // Shrink the jlink runtime image: --jlink-options REPLACES jpackage's defaults
-        // (--strip-native-commands --strip-debug --no-man-pages --no-header-files), so they are
-        // re-stated before the additions. zip-6 roughly halves lib/modules; --include-locales
-        // keeps exactly the app's UI locales (LanguageManager.SUPPORTED_LOCALES) instead of all
-        // of jdk.localedata — other OS locales fall back to English date/number formats.
-        "--jlink-options",
-        "--strip-native-commands --strip-debug --no-man-pages --no-header-files " +
-            "--compress=zip-6 --include-locales=en,de,it,es,pt,fr,hr,nl",
         "--java-options", "-Djava.awt.headless=false",
         "--java-options", "--enable-native-access=ALL-UNNAMED",
         // Conservative memory bounds: the JVM default max heap is 25% of physical RAM (8 GB on
@@ -2027,6 +2078,14 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // javafx.graphics MODULE present it degrades to an ignorable "unknown module" warning.
         "--java-options", "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
     )
+    if (externalRuntimeImage) {
+        // The image from prepareRuntimeImage (same modules/options, minus lib/ct.sym).
+        args.addAll(listOf("--runtime-image", runtimeImageDir.get().asFile.absolutePath))
+    } else {
+        args.addAll(listOf(
+            "--add-modules", runtimeModules,
+            "--jlink-options", runtimeJlinkOptions.joinToString(" ")))
+    }
     googleJavaFormatJvmArgs.forEach { javaOption ->
         args.addAll(listOf("--java-options", javaOption))
     }
@@ -2196,7 +2255,8 @@ if (isMac) {
     // jpackage Task für macOS .app
     tasks.register<Exec>("jpackage") {
         dependsOn("signMacBundledNativeLibraries")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
@@ -2453,7 +2513,8 @@ if (isWindows) {
     // jpackage Task für Windows .exe
     tasks.register<Exec>("jpackage") {
         dependsOn("prepareJpackage")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
@@ -2477,7 +2538,8 @@ if (isWindows) {
     // jpackage Task für Windows .msi Installer
     tasks.register<Exec>("jpackageMsi") {
         dependsOn("prepareJpackage")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
@@ -2520,7 +2582,8 @@ if (isLinux) {
     // jpackage Task für Linux App-Image
     tasks.register<Exec>("jpackage") {
         dependsOn("prepareJpackage")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
@@ -2544,7 +2607,8 @@ if (isLinux) {
     // jpackage Task für Linux .deb Package
     tasks.register<Exec>("jpackageDeb") {
         dependsOn("prepareJpackage")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
@@ -2570,7 +2634,8 @@ if (isLinux) {
     // jpackage Task für Linux .rpm Package
     tasks.register<Exec>("jpackageRpm") {
         dependsOn("prepareJpackage")
-        
+        dependsOn(prepareRuntimeImage)
+
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
         val mainJar = tasks.jar.get().archiveFileName.get()
