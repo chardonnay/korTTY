@@ -6,33 +6,40 @@
   "artifacts": {
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
-      "verified_bytes": 150520792,
-      "budget_bytes": 157286400
+      "verified_bytes": 141372323,
+      "budget_bytes": 148897792
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
-      "verified_bytes": 153446688,
-      "budget_bytes": 157286400
+      "verified_bytes": 144012584,
+      "budget_bytes": 152043520
     },
     "windows-x86_64-msi": {
       "baseline_bytes": 194954284,
-      "budget_bytes": 165711141
+      "verified_bytes": 146208330,
+      "budget_bytes": 154140672
     },
     "linux-x86_64-deb": {
       "baseline_bytes": 193980040,
-      "budget_bytes": 164883034
+      "verified_bytes": 150051974,
+      "budget_bytes": 158334976
     },
     "linux-x86_64-rpm": {
       "baseline_bytes": 223063636,
-      "budget_bytes": 189604090
+      "verified_bytes": 157724111,
+      "budget_bytes": 165675008
     },
     "linux-aarch64-deb": {
       "baseline_bytes": 191136540,
-      "budget_bytes": 162466059
+      "verified_bytes": 148015296,
+      "budget_bytes": 156237824
     },
     "linux-aarch64-rpm": {
       "baseline_bytes": 219836583,
-      "budget_bytes": 186861095
+      "verified_bytes": 155457582,
+      "budget_bytes": 163577856
     }
-  }
+  },
+  "verified_release": "2.13.1",
+  "verified_source_run": "33201314793"
 }
