@@ -556,6 +556,24 @@ class GuideTranslationGeneratorTest {
             .that(marked).isGreaterThan(parsed.entries().size() * 3L / 4);
     }
 
+    /**
+     * Generated pages load over {@code file:}, where mkdocs-material's offline search reads the
+     * {@code search_index.js} wrapper (global {@code __index}) instead of fetching the JSON. The
+     * jar does not ship the English wrapper, so the rebuild has to write a translated one — or
+     * the in-page search of a translated guide silently serves English.
+     */
+    @Test
+    void theOfflineSearchWrapperIsWrittenNextToTheJson() throws IOException {
+        new GuideTranslationGenerator(new PrefixService(), tempDir).generate("xx", null, null);
+
+        String json = Files.readString(tempDir.resolve("guide/xx/search/search_index.json"),
+            StandardCharsets.UTF_8);
+        Path wrapper = tempDir.resolve("guide/xx/search/search_index.js");
+        assertThat(Files.isRegularFile(wrapper)).isTrue();
+        assertThat(Files.readString(wrapper, StandardCharsets.UTF_8))
+            .isEqualTo("var __index = " + json);
+    }
+
     /** Locations and anchors must survive, or every search result would lead nowhere. */
     @Test
     void rebuiltIndexEntriesStillPointAtRealPagesAndAnchors() throws IOException {

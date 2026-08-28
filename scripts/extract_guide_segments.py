@@ -490,11 +490,15 @@ def main() -> int:
     # loaded from the config directory over file:, and a file: document cannot pull the
     # stylesheets and images back out of the jar. The runtime copies this list out of the
     # classpath; listing it here avoids having to walk the jar at runtime.
+    # search_index.js is not staged: the jar does not ship it (the offline wrapper is
+    # redundant next to search_index.json) and GuideSearchIndexTranslator.rebuild writes a
+    # translated wrapper into the generated tree itself.
     assets = sorted(
         path.relative_to(guide_root).as_posix()
         for path in guide_root.rglob("*")
         if path.is_file() and path.suffix != ".html"
-        and MANIFEST_DIRNAME not in path.relative_to(guide_root).parts)
+        and MANIFEST_DIRNAME not in path.relative_to(guide_root).parts
+        and path.relative_to(guide_root).as_posix() != "search/search_index.js")
     (out_dir / "index.json").write_text(
         json.dumps({"formatVersion": FORMAT_VERSION, "sourceLang": "en", "pages": index,
                     "assets": assets},

@@ -1069,6 +1069,18 @@ tasks.named<ProcessResources>("processResources") {
     exclude("guide/**/*.map")
     exclude("guide/**/assets/javascripts/lunr/wordcut.js")
     exclude("guide/**/assets/javascripts/lunr/tinyseg.js")
+    // search_index.js is mkdocs-material's offline wrapper around search_index.json, read only
+    // from file: documents. The bundled guide loads over jar: (it uses the .json), and generated
+    // translations get a rebuilt wrapper from GuideSearchIndexTranslator instead.
+    exclude("guide/**/search/search_index.js")
+    // The DE tree only needs its own lunr stemmer; the other ~30 language packs are staged for
+    // generated translations exclusively from the EN tree (GuideTranslationGenerator.stageAssets).
+    exclude { details ->
+        val path = details.relativePath.pathString
+        path.startsWith("guide/de/assets/javascripts/lunr/min/") &&
+            !path.endsWith("/lunr.de.min.js") &&
+            !path.endsWith("/lunr.stemmer.support.min.js")
+    }
     exclude("icon/kortty_icon.icns")
     exclude("icon/kortty_icon.ico")
 }

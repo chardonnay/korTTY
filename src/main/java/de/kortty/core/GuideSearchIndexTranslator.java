@@ -56,7 +56,8 @@ public final class GuideSearchIndexTranslator {
     }
 
     /**
-     * Writes {@code <languageRoot>/search/search_index.json} from the pages under
+     * Writes {@code <languageRoot>/search/search_index.json} (and its {@code search_index.js}
+     * offline wrapper) from the pages under
      * {@code languageRoot}. Entries whose page has not been translated yet keep their English
      * text, so a partially translated guide still has a working — if mixed — search.
      */
@@ -106,7 +107,13 @@ public final class GuideSearchIndexTranslator {
 
         Path target = languageRoot.resolve("search").resolve("search_index.json");
         Files.createDirectories(target.getParent());
-        Files.writeString(target, root.toString(), StandardCharsets.UTF_8);
+        String json = root.toString();
+        Files.writeString(target, json, StandardCharsets.UTF_8);
+        // Generated guides load over file:, where mkdocs-material's offline search reads the
+        // script wrapper (search_index.js -> global __index) instead of fetching the JSON.
+        // Without a rebuilt wrapper the in-page search of a translated guide serves English.
+        Files.writeString(target.resolveSibling("search_index.js"),
+            "var __index = " + json, StandardCharsets.UTF_8);
         logger.info("Rebuilt guide search index for {}: {} entry/entries translated, {} kept English",
             targetLang, translated, kept);
         return new Result(translated, kept);

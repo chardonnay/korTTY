@@ -75,7 +75,11 @@ def stage_assets(lang: str) -> None:
                 dst = docs_assets / sub
                 if dst.exists():
                     shutil.rmtree(dst)
-                shutil.copytree(src, dst)
+                # The hero video is half a megabyte of incompressible bytes; translated
+                # trees reference EN's copy relatively (../en/assets/…) instead of
+                # shipping their own.
+                shutil.copytree(src, dst,
+                                ignore=shutil.ignore_patterns("kortty-logo.mp4"))
 
 
 def lang_has_content(lang: str) -> bool:
