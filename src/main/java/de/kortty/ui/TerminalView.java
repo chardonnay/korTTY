@@ -494,6 +494,13 @@ public class TerminalView extends BorderPane {
                 loadTextFileItem.setOnAction(e -> terminalTextFileLoadHandler.handle(
                     createTerminalAgentRunContext(widget),
                     selectedText));
+                // After su/ssh inside the session the tab's tracked paths belong to the wrong
+                // identity; the menu is rebuilt per show, so this re-enables on its own.
+                TtyConnector menuBaseConnector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+                if (menuBaseConnector instanceof ObservableTtyConnector observableConnector
+                    && isForeignSessionActive(widget, observableConnector)) {
+                    loadTextFileItem.setDisable(true);
+                }
                 items.add(loadTextFileItem);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
@@ -807,6 +814,41 @@ public class TerminalView extends BorderPane {
         } catch (Exception e) {
             logger.debug("Failed to resolve working directory from terminal prompt: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * True when the tab's session is (suspected to be) running as a different identity than it was
+     * opened with — after {@code su}, an inner {@code ssh}, or in a local-shell tab whose command
+     * itself is a remote client. Features resolving file paths against the original identity must
+     * back off then. Must be called on the JavaFX thread (reads the screen buffer).
+     */
+    public boolean isForeignSessionActive(@Nullable TerminalAgentRunContext runContext) {
+        if (runContext == null || runContext.connector() == null) {
+            return false;
+        }
+        return isForeignSessionActive(runContext.widget(), runContext.connector());
+    }
+
+    private boolean isForeignSessionActive(@Nullable SithTermFxWidget widget, ObservableTtyConnector connector) {
+        try {
+            String screenLines = widget != null && widget.getTerminalTextBuffer() != null
+                ? widget.getTerminalTextBuffer().getScreenLines()
+                : "";
+            SessionIdentityVerdict verdict = evaluatePromptSessionIdentity(
+                screenLines, connector.getExpectedSessionUser(), connector.getExpectedSessionHost());
+            if (verdict == SessionIdentityVerdict.FOREIGN) {
+                return true;
+            }
+            if (verdict == SessionIdentityVerdict.NATIVE_CONFIRMED) {
+                // Heals false suspicion from e.g. a failed su. A local-shell tab whose command is
+                // a remote client stays suspected regardless of the confirmation.
+                connector.confirmNativeSessionIdentity();
+            }
+            return connector.isForeignSessionSuspected();
+        } catch (Exception e) {
+            logger.debug("Failed to evaluate prompt session identity: {}", e.getMessage());
+            return connector.isForeignSessionSuspected();
         }
     }
 
@@ -4252,6 +4294,110 @@ public class TerminalView extends BorderPane {
             }
         }
         return null;
+    }
+
+    /** Result of comparing the visible prompt's identity against the tab's original identity. */
+    enum SessionIdentityVerdict { NATIVE_CONFIRMED, FOREIGN, UNKNOWN }
+
+    // Matches the leading user@host of common prompts, tolerating a "(venv) " decoration and a
+    // leading "[": daniel@fedora:~$, [root@host ~]#, (venv) daniel@fedora:~$, daniel@MacBook ~ %.
+    private static final java.util.regex.Pattern PROMPT_USER_HOST_PATTERN =
+        java.util.regex.Pattern.compile(
+            "^(?:\\([^)]*\\)\\s*)?\\[?([A-Za-z_][A-Za-z0-9._-]*)@([A-Za-z0-9][A-Za-z0-9.-]*)");
+
+    /**
+     * Judges from the LAST non-blank visible line whether the session still runs as the expected
+     * identity. Only the last line is inspected on purpose: lines above may show the pre-{@code su}
+     * prompt of the original user and must not confirm the native identity.
+     */
+    static SessionIdentityVerdict evaluatePromptSessionIdentity(
+        String screenLines, @Nullable String expectedUser, @Nullable String expectedHost) {
+
+        String lastLine = lastNonBlankVisibleLine(screenLines);
+        if (lastLine == null) {
+            return SessionIdentityVerdict.UNKNOWN;
+        }
+        String prompt = extractPromptPrefixFromVisibleLine(lastLine);
+        if (prompt.isBlank()) {
+            return SessionIdentityVerdict.UNKNOWN;
+        }
+        String promptUser = extractPromptUserFromPromptLine(prompt);
+        if (promptUser != null) {
+            if (expectedUser == null || expectedUser.isBlank()) {
+                return SessionIdentityVerdict.UNKNOWN;
+            }
+            if (!promptUser.equalsIgnoreCase(expectedUser)) {
+                return SessionIdentityVerdict.FOREIGN;
+            }
+            // A host mismatch stays UNKNOWN, not FOREIGN: connections configured by IP address
+            // show a DNS host name in the prompt, and that must not permanently disable features.
+            return hostLabelsMatchLeniently(extractPromptHostFromPromptLine(prompt), expectedHost)
+                ? SessionIdentityVerdict.NATIVE_CONFIRMED
+                : SessionIdentityVerdict.UNKNOWN;
+        }
+        // No user@host in the prompt: a root prompt while the expected user is not root indicates
+        // a switched identity (covers "sh-4.4#" and a bare "#" after su).
+        if (prompt.endsWith("#")
+            && expectedUser != null && !expectedUser.isBlank()
+            && !expectedUser.equalsIgnoreCase("root")) {
+            return SessionIdentityVerdict.FOREIGN;
+        }
+        return SessionIdentityVerdict.UNKNOWN;
+    }
+
+    private static @Nullable String lastNonBlankVisibleLine(String screenLines) {
+        String normalized = stripTerminalControlSequences(screenLines)
+            .replace("\r\n", "\n")
+            .replace('\r', '\n');
+        String[] lines = normalized.split("\n", -1);
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].stripTrailing();
+            if (!line.isBlank()) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    static @Nullable String extractPromptUserFromPromptLine(String promptPrefix) {
+        if (promptPrefix == null) {
+            return null;
+        }
+        java.util.regex.Matcher matcher = PROMPT_USER_HOST_PATTERN.matcher(promptPrefix.strip());
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    static @Nullable String extractPromptHostFromPromptLine(String promptPrefix) {
+        if (promptPrefix == null) {
+            return null;
+        }
+        java.util.regex.Matcher matcher = PROMPT_USER_HOST_PATTERN.matcher(promptPrefix.strip());
+        return matcher.find() ? matcher.group(2) : null;
+    }
+
+    /**
+     * Compares only the first DNS label, case-insensitively. A missing value on either side counts
+     * as a match — absence of evidence must not turn into a FOREIGN verdict.
+     */
+    static boolean hostLabelsMatchLeniently(@Nullable String promptHost, @Nullable String expectedHost) {
+        if (promptHost == null || promptHost.isBlank() || expectedHost == null || expectedHost.isBlank()) {
+            return true;
+        }
+        if (looksLikeIpv4Address(promptHost) || looksLikeIpv4Address(expectedHost)) {
+            // First-label comparison would equate 192.168.1.5 with 192.168.2.7.
+            return promptHost.strip().equals(expectedHost.strip());
+        }
+        return firstHostLabel(promptHost).equalsIgnoreCase(firstHostLabel(expectedHost));
+    }
+
+    private static boolean looksLikeIpv4Address(String host) {
+        return host.strip().matches("\\d{1,3}(\\.\\d{1,3}){3}");
+    }
+
+    private static String firstHostLabel(String host) {
+        String trimmed = host.strip();
+        int dot = trimmed.indexOf('.');
+        return dot > 0 ? trimmed.substring(0, dot) : trimmed;
     }
 
     private static String extractPromptPrefixFromVisibleLine(String normalizedLine) {

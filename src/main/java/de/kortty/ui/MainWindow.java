@@ -6171,14 +6171,24 @@ public class MainWindow {
             ? runContext
             : terminalTab.getTerminalView().captureTerminalAgentRunContext();
         ObservableTtyConnector contextConnector = resolvedContext != null ? resolvedContext.connector() : null;
+        // Evaluated on the JavaFX thread (reads the screen buffer). After su/ssh inside the
+        // session, both the tracked directories and the SFTP/local read identity are wrong — the
+        // context-menu item is already disabled then, this guards every other invocation path.
+        boolean foreignSession =
+            terminalTab.getTerminalView().isForeignSessionActive(resolvedContext);
         if (contextConnector instanceof SshTtyConnector connector
             && connector.isConnected()
             && connector.getSession() != null) {
             String workingDirectory = resolvedContext.workingDirectory() != null && !resolvedContext.workingDirectory().isBlank()
                 ? resolvedContext.workingDirectory()
                 : connector.getCurrentRemoteDirectory();
-            runTerminalTextFileLoadTask(selectedFileName, () ->
-                readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName),
+            runTerminalTextFileLoadTask(selectedFileName, () -> {
+                if (foreignSession) {
+                    throw new TerminalTextFileLoadException(
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                }
+                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName);
+            },
                 remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
             return;
         }
@@ -6191,6 +6201,10 @@ public class MainWindow {
             String homeDirectory = localConnector.getHomeRemoteDirectory();
             runTerminalTextFileLoadTask(selectedFileName,
                 () -> {
+                    if (foreignSession) {
+                        throw new TerminalTextFileLoadException(
+                            TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                    }
                     // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
                     // prompt-derived directory (null whenever the prompt shows only the folder basename,
                     // the macOS zsh default). Native Windows shells use their absolute prompt path. A
@@ -6596,6 +6610,7 @@ public class MainWindow {
                 case UNMAPPABLE_WORKING_DIRECTORY ->
                     I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", remotePath);
                 case WORKING_DIRECTORY_UNKNOWN -> I18n.get("localShell.workingDirectoryUnavailable");
+                case FOREIGN_SESSION -> I18n.get("terminal.loadTextFile.foreignSession");
                 case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
             };
             showError(I18n.get("error.title"), message);
@@ -6620,6 +6635,7 @@ public class MainWindow {
         TOO_LARGE,
         UNMAPPABLE_WORKING_DIRECTORY,
         WORKING_DIRECTORY_UNKNOWN,
+        FOREIGN_SESSION,
         INVALID_SELECTION
     }
 

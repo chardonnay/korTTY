@@ -60,9 +60,28 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private final AtomicBoolean unresolvedWorkingDirectoryChange = new AtomicBoolean(false);
     private final LocalShellDirectoryChangeTracker directoryChangeTracker =
         new LocalShellDirectoryChangeTracker();
+    private final ShellSessionChangeTracker sessionChangeTracker = new ShellSessionChangeTracker();
+    // The configured command itself is a remote client (e.g. "ssh user@host"): the shell never
+    // runs locally, so local path resolution is wrong for the tab's whole lifetime.
+    private volatile boolean remoteClientShell;
+
+    private static volatile String cachedLocalHostName;
+    private static final AtomicBoolean localHostNameRequested = new AtomicBoolean(false);
 
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
+        directoryChangeTracker.setSubmittedLineListener(
+            new LocalShellDirectoryChangeTracker.SubmittedLineListener() {
+                @Override
+                public void onSubmittedLine(String line) {
+                    sessionChangeTracker.onSubmittedLine(line);
+                }
+
+                @Override
+                public void onEndOfFileOnEmptyLine() {
+                    sessionChangeTracker.onEndOfFileOnEmptyLine();
+                }
+            });
     }
 
     public ServerConnection getConnection() {
@@ -101,6 +120,9 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             cachedWorkingDirectory = null;
             unresolvedWorkingDirectoryChange.set(false);
             directoryChangeTracker.reset();
+            sessionChangeTracker.reset();
+            remoteClientShell = launchesRemoteClient(command);
+            requestLocalHostName();
 
             // Do not log any part of the user-configured command line: it is free-form and may
             // embed credentials in its arguments (e.g. sshpass -p, mysql -p) — CodeQL
@@ -477,6 +499,66 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 .orElse(false);
         } catch (UnsupportedOperationException | SecurityException e) {
             return false;
+        }
+    }
+
+    @Override
+    public boolean isForeignSessionSuspected() {
+        return remoteClientShell || sessionChangeTracker.isForeignSessionSuspected();
+    }
+
+    @Override
+    public void confirmNativeSessionIdentity() {
+        // Deliberately does not clear remoteClientShell: a tab whose command IS a remote client
+        // never becomes a local session, no matter what the prompt shows.
+        sessionChangeTracker.confirmNativeIdentity();
+    }
+
+    @Override
+    public String getExpectedSessionUser() {
+        return System.getProperty("user.name");
+    }
+
+    @Override
+    public String getExpectedSessionHost() {
+        return cachedLocalHostName;
+    }
+
+    /**
+     * True when the resolved command line launches a remote client (ssh, mosh, telnet, ...) instead
+     * of a local shell. Matches the basename of the first token with a {@code .exe} suffix stripped.
+     */
+    static boolean launchesRemoteClient(List<String> commandTokens) {
+        if (commandTokens == null || commandTokens.isEmpty()) {
+            return false;
+        }
+        String name = commandTokens.get(0).trim().toLowerCase(Locale.ROOT);
+        int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        if (slash >= 0) {
+            name = name.substring(slash + 1);
+        }
+        if (name.endsWith(".exe")) {
+            name = name.substring(0, name.length() - ".exe".length());
+        }
+        return switch (name) {
+            case "ssh", "slogin", "sshpass", "autossh", "mosh", "mosh-client", "telnet", "rlogin",
+                "plink" -> true;
+            default -> false;
+        };
+    }
+
+    /** Resolves the local host name once, off the hot path; the getter returns the cached value. */
+    private static void requestLocalHostName() {
+        if (localHostNameRequested.compareAndSet(false, true)) {
+            Thread resolver = new Thread(() -> {
+                try {
+                    cachedLocalHostName = java.net.InetAddress.getLocalHost().getHostName();
+                } catch (Exception e) {
+                    cachedLocalHostName = null;
+                }
+            }, "kortty-local-hostname-resolver");
+            resolver.setDaemon(true);
+            resolver.start();
         }
     }
 

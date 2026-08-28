@@ -81,4 +81,72 @@ class LocalShellDirectoryChangeTrackerTest {
         assertThat(tracker.accept("cd /tmp\r\n".getBytes(StandardCharsets.UTF_8))).isTrue();
         assertThat(tracker.accept("echo safe\r\n".getBytes(StandardCharsets.UTF_8))).isFalse();
     }
+
+    private static final class RecordingListener
+        implements LocalShellDirectoryChangeTracker.SubmittedLineListener {
+        private final java.util.List<String> lines = new java.util.ArrayList<>();
+        private int endOfFileCount;
+
+        @Override
+        public void onSubmittedLine(String line) {
+            lines.add(line);
+        }
+
+        @Override
+        public void onEndOfFileOnEmptyLine() {
+            endOfFileCount++;
+        }
+    }
+
+    @Test
+    void listenerReceivesTheAssembledLineAfterEdits() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        RecordingListener listener = new RecordingListener();
+        tracker.setSubmittedLineListener(listener);
+        tracker.accept("ssX".getBytes(StandardCharsets.UTF_8));
+        tracker.accept(new byte[] {'\b', 'h', ' '});
+        tracker.accept("host\r".getBytes(StandardCharsets.UTF_8));
+        assertThat(listener.lines).containsExactly("ssh host");
+    }
+
+    @Test
+    void listenerReceivesPastedMultiLineInputOnSubmit() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        RecordingListener listener = new RecordingListener();
+        tracker.setSubmittedLineListener(listener);
+        tracker.accept("\u001b[200~echo first\nssh host\u001b[201~".getBytes(StandardCharsets.UTF_8));
+        assertThat(listener.lines).isEmpty();
+        tracker.accept(new byte[] {'\r'});
+        assertThat(listener.lines).containsExactly("echo first\nssh host");
+    }
+
+    @Test
+    void ctrlDOnEmptyLineNotifiesEndOfFile() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        RecordingListener listener = new RecordingListener();
+        tracker.setSubmittedLineListener(listener);
+        tracker.accept(new byte[] {0x04});
+        assertThat(listener.endOfFileCount).isEqualTo(1);
+    }
+
+    @Test
+    void ctrlDInTheMiddleOfALineIsIgnored() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        RecordingListener listener = new RecordingListener();
+        tracker.setSubmittedLineListener(listener);
+        tracker.accept("cat file".getBytes(StandardCharsets.UTF_8));
+        tracker.accept(new byte[] {0x04});
+        assertThat(listener.endOfFileCount).isEqualTo(0);
+    }
+
+    @Test
+    void ctrlUClearsTheLineBeforeTheListenerSeesIt() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        RecordingListener listener = new RecordingListener();
+        tracker.setSubmittedLineListener(listener);
+        tracker.accept("ssh host".getBytes(StandardCharsets.UTF_8));
+        tracker.accept(new byte[] {0x15});
+        tracker.accept("ls\r".getBytes(StandardCharsets.UTF_8));
+        assertThat(listener.lines).containsExactly("ls");
+    }
 }
