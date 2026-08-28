@@ -280,6 +280,11 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : getOwner();
     }
 
+    /** The AI profile this analysis was produced with; {@code null} means the default profile. */
+    String activeProfileId() {
+        return activeProfileId;
+    }
+
     void closeAfterApply() {
         closeDialogOrHostTab();
     }

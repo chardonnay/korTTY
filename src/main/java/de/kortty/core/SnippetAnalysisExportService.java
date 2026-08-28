@@ -245,8 +245,10 @@ public final class SnippetAnalysisExportService {
             + ".chip{display:inline-block;background:rgba(59,130,246,0.14);color:#1d4ed8;border-radius:999px;"
             + "padding:1px 9px;margin:2px 4px 2px 0;font-size:0.9em;}"
             + "h2{font-size:1.15em;margin:26px 0 10px;}"
-            + "h2.sec-security{color:#e5484d;} h2.sec-optimization{color:#d97706;}"
-            + "h2.sec-design{color:#8b5cf6;} h2.sec-dependencies{color:#0d9488;}"
+            + "h2.sec-security{color:" + AnalysisCategoryVisuals.printColorHex("security")
+            + ";} h2.sec-optimization{color:" + AnalysisCategoryVisuals.printColorHex("optimization")
+            + ";} h2.sec-design{color:" + AnalysisCategoryVisuals.printColorHex("design")
+            + ";} h2.sec-dependencies{color:" + AnalysisCategoryVisuals.printColorHex("dependencies") + ";}"
             + ".sec-ic{width:.95em;height:.95em;fill:currentColor;vertical-align:-.13em;margin-right:6px;}"
             + ".count{color:#9ca3af;font-weight:400;font-size:0.8em;}"
             + ".summary{background:#f3f4f6;border-radius:8px;padding:12px 14px;margin-bottom:6px;white-space:pre-wrap;}"
@@ -274,16 +276,9 @@ public final class SnippetAnalysisExportService {
         };
     }
 
-    /** Inline-SVG section glyph (coloured via CSS {@code currentColor}); see the note in the dialog's twin. */
+    /** Inline-SVG section glyph, coloured via CSS {@code currentColor}. */
     private static String sectionIcon(String category) {
-        String path = switch (category) {
-            case "security" -> "M8 1.3 13.5 3.3V7.6C13.5 10.8 11.2 13.4 8 14.4 4.8 13.4 2.5 10.8 2.5 7.6V3.3Z";
-            case "optimization" -> "M9 1 4 8.5H7L6.5 15 12 6.5H8.5L9 1Z";
-            case "dependencies" -> "M8 1.4 13.6 4.2V9.8L8 12.6 2.4 9.8V4.2Z";
-            default -> "M8 1.5C11 5 13 7.5 13 10A5 5 0 0 1 3 10C3 7.5 5 5 8 1.5Z";
-        };
-        return "<svg class=\"sec-ic\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\""
-            + path + "\"/></svg>";
+        return AnalysisCategoryVisuals.iconSvg(category);
     }
 
     // ---- Markdown ------------------------------------------------------------------------------
@@ -522,12 +517,7 @@ public final class SnippetAnalysisExportService {
     }
 
     private static Color sectionColor(String category) {
-        return switch (category) {
-            case "security" -> new Color(0xe5, 0x48, 0x4d);
-            case "optimization" -> new Color(0xd9, 0x77, 0x06);
-            case "dependencies" -> new Color(0x0d, 0x94, 0x88);
-            default -> new Color(0x8b, 0x5c, 0xf6);
-        };
+        return Color.decode(AnalysisCategoryVisuals.printColorHex(category));
     }
 
     private static Color sectionColorForSeverity(String severity) {

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AnalysisCategoryVisuals;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import javafx.application.Platform;
@@ -208,32 +209,20 @@ final class SnippetAiDialogSupport {
 
     /** Accent colour for an analysis section/category (security, optimization, design, dependencies). */
     static String sectionColor(String category) {
-        return switch (category != null ? category : "") {
-            case "security" -> "#e5484d";
-            case "optimization" -> "#f59e0b";
-            case "dependencies" -> "#14b8a6";
-            default -> "#8b5cf6"; // design / catch-all
-        };
+        return AnalysisCategoryVisuals.colorHex(category);
     }
 
     /**
      * A small inline-SVG glyph for an analysis category, coloured via CSS {@code currentColor} (style the
-     * surrounding element). Inline SVG instead of emoji because the WebView's default fonts cannot render
-     * the supplementary-plane emoji — they show up as replacement boxes.
+     * surrounding element).
      */
     static String sectionIconSvg(String category) {
-        return "<svg class=\"sec-ic\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\""
-            + sectionIconPath(category) + "\"/></svg>";
+        return AnalysisCategoryVisuals.iconSvg(category);
     }
 
     /** SVG path shared by the HTML reports and native JavaFX progress rows. */
     static String sectionIconPath(String category) {
-        return switch (category != null ? category : "") {
-            case "security" -> "M8 1.3 13.5 3.3V7.6C13.5 10.8 11.2 13.4 8 14.4 4.8 13.4 2.5 10.8 2.5 7.6V3.3Z";
-            case "optimization" -> "M9 1 4 8.5H7L6.5 15 12 6.5H8.5L9 1Z";
-            case "dependencies" -> "M8 1.4 13.6 4.2V9.8L8 12.6 2.4 9.8V4.2Z";
-            default -> "M8 1.5C11 5 13 7.5 13 10A5 5 0 0 1 3 10C3 7.5 5 5 8 1.5Z"; // design / catch-all
-        };
+        return AnalysisCategoryVisuals.iconPath(category);
     }
 
     /**
