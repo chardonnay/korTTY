@@ -10,6 +10,7 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Terminal
 
+- **Open in Snippet Editor no longer resolves the wrong path after a user switch** — after switching identity inside a session, with `su - root` for example, or an `ssh` typed into a local shell, the context-menu entry resolved a selected file name against the original login's directories and loaded nothing, or a wrong same-named file. The entry is now greyed out while the session runs as a different identity and re-enables on its own once the prompt shows the original user again. See [Local shell tabs](../features/terminal.md#local-shell-tabs).
 - **A split no longer asks again for the reason of the connection** — when a server wants a reason for the operation, as a CyberArk-style jump host does, every split of a tab opened that dialog again although the reason had been given when the tab was opened. korTTY now sends the answer already given in that tab. It is still sent rather than skipped, because a server that asks for a reason closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, because a ticket number has expired in the meantime for example, korTTY drops it and asks again. See [Split-screen with broadcast](../features/terminal.md#split-operations).
 
 !!! note "Earlier releases"
