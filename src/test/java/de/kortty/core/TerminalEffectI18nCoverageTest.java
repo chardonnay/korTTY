@@ -13,7 +13,6 @@ class TerminalEffectI18nCoverageTest {
     private static final List<String> BUNDLES = List.of(
             "messages.properties",
             "messages_de.properties",
-            "messages_en.properties",
             "messages_it.properties",
             "messages_es.properties",
             "messages_pt.properties",

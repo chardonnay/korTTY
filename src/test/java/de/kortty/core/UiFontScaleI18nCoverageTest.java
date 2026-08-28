@@ -10,14 +10,13 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * A missing translation for the UI font size does not fail anywhere — the label just renders as its
- * raw key, in an Appearance tab most users open exactly once. This guards all nine bundles.
+ * raw key, in an Appearance tab most users open exactly once. This guards all eight bundles.
  */
 class UiFontScaleI18nCoverageTest {
 
     private static final List<String> BUNDLES = List.of(
         "messages.properties",
         "messages_de.properties",
-        "messages_en.properties",
         "messages_it.properties",
         "messages_es.properties",
         "messages_pt.properties",
@@ -61,7 +60,7 @@ class UiFontScaleI18nCoverageTest {
             "settings.appearance.uiFontScale.auto");
 
         for (String bundle : BUNDLES) {
-            if (bundle.equals("messages.properties") || bundle.equals("messages_en.properties")) {
+            if (bundle.equals("messages.properties")) {
                 continue;
             }
             Properties localized = loadBundle(bundle);

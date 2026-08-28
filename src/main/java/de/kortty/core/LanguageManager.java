@@ -41,6 +41,14 @@ public class LanguageManager {
             }
             return super.newBundle(baseName, locale, format, loader, reload);
         }
+
+        @Override
+        public Locale getFallbackLocale(String baseName, Locale locale) {
+            // English has no messages_en.properties overlay — it lives in the base bundle.
+            // The default fallback would detour through the JVM's default locale first,
+            // handing an English UI the system language's bundle instead of the base one.
+            return null;
+        }
     };
 
     private static LanguageManager instance;

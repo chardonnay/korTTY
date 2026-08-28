@@ -19,7 +19,7 @@ generated. Do **not** commit unless asked.
 ## Inputs
 - `app-docs/doc-manifest.yaml` — the page ↔ code ↔ i18n map (the contract).
 - `build.gradle.kts:12` — the canonical version.
-- `src/main/resources/i18n/messages_en.properties` — canonical labels/keys.
+- `src/main/resources/i18n/messages.properties` — canonical labels/keys (English base bundle).
 
 ## Procedure
 
@@ -31,7 +31,7 @@ git log --oneline <last_synced_ref>..HEAD -- <owns_code paths>
 ```
 Also diff the i18n file and keep hunks whose key matches the page's `owns_i18n`:
 ```bash
-git diff <last_synced_ref> HEAD -- src/main/resources/i18n/messages_en.properties
+git diff <last_synced_ref> HEAD -- src/main/resources/i18n/messages.properties
 ```
 A page is **dirty** if either diff is non-empty. Build the worklist and report it
 before editing.

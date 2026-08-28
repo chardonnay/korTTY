@@ -23,7 +23,6 @@ class GuideTranslationI18nCoverageTest {
 
     private static final List<String> BUNDLES = List.of(
         "/i18n/messages.properties",
-        "/i18n/messages_en.properties",
         "/i18n/messages_de.properties",
         "/i18n/messages_es.properties",
         "/i18n/messages_fr.properties",

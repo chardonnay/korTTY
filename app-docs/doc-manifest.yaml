@@ -13,7 +13,7 @@ schema_version: 1
 version: "2.13.1"
 
 coverage:
-  i18n_source: src/main/resources/i18n/messages_en.properties
+  i18n_source: src/main/resources/i18n/messages.properties
   required_prefixes: ["settings.", "menu."]
   # Suffixes that mark chrome/strings, not documentable features.
   ignore_suffixes:

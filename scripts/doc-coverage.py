@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the korTTY guide documents every user-facing setting and menu item.
 
-Reads app-docs/doc-manifest.yaml and src/main/resources/i18n/messages_en.properties
+Reads app-docs/doc-manifest.yaml and src/main/resources/i18n/messages.properties
 and asserts every feature `settings.*` / `menu.*` key (after dropping chrome
 suffixes and explicit ignores) is "owned" by exactly one EXISTING doc page via an
 `owns_i18n` prefix.
@@ -35,11 +35,11 @@ MANIFEST = REPO_ROOT / "app-docs" / "doc-manifest.yaml"
 def load_feature_keys(cfg: dict) -> list[str]:
     """The settings./menu. keys a page must document.
 
-    Reads the union of `i18n_source` and the base bundle, for the reason spelled out in
-    `load_all_keys`: `messages.properties` is the English source of truth and
-    `messages_en.properties` only overlays part of it. Reading the overlay alone hid 53
-    settings/menu keys (the File Browser view menu, the SFTP/Editor/Snippet Editor tabs,
-    the master-password dialog, ...) from this gate while it still reported 100%.
+    Reads the union of `i18n_source` and the base bundle (deduplicated when they are the
+    same file). `messages.properties` is the English source of truth; the union guards
+    against a manifest that points `i18n_source` at a partial overlay — the removed
+    `messages_en.properties` overlay once hid 53 settings/menu keys from this gate while
+    it still reported 100%.
     """
     prefixes = tuple(cfg.get("required_prefixes", []))
     ignore_suffixes = tuple(cfg.get("ignore_suffixes", []))
@@ -77,9 +77,9 @@ def load_all_keys(cfg: dict) -> set[str]:
     (settings./menu.), so validating owned prefixes against it reported every legitimate
     feature prefix (recording., tunnel., theme., project., ...) as stale by construction.
 
-    Also reads the base bundle, not just `i18n_source`. `messages.properties` is the English
-    source of truth — `ResourceBundle` falls back to it — while `messages_en.properties` is a
-    partial overlay, so a few hundred keys exist solely in the base bundle.
+    Also reads the base bundle, not just `i18n_source`, so the gate stays complete even if
+    the manifest ever points `i18n_source` at a partial overlay again. `messages.properties`
+    is the English source of truth — `ResourceBundle` falls back to it.
     """
     keys: set[str] = set()
     for src in _key_sources(cfg):
