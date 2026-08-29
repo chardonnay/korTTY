@@ -33,6 +33,15 @@ public class Snippet {
 
     @XmlElement
     private String description;
+
+    /**
+     * The language this snippet's comments and messages are written in, as answered by the user
+     * when korTTY could not work it out on its own. Remembered so the question is asked once per
+     * snippet rather than before every AI action that rewrites its code.
+     *
+     * <p>{@code null} means "never asked, or detection was clear" — the detector decides afresh.</p>
+     */
+    private String codeTextLanguageCode;
     
     @XmlElementWrapper(name = "tags")
     @XmlElement(name = "tag")
@@ -100,6 +109,14 @@ public class Snippet {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getCodeTextLanguageCode() {
+        return codeTextLanguageCode;
+    }
+
+    public void setCodeTextLanguageCode(String codeTextLanguageCode) {
+        this.codeTextLanguageCode = codeTextLanguageCode;
+    }
     
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags != null ? tags : new ArrayList<>(); }

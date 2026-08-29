@@ -23,7 +23,8 @@ final class AiPromptPresetService implements AiPromptService, AiSkillUsageTracke
         AiRequest optimized = new AiRequest(
             request.action(), request.selectedText(), request.connectionDisplayName(),
             request.responseLanguageCode(), request.userPrompt(), request.conversationContext(),
-            request.includeAiSkills(), preset, request.retrievedContext());
+            request.includeAiSkills(), preset, request.retrievedContext(),
+            request.codeTextLanguage());
         return delegate.execute(optimized);
     }
 
