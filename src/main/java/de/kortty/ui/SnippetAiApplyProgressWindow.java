@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsage;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -12,7 +13,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -29,7 +29,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.FillRule;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Modality;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -596,6 +595,16 @@ final class SnippetAiApplyProgressWindow {
         group.getChildren().setAll(header, bar);
     }
 
+    /**
+     * The user-facing text for one work item. Hardening rules arrive as the English prompt sentence
+     * that is sent to the model, so they are shown through their own localized option label instead;
+     * an analysis finding already carries a title in the user's language and is shown as it is.
+     */
+    private static String describeWorkItem(SnippetAiWorkflowSupport.ImprovementApplyWorkItem item) {
+        String labelKey = WorkflowScriptSupport.ruleLabelKey(item.label());
+        return labelKey != null ? I18n.get(labelKey) : item.label();
+    }
+
     private static String localizedCategory(
             SnippetAiWorkflowSupport.ImprovementApplyWorkItem item,
             SnippetAiWorkflowSupport.ImprovementApplyPhase phase) {
@@ -604,6 +613,9 @@ final class SnippetAiApplyProgressWindow {
         }
         if (phase == SnippetAiWorkflowSupport.ImprovementApplyPhase.INPUT_HARDENING) {
             return I18n.get("snippets.ai.analysis.progress.category.inputHardening");
+        }
+        if (phase == SnippetAiWorkflowSupport.ImprovementApplyPhase.MIGRATION) {
+            return I18n.get("snippets.ai.analysis.progress.migration");
         }
         return switch (item.category()) {
             case "security" -> I18n.get("snippets.ai.analysis.section.security");
@@ -657,6 +669,7 @@ final class SnippetAiApplyProgressWindow {
                 progress.lastRequirement(),
                 progress.phaseRequirementCount());
             case ANALYSIS_ITEMS -> I18n.get("snippets.ai.analysis.progress.improvements");
+            case MIGRATION -> I18n.get("snippets.ai.analysis.progress.migration");
         };
     }
 
@@ -665,9 +678,6 @@ final class SnippetAiApplyProgressWindow {
         node.setManaged(visible);
     }
 
-    private static double clamp(double value, double minimum, double maximum) {
-        return Math.max(minimum, Math.min(value, Math.max(minimum, maximum)));
-    }
 
     private static void runOnFx(Runnable action) {
         if (Platform.isFxApplicationThread()) {
@@ -705,7 +715,7 @@ final class SnippetAiApplyProgressWindow {
             if (categoryIcon != null) {
                 identifierLine.getChildren().add(categoryIcon);
             }
-            Label text = new Label(item.label());
+            Label text = new Label(describeWorkItem(item));
             text.setWrapText(true);
             text.setTextOverrun(OverrunStyle.ELLIPSIS);
             text.setEllipsisString("…");

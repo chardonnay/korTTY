@@ -40,6 +40,7 @@ public final class AiInternetPromptSupport {
                 ANALYZE_SNIPPET_CODE,
                 APPLY_SNIPPET_IMPROVEMENTS,
                 IMPROVE_SNIPPET_CODE,
+                MIGRATE_SNIPPET_LANGUAGE,
                 ASSIST_SNIPPET_CODE,
                 SECURITY_REVIEW_SNIPPET_CODE,
                 APPLY_SNIPPET_SECURITY_FIXES,

@@ -2,6 +2,9 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.AiLanguageSupport;
+import de.kortty.core.ScriptLanguageMixSupport.LanguageMix;
+import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAnalysisExportService;
 import de.kortty.core.WorkflowScriptSupport;
@@ -81,14 +84,21 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                                  List<SnippetAiResponseSupport.ScriptDependency> dependencies,
                                  EnumSet<HardeningOption> hardening,
                                  InputHardeningConfig inputHardening,
-                                 String headerText) {
+                                 String headerText,
+                                 SnippetAiWorkflowSupport.MigrationPlan migration,
+                                 String codeTextLanguageCode) {
         public ApplySelection {
             inputHardening = inputHardening != null ? inputHardening : InputHardeningConfig.disabled();
         }
 
+        /** A language unification alone is a complete, appliable selection. */
+        public boolean migrates() {
+            return migration != null && !migration.isNoOp();
+        }
+
         public boolean isEmpty() {
             return improvements.isEmpty() && dependencies.isEmpty() && hardening.isEmpty()
-                && !inputHardening.isEnabled() && !hasHeader();
+                && !inputHardening.isEnabled() && !hasHeader() && !migrates();
         }
 
         /** {@code true} when a script header should be prepended, independent of any AI-applied fixes. */
@@ -117,6 +127,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
     private final Map<String, SnippetAiResponseSupport.ScriptDependency> dependenciesById = new LinkedHashMap<>();
     private final HardeningOptionsSelector hardeningSelector = new HardeningOptionsSelector();
     private final InputHardeningSelector inputHardeningSelector = new InputHardeningSelector();
+    private final TargetLanguageSelector migrationSelector = new TargetLanguageSelector(false);
+    private final ComboBox<AiLanguageSupport.LanguageOption> textLanguageCombo = new ComboBox<>();
     private final ScriptHeaderChooser headerChooser = new ScriptHeaderChooser();
 
     private final WebView findingsView = new WebView();
@@ -136,7 +148,9 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramMermaidSupplier,
             String activeProfileId,
             Consumer<String> onRerun,
-            SkillContext skillContext) {
+            SkillContext skillContext,
+            LanguageMix languageMix,
+            String codeTextLanguageCode) {
 
         this.analysis = analysis != null ? analysis : new SnippetAiResponseSupport.ScriptAnalysis("", List.of(), List.of());
         this.scriptName = scriptName;
@@ -144,6 +158,8 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         this.includedSkillNames = skillContext != null ? includedSkillNames(skillContext) : List.of();
         this.inputHardeningSupported = WorkflowScriptSupport.supportsInputHardeningForSnippet(snippetLanguage);
         this.inputHardeningSelector.setSupported(inputHardeningSupported);
+        this.migrationSelector.setDetectedMix(languageMix);
+        initTextLanguageCombo(codeTextLanguageCode);
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
 
@@ -209,8 +225,16 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
                 skillContext.autoSelected(),
                 skillContext.onSelectionChanged()));
         }
+        HBox textLanguageRow = new HBox(8,
+            new Label(I18n.get("snippets.textLanguage") + ":"), textLanguageCombo);
+        textLanguageRow.setAlignment(Pos.CENTER_LEFT);
         root.getChildren().addAll(buildToolbar(activeProfileId, onRerun), splitPane, headerChooser,
-            buildHardeningPane(), buildInputHardeningPane());
+            textLanguageRow, buildHardeningPane(), buildInputHardeningPane());
+        // Only added when there is something to offer. Toggling `managed` inside a ScrollPane does
+        // not trigger a relayout, so an empty pane would leave a visible gap instead of vanishing.
+        if (migrationSelector.hasAnythingToOffer()) {
+            root.getChildren().add(buildMigrationPane());
+        }
         root.setPadding(new Insets(14));
 
         // The window (or, in tab mode, the main window) can be made shorter than this stack needs.
@@ -424,14 +448,14 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         String headerText = headerChooser.resolveHeaderText();
         if (!pageReady) {
             return new ApplySelection(improvements, dependencies, selectedHardening(),
-                inputHardeningSelector.currentConfig(), headerText);
+                inputHardeningSelector.currentConfig(), headerText, migrationSelector.buildPlan(), selectedCodeTextLanguageCode());
         }
         Object result;
         try {
             result = findingsView.getEngine().executeScript("window.korttyAnalysis.getSelected();");
         } catch (RuntimeException ignored) {
             return new ApplySelection(improvements, dependencies, selectedHardening(),
-                inputHardeningSelector.currentConfig(), headerText);
+                inputHardeningSelector.currentConfig(), headerText, migrationSelector.buildPlan(), selectedCodeTextLanguageCode());
         }
         if (result instanceof String value && !value.isBlank()) {
             for (String token : value.split(",")) {
@@ -455,7 +479,7 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             }
         }
         return new ApplySelection(improvements, dependencies, selectedHardening(),
-                inputHardeningSelector.currentConfig(), headerText);
+                inputHardeningSelector.currentConfig(), headerText, migrationSelector.buildPlan(), selectedCodeTextLanguageCode());
     }
 
     private TitledPane buildHardeningPane() {
@@ -506,6 +530,35 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
         return pane;
     }
 
+    /**
+     * The collapsible "Language unification" panel. What it actually offers is decided inside
+     * {@link TargetLanguageSelector#setDetectedMix} — a pipeline that embeds Bash by design gets no
+     * migration suggestion, only the (never preselected) platform conversion.
+     */
+    private TitledPane buildMigrationPane() {
+        Label header = new Label();
+        ThemeCssSupport.ThemeColors colors = SnippetAiDialogSupport.resolveThemeColors();
+        String foreground = colors != null ? colors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG;
+        header.setStyle("-fx-font-weight: bold; -fx-text-fill: " + foreground + ";");
+        updateMigrationHeader(header);
+        // The panel starts collapsed, so the count in its title is the only thing that tells the user
+        // a migration is armed before they press Apply selected.
+        migrationSelector.setOnSelectionChanged(() -> updateMigrationHeader(header));
+
+        TitledPane pane = new TitledPane();
+        pane.setText(null);
+        pane.setGraphic(header);
+        pane.setContent(migrationSelector);
+        // Rewriting the script into another language is a bigger step than any hardening option, so
+        // the panel starts collapsed and is never pre-armed by merely opening the analysis.
+        pane.setExpanded(false);
+        return pane;
+    }
+
+    private void updateMigrationHeader(Label header) {
+        header.setText(I18n.get("ai.migration.title") + " (" + migrationSelector.selectedCount() + ")");
+    }
+
     /** Titles the input-hardening panel with a live "(N)" count of the effectively active sub-options. */
     private void updateInputHardeningHeader(Label header) {
         header.setText(I18n.get("ai.inputHardening.title") + " (" + inputHardeningSelector.selectedCount() + ")");
@@ -553,6 +606,34 @@ public class SnippetCodeAnalysisDialog extends ThemeAwareDialog<SnippetCodeAnaly
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * The language the applied code's comments and messages are written in. It is deliberately a
+     * separate choice from the report language: the report follows the application language, while
+     * the code keeps whatever the user maintains the script in.
+     */
+    private void initTextLanguageCombo(String codeTextLanguageCode) {
+        textLanguageCombo.setId("snippet-analysis-text-language");
+        textLanguageCombo.setPrefWidth(260);
+        textLanguageCombo.setTooltip(new Tooltip(I18n.get("snippets.ai.language.tooltip")));
+        // Same construction as the editor's picker: "keep the script's language" leads the list and
+        // is the default; everything below it is a deliberate conversion.
+        textLanguageCombo.getItems().add(new AiLanguageSupport.LanguageOption(
+            AiLanguageSupport.AUTO_CODE, I18n.get("snippets.ai.language.auto")));
+        textLanguageCombo.getItems().addAll(AiLanguageSupport.buildAvailableLanguageOptions(
+            AiLanguageSupport.isAutomatic(codeTextLanguageCode) ? null : codeTextLanguageCode));
+        AiLanguageSupport.LanguageOption selected =
+            AiLanguageSupport.findOption(textLanguageCombo.getItems(), codeTextLanguageCode);
+        if (selected != null && !textLanguageCombo.getItems().contains(selected)) {
+            textLanguageCombo.getItems().add(selected);
+        }
+        textLanguageCombo.getSelectionModel().select(selected);
+    }
+
+    private String selectedCodeTextLanguageCode() {
+        AiLanguageSupport.LanguageOption selected = textLanguageCombo.getSelectionModel().getSelectedItem();
+        return selected != null ? selected.code() : null;
     }
 
     private EnumSet<HardeningOption> selectedHardening() {

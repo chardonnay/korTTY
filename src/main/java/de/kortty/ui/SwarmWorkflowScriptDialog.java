@@ -113,6 +113,9 @@ public final class SwarmWorkflowScriptDialog {
         languageCombo.valueProperty().addListener((obs, oldValue, newValue) -> updateInputHardeningSupport.run());
         updateInputHardeningSupport.run();
 
+        CheckBox singleLanguageCheck = new CheckBox(I18n.get("ai.workflow.singleLanguage"));
+        singleLanguageCheck.setTooltip(new Tooltip(I18n.get("ai.workflow.singleLanguage.tooltip")));
+
         MonacoEditorPane preview = new MonacoEditorPane();
         preview.setEditable(true);
         preview.setWrapText(false);
@@ -175,7 +178,8 @@ public final class SwarmWorkflowScriptDialog {
                 query != null ? query : "", profile != null ? profile.getName() : "");
             WorkflowScriptGenerator.SwarmRequest request = new WorkflowScriptGenerator.SwarmRequest(
                 language, WorkflowScriptSupport.HardeningOption.defaults(), selected,
-                extraInstructions, facts, null, inputHardeningSelector.currentConfig());
+                extraInstructions, facts, null, inputHardeningSelector.currentConfig(),
+                singleLanguageCheck.isSelected());
             WorkflowScriptGenerator.SwarmRunExportData data = new WorkflowScriptGenerator.SwarmRunExportData(
                 profile != null ? profile.getId() : null,
                 profile != null ? profile.getName() : null,
@@ -239,7 +243,7 @@ public final class SwarmWorkflowScriptDialog {
         });
 
         HBox controls = new HBox(8,
-            new Label(I18n.get("ai.workflow.language")), languageCombo,
+            new Label(I18n.get("ai.workflow.language")), languageCombo, singleLanguageCheck,
             generateButton, copyButton, saveSnippetButton, busyIndicator, status);
         controls.setAlignment(Pos.CENTER_LEFT);
         Region instructionsSpacer = new Region();

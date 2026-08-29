@@ -2035,6 +2035,9 @@ public class AiResultTab extends Tab {
             request -> translateSnippetSelectionText(profile, aiService, request),
             request -> describeSnippet(profile, aiService, request),
             request -> generateAlternativeSolutions(profile, aiService, request),
+            // completion, review, improvement, migration, assistant, security report/fix,
+            // one-liner, diagram, analysis, improvement-apply: the AI result tab offers none of them.
+            null,
             null,
             null,
             null,

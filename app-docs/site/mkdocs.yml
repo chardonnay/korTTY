@@ -160,6 +160,7 @@ nav:
               - reference/settings/snippet-editor/index.md
               - reference/hardening-options.md
               - reference/input-hardening.md
+              - reference/language-migration.md
   - Features:
       - features/connections.md
       - features/terminal.md

@@ -198,6 +198,23 @@ public final class AiPromptBuilder {
                 + codeTextLanguageRule(request, languageCode) + " "
                 + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
         }
+        if (request != null && request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
+            return "You migrate a snippet so that it is written in one single programming language. "
+                + "Return exactly one JSON object with keys replacementLines, summary and notes. "
+                + COMPLETE_FULL_REPLACEMENT_RULE + " "
+                + "Preserve the observable behavior exactly; a migration is a rewrite, not a redesign. "
+                + "The context states the scope and the target. Follow it literally and change nothing outside it. "
+                + "Within the migrated scope no foreign language may remain: no heredoc fed to another "
+                + "interpreter, no -e/-c/-r one-liner of another language, no inline awk program. "
+                + "Calling an external program is not a foreign language and stays as a plain process call. "
+                + "notes is an array of short sentences naming everything that could not be carried over and "
+                + "what the user must do by hand; use an empty array when nothing was lost. "
+                + "Never drop a construct silently and never invent a replacement for one that has no "
+                + "equivalent — report it in notes instead. "
+                + "Write summary and every note in language code " + languageCode + ". "
+                + codeTextLanguageRule(request, languageCode) + " "
+                + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
+        }
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return "You analyze a code snippet in depth for a developer. "
                 + "Return exactly one JSON object with keys summary, dependencies, and improvements. "
@@ -408,6 +425,14 @@ public final class AiPromptBuilder {
                     + "Put every implemented mandatory requirement id in the compact implementedRequirements array and use changes only for selected analysis items; "
                     + "each changes anchor must be a line copied verbatim from replacementLines. "
                     + "Do not add entries for language-only normalization.\n");
+            case MIGRATE_SNIPPET_LANGUAGE -> prompt.append(
+                "Migrate the snippet as described by the migration scope in the context.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacementLines\": [\"#!/usr/bin/env ...\", \"next source line\", \"\"], "
+                    + "\"summary\": \"...\", \"notes\": [\"<what could not be carried over>\"] }\n"
+                    + COMPLETE_FULL_REPLACEMENT_RULE + "\n"
+                    + "Keep the behavior identical. Report anything not carried over in notes instead of "
+                    + "omitting it silently or inventing a substitute.\n");
             case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
                 "Convert the snippet into a compact one-liner command.\n"
                     + "Return exactly one JSON object with this shape:\n"

@@ -3205,6 +3205,14 @@ tasks.register<JavaExec>("inputHardeningSelectorSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("targetLanguageSelectorSmoke") {
+    group = "verification"
+    description = "Verifies the language-migration panel never offers a whole-script migration for a pipeline and never preselects a platform conversion."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TargetLanguageSelectorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     group = "verification"
     description = "Moves focus into AI Manager content and verifies the selected primary tab remains visibly marked."
