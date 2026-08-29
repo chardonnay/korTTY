@@ -136,7 +136,7 @@ Wenn die **vollständige Codeanalyse** startet, verwirft KorTTY alle noch auf de
 
 ### AI Codeaktionen
 
-The **AI Code** menu groups the actions that read or rewrite the code itself:
+Das Menü **AI-Code** gruppiert die Aktionen, die den Code selbst lesen oder neu schreiben:
 
 - **AI Complete** / **Auto AI Complete** – Code-Vervollständigung am Cursor (siehe [AI Code-Vervollständigungen](#ai-codevervollstandigungen) oben).
 - **Vollständige Codeanalyse** – Öffnet ein umfangreiches Analysefenster: eine Zusammenfassung der Funktionsweise des Skripts in einfacher Sprache, seine externen Abhängigkeiten, kategorisierte Verbesserungsvorschläge, die Sie ankreuzen und anwenden können, sowie ein automatisch generiertes Flussdiagramm. Siehe [Vollständige Codeanalyse](#vollstandige-code-analyse) unten.
@@ -144,7 +144,7 @@ The **AI Code** menu groups the actions that read or rewrite the code itself:
 - **Codekommentare optimieren** – Kommentiert den **ausgewählten** Codebereich: Die KI fügt mithilfe der spracheigenen Kommentarsyntax direkt über oder neben den Zeilen, zu denen sie gehören, Erklärungen dazu ein, was der Code tut und warum, und ersetzt veraltete oder irreführende Kommentare. Ausführbarer Code bleibt unberührt. Die Kommentare sind in der **Text-Sprache** des Herausgebers verfasst. Verfügbar im Menü **AI-Code** und im Kontextmenü des Editors auf eine Auswahl.
 - **Benutzerdefinierte Verbesserung…** – Schreibt den ausgewählten Codebereich gemäß einer von Ihnen eingegebenen Freitextanweisung neu. Es werden dieselben zwei optionalen Regelfelder angezeigt: [Härtungsoptionen](../reference/hardening-options.md), [Eingabe-Härtung](../reference/input-hardening.md). Wie bei *Robustheit verbessern* schreibt KorTTY das komplette Snippet neu, wenn eine Härtungsregel aktiv ist.
 - **Sicherheitsprüfung** – Erstellt einen Sicherheitsbericht. Wählen Sie die zu behebenden Ergebnisse aus; KorTTY wendet sie mit einer Vorher-/Nachher-Vorschau an, die hervorhebt, was sich geändert hat und warum. Siehe [Sicherheitscheck](#sicherheitsprufung) unten.
-- **Diagram** — Generates and saves a persisted Mermaid logical-structure flowchart for the snippet.
+- **Diagramm** – Erzeugt und speichert ein persistentes Mermaid-Flussdiagramm mit logischer Struktur für das Snippet.
 
 Das Editor-Kontextmenü bietet außerdem **AI Assistant…**, der einen Anweisungsdialog für die aktuelle Cursorposition öffnet: KorTTY sendet den vollständigen Snippet, den Cursor-Offset, die Zeile, die Spalte und Ihre Anweisung an das konfigurierte AI-Profil und zeigt das Ergebnis als Vorher/Nachher-Vorschau an.
 
