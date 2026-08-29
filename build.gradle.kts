@@ -3012,9 +3012,22 @@ val translateDocsMaskingTest = tasks.register<Exec>("translateDocsMaskingTest") 
     }
 }
 
+val backfillI18nKeysTest = tasks.register<Exec>("backfillI18nKeysTest") {
+    group = "verification"
+    description = "Runs the i18n backfill script's additions-only regression tests."
+    inputs.files("scripts/backfill_i18n_keys.py", "scripts/test_backfill_i18n_keys.py")
+    inputs.dir("src/main/resources/i18n")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_backfill_i18n_keys.py")
+    } else {
+        commandLine("python3", "scripts/test_backfill_i18n_keys.py")
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest, translateDocsMaskingTest)
+        guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
