@@ -50,6 +50,7 @@ final class SnippetAiAssistFactory {
             request -> completeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             request -> reviewSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             request -> improveSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> migrateSnippetLanguage(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             request -> assistSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             request -> reviewSnippetSecurity(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             request -> applySnippetSecurityFixes(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
@@ -325,7 +326,29 @@ final class SnippetAiAssistFactory {
             request.inputHardeningInstructions(),
             request.progressListener(),
             request.checkpointListener(),
-            request.resumeFrom());
+            request.resumeFrom(),
+            request.migration());
+    }
+
+    private static SnippetAiResponseSupport.LanguageMigration migrateSnippetLanguage(
+        MainWindow ownerWindow,
+        ServerConnection connection,
+        SnippetEditDialog.LanguageMigrationRequest request,
+        String connectionDisplayName,
+        SnippetAiRuntimeOptions options) throws Exception {
+
+        ResolvedProfile resolved = resolve(
+            ownerWindow, connection, AiAction.MIGRATE_SNIPPET_LANGUAGE,
+            request.aiProfileId(), options);
+        return SnippetAiWorkflowSupport.migrateSnippetLanguage(
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            request.plan(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
     }
 
     private static SnippetAiResponseSupport.CodeImprovement improveSnippetCode(
@@ -412,7 +435,8 @@ final class SnippetAiAssistFactory {
             connectionDisplayName,
             request.fallbackLanguageCode(),
             request.selectedFindings(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.migration());
     }
 
     private static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(

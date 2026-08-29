@@ -52,9 +52,18 @@ public final class WorkflowScriptGenerator {
                                 TerminalAgentActivityExportService.Run run, String detectedOs) {
     }
 
+    /** @param singleLanguage forbid embedded foreign-language parts (heredocs, -e/-c one-liners). */
     public record Request(ScriptLanguage language, EnumSet<WorkflowScriptSupport.HardeningOption> options,
                           String extraInstructions, HeaderFacts headerFacts, String headerOverride,
-                          WorkflowScriptSupport.InputHardeningConfig inputHardening) {
+                          WorkflowScriptSupport.InputHardeningConfig inputHardening,
+                          boolean singleLanguage) {
+
+        public Request(ScriptLanguage language, EnumSet<WorkflowScriptSupport.HardeningOption> options,
+                       String extraInstructions, HeaderFacts headerFacts, String headerOverride,
+                       WorkflowScriptSupport.InputHardeningConfig inputHardening) {
+            this(language, options, extraInstructions, headerFacts, headerOverride, inputHardening, false);
+        }
+
         public Request {
             inputHardening = inputHardening != null
                 ? inputHardening
@@ -131,6 +140,9 @@ public final class WorkflowScriptGenerator {
             : WorkflowScriptSupport.HeaderMode.CUSTOM;
         String systemPrompt = WorkflowScriptSupport.buildSystemPrompt(
             request.language(), request.options(), headerMode, request.inputHardening());
+        if (request.singleLanguage()) {
+            systemPrompt += WorkflowScriptSupport.singleLanguageRuleText(request.language());
+        }
         String userPrompt = WorkflowScriptSupport.buildUserPrompt(
             request.language(), request.headerFacts(), context, request.options(), request.extraInstructions(), headerMode);
 
@@ -194,7 +206,18 @@ public final class WorkflowScriptGenerator {
                                EnumSet<WorkflowScriptSupport.HardeningOption> hardening,
                                EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions,
                                String extraInstructions, HeaderFacts headerFacts, String headerOverride,
-                               WorkflowScriptSupport.InputHardeningConfig inputHardening) {
+                               WorkflowScriptSupport.InputHardeningConfig inputHardening,
+                               boolean singleLanguage) {
+
+        public SwarmRequest(ScriptLanguage language,
+                            EnumSet<WorkflowScriptSupport.HardeningOption> hardening,
+                            EnumSet<WorkflowScriptSupport.SwarmScriptOption> swarmOptions,
+                            String extraInstructions, HeaderFacts headerFacts, String headerOverride,
+                            WorkflowScriptSupport.InputHardeningConfig inputHardening) {
+            this(language, hardening, swarmOptions, extraInstructions, headerFacts, headerOverride,
+                inputHardening, false);
+        }
+
         public SwarmRequest {
             hardening = hardening != null
                 ? hardening.clone()
@@ -256,6 +279,9 @@ public final class WorkflowScriptGenerator {
 
         String systemPrompt = WorkflowScriptSupport.buildSwarmSystemPrompt(
             request.language(), request.hardening(), request.swarmOptions(), headerMode, request.inputHardening());
+        if (request.singleLanguage()) {
+            systemPrompt += WorkflowScriptSupport.singleLanguageRuleText(request.language());
+        }
         String userPrompt = WorkflowScriptSupport.buildSwarmUserPrompt(
             request.language(), request.headerFacts(), context, data.hosts(),
             request.swarmOptions(), request.extraInstructions(), headerMode);

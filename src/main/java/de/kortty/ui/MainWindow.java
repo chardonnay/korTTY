@@ -6139,6 +6139,7 @@ public class MainWindow {
             case COMPLETE_SNIPPET_CODE -> I18n.get("snippets.ai.code.complete");
             case REVIEW_SNIPPET_CODE, ANALYZE_SNIPPET_CODE, APPLY_SNIPPET_IMPROVEMENTS -> I18n.get("snippets.ai.code.review");
             case IMPROVE_SNIPPET_CODE -> I18n.get("snippets.ai.code.improve.custom");
+            case MIGRATE_SNIPPET_LANGUAGE -> I18n.get("snippets.ai.code.migrate");
             case ASSIST_SNIPPET_CODE -> I18n.get("snippets.ai.assistant.context");
             case SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES -> I18n.get("snippets.ai.security.title");
             case GENERATE_SNIPPET_ONE_LINER -> I18n.get("snippets.oneliner.compact");

@@ -4,7 +4,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -37,6 +39,10 @@ public final class WorkflowScriptSupport {
         // Windows batch has no shebang; the leading line is "@echo off" (see leadLine()).
         WINDOWS_CMD("bat", "Windows-CMD", ".cmd", null, false),
         APPLESCRIPT("applescript", "AppleScript", ".applescript", "#!/usr/bin/osascript", false),
+        // Migration-only targets: reachable as a language-migration target, not offered by the
+        // workflow-script generator (see generationTargets() / migrationTargets()).
+        JAVASCRIPT("javascript", "JavaScript", ".js", "#!/usr/bin/env node", false),
+        GROOVY("groovy", "Groovy", ".groovy", "#!/usr/bin/env groovy", false),
         ANSIBLE("yaml", "Ansible-Playbook", ".yml", null, true);
 
         private final String snippetLanguage;
@@ -80,6 +86,7 @@ public final class WorkflowScriptSupport {
             return switch (this) {
                 case WINDOWS_CMD -> "REM";
                 case APPLESCRIPT -> "--";
+                case JAVASCRIPT, GROOVY -> "//";
                 default -> "#";
             };
         }
@@ -112,9 +119,30 @@ public final class WorkflowScriptSupport {
                 case "powershell", "pwsh", "ps1", "ps" -> POWERSHELL;
                 case "windows-cmd", "windowscmd", "cmd", "bat", "batch" -> WINDOWS_CMD;
                 case "applescript", "osascript", "scpt" -> APPLESCRIPT;
+                case "javascript", "js", "node", "nodejs" -> JAVASCRIPT;
+                case "groovy" -> GROOVY;
                 case "ansible", "ansible-playbook", "ansible_yaml", "yaml", "yml", "playbook" -> ANSIBLE;
                 default -> BASH;
             };
+        }
+
+        /**
+         * The languages the workflow-script generator offers. Deliberately not {@link #values()}:
+         * {@link #JAVASCRIPT} and {@link #GROOVY} exist only as language-migration targets and carry
+         * neither generator header defaults nor generator documentation.
+         */
+        public static List<ScriptLanguage> generationTargets() {
+            return List.of(BASH, PYTHON, PERL, RUBY, POWERSHELL, WINDOWS_CMD, APPLESCRIPT, ANSIBLE);
+        }
+
+        /**
+         * The languages an existing snippet can be migrated into. {@link #ANSIBLE} is excluded:
+         * rewriting an imperative script as a declarative playbook is a re-modelling, not a
+         * language migration.
+         */
+        public static List<ScriptLanguage> migrationTargets() {
+            return List.of(BASH, PYTHON, PERL, RUBY, POWERSHELL, WINDOWS_CMD, APPLESCRIPT,
+                JAVASCRIPT, GROOVY);
         }
     }
 
@@ -307,6 +335,171 @@ public final class WorkflowScriptSupport {
         CUSTOM,
         /** No header block and no description — a bare artefact. */
         NONE
+    }
+
+    // ------------------------------------------------------------------ rule labels
+
+    /**
+     * How many leading characters a rule must share with a known one to be recognised. Long enough
+     * that no two distinct rules collide, short enough to survive the values the emitters splice in
+     * (a MAX_FILE_SIZE in bytes, a clause that only appears alongside another option).
+     */
+    private static final int MIN_RULE_MATCH = 24;
+
+    /** i18n key for the shared guard-block rules every input-hardening run emits. */
+    public static final String INPUT_HARDENING_GUARD_LABEL_KEY = "ai.inputHardening.guard";
+
+    private static volatile Map<String, String> ruleLabels;
+
+    /**
+     * The i18n key naming a rule bullet emitted by {@link #hardeningRulesText} or
+     * {@link #inputHardeningRulesText}, or {@code null} for text that is not a rule.
+     *
+     * <p>Those bullets are <em>prompt</em> text and English on purpose — they are sent to the model.
+     * The apply-progress window used to show them verbatim, which put untranslated prompt English in
+     * front of the user; it shows the option's own localized label instead, and this is the bridge
+     * back from the sentence to that label.
+     *
+     * <p>The table is built from the emitters themselves rather than restating their sentences, so a
+     * reworded rule cannot silently lose its label. Matching is by longest shared prefix because the
+     * emitters splice values into a sentence — a byte limit, a clause that only appears when a second
+     * option is also selected. {@code WorkflowScriptSupportTest} pins that every emitted bullet, in
+     * every option combination, still resolves.
+     */
+    public static String ruleLabelKey(String ruleText) {
+        if (ruleText == null || ruleText.isBlank()) {
+            return null;
+        }
+        String query = normalizeRule(ruleText);
+        String bestKey = null;
+        int bestMatch = MIN_RULE_MATCH - 1;
+        for (Map.Entry<String, String> known : ruleLabels().entrySet()) {
+            int shared = sharedPrefixLength(query, known.getKey());
+            if (shared > bestMatch) {
+                bestMatch = shared;
+                bestKey = known.getValue();
+            }
+        }
+        return bestKey;
+    }
+
+    private static Map<String, String> ruleLabels() {
+        Map<String, String> table = ruleLabels;
+        if (table == null) {
+            synchronized (WorkflowScriptSupport.class) {
+                table = ruleLabels;
+                if (table == null) {
+                    table = buildRuleLabels();
+                    ruleLabels = table;
+                }
+            }
+        }
+        return table;
+    }
+
+    private static Map<String, String> buildRuleLabels() {
+        Map<String, String> table = new LinkedHashMap<>();
+        // Classic hardening emits exactly one bullet per option and splices nothing into it.
+        for (HardeningOption option : HardeningOption.values()) {
+            for (boolean declarative : new boolean[] {false, true}) {
+                for (String rule : ruleBullets(hardeningRulesText(EnumSet.of(option), declarative))) {
+                    table.put(normalizeRule(rule), "ai.workflow.option." + option.name());
+                }
+            }
+        }
+
+        // Input-hardening bullets change wording depending on which *other* sub-options are selected,
+        // so every combination is walked to register every reachable phrasing. A bullet that every
+        // sub-option produces on its own belongs to the guard block itself, not to any one of them.
+        InputHardeningOption[] options = InputHardeningOption.values();
+        Map<InputHardeningOption, List<String>> alone = new LinkedHashMap<>();
+        for (InputHardeningOption option : options) {
+            alone.put(option, ruleBullets(inputHardeningRulesText(
+                new InputHardeningConfig(EnumSet.of(option), InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES),
+                ScriptLanguage.BASH)).stream().map(WorkflowScriptSupport::normalizeRule).toList());
+        }
+        for (int mask = 1; mask < (1 << options.length); mask++) {
+            EnumSet<InputHardeningOption> combination = EnumSet.noneOf(InputHardeningOption.class);
+            for (int bit = 0; bit < options.length; bit++) {
+                if ((mask & (1 << bit)) != 0) {
+                    combination.add(options[bit]);
+                }
+            }
+            InputHardeningConfig config = new InputHardeningConfig(
+                combination, InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+            for (String rule : ruleBullets(inputHardeningRulesText(config, ScriptLanguage.BASH))) {
+                table.putIfAbsent(normalizeRule(rule), inputHardeningLabelKey(normalizeRule(rule), alone));
+            }
+        }
+        return Map.copyOf(table);
+    }
+
+    /**
+     * Whether a bullet belongs to one sub-option or to the guard block every run emits. A bullet the
+     * guard always writes shows up in each sub-option's solo run; a sub-option's own bullet only in
+     * that one.
+     */
+    private static String inputHardeningLabelKey(
+        String rule, Map<InputHardeningOption, List<String>> alone) {
+
+        InputHardeningOption owner = null;
+        int matches = 0;
+        for (Map.Entry<InputHardeningOption, List<String>> entry : alone.entrySet()) {
+            boolean present = entry.getValue().stream()
+                .anyMatch(candidate -> sharedPrefixLength(rule, candidate) >= MIN_RULE_MATCH);
+            if (present) {
+                matches++;
+                if (owner == null) {
+                    owner = entry.getKey();
+                }
+            }
+        }
+        return matches == alone.size() || owner == null
+            ? INPUT_HARDENING_GUARD_LABEL_KEY
+            : "ai.inputHardening.option." + owner.name();
+    }
+
+    /** The "- " bullets of an emitted rule block, in order, without their markers. */
+    private static List<String> ruleBullets(String rulesText) {
+        if (rulesText == null || rulesText.isBlank()) {
+            return List.of();
+        }
+        return rulesText.lines()
+            .map(String::strip)
+            .filter(line -> line.startsWith("- ") && line.length() > 2)
+            .map(line -> line.substring(2).strip())
+            .toList();
+    }
+
+    private static String normalizeRule(String rule) {
+        return rule.strip().replaceAll("\\s+", " ");
+    }
+
+    private static int sharedPrefixLength(String left, String right) {
+        int limit = Math.min(left.length(), right.length());
+        int index = 0;
+        while (index < limit && left.charAt(index) == right.charAt(index)) {
+            index++;
+        }
+        return index;
+    }
+
+    /**
+     * Optional rule forbidding embedded foreign-language parts in a generated artefact. Off by
+     * default: a heredoc fed to {@code awk} or {@code perl} is often the shortest correct answer,
+     * and only the user knows whether the result has to stay maintainable in one language.
+     */
+    public static String singleLanguageRuleText(ScriptLanguage lang) {
+        if (lang == null) {
+            return "";
+        }
+        return "\nSINGLE LANGUAGE:\n"
+            + "- Write the complete artefact in " + lang.displayName() + " and in no other language.\n"
+            + "- Do not embed a foreign-language program: no heredoc piped into another interpreter"
+            + " (perl/python/node/ruby/awk), no -e/-c/-r one-liner of another language, no inline awk"
+            + " program.\n"
+            + "- Calling an external program is fine and stays a plain process call; only foreign"
+            + " source code inside this artefact is forbidden.\n";
     }
 
     // ------------------------------------------------------------------ prompt assembly
@@ -520,6 +713,30 @@ public final class WorkflowScriptSupport {
                     "- Report progress and verbose diagnostics with log.");
                 addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
                     "- Signal fatal failures with error \"message\" number <code> so osascript exits non-zero.");
+            }
+            case JAVASCRIPT -> {
+                rules.add("- Use valid Node.js (CommonJS) syntax that runs with node <file>; do not require a bundler.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Start with 'use strict'; and reject unhandled rejections via process.on('unhandledRejection', ...).");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky work in try/catch/finally and check the status of every child_process call.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send diagnostics and verbose log output to stderr with console.error.");
+                addIdiom(rules, options, HardeningOption.STYLE_GUIDE_CLEAN,
+                    "- Use const/let (never var), async/await instead of nested callbacks, and a main() entry point.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Exit with distinct, documented codes via process.exit(code) or process.exitCode.");
+            }
+            case GROOVY -> {
+                rules.add("- Use valid Groovy syntax that runs as a script with groovy <file>.");
+                addIdiom(rules, options, HardeningOption.STRICT_MODE,
+                    "- Declare types where they clarify intent and treat failed required operations as fatal.");
+                addIdiom(rules, options, HardeningOption.ERROR_TRAP_CLEANUP,
+                    "- Wrap risky work in try/catch/finally, catch specific exceptions, and check the exit value of every external process.");
+                addIdiom(rules, options, HardeningOption.LOGGING_VERBOSE,
+                    "- Send diagnostics and verbose log output to System.err.");
+                addIdiom(rules, options, HardeningOption.MEANINGFUL_EXIT_CODES,
+                    "- Terminate with distinct, documented codes via System.exit(code).");
             }
             case ANSIBLE -> {
                 rules.add("- Emit one self-contained playbook in valid YAML, runnable with ansible-playbook <file>.");
@@ -815,6 +1032,13 @@ public final class WorkflowScriptSupport {
                 "-e/-r file tests and a NUL-byte scan of the first 512 bytes for the binary check",
                 "-s for the size limit",
                 "$ENV{FORCE} or a --force entry in @ARGV for the override");
+            case JAVASCRIPT -> new InputHardeningIdioms(
+                "Implement the guard with Node.js core modules only",
+                "process.argv.length for the count and RegExp allowlists",
+                "fs.existsSync/fs.accessSync(path, fs.constants.R_OK) for file tests and a NUL byte in the"
+                    + " first 512 bytes read with fs.readSync for the binary check",
+                "fs.statSync(path).size for the size limit",
+                "process.env.FORCE or process.argv.includes(\"--force\") for the override");
             case RUBY -> new InputHardeningIdioms(
                 "Implement the guard with core Ruby only",
                 "ARGV.length for the count and Regexp allowlists",

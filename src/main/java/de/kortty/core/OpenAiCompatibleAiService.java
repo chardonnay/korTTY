@@ -433,6 +433,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return SnippetAiResponseSupport.parseScriptAnalysis(content).isUsable();
         }
+        if (request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
+            return SnippetAiResponseSupport.parseLanguageMigration(content).isUsable();
+        }
         return SnippetAiResponseSupport.parseSecurityFix(content).isUsable();
     }
 
@@ -1423,12 +1426,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static boolean usesStructuredJsonSchema(AiRequest request) {
         return request != null
             && (request.action() == AiAction.ANALYZE_SNIPPET_CODE
-                || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+                || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
+                || request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE);
     }
 
     private static JsonObject buildStructuredResponseFormat(AiRequest request) {
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return buildSnippetAnalysisResponseFormat();
+        }
+        if (request != null && request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
+            return buildLanguageMigrationResponseFormat(request);
         }
         return buildSnippetReplacementResponseFormat(request);
     }
@@ -1482,6 +1489,42 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         jsonSchema.add("schema", strictObjectSchema(
             properties,
             "summary", "dependencies", "improvements"));
+
+        JsonObject responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_schema");
+        responseFormat.add("json_schema", jsonSchema);
+        return responseFormat;
+    }
+
+    /**
+     * Constrains a language migration to the object consumed by
+     * {@link SnippetAiResponseSupport#parseLanguageMigration}: the full rewritten script plus the
+     * notes naming what could not be carried over. {@code notes} is required so the model has to
+     * take a position on completeness instead of leaving the field out when something was dropped.
+     */
+    private static JsonObject buildLanguageMigrationResponseFormat(AiRequest request) {
+        JsonObject stringType = new JsonObject();
+        stringType.addProperty("type", "string");
+
+        JsonObject replacementLines = new JsonObject();
+        replacementLines.addProperty("type", "array");
+        replacementLines.add("items", stringType.deepCopy());
+        replacementLines.addProperty("minItems", minimumReplacementLineCount(request));
+
+        JsonObject notes = new JsonObject();
+        notes.addProperty("type", "array");
+        notes.add("items", stringType.deepCopy());
+
+        JsonObject properties = new JsonObject();
+        properties.add("replacementLines", replacementLines);
+        properties.add("summary", stringType.deepCopy());
+        properties.add("notes", notes);
+
+        JsonObject jsonSchema = new JsonObject();
+        jsonSchema.addProperty("name", "snippet_language_migration_response");
+        jsonSchema.addProperty("strict", true);
+        jsonSchema.add("schema", strictObjectSchema(
+            properties, "replacementLines", "summary", "notes"));
 
         JsonObject responseFormat = new JsonObject();
         responseFormat.addProperty("type", "json_schema");

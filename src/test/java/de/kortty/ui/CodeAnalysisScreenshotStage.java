@@ -210,7 +210,8 @@ public final class CodeAnalysisScreenshotStage {
             List.of(perl, shell), Set.of("perl", "shell"), true, ids -> { });
 
         return new SnippetCodeAnalysisDialog(
-            null, SCRIPT_NAME, "perl", analysis, diagram, null, id -> { }, skills);
+            null, SCRIPT_NAME, "perl", analysis, diagram, null, id -> { }, skills,
+            de.kortty.core.ScriptLanguageMixSupport.detect("perl", ""), null);
     }
 
     /**

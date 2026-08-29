@@ -789,6 +789,26 @@ public class GlobalSettings {
     @XmlElement
     private Integer snippetInputHardeningMaxFileSizeMb;
 
+    /** Whether the language-migration master toggle starts ticked. Null/absent = off (strictly opt-in). */
+    @XmlElement
+    private Boolean snippetLanguageMigrationEnabled;
+
+    /**
+     * Persisted language-migration target ({@code ScriptLanguage} enum name); null = never saved →
+     * use the language detected in the snippet. The target <em>platform</em> is deliberately not
+     * persisted: a saved platform choice would silently convert the next snippet that is opened.
+     */
+    @XmlElement
+    private String snippetLanguageMigrationTarget;
+
+    /** Whether the workflow-script generator forbids embedded foreign-language parts. Null/absent = off. */
+    @XmlElement
+    private Boolean workflowSingleLanguageEnforced;
+
+    /** Remembered geometry of the language-migration dialog. */
+    @XmlElement
+    private WindowGeometry languageMigrationDialogGeometry;
+
     @XmlElement
     private String selectedSnippetEditorProfileId; // null = use explicit snippet editor colors
 
@@ -3164,6 +3184,41 @@ public class GlobalSettings {
 
     public void setSnippetInputHardeningOptions(String snippetInputHardeningOptions) {
         this.snippetInputHardeningOptions = snippetInputHardeningOptions;
+    }
+
+    /** Whether the language-migration master toggle starts ticked (default: off). */
+    public boolean isSnippetLanguageMigrationEnabled() {
+        return Boolean.TRUE.equals(snippetLanguageMigrationEnabled);
+    }
+
+    public void setSnippetLanguageMigrationEnabled(Boolean snippetLanguageMigrationEnabled) {
+        this.snippetLanguageMigrationEnabled = snippetLanguageMigrationEnabled;
+    }
+
+    /** Persisted language-migration target (ScriptLanguage enum name), or null when never saved. */
+    public String getSnippetLanguageMigrationTarget() {
+        return snippetLanguageMigrationTarget;
+    }
+
+    public void setSnippetLanguageMigrationTarget(String snippetLanguageMigrationTarget) {
+        this.snippetLanguageMigrationTarget = snippetLanguageMigrationTarget;
+    }
+
+    /** Whether generated workflow scripts must avoid embedded foreign languages (default: off). */
+    public boolean isWorkflowSingleLanguageEnforced() {
+        return Boolean.TRUE.equals(workflowSingleLanguageEnforced);
+    }
+
+    public void setWorkflowSingleLanguageEnforced(Boolean workflowSingleLanguageEnforced) {
+        this.workflowSingleLanguageEnforced = workflowSingleLanguageEnforced;
+    }
+
+    public WindowGeometry getLanguageMigrationDialogGeometry() {
+        return languageMigrationDialogGeometry;
+    }
+
+    public void setLanguageMigrationDialogGeometry(WindowGeometry languageMigrationDialogGeometry) {
+        this.languageMigrationDialogGeometry = languageMigrationDialogGeometry;
     }
 
     /** Default for the generated MAX_FILE_SIZE variable, in MB (10 when unset; 0 = unlimited; clamped 0..1024). */

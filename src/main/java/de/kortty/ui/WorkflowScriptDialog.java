@@ -69,6 +69,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     private final Map<ScriptLanguage, CheckMenuItem> additionalLanguageItems = new EnumMap<>(ScriptLanguage.class);
     private final MenuButton additionalLanguagesButton = new MenuButton(I18n.get("ai.workflow.alsoLanguages"));
     private final Spinner<Integer> suggestionsSpinner = new Spinner<>(1, 5, 1);
+    private final CheckBox singleLanguageCheck = new CheckBox(I18n.get("ai.workflow.singleLanguage"));
     private final TextArea extraInstructionsArea = new TextArea();
     private final ProgressIndicator progress = new ProgressIndicator();
     private final Label statusLabel = new Label();
@@ -155,7 +156,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     // ---------------------------------------------------------------- layout
 
     private Region buildContent() {
-        languageCombo.getItems().setAll(ScriptLanguage.values());
+        languageCombo.getItems().setAll(ScriptLanguage.generationTargets());
         languageCombo.setValue(ScriptLanguage.BASH);
         languageCombo.setConverter(new StringConverter<>() {
             @Override
@@ -169,7 +170,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             }
         });
 
-        for (ScriptLanguage language : ScriptLanguage.values()) {
+        for (ScriptLanguage language : ScriptLanguage.generationTargets()) {
             CheckMenuItem item = new CheckMenuItem(language.displayName());
             additionalLanguageItems.put(language, item);
             additionalLanguagesButton.getItems().add(item);
@@ -179,9 +180,14 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         suggestionsSpinner.setEditable(false);
         suggestionsSpinner.setPrefWidth(70);
 
+        singleLanguageCheck.setTooltip(new Tooltip(I18n.get("ai.workflow.singleLanguage.tooltip")));
+        singleLanguageCheck.setSelected(isSingleLanguageEnforcedDefault());
+        singleLanguageCheck.selectedProperty().addListener((obs, was, isNow) -> persistSingleLanguage(isNow));
+
         HBox languageRow = new HBox(8,
             new Label(I18n.get("ai.workflow.language")), languageCombo,
             new Label(I18n.get("ai.workflow.alsoLanguages")), additionalLanguagesButton,
+            singleLanguageCheck,
             spacer(),
             new Label(I18n.get("ai.workflow.suggestions")), suggestionsSpinner);
         languageRow.setAlignment(Pos.CENTER_LEFT);
@@ -381,7 +387,8 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
                 resultTabList.add(resultTab);
                 WorkflowScriptGenerator.Request request = new WorkflowScriptGenerator.Request(
                     language, selectedOptions(), variantInstructions(extraInstructionsArea.getText(), index, count),
-                    factsFor(language), headerOverride, inputHardeningSelector.currentConfig());
+                    factsFor(language), headerOverride, inputHardeningSelector.currentConfig(),
+                    singleLanguageCheck.isSelected());
                 CompletableFuture
                     .supplyAsync(() -> generator.generate(runData, request))
                     .whenComplete((outcome, error) -> Platform.runLater(() -> {
@@ -744,4 +751,26 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             return text != null ? text : "";
         }
     }
+
+    private static boolean isSingleLanguageEnforcedDefault() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app != null && app.getGlobalSettingsManager() != null
+            && app.getGlobalSettingsManager().getSettings() != null
+            && app.getGlobalSettingsManager().getSettings().isWorkflowSingleLanguageEnforced();
+    }
+
+    /** Remembers the toggle right away; it is a one-checkbox preference with no Save button. */
+    private static void persistSingleLanguage(boolean enforced) {
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            if (app != null && app.getGlobalSettingsManager() != null
+                && app.getGlobalSettingsManager().getSettings() != null) {
+                app.getGlobalSettingsManager().getSettings().setWorkflowSingleLanguageEnforced(enforced);
+                app.getGlobalSettingsManager().save();
+            }
+        } catch (Exception ignored) {
+            // Persistence is best-effort; the choice still applies to the current run.
+        }
+    }
+
 }
