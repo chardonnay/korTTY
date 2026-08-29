@@ -501,8 +501,13 @@ public final class SnippetAiDialogsSmoke {
      * replacement is surfaced in the review-diff window before the editor content can change.
      */
     private static Runnable exerciseFullAnalysisApplyPreview(AtomicReference<String> failure) throws Exception {
-        String original = "#!/usr/bin/env bash\nprintf '%s\\n' $value\n";
-        String replacement = "#!/usr/bin/env bash\nprintf '%s\\n' \"$value\"\n";
+        // Real comments, because the apply flow now keeps whatever language the script is written
+        // in and asks the user when it cannot tell. A bare two-line fixture is exactly the
+        // "cannot tell" case and would stop this harness on a question nobody can answer.
+        String prose = "# Prints the value that was passed to the script and checks that the\n"
+            + "# variable is quoted, otherwise the shell splits it into several arguments.\n";
+        String original = "#!/usr/bin/env bash\n" + prose + "printf '%s\\n' $value\n";
+        String replacement = "#!/usr/bin/env bash\n" + prose + "printf '%s\\n' \"$value\"\n";
         String longImprovementTitle = "Quote the untrusted variable expansion before invoking the command "
             + "so spaces, wildcard characters and user-controlled shell fragments remain one literal argument "
             + "without changing the command's existing output or error handling";

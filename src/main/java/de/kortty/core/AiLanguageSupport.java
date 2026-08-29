@@ -14,6 +14,17 @@ public final class AiLanguageSupport {
     private AiLanguageSupport() {
     }
 
+    /**
+     * The code that means "write whatever language the script already uses". Stored like a language
+     * code so the existing preference plumbing carries it unchanged, but it never reaches a prompt.
+     */
+    public static final String AUTO_CODE = "auto";
+
+    /** Whether a stored preference means "keep the script's own language" rather than a language. */
+    public static boolean isAutomatic(String languageCode) {
+        return languageCode == null || languageCode.isBlank() || AUTO_CODE.equalsIgnoreCase(languageCode);
+    }
+
     public record LanguageOption(String code, String label) {
         @Override
         public String toString() {

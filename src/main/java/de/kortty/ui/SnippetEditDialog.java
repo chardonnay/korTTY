@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiLanguageSupport;
+import de.kortty.core.CodeTextLanguageDetector;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiSkillRelevanceSelector;
 import de.kortty.core.CodeFormatterService;
@@ -164,6 +165,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Task<?> snippetAiActionTask;
     private SnippetAiApplyProgressWindow improvementApplyProgressWindow;
     private WindowDockGroup improvementApplyDockGroup;
+    private boolean rememberCodeTextLanguageAnswer = true;
     // Editor teardown cancels AI tasks; the abort-recovery dialog must not pop over a closing editor.
     private boolean improvementApplyRecoverySuppressed;
     private boolean programmaticNameUpdate;
@@ -2705,8 +2707,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private HBox buildAiCodeTextLanguageRow() {
         aiCodeTextLanguageCombo = new ComboBox<>();
         aiCodeTextLanguageCombo.setId("snippet-ai-text-language");
-        aiCodeTextLanguageCombo.getItems().setAll(
-            AiLanguageSupport.buildAvailableLanguageOptions(aiCodeTextLanguageCode));
+        // First entry, and the default: no translation at all. Everything below it converts the
+        // snippet's prose into that language, which is a deliberate choice rather than a side effect.
+        aiCodeTextLanguageCombo.getItems().add(new AiLanguageSupport.LanguageOption(
+            AiLanguageSupport.AUTO_CODE, I18n.get("snippets.ai.language.auto")));
+        aiCodeTextLanguageCombo.getItems().addAll(
+            AiLanguageSupport.buildAvailableLanguageOptions(
+                AiLanguageSupport.isAutomatic(aiCodeTextLanguageCode) ? null : aiCodeTextLanguageCode));
         aiCodeTextLanguageCombo.setPrefWidth(260);
         aiCodeTextLanguageCombo.setTooltip(new Tooltip(I18n.get("snippets.ai.language.tooltip")));
         aiCodeTextLanguageCombo.setCellFactory(listView -> new ListCell<>() {
@@ -2762,7 +2769,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!programmaticAiTextLanguageUpdate) {
             aiTextLanguageUserEdited = true;
         }
-        aiCodeTextLanguageCode = AiLanguageSupport.resolveFallbackLanguageCode(selected.code());
+        // "Automatic" is a mode, not a language: resolving it against the interface language would
+        // turn the default straight back into the translation this feature exists to stop.
+        aiCodeTextLanguageCode = AiLanguageSupport.isAutomatic(selected.code())
+            ? AiLanguageSupport.AUTO_CODE
+            : AiLanguageSupport.resolveFallbackLanguageCode(selected.code());
         if (programmaticAiTextLanguageUpdate) {
             return;
         }
@@ -2791,10 +2802,181 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return selected != null ? selected.label() : aiCodeTextLanguageCode;
     }
 
+    /**
+     * The configured code-text language, defaulting to {@link AiLanguageSupport#AUTO_CODE}.
+     *
+     * <p>It used to default to the interface language, which meant a user who never opened this
+     * picker had every AI code rewrite translate their script's comments into the language korTTY
+     * happens to run in. Keeping the script's own language is the default now; naming a language
+     * here is the deliberate opt-in to converting it.</p>
+     */
+    // ---- Code-text language: keep the script's own, or deliberately convert it ------------------
+
+    /** What a code-rewriting action should do about the prose inside the snippet. */
+    private record CodeTextChoice(de.kortty.core.CodeTextLanguage language, boolean aborted) {
+        static CodeTextChoice of(de.kortty.core.CodeTextLanguage language) {
+            return new CodeTextChoice(language, false);
+        }
+
+        static CodeTextChoice abort() {
+            return new CodeTextChoice(null, true);
+        }
+    }
+
+    /**
+     * Works out which language a code rewrite must write, and installs it for the run.
+     *
+     * <p>Order matters: an explicitly picked language is the user saying "convert it", so it wins.
+     * Otherwise the snippet keeps whatever language its prose already uses — remembered from an
+     * earlier answer, or detected. When neither is available the user is asked, because guessing
+     * here rewrites their own comments into a language they never chose.</p>
+     *
+     * @param mayAsk whether interrupting is acceptable. False for auto-completion, which fires on a
+     *     timer while typing; a dialog there would be indefensible, so an undetectable language
+     *     simply leaves the prompt's previous behaviour in place for that one action.
+     */
+    private CodeTextChoice resolveCodeTextLanguage(boolean mayAsk) {
+        if (!AiLanguageSupport.isAutomatic(aiCodeTextLanguageCode)) {
+            return CodeTextChoice.of(
+                de.kortty.core.CodeTextLanguage.translateInto(aiCodeTextLanguageCode));
+        }
+        String remembered = existingSnippet != null ? existingSnippet.getCodeTextLanguageCode() : null;
+        if (remembered != null && !remembered.isBlank()) {
+            return CodeTextChoice.of(de.kortty.core.CodeTextLanguage.keep(remembered));
+        }
+        CodeTextLanguageDetector.Detection detection = CodeTextLanguageDetector.detect(
+            contentArea.getText(), languageCombo.getValue());
+        if (detection.isUsable()) {
+            return CodeTextChoice.of(
+                de.kortty.core.CodeTextLanguage.keep(detection.languageCode()));
+        }
+        if (!mayAsk) {
+            return CodeTextChoice.of(null);
+        }
+        String answered = askForCodeTextLanguage(detection);
+        if (answered == null) {
+            return CodeTextChoice.abort();
+        }
+        rememberCodeTextLanguage(answered);
+        return CodeTextChoice.of(de.kortty.core.CodeTextLanguage.keep(answered));
+    }
+
+    /**
+     * Installs the resolved contract for the upcoming action.
+     *
+     * @return whether the action may proceed; {@code false} when the user dismissed the question
+     */
+    private boolean applyCodeTextLanguage(boolean mayAsk) {
+        CodeTextChoice choice = resolveCodeTextLanguage(mayAsk);
+        if (choice.aborted()) {
+            setStatus(I18n.get("snippets.ai.language.ask.cancelled"));
+            return false;
+        }
+        if (aiAssist != null && aiAssist.runtimeOptions() != null) {
+            aiAssist.runtimeOptions().setCodeTextLanguage(choice.language());
+        }
+        return true;
+    }
+
+    /**
+     * Asks which language the snippet's comments and messages are written in.
+     *
+     * @return the chosen ISO code, or {@code null} when the user dismissed the dialog
+     */
+    private String askForCodeTextLanguage(CodeTextLanguageDetector.Detection detection) {
+        List<AiLanguageSupport.LanguageOption> options =
+            AiLanguageSupport.buildAvailableLanguageOptions(null);
+        ComboBox<AiLanguageSupport.LanguageOption> combo = new ComboBox<>();
+        combo.setId("snippet-code-text-language-ask");
+        combo.getItems().setAll(options);
+        combo.setPrefWidth(260);
+        // Pre-select the ambiguous winner when there was one: it is a hint, not a decision, and the
+        // user still has to confirm it.
+        AiLanguageSupport.LanguageOption preselected = AiLanguageSupport.findOption(
+            options,
+            detection.languageCode() != null
+                ? detection.languageCode()
+                : AiLanguageSupport.resolveFallbackLanguageCode(null));
+        combo.getSelectionModel().select(preselected != null ? preselected : options.get(0));
+
+        CheckBox remember = new CheckBox(I18n.get("snippets.ai.language.ask.remember"));
+        remember.setSelected(true);
+
+        Label explanation = new Label(I18n.get(
+            detection.confidence() == CodeTextLanguageDetector.Confidence.AMBIGUOUS
+                ? "snippets.ai.language.ask.ambiguous"
+                : "snippets.ai.language.ask.unknown"));
+        explanation.setWrapText(true);
+        explanation.setMaxWidth(430);
+
+        Dialog<String> dialog = new ThemeAwareDialog<>();
+        dialog.setTitle(I18n.get("snippets.ai.language.ask.title"));
+        dialog.getDialogPane().setHeaderText(I18n.get("snippets.ai.language.ask.header"));
+        VBox content = new VBox(10, explanation,
+            new HBox(8, new Label(I18n.get("snippets.ai.language")), combo), remember);
+        content.setPadding(new Insets(6, 4, 2, 4));
+        dialog.getDialogPane().setContent(content);
+        ButtonType useButton = new ButtonType(
+            I18n.get("snippets.ai.language.ask.use"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(useButton, ButtonType.CANCEL);
+        Window owner = aiFlowAlertOwner(null);
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+        // Scoped to the snippet tool: a question about a snippet must not freeze a terminal session.
+        dialog.initModality(Modality.WINDOW_MODAL);
+        dialog.setResultConverter(button -> {
+            if (button != useButton) {
+                return null;
+            }
+            AiLanguageSupport.LanguageOption chosen = combo.getValue();
+            rememberCodeTextLanguageAnswer = remember.isSelected();
+            return chosen != null ? chosen.code() : null;
+        });
+        try {
+            return dialog.showAndWait().orElse(null);
+        } catch (IllegalStateException e) {
+            // JavaFX refuses a nested event loop during a layout or animation pass. Rather than let
+            // that escape into the action that asked, treat it as "no answer": the rewrite is
+            // skipped, which is the safe outcome — the alternative is translating the user's
+            // comments on a guess.
+            logger.debug("Could not ask for the snippet code-text language right now", e);
+            return null;
+        }
+    }
+
+    /**
+     * Stores the answer on the snippet so the question is asked once, not before every action.
+     *
+     * <p>Written straight through rather than waiting for the editor to be saved: the answer is
+     * about the file's existing prose, not about the edit in progress, and a user who cancels their
+     * edit should still not be asked the same question again.</p>
+     */
+    private void rememberCodeTextLanguage(String languageCode) {
+        if (!rememberCodeTextLanguageAnswer || existingSnippet == null
+            || languageCode == null || languageCode.isBlank()) {
+            return;
+        }
+        existingSnippet.setCodeTextLanguageCode(languageCode);
+        try {
+            var manager = KorTTYApplication.getInstance().getSnippetManager();
+            if (manager != null && manager.findById(existingSnippet.getId()).isPresent()) {
+                manager.updateSnippet(existingSnippet);
+                manager.save();
+            }
+        } catch (Exception e) {
+            // The answer still applies to this editor for the rest of the session; only the
+            // remembering failed, which is not worth interrupting a code rewrite for.
+            logger.debug("Could not persist the snippet code-text language", e);
+        }
+    }
+
     private String loadConfiguredAiCodeTextLanguageCode() {
         GlobalSettings settings = currentGlobalSettings();
-        return AiLanguageSupport.resolveFallbackLanguageCode(
-            settings != null ? settings.getAiCodeTextDefaultLanguage() : null);
+        String configured = settings != null ? settings.getAiCodeTextDefaultLanguage() : null;
+        return AiLanguageSupport.isAutomatic(configured)
+            ? AiLanguageSupport.AUTO_CODE
+            : AiLanguageSupport.resolveFallbackLanguageCode(configured);
     }
 
     private boolean saveAiCodeTextLanguagePreference(String languageCode) {
@@ -3519,6 +3701,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     additionalInstructions()));
             }
         };
+        // Auto-completion fires while typing, so it never interrupts: an undetectable
+        // language simply leaves this one request without an explicit contract.
+        applyCodeTextLanguage(false);
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.complete.running"));
@@ -3910,6 +4100,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 snippetAiProgressIndicator.setProgress(progress.doubleValue());
             }
         });
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             String runningMessage = task.getMessage() != null && !task.getMessage().isBlank()
@@ -4551,6 +4746,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.improve.running"));
@@ -4638,6 +4838,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
@@ -4821,6 +5026,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     additionalInstructions()));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.fix.running"));
@@ -5765,6 +5975,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     instructions));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
@@ -6022,6 +6237,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.format.running"));
