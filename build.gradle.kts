@@ -3093,6 +3093,18 @@ tasks.register<JavaExec>("settingsTabScreenshotStage") {
     }
 }
 
+tasks.register<JavaExec>("codeAnalysisScreenshotStage") {
+    group = "documentation"
+    description = "Shows the Full-code-analysis window hosted in the main window for the docs screenshot capture."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.CodeAnalysisScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.mainWindowWidth", "kortty.mainWindowHeight", "kortty.screenshotHome").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("mainWindowScreenshotStage") {
     group = "documentation"
     description = "Shows the main window (optionally with a menu open) for the docs screenshot " +
