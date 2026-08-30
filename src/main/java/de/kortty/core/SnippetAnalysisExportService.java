@@ -108,7 +108,7 @@ public final class SnippetAnalysisExportService {
         }
         try {
             MermaidRenderService.RenderRequest pngRequest = new MermaidRenderService.RenderRequest(
-                request.source(), request.theme(), request.backgroundColor(), true, request.generatedFlow());
+                request.source(), request.theme(), request.backgroundColor(), true, request.generatedType());
             MermaidRenderService.RenderResult result = MermaidRenderService.render(pngRequest)
                 .get(31, java.util.concurrent.TimeUnit.SECONDS);
             if (result != null && result.success()) {

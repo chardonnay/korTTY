@@ -121,10 +121,45 @@ class AiActionSkillPromptSupportTest {
     }
 
     @Test
+    void everyDiagramFamilyLoadsExactlyItsOwnMandatorySkill() {
+        java.util.Map<de.kortty.model.SnippetDiagramType, String> expectedIds = java.util.Map.of(
+            de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE, "builtin.action.snippet-mermaid",
+            de.kortty.model.SnippetDiagramType.SEQUENCE, "builtin.action.snippet-sequence",
+            de.kortty.model.SnippetDiagramType.STATE, "builtin.action.snippet-state",
+            de.kortty.model.SnippetDiagramType.CLASS, "builtin.action.snippet-class",
+            de.kortty.model.SnippetDiagramType.ER, "builtin.action.snippet-er");
+        for (var entry : expectedIds.entrySet()) {
+            AiRequest request = new AiRequest(
+                AiAction.GENERATE_SNIPPET_MERMAID,
+                "echo ok",
+                null,
+                "en",
+                null,
+                null,
+                false,
+                null,
+                null,
+                entry.getKey());
+
+            String prompt = AiPromptBuilder.buildSystemPrompt(request);
+
+            assertThat(AiActionSkillPromptSupport.diagramSkillId(entry.getKey())).isEqualTo(entry.getValue());
+            assertThat(prompt).contains("<kortty_required_action_skill id=\"" + entry.getValue() + "\"");
+            assertThat(countOccurrences(prompt, "<kortty_required_action_skill")).isEqualTo(1);
+            for (String otherId : expectedIds.values()) {
+                if (!otherId.equals(entry.getValue())) {
+                    assertThat(prompt).doesNotContain(otherId);
+                }
+            }
+        }
+    }
+
+    @Test
     void missingRequiredSkillFailsAsCatchableExceptionInsteadOfInitializerError() {
         IllegalStateException failure = expectThrows(
             IllegalStateException.class,
-            () -> AiActionSkillPromptSupport.loadRequiredSkill("/missing-action-skill.md"));
+            () -> AiActionSkillPromptSupport.loadRequiredSkill(
+                "/missing-action-skill.md", "missing-action-skill"));
 
         assertThat(failure).hasMessageThat().contains("Required built-in AI action skill is missing");
     }

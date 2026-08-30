@@ -1080,26 +1080,54 @@ public final class SnippetAiWorkflowSupport {
         String fallbackLanguageCode,
         String additionalInstructions) throws Exception {
 
+        return generateSnippetMermaid(
+            aiService, usageRecorder, de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE,
+            fullContent, snippetLanguage, connectionDisplayName, fallbackLanguageCode,
+            additionalInstructions);
+    }
+
+    /**
+     * Generates one snippet diagram of the requested family. {@code scopedContent} is either the
+     * full snippet or the selected part of it; every produced line number is 1-based relative to
+     * this content, and the caller shifts them when persisting a selection-scoped diagram.
+     */
+    public static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        de.kortty.model.SnippetDiagramType diagramType,
+        String scopedContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
+        de.kortty.model.SnippetDiagramType type = diagramType != null
+            ? diagramType
+            : de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE;
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_MERMAID,
-            fullContent,
+            scopedContent,
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildMermaidContext(fullContent, snippetLanguage, fallbackLanguageCode));
+            buildMermaidContext(scopedContent, snippetLanguage, fallbackLanguageCode),
+            true,
+            null,
+            null,
+            type);
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
         if (result != null && result.outputTruncated()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+            return new SnippetAiResponseSupport.MermaidDiagram("", "", java.util.List.of(), type);
         }
         SnippetAiResponseSupport.MermaidDiagram diagram =
-            SnippetAiResponseSupport.parseMermaidDiagram(result != null ? result.content() : null);
+            SnippetAiResponseSupport.parseMermaidDiagram(type, result != null ? result.content() : null);
         if (diagram.isUsable()
-            && !SnippetDiagramSupport.validateMermaidForSnippet(
-                diagram.mermaid(), fullContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+            && !SnippetTypedDiagramSupport.validateForSnippet(
+                type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
+            return new SnippetAiResponseSupport.MermaidDiagram("", "", java.util.List.of(), type);
         }
         return diagram;
     }

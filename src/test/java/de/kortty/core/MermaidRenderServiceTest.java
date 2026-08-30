@@ -85,6 +85,41 @@ class MermaidRenderServiceTest {
     }
 
     @Test
+    void generatedRequestsValidateAgainstTheirDeclaredFamily() {
+        MermaidRenderService.RenderResult crossType = MermaidRenderService.render(
+            MermaidRenderService.RenderRequest.generated(
+                "sequenceDiagram\nparticipant a\nparticipant b\na ->> b: hi",
+                de.kortty.model.SnippetDiagramType.STATE,
+                MermaidRenderService.Theme.LIGHT,
+                "#FFFFFF",
+                false))
+            .join();
+        assertThat(crossType.success()).isFalse();
+        assertThat(crossType.message()).contains("stateDiagram-v2");
+
+        MermaidRenderService.RenderResult forbidden = MermaidRenderService.render(
+            MermaidRenderService.RenderRequest.generated(
+                "sequenceDiagram\nparticipant a\na ->> a: see https://example.com",
+                de.kortty.model.SnippetDiagramType.SEQUENCE,
+                MermaidRenderService.Theme.LIGHT,
+                "#FFFFFF",
+                false))
+            .join();
+        assertThat(forbidden.success()).isFalse();
+
+        MermaidRenderService.RenderResult unsupportedStatement = MermaidRenderService.render(
+            MermaidRenderService.RenderRequest.generated(
+                "sequenceDiagram\nparticipant a\nparticipant b\na ->> b: hi\nautonumber",
+                de.kortty.model.SnippetDiagramType.SEQUENCE,
+                MermaidRenderService.Theme.LIGHT,
+                "#FFFFFF",
+                false))
+            .join();
+        assertThat(unsupportedStatement.success()).isFalse();
+        assertThat(unsupportedStatement.message()).contains("Unsupported sequence");
+    }
+
+    @Test
     void renderResultDefensivelyCopiesPng() {
         byte[] png = {1, 2, 3};
         MermaidRenderService.RenderResult result = new MermaidRenderService.RenderResult(

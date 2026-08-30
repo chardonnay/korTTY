@@ -15,6 +15,10 @@ import java.util.List;
 public class SnippetDiagram {
 
     public static final String TYPE_LOGICAL_STRUCTURE = "logical-structure";
+    public static final String TYPE_SEQUENCE = "sequence";
+    public static final String TYPE_STATE = "state";
+    public static final String TYPE_CLASS = "class";
+    public static final String TYPE_ER = "er";
 
     @XmlElement(required = true)
     private String id;
@@ -41,6 +45,16 @@ public class SnippetDiagram {
     @XmlElement
     private String customInstructions;
 
+    /**
+     * 1-based line range of the snippet selection this diagram was generated from, or 0/0 for a
+     * diagram covering the whole snippet. Optional in XML so older files load unchanged.
+     */
+    @XmlElement
+    private int scopeStartLine;
+
+    @XmlElement
+    private int scopeEndLine;
+
     @XmlElementWrapper(name = "codeReferences")
     @XmlElement(name = "codeReference")
     private List<CodeReference> codeReferences = new ArrayList<>();
@@ -65,6 +79,8 @@ public class SnippetDiagram {
         this.mermaidSource = source != null ? source.mermaidSource : null;
         this.sourceContentSha256 = source != null ? source.sourceContentSha256 : null;
         this.customInstructions = source != null ? source.customInstructions : null;
+        this.scopeStartLine = source != null ? source.scopeStartLine : 0;
+        this.scopeEndLine = source != null ? source.scopeEndLine : 0;
         this.codeReferences = source != null && source.codeReferences != null
             ? copyCodeReferences(source.codeReferences)
             : new ArrayList<>();
@@ -122,6 +138,27 @@ public class SnippetDiagram {
 
     public void setCustomInstructions(String customInstructions) {
         this.customInstructions = customInstructions;
+    }
+
+    public int getScopeStartLine() {
+        return scopeStartLine;
+    }
+
+    public void setScopeStartLine(int scopeStartLine) {
+        this.scopeStartLine = Math.max(0, scopeStartLine);
+    }
+
+    public int getScopeEndLine() {
+        return scopeEndLine;
+    }
+
+    public void setScopeEndLine(int scopeEndLine) {
+        this.scopeEndLine = Math.max(0, scopeEndLine);
+    }
+
+    /** True when this diagram was generated from a selected part of the snippet. */
+    public boolean hasScope() {
+        return scopeStartLine > 0 && scopeEndLine >= scopeStartLine;
     }
 
     public List<CodeReference> getCodeReferences() {

@@ -6,6 +6,7 @@ import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SystemThemeDetector;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.SnippetDiagramType;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -57,7 +58,20 @@ final class SnippetDiagramView extends VBox {
     public record DiagramSource(
         String mermaid,
         String content,
-        List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+        List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
+        SnippetDiagramType diagramType) {
+
+        public DiagramSource(
+            String mermaid,
+            String content,
+            List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+
+            this(mermaid, content, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE);
+        }
+
+        public DiagramSource {
+            diagramType = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+        }
     }
 
     record CodeNavigationTarget(int startLine, int endLine) {
@@ -96,6 +110,7 @@ final class SnippetDiagramView extends VBox {
     private boolean lastResolvedDark;
     private String currentMermaid;
     private String currentContent = "";
+    private SnippetDiagramType currentDiagramType = SnippetDiagramType.LOGICAL_STRUCTURE;
     private List<SnippetDiagramSupport.SourceCodeReference> currentSourceReferences = List.of();
     private List<SvgHotspot> currentHotspots = List.of();
     private String renderedSvg;
@@ -214,8 +229,9 @@ final class SnippetDiagramView extends VBox {
         if (currentMermaid == null || currentMermaid.isBlank()) {
             return null;
         }
-        return MermaidRenderService.RenderRequest.generatedFlow(
+        return MermaidRenderService.RenderRequest.generated(
             currentMermaid,
+            currentDiagramType,
             isDarkActive() ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT,
             effectiveBackgroundColor(),
             includePng);
@@ -232,6 +248,7 @@ final class SnippetDiagramView extends VBox {
         }
         currentMermaid = source.mermaid();
         currentContent = source.content() != null ? source.content() : "";
+        currentDiagramType = source.diagramType();
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
         renderAsync(true);
     }
@@ -276,8 +293,12 @@ final class SnippetDiagramView extends VBox {
         double[] parsedSize = readSvgSize(renderedSvg);
         baseWidth = result.width() > 0 ? result.width() : parsedSize[0];
         baseHeight = result.height() > 0 ? result.height() : parsedSize[1];
-        currentHotspots = buildHotspots(result.nodeBounds(), SnippetDiagramSupport.buildExpandedCodeReferences(
-            currentMermaid, currentContent, currentSourceReferences));
+        // Click-to-code hotspots are a flowchart feature: only its dialect has stable node ids
+        // that map onto the rendered SVG bounds.
+        currentHotspots = currentDiagramType == SnippetDiagramType.LOGICAL_STRUCTURE
+            ? buildHotspots(result.nodeBounds(), SnippetDiagramSupport.buildExpandedCodeReferences(
+                currentMermaid, currentContent, currentSourceReferences))
+            : List.of();
         spinnerBox.setVisible(false);
         spinnerBox.setManaged(false);
         diagramScroll.setVisible(true);

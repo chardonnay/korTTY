@@ -28,6 +28,18 @@ class SnippetEditDialogAiContractTest {
     }
 
     @Test
+    void lineNumberAtOffsetCountsNewlinesAndClampsToContentBounds() {
+        String content = "one\ntwo\nthree";
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, 0)).isEqualTo(1);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, 3)).isEqualTo(1);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, 4)).isEqualTo(2);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, content.length())).isEqualTo(3);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, 999)).isEqualTo(3);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(content, -5)).isEqualTo(1);
+        assertThat(SnippetEditDialog.lineNumberAtOffset(null, 5)).isEqualTo(1);
+    }
+
+    @Test
     void backgroundMetadataDoesNotOverwriteExplicitTextLanguageSelection() {
         assertThat(SnippetEditDialog.shouldApplyDetectedTextLanguage(false, true)).isFalse();
         assertThat(SnippetEditDialog.shouldApplyDetectedTextLanguage(false, false)).isTrue();

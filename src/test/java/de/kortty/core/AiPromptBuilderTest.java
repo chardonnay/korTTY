@@ -310,6 +310,47 @@ class AiPromptBuilderTest {
     }
 
     @Test
+    void typedDiagramPromptsFollowTheirFamilyContracts() {
+        record Expectation(de.kortty.model.SnippetDiagramType type, String header, String skillId, String intro) {
+        }
+        java.util.List<Expectation> expectations = java.util.List.of(
+            new Expectation(de.kortty.model.SnippetDiagramType.SEQUENCE,
+                "sequenceDiagram", "builtin.action.snippet-sequence", "sequence diagram"),
+            new Expectation(de.kortty.model.SnippetDiagramType.STATE,
+                "stateDiagram-v2", "builtin.action.snippet-state", "state diagram"),
+            new Expectation(de.kortty.model.SnippetDiagramType.CLASS,
+                "classDiagram", "builtin.action.snippet-class", "class diagram"),
+            new Expectation(de.kortty.model.SnippetDiagramType.ER,
+                "erDiagram", "builtin.action.snippet-er", "entity-relationship diagram"));
+        for (Expectation expectation : expectations) {
+            AiRequest request = new AiRequest(
+                AiAction.GENERATE_SNIPPET_MERMAID,
+                "echo ok",
+                null,
+                "de",
+                null,
+                "Snippet language: bash",
+                true,
+                null,
+                null,
+                expectation.type());
+
+            String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
+            String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+
+            assertThat(systemPrompt).contains("must start with exactly '" + expectation.header() + "'");
+            assertThat(systemPrompt).contains(expectation.skillId());
+            assertThat(systemPrompt).doesNotContain("builtin.action.snippet-mermaid");
+            assertThat(systemPrompt).doesNotContain("flowchart TD");
+            assertThat(systemPrompt).contains("codeReferences is an optional array");
+            assertThat(systemPrompt).contains("Return exactly one JSON object with keys title, mermaid, and codeReferences");
+            assertThat(systemPrompt).contains("frontmatter");
+            assertThat(userPrompt).contains(expectation.intro());
+            assertThat(userPrompt).contains("Follow the complete syntax and safety contract from the system message");
+        }
+    }
+
+    @Test
     void compactOneLinerPromptRequiresSingleJsonCommandWithoutBase64() {
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_ONE_LINER,

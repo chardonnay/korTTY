@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.model.SnippetDiagramType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -144,24 +145,35 @@ public final class SnippetAiResponseSupport {
     public record MermaidDiagram(
         String title,
         String mermaid,
-        List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+        List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
+        SnippetDiagramType diagramType) {
 
         public MermaidDiagram(String title, String mermaid) {
-            this(title, mermaid, List.of());
+            this(title, mermaid, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE);
+        }
+
+        public MermaidDiagram(
+            String title,
+            String mermaid,
+            List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
+
+            this(title, mermaid, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE);
         }
 
         public MermaidDiagram {
+            diagramType = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
             title = title != null && !title.isBlank() ? title.trim() : "Snippet structure";
             String rawMermaid = mermaid != null ? mermaid : "";
             mermaid = rawMermaid.getBytes(java.nio.charset.StandardCharsets.UTF_8).length
                 <= SnippetDiagramSupport.MAX_MERMAID_SOURCE_BYTES
                     ? SnippetDiagramSupport.normalizeMermaid(rawMermaid)
                     : "";
-            codeReferences = SnippetDiagramSupport.filterValidSourceReferences(mermaid, codeReferences);
+            codeReferences = SnippetTypedDiagramSupport.filterValidSourceReferences(
+                diagramType, mermaid, codeReferences);
         }
 
         public boolean isUsable() {
-            return SnippetDiagramSupport.isRenderableMermaid(mermaid);
+            return SnippetTypedDiagramSupport.validate(diagramType, mermaid).valid();
         }
     }
 
@@ -559,18 +571,24 @@ public final class SnippetAiResponseSupport {
     }
 
     public static MermaidDiagram parseMermaidDiagram(String responseText) {
+        return parseMermaidDiagram(SnippetDiagramType.LOGICAL_STRUCTURE, responseText);
+    }
+
+    public static MermaidDiagram parseMermaidDiagram(SnippetDiagramType diagramType, String responseText) {
+        SnippetDiagramType type = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
         JsonObject object = parseJsonObject(responseText);
         if (object == null) {
-            return new MermaidDiagram("", "");
+            return new MermaidDiagram("", "", List.of(), type);
         }
         MermaidDiagram diagram = new MermaidDiagram(
             firstString(object, "title", "name"),
             firstString(object, "mermaid"),
-            parseDiagramCodeReferences(object));
+            parseDiagramCodeReferences(object),
+            type);
         return diagram.isUsable()
-            && SnippetDiagramSupport.validateGeneratedMermaid(diagram.mermaid()).valid()
+            && SnippetTypedDiagramSupport.validateGenerated(type, diagram.mermaid()).valid()
                 ? diagram
-                : new MermaidDiagram("", "");
+                : new MermaidDiagram("", "", List.of(), type);
     }
 
     private static List<SnippetDiagramSupport.SourceCodeReference> parseDiagramCodeReferences(JsonObject object) {

@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import de.kortty.model.SnippetDiagramType;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.scene.web.WebEngine;
@@ -71,12 +72,17 @@ public final class MermaidRenderService {
         Theme theme,
         String backgroundColor,
         boolean includePng,
-        boolean generatedFlow) {
+        SnippetDiagramType generatedType) {
 
         public RenderRequest {
             source = source != null ? source : "";
             theme = theme != null ? theme : Theme.LIGHT;
             backgroundColor = normalizeBackground(backgroundColor, theme);
+        }
+
+        /** True for the AI-generated snippet path, which validates against a restricted dialect. */
+        public boolean generated() {
+            return generatedType != null;
         }
 
         public static RenderRequest generatedFlow(
@@ -85,11 +91,22 @@ public final class MermaidRenderService {
             String backgroundColor,
             boolean includePng) {
 
-            return new RenderRequest(source, theme, backgroundColor, includePng, true);
+            return generated(source, SnippetDiagramType.LOGICAL_STRUCTURE, theme, backgroundColor, includePng);
+        }
+
+        public static RenderRequest generated(
+            String source,
+            SnippetDiagramType type,
+            Theme theme,
+            String backgroundColor,
+            boolean includePng) {
+
+            return new RenderRequest(source, theme, backgroundColor, includePng,
+                type != null ? type : SnippetDiagramType.LOGICAL_STRUCTURE);
         }
 
         public static RenderRequest chat(String source, Theme theme) {
-            return new RenderRequest(source, theme, null, false, false);
+            return new RenderRequest(source, theme, null, false, null);
         }
     }
 
@@ -208,16 +225,18 @@ public final class MermaidRenderService {
 
     public static CompletableFuture<RenderResult> render(RenderRequest request) {
         Objects.requireNonNull(request, "request");
-        String validationFailure = request.generatedFlow()
-            ? restrictedFlowValidationFailure(request.source())
+        String validationFailure = request.generated()
+            ? restrictedValidationFailure(request.generatedType(), request.source())
             : validateSource(request.source());
         if (validationFailure != null) {
             return CompletableFuture.completedFuture(RenderResult.failure(validationFailure));
         }
-        String normalizedSource = request.generatedFlow()
+        String normalizedSource = request.generated()
             ? SnippetDiagramSupport.normalizeMermaid(request.source())
             : normalizeSource(request.source());
-        String source = request.generatedFlow()
+        // Only the logical-structure flowchart uses korTTY's semantic classDefs; the other
+        // generated families are themed by the host page exactly like chat diagrams.
+        String source = request.generatedType() == SnippetDiagramType.LOGICAL_STRUCTURE
             ? appendKorTTYThemeClasses(normalizedSource, request.theme())
             : normalizedSource;
         RenderRequest styled = new RenderRequest(
@@ -225,7 +244,7 @@ public final class MermaidRenderService {
             request.theme(),
             request.backgroundColor(),
             request.includePng(),
-            request.generatedFlow());
+            request.generatedType());
         return Holder.INSTANCE.enqueueRender(styled);
     }
 
@@ -740,8 +759,8 @@ public final class MermaidRenderService {
         return false;
     }
 
-    private static String restrictedFlowValidationFailure(String source) {
-        SnippetDiagramSupport.MermaidValidation validation = SnippetDiagramSupport.validateMermaid(source);
+    private static String restrictedValidationFailure(SnippetDiagramType type, String source) {
+        SnippetDiagramSupport.MermaidValidation validation = SnippetTypedDiagramSupport.validate(type, source);
         return validation.valid() ? null : validation.message();
     }
 

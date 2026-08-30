@@ -32,6 +32,7 @@ public final class MermaidRenderServiceSmoke {
                     verifyFlowchartAndRaster();
                     verifyDiagramReportExports();
                     verifySupportedDiagramFamilies();
+                    verifyGeneratedDiagramFamilies();
                     verifySyntaxError();
                     verifyRendererRecoversAfterFailure();
                     verifyCancellationRestartsEngine();
@@ -214,6 +215,54 @@ public final class MermaidRenderServiceSmoke {
                 .get(45, TimeUnit.SECONDS);
             if (!result.success() || !result.svg().contains("<svg")) {
                 throw new AssertionError("Supported Mermaid diagram did not render: " + result.message());
+            }
+        }
+    }
+
+    /** The typed generated snippet path must render every family the AI can now produce. */
+    private static void verifyGeneratedDiagramFamilies() throws Exception {
+        record TypedSource(de.kortty.model.SnippetDiagramType type, String source) {
+        }
+        TypedSource[] sources = {
+            new TypedSource(de.kortty.model.SnippetDiagramType.SEQUENCE, """
+                sequenceDiagram
+                participant script as Script
+                participant server as Server
+                script ->> server: Upload archive
+                server -->> script: Confirmation
+                """),
+            new TypedSource(de.kortty.model.SnippetDiagramType.STATE, """
+                stateDiagram-v2
+                [*] --> idle
+                idle --> running : started
+                running --> [*]
+                """),
+            new TypedSource(de.kortty.model.SnippetDiagramType.CLASS, """
+                classDiagram
+                class Session {
+                +String host
+                +connect() int
+                }
+                Session <|-- SshSession
+                """),
+            new TypedSource(de.kortty.model.SnippetDiagramType.ER, """
+                erDiagram
+                USER ||--o{ SESSION : opens
+                USER {
+                int id PK
+                varchar(80) name
+                }
+                """),
+        };
+        for (TypedSource typedSource : sources) {
+            MermaidRenderService.RenderResult result = MermaidRenderService.render(
+                MermaidRenderService.RenderRequest.generated(
+                    typedSource.source(), typedSource.type(),
+                    MermaidRenderService.Theme.DARK, "#1E1E1E", false))
+                .get(45, TimeUnit.SECONDS);
+            if (!result.success() || !result.svg().contains("<svg")) {
+                throw new AssertionError("Generated " + typedSource.type()
+                    + " diagram did not render: " + result.message());
             }
         }
     }
