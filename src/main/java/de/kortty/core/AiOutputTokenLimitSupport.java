@@ -9,7 +9,18 @@ package de.kortty.core;
  */
 public final class AiOutputTokenLimitSupport {
 
-    static final int MERMAID_MAX_COMPLETION_TOKENS = 8_192;
+    /**
+     * Budget for one diagram answer. The diagram JSON itself is small — a compact flowchart with
+     * its source mapping is well under 2 000 tokens — but this cap covers the *complete* completion,
+     * and a thinking model bills its hidden chain-of-thought against it. korTTY cannot pre-empt that
+     * per model: a model whose name advertises no reasoning capability gets no request-time `none`
+     * value from {@link AiReasoningSupport#profileForAction}, yet a hybrid thinking model served by
+     * LM Studio still thinks. At the previous 8 192 the whole budget went to reasoning and the reply
+     * was cut off before a single JSON character (observed with qwen3.8-27b: 8 191 completion tokens,
+     * no content). The cap now carries a reasoning reserve like the full-replacement budget below.
+     * Raising it only permits a longer answer — it never obliges a model to produce one.
+     */
+    static final int MERMAID_MAX_COMPLETION_TOKENS = 32_768;
     static final int FULL_REPLACEMENT_MAX_COMPLETION_TOKENS = 65_536;
     /**
      * Head-room for everything a model emits before the replacement itself, and therefore also the

@@ -9,6 +9,7 @@ What changed in the current release. The version this guide was built for is sho
 - **Four new AI diagram types** — besides the logical-structure flowchart, the snippet editor can now generate **sequence**, **state**, **class**, and **ER** diagrams. Each family uses its own compact, safety-restricted Mermaid dialect and its own built-in quality skill, and renders in the bundled offline Mermaid renderer as before. See [Mermaid diagrams](../features/snippets.md#mermaid-diagrams).
 - **Several diagrams per snippet** — a snippet now stores any number of diagrams. The diagram window lists them with family, title, and line range, offers **New diagram** with a type choice, and can **Delete** a selected diagram; **Regenerate** keeps each diagram's family and scope.
 - **Diagram from a selection** — select part of a script and pick a diagram type from the editor's new **Generate diagram** context submenu to diagram just those lines. The diagram remembers the line range, its code references point at the real snippet lines, and regeneration re-reads the same lines.
+- **Diagrams no longer fail on thinking models** — the diagram request's output budget covered the model's hidden reasoning as well, so a reasoning model could use up the whole budget before writing a single character of the diagram, and generation failed after minutes of work. The budget now leaves room for that reasoning, and a response that is still cut off says so instead of reporting a generic failure.
 
 ### AI assistant
 

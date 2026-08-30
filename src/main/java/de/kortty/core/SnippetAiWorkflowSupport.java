@@ -1119,8 +1119,15 @@ public final class SnippetAiWorkflowSupport {
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
+        // A cut-off answer carries no usable diagram, and the reason matters: a thinking model can
+        // spend the whole completion budget on hidden reasoning and emit no JSON at all. Reporting
+        // that as an ordinary failed generation sends the next reader after the wrong fix, so this
+        // is signalled like the other bounded, machine-parsed snippet answers.
         if (result != null && result.outputTruncated()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "", java.util.List.of(), type);
+            if (result.streamInterrupted()) {
+                throw new ResponseStreamInterruptedException();
+            }
+            throw new OutputTokenLimitReachedException();
         }
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram(type, result != null ? result.content() : null);

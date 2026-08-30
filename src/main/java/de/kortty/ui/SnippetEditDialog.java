@@ -611,10 +611,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private record CursorLocation(int offset, int line, int column) {
     }
 
+    /**
+     * @param outputLimitReached the model used its whole completion budget (typically on hidden
+     *                           reasoning) and returned no complete diagram
+     */
     private record DiagramGenerationResult(
         SnippetAiResponseSupport.MermaidDiagram diagram,
         MermaidRenderService.SyntaxCheckResult syntaxCheck,
-        MermaidRenderService.RenderResult renderCheck) {
+        MermaidRenderService.RenderResult renderCheck,
+        boolean outputLimitReached) {
+
+        private DiagramGenerationResult(
+            SnippetAiResponseSupport.MermaidDiagram diagram,
+            MermaidRenderService.SyntaxCheckResult syntaxCheck,
+            MermaidRenderService.RenderResult renderCheck) {
+
+            this(diagram, syntaxCheck, renderCheck, false);
+        }
     }
 
     private record FormSnapshot(
@@ -4967,6 +4980,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             @Override
             protected DiagramGenerationResult call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                boolean outputLimitReached = false;
                 try {
                     diagram = aiAssist.diagramProvider().generate(new DiagramRequest(
                         fullContent,
@@ -4979,6 +4993,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         scope != null ? scope.startLine() : 0,
                         scope != null ? scope.endLine() : 0));
                 } catch (Exception e) {
+                    outputLimitReached = isOutputTokenLimitFailure(e);
                     logger.warn("AI diagram generation failed", e);
                 }
                 MermaidRenderService.SyntaxCheckResult syntaxCheck = null;
@@ -5009,7 +5024,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         return new DiagramGenerationResult(fallbackDiagram, fallbackSyntaxCheck, fallbackRenderCheck);
                     }
                 }
-                return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck);
+                return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
             }
         };
         snippetAiActionTask = task;
@@ -5023,7 +5038,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             DiagramGenerationResult result = task.getValue();
             SnippetAiResponseSupport.MermaidDiagram generated = result != null ? result.diagram() : null;
             if (generated == null || !generated.isUsable()) {
-                setStatus(I18n.get("snippets.ai.diagram.failed"));
+                setStatus(result != null && result.outputLimitReached()
+                    ? I18n.get("snippets.ai.diagram.outputLimitReached")
+                    : I18n.get("snippets.ai.diagram.failed"));
                 return;
             }
             MermaidRenderService.SyntaxCheckResult syntaxCheck = result.syntaxCheck();

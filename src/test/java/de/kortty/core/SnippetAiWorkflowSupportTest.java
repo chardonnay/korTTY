@@ -1453,7 +1453,11 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void truncatedMermaidResponseIsNotParsedOrRetried() throws Exception {
+    void truncatedMermaidResponseIsReportedAsAnOutputLimitAfterUsageIsRecorded() {
+        // A thinking model can spend the whole diagram budget on hidden reasoning and return no
+        // JSON at all. Reporting that as an ordinary failed generation sends the user after the
+        // wrong fix, so it surfaces as the output-limit signal — usage is still recorded, and the
+        // request is never repeated.
         CapturingAiService aiService = new CapturingAiService("""
             {
               "title": "Partial flow",
@@ -1462,19 +1466,38 @@ class SnippetAiWorkflowSupportTest {
             """, true);
         int[] recordedUsages = {0};
 
-        SnippetAiResponseSupport.MermaidDiagram diagram =
-            SnippetAiWorkflowSupport.generateSnippetMermaid(
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.generateSnippetMermaid(
                 aiService,
                 (request, result) -> recordedUsages[0]++,
                 "echo ok",
                 "bash",
                 null,
                 "en",
-                null);
+                null));
 
-        assertThat(diagram.isUsable()).isFalse();
         assertThat(aiService.executionCount).isEqualTo(1);
         assertThat(recordedUsages[0]).isEqualTo(1);
+    }
+
+    @Test
+    void interruptedMermaidResponseIsReportedAsAnInterruptionNotAnOutputLimit() {
+        CapturingAiService aiService = new CapturingAiService("", true, true);
+
+        expectThrows(
+            SnippetAiWorkflowSupport.ResponseStreamInterruptedException.class,
+            () -> SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                de.kortty.model.SnippetDiagramType.SEQUENCE,
+                "echo ok",
+                "bash",
+                null,
+                "en",
+                null));
+
+        assertThat(aiService.executionCount).isEqualTo(1);
     }
 
     @Test
