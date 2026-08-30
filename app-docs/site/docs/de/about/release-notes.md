@@ -4,6 +4,12 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ## v2.13.1
 
+### Snippets
+
+- **Vier neue KI-Diagrammtypen** – neben dem Flussdiagramm mit logischer Struktur kann der Snippet-Editor jetzt **Sequenz**-, **Zustands**-, **Klassen**- und **ER**-Diagramme generieren. Jede Familie verwendet ihren eigenen kompakten, sicherheitsbeschränkten Mermaid-Dialekt und ihre eigene integrierte Qualitätsfähigkeit und rendert wie zuvor im gebündelten Offline-Mermaid-Renderer. Siehe [Mermaid-Diagramme](../features/snippets.md#mermaid-diagramme).
+- **Mehrere Diagramme pro Snippet** – ein Snippet speichert jetzt eine beliebige Anzahl von Diagrammen. Das Diagrammfenster listet sie mit Familie, Titel und Linienbereich auf, bietet **Neues Diagramm** mit einer Typauswahl und kann ein ausgewähltes Diagramm **löschen**; **Neu erzeugen** behält die Familie und den Umfang jedes Diagramms bei.
+- **Diagramm aus einer Auswahl** – Wählen Sie einen Teil eines Skripts aus und wählen Sie einen Diagrammtyp aus dem neuen Kontext-Untermenü **Diagramm generieren** des Editors aus, um nur diese Linien grafisch darzustellen. Das Diagramm merkt sich den Zeilenbereich, seine Codereferenzen zeigen auf die echten Snippet-Zeilen und bei der Neugenerierung werden dieselben Zeilen erneut gelesen.
+
 ### AI-Assistent
 
 - **[Vollständige Codeanalyse](../features/snippets.md#ai-codeaktionen) schlägt bei einigen lokalen Reasoning-Modellen nicht mehr fehl** – wenn korTTY ein streng strukturiertes Ergebnis von einem lokalen Server anfordert, geben bestimmte Reasoning-Modelle ihre vollständige Antwort im Reasoning-Kanal zurück und lassen die eigentliche Antwort leer. korTTY betrachtete dies als leere Antwort und verwarf eine fertige Analyse nach minutenlanger Arbeit. korTTY erkennt nun eine solche Antwort und nutzt die bereits enthaltene Analyse. Nur wenn dieser Text unbrauchbar ist, wird ein zweites Mal gefragt, ohne das strikte Format. Dies wurde bei den neueren Qwen-Reasoning-Modellen in LM Studio beobachtet und wirkte sich auf **Vollständige Codeanalyse** und **Auswahl übernehmen** im Snippet-Editor aus. Modelle, die eine normale Antwort zurückgeben, sind davon nicht betroffen.

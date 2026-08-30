@@ -262,7 +262,7 @@ Codeausschnitte, Skripte und Vorlagen.
 - ZIP-Archive mit optionaler Passwort- oder GPG-Verschlüsselung
 - Lokale Syntaxhervorhebung mit dem Monaco-Editor
 - AI-unterstützte Bearbeitung und Codegenerierung
-- Persistierte Mermaid-Flussdiagramme mit stabilen Code-Referenz-Knoten-IDs
+- Persistierte Mermaid-Diagramme (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse, ER) mit stabilen Code-Referenz-Knoten-IDs und, für Diagramme mit Auswahlbereich, dem abgedeckten Linienbereich
 - Einzeiliger Export mit optionalen Skriptargumenten
 
 ### snippet-variables.xml

@@ -4,6 +4,12 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.13.1
 
+### Snippets
+
+- **Four new AI diagram types** — besides the logical-structure flowchart, the snippet editor can now generate **sequence**, **state**, **class**, and **ER** diagrams. Each family uses its own compact, safety-restricted Mermaid dialect and its own built-in quality skill, and renders in the bundled offline Mermaid renderer as before. See [Mermaid diagrams](../features/snippets.md#mermaid-diagrams).
+- **Several diagrams per snippet** — a snippet now stores any number of diagrams. The diagram window lists them with family, title, and line range, offers **New diagram** with a type choice, and can **Delete** a selected diagram; **Regenerate** keeps each diagram's family and scope.
+- **Diagram from a selection** — select part of a script and pick a diagram type from the editor's new **Generate diagram** context submenu to diagram just those lines. The diagram remembers the line range, its code references point at the real snippet lines, and regeneration re-reads the same lines.
+
 ### AI assistant
 
 - **[Full code analysis](../features/snippets.md#ai-code-actions) no longer fails on some local reasoning models** — when korTTY requests a strictly structured result from a local server, certain reasoning models return their complete answer in the reasoning channel and leave the actual reply empty. korTTY treated this as an empty reply and discarded a finished analysis after minutes of work. korTTY now detects such a reply and uses the analysis it already contains. Only if that text is unusable does it ask a second time, without the strict format. This was observed with the newer Qwen reasoning models in LM Studio, and it affected **Full code analysis** and **Apply selected** in the snippet editor. Models that return a normal reply are unaffected.

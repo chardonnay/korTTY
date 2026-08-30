@@ -2221,6 +2221,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2358,6 +2369,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2404,6 +2426,12 @@
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
 <h2 id="v2131">v2.13.1<a class="headerlink" href="#v2131" title="Permanent link">&para;</a></h2>
+<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Four new AI diagram types</strong> — besides the logical-structure flowchart, the snippet editor can now generate <strong>sequence</strong>, <strong>state</strong>, <strong>class</strong>, and <strong>ER</strong> diagrams. Each family uses its own compact, safety-restricted Mermaid dialect and its own built-in quality skill, and renders in the bundled offline Mermaid renderer as before. See <a href="../features/snippets.html#mermaid-diagrams">Mermaid diagrams</a>.</li>
+<li><strong>Several diagrams per snippet</strong> — a snippet now stores any number of diagrams. The diagram window lists them with family, title, and line range, offers <strong>New diagram</strong> with a type choice, and can <strong>Delete</strong> a selected diagram; <strong>Regenerate</strong> keeps each diagram's family and scope.</li>
+<li><strong>Diagram from a selection</strong> — select part of a script and pick a diagram type from the editor's new <strong>Generate diagram</strong> context submenu to diagram just those lines. The diagram remembers the line range, its code references point at the real snippet lines, and regeneration re-reads the same lines.</li>
+</ul>
 <h3 id="ai-assistant">AI assistant<a class="headerlink" href="#ai-assistant" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><a href="../features/snippets.html#ai-code-actions">Full code analysis</a> no longer fails on some local reasoning models</strong> — when korTTY requests a strictly structured result from a local server, certain reasoning models return their complete answer in the reasoning channel and leave the actual reply empty. korTTY treated this as an empty reply and discarded a finished analysis after minutes of work. korTTY now detects such a reply and uses the analysis it already contains. Only if that text is unusable does it ask a second time, without the strict format. This was observed with the newer Qwen reasoning models in LM Studio, and it affected <strong>Full code analysis</strong> and <strong>Apply selected</strong> in the snippet editor. Models that return a normal reply are unaffected.</li>
