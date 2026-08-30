@@ -333,6 +333,7 @@ class AiPromptBuilderTest {
                 true,
                 null,
                 null,
+                null,
                 expectation.type());
 
             String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);

@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiLanguageSupport;
+import de.kortty.core.CodeTextLanguageDetector;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiSkillRelevanceSelector;
 import de.kortty.core.CodeFormatterService;
@@ -15,6 +16,7 @@ import de.kortty.core.SnippetLinter;
 import de.kortty.core.SnippetMarkupPreviewRenderer;
 import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
+import de.kortty.core.ScriptLanguageMixSupport;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
@@ -139,6 +141,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MenuItem improveCommentsItem;
     private MenuItem improveCommentsContextItem;
     private final MenuItem improveCustomItem;
+    private MenuItem migrateLanguageItem;
+    private MenuItem migrateLanguageContextItem;
     private final MenuItem securityCheckItem;
     private final MenuItem diagramItem;
     private final MenuButton oneLinerMenu;
@@ -164,6 +168,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Task<String> descriptionCorrectionTask;
     private Task<?> snippetAiActionTask;
     private SnippetAiApplyProgressWindow improvementApplyProgressWindow;
+    private WindowDockGroup improvementApplyDockGroup;
+    private boolean rememberCodeTextLanguageAnswer = true;
     // Editor teardown cancels AI tasks; the abort-recovery dialog must not pop over a closing editor.
     private boolean improvementApplyRecoverySuppressed;
     private boolean programmaticNameUpdate;
@@ -317,6 +323,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     @FunctionalInterface
+    public interface LanguageMigrationProvider {
+        SnippetAiResponseSupport.LanguageMigration migrate(LanguageMigrationRequest request) throws Exception;
+    }
+
+    @FunctionalInterface
     public interface CodeAssistantProvider {
         SnippetAiResponseSupport.CodeImprovement assist(CodeAssistantRequest request) throws Exception;
     }
@@ -452,6 +463,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
+    /**
+     * @param plan what was detected plus what the user chose; the two travel together so they
+     *             cannot drift apart on the way to the model.
+     */
+    public record LanguageMigrationRequest(
+        String fullContent,
+        String snippetLanguage,
+        String fallbackLanguageCode,
+        SnippetAiWorkflowSupport.MigrationPlan plan,
+        String additionalInstructions,
+        String aiProfileId) {
+    }
+
     public record CodeAssistantRequest(
         String fullContent,
         String snippetLanguage,
@@ -472,12 +496,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String additionalInstructions) {
     }
 
+    /** @param migration optional language unification run before the fixes; may be null or a no-op. */
     public record SecurityFixRequest(
         String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
         List<SnippetAiResponseSupport.SecurityFinding> selectedFindings,
-        String additionalInstructions) {
+        String additionalInstructions,
+        SnippetAiWorkflowSupport.MigrationPlan migration) {
+
+        public SecurityFixRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            List<SnippetAiResponseSupport.SecurityFinding> selectedFindings,
+            String additionalInstructions) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, selectedFindings,
+                additionalInstructions, null);
+        }
     }
 
     public record CodeAnalysisRequest(
@@ -500,7 +536,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         SnippetAiWorkflowSupport.ImprovementApplyProgressListener progressListener,
         SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
         SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
-        String aiProfileId) {
+        String aiProfileId,
+        SnippetAiWorkflowSupport.MigrationPlan migration) {
 
         /** Compatibility view used by callers that only need to inspect the complete selected contract. */
         public String mandatoryHardeningInstructions() {
@@ -576,6 +613,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         CompletionProvider completionProvider,
         CodeReviewProvider codeReviewProvider,
         CodeImprovementProvider codeImprovementProvider,
+        LanguageMigrationProvider languageMigrationProvider,
         CodeAssistantProvider codeAssistantProvider,
         SecurityReportProvider securityReportProvider,
         SecurityFixProvider securityFixProvider,
@@ -1087,6 +1125,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         improveCommentsItem.setOnAction(e -> { trackSnippetAiAction("code_improve_comments"); runCommentOptimization(); });
         improveCustomItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
         improveCustomItem.setOnAction(e -> { trackSnippetAiAction("code_improve_custom"); runCustomCodeImprovement(); });
+        migrateLanguageItem = new MenuItem(aiActionLabel("snippets.ai.code.migrate"));
+        migrateLanguageItem.setOnAction(e -> { trackSnippetAiAction("code_migrate"); runLanguageMigration(); });
         securityCheckItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
         securityCheckItem.setOnAction(e -> { trackSnippetAiAction("code_security_check"); runSecurityCheck(); });
         diagramItem = new MenuItem(aiActionLabel("snippets.ai.diagram.menu"));
@@ -1102,6 +1142,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             improvePerformanceItem,
             improveCommentsItem,
             improveCustomItem,
+            migrateLanguageItem,
             new SeparatorMenuItem(),
             securityCheckItem,
             diagramItem);
@@ -2514,6 +2555,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         MenuItem improveCustomContextItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.custom"));
         improveCustomContextItem.setOnAction(e -> runCustomCodeImprovement());
+        migrateLanguageContextItem = new MenuItem(aiActionLabel("snippets.ai.code.migrate"));
+        migrateLanguageContextItem.setOnAction(e -> {
+            trackSnippetAiAction("code_migrate");
+            runLanguageMigration();
+        });
         MenuItem securityCheckContextItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
         securityCheckContextItem.setOnAction(e -> runSecurityCheck());
         // Diagram submenu: with a selection the chosen family diagrams just the selected lines,
@@ -2562,6 +2608,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 reviewCodeContextItem,
                 improveCommentsContextItem,
                 improveCustomContextItem,
+                migrateLanguageContextItem,
                 securityCheckContextItem,
                 diagramContextItem,
                 diagramContextMenu,
@@ -2596,6 +2643,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             reviewCodeContextItem.setDisable(!hasContent || !hasCodeAnalysisProviders() || aiBusy);
             improveCommentsContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
+            // A migration always rewrites the whole snippet, so it needs content but no selection.
+            migrateLanguageContextItem.setDisable(!hasContent || !hasLanguageMigrationProvider() || aiBusy);
             securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || aiBusy);
             diagramContextItem.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
             diagramContextMenu.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
@@ -2717,6 +2766,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         improvePerformanceItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improveCommentsItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improveCustomItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
+        migrateLanguageItem.setDisable(busy || !hasContent || !hasLanguageMigrationProvider());
         securityCheckItem.setDisable(busy || !hasContent || !hasSecurityProviders());
         diagramItem.setDisable(busy || !hasContent || !hasDiagramProvider());
         aiCodeMenu.setDisable(busy || !hasContent || (!hasCompletionProvider() && !hasCodeReviewProvider()
@@ -2762,8 +2812,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private HBox buildAiCodeTextLanguageRow() {
         aiCodeTextLanguageCombo = new ComboBox<>();
         aiCodeTextLanguageCombo.setId("snippet-ai-text-language");
-        aiCodeTextLanguageCombo.getItems().setAll(
-            AiLanguageSupport.buildAvailableLanguageOptions(aiCodeTextLanguageCode));
+        // First entry, and the default: no translation at all. Everything below it converts the
+        // snippet's prose into that language, which is a deliberate choice rather than a side effect.
+        aiCodeTextLanguageCombo.getItems().add(new AiLanguageSupport.LanguageOption(
+            AiLanguageSupport.AUTO_CODE, I18n.get("snippets.ai.language.auto")));
+        aiCodeTextLanguageCombo.getItems().addAll(
+            AiLanguageSupport.buildAvailableLanguageOptions(
+                AiLanguageSupport.isAutomatic(aiCodeTextLanguageCode) ? null : aiCodeTextLanguageCode));
         aiCodeTextLanguageCombo.setPrefWidth(260);
         aiCodeTextLanguageCombo.setTooltip(new Tooltip(I18n.get("snippets.ai.language.tooltip")));
         aiCodeTextLanguageCombo.setCellFactory(listView -> new ListCell<>() {
@@ -2819,7 +2874,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!programmaticAiTextLanguageUpdate) {
             aiTextLanguageUserEdited = true;
         }
-        aiCodeTextLanguageCode = AiLanguageSupport.resolveFallbackLanguageCode(selected.code());
+        // "Automatic" is a mode, not a language: resolving it against the interface language would
+        // turn the default straight back into the translation this feature exists to stop.
+        aiCodeTextLanguageCode = AiLanguageSupport.isAutomatic(selected.code())
+            ? AiLanguageSupport.AUTO_CODE
+            : AiLanguageSupport.resolveFallbackLanguageCode(selected.code());
         if (programmaticAiTextLanguageUpdate) {
             return;
         }
@@ -2848,10 +2907,181 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return selected != null ? selected.label() : aiCodeTextLanguageCode;
     }
 
+    /**
+     * The configured code-text language, defaulting to {@link AiLanguageSupport#AUTO_CODE}.
+     *
+     * <p>It used to default to the interface language, which meant a user who never opened this
+     * picker had every AI code rewrite translate their script's comments into the language korTTY
+     * happens to run in. Keeping the script's own language is the default now; naming a language
+     * here is the deliberate opt-in to converting it.</p>
+     */
+    // ---- Code-text language: keep the script's own, or deliberately convert it ------------------
+
+    /** What a code-rewriting action should do about the prose inside the snippet. */
+    private record CodeTextChoice(de.kortty.core.CodeTextLanguage language, boolean aborted) {
+        static CodeTextChoice of(de.kortty.core.CodeTextLanguage language) {
+            return new CodeTextChoice(language, false);
+        }
+
+        static CodeTextChoice abort() {
+            return new CodeTextChoice(null, true);
+        }
+    }
+
+    /**
+     * Works out which language a code rewrite must write, and installs it for the run.
+     *
+     * <p>Order matters: an explicitly picked language is the user saying "convert it", so it wins.
+     * Otherwise the snippet keeps whatever language its prose already uses — remembered from an
+     * earlier answer, or detected. When neither is available the user is asked, because guessing
+     * here rewrites their own comments into a language they never chose.</p>
+     *
+     * @param mayAsk whether interrupting is acceptable. False for auto-completion, which fires on a
+     *     timer while typing; a dialog there would be indefensible, so an undetectable language
+     *     simply leaves the prompt's previous behaviour in place for that one action.
+     */
+    private CodeTextChoice resolveCodeTextLanguage(boolean mayAsk) {
+        if (!AiLanguageSupport.isAutomatic(aiCodeTextLanguageCode)) {
+            return CodeTextChoice.of(
+                de.kortty.core.CodeTextLanguage.translateInto(aiCodeTextLanguageCode));
+        }
+        String remembered = existingSnippet != null ? existingSnippet.getCodeTextLanguageCode() : null;
+        if (remembered != null && !remembered.isBlank()) {
+            return CodeTextChoice.of(de.kortty.core.CodeTextLanguage.keep(remembered));
+        }
+        CodeTextLanguageDetector.Detection detection = CodeTextLanguageDetector.detect(
+            contentArea.getText(), languageCombo.getValue());
+        if (detection.isUsable()) {
+            return CodeTextChoice.of(
+                de.kortty.core.CodeTextLanguage.keep(detection.languageCode()));
+        }
+        if (!mayAsk) {
+            return CodeTextChoice.of(null);
+        }
+        String answered = askForCodeTextLanguage(detection);
+        if (answered == null) {
+            return CodeTextChoice.abort();
+        }
+        rememberCodeTextLanguage(answered);
+        return CodeTextChoice.of(de.kortty.core.CodeTextLanguage.keep(answered));
+    }
+
+    /**
+     * Installs the resolved contract for the upcoming action.
+     *
+     * @return whether the action may proceed; {@code false} when the user dismissed the question
+     */
+    private boolean applyCodeTextLanguage(boolean mayAsk) {
+        CodeTextChoice choice = resolveCodeTextLanguage(mayAsk);
+        if (choice.aborted()) {
+            setStatus(I18n.get("snippets.ai.language.ask.cancelled"));
+            return false;
+        }
+        if (aiAssist != null && aiAssist.runtimeOptions() != null) {
+            aiAssist.runtimeOptions().setCodeTextLanguage(choice.language());
+        }
+        return true;
+    }
+
+    /**
+     * Asks which language the snippet's comments and messages are written in.
+     *
+     * @return the chosen ISO code, or {@code null} when the user dismissed the dialog
+     */
+    private String askForCodeTextLanguage(CodeTextLanguageDetector.Detection detection) {
+        List<AiLanguageSupport.LanguageOption> options =
+            AiLanguageSupport.buildAvailableLanguageOptions(null);
+        ComboBox<AiLanguageSupport.LanguageOption> combo = new ComboBox<>();
+        combo.setId("snippet-code-text-language-ask");
+        combo.getItems().setAll(options);
+        combo.setPrefWidth(260);
+        // Pre-select the ambiguous winner when there was one: it is a hint, not a decision, and the
+        // user still has to confirm it.
+        AiLanguageSupport.LanguageOption preselected = AiLanguageSupport.findOption(
+            options,
+            detection.languageCode() != null
+                ? detection.languageCode()
+                : AiLanguageSupport.resolveFallbackLanguageCode(null));
+        combo.getSelectionModel().select(preselected != null ? preselected : options.get(0));
+
+        CheckBox remember = new CheckBox(I18n.get("snippets.ai.language.ask.remember"));
+        remember.setSelected(true);
+
+        Label explanation = new Label(I18n.get(
+            detection.confidence() == CodeTextLanguageDetector.Confidence.AMBIGUOUS
+                ? "snippets.ai.language.ask.ambiguous"
+                : "snippets.ai.language.ask.unknown"));
+        explanation.setWrapText(true);
+        explanation.setMaxWidth(430);
+
+        Dialog<String> dialog = new ThemeAwareDialog<>();
+        dialog.setTitle(I18n.get("snippets.ai.language.ask.title"));
+        dialog.getDialogPane().setHeaderText(I18n.get("snippets.ai.language.ask.header"));
+        VBox content = new VBox(10, explanation,
+            new HBox(8, new Label(I18n.get("snippets.ai.language")), combo), remember);
+        content.setPadding(new Insets(6, 4, 2, 4));
+        dialog.getDialogPane().setContent(content);
+        ButtonType useButton = new ButtonType(
+            I18n.get("snippets.ai.language.ask.use"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(useButton, ButtonType.CANCEL);
+        Window owner = aiFlowAlertOwner(null);
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+        // Scoped to the snippet tool: a question about a snippet must not freeze a terminal session.
+        dialog.initModality(Modality.WINDOW_MODAL);
+        dialog.setResultConverter(button -> {
+            if (button != useButton) {
+                return null;
+            }
+            AiLanguageSupport.LanguageOption chosen = combo.getValue();
+            rememberCodeTextLanguageAnswer = remember.isSelected();
+            return chosen != null ? chosen.code() : null;
+        });
+        try {
+            return dialog.showAndWait().orElse(null);
+        } catch (IllegalStateException e) {
+            // JavaFX refuses a nested event loop during a layout or animation pass. Rather than let
+            // that escape into the action that asked, treat it as "no answer": the rewrite is
+            // skipped, which is the safe outcome — the alternative is translating the user's
+            // comments on a guess.
+            logger.debug("Could not ask for the snippet code-text language right now", e);
+            return null;
+        }
+    }
+
+    /**
+     * Stores the answer on the snippet so the question is asked once, not before every action.
+     *
+     * <p>Written straight through rather than waiting for the editor to be saved: the answer is
+     * about the file's existing prose, not about the edit in progress, and a user who cancels their
+     * edit should still not be asked the same question again.</p>
+     */
+    private void rememberCodeTextLanguage(String languageCode) {
+        if (!rememberCodeTextLanguageAnswer || existingSnippet == null
+            || languageCode == null || languageCode.isBlank()) {
+            return;
+        }
+        existingSnippet.setCodeTextLanguageCode(languageCode);
+        try {
+            var manager = KorTTYApplication.getInstance().getSnippetManager();
+            if (manager != null && manager.findById(existingSnippet.getId()).isPresent()) {
+                manager.updateSnippet(existingSnippet);
+                manager.save();
+            }
+        } catch (Exception e) {
+            // The answer still applies to this editor for the rest of the session; only the
+            // remembering failed, which is not worth interrupting a code rewrite for.
+            logger.debug("Could not persist the snippet code-text language", e);
+        }
+    }
+
     private String loadConfiguredAiCodeTextLanguageCode() {
         GlobalSettings settings = currentGlobalSettings();
-        return AiLanguageSupport.resolveFallbackLanguageCode(
-            settings != null ? settings.getAiCodeTextDefaultLanguage() : null);
+        String configured = settings != null ? settings.getAiCodeTextDefaultLanguage() : null;
+        return AiLanguageSupport.isAutomatic(configured)
+            ? AiLanguageSupport.AUTO_CODE
+            : AiLanguageSupport.resolveFallbackLanguageCode(configured);
     }
 
     private boolean saveAiCodeTextLanguagePreference(String languageCode) {
@@ -3192,6 +3422,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     private boolean hasCodeImprovementProvider() {
         return aiAssist != null && aiAssist.codeImprovementProvider() != null;
+    }
+
+    private boolean hasLanguageMigrationProvider() {
+        return aiAssist != null && aiAssist.languageMigrationProvider() != null;
     }
 
     private boolean hasCodeAssistantProvider() {
@@ -3576,6 +3810,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     additionalInstructions()));
             }
         };
+        // Auto-completion fires while typing, so it never interrupts: an undetectable
+        // language simply leaves this one request without an explicit contract.
+        applyCodeTextLanguage(false);
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.complete.running"));
@@ -3736,7 +3978,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 diagramLoader,
                 aiProfileId,
                 profileSwitchingSupported() ? this::runCodeReview : null,
-                buildAnalysisSkillContext());
+                buildAnalysisSkillContext(),
+                ScriptLanguageMixSupport.detect(language, fullContent),
+                resolveAiTextFallbackLanguageCode());
             // Keep the report open during the staged apply. The narrow companion window is docked to
             // this analysis window (or its host window in tab mode) until the review preview opens.
             dialog.setApplyHandler(selection -> {
@@ -3861,7 +4105,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean hasAiWork = !selection.improvements().isEmpty()
             || !selection.dependencies().isEmpty()
             || !selection.hardening().isEmpty()
-            || inputHardeningApplies;
+            || inputHardeningApplies
+            || selection.migrates();
         // A chosen script header is a deterministic prepend — apply it locally without an AI round-trip
         // when no findings/hardening were ticked.
         if (!hasAiWork) {
@@ -3881,6 +4126,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // Keep configurable profile instructions separate from the selected hardening contract. The latter
         // is carried as a numbered mandatory checklist by the workflow so a model cannot treat it as an
         // optional suggestion when no analysis finding was selected.
+        // The analysis window carries its own text-language choice; fall back to the editor's when a
+        // caller (the header-only path, an older recovery checkpoint) has none.
+        String codeTextLanguageCode = selection.codeTextLanguageCode() != null
+            && !selection.codeTextLanguageCode().isBlank()
+            ? selection.codeTextLanguageCode()
+            : resolveAiTextFallbackLanguageCode();
         String classicHardeningInstructions = withHardeningRules(null, selection.hardening());
         String inputHardeningInstructions = withInputHardeningRules(null, selection.inputHardening());
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> applyPlan =
@@ -3888,15 +4139,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 selection.improvements(),
                 selection.dependencies(),
                 classicHardeningInstructions,
-                inputHardeningInstructions);
+                inputHardeningInstructions,
+                selection.migration());
         if (improvementApplyProgressWindow != null) {
             improvementApplyProgressWindow.close();
         }
         Window progressAnchor = analysisDialog != null ? analysisDialog.displayWindow() : resolveAlertOwner();
-        SnippetAiApplyProgressWindow progressWindow =
-            new SnippetAiApplyProgressWindow(progressAnchor, applyPlan);
+        SnippetAiApplyProgressWindow progressWindow = new SnippetAiApplyProgressWindow(
+            progressAnchor,
+            applyPlan,
+            analysisDialog != null
+                ? SnippetAiDialogSupport.resolveProfileDisplayName(analysisDialog.activeProfileId())
+                : null);
         improvementApplyProgressWindow = progressWindow;
         progressWindow.show();
+        WindowDockGroup dockGroup = openImprovementApplyDockGroup(progressAnchor, analysisDialog);
+        if (dockGroup != null) {
+            dockGroup.dock(progressWindow.stage(), WindowDockGroup.Side.RIGHT,
+                storedDockWidth(GlobalSettings::getAiApplyProgressDockedWidth, 360));
+            progressWindow.setTileHandler(dockGroup::tile);
+        }
         // Worker thread writes after each completed stage, FX thread reads after an abort. Pre-seeding
         // with the resume checkpoint keeps recovery available when a resumed run aborts again before
         // completing any further stage.
@@ -3911,7 +4173,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 return aiAssist.improvementFixProvider().applyFixes(new ImprovementApplyRequest(
                     originalContent,
                     languageCombo.getValue(),
-                    resolveAiTextFallbackLanguageCode(),
+                    codeTextLanguageCode,
                     selection.improvements(),
                     selection.dependencies(),
                     additionalInstructions(),
@@ -3930,7 +4192,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     },
                     checkpointRef::set,
                     resumeFrom,
-                    null));
+                    null,
+                    selection.migration()));
             }
         };
         if (analysisDialog != null) {
@@ -3943,6 +4206,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 if (improvementApplyProgressWindow == progressWindow) {
                     improvementApplyProgressWindow = null;
                 }
+                closeImprovementApplyDockGroup();
             });
         }
         task.messageProperty().addListener((observable, oldMessage, message) -> {
@@ -3956,6 +4220,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 snippetAiProgressIndicator.setProgress(progress.doubleValue());
             }
         });
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             String runningMessage = task.getMessage() != null && !task.getMessage().isBlank()
@@ -3988,33 +4257,30 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             progressWindow.markSucceeded();
             // Prepend the chosen script header (if any) to the AI-fixed script before review/apply.
             String replacement = injectSelectedHeader(selection, fix.replacement());
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                analysisDialog != null ? analysisDialog.displayWindow()
-                    : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
+            // Closing the preview by accident should not cost a whole analysis run.
+            progressWindow.setReopenPreviewHandler(() -> showDockedImprovementPreview(
+                analysisDialog,
                 I18n.get("snippets.ai.analysis.diff.title"),
                 fix.summary(),
+                fix.changes(),
                 originalContent,
-                replacement,
-                languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setChangeExplanations(fix.changes());
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, originalContent.length(), replacement,
-                    I18n.get("snippets.ai.toggle.action.improve"));
+                replacement));
+            if (showDockedImprovementPreview(
+                    analysisDialog,
+                    I18n.get("snippets.ai.analysis.diff.title"),
+                    fix.summary(),
+                    fix.changes(),
+                    originalContent,
+                    replacement)) {
                 setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
             }
-            // On macOS, closing an owned Stage synchronously while showAndWait() is still unwinding
-            // can crash JavaFX/WebKit in native window disposal. Defer owner/companion cleanup by one
-            // FX pulse so the modal diff has completely left its nested event loop first.
+            // The analysis window and the docked run summary deliberately stay open: what the run
+            // cost and achieved is only useful while it can still be read. Closing the analysis
+            // window is what tears the group down. The deferral survives from the macOS crash
+            // workaround below — see showDockedImprovementPreview.
             Platform.runLater(() -> {
-                progressWindow.close();
-                if (improvementApplyProgressWindow == progressWindow) {
-                    improvementApplyProgressWindow = null;
-                }
                 if (analysisDialog != null) {
                     analysisDialog.setApplyProcessing(false);
-                    analysisDialog.closeAfterApply();
                 }
             });
         });
@@ -4039,6 +4305,139 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-improvement-fix");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /**
+     * Starts a fresh dock group around the analysis window, so the run summary and the change
+     * preview attach to opposite edges of it instead of piling up on top of each other.
+     *
+     * <p>Returns {@code null} when there is nothing sensible to dock to. The anchor may only be
+     * narrowed when it is the analysis window's own stage — in tab mode the anchor is the main
+     * window, and squeezing the user's terminals aside is not this feature's business.</p>
+     */
+    private WindowDockGroup openImprovementApplyDockGroup(
+            Window anchor, SnippetCodeAnalysisDialog analysisDialog) {
+        closeImprovementApplyDockGroup();
+        if (anchor == null) {
+            return null;
+        }
+        boolean ownWindow = analysisDialog != null && !analysisDialog.isHostedInTab();
+        improvementApplyDockGroup = new WindowDockGroup(anchor, ownWindow);
+        return improvementApplyDockGroup;
+    }
+
+    private void closeImprovementApplyDockGroup() {
+        if (improvementApplyDockGroup != null) {
+            improvementApplyDockGroup.dispose();
+            improvementApplyDockGroup = null;
+        }
+    }
+
+    /** A width the user gave a docked window before, or {@code fallback} on the first run. */
+    private static double storedDockWidth(
+            java.util.function.Function<GlobalSettings, Double> getter, double fallback) {
+        try {
+            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            Double stored = settings != null ? getter.apply(settings) : null;
+            return stored != null && stored > 0 ? stored : fallback;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Shows the change preview docked to the free edge of the analysis window and applies the
+     * result when the reviewer accepts it.
+     *
+     * <p>The preview is non-modal, so the terminals — and the run summary docked opposite — stay
+     * usable while it is open. That is also why {@link #contentUnchangedSince} exists: the snippet
+     * itself can now be edited during the review, and a full replacement computed from stale text
+     * would silently drop whatever was typed.</p>
+     *
+     * @return whether the snippet was replaced
+     */
+    private boolean showDockedImprovementPreview(
+            SnippetCodeAnalysisDialog analysisDialog,
+            String title,
+            String summary,
+            List<SnippetAiResponseSupport.SecurityChange> changes,
+            String originalContent,
+            String replacement) {
+
+        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+            analysisDialog != null ? analysisDialog.displayWindow()
+                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
+            title,
+            summary,
+            originalContent,
+            replacement,
+            languageCombo.getValue(),
+            editorSettings,
+            editorProfile);
+        if (changes != null && !changes.isEmpty()) {
+            diffDialog.setChangeExplanations(changes);
+        }
+        WindowDockGroup dockGroup = improvementApplyDockGroup;
+        if (dockGroup != null) {
+            diffDialog.setDockedWidthOnly(true);
+            diffDialog.addEventHandler(DialogEvent.DIALOG_SHOWN, shown -> {
+                if (diffDialog.getDialogPane().getScene() != null
+                        && diffDialog.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
+                    dockGroup.dock(stage, WindowDockGroup.Side.LEFT,
+                        storedDockWidth(GlobalSettings::getAiDiffDialogDockedWidth, 720));
+                }
+            });
+        }
+        if (!diffDialog.showAndWait().orElse(false)) {
+            return false;
+        }
+        if (!contentUnchangedSince(originalContent)) {
+            showAiFlowAlert(I18n.get("snippets.ai.contentChanged"), Alert.AlertType.WARNING, analysisDialog);
+            return false;
+        }
+        applyAiContentChange(0, originalContent.length(), replacement,
+            I18n.get("snippets.ai.toggle.action.improve"));
+        return true;
+    }
+
+    /**
+     * Whether the editor still holds exactly the text the AI worked from. Guards every full
+     * replacement now that the review no longer freezes the rest of the application.
+     */
+    private boolean contentUnchangedSince(String originalContent) {
+        String current = contentArea.getText() != null ? contentArea.getText() : "";
+        return current.equals(originalContent != null ? originalContent : "");
+    }
+
+    /**
+     * The window an alert raised by the AI apply flow may block — never the main window. The
+     * terminals live there, and the whole point of this flow being non-modal is that they keep
+     * working while the AI runs and while its result is reviewed.
+     */
+    private Window aiFlowAlertOwner(SnippetCodeAnalysisDialog analysisDialog) {
+        if (analysisDialog != null && !analysisDialog.isHostedInTab()
+                && analysisDialog.displayWindow() != null) {
+            return analysisDialog.displayWindow();
+        }
+        javafx.scene.Scene scene = getDialogPane().getScene();
+        Window own = scene != null ? scene.getWindow() : null;
+        return own != null ? own : resolveAlertOwner();
+    }
+
+    /** An alert scoped to the snippet tool, so it never freezes a terminal session. */
+    private void showAiFlowAlert(
+            String message, Alert.AlertType type, SnippetCodeAnalysisDialog analysisDialog) {
+        Alert alert = new Alert(type);
+        alert.setTitle(I18n.get("snippets.editTitle"));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        Window owner = aiFlowAlertOwner(analysisDialog);
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.initModality(Modality.WINDOW_MODAL);
+        DialogThemeHelper.applyTheme(alert);
+        alert.showAndWait();
     }
 
     /** Offers resume / partial preview / discard after an aborted staged apply left completed work behind. */
@@ -4104,12 +4503,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         } else {
             alert.getButtonTypes().setAll(partialButtonType, discardButtonType);
         }
-        Window owner = analysisDialog != null && analysisDialog.displayWindow() != null
-            ? analysisDialog.displayWindow()
-            : resolveAlertOwner();
+        Window owner = aiFlowAlertOwner(analysisDialog);
         if (owner != null) {
             alert.initOwner(owner);
         }
+        // This choice can sit unanswered for as long as the user needs. Application-modal it would
+        // freeze every terminal session in the meantime.
+        alert.initModality(Modality.WINDOW_MODAL);
         DialogThemeHelper.applyTheme(alert);
 
         Optional<ButtonType> response = alert.showAndWait();
@@ -4141,35 +4541,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         String replacement = injectSelectedHeader(selection, partial.replacement());
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            analysisDialog != null ? analysisDialog.displayWindow()
-                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
-            I18n.get("snippets.ai.analysis.diff.partialTitle"),
-            partial.summary(),
-            originalContent,
-            replacement,
-            languageCombo.getValue(),
-            editorSettings,
-            editorProfile);
-        diffDialog.setChangeExplanations(partial.changes());
-        if (!diffDialog.showAndWait().orElse(false)) {
-            return;
+        if (showDockedImprovementPreview(
+                analysisDialog,
+                I18n.get("snippets.ai.analysis.diff.partialTitle"),
+                partial.summary(),
+                partial.changes(),
+                originalContent,
+                replacement)) {
+            setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
+                checkpoint.completedStages(), checkpoint.totalStages()));
         }
-        applyAiContentChange(0, originalContent.length(), replacement,
-            I18n.get("snippets.ai.toggle.action.improve"));
-        setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
-            checkpoint.completedStages(), checkpoint.totalStages()));
-        // Same deferred cleanup as the full-success path: closing owned stages synchronously while
-        // showAndWait() is still unwinding can crash JavaFX/WebKit in native window disposal on macOS.
-        Platform.runLater(() -> {
-            if (improvementApplyProgressWindow != null) {
-                improvementApplyProgressWindow.close();
-                improvementApplyProgressWindow = null;
-            }
-            if (analysisDialog != null) {
-                analysisDialog.closeAfterApply();
-            }
-        });
     }
 
     private enum ImprovementApplyAbortChoice {
@@ -4183,6 +4564,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return I18n.get("snippets.ai.analysis.fix.running");
         }
         String phase = switch (progress.phase()) {
+            case MIGRATION -> progress.detail().isBlank()
+                ? I18n.get("snippets.ai.analysis.progress.migration")
+                : I18n.get("snippets.ai.analysis.progress.migration") + " \u2013 " + progress.detail();
             case ANALYSIS_ITEMS -> {
                 if (progress.phaseRequirementCount() <= 0) {
                     yield I18n.get("snippets.ai.analysis.fix.running");
@@ -4485,6 +4869,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.improve.running"));
@@ -4525,6 +4914,188 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         Thread thread = new Thread(task, "snippet-ai-improve");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    // ---------------------------------------------------------------- language migration
+
+    private void runLanguageMigration() {
+        if (!hasLanguageMigrationProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
+            return;
+        }
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
+        promptMigrationPlan(fullContent)
+            .filter(plan -> !plan.isNoOp())
+            .ifPresent(plan -> runLanguageMigration(plan, null));
+    }
+
+    /**
+     * Asks what the snippet should be unified into. The whole host-format rule lives in
+     * {@link TargetLanguageSelector#setDetectedMix}, so this dialog only has to hand it the detection
+     * result and read back the finished order.
+     */
+    private Optional<SnippetAiWorkflowSupport.MigrationPlan> promptMigrationPlan(String fullContent) {
+        ThemeAwareDialog<SnippetAiWorkflowSupport.MigrationPlan> dialog = new ThemeAwareDialog<>();
+        dialog.setTitle(I18n.get("snippets.ai.migrate.title"));
+        dialog.setHeaderText(I18n.get("snippets.ai.migrate.header"));
+        dialog.setResizable(true);
+        if (getDialogPane().getScene() != null) {
+            dialog.initOwner(getDialogPane().getScene().getWindow());
+        }
+        DialogPane pane = dialog.getDialogPane();
+        pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        TargetLanguageSelector selector = new TargetLanguageSelector(true);
+        selector.setDetectedMix(
+            ScriptLanguageMixSupport.detect(languageCombo.getValue(), fullContent));
+
+        Button okButton = (Button) pane.lookupButton(ButtonType.OK);
+        Runnable refreshOk = () -> okButton.setDisable(selector.buildPlan().isNoOp());
+        selector.setOnSelectionChanged(refreshOk);
+        refreshOk.run();
+
+        VBox box = new VBox(10, selector);
+        box.setPadding(new Insets(4));
+        box.setPrefSize(560, 220);
+        pane.setContent(box);
+
+        DialogGeometrySupport.restore(dialog, settings -> settings.getLanguageMigrationDialogGeometry());
+        dialog.setOnHidden(e -> DialogGeometrySupport.persist(dialog,
+            (settings, geometry) -> settings.setLanguageMigrationDialogGeometry(geometry)));
+
+        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? selector.buildPlan() : null);
+        return dialog.showAndWait();
+    }
+
+    private void runLanguageMigration(SnippetAiWorkflowSupport.MigrationPlan plan, String aiProfileId) {
+        String fullContent = contentArea.getText();
+        if (fullContent == null || fullContent.isBlank()) {
+            return;
+        }
+        String lang = languageCombo.getValue();
+        Task<SnippetAiResponseSupport.LanguageMigration> task = new Task<>() {
+            @Override
+            protected SnippetAiResponseSupport.LanguageMigration call() throws Exception {
+                return aiAssist.languageMigrationProvider().migrate(new LanguageMigrationRequest(
+                    fullContent,
+                    lang,
+                    resolveAiTextFallbackLanguageCode(),
+                    plan,
+                    additionalInstructions(),
+                    aiProfileId));
+            }
+        };
+        snippetAiActionTask = task;
+        task.setOnRunning(event -> {
+            showSnippetAiHint(I18n.get("snippets.ai.migrate.running"));
+            setStatus(I18n.get("snippets.ai.migrate.running"));
+            updateAiActionAvailability();
+        });
+        task.setOnSucceeded(event -> {
+            finishSnippetAiAction(task);
+            SnippetAiResponseSupport.LanguageMigration migration = task.getValue();
+            if (migration == null || !migration.isUsable()) {
+                setStatus(I18n.get("snippets.ai.migrate.empty"));
+                return;
+            }
+            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                I18n.get("snippets.ai.migrate.diffTitle"),
+                migrationSummary(plan, migration),
+                fullContent,
+                migration.replacement(),
+                lang,
+                editorSettings,
+                editorProfile);
+            diffDialog.setRerunHandler(aiProfileId,
+                profileSwitchingSupported() ? id -> runLanguageMigration(plan, id) : null);
+            if (diffDialog.showAndWait().orElse(false)) {
+                applyAiContentChange(0, fullContent.length(), migration.replacement(),
+                    I18n.get("snippets.ai.code.migrate"));
+                retargetSnippetAfterMigration(plan);
+                setStatus(migration.notes().isEmpty()
+                    ? I18n.get("snippets.ai.migrate.applied")
+                    : I18n.get("snippets.ai.migrate.notes", String.join(" ", migration.notes())));
+            }
+        });
+        task.setOnFailed(event -> handleMigrationFailure(task, plan));
+        task.setOnCancelled(event -> finishSnippetAiAction(task));
+        Thread thread = new Thread(task, "snippet-ai-migrate");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    /** Puts the notes above the diff for a platform conversion, where they are the actual to-do list. */
+    private String migrationSummary(SnippetAiWorkflowSupport.MigrationPlan plan,
+                                    SnippetAiResponseSupport.LanguageMigration migration) {
+        if (migration.notes().isEmpty()) {
+            return migration.summary();
+        }
+        String heading = plan.changesHostFormat()
+            ? I18n.get("snippets.ai.migrate.notes.platform")
+            : I18n.get("snippets.ai.migrate.notes.heading");
+        StringBuilder text = new StringBuilder(heading.strip());
+        for (String note : migration.notes()) {
+            text.append("\n\u2022 ").append(note);
+        }
+        String summary = migration.summary();
+        return summary.isBlank() ? text.toString() : summary + "\n\n" + text;
+    }
+
+    /**
+     * A migration is the only AI action that changes what kind of file the snippet is, so the
+     * editor's own metadata has to follow: language, file extension and the auto-detected AI skills.
+     * A steps-only unification changes none of that — the snippet is still the same pipeline.
+     */
+    private void retargetSnippetAfterMigration(SnippetAiWorkflowSupport.MigrationPlan plan) {
+        String targetLanguage = null;
+        String targetFileName = null;
+        if (plan.changesHostFormat()) {
+            targetLanguage = plan.targetHostFormat().snippetLanguage();
+            targetFileName = plan.targetHostFormat().defaultFileName();
+        } else if (plan.modes().contains(ScriptLanguageMixSupport.MigrationMode.WHOLE_SCRIPT)
+            && plan.targetLanguage() != null) {
+            targetLanguage = plan.targetLanguage().snippetLanguage();
+        }
+        if (targetLanguage == null) {
+            return;
+        }
+        if (!languageCombo.getItems().contains(targetLanguage)) {
+            languageCombo.getItems().add(targetLanguage);
+        }
+        languageCombo.setValue(targetLanguage);
+        String currentName = nameField.getText();
+        if (currentName != null && !currentName.isBlank()) {
+            nameField.setText(targetFileName != null
+                ? targetFileName
+                : SnippetLanguageSupport.sanitizeFileName(currentName, targetLanguage));
+        }
+        autoDetectAiSkills();
+    }
+
+    private void handleMigrationFailure(Task<?> task, SnippetAiWorkflowSupport.MigrationPlan plan) {
+        Throwable failure = task.getException();
+        SnippetAiWorkflowSupport.MigrationRejectedException rejection = null;
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (current instanceof SnippetAiWorkflowSupport.MigrationRejectedException found) {
+                rejection = found;
+                break;
+            }
+        }
+        if (rejection == null) {
+            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.migrate.failed"));
+            return;
+        }
+        finishSnippetAiAction(task);
+        setStatus(switch (rejection.reason()) {
+            case DEGENERATE -> I18n.get("snippets.ai.migrate.degenerate");
+            case SCAFFOLD_CHANGED -> I18n.get("snippets.ai.migrate.scaffoldChanged");
+            case TARGET_FORMAT_NOT_REACHED -> I18n.get("snippets.ai.migrate.targetFormatNotReached",
+                plan.targetHostFormat() != null ? plan.targetHostFormat().displayName() : "");
+            case NO_USABLE_SCRIPT -> I18n.get("snippets.ai.migrate.empty");
+        });
     }
 
     private void runCodeAssistant() {
@@ -4572,6 +5143,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
@@ -4727,7 +5303,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             SnippetSecurityReportDialog dialog = new SnippetSecurityReportDialog(
                 getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
                 task.getValue(),
-                this::runSecurityCheck);
+                this::runSecurityCheck,
+                ScriptLanguageMixSupport.detect(languageCombo.getValue(), fullContent));
             dialog.showAndWait().ifPresent(this::runSecurityFixes);
             setStatus(I18n.get("snippets.ai.security.ready"));
         });
@@ -4739,10 +5316,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
-    private void runSecurityFixes(List<SnippetAiResponseSupport.SecurityFinding> selectedFindings) {
-        if (selectedFindings == null || selectedFindings.isEmpty() || !hasSecurityProviders()) {
+    private void runSecurityFixes(SnippetSecurityReportDialog.FixSelection selection) {
+        if (selection == null || selection.findings().isEmpty() || !hasSecurityProviders()) {
             return;
         }
+        List<SnippetAiResponseSupport.SecurityFinding> selectedFindings = selection.findings();
         String originalContent = contentArea.getText();
         Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
             @Override
@@ -4752,9 +5330,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     languageCombo.getValue(),
                     resolveAiTextFallbackLanguageCode(),
                     selectedFindings,
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    selection.migration()));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.fix.running"));
@@ -5517,6 +6101,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             improvementApplyProgressWindow.close();
             improvementApplyProgressWindow = null;
         }
+        closeImprovementApplyDockGroup();
     }
 
     private void cancelMetadataTask() {
@@ -5779,6 +6364,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     instructions));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
@@ -6036,6 +6626,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
+        // The rewrite must not silently translate the snippet's own comments and messages;
+        // an undetectable language is a question for the user, not a guess.
+        if (!applyCodeTextLanguage(true)) {
+            return;
+        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.format.running"));

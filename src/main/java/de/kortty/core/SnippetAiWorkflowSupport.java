@@ -1,6 +1,12 @@
 package de.kortty.core;
 
+import de.kortty.core.ScriptLanguageMixSupport.HostFormat;
+import de.kortty.core.ScriptLanguageMixSupport.LanguageMix;
+import de.kortty.core.ScriptLanguageMixSupport.MigrationMode;
+import de.kortty.core.WorkflowScriptSupport.ScriptLanguage;
+
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +42,8 @@ public final class SnippetAiWorkflowSupport {
     }
 
     public enum ImprovementApplyPhase {
+        /** Runs first: every later stage must operate on the already-migrated script. */
+        MIGRATION,
         ANALYSIS_ITEMS,
         HARDENING,
         INPUT_HARDENING
@@ -458,19 +466,284 @@ public final class SnippetAiWorkflowSupport {
         List<SnippetAiResponseSupport.SecurityFinding> selectedFindings,
         String additionalInstructions) throws Exception {
 
+        return applySnippetSecurityFixes(aiService, usageRecorder, fullContent, snippetLanguage,
+            connectionDisplayName, fallbackLanguageCode, selectedFindings, additionalInstructions, null);
+    }
+
+    /**
+     * @param migrationPlan optional language unification performed <em>before</em> the fixes, so the
+     *                      security fixes are written in the target language instead of the old one;
+     *                      {@code null} or a no-op plan skips it.
+     */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetSecurityFixes(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.SecurityFinding> selectedFindings,
+        String additionalInstructions,
+        MigrationPlan migrationPlan) throws Exception {
+
+        String content = fullContent;
+        String language = snippetLanguage;
+        String migrationSummary = null;
+        if (migrationPlan != null && !migrationPlan.isNoOp()) {
+            SnippetAiResponseSupport.LanguageMigration migration = migrateSnippetLanguage(
+                aiService, usageRecorder, content, language, migrationPlan, connectionDisplayName,
+                fallbackLanguageCode, additionalInstructions);
+            content = migration.replacement();
+            migrationSummary = migration.summary();
+            if (migrationPlan.targetLanguage() != null && !migrationPlan.changesHostFormat()) {
+                language = migrationPlan.targetLanguage().snippetLanguage();
+            }
+        }
+        String fixedContent = content;
+        String fixedLanguage = language;
         AiRequest request = new AiRequest(
             AiAction.APPLY_SNIPPET_SECURITY_FIXES,
-            fullContent,
+            fixedContent,
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildSecurityFixContext(fullContent, snippetLanguage, fallbackLanguageCode, selectedFindings));
+            buildSecurityFixContext(fixedContent, fixedLanguage, fallbackLanguageCode, selectedFindings));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
         rejectTruncatedReplacement(result);
-        return SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+        if (migrationSummary == null || migrationSummary.isBlank()) {
+            return fix;
+        }
+        // The migration ran as part of this apply, so its summary belongs in the same report.
+        return new SnippetAiResponseSupport.SnippetSecurityFix(
+            fix.replacement(),
+            fix.summary().isBlank() ? migrationSummary : migrationSummary + "\n\n" + fix.summary(),
+            fix.changes(),
+            fix.implementedRequirements());
+    }
+
+    // ------------------------------------------------------------------ language migration
+
+    /**
+     * A migration order: what was detected, plus what the user actually asked for.
+     *
+     * <p>Detection and choice travel together on purpose. The two can contradict each other — a
+     * platform conversion is only ever a deliberate choice and is never derivable from the
+     * document — and a caller that passed them separately could let them drift apart.
+     *
+     * @param targetLanguage   target language of the script parts, {@code null} to leave them alone
+     * @param targetHostFormat target platform, {@code null} to keep the current one
+     */
+    public record MigrationPlan(LanguageMix mix, ScriptLanguage targetLanguage, HostFormat targetHostFormat) {
+
+        public MigrationPlan {
+            mix = mix != null ? mix : new LanguageMix(HostFormat.NONE, "plain", List.of());
+            targetHostFormat = targetHostFormat == HostFormat.NONE ? null : targetHostFormat;
+        }
+
+        /** Whether this order actually changes the platform, as opposed to naming the current one. */
+        public boolean changesHostFormat() {
+            return targetHostFormat != null && targetHostFormat != mix.hostFormat();
+        }
+
+        /** Everything this order does. Empty when it would change nothing. */
+        public EnumSet<MigrationMode> modes() {
+            EnumSet<MigrationMode> modes = EnumSet.noneOf(MigrationMode.class);
+            if (changesHostFormat()) {
+                modes.add(MigrationMode.HOST_FORMAT_CONVERSION);
+            }
+            if (targetLanguage != null) {
+                if (mix.hostFormat() != HostFormat.NONE) {
+                    // A host document's own body is never migrated; only its script steps are, and
+                    // only when they do not already all speak the target language.
+                    Set<String> steps = mix.stepLanguages();
+                    if (!steps.isEmpty() && !steps.equals(Set.of(targetLanguage.snippetLanguage()))) {
+                        modes.add(MigrationMode.EMBEDDED_STEPS_ONLY);
+                    }
+                } else if (!targetLanguage.snippetLanguage().equals(mix.dominantLanguage())
+                    || !mix.embedded().isEmpty()) {
+                    modes.add(MigrationMode.WHOLE_SCRIPT);
+                }
+            }
+            return modes;
+        }
+
+        public boolean isNoOp() {
+            return modes().isEmpty();
+        }
+    }
+
+    /** Why a migration result was refused. The UI maps this to the message it shows. */
+    public enum MigrationRejection {
+        NO_USABLE_SCRIPT,
+        DEGENERATE,
+        SCAFFOLD_CHANGED,
+        TARGET_FORMAT_NOT_REACHED
+    }
+
+    /** A migration result that must not be applied. */
+    public static final class MigrationRejectedException extends IllegalStateException {
+        private final MigrationRejection reason;
+
+        public MigrationRejectedException(MigrationRejection reason, String message) {
+            super(message);
+            this.reason = reason;
+        }
+
+        public MigrationRejection reason() {
+            return reason;
+        }
+    }
+
+    /**
+     * Rewrites a snippet so that it speaks one language, or converts a host document to another
+     * platform. Always a whole-file rewrite: an anchor-based patch cannot address target text that
+     * does not exist yet.
+     *
+     * <p>The result is verified before it is returned. Which check applies follows from the plan —
+     * a whole-script migration legitimately rewrites almost every line, while a steps-only
+     * migration must leave the host document's scaffold byte-identical.
+     */
+    public static SnippetAiResponseSupport.LanguageMigration migrateSnippetLanguage(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        MigrationPlan plan,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
+        if (plan == null || plan.isNoOp()) {
+            throw new IllegalArgumentException("Language migration was requested without a target.");
+        }
+        AiRequest request = new AiRequest(
+            AiAction.MIGRATE_SNIPPET_LANGUAGE,
+            fullContent,
+            connectionDisplayName,
+            fallbackLanguageCode,
+            additionalInstructions,
+            buildMigrationContext(fullContent, snippetLanguage, fallbackLanguageCode, plan));
+        AiExecutionResult result = aiService.execute(request);
+        if (result != null && usageRecorder != null) {
+            usageRecorder.record(request, result);
+        }
+        rejectTruncatedReplacement(result);
+        SnippetAiResponseSupport.LanguageMigration migration =
+            SnippetAiResponseSupport.parseLanguageMigration(result != null ? result.content() : null);
+        rejectUnusableMigration(fullContent, plan, migration);
+        return migration;
+    }
+
+    private static void rejectUnusableMigration(String fullContent, MigrationPlan plan,
+                                                SnippetAiResponseSupport.LanguageMigration migration) {
+        if (migration == null || !migration.isUsable()) {
+            throw new MigrationRejectedException(MigrationRejection.NO_USABLE_SCRIPT,
+                "Language migration returned no usable script.");
+        }
+        EnumSet<MigrationMode> modes = plan.modes();
+        if (modes.contains(MigrationMode.HOST_FORMAT_CONVERSION)) {
+            // Let the very detector that classified the input decide whether the target was reached.
+            HostFormat reached = ScriptLanguageMixSupport.detectHostFormat(
+                plan.targetHostFormat().snippetLanguage(), migration.replacement());
+            if (reached != plan.targetHostFormat()) {
+                throw new MigrationRejectedException(MigrationRejection.TARGET_FORMAT_NOT_REACHED,
+                    "Migration did not produce a " + plan.targetHostFormat().displayName() + " document.");
+            }
+            return;
+        }
+        if (modes.contains(MigrationMode.EMBEDDED_STEPS_ONLY)) {
+            if (!ScriptLanguageMixSupport.scaffoldPreserved(
+                plan.mix().hostFormat(), fullContent, migration.replacement())) {
+                throw new MigrationRejectedException(MigrationRejection.SCAFFOLD_CHANGED,
+                    "Migration changed the host document outside its script steps.");
+            }
+            return;
+        }
+        if (SnippetAiResponseSupport.isDegenerateMigration(fullContent, migration.replacement())) {
+            throw new MigrationRejectedException(MigrationRejection.DEGENERATE,
+                "Migration returned an incomplete script.");
+        }
+    }
+
+    private static String buildMigrationContext(String fullContent, String snippetLanguage,
+                                                String fallbackLanguageCode, MigrationPlan plan) {
+        LanguageMix mix = plan.mix();
+        EnumSet<MigrationMode> modes = plan.modes();
+        StringBuilder context = new StringBuilder("Snippet language: ").append(snippetLanguage).append('\n');
+        if (mix.hostFormat() != HostFormat.NONE) {
+            context.append("Document format: ").append(mix.hostFormat().displayName()).append('\n');
+        }
+        context.append("Natural language for the summary and notes: ").append(fallbackLanguageCode).append('\n')
+            .append(codeTextLanguageInstruction(fallbackLanguageCode, "full returned script"));
+
+        if (modes.contains(MigrationMode.HOST_FORMAT_CONVERSION)) {
+            context.append(hostFormatConversionParagraph(mix.hostFormat(), plan.targetHostFormat()));
+        }
+        if (modes.contains(MigrationMode.EMBEDDED_STEPS_ONLY)) {
+            context.append(embeddedStepsParagraph(mix, plan.targetLanguage(),
+                !modes.contains(MigrationMode.HOST_FORMAT_CONVERSION)));
+        }
+        if (modes.contains(MigrationMode.WHOLE_SCRIPT)) {
+            context.append(wholeScriptParagraph(mix, plan.targetLanguage()));
+        }
+        return context.append("Line-numbered snippet:\n")
+            .append(lineNumberedTextBlock(fullContent))
+            .toString();
+    }
+
+    private static String wholeScriptParagraph(LanguageMix mix, ScriptLanguage target) {
+        StringBuilder paragraph = new StringBuilder("MIGRATION SCOPE: the complete script.\n")
+            .append("Rewrite it so that all of it is ").append(target.displayName()).append(".\n");
+        if (target.leadLine() != null) {
+            paragraph.append("The first line must be exactly: ").append(target.leadLine()).append('\n');
+        }
+        paragraph.append("Use ").append(target.commentPrefix()).append(" for line comments.\n");
+        if (!mix.embedded().isEmpty()) {
+            paragraph.append("These foreign-language parts were detected and must all be gone afterwards:\n")
+                .append(describeRanges(mix.embedded()));
+        }
+        return paragraph.append(WorkflowScriptSupport.languageIdioms(target)).append('\n').toString();
+    }
+
+    private static String embeddedStepsParagraph(LanguageMix mix, ScriptLanguage target,
+                                                 boolean scaffoldMustSurvive) {
+        StringBuilder paragraph = new StringBuilder("MIGRATION SCOPE: only the script-step bodies of this ")
+            .append(mix.hostFormat().displayName()).append(".\n")
+            .append("Rewrite every step body listed below so that all of them are ")
+            .append(target.displayName()).append(".\n");
+        if (scaffoldMustSurvive) {
+            paragraph.append("Every other line — structure, keys, indentation, display names, conditions, "
+                + "task invocations, comments — must be reproduced character for character from the input. "
+                + "Adjust the step type where the format requires it for the target language "
+                + "(- pwsh: instead of - bash:, shell: pwsh, powershell '...' instead of sh '...'). "
+                + "Do not add steps and do not remove any.\n");
+        }
+        return paragraph.append("Step bodies to rewrite:\n").append(describeRanges(mix.embedded())).toString();
+    }
+
+    private static String hostFormatConversionParagraph(HostFormat source, HostFormat target) {
+        return "MIGRATION SCOPE: convert this " + source.displayName() + " into a valid "
+            + target.displayName() + " definition.\n"
+            + "Preserve the order, the conditions and the intent of every step. Carry over triggers, "
+            + "agent or pool selection, variables, secrets, dependencies, artifacts and conditions only "
+            + "where the target platform has a real equivalent. Do not invent a construct. When something "
+            + "has no equivalent — approvals, environments, platform-specific tasks, matrix semantics, "
+            + "plugin calls — leave it out and add exactly one note naming what could not be carried over "
+            + "and what the user has to redo by hand.\n";
+    }
+
+    private static String describeRanges(List<ScriptLanguageMixSupport.EmbeddedLanguage> ranges) {
+        StringBuilder text = new StringBuilder();
+        for (ScriptLanguageMixSupport.EmbeddedLanguage range : ranges) {
+            text.append("- lines ").append(range.startLine()).append('-').append(range.endLine())
+                .append(": ").append(range.language()).append(" (").append(range.trigger()).append(")\n");
+        }
+        return text.toString();
     }
 
     /**
@@ -594,6 +867,35 @@ public final class SnippetAiWorkflowSupport {
         ImprovementApplyCheckpointListener checkpointListener,
         ImprovementApplyCheckpoint resumeFrom) throws Exception {
 
+        return applySnippetImprovements(
+            aiService, usageRecorder, fullContent, snippetLanguage, connectionDisplayName,
+            fallbackLanguageCode, improvements, dependencies, additionalInstructions,
+            classicHardeningInstructions, inputHardeningInstructions, progressListener,
+            checkpointListener, resumeFrom, null);
+    }
+
+    /**
+     * @param migrationPlan optional language unification run as the very first stage, so every
+     *                      improvement and hardening stage afterwards works on the migrated script;
+     *                      {@code null} or a no-op plan adds no stage.
+     */
+    public static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String additionalInstructions,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        ImprovementApplyProgressListener progressListener,
+        ImprovementApplyCheckpointListener checkpointListener,
+        ImprovementApplyCheckpoint resumeFrom,
+        MigrationPlan migrationPlan) throws Exception {
+
         List<MandatoryRequirement> classicRequirements =
             extractMandatoryRequirements(classicHardeningInstructions, 0);
         List<MandatoryRequirement> inputRequirements =
@@ -603,7 +905,7 @@ public final class SnippetAiWorkflowSupport {
         allRequirements.addAll(inputRequirements);
 
         List<ImprovementApplyStagePlan> stagePlans = buildImprovementApplyStagePlans(
-            improvements, dependencies, classicRequirements, inputRequirements);
+            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan);
         int completedStageCount = resumeFrom != null ? resumeFrom.completedStages() : 0;
         if (resumeFrom != null
             && (resumeFrom.totalStages() != stagePlans.size()
@@ -646,7 +948,11 @@ public final class SnippetAiWorkflowSupport {
                 .filter(requirement -> completedRequirementIds.contains(requirement.id()))
                 .toList();
             try {
-                SnippetAiResponseSupport.SnippetSecurityFix fix = executeImprovementApplyStage(
+                SnippetAiResponseSupport.SnippetSecurityFix fix = stagePlan.migration() != null
+                    ? executeMigrationStage(
+                        aiService, usageRecorder, currentContent, snippetLanguage, connectionDisplayName,
+                        fallbackLanguageCode, additionalInstructions, stagePlan.migration(), usageAccumulator)
+                    : executeImprovementApplyStage(
                     aiService, usageRecorder, currentContent, snippetLanguage, connectionDisplayName,
                     fallbackLanguageCode,
                     stagePlan.analysisStage().improvements(),
@@ -688,6 +994,41 @@ public final class SnippetAiWorkflowSupport {
             List.copyOf(completedRequirementIds));
         rejectIncompleteMandatoryRequirements(combined, allRequirements);
         return combined;
+    }
+
+    /**
+     * Runs the migration as one apply stage and reshapes its result into the staged pipeline's
+     * currency. It contributes no {@code changes} entries: the whole file changed, so per-region
+     * annotations would be noise rather than information.
+     */
+    private static SnippetAiResponseSupport.SnippetSecurityFix executeMigrationStage(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions,
+        MigrationPlan migrationPlan,
+        UsageAccumulator usageAccumulator) throws Exception {
+
+        checkImprovementApplyInterrupted();
+        SnippetAiResponseSupport.LanguageMigration migration = migrateSnippetLanguage(
+            aiService,
+            (request, result) -> {
+                usageAccumulator.add(result != null ? result.usage() : null);
+                if (usageRecorder != null) {
+                    usageRecorder.record(request, result);
+                }
+            },
+            fullContent, snippetLanguage, migrationPlan, connectionDisplayName,
+            fallbackLanguageCode, additionalInstructions);
+        checkImprovementApplyInterrupted();
+        String summary = migration.notes().isEmpty()
+            ? migration.summary()
+            : migration.summary() + "\n" + String.join("\n", migration.notes());
+        return new SnippetAiResponseSupport.SnippetSecurityFix(
+            migration.replacement(), summary, List.of(), List.of());
     }
 
     private static SnippetAiResponseSupport.SnippetSecurityFix executeImprovementApplyStage(
@@ -870,12 +1211,24 @@ public final class SnippetAiWorkflowSupport {
         String classicHardeningInstructions,
         String inputHardeningInstructions) {
 
+        return planSnippetImprovements(improvements, dependencies,
+            classicHardeningInstructions, inputHardeningInstructions, null);
+    }
+
+    /** @param migrationPlan optional first stage; see {@link #applySnippetImprovements}. */
+    public static List<ImprovementApplyProgress> planSnippetImprovements(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        MigrationPlan migrationPlan) {
+
         List<MandatoryRequirement> classicRequirements =
             extractMandatoryRequirements(classicHardeningInstructions, 0);
         List<MandatoryRequirement> inputRequirements =
             extractMandatoryRequirements(inputHardeningInstructions, classicRequirements.size());
         return buildImprovementApplyStagePlans(
-            improvements, dependencies, classicRequirements, inputRequirements).stream()
+            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan).stream()
             .map(ImprovementApplyStagePlan::progress)
             .toList();
     }
@@ -886,6 +1239,18 @@ public final class SnippetAiWorkflowSupport {
         List<MandatoryRequirement> classicRequirements,
         List<MandatoryRequirement> inputRequirements) {
 
+        return buildImprovementApplyStagePlans(
+            improvements, dependencies, classicRequirements, inputRequirements, null);
+    }
+
+    private static List<ImprovementApplyStagePlan> buildImprovementApplyStagePlans(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        List<MandatoryRequirement> classicRequirements,
+        List<MandatoryRequirement> inputRequirements,
+        MigrationPlan migrationPlan) {
+
+        boolean migrates = migrationPlan != null && !migrationPlan.isNoOp();
         List<AnalysisApplyStage> analysisStages = buildAnalysisApplyStages(improvements, dependencies);
         List<List<MandatoryRequirement>> classicBatches = partitionRequirements(classicRequirements);
         List<List<MandatoryRequirement>> inputBatches = partitionRequirements(inputRequirements);
@@ -893,9 +1258,30 @@ public final class SnippetAiWorkflowSupport {
         if (analysisStages.isEmpty() && classicBatches.isEmpty() && inputBatches.isEmpty()) {
             analysisStages = List.of(new AnalysisApplyStage(List.of(), List.of(), "", List.of()));
         }
-        int totalStages = analysisStages.size() + classicBatches.size() + inputBatches.size();
+        int totalStages = analysisStages.size() + classicBatches.size() + inputBatches.size()
+            + (migrates ? 1 : 0);
         List<ImprovementApplyStagePlan> plans = new ArrayList<>(totalStages);
         int stage = 0;
+        if (migrates) {
+            // Deliberately the first stage: the stages are incremental, so every improvement and
+            // hardening stage after this one must see the already-migrated script. Running it later
+            // would write Bash idioms into what is by then a Perl script.
+            plans.add(new ImprovementApplyStagePlan(
+                new ImprovementApplyProgress(
+                    ImprovementApplyPhase.MIGRATION,
+                    ++stage,
+                    totalStages,
+                    1,
+                    1,
+                    1,
+                    migrationDetail(migrationPlan),
+                    List.of(),
+                    ImprovementApplyProgressState.PENDING,
+                    null),
+                new AnalysisApplyStage(List.of(), List.of(), "", List.of()),
+                List.of(),
+                migrationPlan));
+        }
         int analysisItemCount = analysisStages.stream()
             .mapToInt(analysisStage -> analysisStage.workItems().size())
             .sum();
@@ -957,6 +1343,13 @@ public final class SnippetAiWorkflowSupport {
                 batch));
         }
         return List.copyOf(plans);
+    }
+
+    private static String migrationDetail(MigrationPlan plan) {
+        if (plan.changesHostFormat()) {
+            return plan.targetHostFormat().displayName();
+        }
+        return plan.targetLanguage() != null ? plan.targetLanguage().displayName() : "";
     }
 
     private static List<ImprovementApplyWorkItem> workItemsForRequirements(
@@ -1112,6 +1505,7 @@ public final class SnippetAiWorkflowSupport {
             additionalInstructions,
             buildMermaidContext(scopedContent, snippetLanguage, fallbackLanguageCode),
             true,
+            null,
             null,
             null,
             type);
@@ -1359,7 +1753,7 @@ public final class SnippetAiWorkflowSupport {
         int safeLine = Math.max(1, cursorLine);
         int safeColumn = Math.max(1, cursorColumn);
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for summary: " + fallbackLanguageCode + "\n"
+            + "Natural language for summary: "+fallbackLanguageCode + "\n"
             + codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet")
             + "Cursor offset: " + safeOffset + "\n"
             + "Cursor line: " + safeLine + "\n"
@@ -1372,7 +1766,7 @@ public final class SnippetAiWorkflowSupport {
 
     private static String buildSecurityContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for the security report: " + fallbackLanguageCode + "\n"
+            + "Natural language for the security report: "+fallbackLanguageCode + "\n"
             + "Use secure-by-default guidance for the snippet language, but only report issues supported by this code.\n"
             + "Full snippet:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
@@ -1392,7 +1786,7 @@ public final class SnippetAiWorkflowSupport {
                 .collect(Collectors.joining("\n\n"))
             : "";
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for the summary: " + fallbackLanguageCode + "\n"
+            + "Natural language for the summary: "+fallbackLanguageCode + "\n"
             + codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet")
             + "Selected security findings to fix:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(findingsText)
@@ -1402,7 +1796,7 @@ public final class SnippetAiWorkflowSupport {
 
     private static String buildAnalysisContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         return "Snippet language: " + snippetLanguage + "\n"
-            + "Natural language for the analysis: " + fallbackLanguageCode + "\n"
+            + "Natural language for the analysis: "+fallbackLanguageCode + "\n"
             + "Explain in plain language what the script does. List external dependencies (other scripts, "
             + "programs or services) with a reduce-or-replace suggestion for each. List concrete, individually-"
             + "applicable improvements categorized as security, optimization or design. Only report what this code supports.\n"
@@ -1671,7 +2065,13 @@ public final class SnippetAiWorkflowSupport {
     private record ImprovementApplyStagePlan(
         ImprovementApplyProgress progress,
         AnalysisApplyStage analysisStage,
-        List<MandatoryRequirement> requirements) {
+        List<MandatoryRequirement> requirements,
+        MigrationPlan migration) {
+
+        ImprovementApplyStagePlan(ImprovementApplyProgress progress, AnalysisApplyStage analysisStage,
+                                  List<MandatoryRequirement> requirements) {
+            this(progress, analysisStage, requirements, null);
+        }
     }
 
     private static final class UsageAccumulator {

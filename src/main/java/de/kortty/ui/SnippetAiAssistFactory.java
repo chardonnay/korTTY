@@ -6,6 +6,7 @@ import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.CodeTextLanguageAiService;
 import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
@@ -38,24 +39,25 @@ final class SnippetAiAssistFactory {
         return new SnippetEditDialog.AiAssist(
             (content, language, responseLanguageCode) -> generateSnippetMetadata(
                 ownerWindow, connection, content, language, responseLanguageCode,
-                contextDisplayName, runtimeOptions.forcedSkillIds()),
+                contextDisplayName, runtimeOptions),
             (content, language, description, responseLanguageCode) -> correctSnippetDescription(
                 ownerWindow, connection, content, language, description, responseLanguageCode,
-                contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> correctSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> translateSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> describeSnippet(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> generateAlternativeSolutions(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> completeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> reviewSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> improveSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> assistSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> reviewSnippetSecurity(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> applySnippetSecurityFixes(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> generateCompactOneLiner(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> generateSnippetMermaid(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> analyzeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
-            request -> applySnippetImprovements(ownerWindow, connection, request, contextDisplayName, runtimeOptions.forcedSkillIds()),
+                contextDisplayName, runtimeOptions),
+            request -> correctSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> translateSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> describeSnippet(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> generateAlternativeSolutions(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> completeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> improveSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> migrateSnippetLanguage(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> assistSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetSecurity(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetSecurityFixes(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> generateCompactOneLiner(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> generateSnippetMermaid(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> analyzeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetImprovements(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
             true,
             runtimeOptions);
     }
@@ -69,7 +71,7 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         AiAction action,
         String requestProfileId,
-        java.util.Collection<String> forcedSkillIds) {
+        SnippetAiRuntimeOptions options) {
 
         AiProfile profile = ownerWindow.resolveAiProfileForAction(connection, action, requestProfileId);
         if (profile == null) {
@@ -77,11 +79,15 @@ final class SnippetAiAssistFactory {
         }
         AiProfile executionProfile = AiReasoningSupport.profileForAction(profile, action);
         AiService service = ownerWindow.createAiServiceForProfile(
-            executionProfile, connection, forcedSkillIds);
+            executionProfile, connection, options.forcedSkillIds());
         if (service == null) {
             throw new IllegalStateException("No AI service could be created for this snippet action.");
         }
-        return new ResolvedProfile(profile, service);
+        // Every action that returns code carries the snippet's own prose language, so applying an AI
+        // result never silently translates the user's comments into the interface language. Wrapping
+        // here rather than at each request keeps a future action from being forgotten.
+        return new ResolvedProfile(profile, new CodeTextLanguageAiService(
+            service, options::codeTextLanguage));
     }
 
     private record ResolvedProfile(AiProfile profile, AiService service) {
@@ -94,11 +100,11 @@ final class SnippetAiAssistFactory {
         String language,
         String responseLanguageCode,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
         String scriptContent = content != null ? content : "";
         String snippetLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, scriptContent);
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.GENERATE_SNIPPET_METADATA, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.GENERATE_SNIPPET_METADATA, null, options);
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_METADATA,
             scriptContent,
@@ -126,11 +132,11 @@ final class SnippetAiAssistFactory {
         String description,
         String responseLanguageCode,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
         String scriptContent = content != null ? content : "";
         String snippetLanguage = SnippetLanguageSupport.detectSnippetLanguage(language, scriptContent);
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.CORRECT_SNIPPET_DESCRIPTION, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.CORRECT_SNIPPET_DESCRIPTION, null, options);
         return SnippetAiWorkflowSupport.correctSnippetDescription(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -146,10 +152,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.SelectionTextTransformRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.CORRECT_SNIPPET_SELECTION_TEXT, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.CORRECT_SNIPPET_SELECTION_TEXT, null, options);
         return SnippetAiWorkflowSupport.correctSelectionText(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -168,10 +174,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.SelectionTextTransformRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.TRANSLATE_SNIPPET_SELECTION_TEXT, null, options);
         return SnippetAiWorkflowSupport.translateSelectionText(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -191,13 +197,13 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.SnippetDescriptionRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         AiAction action = request.wholeSnippet()
             ? AiAction.DESCRIBE_SNIPPET_FULL
             : AiAction.DESCRIBE_SNIPPET_SELECTION;
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, action, request.aiProfileId(), forcedSkillIds);
+            ownerWindow, connection, action, request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.describeSnippet(
             action,
             resolved.service(),
@@ -215,11 +221,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.AlternativeSolutionsRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.GENERATE_SNIPPET_ALTERNATIVES,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.generateAlternativeSolutions(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -238,10 +244,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.CompletionRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.COMPLETE_SNIPPET_CODE, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.COMPLETE_SNIPPET_CODE, null, options);
         return SnippetAiWorkflowSupport.completeSnippetCode(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -258,11 +264,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.CodeReviewRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.REVIEW_SNIPPET_CODE,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.reviewSnippetCode(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -281,11 +287,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.CodeAnalysisRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.ANALYZE_SNIPPET_CODE,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.analyzeSnippetCode(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -301,11 +307,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.ImprovementApplyRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.APPLY_SNIPPET_IMPROVEMENTS,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.applySnippetImprovements(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -320,7 +326,29 @@ final class SnippetAiAssistFactory {
             request.inputHardeningInstructions(),
             request.progressListener(),
             request.checkpointListener(),
-            request.resumeFrom());
+            request.resumeFrom(),
+            request.migration());
+    }
+
+    private static SnippetAiResponseSupport.LanguageMigration migrateSnippetLanguage(
+        MainWindow ownerWindow,
+        ServerConnection connection,
+        SnippetEditDialog.LanguageMigrationRequest request,
+        String connectionDisplayName,
+        SnippetAiRuntimeOptions options) throws Exception {
+
+        ResolvedProfile resolved = resolve(
+            ownerWindow, connection, AiAction.MIGRATE_SNIPPET_LANGUAGE,
+            request.aiProfileId(), options);
+        return SnippetAiWorkflowSupport.migrateSnippetLanguage(
+            resolved.service(),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            request.fullContent(),
+            request.snippetLanguage(),
+            request.plan(),
+            connectionDisplayName,
+            request.fallbackLanguageCode(),
+            request.additionalInstructions());
     }
 
     private static SnippetAiResponseSupport.CodeImprovement improveSnippetCode(
@@ -328,11 +356,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.CodeImprovementRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.IMPROVE_SNIPPET_CODE,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.improveSnippetCode(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -351,11 +379,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.CodeAssistantRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.ASSIST_SNIPPET_CODE,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.assistSnippetCode(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -376,10 +404,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.SecurityReviewRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.SECURITY_REVIEW_SNIPPET_CODE, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.SECURITY_REVIEW_SNIPPET_CODE, null, options);
         return SnippetAiWorkflowSupport.reviewSnippetSecurity(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -395,10 +423,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.SecurityFixRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.APPLY_SNIPPET_SECURITY_FIXES, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.APPLY_SNIPPET_SECURITY_FIXES, null, options);
         return SnippetAiWorkflowSupport.applySnippetSecurityFixes(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -407,7 +435,8 @@ final class SnippetAiAssistFactory {
             connectionDisplayName,
             request.fallbackLanguageCode(),
             request.selectedFindings(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.migration());
     }
 
     private static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
@@ -415,11 +444,11 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.DiagramRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.GENERATE_SNIPPET_MERMAID,
-            request.aiProfileId(), forcedSkillIds);
+            request.aiProfileId(), options);
         return SnippetAiWorkflowSupport.generateSnippetMermaid(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
@@ -436,10 +465,10 @@ final class SnippetAiAssistFactory {
         ServerConnection connection,
         SnippetEditDialog.OneLinerRequest request,
         String connectionDisplayName,
-        java.util.Collection<String> forcedSkillIds) throws Exception {
+        SnippetAiRuntimeOptions options) throws Exception {
 
         ResolvedProfile resolved = resolve(
-            ownerWindow, connection, AiAction.GENERATE_SNIPPET_ONE_LINER, null, forcedSkillIds);
+            ownerWindow, connection, AiAction.GENERATE_SNIPPET_ONE_LINER, null, options);
         return SnippetAiWorkflowSupport.generateCompactOneLiner(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),

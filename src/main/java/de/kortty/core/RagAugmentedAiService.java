@@ -59,7 +59,8 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
         AiRequest augmented = new AiRequest(
             request.action(), request.selectedText(), request.connectionDisplayName(),
             request.responseLanguageCode(), request.userPrompt(), request.conversationContext(),
-            request.includeAiSkills(), request.promptPreset(), context.text());
+            request.includeAiSkills(), request.promptPreset(), context.text(),
+            request.codeTextLanguage());
         return delegate.execute(augmented);
     }
 

@@ -33,8 +33,33 @@ public final class AiPromptBuilder {
         + "normalization is an intentional change. Never omit or summarize code, use ellipses, or replace "
         + "a section with a comment such as 'rest unchanged'.";
 
-    /** Language contract shared by every action that returns code inserted into the snippet. */
-    private static String codeTextLanguageRule(String languageCode) {
+    /**
+     * Language contract shared by every action that returns code inserted into the snippet.
+     *
+     * <p>Two different instructions hide behind one setting. Naming a language tells the model what
+     * to write; it does not say whether prose already in the file may be converted. korTTY used to
+     * send only the first, so an English script opened from a German interface came back with every
+     * comment and message translated — a change to the user's own file that nobody requested.</p>
+     *
+     * <p>The default now carries the script's own language together with an explicit instruction to
+     * leave existing prose alone. Converting a script's prose is still available, but only when the
+     * user asks for it, in which case the wording below reverts to the original translate contract.</p>
+     */
+    private static String codeTextLanguageRule(AiRequest request, String fallbackLanguageCode) {
+        CodeTextLanguage codeText = request != null ? request.codeTextLanguage() : null;
+        if (codeText != null && codeText.isUsable() && codeText.preserveExisting()) {
+            return "The snippet's natural-language prose is written in language code "
+                + codeText.languageCode() + ". Keep it that way: every existing comment and every "
+                + "user-facing, log, or help string must stay in that language, and every comment or "
+                + "message you add must be written in it too. Do not translate the snippet's prose "
+                + "into another language, and in particular do not translate it into the language "
+                + "this instruction is written in. Reword existing text only where the change you "
+                + "are making requires it. Do not translate identifiers, file paths, commands or "
+                + "options, configuration keys, protocol tokens, or machine-readable literals.";
+        }
+        String languageCode = codeText != null && codeText.isUsable()
+            ? codeText.languageCode()
+            : fallbackLanguageCode;
         return "Every existing, new, or rewritten natural-language comment and every user-facing, log, or "
             + "help string in each returned code field must be in language code " + languageCode + ". "
             + "Translate existing text within the returned replacement scope as needed while preserving its "
@@ -113,7 +138,7 @@ public final class AiPromptBuilder {
                 + "Each solution entry must contain title, code, and optionally summary. "
                 + "Keep the program code in the same programming language as the provided snippet. "
                 + "Write titles and summaries in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + DIRECT_JSON_REPLY_RULE + " Do not include explanations outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
@@ -121,7 +146,7 @@ public final class AiPromptBuilder {
                 + "Return exactly one JSON object with keys insertText and summary. "
                 + "insertText must contain only the code that should be inserted at the cursor, not the full file. "
                 + "Write summary in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + "Keep the code in the snippet language. " + DIRECT_JSON_REPLY_RULE
                 + " Do not include Markdown or explanations outside the JSON object.";
         }
@@ -138,7 +163,7 @@ public final class AiPromptBuilder {
                 + "replacement must contain only the replacement code for the selected region. "
                 + "Preserve behavior unless the user explicitly requests a behavior change. "
                 + "Write summary in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + "Do not nest this JSON object inside another JSON string. "
                 + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
         }
@@ -150,7 +175,7 @@ public final class AiPromptBuilder {
                 + "Preserve existing behavior unless the user explicitly requests a behavior change. "
                 + "Do not invent files, endpoints, configuration keys, schemas, secrets, versions, or external facts. "
                 + "Write summary in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + "Do not nest this JSON object inside another JSON string. "
                 + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
         }
@@ -172,7 +197,24 @@ public final class AiPromptBuilder {
                 + "Do not add a changes entry solely for required natural-language normalization. "
                 + "Do not apply findings that were not selected. Preserve unrelated behavior and formatting where possible. "
                 + "Write summary and every reason in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
+                + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
+            return "You migrate a snippet so that it is written in one single programming language. "
+                + "Return exactly one JSON object with keys replacementLines, summary and notes. "
+                + COMPLETE_FULL_REPLACEMENT_RULE + " "
+                + "Preserve the observable behavior exactly; a migration is a rewrite, not a redesign. "
+                + "The context states the scope and the target. Follow it literally and change nothing outside it. "
+                + "Within the migrated scope no foreign language may remain: no heredoc fed to another "
+                + "interpreter, no -e/-c/-r one-liner of another language, no inline awk program. "
+                + "Calling an external program is not a foreign language and stays as a plain process call. "
+                + "notes is an array of short sentences naming everything that could not be carried over and "
+                + "what the user must do by hand; use an empty array when nothing was lost. "
+                + "Never drop a construct silently and never invent a replacement for one that has no "
+                + "equivalent — report it in notes instead. "
+                + "Write summary and every note in language code " + languageCode + ". "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
@@ -204,7 +246,7 @@ public final class AiPromptBuilder {
                 + "For a selected dependency, implement its reduce/replace suggestion. "
                 + "Preserve unrelated behavior and formatting where possible. "
                 + "Write summary and every reason in language code " + languageCode + ". "
-                + codeTextLanguageRule(languageCode) + " "
+                + codeTextLanguageRule(request, languageCode) + " "
                 + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER) {
@@ -214,7 +256,7 @@ public final class AiPromptBuilder {
                 + "Use only the provided snippet content. "
                 + "Do not use curl, wget, temporary downloads, external URLs, invented files, base64, heredocs, Markdown, or explanations. "
                 + "Preserve the snippet behavior as closely as possible for the declared snippet language. "
-                + codeTextLanguageRule(languageCode) + " " + DIRECT_JSON_REPLY_RULE;
+                + codeTextLanguageRule(request, languageCode) + " " + DIRECT_JSON_REPLY_RULE;
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
             return buildSnippetDiagramSystemPrompt(request, languageCode);
@@ -478,6 +520,14 @@ public final class AiPromptBuilder {
                     + "Put every implemented mandatory requirement id in the compact implementedRequirements array and use changes only for selected analysis items; "
                     + "each changes anchor must be a line copied verbatim from replacementLines. "
                     + "Do not add entries for language-only normalization.\n");
+            case MIGRATE_SNIPPET_LANGUAGE -> prompt.append(
+                "Migrate the snippet as described by the migration scope in the context.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"replacementLines\": [\"#!/usr/bin/env ...\", \"next source line\", \"\"], "
+                    + "\"summary\": \"...\", \"notes\": [\"<what could not be carried over>\"] }\n"
+                    + COMPLETE_FULL_REPLACEMENT_RULE + "\n"
+                    + "Keep the behavior identical. Report anything not carried over in notes instead of "
+                    + "omitting it silently or inventing a substitute.\n");
             case GENERATE_SNIPPET_ONE_LINER -> prompt.append(
                 "Convert the snippet into a compact one-liner command.\n"
                     + "Return exactly one JSON object with this shape:\n"

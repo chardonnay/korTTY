@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -21,6 +22,106 @@ class WorkflowScriptSupportTest {
         return new HeaderFacts(
             WorkflowScriptSupport.defaultScriptName("Install and configure nginx", lang),
             "daniel", "root", "web-prod", WHEN, "Install and configure nginx", "OpenAI GPT");
+    }
+
+    // ---------------------------------------------------------------- rule labels
+
+    @Test
+    void everyEmittedHardeningRuleResolvesToItsOwnOptionLabel() {
+        for (HardeningOption option : HardeningOption.values()) {
+            for (boolean declarative : new boolean[] {false, true}) {
+                String rules = WorkflowScriptSupport.hardeningRulesText(EnumSet.of(option), declarative);
+                for (String bullet : bullets(rules)) {
+                    assertThat(WorkflowScriptSupport.ruleLabelKey(bullet))
+                        .isEqualTo("ai.workflow.option." + option.name());
+                }
+            }
+        }
+    }
+
+    @Test
+    void everyEmittedInputHardeningRuleResolvesToALabelInEveryCombination() {
+        InputHardeningOption[] options = InputHardeningOption.values();
+        for (int mask = 1; mask < (1 << options.length); mask++) {
+            EnumSet<InputHardeningOption> combination = EnumSet.noneOf(InputHardeningOption.class);
+            for (int bit = 0; bit < options.length; bit++) {
+                if ((mask & (1 << bit)) != 0) {
+                    combination.add(options[bit]);
+                }
+            }
+            InputHardeningConfig config = new InputHardeningConfig(
+                combination, InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+            List<String> emitted = bullets(
+                WorkflowScriptSupport.inputHardeningRulesText(config, ScriptLanguage.BASH));
+            assertThat(emitted).isNotEmpty();
+            for (String bullet : emitted) {
+                assertThat(WorkflowScriptSupport.ruleLabelKey(bullet)).isNotNull();
+            }
+        }
+    }
+
+    @Test
+    void aRuleKeepsItsLabelWhenAnotherOptionRewordsIt() {
+        // The security-logging rule gains an "and every forced bypass" clause inside its opening
+        // words as soon as the force override is also selected; it must still be that option's rule.
+        InputHardeningConfig withForce = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.SECURITY_LOGGING, InputHardeningOption.FORCE_OVERRIDE),
+            InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        String reworded = bullets(WorkflowScriptSupport.inputHardeningRulesText(withForce, ScriptLanguage.BASH))
+            .stream().filter(rule -> rule.startsWith("Report every violation")).findFirst().orElseThrow();
+        assertThat(reworded).contains("forced bypass");
+        assertThat(WorkflowScriptSupport.ruleLabelKey(reworded))
+            .isEqualTo("ai.inputHardening.option.SECURITY_LOGGING");
+    }
+
+    @Test
+    void aChangedFileSizeLimitDoesNotLoseTheRuleLabel() {
+        InputHardeningConfig custom = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.FILE_SIZE_LIMIT), 3_145_728L);
+        String rule = bullets(WorkflowScriptSupport.inputHardeningRulesText(custom, ScriptLanguage.BASH))
+            .stream().filter(line -> line.startsWith("Define a variable")).findFirst().orElseThrow();
+        assertThat(rule).contains("3145728");
+        assertThat(WorkflowScriptSupport.ruleLabelKey(rule))
+            .isEqualTo("ai.inputHardening.option.FILE_SIZE_LIMIT");
+    }
+
+    @Test
+    void theSharedGuardRulesAreNotAttributedToOneSubOption() {
+        InputHardeningConfig onlyForce = new InputHardeningConfig(
+            EnumSet.of(InputHardeningOption.FORCE_OVERRIDE),
+            InputHardeningConfig.DEFAULT_MAX_FILE_SIZE_BYTES);
+        List<String> emitted = bullets(
+            WorkflowScriptSupport.inputHardeningRulesText(onlyForce, ScriptLanguage.BASH));
+        // The bullet that opens the guard block is emitted for every selection, so it belongs to the
+        // guard rather than to the one sub-option that happened to be ticked here.
+        assertThat(WorkflowScriptSupport.ruleLabelKey(emitted.get(0)))
+            .isEqualTo(WorkflowScriptSupport.INPUT_HARDENING_GUARD_LABEL_KEY);
+        // The sub-option's own rule keeps its own label.
+        String forceRule = emitted.stream()
+            .filter(rule -> rule.startsWith("Force override:"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(WorkflowScriptSupport.ruleLabelKey(forceRule))
+            .isEqualTo("ai.inputHardening.option.FORCE_OVERRIDE");
+        // Everything the guard always writes — including the closing language-idiom rule — stays generic.
+        assertThat(WorkflowScriptSupport.ruleLabelKey(emitted.get(emitted.size() - 1)))
+            .isEqualTo(WorkflowScriptSupport.INPUT_HARDENING_GUARD_LABEL_KEY);
+    }
+
+    @Test
+    void textThatIsNotARuleHasNoLabel() {
+        assertThat(WorkflowScriptSupport.ruleLabelKey(null)).isNull();
+        assertThat(WorkflowScriptSupport.ruleLabelKey("  ")).isNull();
+        // An analysis finding's own title must pass through untouched.
+        assertThat(WorkflowScriptSupport.ruleLabelKey("Variable wird nicht gequotet")).isNull();
+    }
+
+    private static List<String> bullets(String rulesText) {
+        return rulesText.lines()
+            .map(String::strip)
+            .filter(line -> line.startsWith("- ") && line.length() > 2)
+            .map(line -> line.substring(2).strip())
+            .toList();
     }
 
     // ---------------------------------------------------------------- ScriptLanguage

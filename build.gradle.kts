@@ -3012,9 +3012,22 @@ val translateDocsMaskingTest = tasks.register<Exec>("translateDocsMaskingTest") 
     }
 }
 
+val backfillI18nKeysTest = tasks.register<Exec>("backfillI18nKeysTest") {
+    group = "verification"
+    description = "Runs the i18n backfill script's additions-only regression tests."
+    inputs.files("scripts/backfill_i18n_keys.py", "scripts/test_backfill_i18n_keys.py")
+    inputs.dir("src/main/resources/i18n")
+    workingDir(projectDir)
+    if (isWindows) {
+        commandLine("py", "-3", "scripts/test_backfill_i18n_keys.py")
+    } else {
+        commandLine("python3", "scripts/test_backfill_i18n_keys.py")
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest, translateDocsMaskingTest)
+        guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
@@ -3089,6 +3102,18 @@ tasks.register<JavaExec>("settingsTabScreenshotStage") {
     args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
     listOf("kortty.screenshotTabKey", "kortty.screenshotPaneWidth",
            "kortty.screenshotPaneHeight", "kortty.screenshotHome").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
+tasks.register<JavaExec>("codeAnalysisScreenshotStage") {
+    group = "documentation"
+    description = "Shows the Full-code-analysis window hosted in the main window for the docs screenshot capture."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.CodeAnalysisScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.mainWindowWidth", "kortty.mainWindowHeight", "kortty.screenshotHome").forEach { key ->
         (findProperty(key) as String?)?.let { systemProperty(key, it) }
     }
 }
@@ -3177,6 +3202,14 @@ tasks.register<JavaExec>("inputHardeningSelectorSmoke") {
     description = "Verifies the Input hardening panel's master toggle gates the sub-option grid, the size row and the per-run config."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.InputHardeningSelectorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("targetLanguageSelectorSmoke") {
+    group = "verification"
+    description = "Verifies the language-migration panel never offers a whole-script migration for a pipeline and never preselects a platform conversion."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TargetLanguageSelectorSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
@@ -3342,6 +3375,23 @@ tasks.register<JavaExec>("snippetCodeAnalysisDialogSizingSmoke") {
     description = "Shrinks the Full-code-analysis window and verifies its Apply/Close buttons stay on screen."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SnippetCodeAnalysisDialogSizingSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    environment("TEST_MODE_KORTTY", "1")
+}
+
+tasks.register<JavaExec>("analysisCategoryIconRender") {
+    group = "verification"
+    description = "Renders the Full-code-analysis category glyphs through JavaFX SVGPath to build/smoke/analysis-category-icons.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AnalysisCategoryIconRender")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("snippetAnalysisDockSmoke") {
+    group = "verification"
+    description = "Docks the AI-processing and change-preview windows to a Full-code-analysis anchor and verifies they take opposite sides, follow it, stay on screen and undock when dragged away."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetAnalysisDockSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
     environment("TEST_MODE_KORTTY", "1")
 }

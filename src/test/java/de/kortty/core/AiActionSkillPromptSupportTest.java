@@ -139,6 +139,7 @@ class AiActionSkillPromptSupportTest {
                 false,
                 null,
                 null,
+                null,
                 entry.getKey());
 
             String prompt = AiPromptBuilder.buildSystemPrompt(request);

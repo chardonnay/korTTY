@@ -16,6 +16,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -39,7 +40,23 @@ import java.util.Objects;
  * Supports a persisted font zoom, copy-to-clipboard, a dedicated security-check AI profile, severity
  * sorting, a select-all toggle and a re-run action.
  */
-public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAiResponseSupport.SecurityFinding>> {
+public class SnippetSecurityReportDialog extends ThemeAwareDialog<SnippetSecurityReportDialog.FixSelection> {
+
+    /**
+     * What the user chose to apply: the ticked findings, plus an optional language unification run
+     * before them so the fixes are written in the target language rather than the old one.
+     */
+    public record FixSelection(List<SnippetAiResponseSupport.SecurityFinding> findings,
+                               de.kortty.core.SnippetAiWorkflowSupport.MigrationPlan migration) {
+        public FixSelection {
+            findings = findings != null ? List.copyOf(findings) : List.of();
+        }
+
+        public boolean migrates() {
+            return migration != null && !migration.isNoOp();
+        }
+    }
+
 
     private static final String AI_ACTION_PREFIX = "✨ ";
     private static final int MIN_FONT_SIZE = 9;
@@ -63,10 +80,13 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAi
         }
     }
 
+    private final TargetLanguageSelector migrationSelector = new TargetLanguageSelector(false);
+
     public SnippetSecurityReportDialog(
             Window owner,
             List<SnippetAiResponseSupport.SecurityFinding> findings,
-            Runnable onRerun) {
+            Runnable onRerun,
+            de.kortty.core.ScriptLanguageMixSupport.LanguageMix languageMix) {
 
         setTitle(I18n.get("snippets.ai.security.title"));
         setResizable(true);
@@ -93,7 +113,18 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAi
 
         HBox toolbar = buildToolbar(onRerun);
 
+        migrationSelector.setDetectedMix(languageMix);
         VBox root = new VBox(10, infoLabel, toolbar, findingsView);
+        if (migrationSelector.hasAnythingToOffer()) {
+            TitledPane migrationPane = new TitledPane();
+            Label migrationHeader = new Label(I18n.get("ai.migration.title"));
+            migrationHeader.setStyle("-fx-font-weight: bold;");
+            migrationPane.setText(null);
+            migrationPane.setGraphic(migrationHeader);
+            migrationPane.setContent(migrationSelector);
+            migrationPane.setExpanded(false);
+            root.getChildren().add(migrationPane);
+        }
         root.setPadding(new Insets(14));
 
         ButtonType applySelectedButton = new ButtonType(
@@ -111,7 +142,9 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<List<SnippetAi
         });
         getDialogPane().setPrefWidth(880);
         getDialogPane().setPrefHeight(660);
-        setResultConverter(buttonType -> buttonType == applySelectedButton ? selectedFindings() : null);
+        setResultConverter(buttonType -> buttonType == applySelectedButton
+            ? new FixSelection(selectedFindings(), migrationSelector.buildPlan())
+            : null);
     }
 
     private HBox buildToolbar(Runnable onRerun) {

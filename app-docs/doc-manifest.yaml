@@ -443,6 +443,12 @@ pages:
     diagrams: []
     screenshots: []
     last_synced_ref: "659b3bd9"
+  - path: app-docs/site/docs/en/reference/language-migration.md
+    owns_i18n: [ai.migration., snippets.ai.migrate., snippets.ai.code.migrate, ai.workflow.singleLanguage]
+    owns_code: [src/main/java/de/kortty/core/ScriptLanguageMixSupport.java, src/main/java/de/kortty/ui/TargetLanguageSelector.java, src/main/java/de/kortty/core/SnippetAiWorkflowSupport.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java, src/main/java/de/kortty/ui/SnippetSecurityReportDialog.java]
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "a48a0946"
   - path: app-docs/site/docs/en/reference/input-hardening.md
     owns_i18n: [ai.inputHardening.]
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/InputHardeningSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]

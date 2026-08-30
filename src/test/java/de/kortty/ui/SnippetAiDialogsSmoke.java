@@ -162,7 +162,8 @@ public final class SnippetAiDialogsSmoke {
             true,
             ids -> { });
         SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
-            null, "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, skillContext);
+            null, "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, skillContext,
+            de.kortty.core.ScriptLanguageMixSupport.detect("perl", "#!/usr/bin/env perl\nprint 1;\n"), "de");
         // The dialog's content is wrapped in a ScrollPane so a short window cannot push the button
         // bar off screen. A ScrollPane exposes its content through its skin, which only exists after
         // a layout pass — realize the pane before walking it for controls.
@@ -229,7 +230,8 @@ public final class SnippetAiDialogsSmoke {
         SnippetAiResponseSupport.ScriptAnalysis dependenciesOnly = new SnippetAiResponseSupport.ScriptAnalysis(
             "Calls curl.", analysis.dependencies(), List.of());
         SnippetCodeAnalysisDialog dependenciesOnlyDialog = new SnippetCodeAnalysisDialog(
-            null, "dependency_only.yml", "yaml", dependenciesOnly, diagramLoader, null, null, null);
+            null, "dependency_only.yml", "yaml", dependenciesOnly, diagramLoader, null, null, null,
+            de.kortty.core.ScriptLanguageMixSupport.detect("yaml", "key: value\n"), "de");
         realize(dependenciesOnlyDialog.getDialogPane());
         CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyDialog.getDialogPane());
         if (!dependenciesOnlyBulkCheck.isDisable()) {
@@ -387,6 +389,7 @@ public final class SnippetAiDialogsSmoke {
             null,
             null,
             null,
+            null,
             false,
             null);
 
@@ -501,8 +504,13 @@ public final class SnippetAiDialogsSmoke {
      * replacement is surfaced in the review-diff window before the editor content can change.
      */
     private static Runnable exerciseFullAnalysisApplyPreview(AtomicReference<String> failure) throws Exception {
-        String original = "#!/usr/bin/env bash\nprintf '%s\\n' $value\n";
-        String replacement = "#!/usr/bin/env bash\nprintf '%s\\n' \"$value\"\n";
+        // Real comments, because the apply flow now keeps whatever language the script is written
+        // in and asks the user when it cannot tell. A bare two-line fixture is exactly the
+        // "cannot tell" case and would stop this harness on a question nobody can answer.
+        String prose = "# Prints the value that was passed to the script and checks that the\n"
+            + "# variable is quoted, otherwise the shell splits it into several arguments.\n";
+        String original = "#!/usr/bin/env bash\n" + prose + "printf '%s\\n' $value\n";
+        String replacement = "#!/usr/bin/env bash\n" + prose + "printf '%s\\n' \"$value\"\n";
         String longImprovementTitle = "Quote the untrusted variable expansion before invoking the command "
             + "so spaces, wildcard characters and user-controlled shell fragments remain one literal argument "
             + "without changing the command's existing output or error handling";
@@ -537,6 +545,7 @@ public final class SnippetAiDialogsSmoke {
                 return new SnippetAiResponseSupport.CompletionSuggestion(
                     "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis");
             },
+            null,
             null,
             null,
             null,
@@ -831,6 +840,7 @@ public final class SnippetAiDialogsSmoke {
             null,
             null,
             null,
+            null,
             request -> new SnippetAiResponseSupport.MermaidDiagram("", ""),
             request -> {
                 analysisRequest.set(request);
@@ -869,6 +879,8 @@ public final class SnippetAiDialogsSmoke {
             List.of(),
             EnumSet.of(de.kortty.core.WorkflowScriptSupport.HardeningOption.SAFE_MODE),
             de.kortty.core.WorkflowScriptSupport.InputHardeningConfig.disabled(),
+            null,
+            null,
             null);
         // runCodeReview completes on a background Task. Start the apply probe on a later pulse so the
         // editor's single-AI-action guard does not correctly reject it as a concurrent second action.

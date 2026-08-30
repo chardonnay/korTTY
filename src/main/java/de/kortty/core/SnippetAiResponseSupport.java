@@ -87,6 +87,30 @@ public final class SnippetAiResponseSupport {
     }
 
     /**
+     * Result of a language migration: the full rewritten snippet, a summary, and the notes naming
+     * everything that could not be carried over. The notes are the honest part of the contract —
+     * a migration that silently dropped a construct would be worse than one that refused.
+     */
+    public record LanguageMigration(String replacement, String summary, List<String> notes) {
+        public LanguageMigration {
+            replacement = replacement != null ? replacement : "";
+            summary = summary != null ? summary.trim() : "";
+            notes = notes != null
+                ? notes.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList()
+                : List.of();
+        }
+
+        public boolean isUsable() {
+            return !replacement.isBlank();
+        }
+    }
+
+    /**
      * Result of applying selected security findings: the full fixed snippet, an overall summary, and a
      * per-change list with anchors + reasons for the diff hover annotations.
      */
@@ -395,6 +419,52 @@ public final class SnippetAiResponseSupport {
             : parseLenientStringArrayField(responseText, "implementedRequirements");
         return new SnippetSecurityFix(
             improvement.replacement(), improvement.summary(), changes, implementedRequirements);
+    }
+
+    /**
+     * Parses the language-migration response. Reuses the robust {@code replacementLines}/summary
+     * extraction of {@link #parseCodeImprovement} and additionally reads the {@code notes} array.
+     */
+    public static LanguageMigration parseLanguageMigration(String responseText) {
+        CodeImprovement improvement = parseCodeImprovement(responseText, true);
+        JsonObject object = parseJsonObject(responseText);
+        List<String> notes = List.of();
+        for (String field : new String[] {"notes", "limitations", "warnings"}) {
+            notes = object != null
+                ? parseStringArray(object, field)
+                : parseLenientStringArrayField(responseText, field);
+            if (!notes.isEmpty()) {
+                break;
+            }
+        }
+        return new LanguageMigration(improvement.replacement(), improvement.summary(), notes);
+    }
+
+    /**
+     * True when a whole-script migration result must NOT be applied.
+     *
+     * <p>{@link #isDegenerateFullReplacement} is deliberately not reused here: a migration
+     * legitimately rewrites nearly every line, so its line-level similarity checks would reject
+     * correct results. What still cannot be right is an empty answer or one that lost most of the
+     * program — a rewrite in another language changes the wording, not the amount of work done.
+     */
+    public static boolean isDegenerateMigration(String original, String replacement) {
+        String candidate = replacement != null ? replacement.strip() : "";
+        if (candidate.isEmpty()) {
+            return true;
+        }
+        if (introducesOmittedCodeMarker(original != null ? original.strip() : "", candidate)) {
+            return true;
+        }
+        long originalLines = countCodeLines(original);
+        if (originalLines < 5) {
+            return false;
+        }
+        return countCodeLines(replacement) * 10 < originalLines * 4;
+    }
+
+    private static long countCodeLines(String content) {
+        return content == null ? 0 : content.lines().filter(line -> !line.isBlank()).count();
     }
 
     private static final Pattern BARE_TOKEN_PATTERN =
