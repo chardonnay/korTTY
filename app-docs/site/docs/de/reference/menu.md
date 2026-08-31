@@ -1,6 +1,6 @@
 # Menüreferenz
 
-Jedes Element in der Menüleiste von korTTY mit seiner Verknüpfung (sofern definiert) und seiner Funktion. Die Menüleiste kann mit ++ctrl+shift+l++ ausgeblendet und durch einen Rechtsklick auf das Terminal oder die Statusleiste wieder eingeblendet werden.
+Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The menu bar can be hidden with ++ctrl+shift+l++ and shown again by right-clicking the terminal or status bar.
 
 ## Datei
 
@@ -65,12 +65,12 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
-| Sitzungsjournale… | Verwalten [Sitzungsjournale](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
-| Sitzungsjournal starten/stoppen | Schalten Sie das Sitzungsjournal der aktiven Terminal-Registerkarte um. Wenn Sie mitten in der Sitzung beginnen, wird der vorhandene Scrollback importiert (++ctrl+alt+t++) |
-| Journal-Screenshot hinzufügen | Erstellen Sie einen Snapshot des aktiven Terminals in seinem laufenden Sitzungsjournal (++ctrl+alt+c++) |
-| ASCII-Art… | Zwei Registerkarten in einem Dialog: **Textbanner** rendert Text als FIGlet-Banner in mehreren Schriftarten, **AI-Bild** ermöglicht es einem AI-Profil, ein Motiv als ASCII-Art zu zeichnen |
+| Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
+| Sitzungsjournal starten/stoppen | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
+| Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
+| ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
 
-Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Sitzungsjournalfunktion verweigert.
+The three session-journal items stay visible but are disabled when an [enterprise policy](../features/session-journal.md#unternehmensrichtlinie) denies the session-journal feature.
 
 ## AI
 
@@ -78,8 +78,8 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 
 | Artikel | Beschreibung |
 | --- | --- |
-| KI-Manager… | Verwalten Sie AI-Profile, integrierte GGUF-Modelle, RAG-Wissensspeicher, die AI Skills-Bibliothek und Text-/Codierungsrollen |
-| Gespeicherte Chats… | Öffnen Sie die gespeicherten AI-Chat-Konversationen direkt in einem eigenen Fenster; ein erneuter Aufruf bringt das vorhandene Fenster in den Vordergrund |
+| KI-Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles |
+| Saved Chats… | Open the saved AI chat conversations directly in their own window; invoking it again brings the existing window to the front |
 | AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
@@ -99,9 +99,9 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
-| Befehlszeitstempel anzeigen | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
+| Show Command Timestamps | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
 | Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |
-| Dateibrowser ▸ Links anzeigen | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
+| File Browser ▸ Show on Left | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
@@ -112,7 +112,7 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
 | Live Journal ▸ Links andocken / Rechts andocken | | Docken Sie an [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Wenn Sie die aktive Seite auswählen, wird sie ausgeblendet |
-| Live-Journal ▸ Einblenden/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf die zuletzt verwendete Seite um (standardmäßig rechts). |
+| Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
 
 ## Teamarbeit
 
@@ -124,10 +124,10 @@ Die drei Sitzungsjournalelemente bleiben sichtbar, werden jedoch deaktiviert, we
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Anleitung | ++f1++ | Öffnen Sie diese Dokumentation in korTTY |
+| Manual | ++f1++ | Open this documentation inside korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-Die Anleitung verfügt oben links im Fenster über eigene Schaltflächen zur Textgröße: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe und die Größe deckt das gesamte Fenster ab – die Seite und, wenn es geöffnet ist, das KI-Suchfeld daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+The manual has its own text-size buttons at the top left of its window: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY remembers the size, and the size covers the whole window — the page and, when it is open, the AI search panel beside it. See [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
 
 Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über der Seite in der größtmöglichen Größe geöffnet, die das Fenster zulässt, mit den Schaltflächen **−** / ***+** und einem Prozentsatz, der es auf die angepasste Größe zurücksetzt. Zoomen Sie weiter, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Schwenken und schließen Sie es mit *×**, ++esc++ oder einem Klick neben dem Bild. ++ctrl++ und der Radzoom ebenfalls. Dasselbe funktioniert auch im Online-Ratgeber.
 
@@ -135,7 +135,7 @@ Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über
 
 Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster geschlossen wurde. korTTY fügt daher zwei zusätzliche Einstiegspunkte hinzu, damit es erreichbar – und beendet – bleibt, auch wenn kein Fenster geöffnet ist:
 
-- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen auszuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
 - **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.

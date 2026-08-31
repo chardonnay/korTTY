@@ -14,9 +14,9 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
 | Textfarbe | Farbe | RGB-Hex-Farbe | #FFFFFF | `foregroundColor` |
 | Hintergrund | Farbe | RGB-Hex-Farbe | #1E1E1E | `backgroundColor` |
 | Cursor | Farbe | RGB-Hex-Farbe | #FFFFFF | `cursorColor` |
-| Cursor blinkt | umschalten | — | Auf | `cursorStyle` |
+| Cursor blinkt | umschalten | — | Ein | `cursorStyle` |
 | Auswahl | Farbe | RGB-Hex-Farbe | #3399FF | `selectionColor` |
-| Terminalfarben aktivieren | umschalten | — | Auf | `terminalColorsEnabled` |
+| Terminalfarben aktivieren | umschalten | – | Ein | `terminalColorsEnabled` |
 | Normal: Schwarz | Farbe | RGB-Hex-Farbe | #000000 | `ansiBlack` |
 | Normal: Rot | Farbe | RGB-Hex-Farbe | #CD0000 | `ansiRed` |
 | Normal: Grün | Farbe | RGB-Hex-Farbe | #00CD00 | `ansiGreen` |

@@ -13,27 +13,27 @@ Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Reposito
 
 Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigurationen zu verwalten:
 
-- **Git-Repositorys** – Klonen und synchronisieren Sie es mit einem Git-Repository, das eine `kortty-teamwork-connections.xml`-Datei (oder eine ältere `connections.xml`) enthält.
-- **Freigegebene Dateien** – Laden Sie Verbindungen von einem lokalen oder Netzwerkpfad (schreibgeschützt oder Lese-/Schreibzugriff).
-- **Automatische Synchronisierung** – Die Hintergrundsynchronisierung prüft in einem konfigurierbaren Intervall, ob Aktualisierungen vorliegen.
-- **Anmeldeinformationssicherheit** – Gemeinsame Verbindungen übertragen KEINE Inline-Passwörter; nur Anmeldeinformations-IDs und SSH-Schlüsselreferenzen.
-- **Lokale Überschreibungen** – Ihre lokalen Anmeldeinformationen und SSH-Schlüssel werden mit gemeinsam genutzten Verbindungsdefinitionen zusammengeführt.
-- **Schreibgeschützter Modus** – Markieren Sie Quellen als schreibgeschützt, um versehentliches Zurückschreiben zu verhindern.
+- **Git-Repositorys** – Klonen Sie ein Git-Repository, das eine `kortty-teamwork-connections.xml`-Datei (oder eine ältere Datei `connections.xml`) enthält, und bleiben Sie mit diesem synchron.
+- **Shared files** — Load connections from a local or network path (read-only or read-write).
+- **Automatic sync** — Background syncing at a configurable interval checks for updates.
+- **Credential security** — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.
+- **Local overrides** — Your local credentials and SSH keys are merged with shared connection definitions.
+- **Read-only mode** — Mark sources as read-only to prevent accidental writes back.
 
 ## Einrichten von Teamwork-Quellen
 
-Öffnen Sie **Teamwork → Teamwork-Einstellungen…** (oder **Konfiguration → Globale Einstellungen… → Teamwork**), um Quellen zu konfigurieren.
+Open **Teamwork → Teamwork Settings…** (or **Configuration → Global Settings… → Teamwork**) to configure sources.
 
 ### Fügen Sie eine Quelle hinzu
 
 1. Klicken Sie auf **Hinzufügen**, um eine neue Quelle zu erstellen.
 2. Wählen Sie die Quelle **Typ**:
-   - **Git** – Von einer HTTPS-, SSH- oder git://-URL klonen.
-   - **Freigegebene Datei** – Von einem lokalen oder Netzwerkpfad lesen (z. B. `file:///mnt/share/connections.xml` oder `//host/share/connections.xml`).
+   - **Git** — Clone from an HTTPS, SSH, or git:// URL.
+   - **Shared File** — Read from a local or network path (e.g., `file:///mnt/share/connections.xml` or `//host/share/connections.xml`).
 3. Geben Sie den **Standort** ein:
    - Für Git: die Klon-URL.
    - Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).
-4. Stellen Sie das **Prüfintervall** ein (1–1440 Minuten; Standard: 15).
+4. Legen Sie das **Prüfintervall** fest (1–1440 Minuten; Standard: 15).
 5. Aktivieren Sie optional **Schreibgeschützt**, um Rückschreibvorgänge zu verhindern (nur Git-Quellen).
 6. Klicken Sie zum Speichern auf **OK**.
 
@@ -51,7 +51,7 @@ Im Dialogfeld „Teamwork-Einstellungen“ werden alle Quellen mit Typ, Standort
 Verwenden Sie die Schaltflächen, um:
 - **Hinzufügen** – Erstellen Sie eine neue Quelle.
 - **Bearbeiten** – Ändern Sie die ausgewählte Quelle.
-- **Entfernen** – Löschen Sie die ausgewählte Quelle.
+- **Entfernen** – Die ausgewählte Quelle löschen.
 - **Aktivieren/Deaktivieren** – Schaltet den aktivierten Status für die ausgewählten Quellen um.
 
 Legen Sie unten das **Standardprüfintervall** fest (gilt für neue Quellen, die keins angeben).
@@ -163,7 +163,7 @@ git log -1 --pretty=%H
 
 So teilen Sie Verbindungen über eine Datei:
 
-1. Exportieren Sie Ihre Verbindungen in eine Datei: **Verbindungen → Exportieren… → Verbindungen auswählen → Als `.xml` speichern**.
+1. Exportieren Sie Ihre Verbindungen in eine Datei: **Verbindungen → Exportieren… → Verbindungen auswählen → Speichern als `.xml`**.
 2. Platzieren Sie die Datei auf einem freigegebenen Netzwerkpfad (z. B. `//server/share/connections.xml`).
 3. Legen Sie die Lese-/Schreibberechtigungen nach Bedarf fest.
 4. Teammitglieder fügen den Dateipfad unter **Teamwork → Teamwork-Einstellungen… → Hinzufügen** hinzu.

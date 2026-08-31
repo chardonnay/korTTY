@@ -11,7 +11,7 @@ KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen,
 ## Eigenschaften
 
 * **Verschlüsselte Backups** – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt
-* **Konfigurationssicherung** – Beinhaltet Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten
+* **Konfigurationssicherung** – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten
 * **Regenerierbare lokale KI-Daten ausgeschlossen** – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert
 * **Projektverzeichnis** – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten
 * **Automatische Rotation** – Alte Backups werden automatisch mit Zeitstempeln in ein `old-backups`-Unterverzeichnis verschoben
@@ -91,7 +91,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `connections.xml` – Alle SSH-Verbindungen und -Gruppen
 * `credentials.xml` – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)
 * `ssh-keys.xml` – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen
-* `ssh-keys/` – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über **In Benutzerverzeichnis kopieren** dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Eigentümerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne **Überschreiben**, ersetzt
+* `ssh-keys/` – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über **In Benutzerverzeichnis kopieren** dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne **Überschreiben**, ersetzt
 * `ssh-host-keys.properties` – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (`ssh-host-keys.properties.lock` ist absichtlich ausgeschlossen)
 * `gpg-keys.xml` – öffentliche GPG-Schlüssel
 * `global-settings.xml` – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen

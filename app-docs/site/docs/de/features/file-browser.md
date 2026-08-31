@@ -15,7 +15,7 @@ Blenden Sie die Leiste über die Menüleiste ein:
 | **Ansicht → Dateibrowser → Links anzeigen** | ++shift+cmd+b++ / ++shift+ctrl+b++ |
 | **Ansicht → Dateibrowser → Rechts anzeigen** | ++shift+cmd+r++ / ++shift+ctrl+r++ |
 
-Erneutes Auswählen des Punktes blendet die Leiste wieder aus. Ein ziehbarer Trenner ändert ihre Breite (160–420 px). **Position, Breite, der Zustand „Versteckte Dateien" und das zuletzt geöffnete Verzeichnis bleiben über Neustarts erhalten.**
+Selecting the item again hides the panel. A draggable divider resizes it (160–420 px). The panel's **position, width, "show hidden" state and last directory are remembered across restarts**.
 
 ## Navigation
 
@@ -53,15 +53,15 @@ Wenn der Baum den Fokus hat:
 
 Rechtsklick auf einen Eintrag öffnet das vollständige Menü:
 
-- **Öffnen** – die Datei mit der Standardanwendung des Betriebssystems öffnen.
-- **Im Snippet-Editor öffnen** – eine Textdatei (bis 10 MB) in den [Snippet-Editor](snippets.md) laden.
-- **Umbenennen** – direkt umbenennen; ein Namenskonflikt wird durch Anhängen von ` (2)`, ` (3)`, … aufgelöst.
-- **Kopieren** / **Ausschneiden** / **Einfügen** – innerhalb des Browsers verschieben oder kopieren.
-- **Pfad kopieren** – den absoluten Pfad des Objekts in die Zwischenablage kopieren.
+- **Öffnen** – Öffnen Sie die Datei mit der Standardanwendung des Betriebssystems.
+- **Im Snippet-Editor öffnen** – Laden Sie eine Textdatei (bis zu 10 MB) in den [Snippet-Editor](snippets.md).
+- **Umbenennen** – Inline umbenennen; Ein Namenskonflikt wird durch Anhängen von ` (2)`, ` (3)`, … gelöst.
+- **Kopieren** / **Ausschneiden** / **Einfügen** – Verschieben oder Kopieren im Browser.
+- **Pfad kopieren** – Kopieren Sie den absoluten Pfad des Elements in die Zwischenablage.
 - **Löschen** – eine Bestätigungsaufforderung bietet **In den Papierkorb verschieben** oder **Endgültig löschen**. Das Verschieben in den Papierkorb ist rückgängig zu machen; Die dauerhafte Löschung kann nicht rückgängig gemacht werden. Auf einem System ohne Papierkorb wird nur die dauerhafte Löschung angeboten. Der Löschvorgang läuft im Hintergrund, sodass das Fenster bei einem großen Ordner nicht einfriert.
-- **Neuer Ordner** / **Neue Datei** – ein Objekt anlegen.
-- **Eigentümer / Gruppe / Berechtigungen setzen** – Eigentümer und POSIX-Berechtigungen ändern (sofern das Dateisystem dies unterstützt).
-- **Archiv** – die Auswahl in ein `ZIP`-, `TAR`- oder `TAR.GZ`-Archiv packen.
+- **Neuer Ordner** / **Neue Datei** – ein Element erstellen.
+- **Eigentümer/Gruppe/Berechtigungen festlegen** – Eigentümer und POSIX-Berechtigungen ändern (sofern das Dateisystem dies unterstützt).
+- **Archiv** – Packen Sie die Auswahl in ein `ZIP`-, `TAR`- oder `TAR.GZ`-Archiv.
 - **Details** – Typ, Größe, Pfad, Änderungszeit und Berechtigungen anzeigen.
 
 Jede Zeile zeigt ein **typabhängiges Symbol** (Ordner, Code, Bild, Archiv, Dokument oder ausführbare Datei) mit einer Markierung für symbolische Verknüpfungen. Die Fußzeile nennt die Anzahl der Ordner und Dateien im aktuellen Verzeichnis sowie die Anzahl der ausgewählten Einträge.

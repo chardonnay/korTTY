@@ -11,6 +11,16 @@ This file is not part of the documentation site — it is neither published nor 
 Releases older than the ones below are recorded in `RELEASE_NOTES.adoc` next to this file, and
 every version is also listed on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases).
 
+## v2.13.1
+
+### AI assistant
+
+- **[Full code analysis](../features/snippets.md#ai-code-actions) no longer fails on some local reasoning models** — when korTTY requests a strictly structured result from a local server, certain reasoning models return their complete answer in the reasoning channel and leave the actual reply empty. korTTY treated this as an empty reply and discarded a finished analysis after minutes of work. korTTY now detects such a reply and uses the analysis it already contains. Only if that text is unusable does it ask a second time, without the strict format. This was observed with the newer Qwen reasoning models in LM Studio, and it affected **Full code analysis** and **Apply selected** in the snippet editor. Models that return a normal reply are unaffected.
+
+### Terminal
+
+- **A split no longer asks again for the reason of the connection** — when a server wants a reason for the operation, as a CyberArk-style jump host does, every split of a tab opened that dialog again although the reason had been given when the tab was opened. korTTY now sends the answer already given in that tab. It is still sent rather than skipped, because a server that asks for a reason closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, because a ticket number has expired in the meantime for example, korTTY drops it and asks again. See [Split-screen with broadcast](../features/terminal.md#split-operations).
+
 ## v2.13.0
 
 ### Connection loss and reconnect

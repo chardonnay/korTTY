@@ -1,4 +1,4 @@
-# Übersicht über das Hauptfenster
+# Main window overview
 
 ![korTTY main window](../assets/screenshots/main/main-window.png)
 
@@ -15,17 +15,17 @@ Das Hauptfenster von korTTY hat diese Bereiche:
 - **Dashboard** (umschalten ++ctrl+shift+d++) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Siehe [Armaturenbrett](#dashboard) unten.
 - **Dateibrowser** (**Ansicht → Dateibrowser ▸ Links anzeigen / Rechts anzeigen**) – ein andockbarer lokaler Dateimanager mit Navigationssymbolleiste, Pfadleiste, Filter, Typsymbolen und einem Ordner-/Datei-/Auswahlzähler. Beim nächsten Start werden Seite, Breite, Status der versteckten Datei und letztes Verzeichnis wiederhergestellt. Siehe [Dateibrowser](../features/file-browser.md).
 - **Live-Journal-Panel** (**Ansicht → Live-Journal**, ++ctrl+alt+l++) – Die aktive Registerkarte wird ausgeführt [Sitzungsjournal](../features/session-journal.md#das-live-journal-panel) als vollständige Journalseite, angedockt und in Echtzeit aktualisiert; Seite und Breite werden beim nächsten Start wiederhergestellt.
-- **Terminalbereich** – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.
-- **Statusleiste** – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.
+- **Terminal area** — the active terminal, with optional split-screen and broadcast input.
+- **Status bar** — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.
 
-!!! tip "Nur korTTY Applikationsfenster"
+!!! tip "Nur Terminal-Vollbild"
     Drücken Sie ++ctrl+shift+f++ (oder **Ansicht → Nur Terminal-Vollbild**), um das gesamte korTTY-Fenster – Menüs, Registerkarten und Statusleiste inklusive – in seiner vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund anzuzeigen, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. **Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden** entfernt auch die Bildlaufleisten. Ein transparenter Terminalhintergrund wird undurchsichtig, während der Vollbildmodus aktiv ist, und kehrt beim Verlassen auf die gespeicherte Ebene zurück. Drücken Sie erneut ++ctrl+shift+f++, um die Wiederherstellung durchzuführen.
 
 ## Dashboard
 
 Schalten Sie das Dashboard mit ++ctrl+shift+d++ oder **Ansicht → Dashboard anzeigen** um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.
 
-In der Kopfzeile wird der Titel des Bedienfelds mit zwei Schaltflächen angezeigt: einem Umschalter zum Reduzieren/Erweitern (reduziert alles, während ein Knoten geöffnet ist, erweitert alles andere) und einer Schaltfläche „Aktualisieren“. Darunter sind die Verbindungen als Baum organisiert:
+The header shows the panel title with two buttons: a collapse/expand toggle (collapses everything while any node is open, expands everything otherwise) and a refresh button. Below it, connections are organized as a tree:
 
 - **Hauptfenster** – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.
 - **Umgebungen** – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. *Produktion* oder *Test*), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.
@@ -37,7 +37,7 @@ Klicken Sie mit der rechten Maustaste auf eine Verbindung für **Fokus**, **Dupl
 
 ## macOS Dock-Menü
 
-Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Strg-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen durchzuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:
+Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Ctrl-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen auszuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:
 
 - **Neues Fenster**
 - **Neuer Tab im aktuellen Fenster**

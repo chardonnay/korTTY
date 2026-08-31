@@ -11,7 +11,7 @@ title: Eingabe-Härtung
 
 ## Eingabe-Härtung vs. Härtungsoptionen
 
-Trotz des ähnlichen Namens handelt es sich hierbei um eine andere Funktion als [Härtungsoptionen](hardening-options.md). *Härtungsoptionen* sind allgemeine Techniken in Produktionsqualität (strikter Modus, Fehlerfallen, Protokollierung, `--help`, …), die beeinflussen, *wie das Skript geschrieben wird*. Bei der *Eingabe-Härtung* geht es darum, *was das Skript akzeptiert*: Es fügt einen konkreten Schutzblock hinzu, der Parameter und Eingabedateien zur Laufzeit validiert. Die beiden Panels erscheinen nebeneinander und sind frei kombinierbar.
+Despite the similar name, this is a different feature than [Hardening options](hardening-options.md). *Hardening options* are general production-quality techniques (strict mode, error traps, logging, `--help`, …) that shape *how the script is written*. *Eingabe-Härtung* is about *what the script accepts*: it adds a concrete guard block that validates parameters and input files at run time. The two panels appear side by side and can be combined freely.
 
 ## Wo es erscheint
 
@@ -25,7 +25,7 @@ Das **Input-Hardening**-Panel wird an den gleichen Stellen angezeigt wie das kla
 | **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Sie bestätigen den Dialog |
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Sie klicken auf *Auswahl übernehmen*; Jede aktivierte Schutzregel wird zu einer separat verfolgten verbindlichen Anforderung, und ein unvollständiger Ersatz wird vor der Überprüfung abgelehnt |
 
-Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung **ausschließlich opt-in**: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird minimiert, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie **Eingabe-Härtung (Skript-Eingaben validieren)**, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.
+Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung **ausschließlich per Opt-in**: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird ausgeblendet, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie **Eingabe-Härtung (Skript-Eingaben validieren)**, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.
 
 Deklarative YAML/YML/Ansible-Ziele können diesen zwingenden Argument- und Dateischutz nicht erhalten. KorTTY deaktiviert das Panel für diese Ziele in den Dialogen Workflow, Swarm, **Robustheit verbessern**, **Benutzerdefinierte Verbesserung** und **Vollständige Codeanalyse**, und eine bereits gespeicherte aktivierte Standardeinstellung führt dort zu keiner wirksamen Schutzkonfiguration. Für Snippet-Verbesserungen in einer unterstützten Sprache ändert die Aktivierung der Eingabe-Härtung das Ziel auf das **vollständige Snippet**, sodass der Schutz vor allen eigentlichen Arbeiten platziert werden kann; Das Gesamtergebnis wird vor der Anwendung überprüft.
 
@@ -69,4 +69,4 @@ Der Wächter nutzt die eigenen integrierten Funktionen und Standardbibliotheken 
 
 ## Verwaltung der Auswahl
 
-Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine **Live-Zählung** der effektiv aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.
+Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Master-Schalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – jedes Eingabe-Härtungsfeld wird dann mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine Live-Anzahl der tatsächlich aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.

@@ -11,7 +11,7 @@ In verwalteten Umgebungen kann ein Administrator korTTY über eine einzige TOML-
 
 ## Dateispeicherort und Sicherheitsmodell
 
-korTTY lädt die Richtlinie ausschließlich aus dem Ordner `policy/` seines Installationsverzeichnisses – dem Ordner, der auch das Anwendungs-JAR enthält – und niemals aus `~/.kortty/` oder einem anderen vom Benutzer beschreibbaren Speicherort. Eine kopierfertige Vorlage wird als `policy/kortty-policy.toml.example` geliefert; Kopieren Sie es nach `kortty-policy.toml` im selben Ordner und starten Sie korTTY neu (es gibt kein Hot-Reload).
+korTTY lädt die Richtlinie ausschließlich aus dem Ordner `policy/` seines Installationsverzeichnisses – dem Ordner, der auch die Anwendungs-JAR-Datei enthält – und niemals aus `~/.kortty/` oder einem anderen vom Benutzer beschreibbaren Speicherort. Eine kopierfertige Vorlage wird als `policy/kortty-policy.toml.example` geliefert; Kopieren Sie es nach `kortty-policy.toml` im selben Ordner und starten Sie korTTY neu (es gibt kein Hot-Reload).
 
 | Plattform | Speicherort der Richtliniendatei |
 | --- | --- |
@@ -119,7 +119,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `ai-planning` | Zeichenfolge | `allow`, `deny` | AI-Planung |
 | `teamwork` | Zeichenfolge | `allow`, `deny` | Synchronisierung freigegebener Teamwork-Verbindungen (Dienst ist nicht gestartet, Menü gesperrt) |
 | `plugins` | Zeichenfolge | `allow`, `deny` | Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte) |
-| `session-journal` | Zeichenfolge | `allow`, `deny` | Der [Sitzungsjournal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
+| `session-journal` | Zeichenfolge | `allow`, `deny` | The [session journal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen |
 
 ### `[rule.security]`
@@ -140,19 +140,19 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `allow-custom-script-headers` | boolean | `false` | Benutzer können keine Skript-Header erstellen; Es verbleiben nur die Einträge `[[script-header]]` und |
 | `allow-create` | boolean | `false` | Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt) |
 | `allow-edit` | boolean | `false` | Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten |
-| `allow-internet` | boolean | `false` | Verbietet jeden Internetzugriffsmodus der KI – siehe unten |
+| `allow-internet` | boolean | `false` | Verbietet jeden KI-Internetzugriffsmodus – siehe unten |
 
 !!! info "`allow-internet = false` unterbindet den KI-Internetzugriff auf drei Ebenen"
     Im Dropdown-Menü [internet access](settings/ai.md#internetzugriffsmodi) eines AI-Profils wird ein ausgewählt
     Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
     einzelne eine Lücke ließe:
 
-    1. **Gespeicherte Einstellungen** – beim Laden und beim Speichern wird der Modus jedes Profils auf
+    1. **Gespeicherte Einstellungen** – der Modus jedes Profils wird auf *Deaktiviert* zurückgesetzt, wenn die Einstellungen geändert werden
        *Deaktiviert* zurückgesetzt. So überlebt weder ein Wert aus der Zeit vor der Richtlinie noch
        eine Handänderung an `global-settings.xml`.
-    2. **Die Oberfläche** – die Auswahlliste ist im KI-Manager und unter **Einstellungen → KI** mit dem
-       Hinweis „Von Ihrer Organisation verwaltet“ gesperrt.
-    3. **Jede KI-Anfrage** – korTTY verweigert den Dienstaufbau für ein Profil mit aktiviertem Modus
+    2. **Die Schnittstelle** – das Dropdown-Menü ist mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt
+       sowohl den KI-Manager als auch **Einstellungen → AI**.
+    3. **Jede AI-Anfrage** – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
        und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
        Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.
 
@@ -286,7 +286,7 @@ Die Regeln werden **im Erfassungsthread ausgeführt, bevor eine Zeile geschriebe
 
 ### Von Admin bereitgestellte Objekte
 
-Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und niemals in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.
+Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.
 
 | Tabelle | Schlüssel | Notizen |
 | --- | --- | --- |
@@ -315,7 +315,7 @@ korTTY --encrypt-policy-value
 Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.
 
 !!! warning "Sicherheitsbereich"
-    Der Umschlag verwendet AES-256-GCM mit einem anwendungsweiten Schlüssel und schützt so vor zufälliger Offenlegung (Schulterzugriff, Konfigurationsunterschiede, Backups) und erkennt Manipulationen – es handelt sich nicht um strenge Geheimhaltung, da jeder mit der korTTY-Binärdatei den Anwendungsschlüssel wiederherstellen könnte. Die Betriebssystemberechtigungen des Installationsverzeichnisses bleiben die eigentliche Sicherheitsgrenze; Bevorzugen Sie benutzerspezifische Schlüssel über den normalen Profilfluss, wenn diese Grenze nicht ausreicht.
+    The envelope uses AES-256-GCM with an application-wide key, so it protects against casual disclosure (shoulder surfing, config diffs, backups) and detects tampering — it is not hard secrecy, since anyone with the korTTY binary could recover the application key. The installation directory's OS permissions remain the actual security boundary; prefer per-user keys via the normal profile flow when that boundary is not enough.
 
 ## Fehlerbehebung
 
@@ -324,5 +324,5 @@ Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schl
 | Startdialog „Organisationsrichtlinie konnte nicht geladen werden“ | Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf; Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist |
 | Richtlinie scheint ignoriert zu werden | Die Datei heißt nicht `kortty-policy.toml`, befindet sich nicht im `policy/`-Ordner der Installation oder korTTY wurde nicht neu gestartet. Die Startzeilen des Protokolls geben an, welche Richtliniendatei (falls vorhanden) geladen wurde |
 | Eine Regel gilt nicht für einen Benutzer | Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen `[groups]` Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer > Gruppe > Jeder) weniger spezifische Regeln außer Kraft setzt |
-| Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“ | Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Durchsetzungsmodell basiert auf Schreibzugriff nur für Administratoren |
+| Warning "policy file is writable by the current user" | The installation directory permissions are too open — the enforcement model relies on admin-only write access |
 | Das Admin-Modell wird nicht angezeigt | Sehen Sie sich das Protokoll an: GGUF-URL-Downloads erfolgen beim Start im Hintergrund und für die Registrierung ist eine installierte llama.cpp-Laufzeit erforderlich. MLX-Quellen müssen lokale Safetensors-Verzeichnisse sein |

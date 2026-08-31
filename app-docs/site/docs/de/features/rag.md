@@ -4,7 +4,7 @@ title: RAG-Wissensspeicher
 
 # RAG Wissensspeicher
 
-Ein **Wissensspeicher** ermöglicht es einem KI-Profil, mit relevanten Auszügen aus lokalen Dateien zu antworten, ohne die vollständige Quellsammlung an das Modell zu senden. Der Standardspeicher verwendet einen lokalen Kosinus-Ähnlichkeits-HNSW-Snapshot; Als optionaler zweiter Speichertyp steht ein vorhandener Qdrant-Dienst zur Verfügung.
+Ein **Wissensspeicher** ermöglicht es einem KI-Profil, mit relevanten Auszügen aus lokalen Dateien zu antworten, ohne die vollständige Quellsammlung an das Modell zu senden. Der Standardspeicher verwendet einen lokalen Kosinus-Ähnlichkeits-HNSW-Snapshot; Als optionaler zweiter Wissensspeicher-Typ steht ein bestehender Qdrant-Service zur Verfügung.
 
 ![Knowledge-store indexing and retrieval pipeline](../assets/diagrams/rag-knowledge-pipeline.svg)
 
@@ -14,7 +14,7 @@ Ein **Wissensspeicher** ermöglicht es einem KI-Profil, mit relevanten Auszügen
 
 ![Wissensspeicher with a local HNSW demo store and one manual folder source](../assets/screenshots/ai/knowledge-stores.png)
 
-Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten [local-model ](local-models.md) mit vorausgewählter Einbettungsrolle. Installieren Sie das vorausgewählte Modell Qwen3-Embedding 0.6B `Q8_0` oder wählen Sie eine der Katalogalternativen aus, die der Assistent für den Speicher dieses Computers anbietet – Qwen3-Embedding 4B oder 8B `Q4_K_M` auf Computern mit mindestens 16 oder 24 GiB, das mehrsprachige BGE-M3 `Q8_0` oder das sehr kleine und schnelle Nomic Embed Text v1.5 `Q8_0` – Kehren Sie dann zu **Erstellen** zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.
+Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten [local-model ](local-models.md) mit vorab ausgewählter Einbettungsrolle. Installieren Sie das vorausgewählte Modell Qwen3-Embedding 0.6B `Q8_0` oder wählen Sie eine der Katalogalternativen aus, die der Assistent für den Speicher dieses Computers anbietet – Qwen3-Embedding 4B oder 8B `Q4_K_M` auf Computern mit mindestens 16 oder 24 GiB, das mehrsprachige BGE-M3 `Q8_0` oder das sehr kleine und schnelle Nomic Embed Text v1.5 `Q8_0` – Kehren Sie dann zu **Erstellen** zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.
 
 So fügen Sie Inhalte hinzu:
 
@@ -29,7 +29,7 @@ So fügen Sie Inhalte hinzu:
 Die Quelltabelle zeigt den Pfad, den Quelltyp, den Synchronisierungsmodus, den Status, die Anzahl der Dateien/Chunks, die Anzahl der Probleme und den letzten erfolgreichen Index. Diese Werte bleiben über Neustarts hinweg bestehen. Zu den verfügbaren Aktionen gehören **Dateien hinzufügen**, **Ordner hinzufügen**, **Jetzt aktualisieren**, **Deaktivieren/Aktivieren**, **Entfernen** und **Suche testen**.
 
 !!! important "Ein Ordner wird immer zuerst überprüft"
-    Das Hinzufügen eines Verzeichnisses bedeutet niemals „jede Datei senden“. korTTY scannt, ohne symbolischen Links zu folgen, wendet die zentrale Format-Zulassungsliste und Ausschlüsse sicherer Verzeichnisse an, validiert den Dateiinhalt in einem Hintergrund-Worker und präsentiert den akzeptierten und übersprungenen Satz, bevor die Indizierung beginnt. Die Quelle wird nicht gespeichert und die Indizierung beginnt erst, wenn Sie diese Vorschau bestätigen.
+    Das Hinzufügen eines Verzeichnisses bedeutet niemals „jede Datei senden“. korTTY scannt, ohne symbolischen Links zu folgen, wendet die zentrale Format-Zulassungsliste und Ausschlüsse sicherer Verzeichnisse an, validiert den Dateiinhalt auf einem Hintergrund-Worker und präsentiert den akzeptierten und übersprungenen Satz, bevor die Indizierung beginnt. Die Quelle wird nicht gespeichert und die Indizierung beginnt erst, wenn Sie diese Vorschau bestätigen.
 
 ## Unterstützte Formate
 
@@ -106,7 +106,7 @@ Terminal-KI-Agent-, Planungs-, Swarm- und geplante Agent-Eingabeaufforderungen e
 
 ## Testabruf
 
-Wählen Sie einen Wissensspeicher aus und wählen Sie **Suche testen**. Geben Sie eine Frage oder einen Suchbegriff ein. Das Ergebnisdialogfeld zeigt den begrenzten abgerufenen Kontextblock mit geordneten `[R1]`-Quellmarkierungen, Quellpfaden und PDF-Seiten, sofern verfügbar. Bei einer Testsuche wird nur der Abruf ausgeführt und die Auszüge werden nicht an ein Chat-Modell gesendet. Dies macht sie nützlich für die Überprüfung von Chunking und Quellenabdeckung, bevor der Wissensspeicher einer Rolle zugewiesen wird.
+Wählen Sie einen Wissensspeicher aus und wählen Sie **Suche testen**. Geben Sie eine Frage oder einen Suchbegriff ein; Das Ergebnisdialogfeld zeigt den begrenzten abgerufenen Kontextblock mit geordneten `[R1]`-Quellmarkierungen, Quellpfaden und PDF-Seiten, sofern verfügbar. Bei einer Testsuche wird nur der Abruf ausgeführt und die Auszüge werden nicht an ein Chat-Modell gesendet. Dies macht sie nützlich, um Chunking und Quellabdeckung zu überprüfen, bevor der Wissensspeicher einer Rolle zugewiesen wird.
 
 Bei schwachen Ergebnissen:
 

@@ -61,7 +61,7 @@ Jeder Server verfügt über eine Zeile in der **Agents**-Liste, in der sein Stat
 
 ## Steuerung ausführen
 
-Die Symbolleiste bietet die gleichen vier Steuerelemente für den **gesamten Schwarm**: **Pause**, **Fortsetzen**, **Neustart** und **Stop**. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird *Pause…* angezeigt, bis es wirksam wird), und abgelaufene Timer bleiben während der Pause stehen.
+Die Symbolleiste bietet die gleichen vier Steuerelemente für den **gesamten Schwarm**: **Pause**, **Fortsetzen**, **Neustart** und **Stop**. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird *Pause…* angezeigt, bis es wirksam wird), und verstrichene Timer bleiben während der Pause stehen.
 
 ## Schreibgeschützter Modus und Genehmigungen
 
@@ -82,7 +82,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Bereich **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
+Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
@@ -97,11 +97,11 @@ Die Schaltfläche **Workflow** verwandelt die aktuelle Schwarmaufgabe über das 
 Der Dialog beinhaltet:
 
 - **Syntaxhervorhebung** – das generierte Skript wird in einem vollständigen Editor mit Hervorhebung für die ausgewählte Sprache angezeigt.
-- **Sichtbarer Fortschritt** – eine funktionierende Animation mit einem Live-Ablaufzähler (*Generierung… 0:42*), während die KI arbeitet, und der Gesamtdauer (*Fertig – hat 1:37 gedauert*), wenn sie fertig ist.
+- **Sichtbarer Fortschritt** – eine Arbeitsanimation mit einem Live-Ablaufzähler (*Generierung… 0:42*), während die KI arbeitet, und der Gesamtdauer (*Fertig – dauerte 1:37*), wenn sie fertig ist.
 - **Zusätzliche Anweisungen** – ein dreizeiliges Feld für zusätzliche Anweisungen, denen die KI folgen muss, mit einem **Verlauf**-Menü Ihrer letzten 10 einzelnen Einträge.
 - **In Snippets speichern** – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.
 - **Härtungsoptionen** – dieselben pro Skript [Härtungsoptionen](../reference/hardening-options.md) wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, `--help` und mehr) werden automatisch mit ihren All-On-Standardwerten auf das generierte Skript angewendet; In diesem Dialogfeld wird kein Bereich für sie angezeigt. Sie unterscheiden sich von den oben genannten Multiserver-Optionen.
-- **Eingabe-Härtung** – ein zusammenklappbares [Eingabe-Härtung](../reference/input-hardening.md)-Panel fordert die KI auf, einen Schutzblock zur Eingabevalidierung in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, ein einstellbares `MAX_FILE_SIZE`-Limit, Sicherheitswarnungen im Protokoll des Skripts und eine `FORCE=1`/`--force`-Überschreibung). Die Größenprüfung verwendet Metadaten, bevor der Dateiinhalt gelesen wird, und `0` bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.
+- **Eingabe-Härtung** – ein zusammenklappbares [Eingabe-Härtung](../reference/input-hardening.md)-Panel fordert die KI auf, einen Eingabevalidierungs-Schutzblock in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, ein einstellbares `MAX_FILE_SIZE`-Limit, Sicherheitswarnungen im Protokoll des Skripts und eine `FORCE=1`/`--force`-Überschreibung). Die Größenprüfung verwendet Metadaten, bevor der Dateiinhalt gelesen wird, und `0` bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.
 
 ## Tab-Aktivitätsanzeige
 
@@ -112,7 +112,7 @@ Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angeze
 | Blau, pulsierend | Schwarm läuft |
 | Bernsteinfarbener, schneller Puls | Ein Agent **wartet auf Ihre Eingabe** |
 | Violett, stetig | Schwarm ist pausiert |
-| Grün, stetig | Lauf beendet – bleibt bis zum Start des nächsten Laufs |
+| Grün, konstant | Lauf beendet – bleibt bestehen, bis der nächste Lauf startet |
 
 ## Schwarmläufe planen (JobScheduler)
 
@@ -125,7 +125,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 | **AI-Profil** | Das AI-Profil, das für alle Agenten im Lauf verwendet wird |
 | **KI-Eingabeaufforderung** | Die Aufgabe wird an jeden Zielserver gesendet |
 | **Automatisch genehmigen** | Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden) |
-| **Schwarmparallelität** | Wie viele Server laufen gleichzeitig (1–16, Standard 4) |
+| **Schwarmparallelität** | Wie viele Server gleichzeitig laufen (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
 Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des KI-Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
@@ -135,8 +135,8 @@ Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Erge
 
 Typische Kombinationen von Schwarm + Scheduler:
 
-- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.
-- **Erkennung von Konfigurationsdrifts** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
+- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Datenträgernutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.
+- **Erkennung von Konfigurationsabweichungen** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
 - **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 
 !!! warning "Unbeaufsichtigte Änderungen"

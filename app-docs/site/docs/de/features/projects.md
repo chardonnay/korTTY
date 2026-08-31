@@ -68,5 +68,5 @@ Projekte sind nützlich für:
 
 - **Kontextwechsel** – Speichern Sie ein „Produktionssystem“-Projekt, ein „Entwicklungs“-Projekt und ein „Test“-Projekt; Öffnen Sie das, das Sie benötigen
 - **Teamübergaben** – Teilen Sie Projekte mit Kollegen, um identische Arbeitsbereichslayouts und -verbindungen einzurichten
-- **Mehrfenster-Layouts** – Speichern Sie ein komplexes Setup über mehrere Monitorfenster hinweg und stellen Sie es sofort wieder her
+- **Layouts mit mehreren Fenstern** – Speichern Sie ein komplexes Setup über mehrere Monitorfenster hinweg und stellen Sie es sofort wieder her
 - **Sitzungswiederherstellung** – Stellen Sie schnell Ihre letzte bekannte Konfiguration wieder her, wenn die App abstürzt oder Sie Tabs versehentlich schließen

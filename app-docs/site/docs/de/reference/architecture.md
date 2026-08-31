@@ -49,14 +49,14 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
-- **Überprüfter Shortcut-Akkord-Fix**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
+- **Reviewed shortcut-chord fix**: A second pinned korTTY patch stops shortcut-chord `KEY_TYPED` characters (for example ++cmd+shift+d++) from reaching the pty or broadcast panes
 
 ### Build-Integration
 
 Der Build-Prozess automatisch:
 
 1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
-2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch` und `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt
+2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch` und `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt
 3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
 4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
@@ -220,7 +220,7 @@ KorTTY unterstützt **Terminaleffekt-Plugins** über Java `ServiceLoader` zum An
 
 - **Gebündelte Plugins**: Aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)
 - **Externe Plugins**: Importiert als `.jar` Dateien in `~/.kortty/plugins/`
-- **Verwaltung**: Einzelne Plugins über `Plugins → Terminal Effects` ohne Deinstallation aktivieren/deaktivieren
+- **Management**: Enable/disable individual plugins via `Plugins → Terminal Effects` without uninstalling
 - **Exportierbare Plugins**: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden
 
 ### Sicherheitshinweis

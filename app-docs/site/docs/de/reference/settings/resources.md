@@ -4,7 +4,7 @@ title: Ressourcen
 
 # Ressourcen
 
-Legen Sie fest, wie viel Speicher korTTY nutzen darf. Die Voreinstellung hält den Verbrauch niedrig und begrenzt; die anderen Profile erlauben der paketierten Anwendung, mehr Ressourcen Ihres Rechners für sehr große Sitzungen zu nutzen (riesiger Scrollback, viele geteilte Bereiche, lange KI-Chats). Öffnen über **Konfiguration → Globale Einstellungen → Ressourcen**; gespeichert in `~/.kortty/global-settings.xml`.
+Choose how much memory korTTY may use. The default keeps a low, bounded footprint; the other profiles let the packaged application use more of your machine's resources for very large sessions (huge scrollback, many split panes, long AI chats). Open via **Configuration → Global Settings → Resources**; stored in `~/.kortty/global-settings.xml`.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
@@ -23,10 +23,10 @@ Der Ressourcen-Reiter zeigt den erkannten Speicher Ihres Rechners und das ungef�
 ## Hinweise
 
 !!! note "Gilt nur für die Paketanwendung"
-    Diese Einstellung wird von der paketierten App (dem `.dmg`/`.msi`/AppImage-Build) angewendet, die sich beim Start einmal kurz selbst neu startet, um Heap-Größe und Garbage Collector umzustellen – die Java-Laufzeit kann diese im laufenden Betrieb nicht ändern, und ein Bearbeiten des signierten Anwendungspakets würde dessen Signatur beschädigen. Wird korTTY aus der einfachen `.jar` gestartet, setzen Sie die JVM-Optionen stattdessen selbst (zum Beispiel `-Xmx8g`).
+    This setting is applied by the packaged app (the `.dmg`/`.msi`/AppImage build), which briefly relaunches itself once at startup to switch the heap size and garbage collector — the Java runtime cannot change these while running, and editing the signed application bundle would break its signature. When korTTY is started from the plain `.jar`, set JVM options yourself (for example `-Xmx8g`) instead.
 
 !!! note "Wird nach einem Neustart wirksam"
     Eine Profiländerung wird beim nächsten Start von korTTY wirksam. Die Voreinstellung Ausbalanciert startet nie neu; Hoch und Maximal starten einmal pro Start neu, ihr Kaltstart ist dadurch geringfügig langsamer.
 
 !!! warning "Lassen Sie Spielraum für den Rest Ihres Systems."
-    Höhere Profile lassen korTTY deutlich mehr Speicher reservieren. Terminal- und Editor-Darstellung (die eingebetteten Browser-Engines) belegen auch Speicher *außerhalb* des Java-Heaps – deshalb begrenzt das Profil Maximal den Heap bewusst auf etwa drei Viertel des RAM, statt das Limit ganz aufzuheben: ein wirklich unbegrenzter Heap könnte das Betriebssystem aushungern.
+    Higher profiles let korTTY reserve much more memory. Terminal and editor rendering (the embedded browser engines) also use memory *outside* the Java heap, so the Maximum profile deliberately caps the heap at about three quarters of RAM rather than removing the limit entirely — a truly unbounded heap could starve the operating system.

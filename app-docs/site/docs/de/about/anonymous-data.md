@@ -4,7 +4,7 @@ title: Anonyme Daten zur Applikationsoptimierung
 
 # Anonyme Daten zur Applikationsoptimierung
 
-korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche Funktionen es wert sind, verbessert zu werden, und um Abstürze und häufige Fehler zu finden. Dies ist völlig optional und kann jederzeit aktiviert oder deaktiviert werden. Beim ersten Start ist das Kontrollkästchen in der Master-Passwort-Einrichtung **vorausgewählt**: Wer diesen Dialog unverändert bestätigt, startet die Erfassung – wer den Haken dort entfernt oder die Option später abschaltet, bei dem wird nichts erfasst.
+korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche Funktionen es wert sind, verbessert zu werden, und um Abstürze und häufige Fehler zu finden. Dies ist völlig optional und kann jederzeit aktiviert oder deaktiviert werden. Beim ersten Start ist das Kontrollkästchen im Master-Passwort-Setup **vorausgewählt**. Wenn Sie also bestätigen, dass der Dialog unverändert ist, wird die Erfassung gestartet. Deaktivieren Sie das Kontrollkästchen dort oder schalten Sie es später aus, und es wird nichts erfasst.
 
 ![Anonymous telemetry consent and data flow](../assets/diagrams/telemetry-consent-flow.svg)
 

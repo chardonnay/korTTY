@@ -13,11 +13,11 @@ KorTTY erkennt die Mischung lokal – es ist keine KI-Anfrage erforderlich, um z
 
 ## Wo es erscheint
 
-| Wo | Was es tut |
+| Where | What it does |
 |-------|--------------|
-| **Snippet-Editor → AI-Code → In eine Sprache migrieren…** | Öffnet direkt den Migrationsdialog und zeigt das Ergebnis als Vorher/Nachher-Vorschau an |
+| **Snippet-Editor → AI-Code → In eine Sprache migrieren…** | Öffnet den Migrationsdialog direkt und zeigt das Ergebnis als Vorher/Nachher-Vorschau an |
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Ein minimiertes Bedienfeld zur **Sprachvereinheitlichung**; Die Migration wird dann als **erste** Phase von *Ausgewählte anwenden* ausgeführt, sodass jede anschließende Verbesserungs- und Härtungsphase auf das migrierte Skript wirkt |
-| **Snippet-Editor → AI-Code → Sicherheitsprüfung** | Das gleiche Panel; Die Migration wird vor den Sicherheitsfixes ausgeführt, sodass die Fixes in der Zielsprache geschrieben werden |
+| **Snippet editor → AI Code → Security Check** | The same panel; the migration runs before the security fixes, so the fixes are written in the target language |
 | **Terminal → Workflow-Skript generieren**, **KI-Schwarm** | Das Kontrollkästchen **Nur Zielsprache**, das eingebettete fremdsprachige Teile im generierten Skript von Anfang an verbietet |
 
 ## Zielsprachen

@@ -4,10 +4,10 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 ## Allgemein
 
-| Verknüpfung | Aktion |
+| Shortcut | Action |
 | --- | --- |
 | ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
-| ++ctrl+w++ | Tab schließen |
+| ++ctrl+w++ | Close Tab |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
 | ++ctrl+tab++ | Nächste Registerkarte |
@@ -54,9 +54,9 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++f12++ | Vollbild umschalten |
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 
-## Terminal-KI-Agent
+## Terminal AI agent
 
-| Verknüpfung | Aktion |
+| Shortcut | Action |
 | --- | --- |
 | `agent` + ++tab++ (an der Shell-Eingabeaufforderung) | Agentenbefehlsvarianten anzeigen (`agent`, `agent-ask`, `agent-plan`) |
 | `agent ` + ++tab++ (an der Shell-Eingabeaufforderung) | Aktuellen Verlauf der Agent-Eingabeaufforderungen anzeigen (neueste zuerst) |

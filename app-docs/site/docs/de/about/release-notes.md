@@ -2,12 +2,12 @@
 
 Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
-## v2.13.1
+## v2.14.0
 
 ### Snippets
 
 - **Vier neue KI-Diagrammtypen** – neben dem Flussdiagramm mit logischer Struktur kann der Snippet-Editor jetzt **Sequenz**-, **Zustands**-, **Klassen**- und **ER**-Diagramme generieren. Jede Familie verwendet ihren eigenen kompakten, sicherheitsbeschränkten Mermaid-Dialekt und ihre eigene integrierte Qualitätsfähigkeit und rendert wie zuvor im gebündelten Offline-Mermaid-Renderer. Siehe [Mermaid-Diagramme](../features/snippets.md#mermaid-diagramme).
-- **Mehrere Diagramme pro Snippet** – ein Snippet speichert jetzt eine beliebige Anzahl von Diagrammen. Das Diagrammfenster listet sie mit Familie, Titel und Linienbereich auf, bietet **Neues Diagramm** mit einer Typauswahl und kann ein ausgewähltes Diagramm **löschen**; **Neu erzeugen** behält die Familie und den Umfang jedes Diagramms bei.
+- **Mehrere Diagramme pro Snippet** – ein Snippet speichert jetzt eine beliebige Anzahl von Diagrammen. Das Diagrammfenster listet sie mit Familie, Titel und Linienbereich auf, bietet **Neues Diagramm** mit einer Typauswahl und kann ein ausgewähltes Diagramm **löschen**; **Neu generieren** behält die Familie und den Umfang jedes Diagramms bei.
 - **Diagramm aus einer Auswahl** – Wählen Sie einen Teil eines Skripts aus und wählen Sie einen Diagrammtyp aus dem neuen Kontext-Untermenü **Diagramm generieren** des Editors aus, um nur diese Linien grafisch darzustellen. Das Diagramm merkt sich den Zeilenbereich, seine Codereferenzen zeigen auf die echten Snippet-Zeilen und bei der Neugenerierung werden dieselben Zeilen erneut gelesen.
 - **Diagramme schlagen bei Denkmodellen nicht mehr fehl** – das Ausgabebudget der Diagrammanforderung deckte auch die versteckte Reasoning des Modells ab, sodass ein Reasoning-Modell das gesamte Budget verbrauchen konnte, bevor ein einzelnes Zeichen des Diagramms geschrieben wurde, und die Generierung nach Minuten der Arbeit fehlschlug. Das Budget lässt jetzt Raum für diese Reasoning, und in einer immer noch abgeschnittenen Antwort wird dies gesagt, anstatt von einem allgemeinen Fehler zu berichten.
 

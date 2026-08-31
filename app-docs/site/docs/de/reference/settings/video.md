@@ -10,8 +10,8 @@ Konfigurieren Sie Terminal-Aufzeichnungs- und Wiedergabeoptionen. Diese Einstell
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Terminalaufzeichnung nach App-Neustart aktivieren | umschalten | — | Aus | `terminalRecordingEnabled` |
-| Terminalfarben in Aufnahmen erfassen | umschalten | — | Aus | `terminalRecordingCaptureColorsEnabled` |
+| Enable terminal recording after app restart | toggle | — | Off | `terminalRecordingEnabled` |
+| Capture terminal colors in recordings | toggle | — | Off | `terminalRecordingCaptureColorsEnabled` |
 
 !!! note
     Wenn Sie **Terminalfarben in Aufzeichnungen erfassen** aktivieren, werden Terminalfarbinformationen pro Zelle in neuen Wiedergabedateien gespeichert. Dadurch wird die Größe der Wiedergabedatei erhöht, aber das ursprüngliche Erscheinungsbild des Terminals, einschließlich ANSI-Farben und Hintergrundfarben, bleibt für eine genaue Wiedergabe erhalten.

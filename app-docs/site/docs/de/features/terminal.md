@@ -18,38 +18,38 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 | Aktion | Verknüpfung |
 |--------|----------|
-| **Neuer Tab** | ++ctrl+t++ (Befehl+T unter macOS) – öffnet die Schnellverbindung, um eine neue Sitzung zu starten |
-| **Tab schließen** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
+| **New Tab** | ++ctrl+t++ (Cmd+T on macOS) — opens Schnellverbindung to start a new session |
+| **Close Tab** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
 | **Nächster Tab** | ++ctrl+Tab++ |
-| **Vorheriger Tab** | ++ctrl+shift+Tab++ |
+| **Previous Tab** | ++ctrl+shift+Tab++ |
 | **Erneut verbinden** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet. |
 | **Registerkartengruppen** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, um sie zur besseren Organisation einer benannten Gruppe zuzuweisen. |
 
 ## Sicher verbinden
 
-Interaktive SSH-Terminals teilen das Host-Key-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Bei der ersten Verbindung zu einem normalisierten Host und Port werden der Schlüsselalgorithmus und der OpenSSH SHA-256-Fingerabdruck angezeigt, wobei **Nein** standardmäßig ausgewählt ist. Nachdem Sie es überprüft und akzeptiert haben, werden exakte Übereinstimmungen automatisch hergestellt. Ein geänderter Schlüssel wird ohne automatischen Wiederholungsversuch fest blockiert. Siehe [SSH-Hostschlüsselüberprüfung](connections.md#ssh-hostschlusseluberprufung).
+Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See [SSH host-key verification](connections.md#ssh-hostschlusseluberprufung).
 
 Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.
 
-Einige Fehler werden direkt abgelehnt und nicht erneut versucht, da eine Wiederholung des Versuchs das Ergebnis nicht ändern kann – ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit. Das Terminal löscht den Vorgang und zeigt sofort den Grund an, anstatt die Anzahl der Wiederholungsversuche durchzugehen. Informationen zur Mosh-Einschränkung finden Sie unter [Jump server](jump-server.md).
+Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See [Jump server](jump-server.md) for the Mosh restriction.
 
 Der angeheftete SithTermFX-Build von KorTTY enthält auch eine überprüfte Korrektur der Begrenzung der unteren Zeile: Beim Bewegen über einen Hyperlink oder die letzte sichtbare Terminalzeile wird `TerminalTextBuffer` nicht mehr nach der nicht vorhandenen Zeile bei `line == height` gefragt.
 
 ## Verbindungsverlust und automatische Wiederherstellung der Verbindung
 
-Wenn eine **hergestellte** SSH-Verbindung verloren geht – Netzwerkausfall, VPN-Unterbrechung, Server weg – wird die Registerkarte **nicht** geschlossen. Stattdessen wechselt es in einen roten, getrennten Status: Der Tab-Titel erhält das Suffix `(DISCONNECT)`, der Tab wird dunkelrot, eine rote Statusleiste zeigt den Zeitpunkt des Verbindungsverlusts an und der Terminal-Cursor hört auf zu blinken, sodass eine tote Sitzung nicht mehr lebendig aussieht. Nur eine normale Remote-Abmeldung (Eingabe von `exit` oder ++ctrl+d++ an der Eingabeaufforderung) schließt die Registerkarte.
+When an **established** SSH connection is lost — network drop, VPN cut, server gone — the tab does **not** close. It switches to a red disconnected state instead: the tab title gets a `(DISCONNECT)` suffix, the tab turns dark red, a red status bar shows the time the connection was lost, and the terminal cursor stops blinking so a dead session no longer looks alive. Only a normal remote logout (typing `exit`, or ++ctrl+d++ at the prompt) closes the tab.
 
 KorTTY bemerkt einen stillen Transporttod innerhalb von etwa zehn Sekunden: Alle paar Sekunden sendet es eine SSH-Liveness-Prüfung (eine globale Anfrage, die der Server beantworten muss, dieselbe Technik wie `ServerAliveInterval` von OpenSSH) und behandelt zwei aufeinanderfolgende unbeantwortete Prüfungen als verlorene Verbindung. Das Probe aktiviert sich erst, nachdem der Server einmal geantwortet hat, sodass Server, die nie auf solche Anfragen antworten, ihre Sitzungen unberührt lassen. Dies ist unabhängig vom Keep-Alive-Heartbeat [SSH ](#ssh-keep-alive), der inaktive Verbindungen offen hält, eine unterbrochene Verbindung jedoch nicht erkennt.
 
 Um die Sitzung wieder in derselben Registerkarte aufzunehmen, doppelklicken Sie auf die rote Statusleiste oder die rote Registerkarte oder verwenden Sie **Erneut verbinden** im Registerkarten-, Terminal- oder Dashboard-Kontextmenü. In einer geteilten Registerkarte werden die Bereiche, deren Verbindung unterbrochen wurde, einzeln geschlossen. Im letzten verbleibenden Bereich bleibt die Registerkarte geöffnet und es wird das Angebot zur erneuten Verbindung angezeigt.
 
-Wenn **Verlorene Verbindungen automatisch wiederherstellen** aktiviert ist (**Einstellungen → Terminal**, standardmäßig aktiviert), stellt die Registerkarte die Verbindung von selbst wieder her: Versuche beginnen nach 3 Sekunden und werden nach 5, 10, 20 und 30 Sekunden unterbrochen, bis zu einem Versuch pro Minute, und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Eine erfolgreiche erneute Verbindung, eine manuelle erneute Verbindung oder das Schließen der Registerkarte beendet die automatischen Versuche. Permanente Fehler – Authentifizierung, Host-Schlüssel-Überprüfung, Konfigurationsverweigerungen – stoppen sie ebenfalls, sodass niemals ein falsches Passwort gegen den Server gehämmert wird. Während a [Sitzungsjournal](session-journal.md) läuft, hat der rote Entscheidungsbalken Vorrang und es wird kein automatischer Versuch gestartet – das Journal fragt, ob die Verbindung wiederhergestellt und fortgefahren oder mit der abschließenden Zusammenfassung beendet werden soll. Siehe [Einstellungen → Terminal](../reference/settings/terminal.md) für die Einstellung.
+Wenn **Verlorene Verbindungen automatisch wiederherstellen** aktiviert ist (**Einstellungen → Terminal**, standardmäßig aktiviert), stellt die Registerkarte die Verbindung von selbst wieder her: Versuche beginnen nach 3 Sekunden und werden nach 5, 10, 20 und 30 Sekunden unterbrochen, bis zu einem Versuch pro Minute, und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Eine erfolgreiche erneute Verbindung, eine manuelle erneute Verbindung oder das Schließen der Registerkarte beendet die automatischen Versuche. Permanente Fehler – Authentifizierung, Host-Schlüssel-Überprüfung, Konfigurationsverweigerungen – stoppen sie ebenfalls, sodass niemals ein falsches Passwort gegen den Server gehämmert wird. Während a [session journal](session-journal.md) is running, its red decision bar takes precedence and no automatic attempt starts — the journal asks whether to reconnect and continue or to end with its closing summary. See [Settings → Terminal](../reference/settings/terminal.md) for the setting.
 
 ## Multi-Window-Unterstützung
 
 Öffnen Sie zusätzliche Fenster, um Verbindungen nach Projekt oder Umgebung zu organisieren:
 
-- **Neues Fenster**: ++ctrl+shift+n++ (Befehl+Umschalt+N unter macOS) öffnet ein neues KorTTY-Fenster. Jedes Fenster kann über eigene Registerkarten und Verbindungen verfügen.
+- **New Window**: ++ctrl+shift+n++ (Cmd+Shift+N on macOS) opens a new KorTTY window. Each window can have its own set of tabs and connections.
 - **Registerkarten zwischen Fenstern verschieben**: Ziehen Sie eine Registerkarte aus der Registerkartenleiste und legen Sie sie auf der Registerkartenleiste eines anderen KorTTY-Fensters ab, um diese Registerkarte (und ihre Sitzung, einschließlich aller geteilten Terminals) in das andere Fenster zu verschieben.
 - **Tabs neu anordnen**: Ziehen Sie einen Tab innerhalb desselben Fensters, um seine Reihenfolge zu ändern; die Registerkarte „+“ bleibt am Ende.
 
@@ -59,9 +59,9 @@ Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die
 
 | Verknüpfung | Aktion |
 |----------|--------|
-| ++alt+plus++ | Vergrößern (Schriftgröße vergrößern) |
+| ++alt+plus++ | Zoom in (increase font size) |
 | ++alt+minus++ | Verkleinern (Schriftgröße verringern) |
-| ++alt+0++ | Zoom auf gespeicherte/Standardschriftart zurücksetzen |
+| ++alt+0++ | Reset zoom to saved/default font |
 | ++ctrl++ + Mausrad | Vergrößern/verkleinern Sie das Terminal (Befehlstaste + Rad unter macOS) |
 
 Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausrad über das Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, Rad nach unten verkleinert – anstatt durch den Puffer zu scrollen. Dies ergänzt die Tastenkombinationen ++alt+plus++ / ++alt+minus++ / ++alt+0++.
@@ -72,9 +72,9 @@ Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausra
 
 **Ansicht → Zoom → Hintergrundtransparenz** ist ein Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text völlig undurchsichtig und scharf bleibt. Bei 0 % ist der Hintergrund einfarbig; Höhere Werte lassen mehr vom Desktop durchscheinen. Der Wert wird über Neustarts hinweg gespeichert und wiederhergestellt.
 
-Nur der Terminalbereich wird transparent – die Titelleiste, die Menüleiste, die Statusleiste und alle Registerkarten ohne Terminal bleiben stabil, sodass das Fenster nie zu einem durchsichtigen Loch wird.
+Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.
 
-Horizontale, vertikale und verschachtelte geteilte Terminals erben die aktive Transparenzstufe, einschließlich der nach der Transparenzaktivierung hinzugefügten Bereiche. Wenn Sie mit ++f12++ den Vollbildmodus oder mit ++ctrl+shift+f++ den reinen Terminal-Vollbildmodus aufrufen, wird der Terminalbereich vorübergehend undurchsichtig, ohne dass sich der gespeicherte Wert ändert. Wenn Sie den Vollbildmodus verlassen, wird dieser Wert in jedem Bereich wiederhergestellt.
+Horizontal, vertical and nested split terminals inherit the active transparency level, including panes added after transparency was enabled. Entering fullscreen with ++f12++ or terminal-only fullscreen with ++ctrl+shift+f++ temporarily renders the terminal area opaque without changing the saved value; leaving fullscreen restores that value to every pane.
 
 Da ein durchsichtiges Fenster einen anderen Fensterstil verwendet, den das Betriebssystem beim Öffnen des Fensters korrigiert, wird **das Ein- oder Ausschalten der Transparenz (Überschreiten von 0 %) erst nach einem Neustart vollständig wirksam**; Die Statusleiste zeigt einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Das Anpassen des Pegels bereits im transparenten Modus wird live angewendet. Im transparenten Modus verwendet das Fenster eine schlanke benutzerdefinierte Titelleiste (Ziehen zum Verschieben, Schaltflächen zum Minimieren/Maximieren/Schließen, Doppelklick auf den Streifen zum Maximieren, Ziehen an den Rändern zum Ändern der Größe).
 
@@ -82,12 +82,12 @@ Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native ma
 
 ## Lokale Shell-Registerkarten
 
-Neben SSH und Mosh kann eine Terminal-Registerkarte eine **Lokale Shell** hosten – die eigene Shell des lokalen Computers, die über ein Pseudo-Terminal geöffnet wird (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalverhalten sind lokal-Shell-bewusst:
+Besides SSH and Mosh, a terminal tab can host a **Local Shell** — the local machine's own shell, opened via a pseudo-terminal (see [Local Shell](connections.md#lokale-shell)). A few terminal behaviors are local-shell aware:
 
-- **++ctrl+d++ schließt die Registerkarte für lokale cmd.exe/PowerShell-Sitzungen.** Diese Windows-Shells werden bei EOF nicht beendet, sodass ++ctrl+d++ andernfalls keine Auswirkung hätte. Für Shells der Bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH behält ++ctrl+d++ seine normale EOF-Bedeutung – die Shell wird beendet und die lokale Registerkarte wird dann automatisch geschlossen.
+- **++ctrl+d++ closes the tab for local cmd.exe/PowerShell sessions.** Those Windows shells do not exit on EOF, so ++ctrl+d++ would otherwise have no effect. For bash-family shells (Git Bash/Cygwin/WSL, macOS/Linux) and SSH, ++ctrl+d++ keeps its normal EOF meaning — the shell exits and the local tab then auto-closes.
 - **Bestätigung schließen** verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.
 - **Das aktuelle Verzeichnis folgt der interaktiven Shell.** Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach `cd`, `pushd`, `popd` oder `Set-Location` löst **Im Snippet-Editor öffnen** einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.
-- **Nach einem Identitätswechsel ist „Im Snippet-Editor öffnen“ ausgegraut.** Wenn die Sitzung nicht mehr mit der Identität ausgeführt wird, mit der die Registerkarte geöffnet wurde – nach `su`, einer inneren `ssh` oder einer Shell-Öffnung `sudo` – ist der Kontextmenüeintrag sowohl in SSH-Registerkarten als auch in lokalen Shell-Registerkarten deaktiviert: Die verfolgten Verzeichnisse und der Dateizugriff der Registerkarte gehören weiterhin zum ursprünglichen Login und würden den falschen Pfad auflösen. Der Eintrag wird von selbst wieder aktiviert, sobald die Eingabeaufforderung wieder den ursprünglichen Benutzer anzeigt (normalerweise nach `exit`). Bei einer lokalen Shell-Registerkarte, deren konfigurierter Shell-Befehl selbst ein Remote-Client wie `ssh` oder `mosh` ist, bleibt der Eintrag für die gesamte Registerkarte deaktiviert. Wenn der Ladevorgang trotzdem ausgelöst wird, stoppt korTTY mit einem Fehler, anstatt den falschen Pfad aufzulösen.
+- **After an identity switch, Open in Snippet Editor is greyed out.** When the session no longer runs as the identity the tab was opened with — after `su`, an inner `ssh`, or a shell-opening `sudo` — the context-menu entry is disabled, in SSH tabs as well as local-shell tabs: the tab's tracked directories and file access still belong to the original login and would resolve the wrong path. The entry re-enables on its own once the prompt shows the original user again (typically after `exit`). A local-shell tab whose configured shell command is itself a remote client such as `ssh` or `mosh` keeps the entry disabled for the whole tab. If the load is triggered anyway, korTTY stops with an error instead of resolving the wrong path.
 - **Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.** Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der `agent ...`-Anfrage bleibt und Enter ihn genau einmal versendet.
 
 ## Sitzungsjournal
@@ -104,7 +104,7 @@ Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen
 - **Unabhängige Sitzungen**: In jedem Bereich kann eine andere SSH-Verbindung angezeigt werden.
 - **Anpassbare Fensterbereiche**: Ziehen Sie die Trennlinien, um die Fenstergrößen anzupassen.
 - **Zugriffsgrund einmal pro Registerkarte abgefragt**: Wenn ein Server nach einem Grund für die Verbindung fragt, wie es ein Jump-Host im CyberArk-Stil tut, fragt ein Split nicht erneut. korTTY sendet den Grund, der beim Öffnen des Tabs angegeben wurde, da ein Server, der danach fragt, eine Sitzung schließt, die mit nichts antwortet. Bei einer Aufteilung auf einen anderen Server oder bei einem Server, der etwas anderes fragt, wird ebenfalls einmal gefragt, und ein neuer Tab beginnt immer mit der Frage. Lehnt der Server die Begründung ab, etwa weil eine Ticketnummer inzwischen abgelaufen ist, verwirft korTTY diese und fragt beim nächsten Versuch erneut nach.
-- **Fenster verschieben**: Halten Sie ++shift+alt++ (Windows/Linux) oder ++shift+option++ (macOS) gedrückt und ziehen Sie ein Fenster auf ein anderes, um es neu anzuordnen. Ohne die Modifikatoren wird das Ziehen mit der Maus für die Textauswahl im Terminal verwendet.
+- **Move Panes**: Hold ++shift+alt++ (Windows/Linux) or ++shift+option++ (macOS) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 
 ### Broadcast-Modus
 
@@ -160,19 +160,19 @@ Konfigurieren Sie es an einer beliebigen Stelle:
    - **Einfacher Text** – Eine zeitgestempelte Zeile pro Ausgabezeile.
    - **XML** – Strukturiertes XML mit Zeitstempeln.
    - **JSON** – Strukturiertes JSON mit Zeitstempeln.
-4. Passen Sie optional die **maximale Dateigröße** (Standard: 10 MB) und den **Aufbewahrungszeitraum** (Standard: 30 Tage) an und deaktivieren Sie **Jeden Tag eine neue Datei starten** oder **Geschlossene Dateien komprimieren (gzip)** – beide sind standardmäßig aktiviert. Der Abschnitt „Terminalprotokoll“ der Schnellverbindung behandelt die Aktivierung, den Ordner, das Format und die Komprimierung. Größenbeschränkung, Aufbewahrung und tägliche Rotation behalten ihre konfigurierten oder Standardwerte.
+4. Optionally adjust the **maximum file size** (default: 10 MB) and the **retention period** (default: 30 days), and turn off **Start a new file every day** or **Compress closed files (gzip)** — both are on by default. Schnellverbindung's Terminal log section covers enable, folder, format and compression; size limit, retention and daily rotation keep their configured or default values.
 
 ### Dateinamen
 
-Jede Datei trägt den Namen `<date>-<time>-<server>_<number>`, zum Beispiel `2026-08-04-14-30-12-web01_1.log.gz`. Das Datum steht am Anfang, sodass eine Ordnerliste chronologisch sortiert wird, und die abschließende Nummer unterscheidet Verbindungen, die gleichzeitig geöffnet sind – zwei Registerkarten auf demselben Server erhalten `_1` und `_2` und schreiben niemals in die Datei des anderen.
+Every file is named `<date>-<time>-<server>_<number>`, for example `2026-08-04-14-30-12-web01_1.log.gz`. The date leads so a folder listing sorts chronologically, and the trailing number distinguishes connections that are open at the same time — two tabs on the same server get `_1` and `_2` and never write into one another's file.
 
 ### Rotation, Komprimierung und Retention
 
-Standardmäßig wird **jeden Tag** eine neue Datei gestartet und immer wieder, wenn die maximale Größe erreicht ist (diese Teile sind mit `.p2`, `.p3`, … nummeriert); Die tägliche Rotation kann ausgeschaltet werden, um nur nach Größe zu rollen. Durch die Rotation wird nie etwas überschrieben oder gelöscht.
+By default a new file is started **every day**, and always again whenever the maximum size is reached (those parts are numbered `.p2`, `.p3`, …); daily rotation can be turned off to roll only by size. Nothing is ever overwritten or deleted by rotation.
 
 Geschlossene Dateien werden standardmäßig komprimiert. Die aktuell geschriebene Datei bleibt immer unkomprimiert, sodass sie bei einem Absturz nicht abgeschnitten werden kann. Deaktivieren Sie **Geschlossene Dateien komprimieren (gzip)**, um fertige Dateien stattdessen als einfachen Text beizubehalten. Eine Verbindung, die keine Ausgabe erzeugt, erstellt überhaupt keine Datei.
 
-Dateien, die älter als der Aufbewahrungszeitraum sind, werden beim Verbindungsaufbau und nach jedem täglichen Rollover automatisch gelöscht. Stellen Sie die Aufbewahrung auf `0` ein, um alles zu behalten. Es werden immer nur KorTTYs eigene Protokolldateien entfernt – alles andere im Ordner bleibt in Ruhe, daher ist es sicher, die Einstellung auf einen Ordner zu verweisen, den Sie auch für andere Dinge verwenden.
+Files older than the retention period are deleted automatically when a connection starts and after each daily rollover. Set the retention to `0` to keep everything. Only KorTTY's own log files are ever removed — anything else in the folder is left alone, so it is safe to point the setting at a folder you also use for other things.
 
 ### Was vor dem Schreiben entfernt wird
 
@@ -181,7 +181,7 @@ Erfasste Zeilen durchlaufen die gleiche Schwärzung wie das [Session Journal](se
 Protokolldateien und ein Protokollordner, den KorTTY selbst erstellt hat, sind auf Besitzerrechte eingestellt, sofern das Dateisystem dies unterstützt. Ein Ordner, den Sie selbst ausgewählt haben, behält die von Ihnen erteilten Berechtigungen.
 
 !!! warning "Redaction deckt nur das ab, was KorTTY weiß"
-    Ein Passwort, das KorTTY für die Verbindung speichert, wird geschwärzt. Ein Geheimnis, das Sie selbst in einen Befehl eingeben oder das ein Programm ausgibt, ist kein Geheimnis – KorTTY hat keine Möglichkeit, es zu erkennen. Behandeln Sie den Protokollordner als vertraulich und verwenden Sie Richtlinienersetzungsregeln für wiederkehrende Muster.
+    A password KorTTY stores for the connection is redacted. A secret you type into a command yourself, or one a program prints, is not — KorTTY has no way to recognise it. Treat the log folder as sensitive, and use policy replacement rules for patterns that recur.
 
 ## Terminalaufzeichnung
 

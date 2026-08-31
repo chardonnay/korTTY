@@ -71,7 +71,7 @@ Wenn sich `ffmpeg` unter macOS und Linux in Ihrem PATH befindet, erkennt KorTTY 
    - Press ++ctrl+shift+e++ (++cmd+shift+e++ auf macOS)
 3. Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:
    - **Aktive Teilung** – Nur den fokussierten Terminalbereich aufzeichnen
-   - **Gesamte Registerkarte** – zeichnet alle sichtbaren Teilungen auf
+   - **Gesamte Registerkarte** – alle sichtbaren Teilungen aufzeichnen
 
 Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung aktiviert oder der Menüpunkt/die Verknüpfung verwendet wird.
 
@@ -120,7 +120,7 @@ Beim Export wird die aufgezeichnete Terminalgeometrie verwendet, um das Zuschnei
 2. Wählen Sie eine `.korttyrec.jsonl.gz`-Wiedergabedatei aus
 3. Klicken Sie auf **Anzeigen**, um die Wiedergabe im integrierten Viewer zu öffnen
 4. Verwenden Sie die Timeline-Steuerelemente:
-   - **Timeline-Schieberegler** – Ziehen Sie, um zu einer beliebigen Position zu springen
+   - **Timeline-Schieberegler** – Ziehen Sie ihn, um zu einer beliebigen Position zu springen
    - **Zeitsprung** – Geben Sie `5` für Minute 5 und `5:30` für 5 Minuten 30 Sekunden ein
    - **Geschwindigkeit** – Stellen Sie die Wiedergabegeschwindigkeit zwischen 1x und 20x ein
 

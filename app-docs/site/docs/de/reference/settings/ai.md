@@ -50,47 +50,47 @@ Die gleichen Felder werden unter **KI > KI-Manager > Profiles** bearbeitet, wo d
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Profilname | Text | – | AI-Profil | (Profil `name`-Feld) |
+| Profile name | text | — | AI Profile | (profile `name` field) |
 | Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integriertes llama.cpp, integriertes MLX (Apple Silicon; nur auf Apple Silicon Macs verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
 | API-URL | Text | – | – | (Profilfeld `apiUrl`) |
-| CLI-Anbieter | Dropdown-Liste | (registrierte Anbieter) | – | (Profilfeld `cliProviderId`) |
-| CLI-ausführbare Datei | Text | – | – | (Profilfeld `cliExecutablePath`) |
-| Modell | Dropdown/Text | (bearbeitbar; „Standard“, kuratierte Vorschläge von Cloud-Anbietern plus live geladene Modelle; „Auto“ nur für lokale LM Studio-Endpunkte) | – | (Profilfeld `model`) |
-| Lokales GGUF-Modell | Dropdown-Liste | Installierte Chat-Modelle; Verfügbar, wenn die Verbindung „Integriert“ ist. llama.cpp | – | (Profilfeld `embeddedModelId`) |
+| CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
+| CLI executable | text | — | — | (profile `cliExecutablePath` field) |
+| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
+| Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
 | Lokales MLX-Modell | Dropdown-Liste | Installierte MLX-Modelle; Verfügbar, wenn die Verbindung „Integrated MLX“ (Apple Silicon) ist. | – | (Profilfeld `embeddedModelId`) |
-| Benutzerdefiniertes Modell | Text | – | – | (Profilfeld `cliCustomModel`) |
+| Custom model | text | — | — | (profile `cliCustomModel` field) |
 | Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
 | Bildeingabe (Vision) | Dropdown-Liste | Automatisch (Erkennung), Aktiviert, Deaktiviert | Automatisch (Erkennung) | (Profilfeld `visionSupport`) |
 | Internetzugang | Dropdown-Liste | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
-| API-Schlüssel (optional) | Text | (Passwortfeld) | – | (Profil `encryptedApiKey`-Feld) |
-| Max. Zeichen | Nummer | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
-| Zeitlimit für dieses Profil | Kontrollkästchen + Nummer | Eigenes Zeitlimit aus = globales Timeout befolgen; Ein: 0–1440 Minuten (0 = nie Zeitüberschreitung) | Aus | (Profilfeld `requestTimeoutMinutes`) |
+| API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
+| Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
+| Timeout for this profile | check box + number | Own timeout off = follow the global timeout; on: 0–1440 minutes (0 = never time out) | Off | (profile `requestTimeoutMinutes` field) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
-| Max. Token | Anzahl + Einheit | (Betrag: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profilfelder `tokenLimitAmount`, `tokenLimitUnit`) |
-| Warnschwellen | Zahlenpaar | Gelb %: 0–100, Rot %: 0–100 | 75 %, 90 % | (Profilfelder `tokenWarningYellowPercent`, `tokenWarningRedPercent`) |
-| Zurücksetzen | Nummer + Ankerdatum | Zeitraum: 1–3650 Tage; Ankerdatum | 30 Tage | (Profilfelder `tokenResetPeriodDays`, `tokenResetAnchorDate`) |
-| AI-Verbindung testen | Schaltfläche | – | – | (nur Aktion) |
+| Max tokens | number + unit | (amount: 0–1,000,000; unit: Thousands or Millions) | 0 (unlimited) | (profile `tokenLimitAmount`, `tokenLimitUnit` fields) |
+| Warning thresholds | number pair | Yellow %: 0–100, Red %: 0–100 | 75%, 90% | (profile `tokenWarningYellowPercent`, `tokenWarningRedPercent` fields) |
+| Reset | number + anchor date | Period: 1–3650 days; Anchor date | 30 days | (profile `tokenResetPeriodDays`, `tokenResetAnchorDate` fields) |
+| Test AI Connection | button | — | — | (action only) |
 
 ## Snippet-Editor
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Standardsprache für AI-Text im Code | Dropdown-Liste | (verfügbare Sprachoptionen) | – | `aiCodeTextDefaultLanguage` |
-| Optionale zusätzliche Anweisungen für KI-Aktionen im Snippet-Editor anzeigen | umschalten | – | Aus | `aiSnippetEditorAdditionalInstructionsEnabled` |
-| Maximale Alternativlösungen | Anzahl | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
+| Show optional additional instructions for AI actions in the snippet editor | toggle | — | Off | `aiSnippetEditorAdditionalInstructionsEnabled` |
+| Maximum alternative solutions | number | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
 
 ## Internetzugriffskonfiguration
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Tavily-API-Schlüssel | Text | (Passwortfeld) | – | `encryptedAiTavilyApiKey` |
-| Bright Data API-Token | Text | (Passwortfeld) | – | `encryptedAiBrightDataApiToken` |
-| Brave Search API-Schlüssel | Text | (Passwortfeld) | – | `encryptedAiBraveSearchApiKey` |
-| SearXNG-URL | Text | – | – | `aiSearxngUrl` |
-| Tavily MCP-Server-Label | Text | – | Tavily | `aiTavilyMcpServerLabel` |
+| Tavily API key | text | (password field) | — | `encryptedAiTavilyApiKey` |
+| Bright Data API token | text | (password field) | — | `encryptedAiBrightDataApiToken` |
+| Brave Search API key | text | (password field) | — | `encryptedAiBraveSearchApiKey` |
+| SearXNG URL | text | — | — | `aiSearxngUrl` |
+| Tavily MCP server label | text | — | tavily | `aiTavilyMcpServerLabel` |
 | Bright Data MCP-Serverbezeichnung | Text | – | Bright-Data | `aiBrightDataMcpServerLabel` |
-| Brave Search MCP-Plugin-ID | Text | – | – | `aiBraveSearchMcpPluginId` |
+| Brave Search MCP plugin ID | text | — | — | `aiBraveSearchMcpPluginId` |
 | SearXNG MCP-Plugin-ID | Text | – | – | `aiSearxngMcpPluginId` |
 | LM Studio Toolpack MCP-Plugin-ID | Text | – | – | `aiLmStudioToolpackMcpPluginId` |
 
@@ -142,9 +142,9 @@ Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwort
 - **Hoch**: Hoher Aufwand; gründlichere Begründung.
 - **Extra hoch**: Maximaler Reasoning-Aufwand; am langsamsten, aber am umfassendsten.
 
-Nicht alle Modelle unterstützen alle Ebenen. Wenn LM Studio `capabilities.reasoning.allowed_options` über seine nativen Modellmetadaten veröffentlicht, verwendet korTTY genau diese Liste, anstatt einen stillschweigend konvertierten Wert als unterstützt zu behandeln, und liest diese Liste **automatisch**: Wenn Sie im Profileditor ein anderes Modell oder einen anderen Endpunkt auswählen, werden die Metadaten für das gerade ausgewählte Modell erneut gelesen, sodass das Dropdown-Menü ohne weitere Aktion dem Profil folgt. Die Liste wird hier nur aus den Modellmetadaten des Endpunkts gelesen – eine einzelne Anfrage, die keine Eingabeaufforderung sendet. Verwenden Sie die Schaltfläche **Reasoning-Optionen aktualisieren**, wenn Sie eine erneute Überprüfung erzwingen möchten, oder für einen Endpunkt, der keine derartigen Metadaten veröffentlicht: Mit dieser Schaltfläche werden auch aktive Verbindungsprüfungen ausgeführt.
+Nicht alle Modelle unterstützen alle Ebenen. Wenn LM Studio `capabilities.reasoning.allowed_options` über seine nativen Modellmetadaten veröffentlicht, verwendet korTTY genau diese Liste, anstatt einen stillschweigend konvertierten Wert als unterstützt zu behandeln, und liest diese Liste **automatisch**: Wenn Sie im Profileditor ein anderes Modell oder einen anderen Endpunkt auswählen, werden die Metadaten für das gerade ausgewählte Modell erneut gelesen, sodass das Dropdown-Menü ohne weitere Aktion dem Profil folgt. Die Liste wird hier nur aus den Modellmetadaten des Endpunkts gelesen – eine einzelne Anfrage, die keine Eingabeaufforderung sendet. Verwenden Sie die Schaltfläche **Reasoning-Optionen aktualisieren**, wenn Sie eine erneute Überprüfung erzwingen möchten oder für einen Endpunkt, der keine derartigen Metadaten veröffentlicht: Über diese Schaltfläche werden auch aktive Verbindungsprüfungen ausgeführt.
 
-Bei einem binären `off`/`on`-Modell schaltet eine explizite `none`-Anfrage diese Funktion aus, während das Weglassen des Reasoning-Parameters den veröffentlichten Standardwert des Modells verwendet; Die nicht unterstützten Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ und „Extra hoch“ werden nicht angeboten. Ein Modell, dessen LM Studio-Metadaten überhaupt keine Reasoning-Fähigkeit veröffentlichen – einschließlich eines virtuellen Modells, das seine Reasoning-Metadaten auf „falsch“ überschreibt – bietet nur **Deaktiviert**: LM Studio überspringt einen nicht unterstützten Reasoning-Wert zur Anforderungszeit mit einer Protokollwarnung, anstatt die Anfrage abzulehnen, sodass eine aktive Prüfung jede Ebene als unterstützt verwechseln würde.
+Bei einem binären `off`/`on`-Modell schaltet eine explizite `none`-Anfrage diese Funktion aus, während das Weglassen des Reasoning-Parameters den veröffentlichten Standardwert des Modells verwendet; Die nicht unterstützten Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ und „Extra hoch“ werden nicht angeboten. Ein Modell, dessen LM Studio-Metadaten überhaupt keine Reasoningsfunktion veröffentlichen – einschließlich eines virtuellen Modells, das seine Reasoning-Metadaten auf „falsch“ überschreibt – bietet nur **Deaktiviert**: LM Studio überspringt einen nicht unterstützten Reasoning-Wert zur Anforderungszeit mit einer Protokollwarnung, anstatt die Anfrage abzulehnen, sodass eine aktive Prüfung jede Ebene als unterstützt verwechseln würde.
 
 Eine erkannte Liste gehört zu dem Endpunkt und Modell, für den sie gelesen wurde. Wenn Sie eines davon ändern, wird es verworfen, und wenn korTTY die Metadaten der neuen Kombination – ein CLI-Profil, ein Cloud-Endpunkt – nicht lesen kann, greift das Profil auf die konservativen Standardeinstellungen für seinen Modellnamen zurück, bis Sie auf **Reasoning-Optionen aktualisieren** klicken. Ein Level, das nicht mehr angeboten wird, wird aus der Anfrage entfernt, mit einer Protokollzeile, in der das tatsächlich genutzte Level genannt wird. Felder, die der eigene Verbindungsmodus eines Profils nicht verwendet, wie z. B. der CLI-Anbieter eines HTTP-Profils, machen eine erkannte Liste niemals ungültig. Profile, die ein integriertes Modell verwenden, behalten ihre erkannten Werte bei.
 
@@ -152,7 +152,7 @@ Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-E
 
 ### Bildeingabe (Vision)
 
-**Bildeingabe (Vision)** entscheidet, ob korTTY Bilder an eine Eingabeaufforderung für dieses Profil anhängen darf – verwendet von [KI-Screenshot-Analyse des Sitzungsjournals](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (ein `vlm`-Modell gilt als bildfähig; die Antwort wird zusammen mit den Reasoning-Ebenen gelesen – sowohl beim automatischen Metadatenabruf als auch über **Reasoning-Optionen aktualisieren** – und damit zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) werden auch in der Modell-Dropdown-Liste angezeigt.
+**Image input (vision)** decides whether korTTY may attach images to a prompt for this profile — used by the [session journal's AI screenshot analysis](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (a `vlm` Modell gilt als bildfähig; die Antwort wird zusammen mit den Begründungsebenen gelesen – durch das automatische Lesen von Metadaten und durch **Reasoning-Optionen aktualisieren** – und mit ihnen zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) also appear in the model dropdown.
 
 ### Token-Kontingentverwaltung
 
@@ -186,5 +186,5 @@ Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie
     schlägt die Anfrage mit einer expliziten Nachricht fehl, anstatt stillschweigend und ohne Webzugriff zu antworten.
     Lokale CLI-Profile haben überhaupt keine Internetmodi; Das Dropdown-Menü ist für sie deaktiviert.
 
-    Eine Organisation kann den Webzugriff mit dem Richtlinienschlüssel `allow-internet` vollständig verbieten – siehe
+    An organization can forbid web access entirely with the `allow-internet` policy key — see
     [Unternehmensrichtlinie](../enterprise-policy.md).

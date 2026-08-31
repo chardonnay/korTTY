@@ -4,14 +4,14 @@ title: Aktualisierungen
 
 # Updates
 
-Konfigurieren Sie die automatische Update-Überprüfung und die Häufigkeit, mit der korTTY GitHub nach neuen Versionen abfragt. Öffnen über **Konfiguration → Globale Einstellungen → Updates**; in `~/.kortty/global-settings.xml` gespeichert.
+Configure automatic update checking and the frequency at which korTTY queries GitHub for new releases. Open via **Configuration → Global Settings → Updates**; stored in `~/.kortty/global-settings.xml`.
 
 ![Updates settings tab](../../assets/screenshots/settings/updates.png)
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Automatisch nach KorTTY-Updates suchen | umschalten | — | Auf | `updateChecksEnabled` |
-| Prüfintervall | Schieberegler | 1–30 Tage | 1 Tag | `updateCheckIntervalDays` |
+| Check automatically for KorTTY updates | toggle | — | On | `updateChecksEnabled` |
+| Check interval | slider | 1–30 days | 1 day | `updateCheckIntervalDays` |
 
 !!! note
     Automatische Update-Prüfungen laufen unbemerkt im Hintergrund und zeigen nur dann einen Benachrichtigungsdialog an, wenn eine neuere kompatible Version verfügbar ist. Manuelle Update-Prüfungen sind jederzeit über das Dialogfeld „Info“ verfügbar.

@@ -21,7 +21,7 @@ JobScheduler unterstützt sechs Arten von Aktionen:
 - **SNIPPET_SCRIPT** – Führen Sie ein SnippetManager-Skript auf dem Ziel mit optionalen Parametern aus
 - **AI_AGENT** – Führen Sie einen Headless-KI-Agenten mit expliziter automatischer Genehmigung aus
 - **AI_SWARM** – Senden Sie eine KI-Agent-Aufgabe parallel an alle ausgewählten Ziele und speichern Sie die kombinierte Antwort als gespeicherten Schwarm-Chat
-- **SFTP** – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Besitzer ändern, Remote-Kopieren oder Archive erstellen
+- **SFTP** – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Eigentümer ändern, Remote-Kopieren oder Archive erstellen
 - **RSYNC_SYNC** – Verzeichnisse über externes `rsync` über SSH synchronisieren
 
 ## Job-Konfiguration
@@ -95,7 +95,7 @@ Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass
 
 #### AI Schwarmjobs
 
-AI Swarm-Jobs führen eine AI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** über Hintergrund-SSH-Sitzungen aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
+AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine AI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
 
 | Feld | Beschreibung |
 |-------|-------------|

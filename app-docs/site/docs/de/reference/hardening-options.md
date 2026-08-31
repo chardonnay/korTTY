@@ -24,7 +24,7 @@ Das Bedienfeld **Härtungsoptionen** wird an folgenden Stellen angezeigt:
 | **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Reduzierbares Bedienfeld „Härtungsoptionen“ am unteren Rand des Fensters mit einer Live-Zählung der angekreuzten Optionen im Titel; korTTY merkt sich, ob Sie es geöffnet oder geschlossen gelassen haben. | Sie klicken auf *Auswahl übernehmen* |
 
 !!! note "Wird nicht für jede Aktion angezeigt"
-    *Lesbarkeit verbessern* und *Leistung verbessern* zeigen absichtlich **keine** Härtungsoptionen an – diese Aktionen sollen nah am ursprünglichen Code bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: *Robustheit verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse* und die beiden Workflow-Skriptgeneratoren.
+    *Lesbarkeit verbessern* und *Leistung verbessern* zeigen bewusst **keine** Härtungsoptionen an – diese Aktionen sollen nahe am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: *Robustheit verbessern*, *Benutzerdefinierte Verbesserung*, *Vollständige Codeanalyse* und die beiden Workflow-Skriptgeneratoren.
 
 Jede Option ist **standardmäßig aktiviert**. Deaktivieren Sie diejenigen, die Sie nicht möchten. Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.
 
@@ -38,7 +38,7 @@ Unterhalb der Optionen helfen Ihnen drei Schaltflächen bei der Verwaltung der A
 
 ## Wie sie angewendet werden
 
-Jede aktivierte Option wird zu einer maßgeblichen Härtungsregel, die KorTTY an die an die KI gesendete Anfrage anhängt (unter *Diese Härtungstechniken anwenden:* im Snippet-Editor oder *ZUSÄTZLICHE ANFORDERUNGEN:* im Workflow-Generator). Im Anwendungsfluss „Vollständige Codeanalyse“ wird jeder ausgewählten Regel zusätzlich ein eigener obligatorischer Bezeichner zugewiesen: Die KI gibt die von ihr vervollständigten Bezeichner in einer kompakten Liste zurück, und korTTY lehnt die gesamte Antwort ab, wenn ein Bezeichner fehlt. Explizite CLI- und Guard-Literale wie `--dry-run`, `--yes`, `--help` und `--verbose` müssen ebenfalls vorhanden sein, wenn die entsprechenden Optionen ausgewählt sind. Bei der Workflow-Generierung werden auch die entsprechenden zielsprachlichen Redewendungen hinzugefügt – beispielsweise die Bash-Schreibweise des strengen Modus – nur dann, wenn diese Option ausgewählt ist. Wenn Sie eine Option deaktivieren, werden sowohl ihre Regel als auch ihre optionspezifischen Sprachidiome entfernt. **Clear** sendet daher kein härtendes Verhalten, abgesehen von neutralen Anforderungen, die zum Erstellen gültigen Codes in der gewählten Sprache erforderlich sind.
+Jede aktivierte Option wird zu einer maßgeblichen Härtungsregel, die KorTTY an die an die KI gesendete Anfrage anhängt (unter *Diese Härtungstechniken anwenden:* im Snippet-Editor oder *ZUSÄTZLICHE ANFORDERUNGEN:* im Workflow-Generator). Im Anwendungsfluss „Vollständige Codeanalyse“ wird jeder ausgewählten Regel zusätzlich ein eigener obligatorischer Bezeichner zugewiesen: Die KI gibt die von ihr vervollständigten Bezeichner in einer kompakten Liste zurück, und korTTY lehnt die gesamte Antwort ab, wenn ein Bezeichner fehlt. Explizite CLI- und Guard-Literale wie `--dry-run`, `--yes`, `--help` und `--verbose` müssen ebenfalls vorhanden sein, wenn die entsprechenden Optionen ausgewählt sind. Bei der Workflow-Generierung werden auch die entsprechenden zielsprachlichen Redewendungen hinzugefügt – beispielsweise die Bash-Schreibweise des strengen Modus – nur dann, wenn diese Option ausgewählt ist. Durch Deaktivieren einer Option werden sowohl ihre Regel als auch ihre optionspezifischen Sprachidiome entfernt. **Clear** sendet daher kein härtendes Verhalten, abgesehen von neutralen Anforderungen, die zum Erstellen gültigen Codes in der gewählten Sprache erforderlich sind.
 
 Der Wortlaut jeder Regel passt sich der Zielsprache an:
 
@@ -74,7 +74,7 @@ Jede Option unten listet auf, wozu sie dient und welche genaue Regel KorTTY an d
 
 #### Aussagekräftige Exit-Codes
 
-- **Wofür es ist** – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), mitteilen, *warum* es fehlgeschlagen ist, und nicht nur, *dass* es fehlgeschlagen ist.
+- **Wofür es ist** – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), sagen, *warum* es fehlgeschlagen ist, nicht nur *dass* es fehlgeschlagen ist.
 - **Imperative Skripte** – Verwenden Sie unterschiedliche, dokumentierte Exit-Codes ungleich Null für unterschiedliche Fehlerklassen.
 - **Ansible-Playbooks** – Sorgen Sie dafür, dass fehlgeschlagene Aufgaben das Spiel mit einer klaren Botschaft stoppen (`any_errors_fatal`, wo sinnvoll).
 
@@ -86,7 +86,7 @@ Jede Option unten listet auf, wozu sie dient und welche genaue Regel KorTTY an d
 
 #### Konfigurationsblock für Literale
 
-- **Wofür es ist** – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern werden (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.
+- **Wofür es ist** – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.
 - **Imperative Skripte** – Heben Sie alle Literale (Pfade, Hosts, Pakete) in einen klar kommentierten Konfigurationsblock oben.
 - **Ansible-Playbooks** – Heben Sie alle Literale in einen `vars:`-Block oben.
 
