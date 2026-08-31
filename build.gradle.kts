@@ -1846,7 +1846,12 @@ fun terminateProcessTree(process: Process) {
 }
 
 /** Runs a native helper without ever blocking Gradle indefinitely. A null exit code means timeout. */
-fun runBoundedProcess(command: List<String>, timeoutSeconds: Long, logFile: File): Int? {
+fun runBoundedProcess(
+    command: List<String>,
+    timeoutSeconds: Long,
+    logFile: File,
+    standardInput: String? = null
+): Int? {
     logFile.parentFile.mkdirs()
     Files.deleteIfExists(logFile.toPath())
     val process = ProcessBuilder(command)
@@ -1854,7 +1859,14 @@ fun runBoundedProcess(command: List<String>, timeoutSeconds: Long, logFile: File
         .redirectErrorStream(true)
         .redirectOutput(logFile)
         .start()
-    process.outputStream.close()
+    runCatching {
+        process.outputStream.bufferedWriter().use { writer ->
+            if (standardInput != null) {
+                writer.write(standardInput)
+                writer.flush()
+            }
+        }
+    }
     if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
         terminateProcessTree(process)
         return null
@@ -1896,15 +1908,16 @@ fun attachDmgForVerification(dmgFile: File): File {
         val attachLog = verificationDir.resolve("dmg-attach-attempt-$attempt.log")
         println("Mounting ${dmgFile.name} for verification (attempt $attempt of 2).")
         val exitCode = runBoundedProcess(
-            // jpackage embeds LICENSE in the DMG. CI has no terminal, so accept that known project
-            // license explicitly instead of leaving hdiutil blocked on its interactive prompt.
+            // jpackage embeds LICENSE in the DMG. CI has no terminal, so send the affirmative
+            // response to that known project-license prompt through hdiutil's dedicated stdin.
             listOf(
                 "hdiutil", "attach", dmgFile.absolutePath,
                 "-readonly", "-nobrowse", "-noautoopen", "-noautofsck", "-owners", "off",
-                "-verify", "-acceptlicense", "-mountpoint", mountPoint.absolutePath
+                "-verify", "-mountpoint", mountPoint.absolutePath
             ),
             90,
-            attachLog
+            attachLog,
+            standardInput = "Y\n"
         )
         val attachOutput = processLog(attachLog)
         if (exitCode == 0) {
