@@ -452,7 +452,8 @@ final class SnippetAiAssistFactory {
         return SnippetAiWorkflowSupport.generateSnippetMermaid(
             resolved.service(),
             (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
-            request.fullContent(),
+            request.diagramType(),
+            request.generationContent(),
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),

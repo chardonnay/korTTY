@@ -813,7 +813,7 @@ class OpenAiCompatibleAiServiceTest {
             new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "print('ok')", null, "en"));
 
         assertThat(ordinaryBody).doesNotContain("\"max_tokens\"");
-        assertThat(mermaidBody).contains("\"max_tokens\":8192");
+        assertThat(mermaidBody).contains("\"max_tokens\":32768");
         assertThat(applyBody).contains("\"max_tokens\":49163");
     }
 
@@ -939,7 +939,7 @@ class OpenAiCompatibleAiServiceTest {
         String applyBody = service.buildRequestBody(
             new AiRequest(AiAction.APPLY_SNIPPET_SECURITY_FIXES, "print('ok')", null, "en"));
 
-        assertThat(mermaidBody).contains("\"max_tokens\":8192");
+        assertThat(mermaidBody).contains("\"max_tokens\":32768");
         assertThat(applyBody).contains("\"max_tokens\":49163");
     }
 
@@ -966,9 +966,9 @@ class OpenAiCompatibleAiServiceTest {
 
         assertThat(result.content()).contains("flowchart TD");
         assertThat(client.requestBodies()).hasSize(2);
-        assertThat(client.requestBodies().get(0)).contains("\"max_tokens\":8192");
+        assertThat(client.requestBodies().get(0)).contains("\"max_tokens\":32768");
         assertThat(client.requestBodies().get(0)).doesNotContain("\"max_completion_tokens\"");
-        assertThat(client.requestBodies().get(1)).contains("\"max_completion_tokens\":8192");
+        assertThat(client.requestBodies().get(1)).contains("\"max_completion_tokens\":32768");
         assertThat(client.requestBodies().get(1)).doesNotContain("\"max_tokens\"");
     }
 

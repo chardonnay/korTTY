@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.SnippetDiagramType;
+
 import java.util.Objects;
 
 /**
@@ -257,22 +259,7 @@ public final class AiPromptBuilder {
                 + codeTextLanguageRule(request, languageCode) + " " + DIRECT_JSON_REPLY_RULE;
         }
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
-            return "You generate a compact Mermaid flowchart for the logical structure of a code snippet. "
-                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
-                + "Write the title, every visible node label including start_1 and stop_1, and every visible decision-edge label in language code " + languageCode + ". "
-                + "mermaid must start with exactly 'flowchart TD', declare stable terminal node ids start_1 and stop_1 using the ([\"...\"]) terminal shape, "
-                + "and use only separately declared quoted action nodes node_id[\"Action label\"], quoted decision nodes node_id{\"Decision?\"}, "
-                + "--> edges, with exactly two distinctly labeled outgoing edges for every decision: use only the localized equivalents of 'yes' and 'no' in language code " + languageCode + ", "
-                + "and class statements. "
-                + "Use stable descriptive node ids containing only letters, digits, underscores, or hyphens. "
-                + "Every node must have exactly one semantic class: setup, work, success, or failure. "
-                + "codeReferences must be an array of objects with nodeId, label, startLine, and endLine. "
-                + "Each nodeId must exactly match a declared Mermaid node and each label must exactly match that node's visible label. "
-                + "Create one codeReferences entry for every action and decision node, but never for start_1 or stop_1. "
-                + "Line numbers must be 1-based, refer only to the provided line-numbered snippet, and use the smallest relevant source range. "
-                + "Do not include frontmatter, Mermaid directives, comments, classDef, style, linkStyle, click, href, URLs, "
-                + "images, icons, HTML, custom colors, subgraphs, or any other Mermaid syntax. "
-                + DIRECT_JSON_REPLY_RULE + " Do not include Markdown or explanations outside the JSON object.";
+            return buildSnippetDiagramSystemPrompt(request, languageCode);
         }
         if (request != null && request.action() == AiAction.GENERATE_ASCII_ART) {
             return "You draw pictures as monospace ASCII art. "
@@ -300,6 +287,114 @@ public final class AiPromptBuilder {
             + "Use Markdown with short headings and concise, practical content. "
             + "Do not invent facts that are not supported by the provided selection. "
             + "If something is uncertain, say so explicitly.";
+    }
+
+    /**
+     * The fixed contract for {@link AiAction#GENERATE_SNIPPET_MERMAID}, per diagram family. Every
+     * family shares the JSON shape and safety paragraph; the allowed-statement list mirrors the
+     * corresponding restricted grammar in {@link SnippetTypedDiagramSupport} exactly.
+     */
+    private static String buildSnippetDiagramSystemPrompt(AiRequest request, String languageCode) {
+        SnippetDiagramType type = request.diagramType() != null
+            ? request.diagramType()
+            : SnippetDiagramType.LOGICAL_STRUCTURE;
+        String safetyRule = "Do not include frontmatter, Mermaid directives, comments, classDef, style, "
+            + "linkStyle, click, href, URLs, images, icons, HTML, custom colors, subgraphs, or any other "
+            + "Mermaid syntax. ";
+        String optionalReferencesRule = "codeReferences is an optional array of objects with nodeId, label, "
+            + "startLine, and endLine; omit it or leave it empty when no clear mapping exists. "
+            + "Line numbers must be 1-based, refer only to the provided line-numbered snippet, and use the "
+            + "smallest relevant source range. ";
+        String jsonTail = DIRECT_JSON_REPLY_RULE + " Do not include Markdown or explanations outside the JSON object.";
+        return switch (type) {
+            case LOGICAL_STRUCTURE ->
+                "You generate a compact Mermaid flowchart for the logical structure of a code snippet. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "Write the title, every visible node label including start_1 and stop_1, and every visible decision-edge label in language code " + languageCode + ". "
+                + "mermaid must start with exactly 'flowchart TD', declare stable terminal node ids start_1 and stop_1 using the ([\"...\"]) terminal shape, "
+                + "and use only separately declared quoted action nodes node_id[\"Action label\"], quoted decision nodes node_id{\"Decision?\"}, "
+                + "--> edges, with exactly two distinctly labeled outgoing edges for every decision: use only the localized equivalents of 'yes' and 'no' in language code " + languageCode + ", "
+                + "and class statements. "
+                + "Use stable descriptive node ids containing only letters, digits, underscores, or hyphens. "
+                + "Every node must have exactly one semantic class: setup, work, success, or failure. "
+                + "codeReferences must be an array of objects with nodeId, label, startLine, and endLine. "
+                + "Each nodeId must exactly match a declared Mermaid node and each label must exactly match that node's visible label. "
+                + "Create one codeReferences entry for every action and decision node, but never for start_1 or stop_1. "
+                + "Line numbers must be 1-based, refer only to the provided line-numbered snippet, and use the smallest relevant source range. "
+                + safetyRule + jsonTail;
+            case SEQUENCE ->
+                "You generate a compact Mermaid sequence diagram for the runtime interactions of a code snippet. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "Write the title, every participant display name, every message label, and every note in language code " + languageCode + ". "
+                + "mermaid must start with exactly 'sequenceDiagram' and declare every participant first as "
+                + "participant id or participant id as Display name (actor is also allowed). "
+                + "After the declarations use only ->> and -->> messages in the form a ->> b: Message text, "
+                + "the blocks alt, else, opt, loop, par, and, end, and note left of, note right of, or note over statements. "
+                + "Every message and note must reference declared participant ids. "
+                + "Use stable descriptive participant ids containing only letters, digits, underscores, or hyphens. "
+                + "Declare at most " + SnippetTypedDiagramSupport.MAX_SEQUENCE_PARTICIPANTS + " participants and use at most "
+                + SnippetTypedDiagramSupport.MAX_SEQUENCE_MESSAGES + " messages; group repeated calls instead of transcribing them. "
+                + "Do not use autonumber, activations, boxes, or participant creation and destruction. "
+                + optionalReferencesRule
+                + "Each nodeId must be a declared participant id and each label that participant's display name. "
+                + safetyRule + jsonTail;
+            case STATE ->
+                "You generate a compact Mermaid state diagram for the observable states and transitions of a code snippet. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "Write the title, every state display name, every state description, and every transition label in language code " + languageCode + ". "
+                + "mermaid must start with exactly 'stateDiagram-v2' and use only flat transitions state_a --> state_b "
+                + "with an optional : label, exactly one initial transition from [*], optional final transitions to [*], "
+                + "state descriptions state_a : description, and display-name declarations state \"Display name\" as state_a. "
+                + "Model observable states of the program, not individual statements. "
+                + "Use stable descriptive state ids containing only letters, digits, underscores, or hyphens. "
+                + "Use at most " + SnippetTypedDiagramSupport.MAX_STATES + " states. "
+                + "Do not use composite states, concurrency, forks, joins, choices, notes, or direction statements. "
+                + optionalReferencesRule
+                + "Each nodeId must be a declared state id and each label that state's display name or description. "
+                + safetyRule + jsonTail;
+            case CLASS ->
+                "You generate a compact Mermaid class diagram for the types, structures, and relations declared in a code snippet. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "Write the title in language code " + languageCode + "; keep class and member names exactly as they appear in the code. "
+                + "mermaid must start with exactly 'classDiagram' and use only class declarations class Name or "
+                + "class Name { with one member per line and a closing }, plus relation lines such as "
+                + "A <|-- B, A *-- B, A o-- B, A --> B, A ..> B, A ..|> B, or A -- B with optional quoted "
+                + "cardinalities and an optional : label. "
+                + "Members use an optional +, -, # or ~ visibility prefix; write generics with tildes like List~String~. "
+                + "Model only types, members, and relations actually present in the code; never invent members. "
+                + "Declare at most " + SnippetTypedDiagramSupport.MAX_CLASSES + " classes with at most "
+                + SnippetTypedDiagramSupport.MAX_CLASS_MEMBERS + " members each; omit trivial accessors before dropping fields. "
+                + "Do not use <<stereotype>> annotations, namespaces, notes, angle-bracket generics, or link labels on both ends. "
+                + optionalReferencesRule
+                + "Each nodeId must be a declared class name and each label that class name. "
+                + safetyRule + jsonTail;
+            case ER ->
+                "You generate a compact Mermaid entity-relationship diagram for the data entities implied by a code snippet, "
+                + "such as SQL tables, schemas, or persistent records. "
+                + "Return exactly one JSON object with keys title, mermaid, and codeReferences. "
+                + "Write the title and every relationship label in language code " + languageCode + "; keep entity and attribute names exactly as they appear in the code. "
+                + "mermaid must start with exactly 'erDiagram' and use only relationship lines in the form "
+                + "ENTITY_A ||--o{ ENTITY_B : label with the standard cardinality tokens (||, |o, o|, }|, }o on the left; "
+                + "||, o|, o{, |{ on the right) and a mandatory label, plus optional attribute blocks "
+                + "ENTITY_A { followed by one attribute per line as type name, optionally with PK, FK, or UK and a quoted comment, and a closing }. "
+                + "Model only entities and relations the code actually implies; never invent a schema. "
+                + "Declare at most " + SnippetTypedDiagramSupport.MAX_ER_ENTITIES + " entities and at most "
+                + SnippetTypedDiagramSupport.MAX_ER_ATTRIBUTES + " attributes in total. "
+                + optionalReferencesRule
+                + "Each nodeId must be a declared entity name and each label that entity name. "
+                + safetyRule + jsonTail;
+        };
+    }
+
+    private static String snippetDiagramUserPromptIntro(SnippetDiagramType diagramType) {
+        SnippetDiagramType type = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+        return switch (type) {
+            case LOGICAL_STRUCTURE -> "Generate a compact Mermaid logical-structure flowchart for the snippet.\n";
+            case SEQUENCE -> "Generate a compact Mermaid sequence diagram for the snippet's runtime interactions.\n";
+            case STATE -> "Generate a compact Mermaid state diagram for the snippet's observable states.\n";
+            case CLASS -> "Generate a compact Mermaid class diagram for the types declared in the snippet.\n";
+            case ER -> "Generate a compact Mermaid entity-relationship diagram for the data entities the snippet implies.\n";
+        };
     }
 
     public static String buildUserPrompt(AiRequest request) {
@@ -442,7 +537,7 @@ public final class AiPromptBuilder {
                     + "Do not invent files, endpoints, placeholders, or network locations.\n"
                     + "Prefer readable shell separators, interpreter -e/-c flags, and safe quoting.\n");
             case GENERATE_SNIPPET_MERMAID -> prompt.append(
-                "Generate a compact Mermaid logical-structure flowchart for the snippet.\n"
+                snippetDiagramUserPromptIntro(request.diagramType())
                     + "Follow the complete syntax and safety contract from the system message.\n"
                     + "Build every response value from the line-numbered snippet.\n");
             case GENERATE_ASCII_ART -> prompt.append(

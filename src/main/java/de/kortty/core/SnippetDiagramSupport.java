@@ -91,6 +91,11 @@ public final class SnippetDiagramSupport {
             return new MermaidValidation(true, "flowchart", "");
         }
 
+        /** Success without a family claim, for the shared screens and the non-flowchart grammars. */
+        static MermaidValidation commonSuccess() {
+            return new MermaidValidation(true, "", "");
+        }
+
         private static MermaidValidation failure(String message) {
             return new MermaidValidation(false, "", message != null ? message : "Invalid Mermaid diagram.");
         }
@@ -133,6 +138,20 @@ public final class SnippetDiagramSupport {
      * frontmatter, directive and custom-style syntax before it reaches Mermaid.
      */
     public static MermaidValidation validateMermaid(String source) {
+        MermaidValidation security = validateCommonSecurity(source);
+        if (!security.valid()) {
+            return security;
+        }
+        ParsedDiagram parsed = parseRestrictedFlowchart(normalizeMermaid(source));
+        return parsed.validation();
+    }
+
+    /**
+     * The shared security screen applied to every generated snippet diagram regardless of its
+     * Mermaid family: size and NUL caps plus the forbidden directive/URL/media/HTML syntax that
+     * could load resources, attach callbacks, or inject styles. Family grammars build on top.
+     */
+    static MermaidValidation validateCommonSecurity(String source) {
         if ((source != null ? source : "").getBytes(StandardCharsets.UTF_8).length > MAX_MERMAID_SOURCE_BYTES) {
             return MermaidValidation.failure("Mermaid source exceeds the 32 KiB limit.");
         }
@@ -155,9 +174,7 @@ public final class SnippetDiagramSupport {
         if (FORBIDDEN_HTML_PATTERN.matcher(value).find()) {
             return MermaidValidation.failure("HTML labels are not allowed in Mermaid diagrams.");
         }
-
-        ParsedDiagram parsed = parseRestrictedFlowchart(value);
-        return parsed.validation();
+        return MermaidValidation.commonSuccess();
     }
 
     /**

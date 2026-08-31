@@ -180,7 +180,7 @@ class LmStudioNativeAiServiceTest {
         service.execute(new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo hi", "qa-box", "en"));
 
         assertThat(client.requestBodies().get(0)).doesNotContain("\"max_output_tokens\"");
-        assertThat(client.requestBodies().get(1)).contains("\"max_output_tokens\":8192");
+        assertThat(client.requestBodies().get(1)).contains("\"max_output_tokens\":32768");
         assertThat(client.requestBodies().get(2)).contains("\"max_output_tokens\":49159");
     }
 
@@ -332,7 +332,7 @@ class LmStudioNativeAiServiceTest {
               "output": [
                 {"type": "message", "content": "{\\\"title\\\":\\\"Partial\\\",\\\"mermaid\\\":\\\"flowchart TD\\\"}"}
               ],
-              "stats": {"input_tokens": 100, "total_output_tokens": 8191}
+              "stats": {"input_tokens": 100, "total_output_tokens": 32767}
             }
             """);
         LmStudioNativeAiService service = new LmStudioNativeAiService(
@@ -347,7 +347,7 @@ class LmStudioNativeAiServiceTest {
             new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", "qa-box", "en"));
 
         assertThat(result.outputTruncated()).isTrue();
-        assertThat(result.usage().completionTokens()).isEqualTo(8_191);
+        assertThat(result.usage().completionTokens()).isEqualTo(32_767);
     }
 
     @Test

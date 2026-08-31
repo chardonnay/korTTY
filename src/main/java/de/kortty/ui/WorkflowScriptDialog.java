@@ -519,6 +519,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
             I18n.get("ai.workflow.title"),
             existing -> runTabDiagram(resultTab, existing),
             null,
+            null,
             target -> { }).show();
     }
 

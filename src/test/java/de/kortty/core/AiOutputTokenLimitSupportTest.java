@@ -10,9 +10,12 @@ class AiOutputTokenLimitSupportTest {
     void capsMermaidInsteadOfKeepingATransportFallback() {
         AiRequest request = new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "print('ok')", null, "en");
 
-        assertThat(AiOutputTokenLimitSupport.resolve(request, null)).isEqualTo(8_192);
-        assertThat(AiOutputTokenLimitSupport.resolve(request, 2_048)).isEqualTo(8_192);
-        assertThat(AiOutputTokenLimitSupport.resolve(request, 16_384)).isEqualTo(8_192);
+        // The cap replaces the transport fallback in both directions, and carries a reasoning
+        // reserve: at the previous 8 192 a thinking model (qwen3.8-27b) spent the entire budget on
+        // hidden reasoning and returned 8 191 completion tokens without a single JSON character.
+        assertThat(AiOutputTokenLimitSupport.resolve(request, null)).isEqualTo(32_768);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 2_048)).isEqualTo(32_768);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 65_536)).isEqualTo(32_768);
     }
 
     @Test

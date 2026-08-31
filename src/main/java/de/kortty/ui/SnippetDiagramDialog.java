@@ -2,15 +2,19 @@ package de.kortty.ui;
 
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.model.SnippetDiagram;
+import de.kortty.model.SnippetDiagramType;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -30,6 +34,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
 
     private static final double LIST_WIDTH_PADDING = 42.0;
     private static final double EMPTY_LIST_WIDTH = 140.0;
+    private static final double MAX_LIST_WIDTH = 340.0;
 
     private final String currentContent;
     private final Consumer<SnippetDiagram> regenerateHandler;
@@ -45,7 +50,8 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         String currentContent,
         String snippetName,
         Consumer<SnippetDiagram> regenerateHandler,
-        Runnable newDiagramHandler,
+        Consumer<SnippetDiagramType> newDiagramHandler,
+        Consumer<SnippetDiagram> deleteHandler,
         Consumer<CodeNavigationTarget> codeNavigationHandler) {
 
         this.currentContent = currentContent != null ? currentContent : "";
@@ -65,7 +71,7 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
             @Override
             protected void updateItem(SnippetDiagram item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : getDiagramTypeLabel(item));
+                setText(empty || item == null ? null : getDiagramListLabel(item));
             }
         });
         double listWidth = configureListWidth(safeDiagrams);
@@ -89,12 +95,46 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         HBox actions = new HBox(8, regenerate);
         actions.setAlignment(Pos.CENTER_LEFT);
         if (newDiagramHandler != null) {
-            Button create = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.diagram.new"));
-            create.setOnAction(event -> {
-                close();
-                newDiagramHandler.run();
-            });
+            MenuButton create = new MenuButton(
+                SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.diagram.new"));
+            for (SnippetDiagramType type : SnippetDiagramType.values()) {
+                MenuItem item = new MenuItem(typeLabel(type));
+                item.setOnAction(event -> {
+                    close();
+                    newDiagramHandler.accept(type);
+                });
+                create.getItems().add(item);
+            }
             actions.getChildren().add(create);
+        }
+        if (deleteHandler != null) {
+            Button delete = new Button(I18n.get("snippets.ai.diagram.delete"));
+            delete.setOnAction(event -> {
+                SnippetDiagram selected = selectedDiagram.get();
+                if (selected == null) {
+                    return;
+                }
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    I18n.get("snippets.ai.diagram.delete.confirm", getDiagramTypeLabel(selected)),
+                    ButtonType.OK, ButtonType.CANCEL);
+                confirm.initOwner(getDialogPane().getScene() != null
+                    ? getDialogPane().getScene().getWindow() : null);
+                confirm.setTitle(I18n.get("snippets.ai.diagram.delete"));
+                confirm.setHeaderText(null);
+                if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                    return;
+                }
+                deleteHandler.accept(selected);
+                diagramListView.getItems().remove(selected);
+                if (diagramListView.getItems().isEmpty()) {
+                    selectedDiagram.set(null);
+                    showSelectedDiagram(null);
+                } else {
+                    diagramListView.getSelectionModel().selectFirst();
+                }
+            });
+            delete.disableProperty().bind(diagramListView.getSelectionModel().selectedItemProperty().isNull());
+            actions.getChildren().add(delete);
         }
 
         String displayName = snippetName != null && !snippetName.isBlank()
@@ -138,7 +178,10 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
             return CompletableFuture.completedFuture(null);
         }
         return CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
-            diagram.getMermaidSource(), currentContent, sourceCodeReferences(diagram)));
+            diagram.getMermaidSource(),
+            currentContent,
+            sourceCodeReferences(diagram),
+            SnippetDiagramType.fromIdOrDefault(diagram.getType())));
     }
 
     private void showSelectedDiagram(SnippetDiagram diagram) {
@@ -176,9 +219,10 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
     private double configureListWidth(List<SnippetDiagram> diagrams) {
         double width = EMPTY_LIST_WIDTH;
         for (SnippetDiagram diagram : diagrams) {
-            width = Math.max(width, Math.ceil(new Text(getDiagramTypeLabel(diagram)).getLayoutBounds().getWidth()
+            width = Math.max(width, Math.ceil(new Text(getDiagramListLabel(diagram)).getLayoutBounds().getWidth()
                 + LIST_WIDTH_PADDING));
         }
+        width = Math.min(width, MAX_LIST_WIDTH);
         diagramListView.setMinWidth(width);
         diagramListView.setPrefWidth(width);
         diagramListView.setMaxWidth(width);
@@ -195,12 +239,44 @@ public class SnippetDiagramDialog extends ThemeAwareDialog<Void> {
         if (diagram == null) {
             return "";
         }
-        if (SnippetDiagram.TYPE_LOGICAL_STRUCTURE.equals(diagram.getType())) {
-            return I18n.get("snippets.ai.diagram.type.logicalStructure");
+        SnippetDiagramType type = SnippetDiagramType.fromId(diagram.getType());
+        if (type != null) {
+            return typeLabel(type);
         }
         return diagram.getType() != null && !diagram.getType().isBlank()
             ? diagram.getType()
             : I18n.get("snippets.ai.diagram.type.unknown");
+    }
+
+    /** The localized display name of a diagram family, shared with the snippet editor's menus. */
+    static String typeLabel(SnippetDiagramType type) {
+        return switch (type != null ? type : SnippetDiagramType.LOGICAL_STRUCTURE) {
+            case LOGICAL_STRUCTURE -> I18n.get("snippets.ai.diagram.type.logicalStructure");
+            case SEQUENCE -> I18n.get("snippets.ai.diagram.type.sequence");
+            case STATE -> I18n.get("snippets.ai.diagram.type.state");
+            case CLASS -> I18n.get("snippets.ai.diagram.type.class");
+            case ER -> I18n.get("snippets.ai.diagram.type.er");
+        };
+    }
+
+    /** List label: type, optional differing title, and the selection line range for scoped diagrams. */
+    private static String getDiagramListLabel(SnippetDiagram diagram) {
+        if (diagram == null) {
+            return "";
+        }
+        String label = getDiagramTypeLabel(diagram);
+        String title = diagram.getTitle();
+        if (title != null && !title.isBlank() && !title.trim().equalsIgnoreCase(label)) {
+            label = label + ": " + title.trim();
+        }
+        if (diagram.hasScope()) {
+            String range = diagram.getScopeStartLine() == diagram.getScopeEndLine()
+                ? I18n.get("snippets.ai.diagram.codeReference.line", diagram.getScopeStartLine())
+                : I18n.get("snippets.ai.diagram.codeReference.lines",
+                    diagram.getScopeStartLine(), diagram.getScopeEndLine());
+            label = label + " (" + range + ")";
+        }
+        return label;
     }
 
     public record CodeNavigationTarget(int startLine, int endLine) {

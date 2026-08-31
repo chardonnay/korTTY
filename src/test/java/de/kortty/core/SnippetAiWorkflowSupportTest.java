@@ -1300,6 +1300,94 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void typedSequenceDiagramRequestParsesAndKeepsDeclaredParticipantReferences() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Upload flow",
+              "mermaid": "sequenceDiagram\\nparticipant script as Script\\nparticipant server as Server\\nscript ->> server: Upload\\nserver -->> script: Result",
+              "codeReferences": [
+                { "nodeId": "script", "label": "Script", "startLine": 1, "endLine": 1 },
+                { "nodeId": "ghost", "label": "Ghost", "startLine": 1, "endLine": 1 }
+              ]
+            }
+            """);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                de.kortty.model.SnippetDiagramType.SEQUENCE,
+                "curl -T dump.tar server:/in",
+                "bash",
+                null,
+                "de",
+                null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.diagramType()).isEqualTo(de.kortty.model.SnippetDiagramType.SEQUENCE);
+        assertThat(diagram.mermaid()).startsWith("sequenceDiagram");
+        // The relaxed mapping keeps only declared participants and never fails on gaps.
+        assertThat(diagram.codeReferences()).containsExactly(
+            new SnippetDiagramSupport.SourceCodeReference("script", "Script", 1, 1));
+        assertThat(aiService.lastRequest.diagramType())
+            .isEqualTo(de.kortty.model.SnippetDiagramType.SEQUENCE);
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("must start with exactly 'sequenceDiagram'");
+    }
+
+    @Test
+    void typedDiagramRequestRejectsAResponseOfTheWrongFamily() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Wrong family",
+              "mermaid": "sequenceDiagram\\nparticipant a as A\\na ->> a: loop"
+            }
+            """);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                de.kortty.model.SnippetDiagramType.STATE,
+                "systemctl restart app",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void scopedDiagramRequestNumbersOnlyTheSelection() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Selection states",
+              "mermaid": "stateDiagram-v2\\n[*] --> running\\nrunning --> done"
+            }
+            """);
+        String selection = "start_service\nwait_for_health";
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                de.kortty.model.SnippetDiagramType.STATE,
+                selection,
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(aiService.lastRequest.selectedText()).isEqualTo(selection);
+        assertThat(aiService.lastRequest.conversationContext()).contains("1 | start_service");
+        assertThat(aiService.lastRequest.conversationContext()).contains("2 | wait_for_health");
+        assertThat(aiService.lastRequest.conversationContext()).doesNotContain("3 |");
+    }
+
+    @Test
     void mermaidRequestRejectsIncompleteCodeReferencesWithoutRetry() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
@@ -1365,7 +1453,11 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void truncatedMermaidResponseIsNotParsedOrRetried() throws Exception {
+    void truncatedMermaidResponseIsReportedAsAnOutputLimitAfterUsageIsRecorded() {
+        // A thinking model can spend the whole diagram budget on hidden reasoning and return no
+        // JSON at all. Reporting that as an ordinary failed generation sends the user after the
+        // wrong fix, so it surfaces as the output-limit signal — usage is still recorded, and the
+        // request is never repeated.
         CapturingAiService aiService = new CapturingAiService("""
             {
               "title": "Partial flow",
@@ -1374,19 +1466,38 @@ class SnippetAiWorkflowSupportTest {
             """, true);
         int[] recordedUsages = {0};
 
-        SnippetAiResponseSupport.MermaidDiagram diagram =
-            SnippetAiWorkflowSupport.generateSnippetMermaid(
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.generateSnippetMermaid(
                 aiService,
                 (request, result) -> recordedUsages[0]++,
                 "echo ok",
                 "bash",
                 null,
                 "en",
-                null);
+                null));
 
-        assertThat(diagram.isUsable()).isFalse();
         assertThat(aiService.executionCount).isEqualTo(1);
         assertThat(recordedUsages[0]).isEqualTo(1);
+    }
+
+    @Test
+    void interruptedMermaidResponseIsReportedAsAnInterruptionNotAnOutputLimit() {
+        CapturingAiService aiService = new CapturingAiService("", true, true);
+
+        expectThrows(
+            SnippetAiWorkflowSupport.ResponseStreamInterruptedException.class,
+            () -> SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                de.kortty.model.SnippetDiagramType.SEQUENCE,
+                "echo ok",
+                "bash",
+                null,
+                "en",
+                null));
+
+        assertThat(aiService.executionCount).isEqualTo(1);
     }
 
     @Test

@@ -1473,26 +1473,62 @@ public final class SnippetAiWorkflowSupport {
         String fallbackLanguageCode,
         String additionalInstructions) throws Exception {
 
+        return generateSnippetMermaid(
+            aiService, usageRecorder, de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE,
+            fullContent, snippetLanguage, connectionDisplayName, fallbackLanguageCode,
+            additionalInstructions);
+    }
+
+    /**
+     * Generates one snippet diagram of the requested family. {@code scopedContent} is either the
+     * full snippet or the selected part of it; every produced line number is 1-based relative to
+     * this content, and the caller shifts them when persisting a selection-scoped diagram.
+     */
+    public static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        de.kortty.model.SnippetDiagramType diagramType,
+        String scopedContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
+        de.kortty.model.SnippetDiagramType type = diagramType != null
+            ? diagramType
+            : de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE;
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_MERMAID,
-            fullContent,
+            scopedContent,
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildMermaidContext(fullContent, snippetLanguage, fallbackLanguageCode));
+            buildMermaidContext(scopedContent, snippetLanguage, fallbackLanguageCode),
+            true,
+            null,
+            null,
+            null,
+            type);
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
+        // A cut-off answer carries no usable diagram, and the reason matters: a thinking model can
+        // spend the whole completion budget on hidden reasoning and emit no JSON at all. Reporting
+        // that as an ordinary failed generation sends the next reader after the wrong fix, so this
+        // is signalled like the other bounded, machine-parsed snippet answers.
         if (result != null && result.outputTruncated()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+            if (result.streamInterrupted()) {
+                throw new ResponseStreamInterruptedException();
+            }
+            throw new OutputTokenLimitReachedException();
         }
         SnippetAiResponseSupport.MermaidDiagram diagram =
-            SnippetAiResponseSupport.parseMermaidDiagram(result != null ? result.content() : null);
+            SnippetAiResponseSupport.parseMermaidDiagram(type, result != null ? result.content() : null);
         if (diagram.isUsable()
-            && !SnippetDiagramSupport.validateMermaidForSnippet(
-                diagram.mermaid(), fullContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "");
+            && !SnippetTypedDiagramSupport.validateForSnippet(
+                type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
+            return new SnippetAiResponseSupport.MermaidDiagram("", "", java.util.List.of(), type);
         }
         return diagram;
     }

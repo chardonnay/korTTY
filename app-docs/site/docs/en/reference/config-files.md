@@ -262,7 +262,7 @@ Code snippets, scripts, and templates.
 - ZIP archives with optional password or GPG encryption
 - Local syntax highlighting with Monaco editor
 - AI-assisted editing and code generation
-- Persisted Mermaid flowcharts with stable code-reference node IDs
+- Persisted Mermaid diagrams (logical-structure flowchart, sequence, state, class, ER) with stable code-reference node IDs and, for selection-scoped diagrams, the covered line range
 - One-liner export with optional script arguments
 
 ### snippet-variables.xml

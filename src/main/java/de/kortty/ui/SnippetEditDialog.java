@@ -26,6 +26,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
+import de.kortty.model.SnippetDiagramType;
 import de.kortty.model.SnippetEditorProfile;
 import de.kortty.model.SnippetHistoryEntry;
 import de.kortty.model.WindowGeometry;
@@ -553,12 +554,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String additionalInstructions) {
     }
 
+    /**
+     * @param scopedContent the selected part of the snippet to diagram, or {@code null} for the
+     *                      whole snippet; line numbers in the generated diagram are relative to it
+     * @param scopeStartLine 1-based first line of the selection in the full snippet, 0 when unscoped
+     */
     public record DiagramRequest(
         String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
         String additionalInstructions,
-        String aiProfileId) {
+        String aiProfileId,
+        de.kortty.model.SnippetDiagramType diagramType,
+        String scopedContent,
+        int scopeStartLine,
+        int scopeEndLine) {
 
         public DiagramRequest(
                 String fullContent,
@@ -566,6 +576,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 String fallbackLanguageCode,
                 String additionalInstructions) {
             this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, null);
+        }
+
+        public DiagramRequest(
+                String fullContent,
+                String snippetLanguage,
+                String fallbackLanguageCode,
+                String additionalInstructions,
+                String aiProfileId) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, aiProfileId,
+                de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE, null, 0, 0);
+        }
+
+        /** The content the diagram is generated from: the selection when scoped, else the snippet. */
+        public String generationContent() {
+            return scopedContent != null && !scopedContent.isBlank() ? scopedContent : fullContent;
+        }
+
+        public boolean hasScope() {
+            return scopedContent != null && !scopedContent.isBlank() && scopeStartLine > 0;
         }
     }
 
@@ -620,10 +649,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private record CursorLocation(int offset, int line, int column) {
     }
 
+    /**
+     * @param outputLimitReached the model used its whole completion budget (typically on hidden
+     *                           reasoning) and returned no complete diagram
+     */
     private record DiagramGenerationResult(
         SnippetAiResponseSupport.MermaidDiagram diagram,
         MermaidRenderService.SyntaxCheckResult syntaxCheck,
-        MermaidRenderService.RenderResult renderCheck) {
+        MermaidRenderService.RenderResult renderCheck,
+        boolean outputLimitReached) {
+
+        private DiagramGenerationResult(
+            SnippetAiResponseSupport.MermaidDiagram diagram,
+            MermaidRenderService.SyntaxCheckResult syntaxCheck,
+            MermaidRenderService.RenderResult renderCheck) {
+
+            this(diagram, syntaxCheck, renderCheck, false);
+        }
     }
 
     private record FormSnapshot(
@@ -2520,6 +2562,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         MenuItem securityCheckContextItem = new MenuItem(aiActionLabel("snippets.ai.security.title"));
         securityCheckContextItem.setOnAction(e -> runSecurityCheck());
+        // Diagram submenu: with a selection the chosen family diagrams just the selected lines,
+        // otherwise the whole snippet.
+        Menu diagramContextMenu = new Menu(aiActionLabel("snippets.ai.diagram.menu.generate"));
+        for (SnippetDiagramType diagramType : SnippetDiagramType.values()) {
+            MenuItem typeItem = new MenuItem(SnippetDiagramDialog.typeLabel(diagramType));
+            typeItem.setOnAction(e -> {
+                trackSnippetAiAction("code_diagram");
+                runDiagramGenerationForSelection(diagramType);
+            });
+            diagramContextMenu.getItems().add(typeItem);
+        }
         MenuItem diagramContextItem = new MenuItem(aiActionLabel("snippets.ai.diagram.menu"));
         diagramContextItem.setOnAction(e -> openOrCreateDiagram());
         CheckMenuItem wordWrapItem = new CheckMenuItem(I18n.get("snippets.wordWrap"));
@@ -2558,6 +2611,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 migrateLanguageContextItem,
                 securityCheckContextItem,
                 diagramContextItem,
+                diagramContextMenu,
                 new SeparatorMenuItem(),
                 oneLinerCompactCtx, oneLinerEmbeddedCtx,
                 new SeparatorMenuItem(),
@@ -2593,6 +2647,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             migrateLanguageContextItem.setDisable(!hasContent || !hasLanguageMigrationProvider() || aiBusy);
             securityCheckContextItem.setDisable(!hasContent || !hasSecurityProviders() || aiBusy);
             diagramContextItem.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
+            diagramContextMenu.setDisable(!hasContent || !hasDiagramProvider() || aiBusy);
+            diagramContextMenu.setText(aiActionLabel(hasSelection
+                ? "snippets.ai.diagram.menu.generate.selection"
+                : "snippets.ai.diagram.menu.generate"));
         });
         return menu;
     }
@@ -5326,9 +5384,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!hasDiagramProvider()) {
             return;
         }
-        pruneDuplicateDefaultLogicalStructureDiagrams();
         if (diagrams.isEmpty()) {
-            runDiagramGeneration(null);
+            startDiagramGeneration(null, SnippetDiagramType.LOGICAL_STRUCTURE, null);
             return;
         }
         new SnippetDiagramDialog(
@@ -5337,8 +5394,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             contentArea.getText(),
             currentSnippetDisplayName(),
             this::runDiagramGeneration,
-            null,
+            type -> startDiagramGeneration(null, type, null),
+            this::deleteDiagram,
             this::navigateToDiagramCodeReference).show();
+    }
+
+    private void deleteDiagram(SnippetDiagram diagram) {
+        if (diagram == null || diagram.getId() == null) {
+            return;
+        }
+        diagrams.removeIf(current -> current != null && diagram.getId().equals(current.getId()));
+        updateSaveButtonState();
     }
 
     private String currentSnippetDisplayName() {
@@ -5398,7 +5464,83 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return endOffset >= 0 ? endOffset : value.length();
     }
 
+    static int lineNumberAtOffset(String content, int offset) {
+        String value = content != null ? content : "";
+        int line = 1;
+        int limit = Math.max(0, Math.min(offset, value.length()));
+        for (int index = 0; index < limit; index++) {
+            if (value.charAt(index) == '\n') {
+                line++;
+            }
+        }
+        return line;
+    }
+
+    /** Context-menu entry point: generate a diagram of {@code type} for the current selection. */
+    private void runDiagramGenerationForSelection(SnippetDiagramType type) {
+        startDiagramGeneration(null, type, captureDiagramScope());
+    }
+
+    /**
+     * The current editor selection snapped to whole lines, or {@code null} when nothing is selected
+     * or the selection covers the whole snippet (then a whole-snippet diagram is generated).
+     */
+    private DiagramScope captureDiagramScope() {
+        contentArea.syncFromEditor();
+        IndexRange range = contentArea.getSelection();
+        String content = contentArea.getText() != null ? contentArea.getText() : "";
+        if (range == null || range.getLength() <= 0 || content.isBlank()) {
+            return null;
+        }
+        int selectionStart = Math.max(0, Math.min(range.getStart(), content.length()));
+        int selectionEnd = Math.max(selectionStart, Math.min(range.getEnd(), content.length()));
+        if (selectionStart == selectionEnd) {
+            return null;
+        }
+        int startLine = lineNumberAtOffset(content, selectionStart);
+        int endLine = lineNumberAtOffset(content, Math.max(selectionStart, selectionEnd - 1));
+        int startOffset = lineStartOffset(content, startLine);
+        int endOffset = Math.min(lineEndOffset(content, endLine), content.length());
+        String text = content.substring(Math.min(startOffset, endOffset), endOffset);
+        if (text.isBlank()) {
+            return null;
+        }
+        if (startLine == 1 && endOffset >= content.stripTrailing().length()) {
+            return null;
+        }
+        return new DiagramScope(text, startLine, endLine);
+    }
+
+    /** Regenerates an existing diagram in place, keeping its family and selection scope. */
     private void runDiagramGeneration(SnippetDiagram existingDiagram) {
+        SnippetDiagramType type = existingDiagram != null
+            ? SnippetDiagramType.fromIdOrDefault(existingDiagram.getType())
+            : SnippetDiagramType.LOGICAL_STRUCTURE;
+        startDiagramGeneration(existingDiagram, type, scopeFromDiagram(existingDiagram));
+    }
+
+    /** The selection a diagram is scoped to, re-read from the current snippet content. */
+    private record DiagramScope(String text, int startLine, int endLine) {
+    }
+
+    private DiagramScope scopeFromDiagram(SnippetDiagram diagram) {
+        if (diagram == null || !diagram.hasScope()) {
+            return null;
+        }
+        String content = contentArea.getText() != null ? contentArea.getText() : "";
+        String[] lines = content.split("\\R", -1);
+        int startLine = Math.min(diagram.getScopeStartLine(), lines.length);
+        int endLine = Math.min(Math.max(diagram.getScopeEndLine(), startLine), lines.length);
+        if (startLine < 1) {
+            return null;
+        }
+        String text = String.join("\n", java.util.Arrays.copyOfRange(lines, startLine - 1, endLine));
+        return !text.isBlank() ? new DiagramScope(text, startLine, endLine) : null;
+    }
+
+    private void startDiagramGeneration(
+        SnippetDiagram existingDiagram, SnippetDiagramType diagramType, DiagramScope scope) {
+
         if (!hasDiagramProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
@@ -5406,7 +5548,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (fullContent == null || fullContent.isBlank()) {
             return;
         }
-        SnippetDiagram targetDiagram = existingDiagram != null ? existingDiagram : findDefaultLogicalStructureDiagram();
+        SnippetDiagramType type = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+        String generationContent = scope != null ? scope.text() : fullContent;
+        // The deterministic flowchart fallback only makes sense for a whole-snippet logical
+        // structure; a scoped or non-flowchart generation fails visibly instead.
+        boolean allowFallback = type == SnippetDiagramType.LOGICAL_STRUCTURE && scope == null;
+        SnippetDiagram targetDiagram = existingDiagram;
         String savedInstructions = targetDiagram != null ? targetDiagram.getCustomInstructions() : null;
         String requestInstructions = savedInstructions != null && !savedInstructions.isBlank()
             ? savedInstructions
@@ -5417,25 +5564,33 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             @Override
             protected DiagramGenerationResult call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                boolean outputLimitReached = false;
                 try {
                     diagram = aiAssist.diagramProvider().generate(new DiagramRequest(
                         fullContent,
                         snippetLanguage,
                         fallbackLanguageCode,
-                        requestInstructions));
+                        requestInstructions,
+                        null,
+                        type,
+                        scope != null ? scope.text() : null,
+                        scope != null ? scope.startLine() : 0,
+                        scope != null ? scope.endLine() : 0));
                 } catch (Exception e) {
-                    logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
+                    outputLimitReached = isOutputTokenLimitFailure(e);
+                    logger.warn("AI diagram generation failed", e);
                 }
                 MermaidRenderService.SyntaxCheckResult syntaxCheck = null;
                 MermaidRenderService.RenderResult renderCheck = null;
                 if (diagram != null && diagram.isUsable()) {
                     syntaxCheck = MermaidRenderService.checkSyntax(diagram.mermaid())
                         .get(31, java.util.concurrent.TimeUnit.SECONDS);
-                    renderCheck = MermaidRenderService.render(MermaidRenderService.RenderRequest.generatedFlow(
-                            diagram.mermaid(), MermaidRenderService.Theme.LIGHT, "#FFFFFF", false))
+                    renderCheck = MermaidRenderService.render(MermaidRenderService.RenderRequest.generated(
+                            diagram.mermaid(), type, MermaidRenderService.Theme.LIGHT, "#FFFFFF", false))
                         .get(31, java.util.concurrent.TimeUnit.SECONDS);
                 }
-                if (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success()) {
+                if (allowFallback
+                    && (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success())) {
                     String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, snippetLanguage);
                     String fallbackTitle = diagram != null && diagram.title() != null && !diagram.title().isBlank()
                         ? diagram.title()
@@ -5453,7 +5608,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         return new DiagramGenerationResult(fallbackDiagram, fallbackSyntaxCheck, fallbackRenderCheck);
                     }
                 }
-                return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck);
+                return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
             }
         };
         snippetAiActionTask = task;
@@ -5467,7 +5622,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             DiagramGenerationResult result = task.getValue();
             SnippetAiResponseSupport.MermaidDiagram generated = result != null ? result.diagram() : null;
             if (generated == null || !generated.isUsable()) {
-                setStatus(I18n.get("snippets.ai.diagram.failed"));
+                setStatus(result != null && result.outputLimitReached()
+                    ? I18n.get("snippets.ai.diagram.outputLimitReached")
+                    : I18n.get("snippets.ai.diagram.failed"));
                 return;
             }
             MermaidRenderService.SyntaxCheckResult syntaxCheck = result.syntaxCheck();
@@ -5482,14 +5639,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             SnippetDiagram diagram = targetDiagram != null ? new SnippetDiagram(targetDiagram) : new SnippetDiagram();
             diagram.setTitle(generated.title());
-            diagram.setType(SnippetDiagram.TYPE_LOGICAL_STRUCTURE);
+            diagram.setType(generated.diagramType().id());
             diagram.setMermaidSource(generated.mermaid());
             diagram.setSourceContentSha256(SnippetDiagramSupport.contentHash(fullContent));
             diagram.setCustomInstructions(requestInstructions);
-            diagram.setCodeReferences(persistedCodeReferences(generated, fullContent));
+            diagram.setScopeStartLine(scope != null ? scope.startLine() : 0);
+            diagram.setScopeEndLine(scope != null ? scope.endLine() : 0);
+            diagram.setCodeReferences(persistedCodeReferences(
+                generated, generationContent, scope != null ? scope.startLine() - 1 : 0));
             diagram.setUpdatedAt(System.currentTimeMillis());
             upsertDiagram(diagram);
-            pruneDuplicateDefaultLogicalStructureDiagrams();
             updateSaveButtonState();
             setStatus(I18n.get("snippets.ai.diagram.ready"));
             openOrCreateDiagram();
@@ -5502,25 +5661,45 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
+    /**
+     * Persists a generated diagram's source mapping. {@code generationContent} is what the AI saw
+     * (the selection for a scoped diagram), and {@code lineOffset} shifts the relative line numbers
+     * to absolute snippet lines so click-to-code navigation stays untouched.
+     */
     private List<SnippetDiagram.CodeReference> persistedCodeReferences(
         SnippetAiResponseSupport.MermaidDiagram generated,
-        String fullContent) {
+        String generationContent,
+        int lineOffset) {
 
         if (generated == null || !generated.isUsable()) {
             return List.of();
         }
-        List<SnippetDiagramSupport.CodeReference> validatedReferences =
-            SnippetDiagramSupport.buildExpandedCodeReferences(
-                generated.mermaid(),
-                fullContent,
-                generated.codeReferences());
         List<SnippetDiagram.CodeReference> persistedReferences = new ArrayList<>();
-        for (SnippetDiagramSupport.CodeReference reference : validatedReferences) {
+        if (generated.diagramType() == SnippetDiagramType.LOGICAL_STRUCTURE) {
+            List<SnippetDiagramSupport.CodeReference> validatedReferences =
+                SnippetDiagramSupport.buildExpandedCodeReferences(
+                    generated.mermaid(),
+                    generationContent,
+                    generated.codeReferences());
+            for (SnippetDiagramSupport.CodeReference reference : validatedReferences) {
+                persistedReferences.add(new SnippetDiagram.CodeReference(
+                    reference.nodeId(),
+                    reference.label(),
+                    reference.startLine() + lineOffset,
+                    reference.endLine() + lineOffset));
+            }
+            return persistedReferences;
+        }
+        int lineCount = (generationContent != null ? generationContent : "").split("\\R", -1).length;
+        for (SnippetDiagramSupport.SourceCodeReference reference : generated.codeReferences()) {
+            if (reference == null || reference.startLine() < 1 || reference.endLine() > lineCount) {
+                continue;
+            }
             persistedReferences.add(new SnippetDiagram.CodeReference(
                 reference.nodeId(),
                 reference.label(),
-                reference.startLine(),
-                reference.endLine()));
+                reference.startLine() + lineOffset,
+                reference.endLine() + lineOffset));
         }
         return persistedReferences;
     }
@@ -5534,46 +5713,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
         }
         diagrams.add(diagram);
-    }
-
-    private SnippetDiagram findDefaultLogicalStructureDiagram() {
-        String currentHash = SnippetDiagramSupport.contentHash(contentArea.getText());
-        SnippetDiagram preferred = null;
-        for (SnippetDiagram diagram : diagrams) {
-            if (!isDefaultLogicalStructureDiagram(diagram)) {
-                continue;
-            }
-            if (preferred == null || isPreferredDiagram(diagram, preferred, currentHash)) {
-                preferred = diagram;
-            }
-        }
-        return preferred;
-    }
-
-    private void pruneDuplicateDefaultLogicalStructureDiagrams() {
-        SnippetDiagram preferred = findDefaultLogicalStructureDiagram();
-        if (preferred == null) {
-            return;
-        }
-        String preferredId = preferred.getId();
-        diagrams.removeIf(diagram -> isDefaultLogicalStructureDiagram(diagram)
-            && diagram.getId() != null
-            && !diagram.getId().equals(preferredId));
-    }
-
-    private boolean isPreferredDiagram(SnippetDiagram candidate, SnippetDiagram current, String currentHash) {
-        boolean candidateCurrent = currentHash != null && currentHash.equals(candidate.getSourceContentSha256());
-        boolean currentCurrent = currentHash != null && currentHash.equals(current.getSourceContentSha256());
-        if (candidateCurrent != currentCurrent) {
-            return candidateCurrent;
-        }
-        return candidate.getUpdatedAt() > current.getUpdatedAt();
-    }
-
-    private boolean isDefaultLogicalStructureDiagram(SnippetDiagram diagram) {
-        return diagram != null
-            && SnippetDiagram.TYPE_LOGICAL_STRUCTURE.equals(diagram.getType())
-            && (diagram.getCustomInstructions() == null || diagram.getCustomInstructions().isBlank());
     }
 
     private void insertTechnicalDescription(String text, int insertOffset) {
