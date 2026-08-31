@@ -972,8 +972,7 @@ jobs:
           files: release/*
 
       # GitHub renders release assets as one flat list. Keep that canonical list intact,
-      # but put a short, architecture-aware download guide above the release notes so
-      # people can choose an installer without having to decode every filename.
+      # but append a compact, architecture-aware download guide after the release notes.
       - name: Add grouped download guide to release notes
         shell: bash
         env:
@@ -995,40 +994,40 @@ jobs:
 
           {
             echo '<!-- kortty-download-guide:start -->'
-            echo '## Downloads'
+            echo '### Downloads'
             echo
             echo 'Choose your operating system and processor architecture. `x86_64` is for Intel and AMD PCs; `aarch64` is for Apple Silicon and ARM Linux devices.'
             echo
-            echo '### Windows'
+            echo '**Windows**'
             echo
-            echo '#### x86_64 (Intel and AMD)'
+            echo '*x86_64 (Intel and AMD)*'
             asset_link "korTTY-Windows-$VERSION-x86_64.msi" 'Installer (.msi)'
             asset_link "korTTY-Windows-$VERSION-x86_64.zip" 'Portable app (.zip)'
             echo
-            echo '### macOS'
+            echo '**macOS**'
             echo
-            echo '#### Apple Silicon (aarch64)'
+            echo '*Apple Silicon (aarch64)*'
             asset_link "korTTY-macOS-$VERSION-aarch64.dmg" 'Disk image (.dmg)'
             asset_link "korTTY-macOS-$VERSION-aarch64.zip" 'App archive (.zip)'
             echo
-            echo '#### Intel (x86_64)'
+            echo '*Intel (x86_64)*'
             asset_link "korTTY-macOS-$VERSION-x86_64.dmg" 'Disk image (.dmg)'
             asset_link "korTTY-macOS-$VERSION-x86_64.zip" 'App archive (.zip)'
             echo
-            echo '### Linux'
+            echo '**Linux**'
             echo
             for arch in aarch64 x86_64; do
-              echo "#### $arch"
+              echo "*$arch*"
               asset_link "kortty-Linux-$VERSION-$arch.deb" 'Debian/Ubuntu (.deb)'
               asset_link "kortty-Linux-$VERSION-$arch.rpm" 'Fedora/openSUSE (.rpm)'
               asset_link "kortty-Linux-$VERSION-$arch.tar.gz" 'Portable archive (.tar.gz)'
               asset_link "kortty-Linux-$VERSION-$arch.zip" 'Portable archive (.zip)'
               echo
             done
-            echo '#### Arch Linux (x86_64)'
+            echo '*Arch Linux (x86_64)*'
             asset_link "kortty-$VERSION-1-x86_64.pkg.tar.zst" 'pacman package (.pkg.tar.zst)'
             echo
-            echo '### Java (all supported platforms)'
+            echo '**Java (all supported platforms)**'
             echo
             asset_link "korTTY-Java-$VERSION.jar" 'Executable JAR (.jar)'
             asset_link "korTTY-Java-$VERSION.zip" 'Distribution archive (.zip)'
@@ -1046,8 +1045,8 @@ jobs:
           start = "<!-- kortty-download-guide:start -->"
           end = "<!-- kortty-download-guide:end -->"
           if start in body and end in body:
-              body = body[:body.index(start)] + body[body.index(end) + len(end):].lstrip()
-          body_path.write_text(downloads + "\n\n" + body.lstrip(), encoding="utf-8")
+              body = body[:body.index(start)] + body[body.index(end) + len(end):]
+          body_path.write_text(body.rstrip() + "\n\n" + downloads + "\n", encoding="utf-8")
           PY
 
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"
