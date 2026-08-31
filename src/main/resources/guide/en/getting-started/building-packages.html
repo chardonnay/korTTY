@@ -469,6 +469,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-pacman-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Pacman packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-a-flatpak-bundle" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2753,6 +2764,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-pacman-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Pacman packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-a-flatpak-bundle" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3225,6 +3247,11 @@
 </div>
 <p>The thin JAR contains korTTY classes and resources but not its runtime dependencies and does not provide the complete deployment by itself. For a Java-based portable layout, extract the generated ZIP or TAR and start <code>bin/korTTY</code> on macOS/Linux or <code>bin\korTTY.bat</code> on Windows; the destination still needs JDK 25. These distributions also contain the native JavaFX dependencies selected on the build host, so build them on the same OS and architecture on which they will run.</p>
 <p>Every korTTY release format carries the repository's canonical MIT <code>LICENSE</code>. The RPM and pacman metadata also declare <code>MIT</code>; <code>scripts/check-release-licenses.py</code> is the CI gate that prevents application package metadata from drifting to another license. Licences belonging to the Gradle wrapper, bundled runtimes, models or other dependencies remain separate and are not rewritten as korTTY's licence.</p>
+<h2 id="build-pacman-packages">Build Pacman packages<a class="headerlink" href="#build-pacman-packages" title="Permanent link">&para;</a></h2>
+<p>Regular releases publish two Pacman packages: <code>x86_64</code> for Arch Linux and <code>aarch64</code> for Arch Linux ARM. The application images are built natively on the matching Ubuntu runners first. Both Pacman jobs then run <code>makepkg</code> in the official Arch Linux <code>x86_64</code> container because the PKGBUILD only copies that pre-built image and does not compile or execute target code.</p>
+<p>The AArch64 job supplies a separate <code>makepkg.conf</code> with <code>CARCH=aarch64</code> and <code>CHOST=aarch64-unknown-linux-gnu</code>. A CI guard rejects AArch64 packaging if <code>prepare()</code>, <code>build()</code> or <code>check()</code> is ever added to the PKGBUILD; such a change requires a native Arch Linux ARM builder. The package also disables stripping and debug-package generation so <code>x86_64</code> tools never modify a pre-built AArch64 ELF.</p>
+<p>Before signing, CI requires the exact package filename and checks <code>.PKGINFO</code>, the installed MIT licence, desktop entry and launcher symlink. It also uses <code>readelf</code> to verify that the native launcher, bundled Java launcher and bundled JVM all match the advertised architecture. The detached signature is then verified locally before the package becomes an Actions artifact.</p>
+<p>For a controlled Pacman-only backfill, dispatch <strong>Build Release Binaries</strong> with scope <code>pacman-only</code>, the numeric version, the new <code>pacman_pkgrel</code> and the full commit expected behind the source tag. Use <code>release_tag=ci-only</code> first and inspect both architecture-specific Actions artifacts. Repeat with the real <code>v&lt;version&gt;</code> release tag only after inspection. The publishing job refuses immutable releases and filename collisions, uploads without clobbering, compares every remote GitHub digest with the local SHA-256 value and never deletes an existing or partially uploaded asset automatically.</p>
 <h2 id="build-a-flatpak-bundle">Build a Flatpak bundle<a class="headerlink" href="#build-a-flatpak-bundle" title="Permanent link">&para;</a></h2>
 <p>Flatpak bundles are built natively on Linux for <code>x86_64</code> and <code>aarch64</code>. The manifest uses application ID <code>io.github.chardonnay.korTTY</code> with the Freedesktop 25.08 runtime and packages the self-contained Linux application image produced by <code>jpackage</code>. Install Flatpak, <code>flatpak-builder</code> and <code>appstreamcli</code>, then run:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build<span class="w"> </span>jpackage

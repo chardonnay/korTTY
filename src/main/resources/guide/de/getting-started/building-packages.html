@@ -469,6 +469,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#erstellen-sie-pacman-pakete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie Pacman-Pakete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#erstellen-sie-ein-flatpak-bundle" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2753,6 +2764,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#erstellen-sie-pacman-pakete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erstellen Sie Pacman-Pakete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#erstellen-sie-ein-flatpak-bundle" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3225,6 +3247,11 @@
 </div>
 <p>Das Thin-JAR enthält korTTY-Klassen und -Ressourcen, jedoch keine Laufzeitabhängigkeiten und stellt selbst nicht die vollständige Bereitstellung bereit. Für ein Java-basiertes tragbares Layout extrahieren Sie die generierte ZIP- oder TAR-Datei und starten Sie <code>bin/korTTY</code> unter macOS/Linux oder <code>bin\korTTY.bat</code> unter Windows; Das Ziel benötigt weiterhin JDK 25. Diese Distributionen enthalten auch die nativen JavaFX-Abhängigkeiten, die auf dem Build-Host ausgewählt wurden. Erstellen Sie sie also auf demselben Betriebssystem und derselben Architektur, auf der sie ausgeführt werden.</p>
 <p>Jedes korTTY-Release-Format trägt den kanonischen MIT <code>LICENSE</code> des Repositorys. Die RPM- und Pacman-Metadaten deklarieren außerdem <code>MIT</code>; <code>scripts/check-release-licenses.py</code> ist das CI-Gate, das verhindert, dass Metadaten von Anwendungspaketen in eine andere Lizenz wandern. Lizenzen, die zum Gradle-Wrapper, gebündelten Laufzeiten, Modellen oder anderen Abhängigkeiten gehören, bleiben separat und werden nicht als korTTY-Lizenz umgeschrieben.</p>
+<h2 id="erstellen-sie-pacman-pakete">Erstellen Sie Pacman-Pakete<a class="headerlink" href="#erstellen-sie-pacman-pakete" title="Permanent link">&para;</a></h2>
+<p>Regelmäßige Veröffentlichungen veröffentlichen zwei Pacman-Pakete: <code>x86_64</code> für Arch Linux und <code>aarch64</code> für Arch Linux ARM. Die Anwendungsbilder werden zunächst nativ auf den passenden Ubuntu-Läufern erstellt. Beide Pacman-Jobs führen dann <code>makepkg</code> im offiziellen Arch Linux <code>x86_64</code>-Container aus, da PKGBUILD nur das vorgefertigte Image kopiert und keinen Zielcode kompiliert oder ausführt.</p>
+<p>Der AArch64-Job liefert einen separaten <code>makepkg.conf</code> mit <code>CARCH=aarch64</code> und <code>CHOST=aarch64-unknown-linux-gnu</code>. Ein CI-Guard lehnt die AArch64-Verpackung ab, wenn <code>prepare()</code>, <code>build()</code> oder <code>check()</code> jemals zum PKGBUILD hinzugefügt wird; Für eine solche Änderung ist ein nativer Arch Linux ARM-Builder erforderlich. Das Paket deaktiviert außerdem das Strippen und die Debug-Paketgenerierung, sodass <code>x86_64</code>-Tools niemals ein vorgefertigtes AArch64-ELF ändern.</p>
+<p>Vor dem Signieren benötigt CI den genauen Paketdateinamen und überprüft <code>.PKGINFO</code>, die installierte MIT-Lizenz, den Desktop-Eintrag und den Launcher-Symlink. Außerdem wird <code>readelf</code> verwendet, um zu überprüfen, ob der native Launcher, der gebündelte Java-Launcher und die gebündelte JVM alle mit der angekündigten Architektur übereinstimmen. Die abgetrennte Signatur wird dann lokal überprüft, bevor das Paket zu einem Aktionsartefakt wird.</p>
+<p>Für einen kontrollierten Pacman-Backfill senden Sie <strong>Build Release Binaries</strong> mit dem Geltungsbereich <code>pacman-only</code>, der numerischen Version, dem neuen <code>pacman_pkgrel</code> und dem vollständigen Commit, das hinter dem Quell-Tag erwartet wird. Verwenden Sie zuerst <code>release_tag=ci-only</code> und überprüfen Sie beide architekturspezifischen Aktionsartefakte. Wiederholen Sie den Vorgang mit dem echten <code>v&lt;version&gt;</code>-Freigabeetikett erst nach der Inspektion. Der Veröffentlichungsjob lehnt unveränderliche Veröffentlichungen und Dateinamenkollisionen ab, lädt ohne Überlastung hoch, vergleicht jeden Remote-GitHub-Digest mit dem lokalen SHA-256-Wert und löscht niemals ein vorhandenes oder teilweise hochgeladenes Asset automatisch.</p>
 <h2 id="erstellen-sie-ein-flatpak-bundle">Erstellen Sie ein Flatpak-Bundle<a class="headerlink" href="#erstellen-sie-ein-flatpak-bundle" title="Permanent link">&para;</a></h2>
 <p>Flatpak-Bundles werden nativ unter Linux für <code>x86_64</code> und <code>aarch64</code> erstellt. Das Manifest verwendet die Anwendungs-ID <code>io.github.chardonnay.korTTY</code> mit der Freedesktop 25.08-Laufzeit und verpackt das eigenständige Linux-Anwendungsimage, das von <code>jpackage</code> erstellt wurde. Installieren Sie Flatpak, <code>flatpak-builder</code> und <code>appstreamcli</code> und führen Sie dann Folgendes aus:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./gradlew<span class="w"> </span>clean<span class="w"> </span>build<span class="w"> </span>jpackage
