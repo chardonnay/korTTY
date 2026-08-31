@@ -80,7 +80,7 @@ class PacmanWorkflowContractTest(unittest.TestCase):
         self.assertIn("CHOST='aarch64-unknown-linux-gnu'", PACKAGER)
         self.assertIn("verify-pacman-package.sh", PACKAGER)
 
-    def test_verifier_checks_metadata_files_symlink_and_three_elfs(self):
+    def test_verifier_checks_metadata_files_symlink_launcher_and_jvm(self):
         for expected in (
             "pkgname = kortty",
             "pkgver = ${version}-${pkgrel}",
@@ -89,7 +89,6 @@ class PacmanWorkflowContractTest(unittest.TestCase):
             "usr/share/licenses/kortty/LICENSE",
             "usr/share/applications/kortty.desktop",
             "usr/bin/kortty",
-            "Bundled Java launcher",
             "Bundled JVM",
         ):
             self.assertIn(expected, VERIFIER)

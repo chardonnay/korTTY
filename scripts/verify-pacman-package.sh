@@ -70,7 +70,6 @@ case "$launcher_target" in
 esac
 
 launcher="$verify_root$launcher_target"
-runtime_java="$verify_root/usr/lib/kortty/lib/runtime/bin/java"
 runtime_jvm="$verify_root/usr/lib/kortty/lib/runtime/lib/server/libjvm.so"
 
 verify_elf_arch() {
@@ -86,7 +85,6 @@ verify_elf_arch() {
 }
 
 verify_elf_arch "$launcher" 'Native launcher'
-verify_elf_arch "$runtime_java" 'Bundled Java launcher'
 verify_elf_arch "$runtime_jvm" 'Bundled JVM'
 
 echo "Verified $expected_name: metadata, installed files, and ELF architecture are correct."

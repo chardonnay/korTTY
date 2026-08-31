@@ -30,16 +30,15 @@ PY
 create_fixture() {
   local arch=$1
   local tarball=$2
-  local java_arch=${3:-$arch}
-  local machine java_machine
+  local jvm_arch=${3:-$arch}
+  local machine jvm_machine
   case "$arch" in x86_64) machine=62 ;; aarch64) machine=183 ;; esac
-  case "$java_arch" in x86_64) java_machine=62 ;; aarch64) java_machine=183 ;; esac
+  case "$jvm_arch" in x86_64) jvm_machine=62 ;; aarch64) jvm_machine=183 ;; esac
   local stage
   stage=$(mktemp -d "$test_root/fixture.XXXXXX")
-  mkdir -p "$stage/korTTY/bin" "$stage/korTTY/lib/runtime/bin" "$stage/korTTY/lib/runtime/lib/server"
+  mkdir -p "$stage/korTTY/bin" "$stage/korTTY/lib/runtime/lib/server"
   write_elf "$stage/korTTY/bin/korTTY" "$machine"
-  write_elf "$stage/korTTY/lib/runtime/bin/java" "$java_machine"
-  write_elf "$stage/korTTY/lib/runtime/lib/server/libjvm.so" "$machine"
+  write_elf "$stage/korTTY/lib/runtime/lib/server/libjvm.so" "$jvm_machine"
   tar -C "$stage" -czf "$tarball" korTTY
 }
 
@@ -102,10 +101,10 @@ create_fixture aarch64 "$mixed_fixture" x86_64
 chown -R builder:builder "$mixed_fixture" "$mixed_output"
 mixed_log="$test_root/mixed.log"
 if run_packager "$repo_root/scripts/package-pacman.sh" aarch64 "$mixed_fixture" "$mixed_output" >"$mixed_log" 2>&1; then
-  echo 'AArch64 package with an x86_64 bundled Java launcher was accepted.' >&2
+  echo 'AArch64 package with an x86_64 bundled JVM was accepted.' >&2
   exit 1
 fi
-grep -F "Bundled Java launcher has ELF machine 'Advanced Micro Devices X86-64'; expected 'AArch64'." "$mixed_log" >/dev/null
+grep -F "Bundled JVM has ELF machine 'Advanced Micro Devices X86-64'; expected 'AArch64'." "$mixed_log" >/dev/null
 test -z "$(find "$mixed_output" -maxdepth 1 -type f -name '*.pkg.tar.zst' -print -quit)"
 
 echo 'Pacman packaging integration tests passed for x86_64 and aarch64.'
