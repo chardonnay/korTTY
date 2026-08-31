@@ -1126,6 +1126,11 @@ jobs:
             asset_link "korTTY-Windows-$VERSION-x86_64.msi" 'Installer (.msi)'
             asset_link "korTTY-Windows-$VERSION-x86_64.zip" 'Portable app (.zip)'
             echo
+            echo '*Windows on ARM (x64 emulation)*'
+            echo 'korTTY does not currently have a native Windows ARM64 build. Windows on ARM runs the tested `x86_64` packages through its built-in x64 emulation.'
+            asset_link "korTTY-Windows-$VERSION-x86_64.msi" 'Installer for Windows on ARM (.msi, x64 emulated)'
+            asset_link "korTTY-Windows-$VERSION-x86_64.zip" 'Portable app for Windows on ARM (.zip, x64 emulated)'
+            echo
             echo '**macOS**'
             echo
             echo '*Apple Silicon (aarch64)*'
