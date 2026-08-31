@@ -22,6 +22,8 @@ modules:
       - install -Dm755 kortty-flatpak /app/bin/kortty
       - install -Dm644 io.github.chardonnay.korTTY.desktop /app/share/applications/io.github.chardonnay.korTTY.desktop
       - install -Dm644 io.github.chardonnay.korTTY.metainfo.xml /app/share/metainfo/io.github.chardonnay.korTTY.metainfo.xml
+      - install -Dm644 kortty_icon_64.png /app/share/icons/hicolor/64x64/apps/io.github.chardonnay.korTTY.png
+      - install -Dm644 kortty_icon_128.png /app/share/icons/hicolor/128x128/apps/io.github.chardonnay.korTTY.png
       - install -Dm644 kortty_icon.png /app/share/icons/hicolor/1024x1024/apps/io.github.chardonnay.korTTY.png
       - install -Dm644 LICENSE /app/share/licenses/io.github.chardonnay.korTTY/LICENSE
     sources:
@@ -34,6 +36,10 @@ modules:
         path: io.github.chardonnay.korTTY.desktop
       - type: file
         path: io.github.chardonnay.korTTY.metainfo.xml
+      - type: file
+        path: kortty_icon_64.png
+      - type: file
+        path: kortty_icon_128.png
       - type: file
         path: ../../src/main/resources/icon/kortty_icon.png
       - type: file
