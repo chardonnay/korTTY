@@ -47,7 +47,11 @@ def main() -> int:
     )
 
     gradle = GRADLE.read_text(encoding="utf-8")
-    require('"--license-file"' in gradle, "jpackage does not receive --license-file", failures)
+    require(
+        gradle.count('"--license-file"') == 4,
+        "DMG, MSI, DEB and RPM must each receive --license-file exactly once",
+        failures,
+    )
     require(
         '"--linux-rpm-license-type", "MIT"' in gradle,
         "RPM package metadata does not declare MIT",

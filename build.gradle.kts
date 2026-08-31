@@ -2066,7 +2066,6 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--app-version", appVersion,
         "--vendor", "korTTY",
         "--copyright", "Copyright (c) 2026 Daniel Mengel",
-        "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
         "--description", "SSH Client",
         "--input", inputDir,
         "--main-jar", mainJar,
@@ -2571,6 +2570,7 @@ if (isWindows) {
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
         args.addAll(listOf(
             "--type", "msi",
+            "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
             "--win-dir-chooser",
             "--win-menu",
             "--win-shortcut"
@@ -2640,6 +2640,7 @@ if (isLinux) {
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
         args.addAll(listOf(
             "--type", "deb",
+            "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
             "--linux-package-name", appName.lowercase(),
             "--linux-shortcut",
             "--icon", iconFile.absolutePath
@@ -2667,6 +2668,7 @@ if (isLinux) {
         val args = getJpackageBaseArgs(appName, appVersion, mainJar, inputDir, outputDir)
         args.addAll(listOf(
             "--type", "rpm",
+            "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
             "--linux-package-name", appName.lowercase(),
             "--linux-rpm-license-type", "MIT",
             "--linux-shortcut",
