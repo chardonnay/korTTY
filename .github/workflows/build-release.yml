@@ -739,9 +739,9 @@ jobs:
 
           flatpak install --user --noninteractive "$BUNDLE"
           test "$(flatpak info --user --show-ref "$APP_ID")" = "app/${APP_ID}/${ARCH}/stable"
-          test "$(flatpak run --command=flatpak-spawn "$APP_ID" --host sh -lc 'printf kortty-flatpak-host-ok')" = \
+          test "$(dbus-run-session -- flatpak run --command=flatpak-spawn "$APP_ID" --host sh -lc 'printf kortty-flatpak-host-ok')" = \
             "kortty-flatpak-host-ok"
-          xvfb-run -a timeout 90 flatpak run "$APP_ID" --webview-jit-smoke
+          dbus-run-session -- xvfb-run -a timeout 90 flatpak run "$APP_ID" --webview-jit-smoke
           flatpak uninstall --user --noninteractive "$APP_ID"
 
       - name: Sign RPM package
