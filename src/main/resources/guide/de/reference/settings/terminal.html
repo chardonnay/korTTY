@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2420,7 +2420,7 @@
 <td><code>encoding</code></td>
 </tr>
 <tr>
-<td>Fett als helle Farbe</td>
+<td>Fett wie helle Farbe</td>
 <td>umschalten</td>
 <td>—</td>
 <td>Ein</td>
@@ -2509,7 +2509,7 @@
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</p>
-<p>Dies ist die globale Hostschlüsseleinstellung mit der niedrigsten Priorität: Sie lockert die Überprüfung auf „Accept-New“ für jede Verbindung, die nicht ihre eigene oder die Überschreibung ihrer Gruppe festlegt. Accept-new blockiert einen geänderten Schlüssel auf einem bereits gepinnten Host immer noch hart, und der eigene Schlüssel eines Jump-Servers wird immer streng überprüft – aber durch Deaktivieren der Erstverwendungsüberprüfung wird der Schutz vor einem Man-in-the-Middle bei der allerersten Verbindung aufgehoben. Standardmäßig deaktiviert. Im Verbindungsmanager werden verbindungs- und gruppenspezifische Außerkraftsetzungen festgelegt. siehe <a href="../../features/security.html#lockere-uberprufung-des-hostschlussels">Sicherheit → Lockere Host-Schlüssel-Überprüfung</a>.</p>
+<p>Dies ist die globale Hostschlüsseleinstellung mit der niedrigsten Priorität: Sie lockert die Überprüfung auf „Accept-New“ für jede Verbindung, die nicht ihre eigene oder die Überschreibung ihrer Gruppe festlegt. Accept-new blockiert weiterhin einen geänderten Schlüssel auf einem bereits gepinnten Host, und der eigene Schlüssel eines Jump-Servers wird immer strikt überprüft – aber durch Deaktivieren der Erstverwendungsüberprüfung wird der Schutz vor einem Man-in-the-Middle bei der allerersten Verbindung aufgehoben. Standardmäßig deaktiviert. Im Verbindungsmanager werden verbindungs- und gruppenspezifische Außerkraftsetzungen festgelegt. siehe <a href="../../features/security.html#lockere-uberprufung-des-hostschlussels">Sicherheit → Lockere Host-Schlüssel-Überprüfung</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Drag-and-Drop-Datei kopieren</p>
@@ -2526,7 +2526,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Verlorene Verbindungen automatisch wiederherstellen</p>
-<p>Wenn diese Option aktiviert ist und eine <strong>hergestellte</strong> SSH-Verbindung verloren geht (Netzwerkausfall, Server weg), stellt die Registerkarte die Verbindung von selbst mit zunehmenden Verzögerungen wieder her – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste stellt die Verbindung trotzdem sofort wieder her und eine erfolgreiche erneute Verbindung oder das Schließen des Tabs stoppt die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie hergestellt wurde, wird durch diese Einstellung auch nicht erneut versucht – das ist es, was <em>Verbindungswiederholungen aktivieren</em> abdeckt. Siehe <a href="../../features/terminal.html#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Terminalsitzungen → Verbindungsverlust</a>.</p>
+<p>Wenn diese Option aktiviert ist und eine <strong>hergestellte</strong> SSH-Verbindung verloren geht (Netzwerkausfall, Server weg), stellt die Registerkarte die Verbindung mit zunehmenden Verzögerungen selbstständig wieder her – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste stellt die Verbindung trotzdem sofort wieder her und eine erfolgreiche erneute Verbindung oder das Schließen des Tabs stoppt die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie hergestellt wurde, wird durch diese Einstellung auch nicht erneut versucht – das ist es, was <em>Verbindungswiederholungen aktivieren</em> abdeckt. Siehe <a href="../../features/terminal.html#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Terminalsitzungen → Verbindungsverlust</a>.</p>
 </div>
 
 

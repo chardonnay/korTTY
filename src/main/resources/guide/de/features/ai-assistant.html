@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -3042,7 +3042,7 @@
 <li>Öffnen Sie <strong>Bearbeiten &gt; Globale Einstellungen</strong>.</li>
 <li>Gehe zu <strong>AI</strong>.</li>
 <li>Erstellen Sie ein oder mehrere AI-Profile unter <strong>Einstellungen &gt; AI</strong> oder <strong>KI &gt; KI-Manager &gt; Profile</strong>. Wählen Sie <strong>HTTP API</strong>, <strong>Local CLI</strong> oder <strong>Integrated llama.cpp</strong> als Verbindungsmodus.</li>
-<li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus; korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>KI-Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
+<li>Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus. korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst <strong>KI-Manager &gt; Lokale Modelle</strong>, wenn kein GGUF installiert ist.</li>
 <li>Konfigurieren Sie optional <strong>Prompt-Optimierung</strong>, <strong>Max. Zeichen</strong>, <strong>Tokenizer</strong>, <strong>Token-Limit</strong>, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten <strong>Begründungsaufwand</strong> und <strong>Internetzugriff</strong> pro Profil. korTTY stellt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Die genauen nativen Funktionsmetadaten von LM Studio haben Vorrang vor Kompatibilitätsprüfungen, sodass ein stillschweigend konvertierter Aufwand nicht als unterstützt angezeigt wird. Profile ohne unterstützten expliziten Reasoning-Modus behalten das Standardverhalten des Anbieters bei.</li>
 <li>Legen Sie optional ein <strong>Zeitlimit für KI-Anfragen</strong> in Minuten fest. korTTY führt bei KI-Anfragen nicht automatisch zu einer Zeitüberschreitung, daher wird eine lange Aufgabe wie die <strong>Vollständige Codeanalyse</strong> des Snippet-Editors ausgeführt, bis das Modell antwortet. Der Wert auf der Seite <strong>Profile</strong> gilt für jedes Profil; <strong>Zeitlimit für dieses Profil</strong> überschreibt es für ein einzelnes Profil, und 0 bedeutet, dass das Profil nie abläuft. Siehe <a href="../reference/settings/ai.html">AI-Einstellungen</a>.</li>
 <li>Klicken Sie auf <strong>AI-Verbindung testen</strong>.</li>
@@ -3082,7 +3082,7 @@
 <p>Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Fähigkeiten, begrenzter nicht vertrauenswürdiger RAG-Kontext mit <code>[R1]</code>-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Die dedizierte Nur-Quelle-Diagrammanforderung, die von Snippets und Workflows verwendet wird, ist eine kleine Ausnahme: Nach seinem festen Ausgabevertrag fügt korTTY immer eine kompakte, unveränderliche Aktionsfähigkeit für die angeforderte Diagrammfamilie (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse oder ER) hinzu und lässt alle konfigurierbaren Bibliotheksfähigkeiten und Abrufkontexte aus. Für ein Profil mit einer festen Modellauswahl setzt korTTY den anforderungsbezogenen <strong>Reasoning</strong>-Wert nur dann automatisch auf <code>none</code>, wenn dieser Wert verfügbar ist, ohne das gespeicherte Profil zu ändern. Der Aktionsskill ist keiner der 39 ausgelieferten konfigurierbaren integrierten Skills: Benutzer können ihn nicht deaktivieren oder bearbeiten, und er fügt keine Übereinstimmungs-/Klassifizierungsanfrage hinzu. Die Phasen der vollständigen Codeanalyse, in denen ausgewählte Verbesserungen angewendet werden, und die anschließenden Sicherheitskorrekturen verwenden dieselbe feste Modellregel, da sie begrenzte, maschinell analysierte vollständige Skriptersetzungen zurückgeben. Die vorherige Analyse verwendet weiterhin den konfigurierten Reasoning-Wert des Profils. Ein Auto-Profil wird nicht von zuvor erkannten Funktionen überschrieben, da sich sein geladenes Modell ändern kann; ein explizit konfigurierter <code>none</code>-Wert gilt weiterhin. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter <a href="rag.html">RAG Wissensspeicher</a>.</p>
 <h3 id="lokale-lm-studio-modellauswahl">Lokale LM Studio-Modellauswahl<a class="headerlink" href="#lokale-lm-studio-modellauswahl" title="Permanent link">&para;</a></h3>
 <p>Für lokale LM Studio-Profile kann korTTY aktuell geladene LLM-Modellschlüssel und genaue Reasoning-Optionen über den <code>GET /api/v1/models</code>-Endpunkt von LM Studio ermitteln. Ein binäres Modell, das nur <code>off</code> und <code>on</code> meldet, zeigt daher die Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ oder „Extra hoch“ nicht mehr als unterstützt an, nur weil LM Studio einen nicht unterstützten Wert stillschweigend konvertieren würde; Eine explizite <code>none</code>-Anfrage schaltet diese Funktion aus, während das Weglassen des Reasoning-Parameters die veröffentlichte Standardeinstellung des Modells verwendet.</p>
-<p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, AI-Chat- und Folgeanfragen, Terminal-AI-Aktionen und Terminal-AI-Agent-Ausführungen auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
+<p>Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstests, KI-Chat- und Folgeanfragen, Terminal-KI-Aktionen und der Ausführung des Terminal-KI-Agenten auf. Wenn genau ein LLM geladen ist, verwendet korTTY dieses Modell. Wenn mehrere LLMs geladen sind, verwendet korTTY das gespeicherte bevorzugte Modell nur, wenn dieses Modell gerade geladen ist. Wenn kein LLM geladen ist oder mehrere LLMs ohne gültige gespeicherte Präferenz geladen werden, stoppt korTTY die Anfrage mit einem expliziten Fehler, anstatt zu raten.</p>
 <h2 id="ai-internetzugang">AI Internetzugang<a class="headerlink" href="#ai-internetzugang" title="Permanent link">&para;</a></h2>
 <p>Der Internetzugang wird pro AI-Profil konfiguriert. Vorhandene und neue Profile sind standardmäßig <strong>Deaktiviert</strong>.</p>
 <table>
@@ -3119,7 +3119,7 @@
 </tr>
 <tr>
 <td><strong>LM Studio Toolpack</strong></td>
-<td>korTTY sendet eine LM Studio native <code>/api/v1/chat</code>-Anfrage mit der konfigurierten LM Studio Toolpack MCP-Plugin-ID.</td>
+<td>korTTY sendet eine native LM Studio <code>/api/v1/chat</code>-Anfrage mit der konfigurierten LM Studio Toolpack MCP-Plugin-ID.</td>
 </tr>
 </tbody>
 </table>
@@ -3130,7 +3130,7 @@
 <li>Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden und maximal zwei Web-Tool-Runden pro KI-Anfrage.</li>
 <li>LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.</li>
 <li>Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.</li>
-<li>Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool eine Zeitüberschreitung erfährt, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.</li>
+<li>Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool das Zeitlimit überschreitet, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.</li>
 <li>Für die Terminal-Agent-JSON-Planung bietet korTTY Web-Tools nur dann an, wenn die Benutzeraufgabe eindeutig nach aktuellen oder externen Informationen fragt. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie <code>sed</code>, <code>cat</code>, <code>find</code> oder Testbefehle und nicht durch die Websuche erledigt werden.</li>
 </ul>
 <h2 id="ai-fahigkeiten">AI-Fähigkeiten<a class="headerlink" href="#ai-fahigkeiten" title="Permanent link">&para;</a></h2>
@@ -3148,7 +3148,7 @@
 <h3 id="steuerelemente">Steuerelemente<a class="headerlink" href="#steuerelemente" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Enable AI Skills</strong> deaktiviert oder aktiviert alle Skills global.</li>
-<li><strong>Automatisch nur passende Fertigkeiten senden</strong> sendet nur aktive Fertigkeiten, die der aktuellen Anfrage entsprechen. Bei Deaktivierung werden alle aktiven Fertigkeiten mit einem passenden Ziel gesendet.</li>
+<li><strong>Automatisch nur passende Fertigkeiten senden</strong> sendet nur aktive Fertigkeiten, die der aktuellen Anfrage entsprechen – höchstens die beiden Übereinstimmungen mit der höchsten Punktzahl; Fähigkeiten, die der aktiven Verbindung zugewiesen sind oder explizit in der <strong>KI-Skills</strong>-Auswahl des Snippet-Editors ausgewählt wurden, werden zusätzlich zu diesem Limit hinzugefügt. Bei Deaktivierung werden alle aktiven Fertigkeiten mit einem passenden Ziel gesendet.</li>
 <li><strong>Hinzufügen</strong> erstellt einen neuen aktiven Skill mit dem Ziel <code>Both</code>.</li>
 <li><strong>Delete</strong> entfernt den ausgewählten Skill nach Bestätigung.</li>
 <li><strong>Import</strong> akzeptiert <code>.md</code>- und <code>.markdown</code>-Dateien.</li>
@@ -3207,7 +3207,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 </thead>
 <tbody>
 <tr>
-<td><code>```svg</code> / <code>```xml</code> / <code>```html</code> Codeblock (oder Block ohne Tags), der ein <code>&lt;svg&gt;</code> Dokument enthält</td>
+<td><code>```svg</code> / <code>```xml</code> / <code>```html</code> Codeblock (oder Block ohne Tags), der ein <code>&lt;svg&gt;</code>-Dokument enthält.</td>
 <td>Inline-Vektorbild</td>
 </tr>
 <tr>
@@ -3215,7 +3215,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <td>Inline-Rasterbild (PNG, JPEG, GIF, BMP; bis zu 8 MB dekodiert) mit einer Schaltfläche <strong>Bild kopieren</strong></td>
 </tr>
 <tr>
-<td><code>```mermaid</code> Codeblock</td>
+<td><code>```mermaid</code>-Codeblock</td>
 <td>Mermaid-Diagramm (gebündelte Bibliothek, kein Netzwerk)</td>
 </tr>
 <tr>
@@ -3245,7 +3245,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <ul>
 <li>SVG und die gerenderte Mermaid-Ausgabe werden mit deaktiviertem JavaScript und entfernten Skripten/Ereignishandlern aus dem Dokument angezeigt.</li>
 <li>Mermaid 11.17.0 läuft mit der Sicherheitsstufe <code>strict</code> von einem SHA-256-gepinnten lokalen Bundle; LaTeX wird durch ein separat geladenes lokales MathJax-Bundle gesetzt. Keiner von beiden benötigt einen Internetzugang.</li>
-<li>Chat Mermaid behält die vollständige gebündelte Diagrammunterstützung, einschließlich Flussdiagramme, Sequenz-, Klassen-, Zustands-, ER-, Mindmap- und Architekturdiagramme. Frontmatter, Anweisungen, Netzwerk-/Datei-/Daten-/JavaScript-URLs, externe Bilder/Symbole, Links und Klickrückrufe werden abgelehnt; Quell-, Kantenanzahl-, Rastergrößen- und Timeout-Grenzwerte schützen den Renderer.</li>
+<li>Chat Mermaid behält die vollständige gebündelte Diagrammunterstützung bei, einschließlich Flussdiagrammen, Sequenz-, Klassen-, Zustands-, ER-, Mindmap- und Architekturdiagrammen. Frontmatter, Anweisungen, Netzwerk-/Datei-/Daten-/JavaScript-URLs, externe Bilder/Symbole, Links und Klickrückrufe werden abgelehnt; Quell-, Kantenanzahl-, Rastergrößen- und Timeout-Grenzwerte schützen den Renderer.</li>
 <li>Vollständige LaTeX-Dokumente (<code>\documentclass</code>) bleiben absichtlich Codeblöcke; Es werden nur Formeln gesetzt.</li>
 <li>Mermaid folgt der Hell/Dunkel-Palette des aktiven Chats; Andere gerenderte Bilder und Formeln behalten eine lesbare neutrale Leinwand.</li>
 </ul>
@@ -3269,7 +3269,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <ul>
 <li>korTTY wählt die relevantesten Abschnitte aus dem gebündelten Offline-Anleitung aus (keine Einbettungen, kein externer Suchdienst) und sendet nur diese Auszüge zusammen mit Ihrer Frage an Ihr <strong>Standard-KI-Profil</strong>.</li>
 <li>Die Antwort wird <strong>ausschließlich aus der Anleitunginhalt</strong> generiert und ist in der App-Sprache verfasst. Wenn die Anleitung die Frage nicht beantwortet, sagt der Assistent dies, anstatt zu raten.</li>
-<li>Antworten geben ihre Quellen an: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste <strong>Quellen</strong>, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.</li>
+<li>Antworten zitieren ihre Quellen: Klicken Sie auf ein Inline-Zitat oder einen Eintrag in der Liste <strong>Quellen</strong>, um in der manuellen Ansicht direkt zur Seite und zum Abschnitt zu gelangen, auf die verwiesen wird.</li>
 <li>Wenn nichts in der Anleitung mit der Frage übereinstimmt, antwortet korTTY lokal, ohne den KI-Endpunkt überhaupt zu kontaktieren.</li>
 </ul>
 <p>Anforderungen:</p>
@@ -3285,7 +3285,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <p>korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.</p>
 <div class="admonition note">
 <p class="admonition-title">SSH und lokale Shells</p>
-<p>Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#lokale-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. <strong>Lokale Shell-Einschränkung:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+<p>Die Befehlsausführungs-Engine des Agenten ist hinter einer <code>AgentCommandRunner</code>-Abstraktion mit zwei Backends – <strong>SSH</strong> (Exec-Kanal) und <strong>local</strong> (ein neuer lokaler Prozess) von SSH entkoppelt. Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen daher sowohl in SSH-Sitzungen als auch in <a href="connections.html#lokale-shell">lokalen Shells</a> unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>), der Umgebungstest und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. <strong>Lokale Shell-Einschränkung:</strong> keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 </div>
 <h3 id="der-agent-wird-gestartet">Der Agent wird gestartet<a class="headerlink" href="#der-agent-wird-gestartet" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3295,7 +3295,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <h3 id="aktivitatspanel-und-platzierung">Aktivitätspanel und Platzierung<a class="headerlink" href="#aktivitatspanel-und-platzierung" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Split-Local-Aktivitätsbereich</strong> – Auf Terminals ausgerichtete Läufe werden am unteren Rand des Terminalsplits dort angezeigt, wo der Lauf gestartet wurde. Jeder Split verfügt über ein eigenes Panel, sodass verschiedene Splits ihre eigenen Agentenaufgaben parallel ausführen können.</li>
-<li><strong>Panel-Platzierung</strong> – Verwenden Sie <strong>Ansicht &gt; AI Agent Panel</strong>, um <strong>Unten</strong> (Standard), <strong>Links andocken</strong> oder <strong>Rechts andocken</strong> auszuwählen. Im angedockten Modus wird die Aktivität in einem in der Größe veränderbaren Seitenbereich angezeigt, der an das Hauptfenster angeschlossen ist. Ziehen Sie den Teiler, um die Größe zu ändern. Die Platzierung und Breite werden bei jedem Neustart gespeichert. Im Seitenmodus gibt es eine äußere Lasche pro Anschluss der aktiven Anschlusslasche, und die Läufe werden vertikal gestapelt. Wenn Sie zu einer anderen Terminal-Registerkarte wechseln, wechselt das Dock zu den Terminals dieser Registerkarte.</li>
+<li><strong>Panel-Platzierung</strong> – Verwenden Sie <strong>Ansicht &gt; AI Agent Panel</strong>, um <strong>Unten</strong> (Standard), <strong>Links andocken</strong> oder <strong>Rechts andocken</strong> auszuwählen. Im angedockten Modus wird die Aktivität in einem in der Größe veränderbaren Seitenbereich angezeigt, der an das Hauptfenster angeschlossen ist. Ziehen Sie den Teiler, um die Größe zu ändern. Die Platzierung und Breite werden bei jedem Neustart gespeichert. Im Seitenmodus gibt es eine äußere Lasche pro Anschluss der aktiven Anschlusslasche und die Läufe werden vertikal gestapelt. Wenn Sie zu einer anderen Terminal-Registerkarte wechseln, wechselt das Dock zu den Terminals dieser Registerkarte.</li>
 <li><strong>Agentenstatusanzeigen</strong> – Ein KI-Agentenstatussymbol pro Terminal wird in der Dashboard-Struktur angezeigt und dem Registerkartentitel des Terminals vorangestellt:</li>
 <li>✋ wartet auf Eingabe</li>
 <li>⚡ funktioniert</li>
@@ -3304,10 +3304,10 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li><strong>Gleichzeitige Ausführungen</strong> – Mehrere gleichzeitige Ausführungen pro Split werden als schließbare Registerkarten im Aktivitätsbereich angezeigt (eine Registerkarte pro Ausführung), mit einer Parallelitätsobergrenze pro Widget von 5 Ausführungen. Abgeschlossene Läufe bleiben als Tabs erhalten, bis sie geschlossen werden.</li>
 <li><strong>Tippen während des Laufens</strong> – Das Tippen ist nicht mehr gesperrt, während ein Lauf aktiv ist. Sie können mit der Eingabe am Shell-Prompt fortfahren und einen weiteren <code>agent ...</code>-Befehl starten (er öffnet eine neue gleichzeitige Registerkarte). Es werden nur Laufsteuerungstasten abgefangen: ++Esc++ oder ++Ctrl+C++ brechen die Ausführung des ausgewählten Tabs ab; ++Ctrl+R++ schaltet die Denkdetails dieses Laufs um.</li>
 <li><strong>Pause und Fortsetzen</strong> – Auf jeder Laufregisterkarte werden Schaltflächen zum Anhalten und Abbrechen angezeigt. Pause parkt den Agenten an einem sicheren Punkt zwischen den Schritten; Die Pausenzeit wird von der Laufarbeitszeit ausgeschlossen.</li>
-<li><strong>Aktuelles Verzeichnis</strong> – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Eine lokale Ausführung erfasst ein stabiles Verzeichnis für ihre Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn der Ausführung ausgeführt wurde.</li>
+<li><strong>Aktuelles Verzeichnis</strong> – Terminalverknüpfungen verwenden das von korTTY verfolgte aktuelle Verzeichnis für SSH und lokale Shells. Ein lokaler Lauf erfasst ein stabiles Verzeichnis für seine Probe und jeden Befehl, sodass Befehle und generierte Dateien relativ zu dem Ort bleiben, an dem die interaktive Shell zu Beginn des Laufs arbeitete.</li>
 <li><strong>Genehmigungen und Sudo</strong> – Der Agent kann vor der Befehlsausführung eine explizite Genehmigung anfordern und im Aktivitätsbereich nach einem Sudo-Passwort fragen. Die Passworteingabe ist maskiert, kann mit ++Enter++ übermittelt werden und ermöglicht bis zu drei Wiederholungsversuche mit falschem Passwort. Wenn ein Passwort zwischengespeichert wird, wird es nur für den aktuellen Agenten-/Sitzungskontext verwendet. Wenn eine Benutzereingabe (Sudo-Passwort/Befehlsgenehmigung) erforderlich ist, wird das Bedienfeld automatisch erweitert.</li>
 <li><strong>Reduzierte Statusleiste</strong> – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Ausführungsaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und einer Schaltfläche „Erweitern“ angezeigt. Während der Agent aktiv arbeitet, wird ein Kreissymbol angezeigt, und eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.</li>
-<li><strong>Reduziert halten</strong> – Verwenden Sie <strong>Reduziert halten</strong>, um das Panel minimiert auf die Statusleiste zu bringen.</li>
+<li><strong>Reduziert halten</strong> – Verwenden Sie <strong>Reduziert halten</strong>, um das Bedienfeld minimiert auf die Statusleiste zu bringen.</li>
 <li><strong>Terminalausgabe</strong> – Die endgültigen Antworten des Terminalagenten werden in den Terminalbereich zurückgeschrieben, sodass das Shell-Transkript die Antwort enthält.</li>
 <li><strong>Panel-Steuerelemente</strong> – Verwenden Sie die Schaltfläche „Neu laden“, um den ausgewählten Agentenbefehl erneut auszuführen. Kopier- oder Snippet-Aktionen sind für Aktivitätszeilen verfügbar. Exportieren Sie den aktuellen Lauf oder den vollständigen Verlauf als Markdown, Nur-Text, YAML, XML, JSON, PDF oder Asciidoctor. Verwenden Sie <strong>Alle erweitern</strong>, um die Aktivitätsdetails offen zu halten. Verwenden Sie <strong>A-</strong> und <strong>A+</strong>, um die Schriftgröße der Aktivität zu ändern. Ziehen Sie den Größenänderungsgriff, um die Panelhöhe zu ändern.</li>
 </ul>
@@ -3436,7 +3436,7 @@ Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet
 <li>Befehle, die das System ändern oder Berechtigungen erfordern, können abhängig von den Einstellungen und der Modellentscheidung durch eine Bestätigung weitergeleitet werden.</li>
 <li>Sudo verwendet <code>sudo -n</code> und Passwortabfragen im Aktivitätsbereich. korTTY erlaubt keine <code>sudo -S</code>, <code>su</code> oder Befehle, die unbegrenzt auf eine Terminal-Passwortabfrage warten.</li>
 <li>SSH-Verzeichnisse werden anhand von Shell-Hooks, Terminal-Eingabeaufforderungskontext und Prüfergebnissen verfolgt. Wenn ein verfolgtes Remote-Verzeichnis nicht mehr vorhanden ist, versucht korTTY die Prüfung erneut vom SSH-Standardverzeichnis aus und meldet das Problem. Lokale Ausführungen aktualisieren das Shell-Prozessverzeichnis oder verwenden einen absoluten nativen Eingabeaufforderungspfad, frieren das Ergebnis für die Ausführung ein und stoppen sicher, wenn ein geändertes Verzeichnis nicht ermittelt oder zugeordnet werden kann.</li>
-<li>Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Nur die Laufsteuerungstasten (++Esc++/++Ctrl+C++ zum Abbrechen des ausgewählten Laufs, ++Ctrl+R++ zum Umschalten seiner Denkdetails) werden abgefangen.</li>
+<li>Während eine terminalbezogene Ausführung aktiv ist, ist normales Tippen weiterhin zulässig; Nur die Laufsteuerungstasten (++Esc++/++Ctrl+C++ zum Abbrechen des ausgewählten Laufs, ++Ctrl+R++ zum Umschalten seiner Denkdetails) werden abgefangen.</li>
 <li>Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.</li>
 <li>Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.</li>
 </ul>

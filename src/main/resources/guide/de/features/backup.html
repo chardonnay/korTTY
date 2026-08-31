@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2591,7 +2591,7 @@
 <h2 id="eigenschaften">Eigenschaften<a class="headerlink" href="#eigenschaften" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Verschlüsselte Backups</strong> – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt</li>
-<li><strong>Konfigurationssicherung</strong> – Beinhaltet Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten</li>
+<li><strong>Konfigurationssicherung</strong> – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten</li>
 <li><strong>Regenerierbare lokale KI-Daten ausgeschlossen</strong> – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert</li>
 <li><strong>Projektverzeichnis</strong> – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten</li>
 <li><strong>Automatische Rotation</strong> – Alte Backups werden automatisch mit Zeitstempeln in ein <code>old-backups</code>-Unterverzeichnis verschoben</li>
@@ -2713,7 +2713,7 @@
 <li><code>connections.xml</code> – Alle SSH-Verbindungen und -Gruppen</li>
 <li><code>credentials.xml</code> – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)</li>
 <li><code>ssh-keys.xml</code> – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen</li>
-<li><code>ssh-keys/</code> – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über <strong>In Benutzerverzeichnis kopieren</strong> dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Eigentümerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne <strong>Überschreiben</strong>, ersetzt</li>
+<li><code>ssh-keys/</code> – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über <strong>In Benutzerverzeichnis kopieren</strong> dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne <strong>Überschreiben</strong>, ersetzt</li>
 <li><code>ssh-host-keys.properties</code> – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (<code>ssh-host-keys.properties.lock</code> ist absichtlich ausgeschlossen)</li>
 <li><code>gpg-keys.xml</code> – öffentliche GPG-Schlüssel</li>
 <li><code>global-settings.xml</code> – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen</li>

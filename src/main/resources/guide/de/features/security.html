@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -3124,7 +3124,7 @@ Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder geb
 <p>Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Wenn Sie <strong>Master-Passwort beim Start anfordern</strong> in <strong>Einstellungen &gt; Sicherheit</strong> deaktivieren, wird diese Eingabeaufforderung ausgeblendet, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
 <div class="admonition danger">
 <p class="admonition-title">Optionale automatische Anmeldung schwächt den Schutz im Ruhezustand</p>
-<p>Die zweite Sicherheitsoption, <strong>Master-Passwort-Eingabeaufforderung beim Start deaktivieren (automatische Anmeldung)</strong>, entfernt die Eingabeaufforderung ebenfalls, hält den Tresor jedoch vollständig nutzbar: korTTY schreibt Ihr Master-Passwort in <code>~/.kortty/master.autounlock</code> – <strong>Nur verschleiert, nicht verschlüsselt</strong>, mit Dateiberechtigungen nur für den Eigentümer – und wird bei jedem Start automatisch entsperrt. Der Verschleierungsschlüssel ist in die Anwendung eingebettet, sodass Dateiberechtigungen die einzige wirkliche Grenze darstellen; jeder, der lesen kann <code>~/.kortty</code> oder ein Backup kann alle gespeicherten Geheimnisse entschlüsseln. Bei einem brandneuen Profil führt die Option ein Standard-Master-Passwort ohne Dialog aus. korTTY fragt vor der Aktivierung nach einer Bestätigung, es ist für Wegwerf-/Testumgebungen gedacht und a <a href="../reference/enterprise-policy.html">Richtlinienkonfiguration</a> das ein Master-Passwort erfordert, deaktiviert es. Einzelheiten: <a href="../reference/settings/security.html">Sicherheitseinstellungen</a>.</p>
+<p>Die zweite Sicherheitsoption, <strong>Master-Passwort-Eingabeaufforderung beim Start deaktivieren (automatische Anmeldung)</strong>, entfernt die Eingabeaufforderung ebenfalls, hält den Tresor jedoch vollständig nutzbar: korTTY schreibt Ihr Master-Passwort in <code>~/.kortty/master.autounlock</code> – <strong>Nur verschleiert, nicht verschlüsselt</strong>, mit Dateiberechtigungen nur für den Besitzer – und wird bei jedem Start automatisch entsperrt. Der Verschleierungsschlüssel ist in die Anwendung eingebettet, sodass Dateiberechtigungen die einzige wirkliche Grenze darstellen. jeder, der lesen kann <code>~/.kortty</code> oder ein Backup kann alle gespeicherten Geheimnisse entschlüsseln. Bei einem brandneuen Profil führt die Option ein Standard-Master-Passwort ohne Dialog aus. korTTY fragt vor der Aktivierung nach einer Bestätigung, es ist für Wegwerf-/Testumgebungen gedacht und a <a href="../reference/enterprise-policy.html">Richtlinienkonfiguration</a> das ein Master-Passwort erfordert, deaktiviert es. Einzelheiten: <a href="../reference/settings/security.html">Sicherheitseinstellungen</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>

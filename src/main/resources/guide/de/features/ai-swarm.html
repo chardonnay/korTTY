@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2723,7 +2723,7 @@
 <p>Jeder Server verfügt über eine Zeile in der <strong>Agents</strong>-Liste, in der sein Status-Badge, die verstrichene Zeit und die Token-Anzahl angezeigt werden. <strong>Klicken Sie mit der linken Maustaste auf eine Zeile</strong>, um sie inline zu erweitern und das Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung anzusehen – kein zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten, sodass immer die neueste Ausgabe sichtbar ist.</p>
 <p><strong>Klicken Sie mit der rechten Maustaste auf eine Zeile</strong>, um die Kontrolle pro Agent zu erhalten: <strong>Pause</strong>, <strong>Fortsetzen</strong>, <strong>Neustart</strong> und <strong>Stopp</strong> gelten nur für diesen Agenten. Durch den Neustart eines Agenten werden die anderen nicht gestört. seine Antwort wird im kombinierten Ergebnis ersetzt.</p>
 <h2 id="steuerung-ausfuhren">Steuerung ausführen<a class="headerlink" href="#steuerung-ausfuhren" title="Permanent link">&para;</a></h2>
-<p>Die Symbolleiste bietet die gleichen vier Steuerelemente für den <strong>gesamten Schwarm</strong>: <strong>Pause</strong>, <strong>Fortsetzen</strong>, <strong>Neustart</strong> und <strong>Stop</strong>. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird <em>Pause…</em> angezeigt, bis es wirksam wird), und abgelaufene Timer bleiben während der Pause stehen.</p>
+<p>Die Symbolleiste bietet die gleichen vier Steuerelemente für den <strong>gesamten Schwarm</strong>: <strong>Pause</strong>, <strong>Fortsetzen</strong>, <strong>Neustart</strong> und <strong>Stop</strong>. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird <em>Pause…</em> angezeigt, bis es wirksam wird), und verstrichene Timer bleiben während der Pause stehen.</p>
 <h2 id="schreibgeschutzter-modus-und-genehmigungen">Schreibgeschützter Modus und Genehmigungen<a class="headerlink" href="#schreibgeschutzter-modus-und-genehmigungen" title="Permanent link">&para;</a></h2>
 <p>Durch das Kontrollkästchen <strong>Schreibgeschützt</strong> bleibt jeder Agent auf nicht mutierende Befehle beschränkt. Wenn der schreibgeschützte Zugriff deaktiviert ist, entscheidet die <strong>Genehmigungsrichtlinie</strong>, wie systemverändernde Befehle bestätigt werden:</p>
 <table>
@@ -2749,7 +2749,7 @@
 <p>Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel <strong>"Fehler"</strong> und listet Abweichungen, fehlende Daten und Fehler (oder <code>-</code>, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.</p>
 <p>Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – <strong>klicken Sie auf eine beliebige Tabellenzeile</strong>, um sie in einem separaten Fenster <em>Zeilendetails</em> mit lesbarem Layout, <strong>A− / A+</strong>-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.</p>
 <h2 id="konversation-kopieren-exportieren-und-speichern">Konversation kopieren, exportieren und speichern<a class="headerlink" href="#konversation-kopieren-exportieren-und-speichern" title="Permanent link">&para;</a></h2>
-<p>Der Konversationskopf verfügt über eine Schaltfläche <strong>Kopieren</strong> (gesamte Konversation in die Zwischenablage) und ein Menü <strong>Exportieren</strong> mit <strong>Nur-Text</strong>, <strong>Markdown</strong> und <strong>PDF</strong>. <strong>Speichern</strong> speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Bereich <strong>Schwarm-Chats</strong> des <a href="ai-assistant.html#ki-manager">KI-Manager</a> angezeigt und können später wieder geöffnet werden.</p>
+<p>Der Konversationskopf verfügt über eine Schaltfläche <strong>Kopieren</strong> (gesamte Konversation in die Zwischenablage) und ein Menü <strong>Exportieren</strong> mit <strong>Nur-Text</strong>, <strong>Markdown</strong> und <strong>PDF</strong>. <strong>Speichern</strong> speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt <strong>Schwarm-Chats</strong> des <a href="ai-assistant.html#ki-manager">KI-Manager</a> angezeigt und können später wieder geöffnet werden.</p>
 <h2 id="skripte-ohne-ki-ausfuhren">Skripte ohne KI ausführen<a class="headerlink" href="#skripte-ohne-ki-ausfuhren" title="Permanent link">&para;</a></h2>
 <p><strong>Skript ausführen…</strong> führt ein Snippet-Manager-Skript auf <strong>allen Schwarmzielen parallel aus – ohne KI-Beteiligung</strong>. Der Dialog bietet eine durchsuchbare Skriptauswahl (nach Name, Kategorie, Sprache oder ID), ein Parameterfeld (ein Parameter pro Zeile) und eine Live-Zusammenfassung; Die Schaltfläche <strong>Ausführen</strong> ist die einzige Bestätigung.</p>
 <p>Das Skript wird Base64-kodiert übertragen (keine Probleme mit Anführungszeichen oder Sonderzeichen) und auf dem Server dekodiert, wobei die Parameter als <code>$1</code>, <code>$2</code>, … übergeben werden. Der Fortschritt wird in denselben Agentenzeilen angezeigt – erweitern Sie eine Zeile, um die Live-Ausgabe anzusehen – und das Ergebnis ist eine Tabelle pro Server mit Exit-Code und Ausgabe. Nicht-POSIX-Shells (z. B. Windows-Ziele) werden mit dem Hinweis <em>Skipped: Shell is not POSIX</em> übersprungen, während der Rest des Schwarms weiterläuft; Nicht erreichbare Server werden als <em>Nicht verbunden</em> gemeldet. <strong>Stop</strong> bricht eine laufende Skriptausführung ab.</p>
@@ -2758,11 +2758,11 @@
 <p>Der Dialog beinhaltet:</p>
 <ul>
 <li><strong>Syntaxhervorhebung</strong> – das generierte Skript wird in einem vollständigen Editor mit Hervorhebung für die ausgewählte Sprache angezeigt.</li>
-<li><strong>Sichtbarer Fortschritt</strong> – eine funktionierende Animation mit einem Live-Ablaufzähler (<em>Generierung… 0:42</em>), während die KI arbeitet, und der Gesamtdauer (<em>Fertig – hat 1:37 gedauert</em>), wenn sie fertig ist.</li>
+<li><strong>Sichtbarer Fortschritt</strong> – eine Arbeitsanimation mit einem Live-Ablaufzähler (<em>Generierung… 0:42</em>), während die KI arbeitet, und der Gesamtdauer (<em>Fertig – dauerte 1:37</em>), wenn sie fertig ist.</li>
 <li><strong>Zusätzliche Anweisungen</strong> – ein dreizeiliges Feld für zusätzliche Anweisungen, denen die KI folgen muss, mit einem <strong>Verlauf</strong>-Menü Ihrer letzten 10 einzelnen Einträge.</li>
 <li><strong>In Snippets speichern</strong> – speichert das Skript im Snippet-Manager mit einem passenden, vorab ausgefüllten Skriptnamen und der richtigen Dateierweiterung.</li>
 <li><strong>Härtungsoptionen</strong> – dieselben pro Skript <a href="../reference/hardening-options.html">Härtungsoptionen</a> wie der Single-Host-Workflow-Generator (strikter Modus, Fehlerfallen, Idempotenz, Probelauf, <code>--help</code> und mehr) werden automatisch mit ihren All-On-Standardwerten auf das generierte Skript angewendet; In diesem Dialogfeld wird kein Bereich für sie angezeigt. Sie unterscheiden sich von den oben genannten Multiserver-Optionen.</li>
-<li><strong>Eingabe-Härtung</strong> – ein zusammenklappbares <a href="../reference/input-hardening.html">Eingabe-Härtung</a>-Panel fordert die KI auf, einen Schutzblock zur Eingabevalidierung in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, ein einstellbares <code>MAX_FILE_SIZE</code>-Limit, Sicherheitswarnungen im Protokoll des Skripts und eine <code>FORCE=1</code>/<code>--force</code>-Überschreibung). Die Größenprüfung verwendet Metadaten, bevor der Dateiinhalt gelesen wird, und <code>0</code> bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.</li>
+<li><strong>Eingabe-Härtung</strong> – ein zusammenklappbares <a href="../reference/input-hardening.html">Eingabe-Härtung</a>-Panel fordert die KI auf, einen Eingabevalidierungs-Schutzblock in das generierte Skript einzubauen (Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, ein einstellbares <code>MAX_FILE_SIZE</code>-Limit, Sicherheitswarnungen im Protokoll des Skripts und eine <code>FORCE=1</code>/<code>--force</code>-Überschreibung). Die Größenprüfung verwendet Metadaten, bevor der Dateiinhalt gelesen wird, und <code>0</code> bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert.</li>
 </ul>
 <h2 id="tab-aktivitatsanzeige">Tab-Aktivitätsanzeige<a class="headerlink" href="#tab-aktivitatsanzeige" title="Permanent link">&para;</a></h2>
 <p>Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angezeigt, sodass Sie den Fortschritt von jeder anderen Registerkarte aus verfolgen können:</p>
@@ -2787,8 +2787,8 @@
 <td>Schwarm ist pausiert</td>
 </tr>
 <tr>
-<td>Grün, stetig</td>
-<td>Lauf beendet – bleibt bis zum Start des nächsten Laufs</td>
+<td>Grün, konstant</td>
+<td>Lauf beendet – bleibt bestehen, bis der nächste Lauf startet</td>
 </tr>
 </tbody>
 </table>
@@ -2817,7 +2817,7 @@
 </tr>
 <tr>
 <td><strong>Schwarmparallelität</strong></td>
-<td>Wie viele Server laufen gleichzeitig (1–16, Standard 4)</td>
+<td>Wie viele Server gleichzeitig laufen (1–16, Standard 4)</td>
 </tr>
 <tr>
 <td><strong>Schwarm schreibgeschützt</strong></td>
@@ -2832,8 +2832,8 @@
 </div>
 <p>Typische Kombinationen von Schwarm + Scheduler:</p>
 <ul>
-<li><strong>Nächtlicher Flottenzustandsbericht</strong> – eine schreibgeschützte Eingabeaufforderung wie <em>„Festplattennutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“</em> für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.</li>
-<li><strong>Erkennung von Konfigurationsdrifts</strong> – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte <em>Fehler</em> auf.</li>
+<li><strong>Nächtlicher Flottenzustandsbericht</strong> – eine schreibgeschützte Eingabeaufforderung wie <em>„Datenträgernutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“</em> für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.</li>
+<li><strong>Erkennung von Konfigurationsabweichungen</strong> – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte <em>Fehler</em> auf.</li>
 <li><strong>Bestandsaufnahme auf Patch-Ebene</strong> – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.</li>
 </ul>
 <div class="admonition warning">

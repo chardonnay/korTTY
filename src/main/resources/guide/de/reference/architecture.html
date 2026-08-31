@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -3408,13 +3408,13 @@
 <li><strong>Sitzungsintegration</strong>: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe</li>
 <li><strong>Farbunterstützung</strong>: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung</li>
 <li><strong>Überprüfte Grenzkorrektur</strong>: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab <code>line == height</code> beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern <code>TerminalTextBuffer</code> Bereichsfehler</li>
-<li><strong>Überprüfter Shortcut-Akkord-Fix</strong>: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-<code>KEY_TYPED</code>-Zeichen (z. B. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) die PTY- oder Broadcast-Fenster erreichen</li>
+<li><strong>Reviewed shortcut-chord fix</strong>: A second pinned korTTY patch stops shortcut-chord <code>KEY_TYPED</code> characters (for example <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) from reaching the pty or broadcast panes</li>
 </ul>
 <h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>Der Build-Prozess automatisch:</p>
 <ol>
 <li>Klont SithTermFX am Tag <code>v1.2.1</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
-<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.1-terminal-panel-bottom-row.patch</code> und <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder anwendbar ist noch bereits mit der Quelle übereinstimmt</li>
+<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.1-terminal-panel-bottom-row.patch</code> und <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
 <li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
@@ -3690,7 +3690,7 @@
 <ul>
 <li><strong>Gebündelte Plugins</strong>: Aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)</li>
 <li><strong>Externe Plugins</strong>: Importiert als <code>.jar</code> Dateien in <code>~/.kortty/plugins/</code></li>
-<li><strong>Verwaltung</strong>: Einzelne Plugins über <code>Plugins → Terminal Effects</code> ohne Deinstallation aktivieren/deaktivieren</li>
+<li><strong>Management</strong>: Enable/disable individual plugins via <code>Plugins → Terminal Effects</code> without uninstalling</li>
 <li><strong>Exportierbare Plugins</strong>: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden</li>
 </ul>
 <h3 id="sicherheitshinweis">Sicherheitshinweis<a class="headerlink" href="#sicherheitshinweis" title="Permanent link">&para;</a></h3>

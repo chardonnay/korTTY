@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2686,7 +2686,7 @@ Die Ressource benötigt außerdem ihren vollständigen Pfad in der <strong>API-U
 <li><strong>Ein von Ihnen ausgewähltes Profil</strong> wird immer verwendet, unabhängig vom Verbindungsmodus – ein eingebettetes llama.cpp- oder MLX-Modell, ein Cloud-Endpunkt wie Anthropic oder eine OpenAI-kompatible API oder ein lokales CLI-Profil. Sein API-Schlüssel wird auf die gleiche Weise aufgelöst, wie der Rest der Anwendung ihn auflöst. Daher muss der Master-Passwort-Tresor entsperrt werden, wenn das Profil ein verschlüsseltes Geheimnis benötigt.</li>
 <li><strong>Standard (lokales Textprofil)</strong> verwendet das Profil, das der Rolle „Text/Übersetzung“ in <strong>KI &gt; KI-Manager</strong> zugewiesen ist, und nur, wenn dieses Profil ein eingebettetes (lokales) Modell ausführt. Die Standardeinstellung greift nie automatisch auf ein Cloud-Profil zurück: Dieser Anbieter existiert für Personen, die ihre Schnittstellenzeichenfolgen nicht an einen externen Dienst senden können oder wollen. Wenn diese Rolle ein Cloud- oder CLI-Profil enthält, benennt korTTY es und leitet Sie zu dieser Dropdown-Liste weiter, anstatt mit einem allgemeinen Fehler fehlzuschlagen.</li>
 </ul>
-<p>Dies spiegelt das Dropdown-Menü <strong>KI-Profil</strong> im Abschnitt „Anleitungsübersetzung“ unten wider, sodass beide Übersetzungsjobs auf das gewünschte Modell verwiesen werden können – zum Beispiel ein kleines lokales Modell für die Schnittstellenzeichenfolgen und ein stärkeres Cloud-Modell für die Anleitung oder dasselbe Profil für beide.</p>
+<p>Dies spiegelt das Dropdown-Menü <strong>KI-Profil</strong> im Abschnitt „Guide-Übersetzung“ unten wider, sodass beide Übersetzungsjobs auf das gewünschte Modell verwiesen werden können – zum Beispiel ein kleines lokales Modell für die Schnittstellenzeichenfolgen und ein stärkeres Cloud-Modell für den Guide oder dasselbe Profil für beide.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><strong>Anmeldeinformationen:</strong> Externe Anbieter benötigen ihren normalen API-Schlüssel, mit Ausnahme eines LibreTranslate-Endpunkts, der explizit ohne diesen konfiguriert ist. Lokale KI erfordert keinen Übersetzungsanbieterschlüssel, aber ein eingebettetes Modell muss sein GGUF/MLX-Modell und seine Laufzeit installiert haben, und der Master-Passwort-Tresor muss entsperrt werden, wenn das ausgewählte KI-Profil ein verschlüsseltes Geheimnis benötigt.</p>
@@ -2705,74 +2705,74 @@ Die Ressource benötigt außerdem ihren vollständigen Pfad in der <strong>API-U
 </thead>
 <tbody>
 <tr>
-<td>AI-Profil</td>
-<td>Dropdown-Liste</td>
-<td>„Standard (Textprofil)“ plus jedes konfigurierte AI-Profil</td>
-<td>Standard (Textprofil)</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Dauer schätzen</td>
-<td>Schaltfläche</td>
-<td>—</td>
-<td>—</td>
+<td>AI profile</td>
+<td>dropdown</td>
+<td>"Default (text profile)" plus every configured AI profile</td>
+<td>Default (text profile)</td>
 <td>—</td>
 </tr>
 <tr>
-<td>Übersetzung starten</td>
-<td>Schaltfläche</td>
+<td>Estimate duration</td>
+<td>button</td>
 <td>—</td>
 <td>—</td>
 <td>—</td>
 </tr>
 <tr>
-<td>Schaltfläche „Abbrechen“</td>
-<td></td>
-<td>(wird angezeigt, während eine Übersetzung oder Dauerschätzung ausgeführt wird)</td>
-<td>–</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Übersetzte Reiseführer</td>
-<td>Liste</td>
-<td>Bisher übersetzte Reiseführersprachen</td>
+<td>Start translation</td>
+<td>button</td>
+<td>—</td>
 <td>—</td>
 <td>—</td>
 </tr>
 <tr>
-<td>Schaltfläche „Löschen“</td>
-<td></td>
-<td>(entfernt die ausgewählte übersetzte Anleitung, ihre Assets und ihren Suchindex)</td>
-<td>–</td>
-<td>–</td>
+<td>Cancel</td>
+<td>button</td>
+<td>(shown while a translation or a duration estimate is running)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Translated guides</td>
+<td>list</td>
+<td>Guide languages translated so far</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>button</td>
+<td>(removes the selected translated guide, its assets and its search index)</td>
+<td>—</td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
-<p>Wenn Sie hier im Dropdown-Menü <strong>AI-Profil</strong> ein Profil auswählen, wird immer dieses Profil verwendet, unabhängig vom Verbindungsmodus. Wenn Sie es auf <strong>Standard (Textprofil)</strong> belassen, folgt die obige Übersetzungs-API-Auswahl: Wenn der Anbieter auf <strong>Lokales AI-Textprofil</strong> eingestellt ist, verwendet der Anleitung das der Text-/Übersetzungsrolle in KI-Manager zugewiesene Profil – und nur, wenn dieses Profil ein eingebettetes (lokales) Modell ausführt – während jeder andere Anbieter mit einem gespeicherten Schlüssel die Anleitung stattdessen über diese Übersetzungs-API übersetzt.</p>
-<p><strong>Übersetzung starten</strong> ohne ausgewähltes Leitprofil erfordert oben eine funktionsfähige Übersetzungs-API: Wenn der Anbieter einen verschlüsselten Dienst nutzt (z. B. Google Translate) und kein API-Schlüssel gespeichert ist, wird der Start mit <em>„Bitte geben Sie einen API-Schlüssel ein.“</em> verweigert – ein ausgewähltes KI-Profil allein reicht immer aus. Wenn der Lauf aus einem anderen Grund nicht starten kann, nennt die Meldung die Ursache: ein ausgewähltes Profil, dessen Modell nicht heruntergeladen oder ausgewählt wurde, kein Führungsprofil und kein API-Schlüssel oder kein lokales Textprofil konfiguriert.</p>
-<p>Durch das Löschen eines übersetzten Anleitungs wird nach einer Bestätigungsaufforderung sein gesamtes Verzeichnis unter <code>~/.kortty/guide/&lt;language&gt;/</code> entfernt – die übersetzten Seiten, die bereitgestellten Themenressourcen, sein Suchindex und sein Lebenslauf-Prüfpunkt.</p>
+<p>Picking a profile in the <strong>AI profile</strong> dropdown here always uses that profile, whatever its connection mode. Leaving it on <strong>Default (text profile)</strong> follows the Translation API selection above: with the provider set to <strong>Local AI text profile</strong>, the guide uses the profile assigned to the Text/translation role in KI-Manager — and only if that profile runs an embedded (local) model — while any other provider with a stored key translates the guide through that translation API instead.</p>
+<p><strong>Start translation</strong> with no guide profile picked requires a workable Translation API above: with the provider on a keyed service (for example Google Translate) and no API key stored, starting is refused with <em>"Please enter an API key."</em> — a picked AI profile always suffices on its own. If the run cannot start for another reason, the message names the cause: a picked profile whose model is not downloaded or selected, no guide profile and no API key, or no local text profile configured.</p>
+<p>Deleting a translated guide removes its whole directory under <code>~/.kortty/guide/&lt;language&gt;/</code> — the translated pages, the staged theme assets, its search index and its resume checkpoint — after a confirmation prompt.</p>
 <h3 id="warum-dies-im-hintergrund-lauft">Warum dies im Hintergrund läuft<a class="headerlink" href="#warum-dies-im-hintergrund-lauft" title="Permanent link">&para;</a></h3>
 <p>Das Übersetzen der Anleitungs ist keine schnelle Angelegenheit: Die gebündelte Website enthält etwa 5.500 verschiedene Textteile, sobald wiederholte Navigation und Überschriften dedupliziert werden, und je nach Modell kann dies zwischen einigen Minuten und fast einem Tag dauern. Beim Starten wird weder das Einstellungsdialogfeld noch der Rest von korTTY blockiert:</p>
 <ul>
 <li>Die Übersetzung wird weiter ausgeführt, nachdem Sie die Einstellungen geschlossen, die Registerkarten gewechselt oder in Terminals weitergearbeitet haben.</li>
-<li>Eine kleine Fortschrittsanzeige – ein Balken, ein Prozentsatz und eine geschätzte verbleibende Zeit – erscheint am rechten Ende der Menüleiste von korTTY, solange eine Übersetzung der Anleitungs läuft, und verschwindet wieder, sobald sie abgeschlossen ist.</li>
-<li>Während der Lauf aktiv ist, zeigt der Dialog einen Fortschrittsbalken und eine Statuszeile („Übersetzung… 42 %“). <strong>Abbrechen</strong> stoppt den Job am nächsten sicheren Punkt, anstatt das bereits Übersetzte zu verlieren: Der Fortschritt wird auf der Festplatte überprüft, so dass beim erneuten Starten derselben Sprache die Arbeit an der Stelle fortgesetzt wird, an der sie aufgehört hat, anstatt noch einmal von vorne zu beginnen.</li>
-<li>Die Fortschrittsanzeige im Dialog und <strong>Abbrechen</strong> gehören zum Einstellungsdialog, der den Lauf gestartet hat – ein späteres erneutes Öffnen von Einstellungen führt nicht zu einer erneuten Verknüpfung mit einem laufenden Auftrag, und <strong>Übersetzung starten</strong> meldet dann nur <em>„Eine Übersetzung der Anleitungs läuft bereits.“</em> Nach dem Schließen der Einstellungen wird der laufende Auftrag über das Beenden-Dialogfeld unten angehalten (oder einfach zum Beenden gelassen).</li>
+<li>A small progress indicator — a bar, a percentage and an estimated time remaining — appears at the right end of korTTY's menu bar for as long as a guide translation is in progress, and disappears again once it finishes.</li>
+<li>While the run is active, the dialog shows a progress bar and a status line ("Translating… 42%"). <strong>Cancel</strong> stops the job at the next safe point rather than losing what has already been translated: progress is checkpointed to disk as it goes, so starting the same language again continues from where it left off instead of starting over.</li>
+<li>Die Fortschrittsanzeige im Dialog und <strong>Abbrechen</strong> gehören zum Einstellungsdialog, der den Lauf gestartet hat – ein späteres erneutes Öffnen von Einstellungen führt nicht zu einer erneuten Verknüpfung mit einem laufenden Auftrag, und <strong>Übersetzung starten</strong> meldet dann nur <em>„Eine Übersetzung der Anleitungs läuft bereits.“</em> Nach dem Schließen der Einstellungen wird der laufende Auftrag über den Beenden-Dialog unten angehalten (oder einfach zum Beenden gelassen).</li>
 <li>Wenn Sie versuchen, korTTY zu beenden, während eine Anleitungsübersetzung ausgeführt wird, wird in einem Dialogfeld angeboten, die Übersetzung anzuhalten und zu beenden oder korTTY geöffnet zu lassen. Wenn Sie sich für eine Pause entscheiden, bleibt der Kontrollpunkt für den nächsten Lauf bestehen.</li>
 <li>Nach der Installation eines korTTY-Updates, das den Inhalt der Anleitungs geändert hat, und wenn Sie bereits über eine übersetzte Anleitung für Ihre Sprache verfügen, bietet korTTY einmal pro Lauf an – ein paar Sekunden nach dem Öffnen des Fensters und nie, während eine Übersetzung bereits läuft –, um es auf den neuesten Stand zu bringen; <strong>Jetzt aktualisieren</strong> öffnet diese Registerkarte „Einstellungen“, auf der Sie den Lauf selbst starten können. Da der Fortschritt durch den genauen englischen Text jedes Stücks kontrolliert wird, werden bei der Aktualisierung nur Sätze neu übersetzt, die sich in der Veröffentlichung tatsächlich geändert haben – alles andere wird unverändert wiederverwendet.</li>
 </ul>
 <h3 id="warum-ein-reasoning-modell-schlecht-passt">Warum ein Reasoning-Modell schlecht passt<a class="headerlink" href="#warum-ein-reasoning-modell-schlecht-passt" title="Permanent link">&para;</a></h3>
 <p>Einige KI-Modelle sind so konzipiert, dass sie „laut nachdenken“, bevor sie antworten. Dabei schreiben sie vor der eigentlichen Ausgabe eine erweiterte Gedankenkette in ihre Antwort ein, eine Technik, die auf schwierige Probleme wie Mathematik oder Codierung abgestimmt ist. Dieses Reasoning ist nicht Teil der Übersetzung, aber das Modell muss sie trotzdem generieren, und das Generieren von Text ist der langsamste Teil bei der Ausführung eines lokalen Modells. Gemessen an der eigenen Anleitung dieses Projekts erzeugte ein Reasoning-Modell etwa <strong>4,4 Abschluss-Tokens für jedes Eingabe-Token</strong> – ungefähr 4.400 Reasoning-Tokens, um 1.000 Zeichen Prosa zu übersetzen. Auf identischer Hardware war dies der Unterschied zwischen einem Übersetzungslauf von etwa einer Stunde und einem von sechs Stunden oder mehr.</p>
-<p>Wenn es sich bei dem <strong>KI-Profil</strong>, das Sie für die Übersetzung der Anleitungs auswählen, um ein Reasoning-Modell handelt, warnt Sie korTTY vor Beginn oder Schätzung, benennt das Modell und lässt Sie trotzdem fortfahren oder abbrechen. Bei der Prüfung wird auf den Namen des Modells geachtet (Herausgeber von Reasoning-Modellen machen dort Werbung dafür – „reasoning“, „thinking“, „R1“, „QwQ“, „o1“ und Ähnliches werden erkannt), die Ausführung kostet also nichts und kann gelegentlich ein anders benanntes Reasoning-Modell übersehen, aber es wird nicht fälschlicherweise vor einem einfachen Instruct-Modell gewarnt.</p>
-<p><strong>Geeignete Modelle</strong> sind auf Anweisungen abgestimmte Chat-Modelle („anweisen“) ohne Reasoning-/Denkmodus – die Art, die normalerweise für Übersetzungen, Zusammenfassungen oder Umschreibungen und nicht für mehrstufige Problemlösungen verwendet wird. Suchen Sie für ein eingebettetes lokales Profil nach MLX- oder GGUF-Builds, deren Name „instruct“ und nicht „reasoning“, „thinking“ oder „R1“ enthält, zum Beispiel ein Qwen2.5-Instruct- oder Phi-4-mini-instruct-Build in einer Größe, die Ihre Hardware bequem ausführen kann (4-Bit-quantisierte 7-8B-Modelle sind eine praktische Standardeinstellung auf Apple Silicon). Größere Instruct-Modelle lassen sich auf Kosten der Geschwindigkeit im Allgemeinen flüssiger übersetzen; Mithilfe der nachstehenden Schätzung der Dauer können Sie einen Vergleich durchführen, bevor Sie sich auf einen vollständigen Lauf festlegen.</p>
+<p>If the <strong>AI profile</strong> you pick for guide translation is a reasoning model, korTTY warns you before starting or estimating, naming the model and letting you continue anyway or cancel. The check looks at the model's name (publishers of reasoning models advertise it there — "reasoning", "thinking", "R1", "QwQ", "o1" and similar are recognized), so it costs nothing to run and may occasionally miss a differently-named reasoning model, but it will not falsely warn about a plain instruct model.</p>
+<p><strong>Suitable models</strong> are instruction-tuned ("instruct") chat models without a reasoning/thinking mode — the kind normally used for translation, summarization or rewriting rather than multi-step problem solving. For an embedded local profile, look for MLX or GGUF builds whose name includes "instruct" and not "reasoning", "thinking" or "R1", for example a Qwen2.5-Instruct or Phi-4-mini-instruct build at a size your hardware can run comfortably (4-bit quantized 7-8B models are a practical default on Apple Silicon). Larger instruct models generally translate more fluently at the cost of speed; the duration estimate below lets you compare before committing to a full run.</p>
 <h3 id="schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird">Schätzung, wie lange eine vollständige Übersetzung dauern wird<a class="headerlink" href="#schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird" title="Permanent link">&para;</a></h3>
 <p><strong>Geschätzte Dauer</strong> misst das oben ausgewählte KI-Profil anhand einer realen, repräsentativen Stichprobe der Anleitungtextes und prognostiziert, wie lange die Übersetzung aller noch ausstehenden Elemente dauern würde, ohne sich auf die vollständige Ausführung festzulegen:</p>
 <ol>
 <li>Es sendet zuerst eine kleine, zeitlich nicht festgelegte „Aufwärm“-Anfrage, damit die einmaligen Ladekosten eines lokalen Modells – die einmal für einen gesamten Lauf und nicht pro Stapel bezahlt werden – nicht mit der laufenden Übersetzungsgeschwindigkeit verwechselt und über jeden Stapel der Projektion hinweg multipliziert werden.</li>
 <li>Es übersetzt dann einen echten, budgetgroßen Stapel Leittext und synchronisiert ihn. Hierbei handelt es sich um eine echte Übersetzung, nicht um eine Simulation: Die Stichprobe wird beibehalten, sodass diese Arbeit nicht wiederholt wird, wenn zuerst geschätzt wird und dann ein vollständiger Durchlauf gestartet wird.</li>
-<li>Aus diesem einzelnen zeitgesteuerten Batch werden zwei Prognosen für den verbleibenden Text berechnet – eine unter der Annahme, dass die Kosten mit der Anzahl der Anfragen skalieren, die andere unter der Annahme, dass sie mit der Textmenge skalieren – und meldet den resultierenden Bereich zusammen mit der Zeit, die die verbleibenden Seiten und der verbleibende Text benötigen würden. Die Angabe eines Bereichs statt einer einzigen Zahl spiegelt wider, dass eine einzelne Stichprobe den festen Overhead eines Modells pro Anfrage nicht vollständig von seinen Kosten pro Zeichen trennen kann; Die Schätzung sorgt dafür, dass diese Unsicherheit sichtbar bleibt, anstatt sie hinter einer einzigen übermäßig genauen Zahl zu verbergen.</li>
+<li>From that single timed batch, it computes two projections for the remaining text — one assuming cost scales with the number of requests, one assuming it scales with the amount of text — and reports the resulting range together with how long the remaining pages and text would take. Reporting a range rather than one number reflects that a single sample cannot fully separate a model's fixed per-request overhead from its per-character cost; the estimate keeps that uncertainty visible rather than hiding it behind a single overly precise number.</li>
 </ol>
-<p>Wenn das Beispiel völlig fehlschlägt – das KI-Profil ist nicht erreichbar, falsch konfiguriert oder hat nichts Brauchbares produziert – meldet die Schätzung dies als Verbindungsproblem und nicht als Dauer, sodass es nicht mit „Übersetzung erfolgt sofort“ verwechselt werden kann. Und wenn nichts mehr zu übersetzen ist, meldet die Schätzung lediglich, dass der Anleitung bereits vollständig für diese Sprache übersetzt ist.</p>
+<p>If the sample fails outright — the AI profile is unreachable, misconfigured, or produced nothing usable — the estimate reports that as a connection problem instead of a duration, so it is not mistaken for "translation will be instant." And if nothing is left to translate, the estimate simply reports that the guide is already fully translated for this language.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Die obige Warnung zum Reasoning-Modell wird sowohl bei <strong>Schätzdauer</strong> als auch bei <strong>Übersetzung starten</strong> angezeigt, da das Ausführen einer Schätzung anhand eines Reasoning-Modells bereits Echtzeit dafür in Anspruch nimmt.</p>

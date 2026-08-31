@@ -980,6 +980,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="updates.html" class="md-nav__link md-nav__link--active">
         
   
@@ -996,6 +1014,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#downloading-and-installing-an-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloading and installing an update
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2295,6 +2343,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#downloading-and-installing-an-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloading and installing an update
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2344,6 +2411,12 @@
 <p class="admonition-title">Note</p>
 <p>Automatic update checks run silently in the background and only display a notification dialog when a newer compatible version is available. Manual update checks are available via the <strong>About</strong> dialog at any time.</p>
 </div>
+<h2 id="downloading-and-installing-an-update">Downloading and installing an update<a class="headerlink" href="#downloading-and-installing-an-update" title="Permanent link">&para;</a></h2>
+<p>korTTY selects the native release asset that matches the current operating system, processor architecture and package type, downloads it to the platform's normal Downloads directory and verifies the SHA-256 digest published by GitHub before making the file available. A Flatpak installation only accepts a matching <code>.flatpak</code> bundle; it never offers a DEB, RPM, pacman package or portable archive as an in-place replacement.</p>
+<p>Flatpak bundles are downloaded but not installed automatically. After the download, korTTY shows the exact host-terminal command, equivalent to the following example, and keeps the downloaded path selectable:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flatpak<span class="w"> </span>install<span class="w"> </span>--user<span class="w"> </span>./kortty-Linux-&lt;version&gt;-&lt;architecture&gt;.flatpak
+</span></code></pre></div>
+<p>The GitHub release page remains available through the guide if the package manager requires additional confirmation or a system-wide installation.</p>
 
 
 

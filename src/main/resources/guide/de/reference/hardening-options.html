@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2570,7 +2570,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Wird nicht für jede Aktion angezeigt</p>
-<p><em>Lesbarkeit verbessern</em> und <em>Leistung verbessern</em> zeigen absichtlich <strong>keine</strong> Härtungsoptionen an – diese Aktionen sollen nah am ursprünglichen Code bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: <em>Robustheit verbessern</em>, <em>Benutzerdefinierte Verbesserung</em>, <em>Vollständige Codeanalyse</em> und die beiden Workflow-Skriptgeneratoren.</p>
+<p><em>Lesbarkeit verbessern</em> und <em>Leistung verbessern</em> zeigen bewusst <strong>keine</strong> Härtungsoptionen an – diese Aktionen sollen nahe am Originalcode bleiben. Härtungsoptionen werden nur dort angezeigt, wo es auf das Hinzufügen von Robustheit ankommt: <em>Robustheit verbessern</em>, <em>Benutzerdefinierte Verbesserung</em>, <em>Vollständige Codeanalyse</em> und die beiden Workflow-Skriptgeneratoren.</p>
 </div>
 <p>Jede Option ist <strong>standardmäßig aktiviert</strong>. Deaktivieren Sie diejenigen, die Sie nicht möchten. Eine deaktivierte Option trägt nichts zur Eingabeaufforderung bei.</p>
 <p>Bei <strong>Robustheit verbessern</strong> und <strong>Benutzerdefinierte Verbesserung</strong> werden aktive Härtungsregeln auf das <strong>vollständige Snippet</strong> angewendet, auch wenn Sie nur einen Bereich markiert haben. Dies ist erforderlich, da Optionen wie der strikte Modus, ein Konfigurationsblock, <code>--help</code> und eine abschließende Zusammenfassung den Prolog oder Epilog und nicht nur die ausgewählten Zeilen ändern müssen. Wenn Sie <strong>Löschen</strong> verwenden und die Eingabe-Härtung deaktiviert lassen, bleibt die normale Verbesserung auf den ausgewählten Bereich beschränkt. Das Complete-Snippet-Ergebnis wird weiterhin in der Vorher-/Nachher-Überprüfung angezeigt und verworfen, wenn die KI unveränderten Code mit einer Auslassungsmarkierung abkürzt.</p>
@@ -2581,7 +2581,7 @@
 <li><strong>Speichern</strong> – aktuelle Auswahl dauerhaft speichern. Von da an wird jedes Härtungsfenster mit Ihrer gespeicherten Auswahl anstelle der allgemeinen Standardeinstellung geöffnet – Sie können also Ihre bevorzugte Härtung einmal festlegen und sie überall anwenden.</li>
 </ul>
 <h2 id="wie-sie-angewendet-werden">Wie sie angewendet werden<a class="headerlink" href="#wie-sie-angewendet-werden" title="Permanent link">&para;</a></h2>
-<p>Jede aktivierte Option wird zu einer maßgeblichen Härtungsregel, die KorTTY an die an die KI gesendete Anfrage anhängt (unter <em>Diese Härtungstechniken anwenden:</em> im Snippet-Editor oder <em>ZUSÄTZLICHE ANFORDERUNGEN:</em> im Workflow-Generator). Im Anwendungsfluss „Vollständige Codeanalyse“ wird jeder ausgewählten Regel zusätzlich ein eigener obligatorischer Bezeichner zugewiesen: Die KI gibt die von ihr vervollständigten Bezeichner in einer kompakten Liste zurück, und korTTY lehnt die gesamte Antwort ab, wenn ein Bezeichner fehlt. Explizite CLI- und Guard-Literale wie <code>--dry-run</code>, <code>--yes</code>, <code>--help</code> und <code>--verbose</code> müssen ebenfalls vorhanden sein, wenn die entsprechenden Optionen ausgewählt sind. Bei der Workflow-Generierung werden auch die entsprechenden zielsprachlichen Redewendungen hinzugefügt – beispielsweise die Bash-Schreibweise des strengen Modus – nur dann, wenn diese Option ausgewählt ist. Wenn Sie eine Option deaktivieren, werden sowohl ihre Regel als auch ihre optionspezifischen Sprachidiome entfernt. <strong>Clear</strong> sendet daher kein härtendes Verhalten, abgesehen von neutralen Anforderungen, die zum Erstellen gültigen Codes in der gewählten Sprache erforderlich sind.</p>
+<p>Jede aktivierte Option wird zu einer maßgeblichen Härtungsregel, die KorTTY an die an die KI gesendete Anfrage anhängt (unter <em>Diese Härtungstechniken anwenden:</em> im Snippet-Editor oder <em>ZUSÄTZLICHE ANFORDERUNGEN:</em> im Workflow-Generator). Im Anwendungsfluss „Vollständige Codeanalyse“ wird jeder ausgewählten Regel zusätzlich ein eigener obligatorischer Bezeichner zugewiesen: Die KI gibt die von ihr vervollständigten Bezeichner in einer kompakten Liste zurück, und korTTY lehnt die gesamte Antwort ab, wenn ein Bezeichner fehlt. Explizite CLI- und Guard-Literale wie <code>--dry-run</code>, <code>--yes</code>, <code>--help</code> und <code>--verbose</code> müssen ebenfalls vorhanden sein, wenn die entsprechenden Optionen ausgewählt sind. Bei der Workflow-Generierung werden auch die entsprechenden zielsprachlichen Redewendungen hinzugefügt – beispielsweise die Bash-Schreibweise des strengen Modus – nur dann, wenn diese Option ausgewählt ist. Durch Deaktivieren einer Option werden sowohl ihre Regel als auch ihre optionspezifischen Sprachidiome entfernt. <strong>Clear</strong> sendet daher kein härtendes Verhalten, abgesehen von neutralen Anforderungen, die zum Erstellen gültigen Codes in der gewählten Sprache erforderlich sind.</p>
 <p>Der Wortlaut jeder Regel passt sich der Zielsprache an:</p>
 <ul>
 <li><strong>Imperative Skripte</strong> – Bash, Python, Perl, Ruby, PowerShell, Windows-CMD und AppleScript erhalten die imperative Formulierung (Flags, Traps, Exit-Codes, …).</li>
@@ -2611,7 +2611,7 @@
 </ul>
 <h4 id="aussagekraftige-exit-codes">Aussagekräftige Exit-Codes<a class="headerlink" href="#aussagekraftige-exit-codes" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>Wofür es ist</strong> – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), mitteilen, <em>warum</em> es fehlgeschlagen ist, und nicht nur, <em>dass</em> es fehlgeschlagen ist.</li>
+<li><strong>Wofür es ist</strong> – Lassen Sie denjenigen, der das Skript aufruft (einen Scheduler, einen CI-Job, ein anderes Skript), sagen, <em>warum</em> es fehlgeschlagen ist, nicht nur <em>dass</em> es fehlgeschlagen ist.</li>
 <li><strong>Imperative Skripte</strong> – Verwenden Sie unterschiedliche, dokumentierte Exit-Codes ungleich Null für unterschiedliche Fehlerklassen.</li>
 <li><strong>Ansible-Playbooks</strong> – Sorgen Sie dafür, dass fehlgeschlagene Aufgaben das Spiel mit einer klaren Botschaft stoppen (<code>any_errors_fatal</code>, wo sinnvoll).</li>
 </ul>
@@ -2623,7 +2623,7 @@
 </ul>
 <h4 id="konfigurationsblock-fur-literale">Konfigurationsblock für Literale<a class="headerlink" href="#konfigurationsblock-fur-literale" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>Wofür es ist</strong> – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern werden (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.</li>
+<li><strong>Wofür es ist</strong> – Sammeln Sie die Werte, die Sie am wahrscheinlichsten ändern (Pfade, Hostnamen, Paketnamen), an einer offensichtlichen Stelle, anstatt sie über das Skript zu verteilen.</li>
 <li><strong>Imperative Skripte</strong> – Heben Sie alle Literale (Pfade, Hosts, Pakete) in einen klar kommentierten Konfigurationsblock oben.</li>
 <li><strong>Ansible-Playbooks</strong> – Heben Sie alle Literale in einen <code>vars:</code>-Block oben.</li>
 </ul>

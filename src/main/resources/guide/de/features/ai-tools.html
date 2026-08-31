@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -3155,7 +3155,7 @@
 <p>Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer <code>AgentCommandRunner</code>-Abstraktion (SSH-Exec-Channel und lokale Prozess-Backends) entkoppelt wurde, auch in <a href="connections.html#lokale-shell">local-Shells</a> unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.</p>
 <div class="admonition note">
 <p class="admonition-title">SSH vs. lokale Shells</p>
-<p>In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
+<p>In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über <code>-EncodedCommand</code>, <code>cmd.exe</code> oder POSIX <code>/bin/sh</code>) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Im Flatpak-Paket werden diese Prozesse auf dem Host über <code>flatpak-spawn --host</code> und nicht innerhalb der Freedesktop-Laufzeit-Sandbox ausgeführt. Einschränkungen der lokalen Shell: keine <code>sudo</code>/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.</p>
 </div>
 <p><img alt="AI agent execution loop" src="../assets/diagrams/ai-agent-execution-loop.svg" /></p>
 <div class="admonition important">
@@ -3172,7 +3172,7 @@
 <p>Der Basisbefehlsname kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden. Wenn Sie <code>agent</code> umbenennen, leitet KorTTY automatisch die passenden Befehle <code>-ask</code> und <code>-plan</code> ab. Die gleiche Einstellungsseite kann:</p>
 <ul>
 <li>Machen Sie beim Befehlsnamen keine Berücksichtigung der Groß-/Kleinschreibung</li>
-<li>Deaktivieren Sie den Setup-Dialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist)</li>
+<li>Deaktivieren Sie den Einrichtungsdialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist)</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -3181,7 +3181,7 @@
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere Terminalbefehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt (standardmäßig) die endgültige Antwort zurück an das Terminal. Das Ausführungsdialogfeld bietet die Option <strong>Endgültige Antwort auch im Terminal anzeigen</strong>: Lassen Sie diese Option aktiviert, um die Antwort im Terminal zu spiegeln, oder schalten Sie sie aus, damit die Antwort nur im Aktivitätsfenster des KI-Agenten verbleibt. In beiden Fällen werden die Befehle weiterhin ausgeführt und ihre Ausgabe sowie alle von ihnen erstellten Dateien verbleiben auf dem Server. Lediglich die Anzeige des endgültigen Antworttextes ändert sich. Die letzte Auswahl wird als Standard gespeichert.</li>
-<li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Beim Start über das Terminal-Rechtsklickmenü (<strong>AI → Ask AI Agent</strong>) mit ausgewähltem Text wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Wenn Sie über das Kontextmenü des Terminals (<strong>AI → Ask AI Agent</strong>) mit ausgewähltem Text starten, wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> – Wechseln Sie zuerst in den Planungsmodus. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf <strong>Umsetzen</strong> geklickt haben.</li>
 </ul>
 <h3 id="beispiele">Beispiele<a class="headerlink" href="#beispiele" title="Permanent link">&para;</a></h3>
@@ -3241,7 +3241,7 @@
 <li><strong>AI-Profilzeile</strong> – Jedes Laufprotokoll beginnt mit einem <code>AI profile: &lt;name&gt; (&lt;model&gt;)</code>-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.</li>
 <li><strong>Modellbegründung</strong> – Durch Erweitern einer 💭-Denkzeile wird die vollständige Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (Anthropisches erweitertes Denken, wenn der Begründungsaufwand des Profils aktiviert ist, OpenAI-kompatibles <code>reasoning_content</code>, LM Studio-Begründungsausgabe oder <code>&lt;think&gt;</code>-Blöcke von lokalen CLI-Modellen). Modelle ohne offengelegte Begründung behalten die kurze Entscheidungszusammenfassung bei.</li>
 <li><strong>Statusleiste</strong> – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Ausführungsaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und der Schaltfläche „Erweitern“ angezeigt. Während der Agent arbeitet, wird ein Spinner angezeigt. Eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.</li>
-<li><strong>Reduziert bleiben</strong> – Verwenden Sie <strong>Reduziert halten</strong>, damit das Panel minimiert startet und minimiert bleibt, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.</li>
+<li><strong>Reduziert bleiben</strong> – Verwenden Sie <strong>Reduziert halten</strong>, um das Bedienfeld minimiert zu starten und minimiert zu halten, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.</li>
 <li><strong>Größenänderung</strong> – Ziehen Sie den Größenänderungsgriff, um die Panelhöhe zu ändern. Aktivieren Sie <strong>Größe merken</strong>, um Höhe und Schriftgröße bei Anwendungsneustarts beizubehalten.</li>
 <li><strong>Parallele Splits</strong> – Verschiedene Splits können ihre eigenen Agentenaufgaben parallel ausführen; Jeder Split verfügt über ein eigenes Aktivitätsfenster.</li>
 <li><strong>Schriftartsteuerung</strong> – Verwenden Sie <strong>A−</strong> und <strong>A+</strong>, um die Schriftgröße der Aktivität zu ändern.</li>
@@ -3384,10 +3384,10 @@
 <li><strong>Mehrere Sprachvarianten</strong> – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.</li>
 <li><strong>Anpassbare Schriftgröße</strong> – Jeder Editor für generierte Skripte verfügt über <strong>A−</strong> / <strong>A+</strong>-Tasten und unterstützt <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.</li>
 <li><strong>Header-Vorlagen</strong> – Verwenden Sie wiederverwendbare Header aus der festen, nicht löschbaren Snippet-Kategorie <strong>Script-Header</strong>.</li>
-<li><strong>Mermaid-Diagramm</strong> – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Seine dedizierte Nur-Quellen-Anfrage lässt KI-Fähigkeiten und Wissensspeicherauszüge weg und setzt den anforderungsbezogenen <strong>Reasoning</strong>-Wert nur dann auf <code>none</code>, wenn der Anbieter diesen Wert angekündigt hat; Das gespeicherte Profil bleibt unverändert. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.</li>
+<li><strong>Mermaid-Diagramm</strong> – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Seine dedizierte Nur-Quellen-Anfrage lässt KI-Fähigkeiten und Wissensspeicher-Auszüge weg und setzt den anforderungsbezogenen <strong>Reasoning</strong>-Wert nur dann auf <code>none</code>, wenn der Anbieter diesen Wert angekündigt hat; Das gespeicherte Profil bleibt unverändert. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.</li>
 <li><strong>Snippet Manager</strong> – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.</li>
 <li><strong>Workflow-Tagging</strong> – Das Snippet ist zur einfachen Filterung mit dem Tag <code>workflow</code> versehen.</li>
-<li><strong>OS-Erkennung</strong> – Die Spalte <strong>System</strong> (OS) wird automatisch vom untersuchten Betriebssystem des Agenten (jede Linux-Distribution → Linux) festgelegt.</li>
+<li><strong>OS-Erkennung</strong> – Die Spalte <strong>System</strong> (OS) wird automatisch vom untersuchten Betriebssystem des Agenten festgelegt (jede Linux-Distribution → Linux).</li>
 <li><strong>Kein Internetzugang</strong> – Der Internetzugang wird während der Generierung erzwungen, unabhängig vom Internetmodus des Profils ausgeschaltet zu werden.</li>
 <li><strong>Skalierbares Dialogfeld</strong> – Das Workflow-Dialogfeld merkt sich seine Größe und Position für die zukünftige Verwendung.</li>
 </ul>
@@ -3406,7 +3406,7 @@
 <h3 id="terminalausgang">Terminalausgang<a class="headerlink" href="#terminalausgang" title="Permanent link">&para;</a></h3>
 <p>Die endgültigen Antworten des Terminalagenten werden in den Terminalbereich zurückgeschrieben, sodass das Shell-Transkript die Antwort und nicht nur den Status des Aktivitätsbereichs enthält.</p>
 <h3 id="transkripte">Transkripte<a class="headerlink" href="#transkripte" title="Permanent link">&para;</a></h3>
-<p>Dedizierte Agenten- und Planungsregisterkarten können ihr Transkript zur späteren Überprüfung oder Weitergabe kopieren und speichern.</p>
+<p>Spezielle Agenten- und Planungsregisterkarten können ihr Transkript zur späteren Überprüfung oder Weitergabe kopieren und speichern.</p>
 <h2 id="befehle-ausfuhren">Befehle ausführen<a class="headerlink" href="#befehle-ausfuhren" title="Permanent link">&para;</a></h2>
 <p>So starten Sie eine Agentenaufgabe:</p>
 <ol>
@@ -3535,7 +3535,7 @@
 <td>Wählen Sie <strong>Unten</strong> oder <strong>Links/Rechts andocken</strong></td>
 </tr>
 <tr>
-<td><strong>Einstellung reduziert beibehalten</strong></td>
+<td><strong>Präferenz reduziert beibehalten</strong></td>
 <td>Starten Sie das Panel minimiert und lassen Sie es während der Ausführung minimiert.</td>
 </tr>
 </tbody>

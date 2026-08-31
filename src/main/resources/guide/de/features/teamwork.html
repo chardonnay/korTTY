@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2959,25 +2959,25 @@
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <p>Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigurationen zu verwalten:</p>
 <ul>
-<li><strong>Git-Repositorys</strong> – Klonen und synchronisieren Sie es mit einem Git-Repository, das eine <code>kortty-teamwork-connections.xml</code>-Datei (oder eine ältere <code>connections.xml</code>) enthält.</li>
-<li><strong>Freigegebene Dateien</strong> – Laden Sie Verbindungen von einem lokalen oder Netzwerkpfad (schreibgeschützt oder Lese-/Schreibzugriff).</li>
-<li><strong>Automatische Synchronisierung</strong> – Die Hintergrundsynchronisierung prüft in einem konfigurierbaren Intervall, ob Aktualisierungen vorliegen.</li>
-<li><strong>Anmeldeinformationssicherheit</strong> – Gemeinsame Verbindungen übertragen KEINE Inline-Passwörter; nur Anmeldeinformations-IDs und SSH-Schlüsselreferenzen.</li>
-<li><strong>Lokale Überschreibungen</strong> – Ihre lokalen Anmeldeinformationen und SSH-Schlüssel werden mit gemeinsam genutzten Verbindungsdefinitionen zusammengeführt.</li>
-<li><strong>Schreibgeschützter Modus</strong> – Markieren Sie Quellen als schreibgeschützt, um versehentliches Zurückschreiben zu verhindern.</li>
+<li><strong>Git-Repositorys</strong> – Klonen Sie ein Git-Repository, das eine <code>kortty-teamwork-connections.xml</code>-Datei (oder eine ältere Datei <code>connections.xml</code>) enthält, und bleiben Sie mit diesem synchron.</li>
+<li><strong>Shared files</strong> — Load connections from a local or network path (read-only or read-write).</li>
+<li><strong>Automatic sync</strong> — Background syncing at a configurable interval checks for updates.</li>
+<li><strong>Credential security</strong> — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.</li>
+<li><strong>Local overrides</strong> — Your local credentials and SSH keys are merged with shared connection definitions.</li>
+<li><strong>Read-only mode</strong> — Mark sources as read-only to prevent accidental writes back.</li>
 </ul>
 <h2 id="einrichten-von-teamwork-quellen">Einrichten von Teamwork-Quellen<a class="headerlink" href="#einrichten-von-teamwork-quellen" title="Permanent link">&para;</a></h2>
-<p>Öffnen Sie <strong>Teamwork → Teamwork-Einstellungen…</strong> (oder <strong>Konfiguration → Globale Einstellungen… → Teamwork</strong>), um Quellen zu konfigurieren.</p>
+<p>Open <strong>Teamwork → Teamwork Settings…</strong> (or <strong>Configuration → Global Settings… → Teamwork</strong>) to configure sources.</p>
 <h3 id="fugen-sie-eine-quelle-hinzu">Fügen Sie eine Quelle hinzu<a class="headerlink" href="#fugen-sie-eine-quelle-hinzu" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Klicken Sie auf <strong>Hinzufügen</strong>, um eine neue Quelle zu erstellen.</li>
 <li>Wählen Sie die Quelle <strong>Typ</strong>:</li>
-<li><strong>Git</strong> – Von einer HTTPS-, SSH- oder git://-URL klonen.</li>
-<li><strong>Freigegebene Datei</strong> – Von einem lokalen oder Netzwerkpfad lesen (z. B. <code>file:///mnt/share/connections.xml</code> oder <code>//host/share/connections.xml</code>).</li>
+<li><strong>Git</strong> — Clone from an HTTPS, SSH, or git:// URL.</li>
+<li><strong>Shared File</strong> — Read from a local or network path (e.g., <code>file:///mnt/share/connections.xml</code> or <code>//host/share/connections.xml</code>).</li>
 <li>Geben Sie den <strong>Standort</strong> ein:</li>
 <li>Für Git: die Klon-URL.</li>
 <li>Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).</li>
-<li>Stellen Sie das <strong>Prüfintervall</strong> ein (1–1440 Minuten; Standard: 15).</li>
+<li>Legen Sie das <strong>Prüfintervall</strong> fest (1–1440 Minuten; Standard: 15).</li>
 <li>Aktivieren Sie optional <strong>Schreibgeschützt</strong>, um Rückschreibvorgänge zu verhindern (nur Git-Quellen).</li>
 <li>Klicken Sie zum Speichern auf <strong>OK</strong>.</li>
 </ol>
@@ -3012,7 +3012,7 @@
 <p>Verwenden Sie die Schaltflächen, um:
 - <strong>Hinzufügen</strong> – Erstellen Sie eine neue Quelle.
 - <strong>Bearbeiten</strong> – Ändern Sie die ausgewählte Quelle.
-- <strong>Entfernen</strong> – Löschen Sie die ausgewählte Quelle.
+- <strong>Entfernen</strong> – Die ausgewählte Quelle löschen.
 - <strong>Aktivieren/Deaktivieren</strong> – Schaltet den aktivierten Status für die ausgewählten Quellen um.</p>
 <p>Legen Sie unten das <strong>Standardprüfintervall</strong> fest (gilt für neue Quellen, die keins angeben).</p>
 <h2 id="so-funktioniert-die-synchronisierung">So funktioniert die Synchronisierung<a class="headerlink" href="#so-funktioniert-die-synchronisierung" title="Permanent link">&para;</a></h2>
@@ -3099,7 +3099,7 @@
 <h2 id="einrichtung-einer-freigegebenen-datei">Einrichtung einer freigegebenen Datei<a class="headerlink" href="#einrichtung-einer-freigegebenen-datei" title="Permanent link">&para;</a></h2>
 <p>So teilen Sie Verbindungen über eine Datei:</p>
 <ol>
-<li>Exportieren Sie Ihre Verbindungen in eine Datei: <strong>Verbindungen → Exportieren… → Verbindungen auswählen → Als <code>.xml</code> speichern</strong>.</li>
+<li>Exportieren Sie Ihre Verbindungen in eine Datei: <strong>Verbindungen → Exportieren… → Verbindungen auswählen → Speichern als <code>.xml</code></strong>.</li>
 <li>Platzieren Sie die Datei auf einem freigegebenen Netzwerkpfad (z. B. <code>//server/share/connections.xml</code>).</li>
 <li>Legen Sie die Lese-/Schreibberechtigungen nach Bedarf fest.</li>
 <li>Teammitglieder fügen den Dateipfad unter <strong>Teamwork → Teamwork-Einstellungen… → Hinzufügen</strong> hinzu.</li>

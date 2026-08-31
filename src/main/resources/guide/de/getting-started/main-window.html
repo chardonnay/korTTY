@@ -33,7 +33,7 @@
     
     
       
-        <title>Übersicht über das Hauptfenster - korTTY Anleitung</title>
+        <title>Main window overview - korTTY Anleitung</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#ubersicht-uber-das-hauptfenster" class="md-skip">
+        <a href="#main-window-overview" class="md-skip">
           Zum Inhalt
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Übersicht über das Hauptfenster
+              Main window overview
             
           </span>
         </div>
@@ -420,7 +420,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -438,7 +438,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2397,7 +2397,7 @@
 
 
 
-<h1 id="ubersicht-uber-das-hauptfenster">Übersicht über das Hauptfenster<a class="headerlink" href="#ubersicht-uber-das-hauptfenster" title="Permanent link">&para;</a></h1>
+<h1 id="main-window-overview">Main window overview<a class="headerlink" href="#main-window-overview" title="Permanent link">&para;</a></h1>
 <p><img alt="korTTY main window" src="../assets/screenshots/main/main-window.png" /></p>
 <p><img alt="Main window layout" src="../assets/diagrams/mainwindow-layout.svg" /></p>
 <p>Ein neues korTTY-Fenster: die Menüleiste, der Terminalbereich (in dem Sitzungsregisterkarten und das optionale Dashboard angezeigt werden, sobald Sie eine Verbindung hergestellt haben) und die Statusleiste. Das folgende Diagramm bildet dieselben Regionen ab:</p>
@@ -2409,16 +2409,16 @@
 <li><strong>Dashboard</strong> (umschalten <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Siehe <a href="#dashboard">Armaturenbrett</a> unten.</li>
 <li><strong>Dateibrowser</strong> (<strong>Ansicht → Dateibrowser ▸ Links anzeigen / Rechts anzeigen</strong>) – ein andockbarer lokaler Dateimanager mit Navigationssymbolleiste, Pfadleiste, Filter, Typsymbolen und einem Ordner-/Datei-/Auswahlzähler. Beim nächsten Start werden Seite, Breite, Status der versteckten Datei und letztes Verzeichnis wiederhergestellt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>
 <li><strong>Live-Journal-Panel</strong> (<strong>Ansicht → Live-Journal</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) – Die aktive Registerkarte wird ausgeführt <a href="../features/session-journal.html#das-live-journal-panel">Sitzungsjournal</a> als vollständige Journalseite, angedockt und in Echtzeit aktualisiert; Seite und Breite werden beim nächsten Start wiederhergestellt.</li>
-<li><strong>Terminalbereich</strong> – das aktive Terminal, mit optionalem Splitscreen und Broadcast-Eingang.</li>
-<li><strong>Statusleiste</strong> – Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.</li>
+<li><strong>Terminal area</strong> — the active terminal, with optional split-screen and broadcast input.</li>
+<li><strong>Status bar</strong> — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.</li>
 </ul>
 <div class="admonition tip">
-<p class="admonition-title">Nur korTTY Applikationsfenster</p>
+<p class="admonition-title">Nur Terminal-Vollbild</p>
 <p>Drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> (oder <strong>Ansicht → Nur Terminal-Vollbild</strong>), um das gesamte korTTY-Fenster – Menüs, Registerkarten und Statusleiste inklusive – in seiner vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund anzuzeigen, sodass der Desktop und andere Fenster nicht mehr um Aufmerksamkeit konkurrieren. <strong>Ansicht → Terminal-Bildlaufleisten im Vollbildmodus ausblenden</strong> entfernt auch die Bildlaufleisten. Ein transparenter Terminalhintergrund wird undurchsichtig, während der Vollbildmodus aktiv ist, und kehrt beim Verlassen auf die gespeicherte Ebene zurück. Drücken Sie erneut <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span>, um die Wiederherstellung durchzuführen.</p>
 </div>
 <h2 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h2>
 <p>Schalten Sie das Dashboard mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span> oder <strong>Ansicht → Dashboard anzeigen</strong> um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.</p>
-<p>In der Kopfzeile wird der Titel des Bedienfelds mit zwei Schaltflächen angezeigt: einem Umschalter zum Reduzieren/Erweitern (reduziert alles, während ein Knoten geöffnet ist, erweitert alles andere) und einer Schaltfläche „Aktualisieren“. Darunter sind die Verbindungen als Baum organisiert:</p>
+<p>The header shows the panel title with two buttons: a collapse/expand toggle (collapses everything while any node is open, expands everything otherwise) and a refresh button. Below it, connections are organized as a tree:</p>
 <ul>
 <li><strong>Hauptfenster</strong> – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.</li>
 <li><strong>Umgebungen</strong> – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. <em>Produktion</em> oder <em>Test</em>), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.</li>
@@ -2427,7 +2427,7 @@
 <p>Jede Verbindungszeile zeigt ein Typsymbol, einen Statuspunkt, den Servernamen und ein Protokoll-Badge (<code>ssh</code>, <code>mosh</code> oder <code>local</code>). Der Statuspunkt unterscheidet drei Zustände: grün gefüllt für eine fehlerfreie Verbindung, rot gefüllt für eine Verbindung, die unerwartet unterbrochen wurde (einschließlich einer Unterbrechung des Mosh-Netzwerks) und ein leerer Umriss für eine Sitzung, die normal beendet wurde. Terminals mit KI-Agentenläufen tragen das gleiche ✋/⚡/⏸/ ✓-Abzeichen wie anderswo. Wenn Sie den Mauszeiger über eine Zeile bewegen, werden <code>user@host</code> und der Verbindungsstatus angezeigt. Ein Doppelklick (oder <span class="keys"><kbd class="key-enter">Enter</kbd></span>) fokussiert die Registerkarte der Sitzung.</p>
 <p>Klicken Sie mit der rechten Maustaste auf eine Verbindung für <strong>Fokus</strong>, <strong>Duplizieren</strong>, <strong>Erneut verbinden</strong>, <strong>SFTP-Client...</strong> (nur verbundene Sitzungen) und <strong>Schließen</strong>. In einer Fußzeile wird die Anzahl der „verbunden von insgesamt“ fortlaufend angezeigt, und in einem leeren Bereich wird ein Platzhalter angezeigt, bis die erste Sitzung geöffnet wird.</p>
 <h2 id="macos-dock-menu">macOS Dock-Menü<a class="headerlink" href="#macos-dock-menu" title="Permanent link">&para;</a></h2>
-<p>Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Strg-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen durchzuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:</p>
+<p>Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Ctrl-Taste) auf das korTTY-Symbol im Dock, um schnelle Aktionen auszuführen, ohne zur App wechseln zu müssen. Sie gelten für das aktuelle (fokussierte) Fenster und öffnen zuerst eines, wenn keines geöffnet ist:</p>
 <ul>
 <li><strong>Neues Fenster</strong></li>
 <li><strong>Neuer Tab im aktuellen Fenster</strong></li>

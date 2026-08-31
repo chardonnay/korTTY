@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2834,7 +2834,7 @@
 <p>Ohne <code>kortty-policy.toml</code> ändert sich nichts – korTTY verhält sich genauso wie zuvor. Bei der ausgelieferten Vorlage <code>policy/kortty-policy.toml.example</code> handelt es sich um eine vollständig kommentierte Vorlage, bei der alles deaktiviert ist.</p>
 </div>
 <h2 id="dateispeicherort-und-sicherheitsmodell">Dateispeicherort und Sicherheitsmodell<a class="headerlink" href="#dateispeicherort-und-sicherheitsmodell" title="Permanent link">&para;</a></h2>
-<p>korTTY lädt die Richtlinie ausschließlich aus dem Ordner <code>policy/</code> seines Installationsverzeichnisses – dem Ordner, der auch das Anwendungs-JAR enthält – und niemals aus <code>~/.kortty/</code> oder einem anderen vom Benutzer beschreibbaren Speicherort. Eine kopierfertige Vorlage wird als <code>policy/kortty-policy.toml.example</code> geliefert; Kopieren Sie es nach <code>kortty-policy.toml</code> im selben Ordner und starten Sie korTTY neu (es gibt kein Hot-Reload).</p>
+<p>korTTY lädt die Richtlinie ausschließlich aus dem Ordner <code>policy/</code> seines Installationsverzeichnisses – dem Ordner, der auch die Anwendungs-JAR-Datei enthält – und niemals aus <code>~/.kortty/</code> oder einem anderen vom Benutzer beschreibbaren Speicherort. Eine kopierfertige Vorlage wird als <code>policy/kortty-policy.toml.example</code> geliefert; Kopieren Sie es nach <code>kortty-policy.toml</code> im selben Ordner und starten Sie korTTY neu (es gibt kein Hot-Reload).</p>
 <table>
 <thead>
 <tr>
@@ -3095,7 +3095,7 @@
 <td><code>session-journal</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>Der <a href="../features/session-journal.html">Sitzungsjournal</a>: Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet <code>ai</code> – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf</td>
+<td>The <a href="../features/session-journal.html">session journal</a>: Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet <code>ai</code> – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf</td>
 </tr>
 <tr>
 <td><code>ai-agent-execution</code></td>
@@ -3187,7 +3187,7 @@
 <td><code>allow-internet</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Verbietet jeden Internetzugriffsmodus der KI – siehe unten</td>
+<td>Verbietet jeden KI-Internetzugriffsmodus – siehe unten</td>
 </tr>
 </tbody>
 </table>
@@ -3197,12 +3197,12 @@
 Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
 einzelne eine Lücke ließe:</p>
 <ol>
-<li><strong>Gespeicherte Einstellungen</strong> – beim Laden und beim Speichern wird der Modus jedes Profils auf
+<li><strong>Gespeicherte Einstellungen</strong> – der Modus jedes Profils wird auf <em>Deaktiviert</em> zurückgesetzt, wenn die Einstellungen geändert werden
    <em>Deaktiviert</em> zurückgesetzt. So überlebt weder ein Wert aus der Zeit vor der Richtlinie noch
    eine Handänderung an <code>global-settings.xml</code>.</li>
-<li><strong>Die Oberfläche</strong> – die Auswahlliste ist im KI-Manager und unter <strong>Einstellungen → KI</strong> mit dem
-   Hinweis „Von Ihrer Organisation verwaltet“ gesperrt.</li>
-<li><strong>Jede KI-Anfrage</strong> – korTTY verweigert den Dienstaufbau für ein Profil mit aktiviertem Modus
+<li><strong>Die Schnittstelle</strong> – das Dropdown-Menü ist mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt
+   sowohl den KI-Manager als auch <strong>Einstellungen → AI</strong>.</li>
+<li><strong>Jede AI-Anfrage</strong> – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
    und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
    Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.</li>
 </ol>
@@ -3517,7 +3517,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <p>Es fallen nur Journale an, die während der Geltungsdauer der Regelung verfasst wurden; bestehende Journale werden nicht rückwirkend umgeschrieben. Benutzer können diese mit der Such- und Ersetzungsfunktion des Viewers bereinigen.</p>
 </div>
 <h3 id="von-admin-bereitgestellte-objekte">Von Admin bereitgestellte Objekte<a class="headerlink" href="#von-admin-bereitgestellte-objekte" title="Permanent link">&para;</a></h3>
-<p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und niemals in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
+<p>Diese Tabellen der obersten Ebene definieren Objekte, die für jeden Benutzer schreibgeschützt und mit der Kennzeichnung „Von Ihrer Organisation bereitgestellt“ gekennzeichnet sind. Sie werden bei jedem Start aus der Richtlinie neu erstellt und nie in die Konfigurationsdateien des Benutzers geschrieben. Wenn Sie sie aus der Richtlinie entfernen, werden sie auch aus korTTY entfernt.</p>
 <table>
 <thead>
 <tr>
@@ -3563,7 +3563,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
 <div class="admonition warning">
 <p class="admonition-title">Sicherheitsbereich</p>
-<p>Der Umschlag verwendet AES-256-GCM mit einem anwendungsweiten Schlüssel und schützt so vor zufälliger Offenlegung (Schulterzugriff, Konfigurationsunterschiede, Backups) und erkennt Manipulationen – es handelt sich nicht um strenge Geheimhaltung, da jeder mit der korTTY-Binärdatei den Anwendungsschlüssel wiederherstellen könnte. Die Betriebssystemberechtigungen des Installationsverzeichnisses bleiben die eigentliche Sicherheitsgrenze; Bevorzugen Sie benutzerspezifische Schlüssel über den normalen Profilfluss, wenn diese Grenze nicht ausreicht.</p>
+<p>The envelope uses AES-256-GCM with an application-wide key, so it protects against casual disclosure (shoulder surfing, config diffs, backups) and detects tampering — it is not hard secrecy, since anyone with the korTTY binary could recover the application key. The installation directory's OS permissions remain the actual security boundary; prefer per-user keys via the normal profile flow when that boundary is not enough.</p>
 </div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <table>
@@ -3587,8 +3587,8 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td>Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen <code>[groups]</code> Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer &gt; Gruppe &gt; Jeder) weniger spezifische Regeln außer Kraft setzt</td>
 </tr>
 <tr>
-<td>Warnung „Richtliniendatei kann vom aktuellen Benutzer geschrieben werden“</td>
-<td>Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Durchsetzungsmodell basiert auf Schreibzugriff nur für Administratoren</td>
+<td>Warning "policy file is writable by the current user"</td>
+<td>The installation directory permissions are too open — the enforcement model relies on admin-only write access</td>
 </tr>
 <tr>
 <td>Das Admin-Modell wird nicht angezeigt</td>

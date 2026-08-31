@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2496,7 +2496,7 @@
 <p>korTTY führt <strong>keine eigene Validierung</strong> durch, wenn ein Snippet oder ein Workflow-Skript ausgeführt wird. Durch die Eingabe-Härtung wird das <em>Skript</em> geändert: Die KI schreibt die Prüfungen in den Code, sodass sie jede zukünftige Ausführung dieses Skripts schützt – auch wenn es außerhalb von korTTY, von einem Scheduler oder auf einem Remote-Host gestartet wird. Wenn Sie das Skript später bearbeiten, handelt es sich bei dem Schutz um normalen Skriptcode, den Sie lesen, anpassen oder entfernen können.</p>
 </div>
 <h2 id="eingabe-hartung-vs-hartungsoptionen">Eingabe-Härtung vs. Härtungsoptionen<a class="headerlink" href="#eingabe-hartung-vs-hartungsoptionen" title="Permanent link">&para;</a></h2>
-<p>Trotz des ähnlichen Namens handelt es sich hierbei um eine andere Funktion als <a href="hardening-options.html">Härtungsoptionen</a>. <em>Härtungsoptionen</em> sind allgemeine Techniken in Produktionsqualität (strikter Modus, Fehlerfallen, Protokollierung, <code>--help</code>, …), die beeinflussen, <em>wie das Skript geschrieben wird</em>. Bei der <em>Eingabe-Härtung</em> geht es darum, <em>was das Skript akzeptiert</em>: Es fügt einen konkreten Schutzblock hinzu, der Parameter und Eingabedateien zur Laufzeit validiert. Die beiden Panels erscheinen nebeneinander und sind frei kombinierbar.</p>
+<p>Despite the similar name, this is a different feature than <a href="hardening-options.html">Hardening options</a>. <em>Hardening options</em> are general production-quality techniques (strict mode, error traps, logging, <code>--help</code>, …) that shape <em>how the script is written</em>. <em>Eingabe-Härtung</em> is about <em>what the script accepts</em>: it adds a concrete guard block that validates parameters and input files at run time. The two panels appear side by side and can be combined freely.</p>
 <h2 id="wo-es-erscheint">Wo es erscheint<a class="headerlink" href="#wo-es-erscheint" title="Permanent link">&para;</a></h2>
 <p>Das <strong>Input-Hardening</strong>-Panel wird an den gleichen Stellen angezeigt wie das klassische Hardening-Panel sowie den AI-Swarm-Generator:</p>
 <table>
@@ -2529,7 +2529,7 @@
 </tr>
 </tbody>
 </table>
-<p>Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung <strong>ausschließlich opt-in</strong>: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird minimiert, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie <strong>Eingabe-Härtung (Skript-Eingaben validieren)</strong>, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.</p>
+<p>Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung <strong>ausschließlich per Opt-in</strong>: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird ausgeblendet, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie <strong>Eingabe-Härtung (Skript-Eingaben validieren)</strong>, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.</p>
 <p>Deklarative YAML/YML/Ansible-Ziele können diesen zwingenden Argument- und Dateischutz nicht erhalten. KorTTY deaktiviert das Panel für diese Ziele in den Dialogen Workflow, Swarm, <strong>Robustheit verbessern</strong>, <strong>Benutzerdefinierte Verbesserung</strong> und <strong>Vollständige Codeanalyse</strong>, und eine bereits gespeicherte aktivierte Standardeinstellung führt dort zu keiner wirksamen Schutzkonfiguration. Für Snippet-Verbesserungen in einer unterstützten Sprache ändert die Aktivierung der Eingabe-Härtung das Ziel auf das <strong>vollständige Snippet</strong>, sodass der Schutz vor allen eigentlichen Arbeiten platziert werden kann; Das Gesamtergebnis wird vor der Anwendung überprüft.</p>
 <h2 id="die-funf-wachverhaltensweisen">Die fünf Wachverhaltensweisen<a class="headerlink" href="#die-funf-wachverhaltensweisen" title="Permanent link">&para;</a></h2>
 <p>Wenn das Master-Kontrollkästchen aktiviert ist, steuern fünf Unteroptionen, was der Wächter erzwingt. Alle fünf sind bereits angekreuzt; Deaktivieren Sie, was Sie nicht möchten.</p>
@@ -2570,7 +2570,7 @@
 <h2 id="sprachbewusstsein">Sprachbewusstsein<a class="headerlink" href="#sprachbewusstsein" title="Permanent link">&para;</a></h2>
 <p>Der Wächter nutzt die eigenen integrierten Funktionen und Standardbibliotheken jeder Sprache, sofern verfügbar, und prüft optionale Plattformtools, bevor er sie verwendet. Bash Guards verwenden <code>$#</code>, Mustervergleich, GNU <code>stat -c %s</code> oder BSD/macOS <code>stat -f %z</code> für eine reine Metadaten-Größenprüfung und einen NUL-Byte-Scan erst, nachdem diese Größenprüfung bestanden wurde; Wenn keines der <code>stat</code>-Formulare funktioniert, lehnt der Wächter die Datei ab, ohne sie zu lesen. Python-Guards verwenden <code>sys.argv</code>, <code>re</code>, <code>os.path.getsize</code> und einen binären Lesevorgang; Perl-Wächter verwenden <code>@ARGV</code>, das Entfernen von Regex-Zulassungslisten, den Taint-Modus (<code>-T</code>), sofern das Skript dies zulässt, und den Nur-Metadaten-Operator <code>-s</code>; Ruby Guards verwenden <code>ARGV</code>, <code>Regexp</code>, <code>File.size</code> und <code>File.binread</code>. Andere Skriptsprachen erhalten allgemeine Anleitungen nur für die nativen Argument-, Datei-, Protokollierungs- oder Umgebungsfunktionen, die für die ausgewählten Unteroptionen erforderlich sind. Deklarative YAML/YML/Ansible-Ziele sind deaktiviert, da sie auf diese Weise keine Positionsparameter annehmen.</p>
 <h2 id="verwaltung-der-auswahl">Verwaltung der Auswahl<a class="headerlink" href="#verwaltung-der-auswahl" title="Permanent link">&para;</a></h2>
-<p>Unterhalb der Unteroptionen aktivieren oder deaktivieren <strong>Alle</strong> und <strong>Löschen</strong> jede Unteroption, und <strong>Speichern</strong> speichert den Hauptschalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – dann wird jedes Eingabe-Härtungsfeld mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine <strong>Live-Zählung</strong> der effektiv aktiven Unteroptionen an, die <code>0</code> beträgt, wenn der Hauptschalter ausgeschaltet ist.</p>
+<p>Unterhalb der Unteroptionen aktivieren oder deaktivieren <strong>Alle</strong> und <strong>Löschen</strong> jede Unteroption, und <strong>Speichern</strong> speichert den Master-Schalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – jedes Eingabe-Härtungsfeld wird dann mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine Live-Anzahl der tatsächlich aktiven Unteroptionen an, die <code>0</code> beträgt, wenn der Hauptschalter ausgeschaltet ist.</p>
 
 
 

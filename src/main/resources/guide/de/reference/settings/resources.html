@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2400,7 +2400,7 @@
 
 
 <h1 id="ressourcen">Ressourcen<a class="headerlink" href="#ressourcen" title="Permanent link">&para;</a></h1>
-<p>Legen Sie fest, wie viel Speicher korTTY nutzen darf. Die Voreinstellung hält den Verbrauch niedrig und begrenzt; die anderen Profile erlauben der paketierten Anwendung, mehr Ressourcen Ihres Rechners für sehr große Sitzungen zu nutzen (riesiger Scrollback, viele geteilte Bereiche, lange KI-Chats). Öffnen über <strong>Konfiguration → Globale Einstellungen → Ressourcen</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Choose how much memory korTTY may use. The default keeps a low, bounded footprint; the other profiles let the packaged application use more of your machine's resources for very large sessions (huge scrollback, many split panes, long AI chats). Open via <strong>Configuration → Global Settings → Resources</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <table>
 <thead>
 <tr>
@@ -2456,7 +2456,7 @@
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Gilt nur für die Paketanwendung</p>
-<p>Diese Einstellung wird von der paketierten App (dem <code>.dmg</code>/<code>.msi</code>/AppImage-Build) angewendet, die sich beim Start einmal kurz selbst neu startet, um Heap-Größe und Garbage Collector umzustellen – die Java-Laufzeit kann diese im laufenden Betrieb nicht ändern, und ein Bearbeiten des signierten Anwendungspakets würde dessen Signatur beschädigen. Wird korTTY aus der einfachen <code>.jar</code> gestartet, setzen Sie die JVM-Optionen stattdessen selbst (zum Beispiel <code>-Xmx8g</code>).</p>
+<p>This setting is applied by the packaged app (the <code>.dmg</code>/<code>.msi</code>/AppImage build), which briefly relaunches itself once at startup to switch the heap size and garbage collector — the Java runtime cannot change these while running, and editing the signed application bundle would break its signature. When korTTY is started from the plain <code>.jar</code>, set JVM options yourself (for example <code>-Xmx8g</code>) instead.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Wird nach einem Neustart wirksam</p>
@@ -2464,7 +2464,7 @@
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Lassen Sie Spielraum für den Rest Ihres Systems.</p>
-<p>Höhere Profile lassen korTTY deutlich mehr Speicher reservieren. Terminal- und Editor-Darstellung (die eingebetteten Browser-Engines) belegen auch Speicher <em>außerhalb</em> des Java-Heaps – deshalb begrenzt das Profil Maximal den Heap bewusst auf etwa drei Viertel des RAM, statt das Limit ganz aufzuheben: ein wirklich unbegrenzter Heap könnte das Betriebssystem aushungern.</p>
+<p>Higher profiles let korTTY reserve much more memory. Terminal and editor rendering (the embedded browser engines) also use memory <em>outside</em> the Java heap, so the Maximum profile deliberately caps the heap at about three quarters of RAM rather than removing the limit entirely — a truly unbounded heap could starve the operating system.</p>
 </div>
 
 

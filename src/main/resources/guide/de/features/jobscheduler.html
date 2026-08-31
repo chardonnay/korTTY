@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2653,7 +2653,7 @@
 <li><strong>SNIPPET_SCRIPT</strong> – Führen Sie ein SnippetManager-Skript auf dem Ziel mit optionalen Parametern aus</li>
 <li><strong>AI_AGENT</strong> – Führen Sie einen Headless-KI-Agenten mit expliziter automatischer Genehmigung aus</li>
 <li><strong>AI_SWARM</strong> – Senden Sie eine KI-Agent-Aufgabe parallel an alle ausgewählten Ziele und speichern Sie die kombinierte Antwort als gespeicherten Schwarm-Chat</li>
-<li><strong>SFTP</strong> – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Besitzer ändern, Remote-Kopieren oder Archive erstellen</li>
+<li><strong>SFTP</strong> – Hochladen, Herunterladen, Synchronisieren, Löschen, Umbenennen, Verzeichnisse erstellen, Berechtigungen festlegen, Eigentümer ändern, Remote-Kopieren oder Archive erstellen</li>
 <li><strong>RSYNC_SYNC</strong> – Verzeichnisse über externes <code>rsync</code> über SSH synchronisieren</li>
 </ul>
 <h2 id="job-konfiguration">Job-Konfiguration<a class="headerlink" href="#job-konfiguration" title="Permanent link">&para;</a></h2>
@@ -2802,7 +2802,7 @@
 <h4 id="snippet-skriptjobs">Snippet-Skriptjobs<a class="headerlink" href="#snippet-skriptjobs" title="Permanent link">&para;</a></h4>
 <p>Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass eine geöffnete Terminalregisterkarte erforderlich ist. KorTTY löst integrierte Snippet-Variablen und gespeicherte SnippetManager-Variablen vor der Ausführung auf. Fehlende Snippets, fehlende gespeicherte Variablenwerte und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund in das Journal. Zusätzliche Snippet-Parameter werden einzeln pro Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.</p>
 <h4 id="ai-schwarmjobs">AI Schwarmjobs<a class="headerlink" href="#ai-schwarmjobs" title="Permanent link">&para;</a></h4>
-<p>AI Swarm-Jobs führen eine AI-Agent-Eingabeaufforderung auf <strong>allen ausgewählten Zielen parallel</strong> über Hintergrund-SSH-Sitzungen aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder <strong>KI-Profil</strong>, <strong>KI-Eingabeaufforderung</strong> und <strong>Automatisch genehmigende KI-Befehle</strong> hinaus gelten zwei schwarmspezifische Felder:</p>
+<p>AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine AI-Agent-Eingabeaufforderung auf <strong>allen ausgewählten Zielen parallel</strong> aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder <strong>KI-Profil</strong>, <strong>KI-Eingabeaufforderung</strong> und <strong>Automatisch genehmigende KI-Befehle</strong> hinaus gelten zwei schwarmspezifische Felder:</p>
 <table>
 <thead>
 <tr>

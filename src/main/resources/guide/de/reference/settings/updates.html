@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -980,6 +980,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aktualisierungen
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="updates.html" class="md-nav__link md-nav__link--active">
         
   
@@ -996,6 +1014,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ein-update-herunterladen-und-installieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ein Update herunterladen und installieren
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2295,6 +2343,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ein-update-herunterladen-und-installieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ein Update herunterladen und installieren
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2311,7 +2378,7 @@
 
 
 <h1 id="updates">Updates<a class="headerlink" href="#updates" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die automatische Update-Überprüfung und die Häufigkeit, mit der korTTY GitHub nach neuen Versionen abfragt. Öffnen über <strong>Konfiguration → Globale Einstellungen → Updates</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Configure automatic update checking and the frequency at which korTTY queries GitHub for new releases. Open via <strong>Configuration → Global Settings → Updates</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Updates settings tab" src="../../assets/screenshots/settings/updates.png" /></p>
 <table>
 <thead>
@@ -2325,17 +2392,17 @@
 </thead>
 <tbody>
 <tr>
-<td>Automatisch nach KorTTY-Updates suchen</td>
-<td>umschalten</td>
+<td>Check automatically for KorTTY updates</td>
+<td>toggle</td>
 <td>—</td>
-<td>Auf</td>
+<td>On</td>
 <td><code>updateChecksEnabled</code></td>
 </tr>
 <tr>
-<td>Prüfintervall</td>
-<td>Schieberegler</td>
-<td>1–30 Tage</td>
-<td>1 Tag</td>
+<td>Check interval</td>
+<td>slider</td>
+<td>1–30 days</td>
+<td>1 day</td>
 <td><code>updateCheckIntervalDays</code></td>
 </tr>
 </tbody>
@@ -2344,6 +2411,12 @@
 <p class="admonition-title">Note</p>
 <p>Automatische Update-Prüfungen laufen unbemerkt im Hintergrund und zeigen nur dann einen Benachrichtigungsdialog an, wenn eine neuere kompatible Version verfügbar ist. Manuelle Update-Prüfungen sind jederzeit über das Dialogfeld „Info“ verfügbar.</p>
 </div>
+<h2 id="ein-update-herunterladen-und-installieren">Ein Update herunterladen und installieren<a class="headerlink" href="#ein-update-herunterladen-und-installieren" title="Permanent link">&para;</a></h2>
+<p>korTTY wählt das native Release-Asset aus, das dem aktuellen Betriebssystem, der Prozessorarchitektur und dem Pakettyp entspricht, lädt es in das normale Download-Verzeichnis der Plattform herunter und überprüft den von GitHub veröffentlichten SHA-256-Digest, bevor die Datei verfügbar gemacht wird. Eine Flatpak-Installation akzeptiert nur ein passendes <code>.flatpak</code>-Bundle; Es bietet niemals ein DEB-, RPM-, Pacman-Paket oder tragbares Archiv als direkten Ersatz an.</p>
+<p>Flatpak-Bundles werden heruntergeladen, aber nicht automatisch installiert. Nach dem Download zeigt korTTY den genauen Host-Terminal-Befehl an, der dem folgenden Beispiel entspricht, und lässt den heruntergeladenen Pfad auswählbar:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flatpak<span class="w"> </span>install<span class="w"> </span>--user<span class="w"> </span>./kortty-Linux-&lt;version&gt;-&lt;architecture&gt;.flatpak
+</span></code></pre></div>
+<p>Die GitHub-Release-Seite bleibt über die Anleitung verfügbar, wenn der Paketmanager eine zusätzliche Bestätigung oder eine systemweite Installation erfordert.</p>
 
 
 

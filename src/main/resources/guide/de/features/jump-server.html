@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2472,7 +2472,7 @@
 </ol>
 <h2 id="host-schlusseluberprufung">Host-Schlüsselüberprüfung<a class="headerlink" href="#host-schlusseluberprufung" title="Permanent link">&para;</a></h2>
 <p>Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost. Die Bastion wird immer streng überprüft: <a href="security.html#lockere-uberprufung-des-hostschlussels">Relaxing Host-Key-Überprüfung</a> gilt nur für Zielhosts, niemals für den Jump Hop.</p>
-<p>Dies gilt auch dann, wenn die Überprüfung des Host-Schlüssels für das Ziel gelockert wurde: Die verbindungs-, gruppen- und globalen Opt-outs decken nie die Bastion ab, sodass ihr Schlüssel immer streng überprüft wird. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Lockere Hostschlüsselüberprüfung</a>.</p>
+<p>Dies gilt auch dann, wenn die Überprüfung des Hostschlüssels für das Ziel gelockert wurde: Die verbindungs-, gruppen- und globalen Opt-outs decken niemals die Bastion ab, sodass ihr Schlüssel immer streng überprüft wird. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Lockere Hostschlüsselüberprüfung</a>.</p>
 <p>Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.</p>
 <h2 id="wann-es-verwendet-werden-soll">Wann es verwendet werden soll<a class="headerlink" href="#wann-es-verwendet-werden-soll" title="Permanent link">&para;</a></h2>
 <ul>

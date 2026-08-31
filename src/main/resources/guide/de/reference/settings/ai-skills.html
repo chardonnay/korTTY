@@ -409,7 +409,7 @@
   <span class="md-ellipsis">
     
   
-    Übersicht über das Hauptfenster
+    Main window overview
   
 
     
@@ -2444,7 +2444,7 @@
 
 
 <h1 id="ki-fahigkeiten">KI-Fähigkeiten<a class="headerlink" href="#ki-fahigkeiten" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie benutzerdefinierte KI-Fähigkeiten, die KI-Interaktionen verbessern. Auf dieser Registerkarte können Sie eine Bibliothek mit Markdown-basierten Fertigkeiten verwalten, die automatisch oder manuell in KI-Anfragen einbezogen werden. Öffnen über <strong>KI → KI-Manager → KI-Fähigkeiten</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via <strong>AI → KI-Manager → AI Skills</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Aus den globalen Einstellungen entfernt</p>
 <p>Die Skill-Bibliothek war früher eine Registerkarte unter <strong>Konfiguration → Globale Einstellungen</strong>. Es befindet sich jetzt im <strong>KI-Manager</strong>, neben Profilen, lokalen Modellen und Wissensspeichern. Die gespeicherten Daten und die Einstellungsdatei bleiben unverändert.</p>
@@ -2465,15 +2465,15 @@
 <tr>
 <td>KI-Fähigkeiten aktivieren</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>aiSkillsEnabled</code></td>
 </tr>
 <tr>
-<td>Nur passende Fähigkeiten automatisch senden</td>
+<td>Automatisch nur passende Fähigkeiten senden</td>
 <td>umschalten</td>
-<td>—</td>
-<td>Auf</td>
+<td>–</td>
+<td>Ein</td>
 <td><code>aiSkillAutoDetectionEnabled</code></td>
 </tr>
 <tr>
@@ -2492,10 +2492,10 @@
 </tr>
 <tr>
 <td>Sortieren</td>
-<td>Dropdown</td>
+<td>Menüschaltfläche</td>
 <td>Alphabetisch, Status (zuerst aktiviert)</td>
-<td>Alphabetisch</td>
-<td>—</td>
+<td>–</td>
+<td>–</td>
 </tr>
 <tr>
 <td>Schaltfläche „Speichern“</td>
@@ -2521,24 +2521,24 @@
 </thead>
 <tbody>
 <tr>
-<td>Fähigkeitsname</td>
-<td>Text</td>
+<td>Skill name</td>
+<td>text</td>
 <td>—</td>
-<td>„KI-Fähigkeit“</td>
-<td><code>name</code> (auf AiSkill-Objekt)</td>
+<td>"AI Skill"</td>
+<td><code>name</code> (on AiSkill object)</td>
 </tr>
 <tr>
 <td>Beschreibung</td>
 <td>Text</td>
-<td>—</td>
-<td>—</td>
+<td>–</td>
+<td>–</td>
 <td><code>description</code></td>
 </tr>
 <tr>
-<td>Schlagworte</td>
+<td>Tags</td>
 <td>Text</td>
 <td>Durch Kommas getrennte Tags (z. B. Linux, Bash)</td>
-<td>—</td>
+<td>–</td>
 <td><code>tags</code></td>
 </tr>
 <tr>
@@ -2552,14 +2552,14 @@
 <td>Aktiv</td>
 <td>umschalten</td>
 <td>—</td>
-<td>Aus</td>
+<td>Ein</td>
 <td><code>enabled</code></td>
 </tr>
 <tr>
-<td>Fertigkeitsabschlag</td>
+<td>Skill-Markdown</td>
 <td>Text</td>
-<td>Markdown-formatierte Fertigkeitsinhalte</td>
-<td>—</td>
+<td>Markdown-formatierter Skill-Inhalt</td>
+<td>–</td>
 <td><code>content</code></td>
 </tr>
 </tbody>
@@ -2568,9 +2568,9 @@
 <p>korTTY bietet 39 integrierte Best-Practice-Kenntnisse für Shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), Programmiersprachen (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart), Markup und Datenformate (HTML, XML, YAML, JSON) und Automatisierungs-/Beobachtbarkeitstools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat, Logstash). Jeder Skill bietet professionelle Anleitungen zu Codekommentaren, Robustheit, häufig zu vermeidenden Fallstricken und sprachspezifischen Sicherheitspraktiken. Sie werden beim ersten Start zur Bibliothek hinzugefügt und erscheinen mit einem <strong>integrierten</strong> Abzeichen.</p>
 <p>Integrierte Fertigkeiten verhalten sich wie Ihre eigenen Fertigkeiten – sie können bearbeitet, deaktiviert und Verbindungen zugewiesen werden – mit folgenden Unterschieden:</p>
 <ul>
-<li><strong>Sie können nicht gelöscht, sondern nur ausgeblendet werden.</strong> <em>Ausblenden</em> entfernt eine integrierte Funktion aus der Liste und aus allen Fertigkeitsauswahlen; <em>Versteckte integrierte Fähigkeiten anzeigen</em> zeigt versteckte Einträge an, sodass sie mit <em>Einblenden</em> wiederhergestellt werden können.</li>
+<li><strong>Sie können nicht gelöscht, sondern nur ausgeblendet werden.</strong> <em>Ausblenden</em> entfernt eine integrierte Funktion aus der Liste und aus allen Fertigkeitsauswahlen, und eine ausgeblendete integrierte Funktion wird nicht mehr mit AI-Anfragen gesendet – selbst bei Verbindungen, denen sie zuvor zugewiesen wurde. <em>Versteckte integrierte Fertigkeiten anzeigen</em> zeigt versteckte Einträge an, die mit einem <strong>Versteckt</strong>-Abzeichen gekennzeichnet sind, sodass sie mit <em>Einblenden</em> wieder angezeigt werden können.</li>
 <li><strong>Unveränderte integrierte Funktionen werden automatisch aktualisiert.</strong> Wenn eine neue korTTY-Version verbesserte Skill-Inhalte bereitstellt, werden unveränderte integrierte Funktionen beim Start automatisch ersetzt (Ihre Auswahl zwischen Aktiv/Ausgeblendet bleibt erhalten).</li>
-<li><strong>Geänderte integrierte Funktionen werden nie berührt.</strong> Sobald Sie eine integrierte Funktion bearbeiten, wird für sie das Abzeichen „Integriert (geändert)“ angezeigt und die automatische Aktualisierung wird gestoppt. <em>Auf die ausgelieferte Version zurücksetzen</em> verwirft Ihre Änderungen und stellt die ausgelieferte Version wieder her, auf der Ihre Änderungen basierten. Wenn eine neuere ausgelieferte Version vorhanden ist, wird im Eintrag 🔄 <strong>Update verfügbar</strong> angezeigt und <em>Update auf neueste ausgelieferte Version</em> übernimmt diese.</li>
+<li><strong>Geänderte integrierte Funktionen werden nie berührt.</strong> Sobald Sie eine integrierte Funktion bearbeiten, wird für sie das Abzeichen „Integriert (geändert)“ angezeigt und die automatische Aktualisierung wird beendet. <em>Auf die ausgelieferte Version zurücksetzen</em> verwirft Ihre Änderungen und stellt die ausgelieferte Version wieder her, auf der Ihre Änderungen basierten. Wenn eine neuere ausgelieferte Version vorhanden ist, wird im Eintrag 🔄 <strong>Update verfügbar</strong> angezeigt und <em>Update auf neueste ausgelieferte Version</em> übernimmt diese.</li>
 <li><strong>Ihre eigenen Fertigkeiten haben immer Vorrang.</strong> Wenn einer Ihrer aktivierten Fertigkeiten ein Tag trägt, das mit dem Thema einer integrierten Fertigkeit übereinstimmt (z. B. eine persönliche Fertigkeit mit der Bezeichnung <code>perl</code>), wird die integrierte Fertigkeit unterdrückt: Sie zeigt <strong>Von Benutzerfertigkeit überschrieben</strong> an, ist ausgegraut und wird nicht mehr mit einer AI-Anfrage gesendet. Durch das Löschen oder Deaktivieren Ihres Skills wird die integrierte Funktion sofort wieder aktiviert.</li>
 <li>Deaktivierte, ausgeblendete und überschriebene Einträge werden ausgegraut dargestellt; Dies funktioniert in jedem Anwendungsdesign-Thema.</li>
 </ul>
@@ -2581,7 +2581,7 @@
 <h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Automatisches Erkennungsverhalten</p>
-<p>Wenn <strong>Nur übereinstimmende Fertigkeiten automatisch senden</strong> aktiviert ist, wertet korTTY die Tags jeder Fertigkeit anhand der aktuellen Anfrage aus und schließt nur diejenigen ein, die übereinstimmen. Wenn diese Option deaktiviert ist, werden alle aktiven Fertigkeiten unabhängig von den Tags gesendet.</p>
+<p>Wenn <strong>Nur übereinstimmende Fertigkeiten automatisch senden</strong> aktiviert ist, bewertet korTTY jede Fertigkeit anhand der aktuellen Anfrage in vier Feldern – Tags, Name, Beschreibung und die Überschriften im Markdown der Fertigkeit – und schließt höchstens die <strong>zwei</strong> Fertigkeiten mit der höchsten Bewertung ein, die den Relevanzschwellenwert erreichen (Gleichstände nach Katalogreihenfolge aufgelöst). Explizit angeheftete und verbindungszugewiesene Fertigkeiten werden zusätzlich hinzugefügt und verbrauchen dieses Limit nicht. Wenn die lokalen Bewertungen nicht schlüssig sind (keine oder eine passende Fähigkeit oder genau zwei übereinstimmende mit nahezu gleichen Bewertungen), bittet korTTY das Modell zusätzlich, die Anfrage zu klassifizieren und bevorzugt diese Antwort – ebenfalls begrenzt auf zwei Fähigkeiten – und greift auf das lokale Ergebnis zurück, wenn der Anruf fehlschlägt. Bei Deaktivierung werden alle anwendbaren Fertigkeiten ohne Bewertung gesendet – eine Fertigkeit wird weiterhin übersprungen, wenn sie inaktiv ist, leeren Inhalt hat oder nicht mit dem aktuellen Ziel übereinstimmt.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Fertigkeitsziele</p>
@@ -2598,7 +2598,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Auswahl der Fähigkeiten pro Anfrage</p>
-<p>Auf dieser Registerkarte wird die globale Bibliothek verwaltet. Welche dieser aktivierten Fertigkeiten für eine bestimmte Aktion gelten, wird an anderer Stelle ausgewählt: Die <strong>KI-Skills</strong>-Auswahl des Snippet-Editors heftet Ihre Auswahl an jede Snippet-KI-Aktion, und im Fenster <strong>Vollständige Codeanalyse</strong> werden die enthaltenen Fertigkeiten als Chips angezeigt – gekennzeichnet mit <em>(automatisch ausgewählt)</em> oder <em>(manuell)</em> – mit einer durchsuchbaren Auswahl, deren Änderungen bei der nächsten Wiederholung wirksam werden. Innerhalb von Snippet-KI-Aktionen ersetzt der Picker die automatische Erkennung: Es werden nur die angekreuzten Skills plus verbindungszugewiesenen Skills gesendet, und durch das Löschen des Pickers werden überhaupt keine Bibliotheksskills gesendet. Die Snippet-Auswahlaktionen <strong>Korrigieren</strong> und <strong>Übersetzen</strong> sowie die feste Anfrage <strong>Diagramm</strong> umfassen niemals Bibliothekskenntnisse, unabhängig vom Ziel oder der Fixierung. Siehe <a href="../../features/snippets.html#ki-skills">Snippets → KI-Fähigkeiten</a>.</p>
+<p>Auf dieser Registerkarte wird die globale Bibliothek verwaltet. Welche dieser aktivierten Fertigkeiten für eine bestimmte Aktion gelten, wird an anderer Stelle ausgewählt: Die <strong>KI-Skills</strong>-Auswahl des Snippet-Editors heftet Ihre Auswahl an jede Snippet-KI-Aktion, und das Fenster <strong>Vollständige Codeanalyse</strong> zeigt die enthaltenen Fertigkeiten als Chips an – mit der Bezeichnung <em>(automatisch ausgewählt)</em> oder <em>(manuell)</em> – mit einer durchsuchbaren Auswahl, deren Änderungen bei der nächsten Wiederholung wirksam werden. Innerhalb von Snippet-KI-Aktionen ersetzt der Picker die automatische Erkennung: Es werden nur die angekreuzten Skills plus verbindungszugewiesenen Skills gesendet, und durch das Löschen des Pickers werden überhaupt keine Bibliotheksskills gesendet. Die Snippet-Auswahlaktionen <strong>Korrigieren</strong> und <strong>Übersetzen</strong> sowie die feste Anforderung <strong>Diagramm</strong> umfassen niemals Bibliothekskenntnisse, unabhängig vom Ziel oder der Fixierung. Siehe <a href="../../features/snippets.html#ki-skills">Snippets → KI-Fähigkeiten</a>.</p>
 </div>
 
 

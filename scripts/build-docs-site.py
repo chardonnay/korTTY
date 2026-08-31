@@ -5,10 +5,12 @@ Pipeline per language:
   1. Stage canonical visuals (app-docs/diagrams, app-docs/screenshots) into the
      MkDocs asset tree (docs/<lang>/assets/...). These copies are gitignored.
   2. Run `mkdocs build --strict` with KORTTY_VERSION injected from build.gradle.kts.
-  3. Post-process: inline the vendored iframe-worker shim so the built site has
+  3. Normalize generated text to LF so the committed offline guide is byte-for-byte
+     reproducible on Windows, macOS, and Linux.
+  4. Post-process: inline the vendored iframe-worker shim so the built site has
      ZERO runtime network dependencies and its offline search works from a
      file://  /  jar:  origin inside korTTY's WebView.
-  4. Assert no external resource is actually fetched.
+  5. Assert no external resource is actually fetched.
 
 Output: build/guide/<lang>/ (consumed by Gradle staging into resources + GitHub Pages).
 
@@ -110,10 +112,31 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
+    normalize_text_line_endings(out)
     inline_shim(out)
     assert_offline(out)
     extract_translation_manifests(out, lang)
     return out
+
+
+def normalize_text_line_endings(out: Path) -> None:
+    """Make generated text reproducible before byte-offset manifests are extracted.
+
+    MkDocs and Python's text writers use the host newline convention.  Without this
+    pass, a Windows build embeds CRLF in translation-manifest strings while CI on
+    Linux embeds LF, leaving the committed guide permanently stale on one platform.
+    """
+    text_suffixes = {".css", ".html", ".js", ".json", ".svg", ".txt", ".xml"}
+    normalized = 0
+    for path in out.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in text_suffixes:
+            continue
+        raw = path.read_bytes()
+        canonical = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        if canonical != raw:
+            path.write_bytes(canonical)
+            normalized += 1
+    print(f"  normalized LF line endings in {normalized} generated text file(s)")
 
 
 def extract_translation_manifests(out: Path, lang: str) -> None:
@@ -149,9 +172,9 @@ def inline_shim(out: Path) -> int:
     inline_tag = f"<script>/* iframe-worker shim (vendored, offline) */\n{shim_js}</script>"
     patched = 0
     for html in out.rglob("*.html"):
-        text = html.read_text(encoding="utf-8")
+        text = html.read_bytes().decode("utf-8")
         if UNPKG_SHIM_TAG in text:
-            html.write_text(text.replace(UNPKG_SHIM_TAG, inline_tag), encoding="utf-8")
+            html.write_bytes(text.replace(UNPKG_SHIM_TAG, inline_tag).encode("utf-8"))
             patched += 1
     print(f"  inlined offline search shim into {patched} page(s)")
     return patched
