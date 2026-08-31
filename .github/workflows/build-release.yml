@@ -1071,6 +1071,7 @@ jobs:
             echo "pacman-only release_tag must be ci-only or $SOURCE_TAG."
             exit 1
           fi
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch --force origin "refs/tags/${SOURCE_TAG}:refs/tags/${SOURCE_TAG}"
           ACTUAL_COMMIT="$(git rev-list -n 1 "$SOURCE_TAG")"
           if [ "${ACTUAL_COMMIT,,}" != "${EXPECTED_COMMIT,,}" ]; then
