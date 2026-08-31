@@ -10,7 +10,7 @@ on:
         required: true
         default: 'main'
       release_tag:
-        description: 'Existing GitHub release tag to receive the assets (for example v2.14.0)'
+        description: 'Existing GitHub release tag to receive assets, or ci-only to build without uploading'
         required: true
         default: 'v2.14.0'
       version:
@@ -18,13 +18,22 @@ on:
         required: true
         default: '2.14.0'
       scope:
-        description: 'Build/upload every package or only the two Flatpak bundles'
+        description: 'Build/upload every package, only Flatpak, or only a Pacman backfill'
         required: true
         default: 'all'
         type: choice
         options:
           - all
           - flatpak-only
+          - pacman-only
+      pacman_pkgrel:
+        description: 'Pacman package release number (used by pacman-only backfills)'
+        required: false
+        default: '1'
+      expected_tag_commit:
+        description: 'Expected 40-character commit SHA for the source release tag (required for pacman-only)'
+        required: false
+        default: ''
 
 # Least-privilege default for every job; upload-release widens to contents: write itself.
 permissions:
@@ -33,7 +42,7 @@ permissions:
 jobs:
   docs-render:
     name: Validate documentation SVG diagrams
-    if: github.event_name == 'release' || inputs.scope != 'flatpak-only'
+    if: github.event_name == 'release' || inputs.scope == 'all'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -56,6 +65,7 @@ jobs:
           retention-days: 30
 
   build:
+    if: github.event_name == 'release' || inputs.scope != 'pacman-only'
     runs-on: ${{ matrix.os }}
     env:
       # Public verification keys only. Keep signing private keys exclusively in their dedicated
@@ -332,8 +342,7 @@ jobs:
           mkdir -p "$GNUPGHOME"
           chmod 700 "$GNUPGHOME"
           echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
-          echo "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/kortty-linux-signing.key"
-          gpg --batch --import "$RUNNER_TEMP/kortty-linux-signing.key"
+          printf '%s' "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode | gpg --batch --import
           gpg --batch --armor --export "$LINUX_SIGNING_GPG_KEY_ID" > "$GITHUB_WORKSPACE/kortty-linux-signing-public.asc"
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
 
@@ -890,12 +899,16 @@ jobs:
           retention-days: 30
 
   build-pacman:
-    name: Build pacman (Arch Linux)
+    name: Build pacman (Arch Linux ${{ matrix.arch }})
     needs: build
-    if: success() && (github.event_name == 'release' || inputs.scope != 'flatpak-only')
+    if: success() && (github.event_name == 'release' || inputs.scope == 'all')
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
     steps:
       - name: Validate Linux signing secrets
         shell: bash
@@ -919,7 +932,7 @@ jobs:
           else
             VERSION="${{ inputs.version }}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 
       - name: Checkout code
@@ -930,60 +943,55 @@ jobs:
       - name: Download Linux artifact
         uses: actions/download-artifact@v8
         with:
-          name: korTTY-Linux-${{ steps.version.outputs.version }}-x86_64
+          name: korTTY-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: linux-artifact
 
       - name: Install build dependencies (Arch)
         run: |
           pacman-key --init
           pacman-key --populate archlinux
-          pacman -Syu --noconfirm base-devel git jdk-openjdk gnupg
+          pacman -Syu --noconfirm base-devel binutils git gnupg jdk-openjdk libarchive
           useradd -m -s /bin/bash builder
 
       - name: Import Linux signing key
         shell: bash
         env:
           LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+          EXPECTED_FINGERPRINT: 270E6DE92A8BB6D1841F758B9D2F81982AAD80CC
         run: |
           export GNUPGHOME="$PWD/.gnupg"
           mkdir -p "$GNUPGHOME"
           chmod 700 "$GNUPGHOME"
           echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
-          echo "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode > "$PWD/kortty-linux-signing.key"
-          gpg --batch --import "$PWD/kortty-linux-signing.key"
+          printf '%s' "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode | gpg --batch --import
+          fingerprint="$(gpg --batch --with-colons --fingerprint "$LINUX_SIGNING_GPG_KEY_ID" | awk -F: '$1 == "fpr" {print $10; exit}')"
+          [ "$fingerprint" = "$EXPECTED_FINGERPRINT" ] || { echo "Unexpected signing-key fingerprint: $fingerprint"; exit 1; }
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
 
-      - name: Prepare PKGBUILD and sources
+      - name: Build and verify pacman package
+        shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          ARCH=x86_64
-          mkdir -p archbuild
-          linux_tar="$(find linux-artifact -type f -name "kortty-Linux-${VERSION}-${ARCH}.tar.gz" | head -n1)"
+          ARCH="${{ matrix.arch }}"
+          linux_tar="$(find linux-artifact -type f -name "kortty-Linux-${VERSION}-${ARCH}.tar.gz" -print -quit)"
           if [ -z "$linux_tar" ]; then
             echo "Expected Linux tarball not found in downloaded artifact."
             find linux-artifact -maxdepth 3 -type f | sort
             exit 1
           fi
-          cp "$linux_tar" archbuild/
-          cp package/arch/kortty.desktop archbuild/
-          cp LICENSE archbuild/
-          sed "s/VERSION_PLACEHOLDER/${VERSION}/g" package/arch/PKGBUILD > archbuild/PKGBUILD
-
-      - name: Build pacman package
-        run: |
-          rm -rf /home/builder/archbuild
-          cp -a archbuild /home/builder/
-          chown -R builder:builder /home/builder/archbuild
-          su builder -c "cd /home/builder/archbuild && makepkg --noconfirm --clean"
-          cp /home/builder/archbuild/*.pkg.tar.zst archbuild/
-
-      - name: Verify MIT license in pacman package
-        run: |
-          pkg_file="$(ls -1 archbuild/*.pkg.tar.zst | head -n1)"
-          bsdtar -xOf "$pkg_file" .PKGINFO | grep -Fx 'license = MIT'
-          bsdtar -tf "$pkg_file" | grep -Fx 'usr/share/licenses/kortty/LICENSE'
-          bsdtar -xOf "$pkg_file" usr/share/licenses/kortty/LICENSE > /tmp/kortty-license
-          cmp LICENSE /tmp/kortty-license
+          rm -rf /home/builder/pacman-input /home/builder/pacman-output archbuild
+          mkdir -p /home/builder/pacman-input /home/builder/pacman-output archbuild
+          cp "$linux_tar" "/home/builder/pacman-input/kortty-Linux-${VERSION}-${ARCH}.tar.gz"
+          chown -R builder:builder /home/builder/pacman-input /home/builder/pacman-output
+          su builder -c "cd '$GITHUB_WORKSPACE' && ./scripts/package-pacman.sh '$VERSION' 1 '$ARCH' '/home/builder/pacman-input/kortty-Linux-${VERSION}-${ARCH}.tar.gz' /home/builder/pacman-output"
+          expected="kortty-${VERSION}-1-${ARCH}.pkg.tar.zst"
+          test -f "/home/builder/pacman-output/$expected"
+          cp "/home/builder/pacman-output/$expected" archbuild/
+          if find /home/builder/pacman-output -maxdepth 1 -type f -name '*-debug-*.pkg.tar.zst' -print -quit | grep -q .; then
+            echo 'Unexpected debug package was produced.'
+            exit 1
+          fi
 
       - name: Sign pacman package
         shell: bash
@@ -991,21 +999,370 @@ jobs:
           LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
           LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
         run: |
-          pkg_file="$(ls -1 archbuild/*.pkg.tar.zst | head -n1)"
+          pkg_file="archbuild/kortty-${{ steps.version.outputs.version }}-1-${{ matrix.arch }}.pkg.tar.zst"
+          test -f "$pkg_file"
           gpg --batch --yes --pinentry-mode loopback \
             --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
             --local-user "$LINUX_SIGNING_GPG_KEY_ID" \
             --output "${pkg_file}.sig" \
             --detach-sign "$pkg_file"
+          gpg --batch --verify "${pkg_file}.sig" "$pkg_file"
 
       - name: Upload pacman artifact
         uses: actions/upload-artifact@v7
         with:
-          name: KorTTY-Arch-${{ steps.version.outputs.version }}-x86_64
+          name: KorTTY-Arch-${{ steps.version.outputs.version }}-${{ matrix.arch }}
           path: |
-            archbuild/*.pkg.tar.zst
-            archbuild/*.pkg.tar.zst.sig
+            archbuild/kortty-${{ steps.version.outputs.version }}-1-${{ matrix.arch }}.pkg.tar.zst
+            archbuild/kortty-${{ steps.version.outputs.version }}-1-${{ matrix.arch }}.pkg.tar.zst.sig
+          if-no-files-found: error
           retention-days: 30
+
+  build-pacman-backfill:
+    name: Backfill pacman (${{ matrix.arch }})
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'pacman-only'
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - name: Validate Linux signing secrets
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          if [ -z "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" ] || [ -z "$LINUX_SIGNING_GPG_PASSPHRASE" ] || [ -z "$LINUX_SIGNING_GPG_KEY_ID" ]; then
+            echo 'Missing required Linux signing secrets.'
+            exit 1
+          fi
+
+      - name: Install build and verification dependencies
+        shell: bash
+        run: |
+          pacman-key --init
+          pacman-key --populate archlinux
+          pacman -Syu --noconfirm base-devel binutils git github-cli gnupg jdk-openjdk jq libarchive python
+          useradd -m -s /bin/bash builder
+
+      - name: Checkout packaging source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+
+      - name: Validate backfill inputs and source tag
+        id: backfill
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          PKGREL="${{ inputs.pacman_pkgrel }}"
+          EXPECTED_COMMIT="${{ inputs.expected_tag_commit }}"
+          SOURCE_TAG="v${VERSION}"
+          RELEASE_TAG="${{ inputs.release_tag }}"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "Invalid version: $VERSION"; exit 1; }
+          [[ "$PKGREL" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid pacman pkgrel: $PKGREL"; exit 1; }
+          [[ "$EXPECTED_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'pacman-only requires a 40-character expected_tag_commit.'; exit 1; }
+          if [ "$RELEASE_TAG" != 'ci-only' ] && [ "$RELEASE_TAG" != "$SOURCE_TAG" ]; then
+            echo "pacman-only release_tag must be ci-only or $SOURCE_TAG."
+            exit 1
+          fi
+          git fetch --force origin "refs/tags/${SOURCE_TAG}:refs/tags/${SOURCE_TAG}"
+          ACTUAL_COMMIT="$(git rev-list -n 1 "$SOURCE_TAG")"
+          if [ "${ACTUAL_COMMIT,,}" != "${EXPECTED_COMMIT,,}" ]; then
+            echo "$SOURCE_TAG resolves to $ACTUAL_COMMIT, expected $EXPECTED_COMMIT."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "pkgrel=$PKGREL" >> "$GITHUB_OUTPUT"
+          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse immutable release or existing backfill assets
+        if: startsWith(inputs.release_tag, 'v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.backfill.outputs.source_tag }}"
+          immutable="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isImmutable --jq .isImmutable)"
+          [ "$immutable" = false ] || { echo "Release $TAG is immutable; refusing backfill."; exit 1; }
+          existing="$RUNNER_TEMP/existing-assets-${{ matrix.arch }}.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$existing"
+          for candidate in \
+            "kortty-${{ steps.backfill.outputs.version }}-${{ steps.backfill.outputs.pkgrel }}-${{ matrix.arch }}.pkg.tar.zst" \
+            "kortty-${{ steps.backfill.outputs.version }}-${{ steps.backfill.outputs.pkgrel }}-${{ matrix.arch }}.pkg.tar.zst.sig"; do
+            if grep -Fxq "$candidate" "$existing"; then
+              echo "Refusing to replace existing release asset: $candidate"
+              exit 1
+            fi
+          done
+
+      - name: Download and verify signed release tarball
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_FINGERPRINT: 270E6DE92A8BB6D1841F758B9D2F81982AAD80CC
+        run: |
+          VERSION="${{ steps.backfill.outputs.version }}"
+          SOURCE_TAG="${{ steps.backfill.outputs.source_tag }}"
+          ARCH="${{ matrix.arch }}"
+          tarball="kortty-Linux-${VERSION}-${ARCH}.tar.gz"
+          signature="${tarball}.sig"
+          public_key='kortty-linux-signing-public.asc'
+          mkdir -p release-input
+          gh release download "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --dir release-input \
+            --pattern "$tarball" --pattern "$signature" --pattern "$public_key"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${SOURCE_TAG}" > release-input/release.json
+
+          verify_github_digest() {
+            local filename=$1
+            local expected actual
+            expected="$(jq -r --arg name "$filename" '.assets[] | select(.name == $name) | .digest' release-input/release.json)"
+            [[ "$expected" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Missing GitHub SHA-256 digest for $filename: $expected"; exit 1; }
+            actual="sha256:$(sha256sum "release-input/$filename" | awk '{print $1}')"
+            [ "$actual" = "$expected" ] || { echo "Digest mismatch for $filename: $actual != $expected"; exit 1; }
+          }
+          verify_github_digest "$tarball"
+          verify_github_digest "$signature"
+          verify_github_digest "$public_key"
+
+          export GNUPGHOME="$PWD/.gnupg-release-verification"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          mapfile -t primary_fingerprints < <(gpg --batch --show-keys --with-colons "release-input/$public_key" | awk -F: '$1 == "pub" {want_fpr=1; next} want_fpr && $1 == "fpr" {print $10; want_fpr=0}')
+          if [ "${#primary_fingerprints[@]}" -ne 1 ] || [ "${primary_fingerprints[0]}" != "$EXPECTED_FINGERPRINT" ]; then
+            echo "Release key must contain exactly one pinned primary key; found: ${primary_fingerprints[*]:-(none)}"
+            exit 1
+          fi
+          gpg --batch --import "release-input/$public_key"
+          signature_status="$RUNNER_TEMP/release-signature-${ARCH}.status"
+          gpg --batch --status-fd 1 --verify "release-input/$signature" "release-input/$tarball" > "$signature_status"
+          awk -v expected="$EXPECTED_FINGERPRINT" '
+            $1 == "[GNUPG:]" && $2 == "VALIDSIG" {count++; if ($3 == expected || $NF == expected) matched=1}
+            END {exit !(count == 1 && matched)}
+          ' "$signature_status" || { echo "Release signature was not made by pinned key $EXPECTED_FINGERPRINT."; exit 1; }
+
+      - name: Import Linux signing key
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64: ${{ secrets.LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64 }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+          EXPECTED_FINGERPRINT: 270E6DE92A8BB6D1841F758B9D2F81982AAD80CC
+        run: |
+          export GNUPGHOME="$PWD/.gnupg-signing"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          echo 'allow-loopback-pinentry' > "$GNUPGHOME/gpg-agent.conf"
+          printf '%s' "$LINUX_SIGNING_GPG_PRIVATE_KEY_BASE64" | base64 --decode | gpg --batch --import
+          fingerprint="$(gpg --batch --with-colons --fingerprint "$LINUX_SIGNING_GPG_KEY_ID" | awk -F: '$1 == "fpr" {print $10; exit}')"
+          [ "$fingerprint" = "$EXPECTED_FINGERPRINT" ] || { echo "Unexpected signing-key fingerprint: $fingerprint"; exit 1; }
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+
+      - name: Build and verify corrected pacman package
+        shell: bash
+        run: |
+          VERSION="${{ steps.backfill.outputs.version }}"
+          PKGREL="${{ steps.backfill.outputs.pkgrel }}"
+          ARCH="${{ matrix.arch }}"
+          rm -rf /home/builder/pacman-input /home/builder/pacman-output archbuild
+          mkdir -p /home/builder/pacman-input /home/builder/pacman-output archbuild
+          cp "release-input/kortty-Linux-${VERSION}-${ARCH}.tar.gz" /home/builder/pacman-input/
+          chown -R builder:builder /home/builder/pacman-input /home/builder/pacman-output
+          su builder -c "cd '$GITHUB_WORKSPACE' && ./scripts/package-pacman.sh '$VERSION' '$PKGREL' '$ARCH' '/home/builder/pacman-input/kortty-Linux-${VERSION}-${ARCH}.tar.gz' /home/builder/pacman-output"
+          expected="kortty-${VERSION}-${PKGREL}-${ARCH}.pkg.tar.zst"
+          test -f "/home/builder/pacman-output/$expected"
+          cp "/home/builder/pacman-output/$expected" archbuild/
+          if find /home/builder/pacman-output -maxdepth 1 -type f -name '*-debug-*.pkg.tar.zst' -print -quit | grep -q .; then
+            echo 'Unexpected debug package was produced.'
+            exit 1
+          fi
+
+      - name: Sign and verify corrected pacman package
+        shell: bash
+        env:
+          LINUX_SIGNING_GPG_PASSPHRASE: ${{ secrets.LINUX_SIGNING_GPG_PASSPHRASE }}
+          LINUX_SIGNING_GPG_KEY_ID: ${{ secrets.LINUX_SIGNING_GPG_KEY_ID }}
+        run: |
+          pkg_file="archbuild/kortty-${{ steps.backfill.outputs.version }}-${{ steps.backfill.outputs.pkgrel }}-${{ matrix.arch }}.pkg.tar.zst"
+          test -f "$pkg_file"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
+            --local-user "$LINUX_SIGNING_GPG_KEY_ID" \
+            --output "${pkg_file}.sig" \
+            --detach-sign "$pkg_file"
+          gpg --batch --verify "${pkg_file}.sig" "$pkg_file"
+
+      - name: Upload backfill artifact for inspection
+        uses: actions/upload-artifact@v7
+        with:
+          name: KorTTY-Arch-backfill-${{ steps.backfill.outputs.version }}-${{ matrix.arch }}
+          path: |
+            archbuild/kortty-${{ steps.backfill.outputs.version }}-${{ steps.backfill.outputs.pkgrel }}-${{ matrix.arch }}.pkg.tar.zst
+            archbuild/kortty-${{ steps.backfill.outputs.version }}-${{ steps.backfill.outputs.pkgrel }}-${{ matrix.arch }}.pkg.tar.zst.sig
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-pacman-backfill:
+    name: Publish pacman backfill
+    needs: build-pacman-backfill
+    if: >-
+      always() &&
+      needs.build-pacman-backfill.result == 'success' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.scope == 'pacman-only' &&
+      startsWith(inputs.release_tag, 'v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout packaging source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Download backfill artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: KorTTY-Arch-backfill-${{ inputs.version }}-*
+          path: release
+          merge-multiple: true
+
+      - name: Install package verification tools
+        run: sudo apt-get update && sudo apt-get install -y binutils libarchive-tools
+
+      - name: Verify exact backfill set, packages, and signatures
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_FINGERPRINT: 270E6DE92A8BB6D1841F758B9D2F81982AAD80CC
+        run: |
+          VERSION="${{ inputs.version }}"
+          PKGREL="${{ inputs.pacman_pkgrel }}"
+          TAG="${{ inputs.release_tag }}"
+          expected="$RUNNER_TEMP/expected-backfill-assets.txt"
+          actual="$RUNNER_TEMP/actual-backfill-assets.txt"
+          for arch in aarch64 x86_64; do
+            echo "kortty-${VERSION}-${PKGREL}-${arch}.pkg.tar.zst"
+            echo "kortty-${VERSION}-${PKGREL}-${arch}.pkg.tar.zst.sig"
+          done | sort > "$expected"
+          find release -maxdepth 1 -type f -printf '%f\n' | sort > "$actual"
+          diff -u "$expected" "$actual"
+
+          public_key="$RUNNER_TEMP/kortty-linux-signing-public.asc"
+          release_json="$RUNNER_TEMP/source-release.json"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'kortty-linux-signing-public.asc' --output "$public_key"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" > "$release_json"
+          expected_key_digest="$(jq -r '.assets[] | select(.name == "kortty-linux-signing-public.asc") | .digest' "$release_json")"
+          actual_key_digest="sha256:$(sha256sum "$public_key" | awk '{print $1}')"
+          [ "$actual_key_digest" = "$expected_key_digest" ] || { echo 'Release public-key digest mismatch.'; exit 1; }
+          mapfile -t primary_fingerprints < <(gpg --batch --show-keys --with-colons "$public_key" | awk -F: '$1 == "pub" {want_fpr=1; next} want_fpr && $1 == "fpr" {print $10; want_fpr=0}')
+          if [ "${#primary_fingerprints[@]}" -ne 1 ] || [ "${primary_fingerprints[0]}" != "$EXPECTED_FINGERPRINT" ]; then
+            echo "Release key must contain exactly one pinned primary key; found: ${primary_fingerprints[*]:-(none)}"
+            exit 1
+          fi
+          export GNUPGHOME="$RUNNER_TEMP/backfill-gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          gpg --batch --import "$public_key"
+
+          verify_pinned_signature() {
+            local signature=$1
+            local payload=$2
+            local status=$3
+            gpg --batch --status-fd 1 --verify "$signature" "$payload" > "$status"
+            awk -v expected="$EXPECTED_FINGERPRINT" '
+              $1 == "[GNUPG:]" && $2 == "VALIDSIG" {count++; if ($3 == expected || $NF == expected) matched=1}
+              END {exit !(count == 1 && matched)}
+            ' "$status" || { echo "Signature for $payload was not made by pinned key $EXPECTED_FINGERPRINT."; exit 1; }
+          }
+
+          for arch in aarch64 x86_64; do
+            package="release/kortty-${VERSION}-${PKGREL}-${arch}.pkg.tar.zst"
+            ./scripts/verify-pacman-package.sh "$package" "$VERSION" "$PKGREL" "$arch" LICENSE package/arch/kortty.desktop
+            verify_pinned_signature "${package}.sig" "$package" "$RUNNER_TEMP/package-signature-${arch}.status"
+          done
+
+      - name: Refuse immutable release or existing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          immutable="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isImmutable --jq .isImmutable)"
+          [ "$immutable" = false ] || { echo "Release $TAG is immutable; refusing backfill."; exit 1; }
+          existing="$RUNNER_TEMP/existing-assets.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$existing"
+          while IFS= read -r candidate; do
+            if grep -Fxq "$candidate" "$existing"; then
+              echo "Refusing to replace existing release asset: $candidate"
+              exit 1
+            fi
+          done < <(find release -maxdepth 1 -type f -printf '%f\n' | sort)
+
+      - name: Capture local SHA-256 digests
+        shell: bash
+        run: |
+          (cd release && sha256sum *) > "$RUNNER_TEMP/local-backfill-sha256.txt"
+
+      - name: Recheck collisions and upload without clobbering
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          existing="$RUNNER_TEMP/existing-assets-immediate.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$existing"
+          while IFS= read -r candidate; do
+            if grep -Fxq "$candidate" "$existing"; then
+              echo "Release asset appeared after preflight; refusing upload: $candidate"
+              exit 1
+            fi
+          done < <(find release -maxdepth 1 -type f -printf '%f\n' | sort)
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" release/*
+
+      - name: Verify uploaded GitHub digests
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          release_json="$RUNNER_TEMP/uploaded-release.json"
+          for attempt in 1 2 3 4 5; do
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" > "$release_json"
+            complete=true
+            while read -r local_sha filename; do
+              remote="$(jq -r --arg name "$filename" '.assets[] | select(.name == $name) | .digest' "$release_json")"
+              if [ "$remote" != "sha256:$local_sha" ]; then
+                complete=false
+                break
+              fi
+            done < "$RUNNER_TEMP/local-backfill-sha256.txt"
+            [ "$complete" = true ] && exit 0
+            [ "$attempt" -eq 5 ] || sleep 2
+          done
+          echo 'Uploaded GitHub digests do not match the local SHA-256 values.'
+          exit 1
+
+      - name: Update release download guide
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          VERSION: ${{ inputs.version }}
+          PACMAN_PKGREL: ${{ inputs.pacman_pkgrel }}
+        run: |
+          body="$RUNNER_TEMP/release-body.md"
+          assets="$RUNNER_TEMP/release-assets.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > "$body"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$assets"
+          python3 scripts/update_release_download_guide.py \
+            --repository "$GITHUB_REPOSITORY" --tag "$TAG" --version "$VERSION" \
+            --pacman-pkgrel "$PACMAN_PKGREL" --body "$body" --assets "$assets" --output "$body"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"
 
   upload-release:
     needs: [build, build-pacman, docs-render]
@@ -1014,12 +1371,17 @@ jobs:
       needs.build.result == 'success' &&
       (needs.build-pacman.result == 'success' || needs.build-pacman.result == 'skipped') &&
       (needs.docs-render.result == 'success' || needs.docs-render.result == 'skipped') &&
-      (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v')))
+      (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.scope != 'pacman-only' && startsWith(inputs.release_tag, 'v')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
+      - name: Checkout release tooling
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.source_ref }}
+
       - name: Determine release tag and version
         id: release
         run: |
@@ -1091,8 +1453,6 @@ jobs:
           tag_name: ${{ steps.release.outputs.tag }}
           files: release/*
 
-      # GitHub renders release assets as one flat list. Keep that canonical list intact,
-      # but append a compact, architecture-aware download guide after the release notes.
       - name: Add grouped download guide to release notes
         shell: bash
         env:
@@ -1101,96 +1461,10 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           body="$RUNNER_TEMP/release-body.md"
-          downloads="$RUNNER_TEMP/downloads.md"
           assets="$RUNNER_TEMP/release-assets.txt"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > "$body"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$assets"
-
-          asset_link() {
-            local filename="$1"
-            local label="$2"
-            if grep -Fxq "$filename" "$assets"; then
-              printf '%s\n' "- [$label](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$filename)"
-            fi
-          }
-
-          {
-            echo '<!-- kortty-download-guide:start -->'
-            echo '### Downloads'
-            echo
-            echo 'Choose your operating system and processor architecture. `x86_64` is for Intel and AMD PCs; `aarch64` is for Apple Silicon and ARM Linux devices.'
-            echo
-            echo '**Windows**'
-            echo
-            echo '*x86_64 (Intel and AMD)*'
-            asset_link "korTTY-Windows-$VERSION-x86_64.msi" 'Installer (.msi)'
-            asset_link "korTTY-Windows-$VERSION-x86_64.zip" 'Portable app (.zip)'
-            echo
-            echo '*Windows on ARM (x64 emulation)*'
-            echo 'korTTY does not currently have a native Windows ARM64 build. Windows on ARM runs the tested `x86_64` packages through its built-in x64 emulation.'
-            asset_link "korTTY-Windows-$VERSION-x86_64.msi" 'Installer for Windows on ARM (.msi, x64 emulated)'
-            asset_link "korTTY-Windows-$VERSION-x86_64.zip" 'Portable app for Windows on ARM (.zip, x64 emulated)'
-            echo
-            echo '**macOS**'
-            echo
-            echo '*Apple Silicon (aarch64)*'
-            asset_link "korTTY-macOS-$VERSION-aarch64.dmg" 'Disk image (.dmg)'
-            asset_link "korTTY-macOS-$VERSION-aarch64.zip" 'App archive (.zip)'
-            echo
-            echo '*Intel (x86_64)*'
-            asset_link "korTTY-macOS-$VERSION-x86_64.dmg" 'Disk image (.dmg)'
-            asset_link "korTTY-macOS-$VERSION-x86_64.zip" 'App archive (.zip)'
-            echo
-            echo '**Linux**'
-            echo
-            echo 'Flatpak bundles can be installed manually from a host terminal with `flatpak install --user ./FILENAME.flatpak`.'
-            echo
-            for arch in aarch64 x86_64; do
-              echo "*$arch*"
-              asset_link "kortty-Linux-$VERSION-$arch.flatpak" 'Flatpak bundle (.flatpak)'
-              asset_link "kortty-Linux-$VERSION-$arch.deb" 'Debian/Ubuntu (.deb)'
-              asset_link "kortty-Linux-$VERSION-$arch.rpm" 'Fedora/openSUSE (.rpm)'
-              asset_link "kortty-Linux-$VERSION-$arch.tar.gz" 'Portable archive (.tar.gz)'
-              asset_link "kortty-Linux-$VERSION-$arch.zip" 'Portable archive (.zip)'
-              echo
-            done
-            echo '*Arch Linux (x86_64)*'
-            asset_link "kortty-$VERSION-1-x86_64.pkg.tar.zst" 'pacman package (.pkg.tar.zst)'
-            echo
-            echo '**Java (all supported platforms)**'
-            echo
-            asset_link "korTTY-Java-$VERSION.jar" 'Executable JAR (.jar)'
-            asset_link "korTTY-Java-$VERSION.zip" 'Distribution archive (.zip)'
-            asset_link "korTTY-Java-$VERSION.tar" 'Distribution archive (.tar)'
-            echo '<!-- kortty-download-guide:end -->'
-          } > "$downloads"
-
-          python3 - "$body" "$downloads" <<'PY'
-          from pathlib import Path
-          import sys
-
-          body_path, downloads_path = map(Path, sys.argv[1:])
-          body = body_path.read_text(encoding="utf-8")
-          downloads = downloads_path.read_text(encoding="utf-8").strip()
-          start = "<!-- kortty-download-guide:start -->"
-          end = "<!-- kortty-download-guide:end -->"
-
-          def update(current: str) -> str:
-              if start in current and end in current:
-                  begin = current.index(start)
-                  finish = current.index(end, begin) + len(end)
-                  return current[:begin] + downloads + current[finish:]
-              separator = "" if not current else ("\n" if current.endswith("\n") else "\n\n")
-              return current + separator + downloads + "\n"
-
-          updated = update(body)
-          if update(updated) != updated:
-              raise SystemExit("Download-guide update is not idempotent")
-          original_prefix = body[:body.index(start)] if start in body else body
-          updated_prefix = updated[:updated.index(start)]
-          if not updated_prefix.startswith(original_prefix):
-              raise SystemExit("Release description changed while updating the download guide")
-          body_path.write_text(updated, encoding="utf-8")
-          PY
-
+          python3 scripts/update_release_download_guide.py \
+            --repository "$GITHUB_REPOSITORY" --tag "$TAG" --version "$VERSION" \
+            --pacman-pkgrel auto --body "$body" --assets "$assets" --output "$body"
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"

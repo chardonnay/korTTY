@@ -3045,9 +3045,35 @@ val backfillI18nKeysTest = tasks.register<Exec>("backfillI18nKeysTest") {
     }
 }
 
+val pacmanWorkflowContractTest = tasks.register<Exec>("pacmanWorkflowContractTest") {
+    group = "verification"
+    description = "Validates Pacman packaging, backfill, and release-guide workflow contracts."
+    inputs.files(
+        ".github/workflows/build-release.yml",
+        "package/arch/PKGBUILD",
+        "scripts/package-pacman.sh",
+        "scripts/verify-pacman-package.sh",
+        "scripts/update_release_download_guide.py",
+        "scripts/test_pacman_workflow_contract.py",
+        "scripts/test_update_release_download_guide.py"
+    )
+    workingDir(projectDir)
+    val tests = listOf(
+        "-m", "unittest",
+        "scripts.test_pacman_workflow_contract",
+        "scripts.test_update_release_download_guide"
+    )
+    if (isWindows) {
+        commandLine(listOf("py", "-3") + tests)
+    } else {
+        commandLine(listOf("python3") + tests)
+    }
+}
+
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest)
+        guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest,
+        pacmanWorkflowContractTest)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {

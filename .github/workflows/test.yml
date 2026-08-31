@@ -26,6 +26,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pacman-package-contract:
+    name: pacman package contract
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install Arch packaging test dependencies
+        run: |
+          pacman-key --init
+          pacman-key --populate archlinux
+          pacman -Syu --noconfirm base-devel binutils git jdk-openjdk libarchive python shellcheck
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Lint pacman packaging scripts
+        run: shellcheck scripts/package-pacman.sh scripts/verify-pacman-package.sh scripts/test_pacman_packaging.sh
+
+      - name: Validate pacman workflow contract
+        run: |
+          python3 scripts/test_pacman_workflow_contract.py
+          python3 scripts/test_update_release_download_guide.py
+
+      - name: Build and verify synthetic packages for both architectures
+        run: ./scripts/test_pacman_packaging.sh
+
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

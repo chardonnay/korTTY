@@ -28,6 +28,7 @@ What changed in the current release. The version this guide was built for is sho
 ### Packaging
 
 - **Native Flatpak bundles for Intel/AMD and ARM Linux** — GitHub releases now provide `.flatpak` bundles for `x86_64` and `aarch64`. A Flatpak installation stays on the Flatpak update path, verifies the downloaded GitHub asset and shows the host-terminal installation command instead of offering an incompatible distro package. Local shells and their AI-agent commands run on the host through `flatpak-spawn`.
+- **Pacman packages for Arch Linux and Arch Linux ARM** — release builds now package and verify both `x86_64` and `aarch64` application images. A guarded Pacman-only backfill can first produce inspection artifacts and later publish collision-free signed packages without replacing older release assets.
 - **Every korTTY package now identifies the application licence as MIT** — the Arch package previously declared Apache-2.0 even though korTTY's repository licence is MIT. Arch and RPM metadata now declare MIT, and every Java, native and Flatpak artifact contains the canonical licence file; third-party licences remain unchanged.
 
 !!! note "Earlier releases"

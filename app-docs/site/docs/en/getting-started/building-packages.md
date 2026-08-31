@@ -114,6 +114,16 @@ The thin JAR contains korTTY classes and resources but not its runtime dependenc
 
 Every korTTY release format carries the repository's canonical MIT `LICENSE`. The RPM and pacman metadata also declare `MIT`; `scripts/check-release-licenses.py` is the CI gate that prevents application package metadata from drifting to another license. Licences belonging to the Gradle wrapper, bundled runtimes, models or other dependencies remain separate and are not rewritten as korTTY's licence.
 
+## Build Pacman packages
+
+Regular releases publish two Pacman packages: `x86_64` for Arch Linux and `aarch64` for Arch Linux ARM. The application images are built natively on the matching Ubuntu runners first. Both Pacman jobs then run `makepkg` in the official Arch Linux `x86_64` container because the PKGBUILD only copies that pre-built image and does not compile or execute target code.
+
+The AArch64 job supplies a separate `makepkg.conf` with `CARCH=aarch64` and `CHOST=aarch64-unknown-linux-gnu`. A CI guard rejects AArch64 packaging if `prepare()`, `build()` or `check()` is ever added to the PKGBUILD; such a change requires a native Arch Linux ARM builder. The package also disables stripping and debug-package generation so `x86_64` tools never modify a pre-built AArch64 ELF.
+
+Before signing, CI requires the exact package filename and checks `.PKGINFO`, the installed MIT licence, desktop entry and launcher symlink. It also uses `readelf` to verify that the native launcher, bundled Java launcher and bundled JVM all match the advertised architecture. The detached signature is then verified locally before the package becomes an Actions artifact.
+
+For a controlled Pacman-only backfill, dispatch **Build Release Binaries** with scope `pacman-only`, the numeric version, the new `pacman_pkgrel` and the full commit expected behind the source tag. Use `release_tag=ci-only` first and inspect both architecture-specific Actions artifacts. Repeat with the real `v<version>` release tag only after inspection. The publishing job refuses immutable releases and filename collisions, uploads without clobbering, compares every remote GitHub digest with the local SHA-256 value and never deletes an existing or partially uploaded asset automatically.
+
 ## Build a Flatpak bundle
 
 Flatpak bundles are built natively on Linux for `x86_64` and `aarch64`. The manifest uses application ID `io.github.chardonnay.korTTY` with the Freedesktop 25.08 runtime and packages the self-contained Linux application image produced by `jpackage`. Install Flatpak, `flatpak-builder` and `appstreamcli`, then run:
