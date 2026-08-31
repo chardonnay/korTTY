@@ -1896,10 +1896,12 @@ fun attachDmgForVerification(dmgFile: File): File {
         val attachLog = verificationDir.resolve("dmg-attach-attempt-$attempt.log")
         println("Mounting ${dmgFile.name} for verification (attempt $attempt of 2).")
         val exitCode = runBoundedProcess(
+            // jpackage embeds LICENSE in the DMG. CI has no terminal, so accept that known project
+            // license explicitly instead of leaving hdiutil blocked on its interactive prompt.
             listOf(
                 "hdiutil", "attach", dmgFile.absolutePath,
                 "-readonly", "-nobrowse", "-noautoopen", "-noautofsck", "-owners", "off",
-                "-verify", "-mountpoint", mountPoint.absolutePath
+                "-verify", "-acceptlicense", "-mountpoint", mountPoint.absolutePath
             ),
             90,
             attachLog
