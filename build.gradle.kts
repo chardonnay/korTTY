@@ -1834,6 +1834,109 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
     delete(workDir)
 }
 
+fun terminateProcessTree(process: Process) {
+    val descendants = process.descendants().toList().asReversed()
+    descendants.forEach { handle -> if (handle.isAlive) handle.destroy() }
+    process.destroy()
+    if (!process.waitFor(5, TimeUnit.SECONDS)) {
+        descendants.forEach { handle -> if (handle.isAlive) handle.destroyForcibly() }
+        process.destroyForcibly()
+        process.waitFor(5, TimeUnit.SECONDS)
+    }
+}
+
+/** Runs a native helper without ever blocking Gradle indefinitely. A null exit code means timeout. */
+fun runBoundedProcess(command: List<String>, timeoutSeconds: Long, logFile: File): Int? {
+    logFile.parentFile.mkdirs()
+    Files.deleteIfExists(logFile.toPath())
+    val process = ProcessBuilder(command)
+        .directory(project.rootDir)
+        .redirectErrorStream(true)
+        .redirectOutput(logFile)
+        .start()
+    process.outputStream.close()
+    if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+        terminateProcessTree(process)
+        return null
+    }
+    return process.exitValue()
+}
+
+fun processLog(logFile: File): String = runCatching {
+    if (logFile.isFile) logFile.readText().trim() else ""
+}.getOrElse { error -> "Could not read ${logFile.name}: ${error.message}" }
+
+fun deleteEmptyMountPoint(mountPoint: File): Boolean {
+    if (!mountPoint.exists()) {
+        return true
+    }
+    val entries = mountPoint.list() ?: return false
+    if (entries.isNotEmpty()) {
+        return false
+    }
+    return runCatching { Files.deleteIfExists(mountPoint.toPath()); true }.getOrDefault(false)
+}
+
+fun detachDmgMount(mountPoint: File, force: Boolean, logFile: File): Pair<Int?, String> {
+    val command = mutableListOf("hdiutil", "detach", mountPoint.absolutePath, "-quiet")
+    if (force) {
+        command += "-force"
+    }
+    val exitCode = runBoundedProcess(command, 30, logFile)
+    return exitCode to processLog(logFile)
+}
+
+fun attachDmgForVerification(dmgFile: File): File {
+    val verificationDir = layout.buildDirectory.get().asFile.resolve("verification")
+    verificationDir.mkdirs()
+    val diagnostics = mutableListOf<String>()
+
+    for (attempt in 1..2) {
+        val mountPoint = Files.createTempDirectory(verificationDir.toPath(), "dmg-mount-").toFile()
+        val attachLog = verificationDir.resolve("dmg-attach-attempt-$attempt.log")
+        println("Mounting ${dmgFile.name} for verification (attempt $attempt of 2).")
+        val exitCode = runBoundedProcess(
+            listOf(
+                "hdiutil", "attach", dmgFile.absolutePath,
+                "-readonly", "-nobrowse", "-noautoopen", "-noautofsck", "-owners", "off",
+                "-verify", "-mountpoint", mountPoint.absolutePath
+            ),
+            90,
+            attachLog
+        )
+        val attachOutput = processLog(attachLog)
+        if (exitCode == 0) {
+            println("DMG attach succeeded on attempt $attempt at ${mountPoint.absolutePath}.")
+            return mountPoint
+        }
+
+        diagnostics += buildString {
+            append("Attempt $attempt ")
+            append(if (exitCode == null) "timed out after 90 seconds" else "exited with $exitCode")
+            if (attachOutput.isNotEmpty()) append(":\n$attachOutput")
+        }
+
+        val cleanupLog = verificationDir.resolve("dmg-attach-cleanup-attempt-$attempt.log")
+        val (_, cleanupOutput) = detachDmgMount(mountPoint, true, cleanupLog)
+        if (!deleteEmptyMountPoint(mountPoint)) {
+            throw GradleException(
+                "Could not safely clean up ${mountPoint.absolutePath} after a failed DMG attach. " +
+                    "The path is still mounted or non-empty, so no retry will run.\n" +
+                    diagnostics.joinToString("\n\n") +
+                    (if (cleanupOutput.isEmpty()) "" else "\n\nDetach output:\n$cleanupOutput")
+            )
+        }
+        if (attempt == 1) {
+            Thread.sleep(2_000)
+        }
+    }
+
+    throw GradleException(
+        "Could not mount ${dmgFile.name} for verification after two bounded attempts:\n" +
+            diagnostics.joinToString("\n\n")
+    )
+}
+
 /**
  * Proves the app inside a built DMG is the very image that was verified outside it — the gap that
  * let a broken signature reach Apple's notary as the last step of a release (issue #245).
@@ -1844,18 +1947,7 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
  * survives: the ticket is not part of the seal.</p>
  */
 fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
-    val mountPoint = layout.buildDirectory.get().asFile.resolve("verification/dmg-mount")
-    delete(mountPoint)
-    mountPoint.mkdirs()
-
-    val attach = ProcessBuilder(
-        "hdiutil", "attach", dmgFile.absolutePath,
-        "-nobrowse", "-readonly", "-mountpoint", mountPoint.absolutePath
-    ).redirectErrorStream(true).start()
-    val attachOutput = attach.inputStream.bufferedReader().use { it.readText() }
-    if (attach.waitFor() != 0) {
-        throw GradleException("Could not mount ${dmgFile.name} for verification:\n$attachOutput")
-    }
+    val mountPoint = attachDmgForVerification(dmgFile)
 
     try {
         val app = mountPoint.resolve(sourceAppImage.name)
@@ -1906,9 +1998,23 @@ fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
             "the built image ($shippedPayload), signed by ${shippedAuthority ?: "ad-hoc"}" +
             (if (stapled) ", notarization ticket stapled." else "."))
     } finally {
-        ProcessBuilder("hdiutil", "detach", mountPoint.absolutePath, "-quiet")
-            .redirectErrorStream(true).start().waitFor()
-        delete(mountPoint)
+        val verificationDir = layout.buildDirectory.get().asFile.resolve("verification")
+        val normalLog = verificationDir.resolve("dmg-detach-${mountPoint.name}.log")
+        var (exitCode, output) = detachDmgMount(mountPoint, false, normalLog)
+        if (exitCode != 0) {
+            val forceLog = verificationDir.resolve("dmg-detach-force-${mountPoint.name}.log")
+            val forced = detachDmgMount(mountPoint, true, forceLog)
+            exitCode = forced.first
+            output = listOf(output, forced.second).filter { it.isNotEmpty() }.joinToString("\n")
+        }
+        if (exitCode != 0 || !deleteEmptyMountPoint(mountPoint)) {
+            val state = if (exitCode == null) "timed out after 30 seconds" else "exited with $exitCode"
+            throw GradleException(
+                "Could not safely detach ${mountPoint.absolutePath}: hdiutil $state. " +
+                    "The mount point was left intact to avoid deleting through a mounted DMG." +
+                    (if (output.isEmpty()) "" else "\n$output")
+            )
+        }
     }
 }
 
@@ -2473,9 +2579,33 @@ if (isMac) {
                     "codesign", "--force", "--sign", macSigningIdentity!!, "--timestamp"
                 ) + (if (!macSigningKeychain.isNullOrEmpty()) listOf("--keychain", macSigningKeychain) else emptyList()) +
                     listOf(dmgFile.absolutePath)
-                val signProcess = ProcessBuilder(codesignCommand).inheritIO().start()
-                if (signProcess.waitFor() != 0) {
-                    throw GradleException("codesign failed for ${dmgFile.absolutePath}")
+                val signDiagnostics = mutableListOf<String>()
+                var signed = false
+                for (attempt in 1..2) {
+                    val signLog = layout.buildDirectory.get().asFile
+                        .resolve("verification/dmg-codesign-attempt-$attempt.log")
+                    println("Signing the converted DMG (attempt $attempt of 2).")
+                    val exitCode = runBoundedProcess(codesignCommand, 90, signLog)
+                    val output = processLog(signLog)
+                    if (exitCode == 0) {
+                        signed = true
+                        println("DMG container signature applied.")
+                        break
+                    }
+                    signDiagnostics += buildString {
+                        append("Attempt $attempt ")
+                        append(if (exitCode == null) "timed out after 90 seconds" else "exited with $exitCode")
+                        if (output.isNotEmpty()) append(":\n$output")
+                    }
+                    if (attempt == 1) {
+                        Thread.sleep(2_000)
+                    }
+                }
+                if (!signed) {
+                    throw GradleException(
+                        "codesign failed for ${dmgFile.absolutePath} after two bounded attempts:\n" +
+                            signDiagnostics.joinToString("\n\n")
+                    )
                 }
             }
 
