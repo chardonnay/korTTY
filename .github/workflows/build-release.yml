@@ -5,14 +5,26 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Ref to build (branch or tag)'
-        required: false
-        default: 'v2.1.0'
+      source_ref:
+        description: 'Branch, tag, or immutable commit SHA to build'
+        required: true
+        default: 'main'
+      release_tag:
+        description: 'Existing GitHub release tag to receive the assets (for example v2.14.0)'
+        required: true
+        default: 'v2.14.0'
       version:
-        description: 'Numeric app version for jpackage (release tag: v2.1.0, jpackage value: 2.1.0)'
-        required: false
-        default: '2.1.0'
+        description: 'Numeric application version for jpackage and Flatpak'
+        required: true
+        default: '2.14.0'
+      scope:
+        description: 'Build/upload every package or only the two Flatpak bundles'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - flatpak-only
 
 # Least-privilege default for every job; upload-release widens to contents: write itself.
 permissions:
@@ -21,12 +33,13 @@ permissions:
 jobs:
   docs-render:
     name: Validate documentation SVG diagrams
+    if: github.event_name == 'release' || inputs.scope != 'flatpak-only'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.source_ref }}
           submodules: false
 
       - name: Install SVG validation tools
@@ -52,29 +65,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: macos-latest
-            platform: macos
-            arch: aarch64
-          - os: macos-15-intel
-            platform: macos
-            arch: x86_64
-          - os: windows-latest
-            platform: windows
-            arch: x86_64
-          - os: ubuntu-latest
-            platform: linux
-            arch: x86_64
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: aarch64
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'flatpak-only' && '[{"os":"ubuntu-latest","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]' || '[{"os":"macos-latest","platform":"macos","arch":"aarch64"},{"os":"macos-15-intel","platform":"macos","arch":"x86_64"},{"os":"windows-latest","platform":"windows","arch":"x86_64"},{"os":"ubuntu-latest","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]') }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.source_ref }}
           submodules: false
+
+      - name: Validate release license declarations
+        shell: bash
+        run: python3 scripts/check-release-licenses.py
 
       - name: Clone SithTermFX (build from source, no token)
         shell: bash
@@ -317,7 +319,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm gnupg
+          sudo apt-get install -y rpm gnupg flatpak flatpak-builder appstream
 
       - name: Import Linux signing key
         if: matrix.platform == 'linux'
@@ -343,7 +345,7 @@ jobs:
             VERSION="${{ github.event.release.tag_name }}"
             VERSION=${VERSION#v}
           else
-            VERSION="${{ github.event.inputs.version }}"
+            VERSION="${{ inputs.version }}"
             if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
               echo "workflow_dispatch input 'version' must be numeric (e.g. 2.1.0) for jpackage."
               exit 1
@@ -568,6 +570,16 @@ jobs:
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} jpackageRpm
 
+      - name: Verify MIT license in native app image
+        shell: bash
+        run: |
+          license_copy="$(find build/jpackage -type f -name 'LICENSE-korTTY' | head -n1)"
+          if [ -z "$license_copy" ]; then
+            echo "The native application image does not contain LICENSE-korTTY."
+            exit 1
+          fi
+          cmp LICENSE "$license_copy"
+
       - name: Prepare Java artifacts
         if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
         shell: bash
@@ -579,6 +591,23 @@ jobs:
           cp "$jar_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.jar"
           cp "$zip_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.zip"
           cp "$tar_file" "build/release-java/korTTY-Java-${{ steps.version.outputs.version }}.tar"
+
+      - name: Verify MIT license in Java artifacts
+        if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
+        shell: bash
+        run: |
+          jar_file="$(ls -1 build/release-java/*.jar | head -n1)"
+          zip_file="$(ls -1 build/release-java/*.zip | head -n1)"
+          tar_file="$(ls -1 build/release-java/*.tar | head -n1)"
+          unzip -p "$jar_file" META-INF/LICENSE-korTTY > "$RUNNER_TEMP/jar-license"
+          zip_license="$(unzip -Z1 "$zip_file" | grep -E '(^|/)LICENSE$' | head -n1)"
+          tar_license="$(tar -tf "$tar_file" | grep -E '(^|/)LICENSE$' | head -n1)"
+          test -n "$zip_license" && test -n "$tar_license"
+          unzip -p "$zip_file" "$zip_license" > "$RUNNER_TEMP/zip-license"
+          tar -xOf "$tar_file" "$tar_license" > "$RUNNER_TEMP/tar-license"
+          cmp LICENSE "$RUNNER_TEMP/jar-license"
+          cmp LICENSE "$RUNNER_TEMP/zip-license"
+          cmp LICENSE "$RUNNER_TEMP/tar-license"
 
       - name: Sign Java artifacts
         if: matrix.platform == 'linux' && matrix.arch == 'x86_64'
@@ -669,6 +698,52 @@ jobs:
           for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" && break; done
           for f in kortty*.rpm; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm" && break; done
 
+      - name: Verify MIT license in Linux packages
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          app_dir="$(find build/jpackage -maxdepth 1 -type d \( -name korTTY -o -name kortty \) | head -n1)"
+          test -n "$app_dir"
+          license_copy="$(find "$app_dir" -type f -name 'LICENSE-korTTY' | head -n1)"
+          test -n "$license_copy"
+          cmp LICENSE "$license_copy"
+
+          deb="build/jpackage/kortty-Linux-${VERSION}-${ARCH}.deb"
+          rpm="build/jpackage/kortty-Linux-${VERSION}-${ARCH}.rpm"
+          dpkg-deb -c "$deb" | grep -E '/(LICENSE|LICENSE-korTTY|copyright)$'
+          test "$(rpm -qp --queryformat '%{LICENSE}' "$rpm")" = "MIT"
+          rpm -qlp "$rpm" | grep -E '/LICENSE$'
+
+      - name: Build and smoke-test Flatpak bundle
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          APP_ID="io.github.chardonnay.korTTY"
+          BUNDLE="$GITHUB_WORKSPACE/build/jpackage/kortty-Linux-${VERSION}-${ARCH}.flatpak"
+
+          appstreamcli validate --no-net package/flatpak/${APP_ID}.metainfo.xml
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub \
+            org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+          rm -rf build/flatpak-build build/flatpak-repo .flatpak-builder
+          flatpak-builder --user --force-clean --disable-rofiles-fuse \
+            --repo=build/flatpak-repo --default-branch=stable \
+            build/flatpak-build package/flatpak/${APP_ID}.yml
+          cmp LICENSE "build/flatpak-build/files/share/licenses/${APP_ID}/LICENSE"
+          flatpak build-bundle --arch="$ARCH" build/flatpak-repo "$BUNDLE" "$APP_ID" stable
+
+          flatpak install --user --noninteractive "$BUNDLE"
+          test "$(flatpak info --user --show-ref "$APP_ID")" = "app/${APP_ID}/${ARCH}/stable"
+          test "$(flatpak run --command=flatpak-spawn "$APP_ID" --host sh -lc 'printf kortty-flatpak-host-ok')" = \
+            "kortty-flatpak-host-ok"
+          xvfb-run -a timeout 90 flatpak run "$APP_ID" --webview-jit-smoke
+          flatpak uninstall --user --noninteractive "$APP_ID"
+
       - name: Sign RPM package
         if: matrix.platform == 'linux'
         shell: bash
@@ -749,7 +824,8 @@ jobs:
           for f in "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz" \
                    "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip" \
                    "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" \
-                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm"; do
+                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm" \
+                   "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.flatpak"; do
             if [ -f "$f" ]; then
               gpg --batch --yes --pinentry-mode loopback \
                 --passphrase "$LINUX_SIGNING_GPG_PASSPHRASE" \
@@ -789,10 +865,12 @@ jobs:
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.flatpak
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz.sig
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip.sig
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb.sig
             build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.rpm.sig
+            build/jpackage/kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.flatpak.sig
             kortty-linux-signing-public.asc
           retention-days: 30
 
@@ -814,7 +892,7 @@ jobs:
   build-pacman:
     name: Build pacman (Arch Linux)
     needs: build
-    if: success()
+    if: success() && (github.event_name == 'release' || inputs.scope != 'flatpak-only')
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
@@ -839,7 +917,7 @@ jobs:
             VERSION="${{ github.event.release.tag_name }}"
             VERSION=${VERSION#v}
           else
-            VERSION="${{ github.event.inputs.version }}"
+            VERSION="${{ inputs.version }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
@@ -847,7 +925,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.ref }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.source_ref }}
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v8
@@ -888,6 +966,7 @@ jobs:
           fi
           cp "$linux_tar" archbuild/
           cp package/arch/kortty.desktop archbuild/
+          cp LICENSE archbuild/
           sed "s/VERSION_PLACEHOLDER/${VERSION}/g" package/arch/PKGBUILD > archbuild/PKGBUILD
 
       - name: Build pacman package
@@ -897,6 +976,14 @@ jobs:
           chown -R builder:builder /home/builder/archbuild
           su builder -c "cd /home/builder/archbuild && makepkg --noconfirm --clean"
           cp /home/builder/archbuild/*.pkg.tar.zst archbuild/
+
+      - name: Verify MIT license in pacman package
+        run: |
+          pkg_file="$(ls -1 archbuild/*.pkg.tar.zst | head -n1)"
+          bsdtar -xOf "$pkg_file" .PKGINFO | grep -Fx 'license = MIT'
+          bsdtar -tf "$pkg_file" | grep -Fx 'usr/share/licenses/kortty/LICENSE'
+          bsdtar -xOf "$pkg_file" usr/share/licenses/kortty/LICENSE > /tmp/kortty-license
+          cmp LICENSE /tmp/kortty-license
 
       - name: Sign pacman package
         shell: bash
@@ -922,7 +1009,12 @@ jobs:
 
   upload-release:
     needs: [build, build-pacman, docs-render]
-    if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.ref, 'v')))
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.build-pacman.result == 'success' || needs.build-pacman.result == 'skipped') &&
+      (needs.docs-render.result == 'success' || needs.docs-render.result == 'skipped') &&
+      (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -934,7 +1026,7 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
           else
-            TAG="${{ github.event.inputs.ref }}"
+            TAG="${{ inputs.release_tag }}"
           fi
           if [[ ! "$TAG" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
             echo "Release upload requires a tag ref like v2.1.0."
@@ -942,6 +1034,10 @@ jobs:
           fi
           VERSION="$TAG"
           VERSION=${VERSION#v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$VERSION" != "${{ inputs.version }}" ]; then
+            echo "release_tag version '$VERSION' does not match input version '${{ inputs.version }}'."
+            exit 1
+          fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -951,11 +1047,19 @@ jobs:
           path: artifacts
 
       - name: Prepare release assets
+        env:
+          RELEASE_SCOPE: ${{ github.event_name == 'release' && 'all' || inputs.scope }}
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.tar' -o -name '*.jar' -o -name '*.deb' -o -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.sig' -o -name '*.asc' \) -exec cp {} release/ \;
+          if [ "$RELEASE_SCOPE" = "flatpak-only" ]; then
+            find artifacts -type f \( -name '*.flatpak' -o -name '*.flatpak.sig' \) -exec cp {} release/ \;
+          else
+            find artifacts -type f \( -name '*.zip' -o -name '*.dmg' -o -name '*.msi' -o -name '*.tar.gz' -o -name '*.tar' -o -name '*.jar' -o -name '*.deb' -o -name '*.rpm' -o -name '*.flatpak' -o -name '*.pkg.tar.zst' -o -name '*.sig' -o -name '*.asc' \) -exec cp {} release/ \;
+          fi
+          test -n "$(find release -maxdepth 1 -type f -print -quit)"
 
       - name: Add docs diagram SVGs to release
+        if: github.event_name == 'release' || inputs.scope != 'flatpak-only'
         run: |
           VERSION="${{ steps.release.outputs.version }}"
           if [ -d "artifacts/docs-diagrams" ]; then
@@ -963,6 +1067,22 @@ jobs:
             zip -r "../../release/KorTTY-docs-diagrams-${VERSION}.zip" . -i "*.svg"
             cd ../..
           fi
+
+      - name: Refuse to replace existing assets in Flatpak-only mode
+        if: github.event_name == 'workflow_dispatch' && inputs.scope == 'flatpak-only'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          existing="$RUNNER_TEMP/existing-assets.txt"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$existing"
+          while IFS= read -r candidate; do
+            if grep -Fxq "$candidate" "$existing"; then
+              echo "Refusing to replace existing release asset: $candidate"
+              exit 1
+            fi
+          done < <(find release -maxdepth 1 -type f -printf '%f\n' | sort)
 
       - name: Upload to release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
@@ -982,12 +1102,14 @@ jobs:
         run: |
           body="$RUNNER_TEMP/release-body.md"
           downloads="$RUNNER_TEMP/downloads.md"
+          assets="$RUNNER_TEMP/release-assets.txt"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > "$body"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$assets"
 
           asset_link() {
             local filename="$1"
             local label="$2"
-            if [ -f "release/$filename" ]; then
+            if grep -Fxq "$filename" "$assets"; then
               printf '%s\n' "- [$label](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$filename)"
             fi
           }
@@ -1016,8 +1138,11 @@ jobs:
             echo
             echo '**Linux**'
             echo
+            echo 'Flatpak bundles can be installed manually from a host terminal with `flatpak install --user ./FILENAME.flatpak`.'
+            echo
             for arch in aarch64 x86_64; do
               echo "*$arch*"
+              asset_link "kortty-Linux-$VERSION-$arch.flatpak" 'Flatpak bundle (.flatpak)'
               asset_link "kortty-Linux-$VERSION-$arch.deb" 'Debian/Ubuntu (.deb)'
               asset_link "kortty-Linux-$VERSION-$arch.rpm" 'Fedora/openSUSE (.rpm)'
               asset_link "kortty-Linux-$VERSION-$arch.tar.gz" 'Portable archive (.tar.gz)'
@@ -1044,9 +1169,23 @@ jobs:
           downloads = downloads_path.read_text(encoding="utf-8").strip()
           start = "<!-- kortty-download-guide:start -->"
           end = "<!-- kortty-download-guide:end -->"
-          if start in body and end in body:
-              body = body[:body.index(start)] + body[body.index(end) + len(end):]
-          body_path.write_text(body.rstrip() + "\n\n" + downloads + "\n", encoding="utf-8")
+
+          def update(current: str) -> str:
+              if start in current and end in current:
+                  begin = current.index(start)
+                  finish = current.index(end, begin) + len(end)
+                  return current[:begin] + downloads + current[finish:]
+              separator = "" if not current else ("\n" if current.endswith("\n") else "\n\n")
+              return current + separator + downloads + "\n"
+
+          updated = update(body)
+          if update(updated) != updated:
+              raise SystemExit("Download-guide update is not idempotent")
+          original_prefix = body[:body.index(start)] if start in body else body
+          updated_prefix = updated[:updated.index(start)]
+          if not updated_prefix.startswith(original_prefix):
+              raise SystemExit("Release description changed while updating the download guide")
+          body_path.write_text(updated, encoding="utf-8")
           PY
 
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"

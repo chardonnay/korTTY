@@ -55,6 +55,7 @@ import de.kortty.persistence.exporter.ConnectionExporter;
 import de.kortty.persistence.exporter.KorTTYExporter;
 import de.kortty.persistence.exporter.MTPuTTYExporter;
 import de.kortty.persistence.exporter.MobaXTermExporter;
+import de.kortty.platform.FlatpakSupport;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.security.PasswordVault;
 import de.kortty.update.AvailableUpdate;
@@ -5337,7 +5338,12 @@ public class MainWindow {
         ButtonType closeButton = new ButtonType(I18n.get("dialog.close"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().add(closeButton);
 
-        Label intro = new Label(I18n.get("updates.download.complete.intro"));
+        boolean flatpakBundle = update != null
+            && update.asset() != null
+            && update.asset().name().toLowerCase(java.util.Locale.ROOT).endsWith(".flatpak");
+        Label intro = new Label(I18n.get(flatpakBundle
+            ? "updates.download.complete.flatpakIntro"
+            : "updates.download.complete.intro"));
         intro.setWrapText(true);
 
         Label locationCaption = new Label(I18n.get("updates.download.complete.location"));
@@ -5356,7 +5362,14 @@ public class MainWindow {
         HBox actions = new HBox(10, openButton, guideButton);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        VBox content = new VBox(12, intro, locationCaption, pathField, actions);
+        VBox content = new VBox(12, intro, locationCaption, pathField);
+        if (flatpakBundle && downloadedFile != null) {
+            Label commandCaption = new Label(I18n.get("updates.download.complete.flatpakCommand"));
+            TextField commandField = new TextField(FlatpakSupport.installCommand(downloadedFile));
+            commandField.setEditable(false);
+            content.getChildren().addAll(commandCaption, commandField);
+        }
+        content.getChildren().add(actions);
         content.setPrefWidth(480);
         dialog.getDialogPane().setContent(content);
 

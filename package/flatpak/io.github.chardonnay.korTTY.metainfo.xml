@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.chardonnay.korTTY</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>korTTY</name>
+  <summary>Cross-platform SSH client with terminal, SFTP, and automation tools</summary>
+  <developer id="io.github.chardonnay">
+    <name>Daniel Mengel</name>
+  </developer>
+  <description>
+    <p>korTTY is a JavaFX SSH client with tabbed terminals, SFTP, snippets, session journals, automation, and optional AI-assisted workflows.</p>
+    <p>The Flatpak package can start host shells through flatpak-spawn and access host files selected by the user.</p>
+  </description>
+  <launchable type="desktop-id">io.github.chardonnay.korTTY.desktop</launchable>
+  <url type="homepage">https://github.com/chardonnay/korTTY</url>
+  <url type="bugtracker">https://github.com/chardonnay/korTTY/issues</url>
+  <releases>
+    <release version="2.14.0" date="2026-08-31"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

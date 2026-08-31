@@ -11,6 +11,7 @@ korTTY kann als Java-Artefakte, als eigenständiges tragbares Anwendungs-Image o
 | Eigenständiges App-Image | `jpackage` | Plattform-App-Bundle oder Verzeichnis unter `build/jpackage/` | Nein; `jpackage` enthält eine getrimmte Java-Laufzeitumgebung |
 | Nativer Installer | `jpackageDmg`, `jpackageMsi`, `jpackageDeb` oder `jpackageRpm` | DMG, MSI, DEB oder RPM unter `build/jpackage/` | Nein; Das Installationsprogramm enthält das eigenständige App-Image |
 | Portables natives Archiv | `jpackage`, dann der unten gezeigte Betriebssystem-Archivierungsbefehl | ZIP oder TAR mit dem gesamten App-Image | Nein; Behalten Sie das Bundle oder Verzeichnis nach der Extraktion bei |
+| Flatpak-Bundle | `jpackage`, dann `flatpak-builder` und `flatpak build-bundle` | `build/jpackage/kortty-Linux-<version>-<architecture>.flatpak` | Nein; Installieren Sie die Freedesktop-Laufzeitumgebung über Flatpak |
 
 !!! important "Ein App-Image ist keine einzelne ausführbare Datei"
     Unter macOS ist das App-Image das vollständige `korTTY.app`-Bundle, unter Windows das vollständige `korTTY`-Verzeichnis mit `korTTY.exe` und unter Linux das vollständige `korTTY`-Verzeichnis mit `bin/korTTY`. Durch das Verschieben nur des Launchers wird die Anwendung unterbrochen, da ihre Laufzeit und Bibliotheken in Geschwisterverzeichnissen verbleiben. Das Linux-Verzeichnis ist keine `.AppImage`-Datei.
@@ -110,6 +111,30 @@ Verwenden Sie den folgenden Plattformbefehl, um das Thin JAR sowie die Java ZIP-
     ```
 
 Das Thin-JAR enthält korTTY-Klassen und -Ressourcen, jedoch keine Laufzeitabhängigkeiten und stellt selbst nicht die vollständige Bereitstellung bereit. Für ein Java-basiertes tragbares Layout extrahieren Sie die generierte ZIP- oder TAR-Datei und starten Sie `bin/korTTY` unter macOS/Linux oder `bin\korTTY.bat` unter Windows; Das Ziel benötigt weiterhin JDK 25. Diese Distributionen enthalten auch die nativen JavaFX-Abhängigkeiten, die auf dem Build-Host ausgewählt wurden. Erstellen Sie sie also auf demselben Betriebssystem und derselben Architektur, auf der sie ausgeführt werden.
+
+Jedes korTTY-Release-Format trägt den kanonischen MIT `LICENSE` des Repositorys. Die RPM- und Pacman-Metadaten deklarieren außerdem `MIT`; `scripts/check-release-licenses.py` ist das CI-Gate, das verhindert, dass Metadaten von Anwendungspaketen in eine andere Lizenz wandern. Lizenzen, die zum Gradle-Wrapper, gebündelten Laufzeiten, Modellen oder anderen Abhängigkeiten gehören, bleiben separat und werden nicht als korTTY-Lizenz umgeschrieben.
+
+## Erstellen Sie ein Flatpak-Bundle
+
+Flatpak-Bundles werden nativ unter Linux für `x86_64` und `aarch64` erstellt. Das Manifest verwendet die Anwendungs-ID `io.github.chardonnay.korTTY` mit der Freedesktop 25.08-Laufzeit und verpackt das eigenständige Linux-Anwendungsimage, das von `jpackage` erstellt wurde. Installieren Sie Flatpak, `flatpak-builder` und `appstreamcli` und führen Sie dann Folgendes aus:
+
+```bash
+./gradlew clean build jpackage
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=build/flatpak-repo --default-branch=stable build/flatpak-build package/flatpak/io.github.chardonnay.korTTY.yml
+flatpak build-bundle --arch="$(flatpak --default-arch)" build/flatpak-repo "build/jpackage/kortty-Linux-<version>-$(flatpak --default-arch).flatpak" io.github.chardonnay.korTTY stable
+```
+
+Das Paket gewährt Netzwerk-, X11-, Audio-, GPU- und Host-Dateisystemzugriff, da ein SSH-Terminal-Client Remote-Hosts erreichen, JavaFX/WebView rendern, Terminalmedien verwenden und explizit ausgewählte Hostdateien bearbeiten muss. Es gewährt auch Zugriff auf `org.freedesktop.Flatpak`; Lokale Shells und ihre AI-Agent-Befehle werden über `flatpak-spawn --host` auf dem Host gestartet. Validieren Sie ein lokales Bundle, indem Sie es installieren, seine Architektur überprüfen und den gepackten WebView Smoke ausführen:
+
+```bash
+flatpak install --user ./build/jpackage/kortty-Linux-<version>-<architecture>.flatpak
+flatpak info --user --show-ref io.github.chardonnay.korTTY
+xvfb-run -a flatpak run io.github.chardonnay.korTTY --webview-jit-smoke
+```
+
+GitHub Actions führt diese Sequenz auf nativen `ubuntu-latest`- und `ubuntu-24.04-arm`-Läufern aus, signiert beide Bundles mit dem Linux-Release-Schlüssel und lädt sie neben den Distributionspaketen hoch. Ein manueller `flatpak-only`-Versand akzeptiert einen festen Quell-Commit und ein separates vorhandenes Release-Tag, sodass ein Bundle aufgefüllt werden kann, ohne das Tag zu verschieben oder ein anderes Asset zu ersetzen.
 
 ## Erstellen Sie ein separates llama.cpp-Laufzeitpaket
 

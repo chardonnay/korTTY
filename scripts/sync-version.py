@@ -12,6 +12,7 @@ Targets kept in sync:
   * app-docs/site/docs/en/about/release-notes.md    (top ``# vX.Y.Z`` heading, if present)
   * app-docs/USER_GUIDE.adoc                         (leading ``*vX.Y.Z*`` badge and trailing footer)
   * app-docs/doc-manifest.yaml                       (top-level ``version: "X.Y.Z"`` field)
+  * package/flatpak/io.github.chardonnay.korTTY.metainfo.xml (current AppStream release)
 
 The MkDocs site does NOT hard-code the version: it is injected at build time via
 the ``KORTTY_VERSION`` env var (``extra.kortty_version: !ENV [KORTTY_VERSION, 'dev']``),
@@ -99,6 +100,12 @@ TARGETS: list[Target] = [
         path=REPO_ROOT / "app-docs/doc-manifest.yaml",
         pattern=re.compile(r'(?m)^(version:\s*")(' + SEMVER + r')(")'),
         label="doc-manifest.yaml version",
+    ),
+    Target(
+        # Current release advertised by the distributable Flatpak AppStream metadata.
+        path=REPO_ROOT / "package/flatpak/io.github.chardonnay.korTTY.metainfo.xml",
+        pattern=re.compile(r'(?m)^(\s*<release\s+version=")(' + SEMVER + r')("\s+date=)'),
+        label="Flatpak AppStream release",
     ),
 ]
 

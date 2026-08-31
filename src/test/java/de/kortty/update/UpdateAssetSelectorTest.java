@@ -74,6 +74,26 @@ class UpdateAssetSelectorTest {
     }
 
     @Test
+    void selectsFlatpakBundleForFlatpakInstallation() {
+        UpdateAsset selected = selector.select(
+                release(
+                    "kortty-Linux-2.3.0-x86_64.deb",
+                    "kortty-Linux-2.3.0-x86_64.flatpak"),
+                new PlatformProfile(OperatingSystem.LINUX, "x86_64", "ubuntu", Set.of("debian"), true))
+            .orElseThrow();
+
+        assertThat(selected.name()).isEqualTo("kortty-Linux-2.3.0-x86_64.flatpak");
+    }
+
+    @Test
+    void doesNotOfferDistroPackageToFlatpakInstallation() {
+        assertThat(selector.select(
+            release("kortty-Linux-2.3.0-aarch64.deb"),
+            new PlatformProfile(OperatingSystem.LINUX, "aarch64", "ubuntu", Set.of("debian"), true)))
+            .isEmpty();
+    }
+
+    @Test
     void fallsBackToJavaZipWhenNoNativeAssetMatches() {
         UpdateAsset selected = selector.select(
                 release("korTTY-Java-2.3.0.zip"),

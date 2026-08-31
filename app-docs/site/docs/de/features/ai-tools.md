@@ -7,7 +7,7 @@ title: Terminal-KI-Agent und -Tools
 Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Exec-Channel und lokale Prozess-Backends) entkoppelt wurde, auch in [local-Shells](connections.md#lokale-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
 
 !!! note "SSH vs. lokale Shells"
-    In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
+    In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Im Flatpak-Paket werden diese Prozesse auf dem Host über `flatpak-spawn --host` und nicht innerhalb der Freedesktop-Laufzeit-Sandbox ausgeführt. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
@@ -205,7 +205,7 @@ Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#gen
 ### Funktionen zur Skriptgenerierung
 
 - **Passende KI-Fähigkeiten automatisch laden** – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.
-- **Härtungsoptionen** – Eine zusammenklappbare Gruppe von Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, sinnvolle Exit-Codes, Protokollierung, Idempotenz, Probelauf, `--help` und mehr), die in das generierte Skript integriert werden. Alle sind standardmäßig aktiviert; Deaktivieren Sie alle, die Sie nicht möchten. Unter [Härtungsoptionen](../reference/hardening-options.md) erfahren Sie, was die einzelnen Optionen bedeuten.
+- **Härtungsoptionen** – Eine zusammenklappbare Gruppe von Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, Probelauf, `--help` und mehr), die in das generierte Skript integriert werden. Alle sind standardmäßig aktiviert. Deaktivieren Sie alle, die Sie nicht möchten. Unter [Härtungsoptionen](../reference/hardening-options.md) erfahren Sie, was die einzelnen Optionen bedeuten.
 - **Eingabe-Härtung** – Ein zweites zusammenklappbares Panel, das die KI auffordert, einen Schutzblock für die Eingabevalidierung in das generierte Skript einzubauen: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße, die durch die einstellbare Skriptvariable `MAX_FILE_SIZE` gesteuert wird, Sicherheitswarnungen im Protokoll des Skripts und eine `FORCE=1`/`--force`-Überschreibung. Der Wächter prüft Dateimetadaten, bevor er Inhalte liest, und `0` bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert. Siehe [Eingabe-Härtung](../reference/input-hardening.md).
 - **Acht Zielsprachen** – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd`-Batch – `@echo off`, `REM`-Header, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`).
 - **Mehrere Sprachvarianten** – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.
@@ -214,7 +214,7 @@ Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#gen
 - **Mermaid-Diagramm** – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Seine dedizierte Nur-Quellen-Anfrage lässt KI-Fähigkeiten und Wissensspeicher-Auszüge weg und setzt den anforderungsbezogenen **Reasoning**-Wert nur dann auf `none`, wenn der Anbieter diesen Wert angekündigt hat; Das gespeicherte Profil bleibt unverändert. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
 - **Snippet Manager** – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.
 - **Workflow-Tagging** – Das Snippet ist zur einfachen Filterung mit dem Tag `workflow` versehen.
-- **OS-Erkennung** – Die Spalte **System** (OS) wird automatisch vom untersuchten Betriebssystem des Agenten (jede Linux-Distribution → Linux) festgelegt.
+- **OS-Erkennung** – Die Spalte **System** (OS) wird automatisch vom untersuchten Betriebssystem des Agenten festgelegt (jede Linux-Distribution → Linux).
 - **Kein Internetzugang** – Der Internetzugang wird während der Generierung erzwungen, unabhängig vom Internetmodus des Profils ausgeschaltet zu werden.
 - **Skalierbares Dialogfeld** – Das Workflow-Dialogfeld merkt sich seine Größe und Position für die zukünftige Verwendung.
 
@@ -240,7 +240,7 @@ Die endgültigen Antworten des Terminalagenten werden in den Terminalbereich zur
 
 ### Transkripte
 
-Dedizierte Agenten- und Planungsregisterkarten können ihr Transkript zur späteren Überprüfung oder Weitergabe kopieren und speichern.
+Spezielle Agenten- und Planungsregisterkarten können ihr Transkript zur späteren Überprüfung oder Weitergabe kopieren und speichern.
 
 ## Befehle ausführen
 
@@ -307,7 +307,7 @@ Konfigurieren Sie den Terminal AI Agent unter **Einstellungen > AI**:
 | **Größe des Eingabeverlaufs** | Anzahl der zuletzt zu merkenden Eingabeaufforderungen (5–100, Standard 20) |
 | **Standardprofil** | Das AI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |
 | **Platzierung des Aktivitätsbereichs** | Wählen Sie **Unten** oder **Links/Rechts andocken** |
-| **Einstellung reduziert beibehalten** | Starten Sie das Panel minimiert und lassen Sie es während der Ausführung minimiert. |
+| **Präferenz reduziert beibehalten** | Starten Sie das Panel minimiert und lassen Sie es während der Ausführung minimiert. |
 
 ## AI-Fähigkeiten
 

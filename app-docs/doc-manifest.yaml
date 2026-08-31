@@ -63,10 +63,10 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/getting-started/building-packages.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, package/size-baselines.json]
+    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, scripts/check-release-licenses.py, package/size-baselines.json, package/arch, package/flatpak]
     diagrams: []
     screenshots: []
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/getting-started/first-launch.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security/MasterPasswordManager.java]
@@ -158,10 +158,10 @@ pages:
     last_synced_ref: "093cbbf4"
   - path: app-docs/site/docs/en/reference/settings/updates.md
     owns_i18n: [settings.updates.]
-    owns_code: [src/main/java/de/kortty/update/UpdateCheckService.java]
+    owns_code: [src/main/java/de/kortty/update, src/main/java/de/kortty/platform/FlatpakSupport.java]
     screenshots:
       - settings/updates.png
-    last_synced_ref: "031ad3c0"
+    last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/reference/settings/security.md
     owns_i18n: [settings.security., settings.masterPassword.]
     owns_code: [src/main/java/de/kortty/security]
@@ -224,9 +224,9 @@ pages:
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections., connEdit.tag, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/ConnectionExportDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/features/terminal.md
     owns_i18n: [connEdit.log., connEdit.loggingInfo, quickConnect.log., quickConnect.section.terminalLog, terminal.log.]
     owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/ShellSessionChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/core/TerminalLogger.java, src/main/java/de/kortty/core/TerminalLogNaming.java, src/main/java/de/kortty/core/TerminalLogRetention.java, src/main/java/de/kortty/model/TerminalLogConfig.java, src/main/java/de/kortty/core/SessionJournalRedactor.java]
@@ -290,9 +290,9 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]

@@ -36,6 +36,12 @@ public class UpdateAssetSelector {
     }
 
     private Optional<UpdateAsset> selectLinuxAsset(List<UpdateAsset> assets, PlatformProfile profile) {
+        if (profile.flatpak()) {
+            // A sandbox installation cannot safely replace itself with a distro-native package.
+            // Keep the update in the same package format and let the user install the bundle from
+            // a host terminal after its SHA-256-verified download completes.
+            return findLinuxAsset(assets, profile, ".flatpak");
+        }
         String preferredExtension = preferredLinuxExtension(profile);
         return findLinuxAsset(assets, profile, preferredExtension)
             .or(() -> preferredExtension.equals(".deb") ? Optional.empty() : findLinuxAsset(assets, profile, ".deb"))

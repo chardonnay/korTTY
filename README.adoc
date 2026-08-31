@@ -179,12 +179,12 @@ Pre-built packages for *x86_64 (amd64)* and, where native UI dependencies exist,
 
 * *macOS*: `-aarch64` for Apple Silicon and `-x86_64` for Intel Macs (separate DMG/ZIP files).
 * *Windows*: `-x86_64` for Intel/AMD and for Windows on ARM through Windows' x64 emulation; no native ARM package is currently published because the pinned OpenJFX line has no Windows ARM build.
-* *Linux*: `-x86_64` or `-aarch64` (separate DEB/RPM/tar.gz/zip files).
+* *Linux*: `-x86_64` or `-aarch64` (separate Flatpak/DEB/RPM/tar.gz/zip files). Install a downloaded Flatpak bundle with `flatpak install --user ./kortty-Linux-<version>-<architecture>.flatpak`.
 * *Arch Linux*: `-x86_64` (pacman `.pkg.tar.zst`; aarch64: use the Linux tarball).
 
 Each release provides separate packages per platform and architecture; there are no universal binaries. Use the file that matches your OS and CPU.
 
-To *manually trigger* a release build (e.g. after moving the tag without creating a new release), go to *Actions → Build Release Binaries → Run workflow*, choose branch `main`, set *Ref* to the release tag, and set *Version* to the matching numeric version without the leading `v`.
+To *manually trigger* a release build, go to *Actions → Build Release Binaries → Run workflow*. Set *Source ref* to the exact branch, tag or commit to build, *Release tag* to the existing GitHub release that receives the assets, and *Version* to the matching numeric version without the leading `v`. Choose `flatpak-only` to build and upload only the two Flatpak assets without replacing existing release files.
 
 == SithTermFX Integration
 

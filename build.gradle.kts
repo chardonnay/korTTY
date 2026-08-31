@@ -452,6 +452,16 @@ application {
     applicationDefaultJvmArgs = googleJavaFormatJvmArgs
 }
 
+// Every portable Java distribution carries the same canonical license as the source tree.
+// Keep dependency licenses in their own artifacts; this file identifies korTTY itself.
+distributions {
+    main {
+        contents {
+            from(layout.projectDirectory.file("LICENSE"))
+        }
+    }
+}
+
 tasks.named<JavaExec>("run") {
     dependsOn("copyBundledFormatters")
     systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("bundled-formatters").get().asFile.absolutePath)
@@ -1635,6 +1645,9 @@ tasks.register<Sync>("prepareJpackage") {
         }
     }
     from(tasks.jar.map { it.archiveFile })
+    from(layout.projectDirectory.file("LICENSE")) {
+        rename { "LICENSE-korTTY" }
+    }
     from(slimRuntimeJarDir)
     from(bundledFormatterDir) {
         into("formatters")
@@ -2052,6 +2065,8 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         "--name", appName,
         "--app-version", appVersion,
         "--vendor", "korTTY",
+        "--copyright", "Copyright (c) 2026 Daniel Mengel",
+        "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
         "--description", "SSH Client",
         "--input", inputDir,
         "--main-jar", mainJar,
@@ -2332,6 +2347,8 @@ if (isMac) {
             "--name", appName,
             "--app-version", appVersion,
             "--vendor", "korTTY",
+            "--copyright", "Copyright (c) 2026 Daniel Mengel",
+            "--license-file", layout.projectDirectory.file("LICENSE").asFile.absolutePath,
             "--description", "SSH Client",
             "--dest", outputDir,
             "--mac-package-name", appName,
@@ -2651,6 +2668,7 @@ if (isLinux) {
         args.addAll(listOf(
             "--type", "rpm",
             "--linux-package-name", appName.lowercase(),
+            "--linux-rpm-license-type", "MIT",
             "--linux-shortcut",
             "--icon", iconFile.absolutePath
         ))
@@ -3466,6 +3484,10 @@ tasks.jar {
                 "Class-Path" to runtimeClasspath.get().files.joinToString(" ") { it.name }
             )
         }
+    }
+    from(layout.projectDirectory.file("LICENSE")) {
+        into("META-INF")
+        rename { "LICENSE-korTTY" }
     }
 }
 

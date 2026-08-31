@@ -8,13 +8,13 @@ pkgrel=1
 pkgdesc="SSH Client with JavaFX interface, tab support, and SFTP"
 arch=('x86_64' 'aarch64')
 url="https://github.com/chardonnay/korTTY"
-license=('Apache-2.0')
+license=('MIT')
 # Java runtime (provider package, e.g. jre-openjdk)
 depends=('java-runtime')
 # Pre-built tarball from GitHub Actions (kortty-Linux-${pkgver}-${CARCH}.tar.gz)
 # kortty.desktop is in this directory (package/arch/)
-source=("kortty-Linux-${pkgver}-${CARCH}.tar.gz" "kortty.desktop")
-sha256sums=('SKIP' 'SKIP')
+source=("kortty-Linux-${pkgver}-${CARCH}.tar.gz" "kortty.desktop" "LICENSE")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
 # App-image directory name from jpackage (--name korTTY)
 _appdir="korTTY"
 
@@ -49,6 +49,7 @@ package() {
   # Desktop entry
   install -d "$pkgdir/usr/share/applications"
   install -m644 "$srcdir/kortty.desktop" "$pkgdir/usr/share/applications/kortty.desktop"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/kortty/LICENSE"
   # Icon if present in app-image
   if [[ -f "$pkgdir/usr/lib/kortty/lib/kortty_icon.png" ]]; then
     install -d "$pkgdir/usr/share/pixmaps"

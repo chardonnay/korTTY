@@ -40,6 +40,10 @@ jobs:
         with:
           submodules: false
 
+      - name: Validate release license declarations
+        shell: bash
+        run: python3 scripts/check-release-licenses.py
+
       - name: Clone SithTermFX (build from source, no token)
         shell: bash
         run: |

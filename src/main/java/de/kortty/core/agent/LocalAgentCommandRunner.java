@@ -2,6 +2,7 @@ package de.kortty.core.agent;
 
 import de.kortty.core.LanguageManager;
 import de.kortty.core.LocalShellTtyConnector;
+import de.kortty.platform.FlatpakSupport;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.ServerConnection;
 
@@ -232,8 +233,10 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         BooleanSupplier cancellationSupplier,
         String workingDirectory) throws Exception {
 
-        ProcessBuilder builder = new ProcessBuilder(argv);
-        if (workingDirectory != null && !workingDirectory.isBlank()) {
+        List<String> command = FlatpakSupport.hostCommand(argv, workingDirectory, System.getenv());
+        ProcessBuilder builder = new ProcessBuilder(command);
+        if (workingDirectory != null && !workingDirectory.isBlank()
+            && !FlatpakSupport.isRunningInFlatpak()) {
             // Always set the selected directory. If it disappears before process start, fail rather
             // than silently executing in the JVM's unrelated working directory.
             builder.directory(new File(workingDirectory));

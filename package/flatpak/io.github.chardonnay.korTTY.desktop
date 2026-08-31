@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=korTTY
+Comment=Cross-platform SSH client with terminal, SFTP, and automation tools
+Exec=kortty
+Icon=io.github.chardonnay.korTTY
+Terminal=false
+Categories=Network;RemoteAccess;TerminalEmulator;
+Keywords=ssh;terminal;sftp;
+StartupWMClass=korTTY

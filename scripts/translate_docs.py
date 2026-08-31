@@ -337,15 +337,15 @@ def translate_md(
             res = []
             for item in chunk:
                 r = None
-                for attempt in range(2):
+                for attempt in range(4):
                     try:
                         r = translator.translate(item)
                         if r:
                             break
                     except Exception:  # noqa: BLE001
                         r = None
-                    if attempt == 0:
-                        time.sleep(1.0)
+                    if attempt < 3:
+                        time.sleep(1.5 * (attempt + 1))
                 if r:
                     res.append(r)
                 else:
@@ -434,6 +434,12 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
     memory: dict[str, str] = {}
     for idx, masked, store in jobs:
         de_line = de_lines[idx]
+        source_words = re.findall(r"[A-Za-z]{2,}", en_lines[idx])
+        if de_line.strip() == en_lines[idx].strip() and len(source_words) >= 2:
+            # A failed provider call writes the English source into the generated page. Never
+            # promote that fallback into translation memory on the next run, or it becomes
+            # indistinguishable from a deliberate translation and can never be retried.
+            continue
         if en_lines[idx].startswith("title:"):
             if not de_line.startswith("title:"):
                 continue
@@ -649,7 +655,7 @@ def git_head_version(path: Path) -> str | None:
         rel = path.relative_to(REPO).as_posix()
         result = subprocess.run(
             ["git", "-C", str(REPO), "show", f"HEAD:{rel}"],
-            capture_output=True, text=True, timeout=10)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
         return result.stdout if result.returncode == 0 else None
     except Exception:  # noqa: BLE001
         return None
@@ -673,12 +679,16 @@ def save_cache(cache: dict[str, str]) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate docs/de from docs/en.")
     ap.add_argument("--force", action="store_true", help="re-translate all pages")
+    ap.add_argument("--page", action="append", default=[],
+                    help="translate only this EN-relative Markdown path (repeatable)")
     args = ap.parse_args()
 
     if not EN.is_dir():
         sys.exit(f"missing {EN}")
-    cache = {} if args.force else load_cache()
-    new_cache = dict(cache)
+    stored_cache = load_cache()
+    cache = stored_cache
+    new_cache = dict(stored_cache)
+    selected_pages = {item.replace("\\", "/") for item in args.page}
     translator = GoogleTranslator(source="en", target=TARGET)
 
     md_done = md_skip = copied = 0
@@ -699,6 +709,9 @@ def main() -> int:
             # Assets (CSS, images, video) are staged into docs/de by
             # scripts/build-docs-site.py — don't copy/translate them here.
             continue
+        if selected_pages and rel.as_posix() not in selected_pages:
+            md_skip += 1
+            continue
         digest = hashlib.sha256(
             TRANSLATION_FORMAT_VERSION.encode("ascii") + b"\0" + src.read_bytes()
         ).hexdigest()
@@ -710,9 +723,7 @@ def main() -> int:
         # existing German page so only added/edited lines hit the translator.
         memory: dict[str, str] = {}
         if dst.exists():
-            old_en = git_head_version(src)
-            if old_en is None and cache.get(str(rel)) == digest:
-                old_en = md  # unchanged page (e.g. --force run): current EN matches DE
+            old_en = md if stored_cache.get(str(rel)) == digest else git_head_version(src)
             memory = build_page_memory(old_en, dst.read_text(encoding="utf-8"))
         translated, reused, fresh, failed = translate_md(md, translator, memory)
         dst.write_text(translated, encoding="utf-8")

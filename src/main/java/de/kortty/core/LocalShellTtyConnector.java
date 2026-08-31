@@ -6,6 +6,7 @@ import com.pty4j.WinSize;
 import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
+import de.kortty.platform.FlatpakSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +95,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 i18n("localShell.protocolMismatch", i18n("protocol.localShell")));
         }
         try {
-            List<String> command = resolveShellCommand(connection.getLocalShellCommand());
+            List<String> shellCommand = resolveShellCommand(connection.getLocalShellCommand());
             int cols = terminalColumns();
             int rows = terminalRows();
 
@@ -104,14 +105,16 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 env.put("LANG", "en_US.UTF-8");
             }
 
+            String workingDirectory = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
+            List<String> command = FlatpakSupport.hostCommand(shellCommand, workingDirectory, env);
+
             PtyProcessBuilder builder = new PtyProcessBuilder(command.toArray(new String[0]))
                 .setEnvironment(env)
                 .setInitialColumns(cols)
                 .setInitialRows(rows)
                 .setConsole(false);
 
-            String workingDirectory = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
-            if (workingDirectory != null) {
+            if (workingDirectory != null && !FlatpakSupport.isRunningInFlatpak()) {
                 builder.setDirectory(workingDirectory);
             }
             // Freeze the effective spawn directory: the live ServerConnection can be edited while
@@ -121,7 +124,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             unresolvedWorkingDirectoryChange.set(false);
             directoryChangeTracker.reset();
             sessionChangeTracker.reset();
-            remoteClientShell = launchesRemoteClient(command);
+            remoteClientShell = launchesRemoteClient(shellCommand);
             requestLocalHostName();
 
             // Do not log any part of the user-configured command line: it is free-form and may
@@ -321,6 +324,10 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             // PowerShell is the chosen default on Windows.
             return List.of("powershell.exe");
         }
+        if (FlatpakSupport.isRunningInFlatpak()) {
+            // Resolve $SHELL in the host environment, not in the Freedesktop runtime sandbox.
+            return List.of("/bin/sh", "-lc", "exec \"${SHELL:-/bin/sh}\" -l");
+        }
         String shell = System.getenv("SHELL");
         if (shell != null && !shell.isBlank()) {
             return List.of(shell);
@@ -408,6 +415,11 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
      * leaving callers to fall back to the prompt-derived path.</p>
      */
     public String readLiveWorkingDirectory() {
+        // pty4j owns the sandbox-side flatpak-spawn process; its PID is not the host shell PID.
+        // Prompt-derived absolute paths remain available through updateCurrentWorkingDirectoryHint.
+        if (FlatpakSupport.isRunningInFlatpak()) {
+            return null;
+        }
         PtyProcess localPty = ptyProcess;
         if (localPty == null || !connected.get()) {
             return null;

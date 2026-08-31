@@ -7,13 +7,24 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import de.kortty.platform.FlatpakSupport;
 
 public record PlatformProfile(
     OperatingSystem operatingSystem,
     String architecture,
     String linuxId,
-    Set<String> linuxIdLike
+    Set<String> linuxIdLike,
+    boolean flatpak
 ) {
+
+    public PlatformProfile(
+        OperatingSystem operatingSystem,
+        String architecture,
+        String linuxId,
+        Set<String> linuxIdLike
+    ) {
+        this(operatingSystem, architecture, linuxId, linuxIdLike, false);
+    }
 
     public PlatformProfile {
         operatingSystem = operatingSystem != null ? operatingSystem : OperatingSystem.OTHER;
@@ -32,7 +43,12 @@ public record PlatformProfile(
             linuxId = osRelease.id();
             linuxIdLike = osRelease.idLike();
         }
-        return new PlatformProfile(operatingSystem, architecture, linuxId, linuxIdLike);
+        return new PlatformProfile(
+            operatingSystem,
+            architecture,
+            linuxId,
+            linuxIdLike,
+            FlatpakSupport.isRunningInFlatpak());
     }
 
     public boolean linuxMatches(String... tokens) {

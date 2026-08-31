@@ -11,6 +11,7 @@ korTTY can be built as Java artifacts, a self-contained portable application ima
 | Self-contained app image | `jpackage` | Platform app bundle or directory under `build/jpackage/` | No; `jpackage` includes a trimmed Java runtime |
 | Native installer | `jpackageDmg`, `jpackageMsi`, `jpackageDeb` or `jpackageRpm` | DMG, MSI, DEB or RPM under `build/jpackage/` | No; the installer contains the self-contained app image |
 | Portable native archive | `jpackage`, then the OS archive command shown below | ZIP or TAR containing the entire app image | No; keep the bundle or directory intact after extraction |
+| Flatpak bundle | `jpackage`, then `flatpak-builder` and `flatpak build-bundle` | `build/jpackage/kortty-Linux-<version>-<architecture>.flatpak` | No; install the Freedesktop runtime through Flatpak |
 
 !!! important "An app image is not one executable file"
     On macOS the app image is the complete `korTTY.app` bundle, on Windows it is the complete `korTTY` directory containing `korTTY.exe`, and on Linux it is the complete `korTTY` directory containing `bin/korTTY`. Moving only the launcher breaks the application because its runtime and libraries remain in sibling directories. The Linux directory is not a `.AppImage` file.
@@ -110,6 +111,30 @@ Use the platform command below to compile, test and create the thin JAR plus the
     ```
 
 The thin JAR contains korTTY classes and resources but not its runtime dependencies and does not provide the complete deployment by itself. For a Java-based portable layout, extract the generated ZIP or TAR and start `bin/korTTY` on macOS/Linux or `bin\korTTY.bat` on Windows; the destination still needs JDK 25. These distributions also contain the native JavaFX dependencies selected on the build host, so build them on the same OS and architecture on which they will run.
+
+Every korTTY release format carries the repository's canonical MIT `LICENSE`. The RPM and pacman metadata also declare `MIT`; `scripts/check-release-licenses.py` is the CI gate that prevents application package metadata from drifting to another license. Licences belonging to the Gradle wrapper, bundled runtimes, models or other dependencies remain separate and are not rewritten as korTTY's licence.
+
+## Build a Flatpak bundle
+
+Flatpak bundles are built natively on Linux for `x86_64` and `aarch64`. The manifest uses application ID `io.github.chardonnay.korTTY` with the Freedesktop 25.08 runtime and packages the self-contained Linux application image produced by `jpackage`. Install Flatpak, `flatpak-builder` and `appstreamcli`, then run:
+
+```bash
+./gradlew clean build jpackage
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=build/flatpak-repo --default-branch=stable build/flatpak-build package/flatpak/io.github.chardonnay.korTTY.yml
+flatpak build-bundle --arch="$(flatpak --default-arch)" build/flatpak-repo "build/jpackage/kortty-Linux-<version>-$(flatpak --default-arch).flatpak" io.github.chardonnay.korTTY stable
+```
+
+The package grants network, X11, audio, GPU and host-filesystem access because an SSH terminal client must reach remote hosts, render JavaFX/WebView, use terminal media and operate on explicitly selected host files. It also grants access to `org.freedesktop.Flatpak`; local shells and their AI-agent commands are launched on the host through `flatpak-spawn --host`. Validate a local bundle by installing it, checking its architecture and running the packaged WebView smoke:
+
+```bash
+flatpak install --user ./build/jpackage/kortty-Linux-<version>-<architecture>.flatpak
+flatpak info --user --show-ref io.github.chardonnay.korTTY
+xvfb-run -a flatpak run io.github.chardonnay.korTTY --webview-jit-smoke
+```
+
+GitHub Actions runs this sequence on native `ubuntu-latest` and `ubuntu-24.04-arm` runners, signs both bundles with the Linux release key and uploads them beside the distro-native packages. A manual `flatpak-only` dispatch accepts a fixed source commit and a separate existing release tag so a bundle can be backfilled without moving the tag or replacing another asset.
 
 ## Build a separate llama.cpp runtime package
 

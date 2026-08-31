@@ -7,7 +7,7 @@ title: Terminal AI agent & tools
 korTTY's Terminal AI Agent is a controlled automation workflow that enables safe, intelligent command execution on remote servers — and, since the execution engine was decoupled behind an `AgentCommandRunner` abstraction (SSH exec-channel and local-process backends), in [local shells](connections.md#local-shell) on Windows, macOS and Linux too. Unlike naive automation, the agent probes the session state, reasons about each step, and waits for human approval before executing system-changing commands.
 
 !!! note "SSH vs. local shells"
-    In local shells, commands use a native local backend (PowerShell via `-EncodedCommand`, `cmd.exe`, or POSIX `/bin/sh`) and the environment probe and system prompt are platform-aware. The agent captures the interactive shell's current directory when a run starts and uses that same snapshot for its probe and every command in the run. Local-shell limitations: no `sudo`/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.
+    In local shells, commands use a native local backend (PowerShell via `-EncodedCommand`, `cmd.exe`, or POSIX `/bin/sh`) and the environment probe and system prompt are platform-aware. The agent captures the interactive shell's current directory when a run starts and uses that same snapshot for its probe and every command in the run. In the Flatpak package, these processes run on the host through `flatpak-spawn --host` rather than inside the Freedesktop runtime sandbox. Local-shell limitations: no `sudo`/administrator elevation on Windows. The JobScheduler's headless AI-agent action stays SSH-only.
 
 
 ![AI agent execution loop](../assets/diagrams/ai-agent-execution-loop.svg)
