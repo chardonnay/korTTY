@@ -137,18 +137,15 @@ final class TerminalAgentCompletionPopup {
 
     private void applyTheme() {
         try {
-            var baseCss = getClass().getResource("/styles/terminal.css");
-            if (baseCss != null && !container.getStylesheets().contains(baseCss.toExternalForm())) {
-                container.getStylesheets().add(baseCss.toExternalForm());
-            }
+            AppDesignStyleSupport.registerApplicationBaseStyles(container);
             ThemeCssSupport.ThemeColors colors = ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance());
             String dynamic = ThemeCssSupport.getDynamicStylesheetUrl(colors);
             if (dynamic != null && !container.getStylesheets().contains(dynamic)) {
                 container.getStylesheets().add(dynamic);
             }
-            // A raw Popup does not inherit the owner scene's stylesheets the way ContextMenu and
-            // Tooltip do, so the UI font scale has to be applied to the content container itself.
-            UiFontScaleSupport.applyToParent(container);
+            // A raw Popup does not inherit the owner Scene's author stylesheets. Apply the selected
+            // app design and UI scale directly to its content root; the global UAS still reaches it.
+            AppDesignStyleSupport.applyToParent(container);
         } catch (Exception ignored) {
             // best-effort theming
         }
@@ -194,6 +191,9 @@ final class TerminalAgentCompletionPopup {
         }
         listView.setItems(FXCollections.observableArrayList(items));
         listView.getSelectionModel().select(0);
+        // The popup instance is reused. Reconcile its direct author stylesheets immediately before
+        // every show so a design change made while it was hidden cannot surface stale chrome.
+        applyTheme();
         Bounds bounds = anchor.localToScreen(anchor.getBoundsInLocal());
         if (bounds != null) {
             popup.show(anchor.getScene().getWindow(), bounds.getMinX() + 16, bounds.getMaxY() - 60);

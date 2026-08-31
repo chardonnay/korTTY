@@ -552,10 +552,7 @@ final class SnippetAiApplyProgressWindow {
     }
 
     private static void applyTheme(Scene scene) {
-        var baseCss = SnippetAiApplyProgressWindow.class.getResource("/styles/terminal.css");
-        if (baseCss != null) {
-            scene.getStylesheets().add(baseCss.toExternalForm());
-        }
+        AppDesignStyleSupport.registerApplicationBaseStyles(scene);
         try {
             String dynamic = ThemeCssSupport.getDynamicStylesheetUrl(
                 ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance()));

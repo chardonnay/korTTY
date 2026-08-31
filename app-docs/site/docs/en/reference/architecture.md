@@ -247,14 +247,15 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | **Archive** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ support |
 | | Tukaani xz | 1.12 | XZ compression |
 | | zstd-jni | 1.5.7-15 | zstd compression for rotated session-journal parts |
-| **UI** | JavaFX | 21 | Application framework |
+| **UI** | JavaFX | 21.0.12 | Application framework |
+| | AtlantaFX Base | 2.1.0 | Optional Primer Dark JavaFX user-agent theme; its transitive OpenJFX dependency is excluded |
 | | Monaco Editor | 0.56.0 | Code editor component |
 | | Mermaid | 11.17.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |
 | | google-java-format | 1.36.1 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Password strength (offline) |
-| **Logging** | SLF4J / Logback | 2.0.18 / 1.6.1 | Structured logging |
+| **Logging** | SLF4J / Logback | 2.0.18 / 1.6.3 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
 | **Local AI** | llama.cpp `llama-server` | Source-pinned runtime package | Local GGUF chat-completions and embeddings sidecar |
 
@@ -275,8 +276,9 @@ KorTTY relies on carefully curated, production-tested dependencies:
 3. **External formatter payload**: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.
 4. **Clean native staging**: `prepareJpackage` uses a final Gradle `Sync`, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.
 5. **Native packaging and gates**: The selected Gradle JDK 25 toolchain supplies `jpackage` for .app/.dmg, .exe/.msi, .deb and .rpm output. `scripts/package-size-report.py` emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.
-6. **llama.cpp runtime packaging**: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only `llama-server` plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The weekly runtime workflow opens candidate PRs; a scope job runs the full platform/backend matrix only when the pin file, the workflow, or the llama Java sources changed (a `build.gradle.kts`-only change gets a single smoke leg); every built leg runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected `llama-runtime-signing` environment with required reviewers gates manual stable promotion from `main`.
-7. **Model/prompt catalog promotion**: A separate manual `main`-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected `ai-catalog-signing` environment without a preview channel.
+6. **JavaFX dependency alignment**: `verifyJavaFxDependencyAlignment` checks every resolved compile, runtime and test classpath before compilation and packaging. Standard OpenJFX modules must remain at 21.0.12; only the compile-time `jdk-jsobject` bridge uses its separately pinned version, and it may not enter a runtime classpath.
+7. **llama.cpp runtime packaging**: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only `llama-server` plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The weekly runtime workflow opens candidate PRs; a scope job runs the full platform/backend matrix only when the pin file, the workflow, or the llama Java sources changed (a `build.gradle.kts`-only change gets a single smoke leg); every built leg runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected `llama-runtime-signing` environment with required reviewers gates manual stable promotion from `main`.
+8. **Model/prompt catalog promotion**: A separate manual `main`-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected `ai-catalog-signing` environment without a preview channel.
 
 ### Classpath and Module Path
 

@@ -49,7 +49,7 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
-- **Reviewed shortcut-chord fix**: A second pinned korTTY patch stops shortcut-chord `KEY_TYPED` characters (for example ++cmd+shift+d++) from reaching the pty or broadcast panes
+- **Überprüfter Shortcut-Akkord-Fix**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
 
 ### Build-Integration
 
@@ -220,7 +220,7 @@ KorTTY unterstützt **Terminaleffekt-Plugins** über Java `ServiceLoader` zum An
 
 - **Gebündelte Plugins**: Aus dem Klassenpfad der Anwendung geladen (z. B. MOTHER-Effekt)
 - **Externe Plugins**: Importiert als `.jar` Dateien in `~/.kortty/plugins/`
-- **Management**: Enable/disable individual plugins via `Plugins → Terminal Effects` without uninstalling
+- **Verwaltung**: Einzelne Plugins über `Plugins → Terminal Effects` ohne Deinstallation aktivieren/deaktivieren
 - **Exportierbare Plugins**: Einige Plugins können als eigenständige JARs zur Verteilung exportiert werden
 
 ### Sicherheitshinweis
@@ -247,14 +247,15 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **Archiv** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ-Unterstützung |
 | | Tukaani xz | 1.12 | XZ-Komprimierung |
 | | zstd-jni | 1.5.7-15 | zstd-Komprimierung für gedrehte Sitzungsjournalteile |
-| **UI** | JavaFX | 21 | Anwendungsframework |
+| **UI** | JavaFX | 21.0.12 | Anwendungsframework |
+| | AtlantaFX Base | 2.1.0 | Optional Primer Dark JavaFX User-Agent-Theme; seine transitive OpenJFX-Abhängigkeit ist ausgeschlossen |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
 | | Mermaid | 11.17.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
-| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.6.1 | Strukturierte Protokollierung |
+| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.6.3 | Strukturierte Protokollierung |
 | **Optional** | mosh4j | 2.0.2 | Mosh-Protokoll (dynamisch geladen) |
 | **Lokale KI** | llama.cpp `llama-server` | Quellfixiertes Laufzeitpaket | Lokaler GGUF-Chat-Vervollständigungs- und Einbettungs-Sidecar |
 
@@ -275,8 +276,9 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 3. **Nutzlast des externen Formatierers**: Nur shfmt, Perl::Tidy und deren Manifest werden neben der App bereitgestellt; Das Logo-Video wird einmal pro Quelloberfläche als H.264/yuv420p bei 640×360 ohne Audio gespeichert.
 4. **Sauberes natives Staging**: `prepareJpackage` verwendet einen endgültigen Gradle `Sync`, sodass veraltete Abhängigkeiten, Formatierungsbäume und Mosh-Architekturen gelöscht werden. Bouncy Castle wird dedupliziert und JNA/pty4j werden nur mit den nativen Pfaden und der binären Architektur des aktuellen Ziels neu gepackt.
 5. **Native Verpackung und Gates**: Die ausgewählte Gradle JDK 25-Toolchain stellt `jpackage` für die Ausgabe von .app/.dmg, .exe/.msi, .deb und .rpm bereit. `scripts/package-size-report.py` gibt JSON-/Markdown-Komponentenberichte aus und CI erzwingt den Commit-Release-Vergleich, eine Reduzierung des Installationsprogramms um mindestens 15 %, absolute App-/DMG-Grenzwerte und eingefrorene verifizierte Größenbudgets mit einer Toleranz von 2 %.
-6. **llama.cpp-Laufzeitpaketierung**: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur `llama-server` plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine `build.gradle.kts`-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte `llama-runtime-signing`-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von `main` aus.
-7. **Modell-/Prompt-Katalog-Werbung**: Ein separater manueller Workflow, der nur für `main` gilt, validiert das kanonische JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte `ai-catalog-signing`-Umgebung ohne Vorschaukanal.
+6. **JavaFX-Abhängigkeitsausrichtung**: `verifyJavaFxDependencyAlignment` überprüft jeden aufgelösten Kompilierungs-, Laufzeit- und Testklassenpfad vor der Kompilierung und Verpackung. Standard-OpenJFX-Module müssen bei 21.0.12 bleiben; Nur die `jdk-jsobject`-Brücke zur Kompilierungszeit verwendet ihre separat angeheftete Version und gibt möglicherweise keinen Laufzeitklassenpfad ein.
+7. **llama.cpp-Laufzeitpaketierung**: Separate Gradle-Aufgaben überprüfen das angeheftete Upstream-Tag/Commit/Archiv SHA-256, erstellen nur `llama-server` plus erforderliche gemeinsam genutzte Bibliotheken, stellen einen Backend-spezifischen Baum bereit und erzeugen eine reproduzierbare unveränderliche ZIP- und signierte Index-Deskriptoreingabe. Der wöchentliche Laufzeitworkflow öffnet Kandidaten-PRs; Ein Scope-Job führt die vollständige Plattform-/Backend-Matrix nur aus, wenn sich die Pin-Datei, der Workflow oder die Lama-Java-Quellen geändert haben (eine reine `build.gradle.kts`-Änderung führt zu einem einzelnen Smoke-Leg); Jedes erstellte Bein führt einen nativen Link-Smoke aus, das Referenzpaket führt den vollständig authentifizierten Chat-/Einbettungs-/JSON-/Sleep-/Parallel-Sidecar-Vertrag und eine geschützte `llama-runtime-signing`-Umgebung mit der erforderlichen manuellen Stable-Promotion für Prüfer-Gates von `main` aus.
+8. **Modell-/Prompt-Katalog-Werbung**: Ein separater manueller Workflow, der nur für `main` gilt, validiert das kanonische JSON mit strengem Schema, erfordert eine größere Sequenz als die neueste unveränderliche Version, führt Schema-/Vertrauenskettentests aus, gleicht den Signaturschlüssel mit dem Vertrauensstammverzeichnis der Anwendung ab, signiert die genauen Bytes und veröffentlicht über die durch Prüfer geschützte `ai-catalog-signing`-Umgebung ohne Vorschaukanal.
 
 ### Classpath und Modulpfad
 

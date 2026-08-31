@@ -3794,8 +3794,14 @@
 <tr>
 <td><strong>UI</strong></td>
 <td>JavaFX</td>
-<td>21</td>
+<td>21.0.12</td>
 <td>Application framework</td>
+</tr>
+<tr>
+<td></td>
+<td>AtlantaFX Base</td>
+<td>2.1.0</td>
+<td>Optional Primer Dark JavaFX user-agent theme; its transitive OpenJFX dependency is excluded</td>
 </tr>
 <tr>
 <td></td>
@@ -3836,7 +3842,7 @@
 <tr>
 <td><strong>Logging</strong></td>
 <td>SLF4J / Logback</td>
-<td>2.0.18 / 1.6.1</td>
+<td>2.0.18 / 1.6.3</td>
 <td>Structured logging</td>
 </tr>
 <tr>
@@ -3869,6 +3875,7 @@
 <li><strong>External formatter payload</strong>: Only shfmt, Perl::Tidy and their manifest are staged beside the app; the logo video is stored once per source surface as H.264/yuv420p at 640×360 without audio.</li>
 <li><strong>Clean native staging</strong>: <code>prepareJpackage</code> uses a final Gradle <code>Sync</code>, so obsolete dependencies, formatter trees and Mosh architectures are deleted. Bouncy Castle is deduplicated, and JNA/pty4j are repacked with only the current target's native paths and binary architecture.</li>
 <li><strong>Native packaging and gates</strong>: The selected Gradle JDK 25 toolchain supplies <code>jpackage</code> for .app/.dmg, .exe/.msi, .deb and .rpm output. <code>scripts/package-size-report.py</code> emits JSON/Markdown component reports and CI enforces the committed release comparison, at least 15% installer reduction, absolute app/DMG limits and frozen verified-size budgets with 2% tolerance.</li>
+<li><strong>JavaFX dependency alignment</strong>: <code>verifyJavaFxDependencyAlignment</code> checks every resolved compile, runtime and test classpath before compilation and packaging. Standard OpenJFX modules must remain at 21.0.12; only the compile-time <code>jdk-jsobject</code> bridge uses its separately pinned version, and it may not enter a runtime classpath.</li>
 <li><strong>llama.cpp runtime packaging</strong>: Separate Gradle tasks verify the pinned upstream tag/commit/archive SHA-256, build only <code>llama-server</code> plus required shared libraries, stage a backend-specific tree, and produce a reproducible immutable ZIP and signed-index descriptor input. The weekly runtime workflow opens candidate PRs; a scope job runs the full platform/backend matrix only when the pin file, the workflow, or the llama Java sources changed (a <code>build.gradle.kts</code>-only change gets a single smoke leg); every built leg runs a native link smoke, the reference package runs the full authenticated chat/embedding/JSON/sleep/parallel-sidecar contract, and a protected <code>llama-runtime-signing</code> environment with required reviewers gates manual stable promotion from <code>main</code>.</li>
 <li><strong>Model/prompt catalog promotion</strong>: A separate manual <code>main</code>-only workflow validates the canonical strict-schema JSON, requires a sequence greater than the latest immutable release, runs schema/trust-chain tests, matches the signing key to the application trust root, signs the exact bytes, and publishes through the reviewer-protected <code>ai-catalog-signing</code> environment without a preview channel.</li>
 </ol>

@@ -5,6 +5,7 @@ plugins {
 }
 
 import org.gradle.jvm.toolchain.JvmVendorSpec
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import java.io.StringReader
 import java.net.URI
 import java.nio.file.Files
@@ -259,6 +260,7 @@ val jpackageExecutable = packagingJavaLauncher.map { launcher ->
 // runs as part of `test` on macOS, and verifyJpackageStaging re-checks the staged jars at packaging.
 val javaFxVersion = "21.0.12"
 val javaFxJsObjectVersion = "25.0.2"
+val atlantaFxVersion = "2.1.0"
 val javaFxPlatform = when {
     isWindows -> "win"
     isMac && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "mac-aarch64"
@@ -342,6 +344,12 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 dependencies {
+    // AtlantaFX supplies Java/CSS only. Its published POM targets OpenJFX 23, so exclude every
+    // transitive OpenJFX module and keep korTTY's independently verified JavaFX 21.0.12 runtime.
+    implementation("io.github.mkpaz:atlantafx-base:$atlantaFxVersion") {
+        exclude(group = "org.openjfx")
+    }
+
     // SSH
     implementation("org.apache.sshd:sshd-core:2.19.0")
     implementation("org.apache.sshd:sshd-common:2.19.0")
@@ -636,8 +644,70 @@ tasks.register<Exec>("installSithtermfxLocal") {
     }
 }
 
-tasks.named("compileJava") {
+val javaFxAlignmentConfigurationNames = listOf(
+    "compileClasspath",
+    "runtimeClasspath",
+    "testCompileClasspath",
+    "testRuntimeClasspath",
+    "javaFxJsObject"
+)
+val javaFxRuntimeConfigurationNames = setOf("runtimeClasspath", "testRuntimeClasspath")
+
+val verifyJavaFxDependencyAlignment = tasks.register("verifyJavaFxDependencyAlignment") {
+    group = "verification"
+    description = "Fails when resolved OpenJFX modules drift from korTTY's pinned JavaFX versions."
+    // The classpaths contain locally built SithTermFX artifacts, so make the standalone gate usable
+    // on a clean checkout as well as through compileJava.
     dependsOn("installSithtermfxLocal")
+    inputs.property("javaFxVersion", javaFxVersion)
+    inputs.property("javaFxJsObjectVersion", javaFxJsObjectVersion)
+
+    doLast {
+        val violations = mutableListOf<String>()
+
+        javaFxAlignmentConfigurationNames.forEach { configurationName ->
+            val openJfxModules = configurations.getByName(configurationName)
+                .incoming.resolutionResult.allComponents
+                .mapNotNull { component -> component.id as? ModuleComponentIdentifier }
+                .filter { component -> component.group == "org.openjfx" }
+                .distinctBy { component ->
+                    "${component.group}:${component.module}:${component.version}"
+                }
+
+            openJfxModules.forEach { component ->
+                val expectedVersion = if (component.module == "jdk-jsobject") {
+                    javaFxJsObjectVersion
+                } else {
+                    javaFxVersion
+                }
+                if (component.version != expectedVersion) {
+                    violations += "$configurationName: ${component.group}:${component.module}:${component.version} " +
+                        "(expected $expectedVersion)"
+                }
+                if (configurationName in javaFxRuntimeConfigurationNames &&
+                    component.module == "jdk-jsobject"
+                ) {
+                    violations += "$configurationName must not package org.openjfx:jdk-jsobject"
+                }
+            }
+
+            if (configurationName in setOf("compileClasspath", "runtimeClasspath") &&
+                openJfxModules.none { component -> component.module.startsWith("javafx-") }
+            ) {
+                violations += "$configurationName resolved no standard JavaFX modules"
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Mixed JavaFX dependency versions:\n" + violations.joinToString("\n")
+            )
+        }
+    }
+}
+
+tasks.named("compileJava") {
+    dependsOn("installSithtermfxLocal", verifyJavaFxDependencyAlignment)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -1946,7 +2016,7 @@ tasks.named("prepareJpackage") {
 val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
     group = "verification"
     description = "Verifies that jpackage staging removes stale files and carries only target natives."
-    dependsOn(seedStaleJpackageInput, "prepareJpackage")
+    dependsOn(seedStaleJpackageInput, "prepareJpackage", verifyJavaFxDependencyAlignment)
     doLast {
         val libs = jpackageInput.get().asFile.resolve("libs")
         val forbidden = libs.walkTopDown().filter { file ->
@@ -3073,7 +3143,7 @@ val pacmanWorkflowContractTest = tasks.register<Exec>("pacmanWorkflowContractTes
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
         guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest,
-        pacmanWorkflowContractTest)
+        pacmanWorkflowContractTest, verifyJavaFxDependencyAlignment)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
@@ -3136,6 +3206,16 @@ tasks.register<JavaExec>("uiFontScaleSmoke") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.UiFontScaleSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("atlantaFxDesignSmoke") {
+    group = "verification"
+    description = "Renders AtlantaFX Primer Dark across main, dialog and popup surfaces, " +
+        "checks live Modena restore and writes build/smoke/atlantafx-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AtlantaFxDesignSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw")
 }
 
 tasks.register<JavaExec>("settingsTabScreenshotStage") {

@@ -14,7 +14,8 @@ public enum AppDesign {
     SYNTHWAVE_84("synthwave-84"),
     GRUVBOX_RETRO("gruvbox-retro"),
     NORD_ARCTIC("nord-arctic"),
-    DRACULA("dracula");
+    DRACULA("dracula"),
+    ATLANTAFX_PRIMER_DARK("atlantafx-primer-dark");
 
     private final String id;
 

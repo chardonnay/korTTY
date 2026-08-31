@@ -1,8 +1,10 @@
 package de.kortty.ui;
 
+import atlantafx.base.theme.PrimerDark;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.AppDesign;
 import de.kortty.model.GlobalSettings;
+import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -13,9 +15,17 @@ import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Applies app-level designs to JavaFX scenes and dialogs without changing
@@ -26,7 +36,7 @@ import java.util.Map;
  * a preview image. The stylesheet/colour wiring here is fully data-driven so it does
  * not need to grow per design.</p>
  */
-final class AppDesignStyleSupport {
+public final class AppDesignStyleSupport {
 
     // Palette constants for the four original designs. Kept as named constants because
     // other UI code (terminal/file-browser fallbacks) reads them via active*Color().
@@ -50,6 +60,13 @@ final class AppDesignStyleSupport {
     private static final String HOLOGRAPHIC_STYLESHEET_RESOURCE = "/styles/holographic.css";
     private static final String TACTICAL_STYLESHEET_RESOURCE = "/styles/tactical.css";
     private static final String ELEGANT_STYLESHEET_RESOURCE = "/styles/elegant.css";
+    private static final String APPLICATION_BASE_STYLESHEET_RESOURCE = "/styles/terminal.css";
+    private static final String ATLANTAFX_COMPONENTS_STYLESHEET_RESOURCE =
+            "/styles/atlantafx-kortty-components.css";
+    private static final String APPLICATION_BASE_STYLES_MARKER =
+            AppDesignStyleSupport.class.getName() + ".applicationBaseStyles";
+    private static final String ATLANTAFX_PRIMER_DARK_USER_AGENT_STYLESHEET =
+            new PrimerDark().getUserAgentStylesheet();
 
     /**
      * Everything that distinguishes one app design: its stylesheet, the colours used by
@@ -63,6 +80,11 @@ final class AppDesignStyleSupport {
 
     private static final Map<AppDesign, DesignSpec> SPECS = createSpecs();
     private static final Map<String, String> CSS_URL_CACHE = new HashMap<>();
+    // DialogPanes embedded in tabs and raw Popup content own author stylesheets directly rather
+    // than through a Window Scene. Keep weak references so a live design switch reaches them
+    // without extending the lifetime of a closed dialog or popup.
+    private static final Set<Parent> REGISTERED_PARENT_SURFACES = Collections.synchronizedSet(
+            Collections.newSetFromMap(new WeakHashMap<>()));
 
     private static final ListChangeListener<Window> WINDOW_LISTENER = change -> {
         while (change.next()) {
@@ -108,10 +130,51 @@ final class AppDesignStyleSupport {
         specs.put(AppDesign.DRACULA, new DesignSpec(AppDesign.DRACULA,
                 "/styles/dracula.css", "#282a36", "#f8f8f2", "#6272a4", "#bd93f9",
                 "/previews/dracula-preview.png", "#bd93f9"));
+        specs.put(AppDesign.ATLANTAFX_PRIMER_DARK, new DesignSpec(AppDesign.ATLANTAFX_PRIMER_DARK,
+                "/styles/atlantafx-primer-dark.css", "#0d1117", "#c9d1d9", "#8b949e", "#58a6ff",
+                "/previews/atlantafx-primer-dark-preview.png", "#30363d"));
         return specs;
     }
 
-    static void installGlobalWindowStyler() {
+    /**
+     * Selects the global JavaFX base theme before any window is created and installs the listener
+     * that styles dialogs and popup windows created later. AtlantaFX is deliberately opt-in; every
+     * other korTTY design explicitly returns to Modena before its author stylesheet is applied.
+     */
+    public static void initializeGlobalStyling(AppDesign design) {
+        applyUserAgentStylesheet(design);
+        installGlobalWindowStyler();
+    }
+
+    /** Applies Primer Dark only for the AtlantaFX design and Modena for every other design. */
+    public static void applyUserAgentStylesheet(AppDesign design) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> applyUserAgentStylesheet(design));
+            return;
+        }
+        updateUserAgentStylesheet(
+                design,
+                Application::getUserAgentStylesheet,
+                Application::setUserAgentStylesheet);
+    }
+
+    static String desiredUserAgentStylesheet(AppDesign design) {
+        return design == AppDesign.ATLANTAFX_PRIMER_DARK
+                ? ATLANTAFX_PRIMER_DARK_USER_AGENT_STYLESHEET
+                : Application.STYLESHEET_MODENA;
+    }
+
+    static boolean updateUserAgentStylesheet(
+            AppDesign design, Supplier<String> currentStylesheet, Consumer<String> stylesheetSetter) {
+        String desired = desiredUserAgentStylesheet(design);
+        if (Objects.equals(currentStylesheet.get(), desired)) {
+            return false;
+        }
+        stylesheetSetter.accept(desired);
+        return true;
+    }
+
+    public static void installGlobalWindowStyler() {
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(AppDesignStyleSupport::installGlobalWindowStyler);
             return;
@@ -124,16 +187,25 @@ final class AppDesignStyleSupport {
     }
 
     static void applyToOpenWindows() {
+        applyToOpenWindows(resolveActiveDesign());
+    }
+
+    static void applyToOpenWindows(AppDesign design) {
         if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(AppDesignStyleSupport::applyToOpenWindows);
+            Platform.runLater(() -> applyToOpenWindows(design));
             return;
         }
         for (Window window : Window.getWindows()) {
-            applyToWindow(window);
+            applyToWindow(window, design);
         }
+        applyToRegisteredParentSurfaces(design);
     }
 
     static void applyToWindow(Window window) {
+        applyToWindow(window, resolveActiveDesign());
+    }
+
+    static void applyToWindow(Window window, AppDesign design) {
         if (window == null) {
             return;
         }
@@ -141,37 +213,71 @@ final class AppDesignStyleSupport {
         if (scene == null) {
             return;
         }
-        applyToScene(scene);
+        applyToScene(scene, design);
         if (scene.getRoot() instanceof DialogPane dialogPane) {
-            applyToDialogPane(dialogPane);
+            applyToDialogPane(dialogPane, design);
+        }
+    }
+
+    static void applyToRegisteredParentSurfaces(AppDesign design) {
+        List<Parent> surfaces;
+        synchronized (REGISTERED_PARENT_SURFACES) {
+            surfaces = new ArrayList<>(REGISTERED_PARENT_SURFACES);
+        }
+        for (Parent surface : surfaces) {
+            applyToParent(surface, design);
         }
     }
 
     static void applyToScene(Scene scene) {
+        applyToScene(scene, resolveActiveDesign());
+    }
+
+    static void applyToScene(Scene scene, AppDesign active) {
         if (scene == null) {
             return;
         }
-        AppDesign active = resolveActiveDesign();
+        active = active != null ? active : AppDesign.NORMAL;
+        if (hasApplicationBaseStyles(scene.getRoot())) {
+            syncApplicationBaseStylesheets(scene.getStylesheets(), active);
+            ThemeCssSupport.reconcileDynamicStylesheets(scene.getStylesheets(), active);
+        }
         applyToStylesheets(scene.getStylesheets(), active);
         UiFontScaleSupport.applyToScene(scene);
         forceRestyle(active, scene.getRoot());
     }
 
     static void applyToDialogPane(DialogPane dialogPane) {
+        applyToDialogPane(dialogPane, resolveActiveDesign());
+    }
+
+    static void applyToDialogPane(DialogPane dialogPane, AppDesign active) {
         if (dialogPane == null) {
             return;
         }
-        AppDesign active = resolveActiveDesign();
+        active = active != null ? active : AppDesign.NORMAL;
+        if (hasApplicationBaseStyles(dialogPane)) {
+            syncApplicationBaseStylesheets(dialogPane.getStylesheets(), active);
+            ThemeCssSupport.reconcileDynamicStylesheets(dialogPane.getStylesheets(), active);
+        }
         applyToStylesheets(dialogPane.getStylesheets(), active);
         UiFontScaleSupport.applyToDialogPane(dialogPane);
         forceRestyle(active, dialogPane);
     }
 
     static void applyToParent(Parent parent) {
+        applyToParent(parent, resolveActiveDesign());
+    }
+
+    static void applyToParent(Parent parent, AppDesign active) {
         if (parent == null) {
             return;
         }
-        AppDesign active = resolveActiveDesign();
+        active = active != null ? active : AppDesign.NORMAL;
+        if (hasApplicationBaseStyles(parent)) {
+            syncApplicationBaseStylesheets(parent.getStylesheets(), active);
+            ThemeCssSupport.reconcileDynamicStylesheets(parent.getStylesheets(), active);
+        }
         applyToStylesheets(parent.getStylesheets(), active);
         UiFontScaleSupport.applyToParent(parent);
         forceRestyle(active, parent);
@@ -290,6 +396,74 @@ final class AppDesignStyleSupport {
                 stylesheets.add(url);
             }
         }
+    }
+
+    /**
+     * Marks a Scene as one of korTTY's base-themed application surfaces. On these surfaces the
+     * legacy author-level Modena stylesheet is swapped for component-only CSS while AtlantaFX is
+     * active, then restored for Normal and all existing korTTY designs.
+     */
+    static void registerApplicationBaseStyles(Scene scene) {
+        if (scene == null || scene.getRoot() == null) {
+            return;
+        }
+        markApplicationBaseStyles(scene.getRoot());
+        syncApplicationBaseStylesheets(scene.getStylesheets(), resolveActiveDesign());
+    }
+
+    /** Same as {@link #registerApplicationBaseStyles(Scene)} for DialogPane and raw Popup roots. */
+    static void registerApplicationBaseStyles(Parent parent) {
+        if (parent == null) {
+            return;
+        }
+        REGISTERED_PARENT_SURFACES.add(parent);
+        markApplicationBaseStyles(parent);
+        syncApplicationBaseStylesheets(parent.getStylesheets(), resolveActiveDesign());
+    }
+
+    static void syncApplicationBaseStylesheets(
+            ObservableList<String> stylesheets, AppDesign design) {
+        if (stylesheets == null) {
+            return;
+        }
+        String base = resolveCssUrl(APPLICATION_BASE_STYLESHEET_RESOURCE);
+        String components = resolveCssUrl(ATLANTAFX_COMPONENTS_STYLESHEET_RESOURCE);
+        int insertionIndex = stylesheets.size();
+        if (base != null) {
+            int index = stylesheets.indexOf(base);
+            if (index >= 0) {
+                insertionIndex = Math.min(insertionIndex, index);
+            }
+            stylesheets.removeIf(base::equals);
+        }
+        if (components != null) {
+            int index = stylesheets.indexOf(components);
+            if (index >= 0) {
+                insertionIndex = Math.min(insertionIndex, index);
+            }
+            stylesheets.removeIf(components::equals);
+        }
+
+        String required = design == AppDesign.ATLANTAFX_PRIMER_DARK ? components : base;
+        if (required != null) {
+            stylesheets.add(Math.min(insertionIndex, stylesheets.size()), required);
+        }
+    }
+
+    static String applicationBaseStylesheetUrl() {
+        return resolveCssUrl(APPLICATION_BASE_STYLESHEET_RESOURCE);
+    }
+
+    static String atlantaFxComponentsStylesheetUrl() {
+        return resolveCssUrl(ATLANTAFX_COMPONENTS_STYLESHEET_RESOURCE);
+    }
+
+    private static void markApplicationBaseStyles(Parent root) {
+        root.getProperties().put(APPLICATION_BASE_STYLES_MARKER, Boolean.TRUE);
+    }
+
+    private static boolean hasApplicationBaseStyles(Parent root) {
+        return root != null && Boolean.TRUE.equals(root.getProperties().get(APPLICATION_BASE_STYLES_MARKER));
     }
 
     static String getMatrixStylesheetUrl() {

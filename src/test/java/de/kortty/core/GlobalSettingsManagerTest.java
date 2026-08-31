@@ -1100,6 +1100,15 @@ class GlobalSettingsManagerTest {
 
             assertThat(reloadedElegant.getSettings().getAppDesign()).isEqualTo(AppDesign.ELEGANT_DARK);
 
+            reloadedElegant.getSettings().setAppDesign(AppDesign.ATLANTAFX_PRIMER_DARK);
+            reloadedElegant.save();
+
+            GlobalSettingsManager reloadedAtlantaFx = new GlobalSettingsManager(dir);
+            reloadedAtlantaFx.load();
+
+            assertThat(reloadedAtlantaFx.getSettings().getAppDesign())
+                    .isEqualTo(AppDesign.ATLANTAFX_PRIMER_DARK);
+
             reloaded.getSettings().setAppDesign(null);
             assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
         } finally {

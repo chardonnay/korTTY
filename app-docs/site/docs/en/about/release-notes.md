@@ -4,6 +4,10 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.14.0
 
+### Appearance
+
+- **Optional AtlantaFX Primer Dark application design** — the Appearance tab now offers AtlantaFX 2.1.0's Primer Dark theme for native JavaFX controls, plus a korTTY overlay for application chrome and custom controls. Default remains unchanged, switching back restores Modena explicitly, and open windows, dialogs and popups update immediately while terminal, Monaco, journal and chat colors remain independent.
+
 ### Snippets
 
 - **Four new AI diagram types** — besides the logical-structure flowchart, the snippet editor can now generate **sequence**, **state**, **class**, and **ER** diagrams. Each family uses its own compact, safety-restricted Mermaid dialect and its own built-in quality skill, and renders in the bundled offline Mermaid renderer as before. See [Mermaid diagrams](../features/snippets.md#mermaid-diagrams).

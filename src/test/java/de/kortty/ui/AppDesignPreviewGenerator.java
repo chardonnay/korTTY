@@ -1,12 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.model.AppDesign;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -19,15 +19,20 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.util.Duration;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Offline generator for the Settings &rarr; Appearance preview thumbnails.
@@ -45,10 +50,11 @@ public final class AppDesignPreviewGenerator {
     private static final int HEIGHT = 340;
     private static final String OUTPUT_DIR = "src/main/resources/previews";
 
-    // Only the seven new designs are generated here; the four original previews are hand-curated.
+    // Generated previews live here; the four original design previews remain hand-curated.
     private static final Set<AppDesign> GENERATED = EnumSet.of(
             AppDesign.AMBER_CRT, AppDesign.SYNTHWAVE_84,
-            AppDesign.GRUVBOX_RETRO, AppDesign.NORD_ARCTIC, AppDesign.DRACULA);
+            AppDesign.GRUVBOX_RETRO, AppDesign.NORD_ARCTIC, AppDesign.DRACULA,
+            AppDesign.ATLANTAFX_PRIMER_DARK);
 
     private AppDesignPreviewGenerator() {
     }
@@ -63,19 +69,8 @@ public final class AppDesignPreviewGenerator {
                 if (!outDir.isDirectory() && !outDir.mkdirs()) {
                     throw new IllegalStateException("Cannot create output dir: " + outDir.getAbsolutePath());
                 }
-                int written = 0;
-                for (AppDesign design : GENERATED) {
-                    String previewResource = AppDesignStyleSupport.previewResource(design);
-                    String stylesheet = AppDesignStyleSupport.stylesheetUrl(design);
-                    if (previewResource == null || stylesheet == null) {
-                        continue; // NORMAL (no preview) or a missing stylesheet
-                    }
-                    String fileName = previewResource.substring(previewResource.lastIndexOf('/') + 1);
-                    writePreview(design, stylesheet, new File(outDir, fileName));
-                    written++;
-                }
-                System.out.println("Generated " + written + " design previews into " + outDir.getAbsolutePath());
-                done.countDown();
+                writePreviewsSequentially(
+                        List.copyOf(requestedDesigns()), 0, 0, outDir, failure, done);
             } catch (Throwable t) {
                 failure.compareAndSet(null, stack(t));
                 done.countDown();
@@ -96,7 +91,46 @@ public final class AppDesignPreviewGenerator {
         System.exit(0);
     }
 
-    private static void writePreview(AppDesign design, String stylesheetUrl, File outFile) throws Exception {
+    private static void writePreviewsSequentially(
+            List<AppDesign> designs,
+            int index,
+            int written,
+            File outDir,
+            AtomicReference<String> failure,
+            CountDownLatch done) {
+        if (index >= designs.size()) {
+            System.out.println("Generated " + written + " design previews into " + outDir.getAbsolutePath());
+            done.countDown();
+            return;
+        }
+
+        AppDesign design = designs.get(index);
+        AppDesignStyleSupport.applyUserAgentStylesheet(design);
+        String previewResource = AppDesignStyleSupport.previewResource(design);
+        String stylesheet = AppDesignStyleSupport.stylesheetUrl(design);
+        if (previewResource == null || stylesheet == null) {
+            writePreviewsSequentially(designs, index + 1, written, outDir, failure, done);
+            return;
+        }
+        String fileName = previewResource.substring(previewResource.lastIndexOf('/') + 1);
+        writePreview(
+                design,
+                stylesheet,
+                new File(outDir, fileName),
+                () -> writePreviewsSequentially(
+                        designs, index + 1, written + 1, outDir, failure, done),
+                error -> {
+                    failure.compareAndSet(null, stack(error));
+                    done.countDown();
+                });
+    }
+
+    private static void writePreview(
+            AppDesign design,
+            String stylesheetUrl,
+            File outFile,
+            Runnable onWritten,
+            Consumer<Throwable> onFailure) {
         VBox root = buildMock(design);
         root.getStyleClass().addAll("kortty-main-root");
         root.setPrefSize(WIDTH, HEIGHT);
@@ -104,17 +138,32 @@ public final class AppDesignPreviewGenerator {
         root.setMaxSize(WIDTH, HEIGHT);
 
         Scene scene = new Scene(root, WIDTH, HEIGHT);
+        scene.setFill(Color.web(AppDesignStyleSupport.backgroundColor(design)));
         scene.getStylesheets().add(stylesheetUrl);
-        root.applyCss();
-        root.layout();
+        Stage stage = new Stage(StageStyle.UNDECORATED);
+        stage.setScene(scene);
+        stage.show();
 
-        SnapshotParameters params = new SnapshotParameters();
-        params.setFill(Color.web(AppDesignStyleSupport.backgroundColor(design)));
-        WritableImage image = root.snapshot(params, null);
-
-        BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
-        ImageIO.write(buffered, "png", outFile);
-        System.out.println("  " + design.getId() + " -> " + outFile.getName());
+        // A shown Scene needs one real JavaFX pulse before its skins have render peers. Waiting
+        // asynchronously keeps the FX thread free for that pulse and avoids blank background-only
+        // snapshots from user-agent stylesheets such as AtlantaFX.
+        PauseTransition settle = new PauseTransition(Duration.millis(100));
+        settle.setOnFinished(event -> {
+            try {
+                root.applyCss();
+                root.layout();
+                WritableImage image = scene.snapshot(null);
+                BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
+                ImageIO.write(buffered, "png", outFile);
+                System.out.println("  " + design.getId() + " -> " + outFile.getName());
+                onWritten.run();
+            } catch (Throwable t) {
+                onFailure.accept(t);
+            } finally {
+                stage.hide();
+            }
+        });
+        settle.play();
     }
 
     private static VBox buildMock(AppDesign design) {
@@ -167,6 +216,18 @@ public final class AppDesignPreviewGenerator {
             sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return sb.toString();
+    }
+
+    private static Set<AppDesign> requestedDesigns() {
+        String requested = System.getenv("KORTTY_PREVIEW_DESIGN");
+        if (requested == null || requested.isBlank()) {
+            return GENERATED;
+        }
+        AppDesign design = AppDesign.fromId(requested);
+        if (design == AppDesign.NORMAL || !GENERATED.contains(design)) {
+            throw new IllegalArgumentException("Unsupported generated design: " + requested);
+        }
+        return EnumSet.of(design);
     }
 
     private static String stack(Throwable t) {

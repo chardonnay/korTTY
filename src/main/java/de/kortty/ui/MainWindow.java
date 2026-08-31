@@ -640,13 +640,9 @@ public class MainWindow {
             scene.setFill(Color.TRANSPARENT);
         }
         
-        // Load CSS stylesheet (safely)
-        var cssResource = getClass().getResource("/styles/terminal.css");
-        if (cssResource != null) {
-            scene.getStylesheets().add(cssResource.toExternalForm());
-        } else {
-            logger.warn("Could not load terminal.css stylesheet");
-        }
+        // Mark this as a korTTY base-themed surface. The helper keeps terminal.css for Modena and
+        // existing designs, but swaps it for component-only CSS when AtlantaFX owns native controls.
+        AppDesignStyleSupport.registerApplicationBaseStyles(scene);
         
         // Global keyboard shortcuts for zoom and fullscreen (works on all keyboard layouts)
         // Track if zoom was triggered to also consume KEY_TYPED event
@@ -3006,6 +3002,7 @@ public class MainWindow {
     }
 
     private static void refreshAppDesignForOpenWindows() {
+        AppDesignStyleSupport.applyUserAgentStylesheet(AppDesignStyleSupport.activeDesign());
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.applyMainWindowThemeFromGlobalSettings();
         }
